@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
+"""
+Main entry point for the game.
+Handles argument parsing and starts the game.
+"""
 import curses
 import argparse
 import sys
+from typing import Optional, Tuple
+
 from boneglaive.ui.game_ui import GameUI
-from boneglaive.utils.debug import debug_config, LogLevel
+from boneglaive.ui.menu_ui import MenuUI
+from boneglaive.utils.debug import debug_config, logger, LogLevel
 from boneglaive.utils.config import ConfigManager, NetworkMode, DisplayMode
 
 def parse_args():
@@ -12,6 +19,7 @@ def parse_args():
     
     # Game mode options
     mode_group = parser.add_argument_group('Game Mode Options')
+    mode_group.add_argument('--skip-menu', action='store_true', help='Skip menu and start game directly')
     mode_group.add_argument('--mode', choices=['single', 'local', 'lan_host', 'lan_client'],
                         default='single', help='Game mode (single, local, lan_host, lan_client)')
     mode_group.add_argument('--server', default='127.0.0.1', help='Server IP address for LAN mode')
@@ -39,13 +47,14 @@ def configure_settings(args):
     config = ConfigManager()
     
     # Network mode
-    network_mode_map = {
-        'single': NetworkMode.SINGLE_PLAYER.value,
-        'local': NetworkMode.LOCAL_MULTIPLAYER.value,
-        'lan_host': NetworkMode.LAN_HOST.value,
-        'lan_client': NetworkMode.LAN_CLIENT.value
-    }
-    config.set('network_mode', network_mode_map[args.mode])
+    if args.mode:
+        network_mode_map = {
+            'single': NetworkMode.SINGLE_PLAYER.value,
+            'local': NetworkMode.LOCAL_MULTIPLAYER.value,
+            'lan_host': NetworkMode.LAN_HOST.value,
+            'lan_client': NetworkMode.LAN_CLIENT.value
+        }
+        config.set('network_mode', network_mode_map[args.mode])
     
     # Server settings
     if args.mode in ['lan_host', 'lan_client']:
@@ -53,11 +62,12 @@ def configure_settings(args):
         config.set('server_port', args.port)
     
     # Display mode
-    display_mode_map = {
-        'text': DisplayMode.TEXT.value,
-        'graphical': DisplayMode.GRAPHICAL.value
-    }
-    config.set('display_mode', display_mode_map[args.display])
+    if args.display:
+        display_mode_map = {
+            'text': DisplayMode.TEXT.value,
+            'graphical': DisplayMode.GRAPHICAL.value
+        }
+        config.set('display_mode', display_mode_map[args.display])
     
     # Save configuration
     config.save_config()
@@ -81,23 +91,52 @@ def configure_settings(args):
     debug_config.perf_tracking = args.perf
     debug_config.show_debug_overlay = args.overlay
 
-def main(stdscr):
-    """Main game function."""    
-    # Create and start game
-    ui = GameUI(stdscr)
+def run_menu(stdscr) -> Optional[Tuple[str, None]]:
+    """Run the menu system."""
+    menu_ui = MenuUI(stdscr)
+    return menu_ui.run()
+
+def run_game(stdscr) -> None:
+    """Run the game."""
+    game_ui = GameUI(stdscr)
     
     running = True
     while running:
-        ui.draw_board()
+        game_ui.draw_board()
         key = stdscr.getch()
-        running = ui.handle_input(key)
+        running = game_ui.handle_input(key)
 
-if __name__ == "__main__":
-    # Parse command line arguments
+def main(stdscr):
+    """Main function that coordinates menu and game."""
+    # Setup
+    curses.curs_set(0)  # Hide cursor
+    stdscr.timeout(-1)  # No timeout for getch
+    
+    # Get arguments
     args = parse_args()
     
-    # Configure game settings
+    # Configure settings
     configure_settings(args)
     
-    # Start the game
+    # Initialize logging
+    logger.info("Starting Boneglaive")
+    
+    # Run menu or skip to game
+    if args.skip_menu:
+        logger.info("Skipping menu")
+        run_game(stdscr)
+    else:
+        # Run menu
+        logger.info("Starting menu")
+        menu_result = run_menu(stdscr)
+        
+        # Process menu result
+        if menu_result and menu_result[0] == "start_game":
+            logger.info("Starting game from menu")
+            run_game(stdscr)
+        else:
+            logger.info("Quitting from menu")
+
+if __name__ == "__main__":
+    # Start the application
     curses.wrapper(main)
