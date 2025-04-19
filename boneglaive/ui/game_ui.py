@@ -35,11 +35,19 @@ class GameUI:
         
         # Game state
         self.game = Game()
+        
+        # Set up multiplayer manager
+        from boneglaive.game.multiplayer_manager import MultiplayerManager
+        self.multiplayer = MultiplayerManager(self.game)
+        
         self.cursor_pos = Position(HEIGHT // 2, WIDTH // 2)
         self.selected_unit = None
         self.highlighted_positions = []
         self.mode = "select"  # select, move, attack
         self.message = ""
+        
+        # Update message with current player
+        self._update_player_message()
     
     def _setup_input_callbacks(self):
         """Set up callbacks for input handling."""
@@ -69,9 +77,18 @@ class GameUI:
     
     def _handle_select(self):
         """Handle selection action."""
+        # In multiplayer, only allow actions on current player's turn
+        if self.multiplayer.is_multiplayer() and not self.multiplayer.is_current_player_turn():
+            if not self.game.test_mode:  # Test mode overrides turn restrictions
+                self.message = "Not your turn!"
+                return
+        
         if self.mode == "select":
             unit = self.game.get_unit_at(self.cursor_pos.y, self.cursor_pos.x)
-            if unit and (unit.player == self.game.current_player or self.game.test_mode):
+            current_player = self.multiplayer.get_current_player()
+            
+            # Check if unit belongs to current player or test mode is on
+            if unit and (unit.player == current_player or self.game.test_mode):
                 self.selected_unit = unit
                 self.message = f"Selected {unit.type.name}"
             else:
@@ -99,31 +116,55 @@ class GameUI:
     
     def _handle_move_mode(self):
         """Enter move mode."""
+        # In multiplayer, only allow actions on current player's turn
+        if self.multiplayer.is_multiplayer() and not self.multiplayer.is_current_player_turn():
+            if not self.game.test_mode:  # Test mode overrides turn restrictions
+                self.message = "Not your turn!"
+                return
+                
         if self.selected_unit:
-            self.mode = "move"
+            current_player = self.multiplayer.get_current_player()
             
-            # Convert positions to Position objects
-            self.highlighted_positions = [
-                Position(y, x) for y, x in self.game.get_possible_moves(self.selected_unit)
-            ]
-            
-            if not self.highlighted_positions:
-                self.message = "No valid moves available"
+            # Check if unit belongs to current player or test mode is on
+            if self.selected_unit.player == current_player or self.game.test_mode:
+                self.mode = "move"
+                
+                # Convert positions to Position objects
+                self.highlighted_positions = [
+                    Position(y, x) for y, x in self.game.get_possible_moves(self.selected_unit)
+                ]
+                
+                if not self.highlighted_positions:
+                    self.message = "No valid moves available"
+            else:
+                self.message = "You can only move your own units!"
         else:
             self.message = "No unit selected"
     
     def _handle_attack_mode(self):
         """Enter attack mode."""
+        # In multiplayer, only allow actions on current player's turn
+        if self.multiplayer.is_multiplayer() and not self.multiplayer.is_current_player_turn():
+            if not self.game.test_mode:  # Test mode overrides turn restrictions
+                self.message = "Not your turn!"
+                return
+                
         if self.selected_unit:
-            self.mode = "attack"
+            current_player = self.multiplayer.get_current_player()
             
-            # Convert positions to Position objects
-            self.highlighted_positions = [
-                Position(y, x) for y, x in self.game.get_possible_attacks(self.selected_unit)
-            ]
-            
-            if not self.highlighted_positions:
-                self.message = "No valid targets in range"
+            # Check if unit belongs to current player or test mode is on
+            if self.selected_unit.player == current_player or self.game.test_mode:
+                self.mode = "attack"
+                
+                # Convert positions to Position objects
+                self.highlighted_positions = [
+                    Position(y, x) for y, x in self.game.get_possible_attacks(self.selected_unit)
+                ]
+                
+                if not self.highlighted_positions:
+                    self.message = "No valid targets in range"
+            else:
+                self.message = "You can only attack with your own units!"
         else:
             self.message = "No unit selected"
     
@@ -134,7 +175,23 @@ class GameUI:
         self.selected_unit = None
         self.highlighted_positions = []
         self.mode = "select"
+        
+        # Handle multiplayer turn switching
         if not self.game.winner:
+            # End turn in multiplayer manager
+            self.multiplayer.end_turn()
+            self._update_player_message()
+    
+    def _update_player_message(self):
+        """Update the message showing the current player."""
+        current_player = self.multiplayer.get_current_player()
+        
+        if self.multiplayer.is_multiplayer():
+            if self.multiplayer.is_current_player_turn():
+                self.message = f"Turn {self.game.turn}, Player {current_player}'s turn (YOU)"
+            else:
+                self.message = f"Turn {self.game.turn}, Player {current_player}'s turn (WAITING)"
+        else:
             self.message = f"Turn {self.game.turn}, Player {self.game.current_player}'s turn"
     
     def _handle_test_mode(self):
@@ -237,9 +294,16 @@ class GameUI:
         self.renderer.clear_screen()
         
         # Draw header
-        header = f"Turn: {self.game.turn} | Player: {self.game.current_player} | Mode: {self.mode}"
+        current_player = self.multiplayer.get_current_player()
+        game_mode = "Single" if not self.multiplayer.is_multiplayer() else "Local" if self.multiplayer.is_local_multiplayer() else "LAN"
+        
+        header = f"Turn: {self.game.turn} | Player: {current_player} | Mode: {self.mode} | Game: {game_mode}"
+        if self.multiplayer.is_multiplayer():
+            header += f" | {'YOUR TURN' if self.multiplayer.is_current_player_turn() else 'WAITING'}"
+            
         if debug_config.enabled:
             header += " | DEBUG ON"
+            
         self.renderer.draw_text(0, 0, header)
         
         # Draw the battlefield
