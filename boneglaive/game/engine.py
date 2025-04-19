@@ -14,6 +14,7 @@ class Game:
         self.turn = 1
         self.winner = None
         self.test_mode = False  # For debugging
+        self.local_multiplayer = False
         
         # Initialize with some units
         self.setup_initial_units()
@@ -120,8 +121,9 @@ class Game:
         # Check if game is over
         self.check_game_over()
         
-        # Switch player if game is not over
-        if not self.winner:
+        # In single player mode, switch player automatically
+        # In multiplayer, the player switching is handled by the multiplayer manager
+        if not self.winner and not self.local_multiplayer:
             self.current_player = 3 - self.current_player  # Toggle between 1 and 2
             if self.current_player == 1:
                 self.turn += 1
