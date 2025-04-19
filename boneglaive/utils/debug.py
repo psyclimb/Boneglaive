@@ -74,6 +74,9 @@ class DebugConfig:
 # Create a global debug configuration instance
 debug_config = DebugConfig()
 
+# Create a root logger for convenience access
+logger = logging.getLogger('boneglaive')
+
 # Function timing decorator
 def measure_perf(func):
     @wraps(func)
