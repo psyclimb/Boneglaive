@@ -39,10 +39,18 @@ boneglaive/
 ├── ui/
 │   ├── __init__.py
 │   └── game_ui.py    # UI handling (GameUI class)
-└── utils/
+├── renderers/
 │   ├── __init__.py
-│   ├── constants.py  # Game constants, enums
-│   └── debug.py      # Debugging utilities
+│   └── curses_renderer.py # Text-based renderer implementation
+└── utils/
+    ├── __init__.py
+    ├── constants.py  # Game constants, enums
+    ├── debug.py      # Debugging utilities
+    ├── config.py     # Configuration management
+    ├── coordinates.py # Coordinate system utilities
+    ├── asset_manager.py # Asset management
+    ├── input_handler.py # Input abstraction
+    └── render_interface.py # Renderer abstraction
 ```
 
 ## Best Practices
@@ -76,6 +84,15 @@ boneglaive/
 - Use `game_assert()` for validation that shouldn't crash production code
 - Add new features to debug overlay when appropriate
 - Save game states for debugging using 'S' key in debug mode
+
+## Renderer Abstraction
+
+- All rendering should use the RenderInterface abstraction
+- Game logic should never directly call rendering functions
+- Coordinate translations should use the coordinates utility
+- Asset references should use the AssetManager
+- Input handling should use the InputHandler's logical actions
+- Configuration changes should persist using ConfigManager
 
 ## Versioning
 
