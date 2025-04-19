@@ -88,11 +88,14 @@ class MessageLog:
             attacker_player: Player number of attacker (optional)
             target_player: Player number of target (optional)
         """
-        # Build the message text based on available information
+        # Build the message text based on available information with player information
+        attacker_info = f"Player {attacker_player}'s {attacker_name}" if attacker_player else f"{attacker_name}"
+        target_info = f"Player {target_player}'s {target_name}" if target_player else f"{target_name}"
+        
         if ability:
-            message = f"{attacker_name} hits {target_name} for {damage} damage with {ability}!"
+            message = f"{attacker_info} hits {target_info} for {damage} damage with {ability}!"
         else:
-            message = f"{attacker_name} hits {target_name} for {damage} damage!"
+            message = f"{attacker_info} hits {target_info} for {damage} damage!"
             
         # Add the message
         self.add_message(

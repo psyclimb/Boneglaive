@@ -125,8 +125,9 @@ class Game:
                     
                     # Check if target was defeated
                     if target.hp <= 0:
+                        target_info = f"Player {target.player}'s {target.type.name}" if target.player else f"{target.type.name}"
                         message_log.add_message(
-                            f"{target.type.name} was defeated!",
+                            f"{target_info} was defeated!",
                             MessageType.COMBAT,
                             player=unit.player,
                             target=target.player
