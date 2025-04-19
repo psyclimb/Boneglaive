@@ -115,6 +115,16 @@ boneglaive/
   - Always handle network errors gracefully
   - Provide fallback to local play if network disconnects
 
+### LAN Multiplayer Guidelines
+
+- Test multiplayer features on actual networks, not just localhost
+- Add simple game discovery for finding LAN games
+- Implement basic connection status indicators in UI
+- Keep synchronization messages small and efficient 
+- Add timeout handling for network operations
+- Log network events for debugging connection issues
+- Consider latency when designing game mechanics
+
 ## Versioning
 
 - Project is currently in conceptualization/POC stage
