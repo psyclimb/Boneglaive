@@ -14,6 +14,7 @@ from boneglaive.utils.config import ConfigManager
 from boneglaive.utils.input_handler import InputHandler, GameAction
 from boneglaive.renderers.curses_renderer import CursesRenderer
 from boneglaive.utils.render_interface import RenderInterface
+from boneglaive.utils.message_log import message_log, MessageType
 
 class GameUI:
     """User interface for the game."""
@@ -45,6 +46,17 @@ class GameUI:
         self.highlighted_positions = []
         self.mode = "select"  # select, move, attack
         self.message = ""
+        self.show_log = True  # Whether to show the message log
+        self.log_height = 5   # Number of log lines to display
+        
+        # Welcome message
+        message_log.add_system_message("Welcome to Boneglaive!")
+        
+        # Add game mode message
+        if self.multiplayer.is_local_multiplayer():
+            message_log.add_system_message("Local multiplayer mode. Players will take turns on this computer.")
+        elif self.multiplayer.is_network_multiplayer():
+            message_log.add_system_message("LAN multiplayer mode. Connected to remote player.")
         
         # Update message with current player
         self._update_player_message()
@@ -68,6 +80,15 @@ class GameUI:
             GameAction.DEBUG_PERFORMANCE: self._handle_debug_performance,
             GameAction.DEBUG_SAVE: self._handle_debug_save
         })
+        
+        # Add custom key for toggling message log
+        self.input_handler.add_mapping(ord('l'), GameAction.DEBUG_INFO)  # Reuse DEBUG_INFO for log toggle
+        
+    def _toggle_message_log(self):
+        """Toggle the message log display."""
+        self.show_log = not self.show_log
+        self.message = f"Message log {'shown' if self.show_log else 'hidden'}"
+        message_log.add_system_message(f"Message log {'shown' if self.show_log else 'hidden'}")
     
     def _move_cursor(self, dy: int, dx: int):
         """Move the cursor by the given delta."""
@@ -81,6 +102,7 @@ class GameUI:
         if self.multiplayer.is_multiplayer() and not self.multiplayer.is_current_player_turn():
             if not self.game.test_mode:  # Test mode overrides turn restrictions
                 self.message = "Not your turn!"
+                message_log.add_message("Not your turn!", MessageType.WARNING)
                 return
         
         if self.mode == "select":
@@ -91,19 +113,47 @@ class GameUI:
             if unit and (unit.player == current_player or self.game.test_mode):
                 self.selected_unit = unit
                 self.message = f"Selected {unit.type.name}"
+                message_log.add_message(
+                    f"Selected {unit.type.name} at ({unit.y},{unit.x})", 
+                    MessageType.SYSTEM,
+                    player=current_player
+                )
             else:
                 self.message = "No valid unit selected"
+                if unit:
+                    message_log.add_message(
+                        f"Cannot select {unit.type.name} - belongs to Player {unit.player}", 
+                        MessageType.WARNING
+                    )
+                else:
+                    message_log.add_message("No unit at that position", MessageType.WARNING)
         
         elif self.mode == "move" and Position(self.cursor_pos.y, self.cursor_pos.x) in self.highlighted_positions:
             self.selected_unit.move_target = (self.cursor_pos.y, self.cursor_pos.x)
+            unit_type = self.selected_unit.type.name
+            start_pos = (self.selected_unit.y, self.selected_unit.x)
+            end_pos = (self.cursor_pos.y, self.cursor_pos.x)
+            
             self.message = f"Move set to ({self.cursor_pos.y}, {self.cursor_pos.x})"
+            message_log.add_message(
+                f"{unit_type} will move from {start_pos} to {end_pos}", 
+                MessageType.MOVEMENT,
+                player=self.selected_unit.player
+            )
             self.mode = "select"
             self.highlighted_positions = []
         
         elif self.mode == "attack" and Position(self.cursor_pos.y, self.cursor_pos.x) in self.highlighted_positions:
             self.selected_unit.attack_target = (self.cursor_pos.y, self.cursor_pos.x)
             target = self.game.get_unit_at(self.cursor_pos.y, self.cursor_pos.x)
+            
             self.message = f"Attack set against {target.type.name}"
+            message_log.add_message(
+                f"{self.selected_unit.type.name} will attack {target.type.name}", 
+                MessageType.COMBAT,
+                player=self.selected_unit.player,
+                target=target.player
+            )
             self.mode = "select"
             self.highlighted_positions = []
     
@@ -188,22 +238,35 @@ class GameUI:
         
         if self.multiplayer.is_multiplayer():
             if self.multiplayer.is_current_player_turn():
-                self.message = f"Turn {self.game.turn}, Player {current_player}'s turn (YOU)"
+                message = f"Turn {self.game.turn}, Player {current_player}'s turn (YOU)"
+                message_log.add_system_message(f"Player {current_player}'s turn")
             else:
-                self.message = f"Turn {self.game.turn}, Player {current_player}'s turn (WAITING)"
+                message = f"Turn {self.game.turn}, Player {current_player}'s turn (WAITING)"
+                message_log.add_system_message(f"Waiting for Player {current_player}'s turn")
         else:
-            self.message = f"Turn {self.game.turn}, Player {self.game.current_player}'s turn"
+            message = f"Turn {self.game.turn}, Player {self.game.current_player}'s turn"
+            message_log.add_system_message(f"Turn {self.game.turn}, Player {self.game.current_player}'s turn")
+        
+        self.message = message
     
     def _handle_test_mode(self):
         """Toggle test mode."""
         self.game.toggle_test_mode()
         if self.game.test_mode:
             self.message = "Test mode ON - both players can control all units"
+            message_log.add_system_message("Test mode enabled")
         else:
             self.message = "Test mode OFF"
+            message_log.add_system_message("Test mode disabled")
     
     def _handle_debug_info(self):
-        """Show debug info."""
+        """Toggle message log or show debug info."""
+        # Toggle message log when 'l' is pressed
+        if self.input_handler.action_map.get(ord('l')) == GameAction.DEBUG_INFO:
+            self._toggle_message_log()
+            return
+            
+        # Otherwise show unit positions
         debug_info = []
         for unit in self.game.units:
             if unit.is_alive():
@@ -215,7 +278,10 @@ class GameUI:
         """Toggle debug mode."""
         debug_enabled = debug_config.toggle()
         self.message = f"Debug mode {'ON' if debug_enabled else 'OFF'}"
-        logger.info(f"Debug mode {'enabled' if debug_enabled else 'disabled'}")
+        
+        message_text = f"Debug mode {'enabled' if debug_enabled else 'disabled'}"
+        logger.info(message_text)
+        message_log.add_message(message_text, MessageType.DEBUG)
     
     def _handle_debug_overlay(self):
         """Toggle debug overlay."""
@@ -339,6 +405,10 @@ class GameUI:
                 
                 # Draw the cell
                 self.renderer.draw_tile(y, x, tile, color_id)
+                
+        # Draw message log if enabled
+        if self.show_log:
+            self._draw_message_log()
         
         # Draw unit info
         if self.selected_unit:
@@ -353,7 +423,7 @@ class GameUI:
         
         # Draw controls
         controls = "[↑↓←→] Move cursor | [ENTER] Select | [m] Move | [a] Attack | [e] End turn"
-        controls += " | [t] Toggle test mode | [q] Quit"
+        controls += " | [t] Test mode | [l] Log | [q] Quit"
         self.renderer.draw_text(HEIGHT+7, 0, controls)
         
         # Draw winner info if game is over
@@ -380,6 +450,26 @@ class GameUI:
                 logger.error(f"Error displaying debug overlay: {str(e)}")
         
         self.renderer.refresh()
+    
+    def _draw_message_log(self):
+        """Draw the message log in the game UI."""
+        try:
+            # Get formatted messages (with colors)
+            messages = message_log.get_formatted_messages(self.log_height)
+            
+            # Calculate position for the log (top of screen)
+            start_y = HEIGHT + 11
+            
+            # Draw message log header
+            self.renderer.draw_text(start_y, 0, "=== MESSAGE LOG ===", 1, curses.A_BOLD)
+            
+            # Draw messages in reverse order (newest at the bottom)
+            for i, (text, color_id) in enumerate(reversed(messages)):
+                y_pos = start_y + self.log_height - i
+                self.renderer.draw_text(y_pos, 2, text, color_id)
+        except Exception as e:
+            # Never let message log crash the game
+            logger.error(f"Error displaying message log: {str(e)}")
     
     def handle_input(self, key: int) -> bool:
         """

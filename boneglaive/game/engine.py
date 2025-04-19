@@ -3,6 +3,7 @@ import logging
 from boneglaive.utils.constants import UnitType, HEIGHT, WIDTH
 from boneglaive.game.units import Unit
 from boneglaive.utils.debug import debug_config, measure_perf, game_assert
+from boneglaive.utils.message_log import message_log, MessageType
 
 # Set up module logger
 logger = debug_config.setup_logging('game.engine')
@@ -112,6 +113,24 @@ class Game:
                     # Calculate and apply damage
                     damage = max(1, unit.attack - target.defense)
                     target.hp = max(0, target.hp - damage)
+                    
+                    # Log combat message
+                    message_log.add_combat_message(
+                        attacker_name=f"{unit.type.name}",
+                        target_name=f"{target.type.name}",
+                        damage=damage,
+                        attacker_player=unit.player,
+                        target_player=target.player
+                    )
+                    
+                    # Check if target was defeated
+                    if target.hp <= 0:
+                        message_log.add_message(
+                            f"{target.type.name} was defeated!",
+                            MessageType.COMBAT,
+                            player=unit.player,
+                            target=target.player
+                        )
         
         # Clear all actions
         for unit in self.units:
@@ -134,8 +153,10 @@ class Game:
         
         if not player1_alive:
             self.winner = 2
+            message_log.add_system_message(f"Player 2 wins! All Player 1 units have been defeated.")
         elif not player2_alive:
             self.winner = 1
+            message_log.add_system_message(f"Player 1 wins! All Player 2 units have been defeated.")
     
     def toggle_test_mode(self):
         self.test_mode = not self.test_mode
