@@ -42,6 +42,13 @@ boneglaive/
 ├── renderers/
 │   ├── __init__.py
 │   └── curses_renderer.py # Text-based renderer implementation
+├── networking/
+│   ├── __init__.py
+│   ├── network_interface.py # Abstract network interface
+│   ├── local_multiplayer.py # Local multiplayer implementation
+│   ├── lan_multiplayer.py   # LAN multiplayer implementation
+│   ├── game_server.py       # Game server for LAN play
+│   └── game_state_sync.py   # Game state synchronization
 └── utils/
     ├── __init__.py
     ├── constants.py  # Game constants, enums
@@ -93,6 +100,20 @@ boneglaive/
 - Asset references should use the AssetManager
 - Input handling should use the InputHandler's logical actions
 - Configuration changes should persist using ConfigManager
+
+## Networking Architecture
+
+- Use NetworkInterface for all network communications
+- Support three game modes: single-player, local multiplayer, LAN multiplayer
+- Follow these principles for multiplayer implementation:
+  - Use the NetworkInterface to abstract connection details
+  - Separate game logic from network code
+  - Use GameStateSync for state synchronization between clients
+  - Host acts as authoritative server for game state
+  - Minimize network traffic by sending only changes
+  - Use MessageType enum for consistent message handling
+  - Always handle network errors gracefully
+  - Provide fallback to local play if network disconnects
 
 ## Versioning
 
