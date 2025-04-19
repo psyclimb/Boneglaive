@@ -48,6 +48,7 @@ class GameUI:
         self.message = ""
         self.show_log = True  # Whether to show the message log
         self.log_height = 5   # Number of log lines to display
+        self.show_help = False  # Whether to show help screen
         
         # Welcome message
         message_log.add_system_message("Welcome to Boneglaive!")
@@ -78,7 +79,8 @@ class GameUI:
             GameAction.DEBUG_TOGGLE: self._handle_debug_toggle,
             GameAction.DEBUG_OVERLAY: self._handle_debug_overlay,
             GameAction.DEBUG_PERFORMANCE: self._handle_debug_performance,
-            GameAction.DEBUG_SAVE: self._handle_debug_save
+            GameAction.DEBUG_SAVE: self._handle_debug_save,
+            GameAction.HELP: self._toggle_help_screen
         })
         
         # Add custom key for toggling message log
@@ -89,6 +91,12 @@ class GameUI:
         self.show_log = not self.show_log
         self.message = f"Message log {'shown' if self.show_log else 'hidden'}"
         message_log.add_system_message(f"Message log {'shown' if self.show_log else 'hidden'}")
+    
+    def _toggle_help_screen(self):
+        """Toggle the help screen display."""
+        self.show_help = not self.show_help
+        self.draw_board()  # Redraw the board immediately to show/hide help
+        message_log.add_system_message(f"Help screen {'shown' if self.show_help else 'hidden'}")
     
     def _move_cursor(self, dy: int, dx: int):
         """Move the cursor by the given delta."""
@@ -233,21 +241,19 @@ class GameUI:
             self._update_player_message()
     
     def _update_player_message(self):
-        """Update the message showing the current player."""
+        """Update the message showing the current player (only in message log)."""
         current_player = self.multiplayer.get_current_player()
         
         if self.multiplayer.is_multiplayer():
             if self.multiplayer.is_current_player_turn():
-                message = f"Turn {self.game.turn}, Player {current_player}'s turn (YOU)"
-                message_log.add_system_message(f"Player {current_player}'s turn")
+                message_log.add_system_message(f"Turn {self.game.turn}, Player {current_player}'s turn (YOU)")
             else:
-                message = f"Turn {self.game.turn}, Player {current_player}'s turn (WAITING)"
-                message_log.add_system_message(f"Waiting for Player {current_player}'s turn")
+                message_log.add_system_message(f"Turn {self.game.turn}, Player {current_player}'s turn (WAITING)")
         else:
-            message = f"Turn {self.game.turn}, Player {self.game.current_player}'s turn"
             message_log.add_system_message(f"Turn {self.game.turn}, Player {self.game.current_player}'s turn")
         
-        self.message = message
+        # Keep the message display area clear
+        self.message = ""
     
     def _handle_test_mode(self):
         """Toggle test mode."""
@@ -359,11 +365,17 @@ class GameUI:
         """Draw the game board and UI."""
         self.renderer.clear_screen()
         
+        # If help screen is being shown, draw it and return
+        if self.show_help:
+            self._draw_help_screen()
+            self.renderer.refresh()
+            return
+        
         # Draw header
         current_player = self.multiplayer.get_current_player()
         game_mode = "Single" if not self.multiplayer.is_multiplayer() else "Local" if self.multiplayer.is_local_multiplayer() else "LAN"
         
-        header = f"Turn: {self.game.turn} | Player: {current_player} | Mode: {self.mode} | Game: {game_mode}"
+        header = f"Player: {current_player} | Mode: {self.mode} | Game: {game_mode}"
         if self.multiplayer.is_multiplayer():
             header += f" | {'YOUR TURN' if self.multiplayer.is_current_player_turn() else 'WAITING'}"
             
@@ -416,19 +428,18 @@ class GameUI:
             unit_info = f"Selected: {unit.type.name} | HP: {unit.hp}/{unit.max_hp} | " \
                         f"ATK: {unit.attack} | DEF: {unit.defense} | " \
                         f"Move: {unit.move_range} | Range: {unit.attack_range}"
-            self.renderer.draw_text(HEIGHT+3, 0, unit_info)
+            self.renderer.draw_text(HEIGHT+1, 0, unit_info)
         
         # Draw message
-        self.renderer.draw_text(HEIGHT+5, 0, self.message)
+        self.renderer.draw_text(HEIGHT+2, 0, self.message)
         
-        # Draw controls
-        controls = "[↑↓←→] Move cursor | [ENTER] Select | [m] Move | [a] Attack | [e] End turn"
-        controls += " | [t] Test mode | [l] Log | [q] Quit"
-        self.renderer.draw_text(HEIGHT+7, 0, controls)
+        # Draw simplified help reminder
+        help_text = "Press ? for help"
+        self.renderer.draw_text(HEIGHT+3, 0, help_text)
         
         # Draw winner info if game is over
         if self.game.winner:
-            self.renderer.draw_text(HEIGHT+9, 0, f"Player {self.game.winner} wins!", curses.A_BOLD)
+            self.renderer.draw_text(HEIGHT+4, 0, f"Player {self.game.winner} wins!", curses.A_BOLD)
         
         # Draw debug overlay if enabled
         if debug_config.show_debug_overlay:
@@ -441,8 +452,8 @@ class GameUI:
                 overlay_lines.append(f"Game State: Turn {game_state['turn']}, Player {game_state['current_player']}")
                 overlay_lines.append(f"Units: {len(game_state['units'])}")
                 
-                # Display overlay at the bottom of the screen
-                line_offset = HEIGHT + 11
+                # Display overlay below message log
+                line_offset = HEIGHT + 5 + self.log_height + 2
                 for i, line in enumerate(overlay_lines):
                     self.renderer.draw_text(line_offset + i, 0, line, 1, curses.A_DIM)
             except Exception as e:
@@ -457,8 +468,8 @@ class GameUI:
             # Get formatted messages (with colors)
             messages = message_log.get_formatted_messages(self.log_height)
             
-            # Calculate position for the log (top of screen)
-            start_y = HEIGHT + 11
+            # Calculate position for the log (closer to the game info)
+            start_y = HEIGHT + 5
             
             # Draw message log header
             self.renderer.draw_text(start_y, 0, "=== MESSAGE LOG ===", 1, curses.A_BOLD)
@@ -470,6 +481,52 @@ class GameUI:
         except Exception as e:
             # Never let message log crash the game
             logger.error(f"Error displaying message log: {str(e)}")
+    
+    def _draw_help_screen(self):
+        """Draw the help screen overlay."""
+        try:
+            # Clear the screen area for help display
+            self.renderer.clear_screen()
+            
+            # Draw help title
+            self.renderer.draw_text(2, 2, "=== BONEGLAIVE HELP ===", 1, curses.A_BOLD)
+            
+            # Draw control information section
+            self.renderer.draw_text(4, 2, "BASIC CONTROLS:", 1, curses.A_BOLD)
+            controls = [
+                "Arrow keys: Move cursor",
+                "Enter: Select unit/confirm action",
+                "m: Move selected unit",
+                "a: Attack with selected unit",
+                "e: End turn",
+                "c: Clear selection",
+                "l: Toggle message log",
+                "t: Toggle test mode (allows controlling both players' units)",
+                "q: Quit game",
+                "?: Toggle this help screen"
+            ]
+            
+            for i, control in enumerate(controls):
+                self.renderer.draw_text(6 + i, 4, control)
+            
+            # Draw debug controls section
+            self.renderer.draw_text(17, 2, "DEBUG CONTROLS:", 1, curses.A_BOLD)
+            debug_controls = [
+                "d: Show unit positions",
+                "D (Shift+D): Toggle debug mode",
+                "O (Shift+O): Toggle debug overlay",
+                "P (Shift+P): Toggle performance tracking",
+                "S (Shift+S): Save game state to file (debug mode only)"
+            ]
+            
+            for i, control in enumerate(debug_controls):
+                self.renderer.draw_text(19 + i, 4, control)
+            
+            # Footer
+            self.renderer.draw_text(HEIGHT - 2, 2, "Press ? again to return to game", 1, curses.A_BOLD)
+            
+        except Exception as e:
+            logger.error(f"Error displaying help screen: {str(e)}")
     
     def handle_input(self, key: int) -> bool:
         """

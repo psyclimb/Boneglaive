@@ -25,6 +25,7 @@ class GameAction(Enum):
     DEBUG_OVERLAY = auto()
     DEBUG_PERFORMANCE = auto()
     DEBUG_SAVE = auto()
+    HELP = auto()  # New action for help screen
     QUIT = auto()
 
 class InputHandler:
@@ -65,6 +66,9 @@ class InputHandler:
             self.action_map[ord('O')] = GameAction.DEBUG_OVERLAY
             self.action_map[ord('P')] = GameAction.DEBUG_PERFORMANCE
             self.action_map[ord('S')] = GameAction.DEBUG_SAVE
+            
+            # Help key
+            self.action_map[ord('?')] = GameAction.HELP
     
     def register_action_callback(self, action: GameAction, callback: Callable) -> None:
         """Register a callback function for a game action."""
