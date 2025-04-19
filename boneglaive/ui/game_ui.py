@@ -3,79 +3,229 @@ import curses
 import time
 import json
 import os
-from boneglaive.utils.constants import HEIGHT, WIDTH, UNIT_SYMBOLS, ATTACK_EFFECTS, UnitType
-from boneglaive.game.engine import Game
-from boneglaive.game.animations import get_line
-from boneglaive.utils.debug import debug_config, measure_perf, game_assert
+from typing import Optional, List, Tuple, Dict
 
-# Set up module logger
-logger = debug_config.setup_logging('ui.game_ui')
+from boneglaive.utils.constants import HEIGHT, WIDTH, UnitType
+from boneglaive.game.engine import Game
+from boneglaive.utils.coordinates import Position
+from boneglaive.utils.debug import debug_config, measure_perf, logger
+from boneglaive.utils.asset_manager import AssetManager
+from boneglaive.utils.config import ConfigManager
+from boneglaive.utils.input_handler import InputHandler, GameAction
+from boneglaive.renderers.curses_renderer import CursesRenderer
+from boneglaive.utils.render_interface import RenderInterface
 
 class GameUI:
+    """User interface for the game."""
+    
     def __init__(self, stdscr):
-        self.stdscr = stdscr
+        # Initialize configuration
+        self.config_manager = ConfigManager()
+        
+        # Set up renderer
+        self.renderer = CursesRenderer(stdscr)
+        self.renderer.initialize()
+        
+        # Set up asset manager
+        self.asset_manager = AssetManager(self.config_manager)
+        
+        # Set up input handler
+        self.input_handler = InputHandler()
+        self._setup_input_callbacks()
+        
+        # Game state
         self.game = Game()
-        self.cursor_y = HEIGHT // 2
-        self.cursor_x = WIDTH // 2
+        self.cursor_pos = Position(HEIGHT // 2, WIDTH // 2)
         self.selected_unit = None
         self.highlighted_positions = []
         self.mode = "select"  # select, move, attack
         self.message = ""
-        self.setup_colors()
     
-    def setup_colors(self):
-        curses.start_color()
-        curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLACK)  # Default
-        curses.init_pair(2, curses.COLOR_BLACK, curses.COLOR_WHITE)  # Cursor
-        curses.init_pair(3, curses.COLOR_RED, curses.COLOR_BLACK)    # Player 1
-        curses.init_pair(4, curses.COLOR_BLUE, curses.COLOR_BLACK)   # Player 2
-        curses.init_pair(5, curses.COLOR_BLACK, curses.COLOR_GREEN)  # Highlighted move
-        curses.init_pair(6, curses.COLOR_BLACK, curses.COLOR_RED)    # Highlighted attack
-        curses.init_pair(7, curses.COLOR_YELLOW, curses.COLOR_BLACK) # Attack animation
+    def _setup_input_callbacks(self):
+        """Set up callbacks for input handling."""
+        self.input_handler.register_action_callbacks({
+            GameAction.MOVE_UP: lambda: self._move_cursor(-1, 0),
+            GameAction.MOVE_DOWN: lambda: self._move_cursor(1, 0),
+            GameAction.MOVE_LEFT: lambda: self._move_cursor(0, -1),
+            GameAction.MOVE_RIGHT: lambda: self._move_cursor(0, 1),
+            GameAction.SELECT: self._handle_select,
+            GameAction.CANCEL: self._handle_cancel,
+            GameAction.MOVE_MODE: self._handle_move_mode,
+            GameAction.ATTACK_MODE: self._handle_attack_mode,
+            GameAction.END_TURN: self._handle_end_turn,
+            GameAction.TEST_MODE: self._handle_test_mode,
+            GameAction.DEBUG_INFO: self._handle_debug_info,
+            GameAction.DEBUG_TOGGLE: self._handle_debug_toggle,
+            GameAction.DEBUG_OVERLAY: self._handle_debug_overlay,
+            GameAction.DEBUG_PERFORMANCE: self._handle_debug_performance,
+            GameAction.DEBUG_SAVE: self._handle_debug_save
+        })
     
+    def _move_cursor(self, dy: int, dx: int):
+        """Move the cursor by the given delta."""
+        new_y = max(0, min(HEIGHT-1, self.cursor_pos.y + dy))
+        new_x = max(0, min(WIDTH-1, self.cursor_pos.x + dx))
+        self.cursor_pos = Position(new_y, new_x)
+    
+    def _handle_select(self):
+        """Handle selection action."""
+        if self.mode == "select":
+            unit = self.game.get_unit_at(self.cursor_pos.y, self.cursor_pos.x)
+            if unit and (unit.player == self.game.current_player or self.game.test_mode):
+                self.selected_unit = unit
+                self.message = f"Selected {unit.type.name}"
+            else:
+                self.message = "No valid unit selected"
+        
+        elif self.mode == "move" and Position(self.cursor_pos.y, self.cursor_pos.x) in self.highlighted_positions:
+            self.selected_unit.move_target = (self.cursor_pos.y, self.cursor_pos.x)
+            self.message = f"Move set to ({self.cursor_pos.y}, {self.cursor_pos.x})"
+            self.mode = "select"
+            self.highlighted_positions = []
+        
+        elif self.mode == "attack" and Position(self.cursor_pos.y, self.cursor_pos.x) in self.highlighted_positions:
+            self.selected_unit.attack_target = (self.cursor_pos.y, self.cursor_pos.x)
+            target = self.game.get_unit_at(self.cursor_pos.y, self.cursor_pos.x)
+            self.message = f"Attack set against {target.type.name}"
+            self.mode = "select"
+            self.highlighted_positions = []
+    
+    def _handle_cancel(self):
+        """Handle cancel action."""
+        self.selected_unit = None
+        self.highlighted_positions = []
+        self.mode = "select"
+        self.message = "Selection cleared"
+    
+    def _handle_move_mode(self):
+        """Enter move mode."""
+        if self.selected_unit:
+            self.mode = "move"
+            
+            # Convert positions to Position objects
+            self.highlighted_positions = [
+                Position(y, x) for y, x in self.game.get_possible_moves(self.selected_unit)
+            ]
+            
+            if not self.highlighted_positions:
+                self.message = "No valid moves available"
+        else:
+            self.message = "No unit selected"
+    
+    def _handle_attack_mode(self):
+        """Enter attack mode."""
+        if self.selected_unit:
+            self.mode = "attack"
+            
+            # Convert positions to Position objects
+            self.highlighted_positions = [
+                Position(y, x) for y, x in self.game.get_possible_attacks(self.selected_unit)
+            ]
+            
+            if not self.highlighted_positions:
+                self.message = "No valid targets in range"
+        else:
+            self.message = "No unit selected"
+    
+    def _handle_end_turn(self):
+        """End the current turn."""
+        # Pass UI to execute_turn for animations
+        self.game.execute_turn(self)
+        self.selected_unit = None
+        self.highlighted_positions = []
+        self.mode = "select"
+        if not self.game.winner:
+            self.message = f"Turn {self.game.turn}, Player {self.game.current_player}'s turn"
+    
+    def _handle_test_mode(self):
+        """Toggle test mode."""
+        self.game.toggle_test_mode()
+        if self.game.test_mode:
+            self.message = "Test mode ON - both players can control all units"
+        else:
+            self.message = "Test mode OFF"
+    
+    def _handle_debug_info(self):
+        """Show debug info."""
+        debug_info = []
+        for unit in self.game.units:
+            if unit.is_alive():
+                debug_info.append(f"({unit.y},{unit.x})")
+        self.message = f"Unit positions: {' '.join(debug_info)}"
+        logger.debug(f"Unit positions: {debug_info}")
+    
+    def _handle_debug_toggle(self):
+        """Toggle debug mode."""
+        debug_enabled = debug_config.toggle()
+        self.message = f"Debug mode {'ON' if debug_enabled else 'OFF'}"
+        logger.info(f"Debug mode {'enabled' if debug_enabled else 'disabled'}")
+    
+    def _handle_debug_overlay(self):
+        """Toggle debug overlay."""
+        overlay_enabled = debug_config.toggle_overlay()
+        self.message = f"Debug overlay {'ON' if overlay_enabled else 'OFF'}"
+    
+    def _handle_debug_performance(self):
+        """Toggle performance tracking."""
+        perf_enabled = debug_config.toggle_perf_tracking()
+        self.message = f"Performance tracking {'ON' if perf_enabled else 'OFF'}"
+    
+    def _handle_debug_save(self):
+        """Save game state to file."""
+        if not debug_config.enabled:
+            return
+            
+        try:
+            game_state = self.game.get_game_state()
+            os.makedirs('debug', exist_ok=True)
+            filename = f"debug/game_state_turn{self.game.turn}.json"
+            with open(filename, 'w') as f:
+                json.dump(game_state, f, indent=2)
+            self.message = f"Game state saved to {filename}"
+            logger.info(f"Game state saved to {filename}")
+        except Exception as e:
+            self.message = f"Error saving game state: {str(e)}"
+            logger.error(f"Error saving game state: {str(e)}")
+    
+    @measure_perf
     def show_attack_animation(self, attacker, target):
-        """Show a visual animation for attacks"""
-        effect_char = ATTACK_EFFECTS[attacker.type]
-        effect_color = curses.color_pair(7)
+        """Show a visual animation for attacks."""
+        # Get attack effect from asset manager
+        effect_tile = self.asset_manager.get_attack_effect(attacker.type)
+        
+        # Create start and end positions
+        start_pos = Position(attacker.y, attacker.x)
+        end_pos = Position(target.y, target.x)
         
         # For ranged attacks (archer and mage), show projectile path
         if attacker.type in [UnitType.ARCHER, UnitType.MAGE]:
-            # Calculate path from attacker to target (note: y,x order for positions)
-            path = get_line(attacker.y, attacker.x, target.y, target.x)
-            
-            # Animate projectile along path
-            for pos_y, pos_x in path:
-                # Skip the attacker's position and the target's position
-                if (pos_y, pos_x) != (attacker.y, attacker.x) and (pos_y, pos_x) != (target.y, target.x):
-                    # Draw effect at the current position (add 2 to y for UI offset)
-                    self.stdscr.addstr(pos_y+2, pos_x*2, effect_char, effect_color)
-                    self.stdscr.refresh()
-                    time.sleep(0.1)  # Animation speed
-        
+            # Animate projectile using renderer
+            self.renderer.animate_projectile(
+                (start_pos.y, start_pos.x),
+                (end_pos.y, end_pos.x),
+                effect_tile,
+                7,  # color ID
+                0.1  # duration
+            )
         # For melee attacks (warrior), just flash the effect on target
         else:
-            self.stdscr.addstr(target.y+2, target.x*2, effect_char, effect_color)
-            self.stdscr.refresh()
+            # Draw effect at target position
+            self.renderer.draw_tile(target.y, target.x, effect_tile, 7)
+            self.renderer.refresh()
             time.sleep(0.2)
         
         # Flash the target to show it was hit
-        for _ in range(3):
-            # Flash target position with inverse colors
-            self.stdscr.addstr(target.y+2, target.x*2, UNIT_SYMBOLS[target.type], 
-                              curses.color_pair(6 if target.player == 1 else 5))
-            self.stdscr.refresh()
-            time.sleep(0.1)
-            
-            # Restore normal color
-            target_color = curses.color_pair(3 if target.player == 1 else 4)
-            self.stdscr.addstr(target.y+2, target.x*2, UNIT_SYMBOLS[target.type], target_color)
-            self.stdscr.refresh()
-            time.sleep(0.1)
+        tile_ids = [self.asset_manager.get_unit_tile(target.type)] * 6
+        color_ids = [6 if target.player == 1 else 5, 3 if target.player == 1 else 4] * 3
+        durations = [0.1] * 6
+        
+        # Use renderer's flash tile method
+        self.renderer.flash_tile(target.y, target.x, tile_ids, color_ids, durations)
         
         # Show damage number above target
         damage = max(1, attacker.attack - target.defense)
-        self.stdscr.addstr(target.y+1, target.x*2, f"-{damage}", curses.color_pair(7) | curses.A_BOLD)
-        self.stdscr.refresh()
+        self.renderer.draw_text(target.y+1, target.x*2, f"-{damage}", 7, curses.A_BOLD)
+        self.renderer.refresh()
         time.sleep(0.5)
         
         # Redraw board to clear effects
@@ -83,44 +233,48 @@ class GameUI:
     
     @measure_perf
     def draw_board(self):
-        self.stdscr.clear()
+        """Draw the game board and UI."""
+        self.renderer.clear_screen()
         
         # Draw header
         header = f"Turn: {self.game.turn} | Player: {self.game.current_player} | Mode: {self.mode}"
         if debug_config.enabled:
             header += " | DEBUG ON"
-        self.stdscr.addstr(0, 0, header)
+        self.renderer.draw_text(0, 0, header)
         
         # Draw the battlefield
         for y in range(HEIGHT):
             for x in range(WIDTH):
+                pos = Position(y, x)
+                
                 # Default content is empty ground
-                char = "."
-                color = curses.color_pair(1)
+                tile = self.asset_manager.get_terrain_tile("empty")
+                color_id = 1  # Default color
                 
                 # Check if there's a unit at this position
                 unit = self.game.get_unit_at(y, x)
                 if unit:
-                    char = UNIT_SYMBOLS[unit.type]
-                    color = curses.color_pair(3) if unit.player == 1 else curses.color_pair(4)
+                    tile = self.asset_manager.get_unit_tile(unit.type)
+                    color_id = 3 if unit.player == 1 else 4
                     
                     # If this is the selected unit, make it bold
                     if self.selected_unit and unit == self.selected_unit:
-                        color |= curses.A_BOLD
+                        self.renderer.draw_tile(y, x, tile, color_id)
+                        continue
                 
                 # Check if position is highlighted for movement or attack
-                if (y, x) in self.highlighted_positions:
+                if pos in self.highlighted_positions:
                     if self.mode == "move":
-                        color = curses.color_pair(5)
+                        color_id = 5
                     elif self.mode == "attack":
-                        color = curses.color_pair(6)
+                        color_id = 6
                 
                 # Check if cursor is here
-                if y == self.cursor_y and x == self.cursor_x:
-                    color = curses.color_pair(2)
+                if pos == self.cursor_pos:
+                    color_id = 2
                 
                 # Draw the cell
-                self.stdscr.addstr(y+2, x*2, char, color)
+                self.renderer.draw_tile(y, x, tile, color_id)
         
         # Draw unit info
         if self.selected_unit:
@@ -128,19 +282,19 @@ class GameUI:
             unit_info = f"Selected: {unit.type.name} | HP: {unit.hp}/{unit.max_hp} | " \
                         f"ATK: {unit.attack} | DEF: {unit.defense} | " \
                         f"Move: {unit.move_range} | Range: {unit.attack_range}"
-            self.stdscr.addstr(HEIGHT+3, 0, unit_info)
+            self.renderer.draw_text(HEIGHT+3, 0, unit_info)
         
         # Draw message
-        self.stdscr.addstr(HEIGHT+5, 0, self.message)
+        self.renderer.draw_text(HEIGHT+5, 0, self.message)
         
         # Draw controls
         controls = "[↑↓←→] Move cursor | [ENTER] Select | [m] Move | [a] Attack | [e] End turn"
         controls += " | [t] Toggle test mode | [q] Quit"
-        self.stdscr.addstr(HEIGHT+7, 0, controls)
+        self.renderer.draw_text(HEIGHT+7, 0, controls)
         
         # Draw winner info if game is over
         if self.game.winner:
-            self.stdscr.addstr(HEIGHT+9, 0, f"Player {self.game.winner} wins!", curses.A_BOLD)
+            self.renderer.draw_text(HEIGHT+9, 0, f"Player {self.game.winner} wins!", curses.A_BOLD)
         
         # Draw debug overlay if enabled
         if debug_config.show_debug_overlay:
@@ -156,143 +310,21 @@ class GameUI:
                 # Display overlay at the bottom of the screen
                 line_offset = HEIGHT + 11
                 for i, line in enumerate(overlay_lines):
-                    self.stdscr.addstr(line_offset + i, 0, line, curses.A_DIM)
+                    self.renderer.draw_text(line_offset + i, 0, line, 1, curses.A_DIM)
             except Exception as e:
                 # Never let debug features crash the game
                 logger.error(f"Error displaying debug overlay: {str(e)}")
         
-        self.stdscr.refresh()
+        self.renderer.refresh()
     
-    def handle_input(self, key):
+    def handle_input(self, key: int) -> bool:
+        """
+        Handle user input.
+        Returns True to continue running, False to quit.
+        """
+        # Quick exit for 'q' key
         if key == ord('q'):
-            return False  # Exit game loop
+            return False
         
-        # Skip other inputs if game is over
-        if self.game.winner:
-            if key == ord('r'):  # Reset game
-                self.game = Game()
-                self.selected_unit = None
-                self.highlighted_positions = []
-                self.mode = "select"
-                self.message = "Game reset"
-            return True
-        
-        # Handle cursor movement
-        if key == curses.KEY_UP:
-            self.cursor_y = max(0, self.cursor_y - 1)
-        elif key == curses.KEY_DOWN:
-            self.cursor_y = min(HEIGHT-1, self.cursor_y + 1)
-        elif key == curses.KEY_LEFT:
-            self.cursor_x = max(0, self.cursor_x - 1)
-        elif key == curses.KEY_RIGHT:
-            self.cursor_x = min(WIDTH-1, self.cursor_x + 1)
-        
-        # Handle selection and actions
-        elif key == curses.KEY_ENTER or key == 10 or key == 13:  # Enter key
-            if self.mode == "select":
-                unit = self.game.get_unit_at(self.cursor_y, self.cursor_x)
-                if unit and (unit.player == self.game.current_player or self.game.test_mode):
-                    self.selected_unit = unit
-                    self.message = f"Selected {unit.type.name}"
-                else:
-                    self.message = "No valid unit selected"
-            
-            elif self.mode == "move" and (self.cursor_y, self.cursor_x) in self.highlighted_positions:
-                self.selected_unit.move_target = (self.cursor_y, self.cursor_x)
-                self.message = f"Move set to ({self.cursor_y}, {self.cursor_x})"
-                self.mode = "select"
-                self.highlighted_positions = []
-            
-            elif self.mode == "attack" and (self.cursor_y, self.cursor_x) in self.highlighted_positions:
-                self.selected_unit.attack_target = (self.cursor_y, self.cursor_x)
-                target = self.game.get_unit_at(self.cursor_y, self.cursor_x)
-                self.message = f"Attack set against {target.type.name}"
-                self.mode = "select"
-                self.highlighted_positions = []
-        
-        # Enter move mode
-        elif key == ord('m'):
-            if self.selected_unit:
-                self.mode = "move"
-                self.highlighted_positions = self.game.get_possible_moves(self.selected_unit)
-                if not self.highlighted_positions:
-                    self.message = "No valid moves available"
-            else:
-                self.message = "No unit selected"
-        
-        # Enter attack mode
-        elif key == ord('a'):
-            if self.selected_unit:
-                self.mode = "attack"
-                self.highlighted_positions = self.game.get_possible_attacks(self.selected_unit)
-                if not self.highlighted_positions:
-                    self.message = "No valid targets in range"
-            else:
-                self.message = "No unit selected"
-        
-        # End turn
-        elif key == ord('e'):
-            # Pass UI to execute_turn for animations
-            self.game.execute_turn(self)
-            self.selected_unit = None
-            self.highlighted_positions = []
-            self.mode = "select"
-            if not self.game.winner:
-                self.message = f"Turn {self.game.turn}, Player {self.game.current_player}'s turn"
-        
-        # Toggle test mode
-        elif key == ord('t'):
-            self.game.toggle_test_mode()
-            if self.game.test_mode:
-                self.message = "Test mode ON - both players can control all units"
-            else:
-                self.message = "Test mode OFF"
-        
-        # Deselect unit
-        elif key == ord('c'):
-            self.selected_unit = None
-            self.highlighted_positions = []
-            self.mode = "select"
-            self.message = "Selection cleared"
-        
-        # Debug key - show all unit positions
-        elif key == ord('d'):
-            debug_info = []
-            for unit in self.game.units:
-                if unit.is_alive():
-                    debug_info.append(f"({unit.y},{unit.x})")
-            self.message = f"Unit positions: {' '.join(debug_info)}"
-            logger.debug(f"Unit positions: {debug_info}")
-        
-        # Enhanced debug keys
-        elif key == ord('D'):  # Shift+D
-            # Toggle main debug mode
-            debug_enabled = debug_config.toggle()
-            self.message = f"Debug mode {'ON' if debug_enabled else 'OFF'}"
-            logger.info(f"Debug mode {'enabled' if debug_enabled else 'disabled'}")
-        
-        elif key == ord('O'):  # Shift+O
-            # Toggle debug overlay
-            overlay_enabled = debug_config.toggle_overlay()
-            self.message = f"Debug overlay {'ON' if overlay_enabled else 'OFF'}"
-        
-        elif key == ord('P'):  # Shift+P
-            # Toggle performance tracking
-            perf_enabled = debug_config.toggle_perf_tracking()
-            self.message = f"Performance tracking {'ON' if perf_enabled else 'OFF'}"
-        
-        elif key == ord('S') and debug_config.enabled:  # Shift+S, only in debug mode
-            # Save game state to file for debugging
-            try:
-                game_state = self.game.get_game_state()
-                os.makedirs('debug', exist_ok=True)
-                filename = f"debug/game_state_turn{self.game.turn}.json"
-                with open(filename, 'w') as f:
-                    json.dump(game_state, f, indent=2)
-                self.message = f"Game state saved to {filename}"
-                logger.info(f"Game state saved to {filename}")
-            except Exception as e:
-                self.message = f"Error saving game state: {str(e)}"
-                logger.error(f"Error saving game state: {str(e)}")
-        
-        return True
+        # Process through input handler
+        return self.input_handler.process_input(key)
