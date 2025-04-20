@@ -165,6 +165,7 @@ class CursesRenderer(RenderInterface):
         curses.init_pair(4, curses.COLOR_BLUE, curses.COLOR_BLACK)   # Player 2
         curses.init_pair(5, curses.COLOR_BLACK, curses.COLOR_GREEN)  # Highlighted move
         curses.init_pair(6, curses.COLOR_BLACK, curses.COLOR_RED)    # Highlighted attack
+        curses.init_pair(16, curses.COLOR_BLACK, curses.COLOR_BLUE)  # Highlighted skill target
         curses.init_pair(7, curses.COLOR_YELLOW, curses.COLOR_BLACK) # Attack animation
         # Use dim white (appears gray in most terminals) for move target preview
         curses.init_pair(8, curses.COLOR_WHITE, curses.COLOR_BLACK)  # Move target preview (gray)
@@ -178,6 +179,9 @@ class CursesRenderer(RenderInterface):
         curses.init_pair(12, curses.COLOR_YELLOW, curses.COLOR_BLACK) # Limestone (yellow)
         curses.init_pair(13, curses.COLOR_MAGENTA, curses.COLOR_BLACK) # Pillar (magenta)
         curses.init_pair(14, curses.COLOR_CYAN, curses.COLOR_BLACK)   # Furniture (cyan)
+        
+        # Skill target color - blue background to differentiate from attack targets (red)
+        curses.init_pair(15, curses.COLOR_WHITE, curses.COLOR_BLUE)   # Skill target
     
     def animate_projectile(self, start_pos: Tuple[int, int], end_pos: Tuple[int, int], 
                           tile_id: str, color_id: int = 7, duration: float = 0.5) -> None:

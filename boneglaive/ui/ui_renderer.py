@@ -167,6 +167,13 @@ class UIRenderer:
                     if u.is_alive() and u.attack_target == (y, x):
                         attacking_unit = u
                         break
+                        
+                # Check if any unit is targeting this position for a skill
+                skill_targeting_unit = None
+                for u in self.game_ui.game.units:
+                    if u.is_alive() and u.skill_target == (y, x) and u.selected_skill:
+                        skill_targeting_unit = u
+                        break
                 
                 if unit:
                     # Check if this unit should be hidden during setup
@@ -195,6 +202,20 @@ class UIRenderer:
                             else:
                                 # Use red background to show this unit is targeted for attack
                                 self.renderer.draw_tile(y, x, tile, 10, curses.A_BOLD)
+                            continue
+                            
+                        # If this unit is being targeted for a skill and attack targets should be shown
+                        # (reusing the show_attack_targets flag for skills too)
+                        if skill_targeting_unit and show_attack_targets:
+                            # Check if cursor is here before drawing targeted unit
+                            is_cursor_here = (pos == cursor_manager.cursor_pos and show_cursor)
+                            
+                            if is_cursor_here:
+                                # Draw with cursor color but still bold to show it's selected
+                                self.renderer.draw_tile(y, x, tile, 2, curses.A_BOLD)
+                            else:
+                                # Use blue background to show this unit is targeted for a skill (different from attack)
+                                self.renderer.draw_tile(y, x, tile, 15, curses.A_BOLD)  # 15 for blue skill target
                             continue
                             
                         # If this is the selected unit and we should show selection, use special highlighting
@@ -245,12 +266,14 @@ class UIRenderer:
                     # Otherwise draw normal ghost
                     self.renderer.draw_tile(y, x, tile, color_id, curses.A_DIM)
                 
-                # Check if position is highlighted for movement or attack
+                # Check if position is highlighted for movement, attack, or skill
                 if pos in cursor_manager.highlighted_positions:
                     if mode_manager.mode == "move":
-                        color_id = 5
+                        color_id = 5  # Green for movement
                     elif mode_manager.mode == "attack":
-                        color_id = 6
+                        color_id = 6  # Red for attack
+                    elif mode_manager.mode == "skill":
+                        color_id = 16  # Blue for skill targeting
                 
                 # Cursor takes priority for visibility when it should be shown
                 if show_cursor and pos == cursor_manager.cursor_pos:
