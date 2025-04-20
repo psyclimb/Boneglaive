@@ -5,7 +5,7 @@ This module provides the foundation for implementing unit skills.
 """
 
 from enum import Enum, auto
-from typing import Optional, Dict, List, Any, TYPE_CHECKING
+from typing import Optional, Dict, List, Any, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from boneglaive.game.units import Unit
