@@ -2135,8 +2135,9 @@ class ActionMenuComponent(UIComponent):
                 game = self.game_ui.game
                 
                 # Check all positions within skill range
-                for y in range(game.HEIGHT):
-                    for x in range(game.WIDTH):
+                from boneglaive.utils.constants import HEIGHT, WIDTH
+                for y in range(HEIGHT):
+                    for x in range(WIDTH):
                         # Check if there's an enemy unit at this position
                         target = game.get_unit_at(y, x)
                         if target and target.player != cursor_manager.selected_unit.player:
