@@ -10,6 +10,14 @@ from boneglaive.utils.coordinates import Position
 from boneglaive.utils.debug import debug_config, measure_perf, logger
 from boneglaive.utils.message_log import message_log, MessageType
 from boneglaive.utils.input_handler import GameAction
+from boneglaive.utils.event_system import (
+    get_event_manager, EventType, EventData,
+    UnitSelectedEventData, UnitDeselectedEventData,
+    CursorMovedEventData, ModeChangedEventData,
+    MoveEventData, AttackEventData, TurnEventData,
+    MessageDisplayEventData, UIRedrawEventData,
+    GameOverEventData
+)
 
 # Base class for UI components
 class UIComponent:
@@ -19,7 +27,44 @@ class UIComponent:
         """Initialize the component."""
         self.renderer = renderer
         self.game_ui = game_ui
+        self.event_manager = get_event_manager()
+        self._event_subscriptions = []
+        self._setup_event_handlers()
         
+    def _setup_event_handlers(self):
+        """
+        Set up event handlers for this component.
+        Override this in subclasses to subscribe to events.
+        """
+        pass
+    
+    def subscribe_to_event(self, event_type, handler):
+        """
+        Subscribe to an event and track the subscription.
+        
+        Args:
+            event_type: The event type to subscribe to
+            handler: The event handler function
+        """
+        self.event_manager.subscribe(event_type, handler)
+        self._event_subscriptions.append((event_type, handler))
+    
+    def publish_event(self, event_type, event_data=None):
+        """
+        Publish an event.
+        
+        Args:
+            event_type: The event type to publish
+            event_data: The event data to pass to handlers
+        """
+        self.event_manager.publish(event_type, event_data)
+    
+    def unsubscribe_all(self):
+        """Unsubscribe from all events this component is subscribed to."""
+        for event_type, handler in self._event_subscriptions:
+            self.event_manager.unsubscribe(event_type, handler)
+        self._event_subscriptions = []
+    
     def draw(self):
         """Draw the component."""
         pass
@@ -41,10 +86,50 @@ class MessageLogComponent(UIComponent):
         self.show_log_history = False  # Whether to show the full log history screen
         self.log_history_scroll = 0    # Scroll position in log history
     
+    def _setup_event_handlers(self):
+        """Set up event handlers for the message log component."""
+        # Subscribe to help and chat toggle events to handle conflicts
+        self.subscribe_to_event(EventType.HELP_TOGGLED, self._on_help_toggled)
+        self.subscribe_to_event(EventType.CHAT_TOGGLED, self._on_chat_toggled)
+    
+    def _on_help_toggled(self, event_type, event_data):
+        """Handle help screen toggle events."""
+        # If help screen is shown and log history is open, close log history
+        show_help = event_data.show_help if hasattr(event_data, 'show_help') else False
+        if show_help and self.show_log_history:
+            self.show_log_history = False
+            self.log_history_scroll = 0
+            
+    def _on_chat_toggled(self, event_type, event_data):
+        """Handle chat mode toggle events."""
+        # If chat mode is enabled and log is hidden, show it
+        chat_enabled = event_data.chat_enabled if hasattr(event_data, 'chat_enabled') else False
+        if chat_enabled and not self.show_log:
+            self.show_log = True
+            self.publish_event(
+                EventType.LOG_TOGGLED, 
+                EventData(show_log=self.show_log)
+            )
+        
     def toggle_message_log(self):
         """Toggle the message log display."""
         self.show_log = not self.show_log
-        self.game_ui.message = f"Message log {'shown' if self.show_log else 'hidden'}"
+        
+        # Publish event that log was toggled
+        self.publish_event(
+            EventType.LOG_TOGGLED, 
+            EventData(show_log=self.show_log)
+        )
+        
+        # Display message through event system
+        self.publish_event(
+            EventType.MESSAGE_DISPLAY_REQUESTED,
+            MessageDisplayEventData(
+                message=f"Message log {'shown' if self.show_log else 'hidden'}",
+                message_type=MessageType.SYSTEM
+            )
+        )
+        
         message_log.add_system_message(f"Message log {'shown' if self.show_log else 'hidden'}")
         
     def toggle_log_history(self):
@@ -60,8 +145,11 @@ class MessageLogComponent(UIComponent):
         if self.show_log_history:
             self.log_history_scroll = 0
         
-        # Immediately redraw the board
-        self.game_ui.draw_board()
+        # Request UI redraw through event system
+        self.publish_event(
+            EventType.UI_REDRAW_REQUESTED,
+            UIRedrawEventData()
+        )
         
     def draw_message_log(self):
         """Draw the message log in the game UI."""
@@ -173,6 +261,22 @@ class HelpComponent(UIComponent):
         super().__init__(renderer, game_ui)
         self.show_help = False  # Whether to show help screen
     
+    def _setup_event_handlers(self):
+        """Set up event handlers for the help component."""
+        # Subscribe to chat toggle events to handle conflicts
+        self.subscribe_to_event(EventType.CHAT_TOGGLED, self._on_chat_toggled)
+        
+    def _on_chat_toggled(self, event_type, event_data):
+        """Handle chat mode toggle events."""
+        # If chat is enabled and help is showing, hide help
+        chat_enabled = event_data.chat_enabled if hasattr(event_data, 'chat_enabled') else False
+        if chat_enabled and self.show_help:
+            self.show_help = False
+            self.publish_event(
+                EventType.HELP_TOGGLED,
+                EventData(show_help=False)
+            )
+            
     def toggle_help_screen(self):
         """Toggle the help screen display."""
         # Can't use help screen while in chat mode
@@ -180,7 +284,19 @@ class HelpComponent(UIComponent):
             return
             
         self.show_help = not self.show_help
-        self.game_ui.draw_board()  # Redraw the board immediately to show/hide help
+        
+        # Publish help toggled event
+        self.publish_event(
+            EventType.HELP_TOGGLED,
+            EventData(show_help=self.show_help)
+        )
+        
+        # Request UI redraw
+        self.publish_event(
+            EventType.UI_REDRAW_REQUESTED,
+            UIRedrawEventData()
+        )
+        
         message_log.add_system_message(f"Help screen {'shown' if self.show_help else 'hidden'}")
     
     def draw_help_screen(self):
@@ -244,6 +360,22 @@ class ChatComponent(UIComponent):
         self.chat_input = ""  # Current chat input text
         self.player_colors = {1: 3, 2: 4}  # Player colors (matching message_log)
     
+    def _setup_event_handlers(self):
+        """Set up event handlers for the chat component."""
+        # Subscribe to help toggle events to handle conflicts
+        self.subscribe_to_event(EventType.HELP_TOGGLED, self._on_help_toggled)
+        
+    def _on_help_toggled(self, event_type, event_data):
+        """Handle help screen toggle events."""
+        # If help is enabled and chat is active, exit chat mode
+        show_help = event_data.show_help if hasattr(event_data, 'show_help') else False
+        if show_help and self.chat_mode:
+            self.chat_mode = False
+            self.publish_event(
+                EventType.CHAT_TOGGLED,
+                EventData(chat_enabled=False)
+            )
+            
     def toggle_chat_mode(self):
         """Toggle chat input mode."""
         # Can't use chat while help screen is shown
@@ -253,18 +385,34 @@ class ChatComponent(UIComponent):
         # Toggle chat mode
         self.chat_mode = not self.chat_mode
         
+        # Publish chat toggled event
+        self.publish_event(
+            EventType.CHAT_TOGGLED,
+            EventData(chat_enabled=self.chat_mode)
+        )
+        
         # Clear any existing input when entering chat mode
         if self.chat_mode:
             self.chat_input = ""
-            self.game_ui.message = "Chat mode: Type message and press Enter to send, Escape to cancel"
-            # Ensure log is visible when entering chat mode
-            if not self.game_ui.message_log_component.show_log:
-                self.game_ui.message_log_component.toggle_message_log()
+            # Display message through event system
+            self.publish_event(
+                EventType.MESSAGE_DISPLAY_REQUESTED,
+                MessageDisplayEventData(
+                    message="Chat mode: Type message and press Enter to send, Escape to cancel"
+                )
+            )
         else:
-            self.game_ui.message = "Chat mode exited"
+            # Display message through event system
+            self.publish_event(
+                EventType.MESSAGE_DISPLAY_REQUESTED,
+                MessageDisplayEventData(message="Chat mode exited")
+            )
             
-        # Redraw the board
-        self.game_ui.draw_board()
+        # Request UI redraw
+        self.publish_event(
+            EventType.UI_REDRAW_REQUESTED,
+            UIRedrawEventData()
+        )
     
     def draw_chat_input(self):
         """Draw the chat input field at the bottom of the message log."""
@@ -345,11 +493,26 @@ class CursorManager(UIComponent):
         self.selected_unit = None
         self.highlighted_positions = []
     
+    def _setup_event_handlers(self):
+        """Set up event handlers for cursor manager."""
+        # No event handlers needed initially - CursorManager is primarily an event publisher
+        pass
+    
     def move_cursor(self, dy: int, dx: int):
         """Move the cursor by the given delta."""
+        previous_pos = self.cursor_pos
         new_y = max(0, min(HEIGHT-1, self.cursor_pos.y + dy))
         new_x = max(0, min(WIDTH-1, self.cursor_pos.x + dx))
-        self.cursor_pos = Position(new_y, new_x)
+        new_pos = Position(new_y, new_x)
+        
+        # Only publish event if position actually changed
+        if new_pos != self.cursor_pos:
+            self.cursor_pos = new_pos
+            # Publish cursor moved event
+            self.publish_event(
+                EventType.CURSOR_MOVED, 
+                CursorMovedEventData(position=self.cursor_pos, previous_position=previous_pos)
+            )
     
     def can_act_this_turn(self):
         """Check if the player can act on the current turn."""
@@ -401,17 +564,35 @@ class CursorManager(UIComponent):
         """Select the unit at the current cursor position.
         Returns True if a unit was selected, False otherwise.
         """
+        # If there's already a selected unit, deselect it first
+        if self.selected_unit:
+            self._deselect_unit()
+            
         unit = self.get_unit_at_cursor()
         
         if not unit or not self.can_select_unit(unit):
             if unit:
-                self.game_ui.message = f"Cannot select {unit.type.name} - belongs to Player {unit.player}"
+                # Send message through event system
+                self.publish_event(
+                    EventType.MESSAGE_DISPLAY_REQUESTED,
+                    MessageDisplayEventData(
+                        message=f"Cannot select {unit.type.name} - belongs to Player {unit.player}",
+                        message_type=MessageType.WARNING
+                    )
+                )
                 message_log.add_message(
                     f"Cannot select {unit.type.name} - belongs to Player {unit.player}", 
                     MessageType.WARNING
                 )
             else:
-                self.game_ui.message = "No unit at that position"
+                # Send message through event system
+                self.publish_event(
+                    EventType.MESSAGE_DISPLAY_REQUESTED,
+                    MessageDisplayEventData(
+                        message="No unit at that position",
+                        message_type=MessageType.WARNING
+                    )
+                )
                 message_log.add_message("No unit at that position", MessageType.WARNING)
             return False
         
@@ -421,12 +602,37 @@ class CursorManager(UIComponent):
         # Check if we're selecting a ghost (unit with a move_target at current position)
         is_ghost = (unit.move_target == (self.cursor_pos.y, self.cursor_pos.x))
         
-        # Clear the message to avoid redundancy with unit info display
-        self.game_ui.message = ""
+        # Clear the message by sending empty message event
+        self.publish_event(
+            EventType.MESSAGE_DISPLAY_REQUESTED,
+            MessageDisplayEventData(message="")
+        )
         
-        # Redraw the board to immediately show the selection
-        self.game_ui.draw_board()
+        # Publish unit selected event
+        self.publish_event(
+            EventType.UNIT_SELECTED,
+            UnitSelectedEventData(unit=unit, position=self.cursor_pos)
+        )
+        
+        # Request UI redraw to immediately show the selection
+        self.publish_event(
+            EventType.UI_REDRAW_REQUESTED,
+            UIRedrawEventData()
+        )
         return True
+    
+    def _deselect_unit(self):
+        """Deselect the currently selected unit."""
+        if self.selected_unit:
+            unit = self.selected_unit
+            self.selected_unit = None
+            self.highlighted_positions = []
+            
+            # Publish unit deselected event
+            self.publish_event(
+                EventType.UNIT_DESELECTED,
+                UnitDeselectedEventData(unit=unit)
+            )
     
     def select_move_target(self):
         """Select the current cursor position as a move target for the selected unit.
@@ -439,9 +645,24 @@ class CursorManager(UIComponent):
         
         # Check if the position is a valid move target
         if cursor_position in self.highlighted_positions:
-            self.selected_unit.move_target = (self.cursor_pos.y, self.cursor_pos.x)
+            # Store the original position before changing it
+            from_position = Position(self.selected_unit.y, self.selected_unit.x)
+            to_position = cursor_position
             
-            self.game_ui.message = f"Move set to ({self.cursor_pos.y}, {self.cursor_pos.x})"
+            # Set the move target
+            self.selected_unit.move_target = (to_position.y, to_position.x)
+            
+            # Publish move planned event
+            self.publish_event(
+                EventType.MOVE_PLANNED,
+                MoveEventData(
+                    unit=self.selected_unit,
+                    from_position=from_position,
+                    to_position=to_position
+                )
+            )
+            
+            self.game_ui.message = f"Move set to ({to_position.y}, {to_position.x})"
             # No message added to log for planned movements
             self.highlighted_positions = []
             return True
@@ -491,8 +712,20 @@ class CursorManager(UIComponent):
         cursor_position = Position(self.cursor_pos.y, self.cursor_pos.x)
         
         if cursor_position in self.highlighted_positions:
+            # Set the attack target
             self.selected_unit.attack_target = (self.cursor_pos.y, self.cursor_pos.x)
+            
+            # Get the target unit for the event data
             target = self.game_ui.game.get_unit_at(self.cursor_pos.y, self.cursor_pos.x)
+            
+            # Publish attack planned event
+            self.publish_event(
+                EventType.ATTACK_PLANNED,
+                AttackEventData(
+                    attacker=self.selected_unit,
+                    target=target
+                )
+            )
             
             self.game_ui.message = f"Attack set against {target.type.name}"
             # No message added to log for planned attacks
@@ -504,8 +737,12 @@ class CursorManager(UIComponent):
     
     def clear_selection(self):
         """Clear the current unit selection and highlighted positions."""
-        self.selected_unit = None
-        self.highlighted_positions = []
+        # Deselect unit (which will publish the appropriate event)
+        if self.selected_unit:
+            self._deselect_unit()
+        else:
+            # If no unit was selected, just clear the highlighted positions
+            self.highlighted_positions = []
     
     def cycle_units_internal(self, reverse=False):
         """Cycle through the player's units.
@@ -529,13 +766,40 @@ class CursorManager(UIComponent):
         if not player_units:
             self.game_ui.message = "No units available to cycle through"
             return
+        
+        # Deselect current unit if there is one
+        if self.selected_unit:
+            self._deselect_unit()
             
-        # If no unit is selected, select the first or last one depending on direction
+        # If no unit was selected, select the first or last one depending on direction
         if not self.selected_unit:
             # In reverse mode, start from the last unit
             next_unit = player_units[-1 if reverse else 0]
-            self.cursor_pos = Position(next_unit.y, next_unit.x)
+            # Move cursor to unit position (which will publish cursor moved event)
+            previous_pos = self.cursor_pos
+            
+            # Set position based on whether unit has a move target
+            if next_unit.move_target:
+                self.cursor_pos = Position(next_unit.move_target[0], next_unit.move_target[1])
+            else:
+                self.cursor_pos = Position(next_unit.y, next_unit.x)
+                
+            # Publish cursor moved event if position changed
+            if self.cursor_pos != previous_pos:
+                self.publish_event(
+                    EventType.CURSOR_MOVED, 
+                    CursorMovedEventData(position=self.cursor_pos, previous_position=previous_pos)
+                )
+            
+            # Select the unit
             self.selected_unit = next_unit
+            
+            # Publish unit selected event
+            self.publish_event(
+                EventType.UNIT_SELECTED,
+                UnitSelectedEventData(unit=next_unit, position=self.cursor_pos)
+            )
+            
             self.game_ui.message = ""  # Clear message to avoid redundancy with unit info display
             self.game_ui.draw_board()
             return
@@ -554,23 +818,63 @@ class CursorManager(UIComponent):
                 
             next_unit = player_units[next_index]
             
+            # Move cursor to unit position
+            previous_pos = self.cursor_pos
+            
             # If the unit has a move target, cycle to the ghost instead
             if next_unit.move_target:
                 self.cursor_pos = Position(next_unit.move_target[0], next_unit.move_target[1])
             else:
                 self.cursor_pos = Position(next_unit.y, next_unit.x)
+            
+            # Publish cursor moved event if position changed
+            if self.cursor_pos != previous_pos:
+                self.publish_event(
+                    EventType.CURSOR_MOVED, 
+                    CursorMovedEventData(position=self.cursor_pos, previous_position=previous_pos)
+                )
                 
             # Clear message to avoid redundancy with unit info display
             self.game_ui.message = ""
                 
+            # Select the unit
             self.selected_unit = next_unit
+            
+            # Publish unit selected event
+            self.publish_event(
+                EventType.UNIT_SELECTED,
+                UnitSelectedEventData(unit=next_unit, position=self.cursor_pos)
+            )
             
         except ValueError:
             # If the selected unit isn't in the player's units (could happen in test mode)
             # In reverse mode, start from the last unit
             next_unit = player_units[-1 if reverse else 0]
-            self.cursor_pos = Position(next_unit.y, next_unit.x)
+            
+            # Move cursor to unit position
+            previous_pos = self.cursor_pos
+            
+            if next_unit.move_target:
+                self.cursor_pos = Position(next_unit.move_target[0], next_unit.move_target[1])
+            else:
+                self.cursor_pos = Position(next_unit.y, next_unit.x)
+            
+            # Publish cursor moved event if position changed
+            if self.cursor_pos != previous_pos:
+                self.publish_event(
+                    EventType.CURSOR_MOVED, 
+                    CursorMovedEventData(position=self.cursor_pos, previous_position=previous_pos)
+                )
+            
+            # Select the unit
             self.selected_unit = next_unit
+            
+            # Publish unit selected event
+            self.publish_event(
+                EventType.UNIT_SELECTED,
+                UnitSelectedEventData(unit=next_unit, position=self.cursor_pos)
+            )
+            
             self.game_ui.message = ""  # Clear message to avoid redundancy with unit info display
         
         # Redraw the board to show the new selection
@@ -607,6 +911,34 @@ class GameModeManager(UIComponent):
         self.mode = "select"  # select, move, attack, setup
         self.show_setup_instructions = False  # Don't show setup instructions by default
     
+    def _setup_event_handlers(self):
+        """Set up event handlers for game mode manager."""
+        # Subscribe to unit selection events to update UI as needed
+        self.subscribe_to_event(EventType.UNIT_SELECTED, self._on_unit_selected)
+        self.subscribe_to_event(EventType.UNIT_DESELECTED, self._on_unit_deselected)
+    
+    def _on_unit_selected(self, event_type, event_data):
+        """Handle unit selection events."""
+        # No specific action needed yet - just provides a hook for future behavior
+        pass
+    
+    def _on_unit_deselected(self, event_type, event_data):
+        """Handle unit deselection events."""
+        # No specific action needed yet - just provides a hook for future behavior
+        pass
+    
+    def set_mode(self, new_mode):
+        """Set the game mode with event notification."""
+        if new_mode != self.mode:
+            old_mode = self.mode
+            self.mode = new_mode
+            
+            # Publish mode changed event
+            self.publish_event(
+                EventType.MODE_CHANGED,
+                ModeChangedEventData(new_mode=new_mode, previous_mode=old_mode)
+            )
+    
     def handle_cancel(self):
         """Handle cancel action (Escape key or 'c' key).
         Cancels the current action based on the current state.
@@ -638,40 +970,118 @@ class GameModeManager(UIComponent):
         # If in attack or move mode, cancel the mode but keep unit selected
         if self.mode in ["attack", "move"] and cursor_manager.selected_unit:
             cursor_manager.highlighted_positions = []
-            self.mode = "select"
+            # Change to select mode (will publish mode changed event)
+            self.set_mode("select")
             self.game_ui.message = f"{self.mode.capitalize()} mode cancelled, unit still selected"
             self.game_ui.draw_board()
             return
             
         # If unit is selected with a planned move, cancel the move
         if cursor_manager.selected_unit and cursor_manager.selected_unit.move_target:
+            # Store position info for event before canceling move
+            from_position = Position(cursor_manager.selected_unit.y, cursor_manager.selected_unit.x)
+            to_position = Position(
+                cursor_manager.selected_unit.move_target[0],
+                cursor_manager.selected_unit.move_target[1]
+            )
+            unit = cursor_manager.selected_unit
+            
+            # Cancel the move
             cursor_manager.selected_unit.move_target = None
+            
+            # Publish move canceled event - could be useful for UI components
+            self.publish_event(
+                EventType.MOVE_CANCELLED,
+                MoveEventData(
+                    unit=unit,
+                    from_position=from_position,
+                    to_position=to_position
+                )
+            )
+            
             self.game_ui.message = "Move order cancelled"
             self.game_ui.draw_board()
             return
             
         # If unit is selected with a planned attack, cancel the attack
         if cursor_manager.selected_unit and cursor_manager.selected_unit.attack_target:
+            # Get target unit for event data
+            target_position = cursor_manager.selected_unit.attack_target
+            target = self.game_ui.game.get_unit_at(target_position[0], target_position[1])
+            attacker = cursor_manager.selected_unit
+            
+            # Cancel the attack
             cursor_manager.selected_unit.attack_target = None
+            
+            # Publish attack canceled event - could be useful for UI components
+            if target:
+                self.publish_event(
+                    EventType.ATTACK_CANCELLED,
+                    AttackEventData(
+                        attacker=attacker,
+                        target=target
+                    )
+                )
+            
             self.game_ui.message = "Attack order cancelled"
             self.game_ui.draw_board()
             return
             
         # Otherwise, clear the selection entirely
         cursor_manager.clear_selection()
-        self.mode = "select"
+        # Ensure we're in select mode
+        self.set_mode("select")
         self.game_ui.message = "Selection cleared"
         
         # Redraw the board to immediately update selection visuals
         self.game_ui.draw_board()
     
+    def _setup_event_handlers(self):
+        """Set up event handlers for game mode manager."""
+        # Subscribe to unit selection events to update UI as needed
+        self.subscribe_to_event(EventType.UNIT_SELECTED, self._on_unit_selected)
+        self.subscribe_to_event(EventType.UNIT_DESELECTED, self._on_unit_deselected)
+        
+        # Subscribe to mode request events
+        self.subscribe_to_event(EventType.MOVE_MODE_REQUESTED, self._on_move_mode_requested)
+        self.subscribe_to_event(EventType.ATTACK_MODE_REQUESTED, self._on_attack_mode_requested)
+        self.subscribe_to_event(EventType.SELECT_MODE_REQUESTED, self._on_select_mode_requested)
+        self.subscribe_to_event(EventType.CANCEL_REQUESTED, self._on_cancel_requested)
+        
+    def _on_move_mode_requested(self, event_type, event_data):
+        """Handle move mode request events."""
+        # Delegate to handle_move_mode which already has the logic
+        self.handle_move_mode()
+        
+    def _on_attack_mode_requested(self, event_type, event_data):
+        """Handle attack mode request events."""
+        # Delegate to handle_attack_mode which already has the logic
+        self.handle_attack_mode()
+        
+    def _on_select_mode_requested(self, event_type, event_data):
+        """Handle select mode request events."""
+        # Simply change to select mode
+        self.set_mode("select")
+        
+    def _on_cancel_requested(self, event_type, event_data):
+        """Handle cancel request events."""
+        # Delegate to handle_cancel which already has the logic
+        self.handle_cancel()
+        
     def handle_move_mode(self):
         """Enter move mode."""
         cursor_manager = self.game_ui.cursor_manager
         
         # Check if player can act this turn
         if not cursor_manager.can_act_this_turn():
-            self.game_ui.message = "Not your turn!"
+            # Use event system for message
+            self.publish_event(
+                EventType.MESSAGE_DISPLAY_REQUESTED,
+                MessageDisplayEventData(
+                    message="Not your turn!",
+                    message_type=MessageType.WARNING
+                )
+            )
             return
                 
         if cursor_manager.selected_unit:
@@ -680,7 +1090,8 @@ class GameModeManager(UIComponent):
             # Check if unit belongs to current player or test mode is on
             # Also allow control in local multiplayer for the active player
             if cursor_manager.can_select_unit(cursor_manager.selected_unit):
-                self.mode = "move"
+                # Change mode (will publish mode changed event)
+                self.set_mode("move")
                 
                 # Convert positions to Position objects
                 cursor_manager.highlighted_positions = [
@@ -688,11 +1099,32 @@ class GameModeManager(UIComponent):
                 ]
                 
                 if not cursor_manager.highlighted_positions:
-                    self.game_ui.message = "No valid moves available"
+                    # Use event system for message
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message="No valid moves available",
+                            message_type=MessageType.WARNING
+                        )
+                    )
             else:
-                self.game_ui.message = "You can only move your own units!"
+                # Use event system for message
+                self.publish_event(
+                    EventType.MESSAGE_DISPLAY_REQUESTED,
+                    MessageDisplayEventData(
+                        message="You can only move your own units!",
+                        message_type=MessageType.WARNING
+                    )
+                )
         else:
-            self.game_ui.message = "No unit selected"
+            # Use event system for message
+            self.publish_event(
+                EventType.MESSAGE_DISPLAY_REQUESTED,
+                MessageDisplayEventData(
+                    message="No unit selected",
+                    message_type=MessageType.WARNING
+                )
+            )
     
     def handle_attack_mode(self):
         """Enter attack mode."""
@@ -700,22 +1132,42 @@ class GameModeManager(UIComponent):
         
         # Check if player can act this turn
         if not cursor_manager.can_act_this_turn():
-            self.game_ui.message = "Not your turn!"
+            # Use event system for message
+            self.publish_event(
+                EventType.MESSAGE_DISPLAY_REQUESTED,
+                MessageDisplayEventData(
+                    message="Not your turn!",
+                    message_type=MessageType.WARNING
+                )
+            )
             return
                 
         if cursor_manager.selected_unit:
             # Check if unit belongs to current player or test mode is on
             if cursor_manager.can_select_unit(cursor_manager.selected_unit):
-                self.mode = "attack"
+                # Change mode (will publish mode changed event)
+                self.set_mode("attack")
                 
                 # If we selected a unit directly, use its position
                 # If we selected a ghost, always use the ghost position
                 from_pos = None
                 if cursor_manager.selected_unit.move_target:
                     from_pos = cursor_manager.selected_unit.move_target
-                    self.game_ui.message = "Select attack from planned move position"
+                    # Use event system for message
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message="Select attack from planned move position"
+                        )
+                    )
                 else:
-                    self.game_ui.message = "Select attack target"
+                    # Use event system for message
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message="Select attack target"
+                        )
+                    )
                 
                 # Convert positions to Position objects, using move destination if set
                 cursor_manager.highlighted_positions = [
@@ -725,13 +1177,41 @@ class GameModeManager(UIComponent):
                 
                 if not cursor_manager.highlighted_positions:
                     if cursor_manager.selected_unit.move_target:
-                        self.game_ui.message = "No valid targets in range from move destination"
+                        # Use event system for message
+                        self.publish_event(
+                            EventType.MESSAGE_DISPLAY_REQUESTED,
+                            MessageDisplayEventData(
+                                message="No valid targets in range from move destination",
+                                message_type=MessageType.WARNING
+                            )
+                        )
                     else:
-                        self.game_ui.message = "No valid targets in range"
+                        # Use event system for message
+                        self.publish_event(
+                            EventType.MESSAGE_DISPLAY_REQUESTED,
+                            MessageDisplayEventData(
+                                message="No valid targets in range",
+                                message_type=MessageType.WARNING
+                            )
+                        )
             else:
-                self.game_ui.message = "You can only attack with your own units!"
+                # Use event system for message
+                self.publish_event(
+                    EventType.MESSAGE_DISPLAY_REQUESTED,
+                    MessageDisplayEventData(
+                        message="You can only attack with your own units!",
+                        message_type=MessageType.WARNING
+                    )
+                )
         else:
-            self.game_ui.message = "No unit selected"
+            # Use event system for message
+            self.publish_event(
+                EventType.MESSAGE_DISPLAY_REQUESTED,
+                MessageDisplayEventData(
+                    message="No unit selected",
+                    message_type=MessageType.WARNING
+                )
+            )
     
     def handle_select_in_select_mode(self):
         """Handle selection when in select mode."""
@@ -741,31 +1221,59 @@ class GameModeManager(UIComponent):
         """Handle selection when in move mode."""
         result = self.game_ui.cursor_manager.select_move_target()
         if result:
-            self.mode = "select"  # Return to select mode after successful move
+            # Return to select mode after successful move (publishes mode changed event)
+            self.set_mode("select")
         return result
     
     def handle_select_in_attack_mode(self):
         """Handle selection when in attack mode."""
         result = self.game_ui.cursor_manager.select_attack_target()
         if result:
-            self.mode = "select"  # Return to select mode after successful attack
+            # Return to select mode after successful attack (publishes mode changed event)
+            self.set_mode("select")
         return result
     
     def handle_end_turn(self):
         """End the current turn."""
         cursor_manager = self.game_ui.cursor_manager
         
+        # Publish turn ended event
+        self.publish_event(
+            EventType.TURN_ENDED,
+            TurnEventData(
+                player=self.game_ui.multiplayer.get_current_player(),
+                turn_number=self.game_ui.game.turn
+            )
+        )
+        
         # Pass UI to execute_turn for animations
         self.game_ui.game.execute_turn(self.game_ui)
-        cursor_manager.selected_unit = None
-        cursor_manager.highlighted_positions = []
-        self.mode = "select"
+        
+        # Clear selection after executing turn
+        cursor_manager.clear_selection()
+        # Return to select mode
+        self.set_mode("select")
         
         # Handle multiplayer turn switching
         if not self.game_ui.game.winner:
             # End turn in multiplayer manager
             self.game_ui.multiplayer.end_turn()
             self.game_ui.update_player_message()
+            
+            # Publish turn started event for the new player
+            self.publish_event(
+                EventType.TURN_STARTED,
+                TurnEventData(
+                    player=self.game_ui.multiplayer.get_current_player(),
+                    turn_number=self.game_ui.game.turn
+                )
+            )
+        else:
+            # Publish game over event
+            self.publish_event(
+                EventType.GAME_OVER,
+                GameOverEventData(winner=self.game_ui.game.winner)
+            )
             
         # Redraw the board to update visuals
         self.game_ui.draw_board()
@@ -1028,10 +1536,28 @@ class InputManager(UIComponent):
         self.input_handler = input_handler
         self.setup_input_callbacks()
     
+    def _setup_event_handlers(self):
+        """Set up event handlers for input manager."""
+        pass
+        
     def setup_input_callbacks(self):
         """Set up callbacks for input handling."""
         cursor_manager = self.game_ui.cursor_manager
         mode_manager = self.game_ui.mode_manager
+        event_manager = self.event_manager
+        
+        # Helper function to publish mode requests
+        def publish_move_mode_request():
+            event_manager.publish(EventType.MOVE_MODE_REQUESTED, EventData())
+            
+        def publish_attack_mode_request():
+            event_manager.publish(EventType.ATTACK_MODE_REQUESTED, EventData())
+            
+        def publish_select_mode_request():
+            event_manager.publish(EventType.SELECT_MODE_REQUESTED, EventData())
+            
+        def publish_cancel_request():
+            event_manager.publish(EventType.CANCEL_REQUESTED, EventData())
         
         self.input_handler.register_action_callbacks({
             GameAction.MOVE_UP: lambda: cursor_manager.move_cursor(-1, 0),
@@ -1039,9 +1565,9 @@ class InputManager(UIComponent):
             GameAction.MOVE_LEFT: lambda: cursor_manager.move_cursor(0, -1),
             GameAction.MOVE_RIGHT: lambda: cursor_manager.move_cursor(0, 1),
             GameAction.SELECT: self.game_ui.handle_select,
-            GameAction.CANCEL: mode_manager.handle_cancel,
-            GameAction.MOVE_MODE: mode_manager.handle_move_mode,
-            GameAction.ATTACK_MODE: mode_manager.handle_attack_mode,
+            GameAction.CANCEL: publish_cancel_request,
+            GameAction.MOVE_MODE: publish_move_mode_request,
+            GameAction.ATTACK_MODE: publish_attack_mode_request,
             GameAction.END_TURN: mode_manager.handle_end_turn,
             GameAction.TEST_MODE: mode_manager.handle_test_mode,
             GameAction.DEBUG_INFO: self.game_ui.debug_component.handle_debug_info,
