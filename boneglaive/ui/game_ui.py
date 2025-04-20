@@ -65,7 +65,7 @@ class GameUI:
         
         # Only show welcome message when not in setup phase
         if not self.game.setup_phase:
-            message_log.add_system_message("Welcome to Boneglaive!")
+            message_log.add_system_message(f"Entering {self.game.map.name}")
         
         # Only show game mode message when not in setup phase
         if not self.game.setup_phase:
@@ -499,7 +499,7 @@ class GameUI:
                 self.message = "Test mode ON - setup phase skipped, using test units"
                 
                 # Add welcome messages when skipping setup phase
-                message_log.add_system_message("Welcome to Boneglaive!")
+                message_log.add_system_message(f"Entering {self.game.map.name}")
                 message_log.add_system_message("Test mode enabled, using predefined units")
             else:
                 self.message = "Test mode ON - both players can control all units"
