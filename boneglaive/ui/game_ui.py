@@ -454,12 +454,21 @@ class GameUI:
         self.renderer.refresh()
         time.sleep(0.5)
         
-        # Redraw board to clear effects
-        self.draw_board()
+        # Redraw board to clear effects (without cursor)
+        self.draw_board(show_cursor=False)
     
     @measure_perf
-    def draw_board(self):
-        """Draw the game board and UI."""
+    def draw_board(self, show_cursor=True):
+        """
+        Draw the game board and UI.
+        
+        Args:
+            show_cursor: Whether to show the cursor (default: True)
+        """
+        # Set cursor visibility
+        self.renderer.set_cursor(False)  # Always hide the physical cursor
+        
+        # Clear screen
         self.renderer.clear_screen()
         
         # If help screen is being shown, draw it and return
@@ -527,7 +536,7 @@ class GameUI:
                     # If this unit is being targeted for attack, use red background
                     if attacking_unit:
                         # Check if cursor is here before drawing targeted unit
-                        is_cursor_here = (pos == self.cursor_pos)
+                        is_cursor_here = (pos == self.cursor_pos and show_cursor)
                         
                         if is_cursor_here:
                             # Draw with cursor color but still bold to show it's selected
@@ -540,7 +549,7 @@ class GameUI:
                     # If this is the selected unit, use special highlighting with yellow background
                     if self.selected_unit and unit == self.selected_unit:
                         # Check if cursor is also here
-                        is_cursor_here = (pos == self.cursor_pos)
+                        is_cursor_here = (pos == self.cursor_pos and show_cursor)
                         
                         if is_cursor_here:
                             # Draw with cursor color but bold to show it's selected
@@ -556,9 +565,9 @@ class GameUI:
                     color_id = 8  # Gray preview color
                     
                     # Check if cursor is here before drawing ghost
-                    is_cursor_here = (pos == self.cursor_pos)
+                    is_cursor_here = (pos == self.cursor_pos and show_cursor)
                     
-                    # If cursor is here, draw with cursor color instead
+                    # If cursor is here and we're showing cursor, draw with cursor color instead
                     if is_cursor_here:
                         self.renderer.draw_tile(y, x, tile, 2)  # Use cursor color
                         continue
@@ -573,8 +582,8 @@ class GameUI:
                     elif self.mode == "attack":
                         color_id = 6
                 
-                # Cursor always takes priority for visibility
-                if pos == self.cursor_pos:
+                # Cursor takes priority for visibility when it should be shown
+                if show_cursor and pos == self.cursor_pos:
                     color_id = 2
                 
                 # Draw the cell
