@@ -285,7 +285,9 @@ class Game:
         
     
     def add_unit(self, unit_type, player, y, x):
-        self.units.append(Unit(unit_type, player, y, x))
+        unit = Unit(unit_type, player, y, x)
+        unit.initialize_skills()  # Initialize skills for the unit
+        self.units.append(unit)
     
     def get_unit_at(self, y, x):
         for unit in self.units:
@@ -481,6 +483,23 @@ class Game:
                     # Apply damage
                     target.hp = max(0, target.hp - damage)
                     
+                    # Award XP to the attacker based on damage dealt
+                    from boneglaive.utils.constants import XP_DAMAGE_FACTOR, XP_KILL_REWARD
+                    xp_gained = int(damage * XP_DAMAGE_FACTOR)
+                    
+                    # Additional XP for killing the target
+                    if target.hp <= 0:
+                        xp_gained += XP_KILL_REWARD
+                    
+                    # Add XP and check if unit leveled up
+                    if unit.add_xp(xp_gained):
+                        # Unit leveled up - add a message
+                        message_log.add_message(
+                            f"{unit.type.name} gained experience and reached level {unit.level}!",
+                            MessageType.SYSTEM,
+                            player=unit.player
+                        )
+                    
                     # Log combat message
                     message_log.add_combat_message(
                         attacker_name=f"{unit.type.name}",
@@ -510,10 +529,17 @@ class Game:
                             target=target.player
                         )
         
-        # Clear all actions
+        # Clear all actions and update skill cooldowns
         for unit in self.units:
-            unit.move_target = None
-            unit.attack_target = None
+            if unit.is_alive():
+                # Reset action targets
+                unit.reset_action_targets()
+                
+                # Reduce cooldowns for skills
+                unit.tick_cooldowns()
+                
+                # Apply passive skills (can be affected by game state)
+                unit.apply_passive_skills(self)
         
         # Check if game is over
         self.check_game_over()
