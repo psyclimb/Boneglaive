@@ -305,8 +305,20 @@ class UIRenderer:
             self.renderer.draw_text(info_line, len(type_info) + len(hp_info) + 6, combat_info, 1)
             
             # Draw movement stats
-            move_info = f"MOVE: {unit.move_range} | RANGE: {unit.attack_range}"
-            self.renderer.draw_text(info_line, len(type_info) + len(hp_info) + len(combat_info) + 8, move_info, 1)
+            effective_stats = unit.get_effective_stats()
+            effective_move = effective_stats['move_range']
+            effective_attack = effective_stats['attack_range']
+            
+            # Determine if there's a movement penalty for display purposes
+            move_color = 1  # Default color
+            move_attr = 0   # Default attribute
+            if unit.move_range_bonus < 0:
+                # Show negative bonus in red to indicate penalty
+                move_color = 6  # Red for penalty
+                move_attr = curses.A_BOLD  # Make it bold for emphasis
+            
+            move_info = f"MOVE: {effective_move} | RANGE: {effective_attack}"
+            self.renderer.draw_text(info_line, len(type_info) + len(hp_info) + len(combat_info) + 8, move_info, move_color, move_attr)
         
         # Draw message with better visibility
         msg_line = HEIGHT+2
