@@ -103,6 +103,8 @@ class Unit:
     def tick_cooldowns(self) -> None:
         """
         Reduce cooldowns for all skills by 1 turn.
+        This is called at the end of a player's turn, only for that player's units.
+        A skill with cooldown=1 can be used every turn, cooldown=2 every other turn, etc.
         Movement penalties are handled separately in reset_movement_penalty.
         """
         from boneglaive.utils.debug import logger
