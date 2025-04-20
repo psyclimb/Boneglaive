@@ -206,6 +206,12 @@ boneglaive/
   - Include only essential context in commit analysis
   - Skip viewing unchanged files when staging
 
+## Important Notes for Claude
+
+- DO NOT attempt to run the game directly. Only the user can run and test the game.
+- Make code changes based on analysis of the codebase structure, not runtime behavior.
+- When suggesting changes that need testing, clearly explain what the user should look for when they test.
+
 ## Continuity Guidelines After /compact
 
 - On resuming, start with a quick reference to CLAUDE.md to restore context
