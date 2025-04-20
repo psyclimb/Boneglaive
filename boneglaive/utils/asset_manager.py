@@ -35,37 +35,40 @@ class AssetManager:
     
     def _initialize_text_assets(self) -> None:
         """Initialize text-based assets (ASCII/Unicode characters)."""
-        # Unit symbols
+        # Unit symbols - using Unicode symbols for better visuals
         self.unit_tiles = {
-            UnitType.GLAIVEMAN: 'G',
-            UnitType.ARCHER: 'A',
-            UnitType.MAGE: 'M'
+            UnitType.GLAIVEMAN: '♞',  # Chess knight symbol for Glaiveman
+            UnitType.ARCHER: '♜',     # Chess rook symbol for Archer
+            UnitType.MAGE: '♝'        # Chess bishop symbol for Mage
         }
         
-        # Terrain symbols
+        # Terrain symbols - more distinct symbols for terrain types
         self.terrain_tiles = {
-            'empty': '.',
-            'wall': '#',
-            'water': '~',
-            'forest': '^',
-            'limestone': '▒',  # Limestone powder piles use a medium shade block
-            'dust': ',',       # Light limestone dusting use a comma
-            'pillar': 'O',     # Pillars use capital O
-            'furniture': '■'   # Furniture uses a solid square
+            'empty': '·',        # Middle dot for cleaner empty space
+            'wall': '█',         # Solid block for walls
+            'water': '≈',        # Double tilde for water
+            'forest': '♠',       # Spade for forest
+            'limestone': '▒',    # Medium shade block for limestone powder
+            'dust': '░',         # Light shade block for dust (more visible)
+            'pillar': '◯',       # Large circle for pillars
+            'furniture': '■'     # Solid square for furniture
         }
         
-        # UI symbols
+        # UI symbols - more distinct and professional
         self.ui_tiles = {
-            'cursor': '[]',
-            'selected': '**',
-            'health': 'HP'
+            'cursor': '██',      # Solid blocks for cursor (more visible)
+            'selected': '◆◆',    # Diamonds for selected unit
+            'health': '♥',       # Heart for health
+            'attack': '⚔',       # Crossed swords for attack
+            'move': '→',         # Arrow for movement
+            'target': '◎'        # Target symbol
         }
         
-        # Effect symbols
+        # Effect symbols - more distinct for better visual feedback
         self.effect_tiles = {
-            'glaiveman_attack': '⚔️',  # Glaive (melee)
-            'archer_attack': '→',      # Arrow (ranged)
-            'mage_attack': '*'         # Magic star (ranged)
+            'glaiveman_attack': '⚔',  # Crossed swords for melee
+            'archer_attack': '➶',     # Arrow for ranged
+            'mage_attack': '✦'        # Star for magic
         }
     
     def _initialize_graphical_assets(self) -> None:
