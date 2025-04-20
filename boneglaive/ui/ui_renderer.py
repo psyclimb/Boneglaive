@@ -242,6 +242,10 @@ class UIRenderer:
         # Draw chat input field if in chat mode
         if chat_component.chat_mode:
             chat_component.draw_chat_input()
+            
+        # Draw action menu if a unit is selected
+        if self.game_ui.action_menu_component.visible:
+            self.game_ui.action_menu_component.draw()
         
         # Draw unit info
         if cursor_manager.selected_unit:

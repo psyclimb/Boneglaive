@@ -513,6 +513,26 @@ class CursorManager(UIComponent):
                 EventType.CURSOR_MOVED, 
                 CursorMovedEventData(position=self.cursor_pos, previous_position=previous_pos)
             )
+            
+    def move_cursor_diagonal(self, direction: str):
+        """Move the cursor diagonally.
+        
+        Args:
+            direction: One of "up-left", "up-right", "down-left", "down-right"
+        """
+        dy, dx = 0, 0
+        
+        if direction == "up-left":
+            dy, dx = -1, -1
+        elif direction == "up-right":
+            dy, dx = -1, 1
+        elif direction == "down-left":
+            dy, dx = 1, -1
+        elif direction == "down-right":
+            dy, dx = 1, 1
+            
+        # Use the existing move_cursor method
+        self.move_cursor(dy, dx)
     
     def can_act_this_turn(self):
         """Check if the player can act on the current turn."""
@@ -1527,6 +1547,181 @@ class AnimationComponent(UIComponent):
         # Redraw board to clear effects (without cursor, selection, or attack target highlighting)
         self.game_ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
 
+# Action menu component
+class ActionMenuComponent(UIComponent):
+    """Component for displaying and handling the unit action menu."""
+    
+    def __init__(self, renderer, game_ui):
+        super().__init__(renderer, game_ui)
+        self.visible = False
+        self.actions = []
+        self.selected_index = 0
+        
+    def _setup_event_handlers(self):
+        """Set up event handlers for action menu."""
+        # Subscribe to unit selection/deselection events
+        self.subscribe_to_event(EventType.UNIT_SELECTED, self._on_unit_selected)
+        self.subscribe_to_event(EventType.UNIT_DESELECTED, self._on_unit_deselected)
+        
+    def _on_unit_selected(self, event_type, event_data):
+        """Handle unit selection events."""
+        unit = event_data.unit
+        # Show menu and populate actions
+        self.visible = True
+        self.populate_actions(unit)
+        # Request UI redraw
+        self.publish_event(
+            EventType.UI_REDRAW_REQUESTED,
+            UIRedrawEventData()
+        )
+        
+    def _on_unit_deselected(self, event_type, event_data):
+        """Handle unit deselection events."""
+        # Hide menu
+        self.visible = False
+        # Reset action list and selection
+        self.actions = []
+        self.selected_index = 0
+        
+    def populate_actions(self, unit):
+        """Populate available actions for the selected unit."""
+        self.actions = []
+        
+        # Add standard actions
+        self.actions.append({
+            'key': 'm',
+            'label': 'Move',
+            'action': GameAction.MOVE_MODE,
+            'enabled': True
+        })
+        
+        self.actions.append({
+            'key': 'a',
+            'label': 'Attack',
+            'action': GameAction.ATTACK_MODE,
+            'enabled': True
+        })
+        
+        # Add skill action (placeholder)
+        self.actions.append({
+            'key': 's',
+            'label': 'Skills',
+            'action': GameAction.SKILL_MODE,
+            'enabled': False  # Disabled for now
+        })
+        
+        # Reset selected index
+        self.selected_index = 0
+        
+    def draw(self):
+        """Draw the action menu."""
+        if not self.visible or not self.actions:
+            return
+            
+        # Get unit info for header
+        unit = self.game_ui.cursor_manager.selected_unit
+        if not unit:
+            return
+            
+        # Calculate menu position
+        menu_x = WIDTH * 2 + 2  # Position to the right of the map
+        menu_y = 5              # Start a few lines down
+        
+        # Draw menu header
+        header = f"=== {unit.type.name} Actions ==="
+        self.renderer.draw_text(menu_y, menu_x, header, 1, curses.A_BOLD)
+        
+        # Draw menu items
+        for i, action in enumerate(self.actions):
+            y_pos = menu_y + i + 2  # Skip a line after header
+            
+            # Format action label with key in brackets
+            label = f"[{action['key']}] {action['label']}"
+            
+            # Choose color based on whether action is enabled
+            color = 1 if action['enabled'] else 8  # Normal color or gray
+            
+            # Add highlight if this is the selected action
+            attr = curses.A_BOLD if i == self.selected_index else 0
+            
+            # If action is disabled, use dim attribute
+            if not action['enabled']:
+                attr |= curses.A_DIM
+                
+            self.renderer.draw_text(y_pos, menu_x, label, color, attr)
+            
+        # Draw footer with instructions
+        footer_y = menu_y + len(self.actions) + 3
+        self.renderer.draw_text(footer_y, menu_x, "ESC: Cancel", 1)
+        
+    def handle_input(self, key: int) -> bool:
+        """Handle input specific to the action menu."""
+        if not self.visible:
+            return False
+            
+        # Exit if no actions
+        if not self.actions:
+            return False
+            
+        # Handle up/down navigation
+        if key == curses.KEY_UP or key == ord('k'):
+            self.selected_index = max(0, self.selected_index - 1)
+            self.publish_event(
+                EventType.UI_REDRAW_REQUESTED,
+                UIRedrawEventData()
+            )
+            return True
+            
+        elif key == curses.KEY_DOWN or key == ord('j'):
+            self.selected_index = min(len(self.actions) - 1, self.selected_index + 1)
+            self.publish_event(
+                EventType.UI_REDRAW_REQUESTED,
+                UIRedrawEventData()
+            )
+            return True
+            
+        # Handle selection
+        elif key == 10 or key == 13 or key == ord(' '):  # Enter or space
+            selected_action = self.actions[self.selected_index]
+            if selected_action['enabled']:
+                # Trigger the action based on the action type
+                if selected_action['action'] == GameAction.MOVE_MODE:
+                    self.publish_event(EventType.MOVE_MODE_REQUESTED, EventData())
+                elif selected_action['action'] == GameAction.ATTACK_MODE:
+                    self.publish_event(EventType.ATTACK_MODE_REQUESTED, EventData())
+                elif selected_action['action'] == GameAction.SKILL_MODE:
+                    # For now, just show a message that skills are not implemented
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message="Skills not implemented yet",
+                            message_type=MessageType.INFO
+                        )
+                    )
+                return True
+            
+        # Handle direct key selection
+        else:
+            for action in self.actions:
+                if key == ord(action['key']) and action['enabled']:
+                    # Trigger action
+                    if action['action'] == GameAction.MOVE_MODE:
+                        self.publish_event(EventType.MOVE_MODE_REQUESTED, EventData())
+                    elif action['action'] == GameAction.ATTACK_MODE:
+                        self.publish_event(EventType.ATTACK_MODE_REQUESTED, EventData())
+                    elif action['action'] == GameAction.SKILL_MODE:
+                        # For now, just show a message that skills are not implemented
+                        self.publish_event(
+                            EventType.MESSAGE_DISPLAY_REQUESTED,
+                            MessageDisplayEventData(
+                                message="Skills not implemented yet",
+                                message_type=MessageType.INFO
+                            )
+                        )
+                    return True
+                    
+        return False
+
 # Input manager component
 class InputManager(UIComponent):
     """Component for handling input processing."""
@@ -1560,10 +1755,17 @@ class InputManager(UIComponent):
             event_manager.publish(EventType.CANCEL_REQUESTED, EventData())
         
         self.input_handler.register_action_callbacks({
+            # Cardinal directions
             GameAction.MOVE_UP: lambda: cursor_manager.move_cursor(-1, 0),
             GameAction.MOVE_DOWN: lambda: cursor_manager.move_cursor(1, 0),
             GameAction.MOVE_LEFT: lambda: cursor_manager.move_cursor(0, -1),
             GameAction.MOVE_RIGHT: lambda: cursor_manager.move_cursor(0, 1),
+            
+            # Diagonal directions
+            GameAction.MOVE_UP_LEFT: lambda: cursor_manager.move_cursor_diagonal("up-left"),
+            GameAction.MOVE_UP_RIGHT: lambda: cursor_manager.move_cursor_diagonal("up-right"),
+            GameAction.MOVE_DOWN_LEFT: lambda: cursor_manager.move_cursor_diagonal("down-left"),
+            GameAction.MOVE_DOWN_RIGHT: lambda: cursor_manager.move_cursor_diagonal("down-right"),
             GameAction.SELECT: self.game_ui.handle_select,
             GameAction.CANCEL: publish_cancel_request,
             GameAction.MOVE_MODE: publish_move_mode_request,
