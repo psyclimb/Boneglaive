@@ -10,21 +10,39 @@ from typing import Callable, Dict, Optional, Set
 
 class GameAction(Enum):
     """Logical game actions that can be triggered by input."""
+    # Cardinal movement
     MOVE_UP = auto()
     MOVE_DOWN = auto()
     MOVE_LEFT = auto()
     MOVE_RIGHT = auto()
+    
+    # Diagonal movement
+    MOVE_UP_LEFT = auto()
+    MOVE_UP_RIGHT = auto()
+    MOVE_DOWN_LEFT = auto()
+    MOVE_DOWN_RIGHT = auto()
+    
+    # Basic actions
     SELECT = auto()
     CANCEL = auto()
+    
+    # Unit action modes
     MOVE_MODE = auto()
     ATTACK_MODE = auto()
+    SKILL_MODE = auto()  # New skill mode
+    
+    # Game control
     END_TURN = auto()
     TEST_MODE = auto()
+    
+    # Debug actions
     DEBUG_INFO = auto()
     DEBUG_TOGGLE = auto()
     DEBUG_OVERLAY = auto()
     DEBUG_PERFORMANCE = auto()
     DEBUG_SAVE = auto()
+    
+    # UI actions
     HELP = auto()  # Help screen
     CHAT_MODE = auto()  # Chat mode
     CYCLE_UNITS = auto()  # Cycle through player's units (forward)
@@ -48,7 +66,19 @@ class InputHandler:
     def _setup_default_mappings(self) -> None:
         """Set up default input mappings for the current backend."""
         if self.backend_type == "curses":
-            # Arrow keys
+            # Vim-style movement keys (hjkl for cardinal directions)
+            self.action_map[ord('h')] = GameAction.MOVE_LEFT
+            self.action_map[ord('j')] = GameAction.MOVE_DOWN
+            self.action_map[ord('k')] = GameAction.MOVE_UP
+            self.action_map[ord('l')] = GameAction.MOVE_RIGHT
+            
+            # Diagonal movement keys (yubn)
+            self.action_map[ord('y')] = GameAction.MOVE_UP_LEFT     # Up-left
+            self.action_map[ord('u')] = GameAction.MOVE_UP_RIGHT    # Up-right
+            self.action_map[ord('b')] = GameAction.MOVE_DOWN_LEFT   # Down-left
+            self.action_map[ord('n')] = GameAction.MOVE_DOWN_RIGHT  # Down-right
+            
+            # Keep arrow keys as alternative
             self.action_map[curses.KEY_UP] = GameAction.MOVE_UP
             self.action_map[curses.KEY_DOWN] = GameAction.MOVE_DOWN
             self.action_map[curses.KEY_LEFT] = GameAction.MOVE_LEFT
@@ -58,10 +88,12 @@ class InputHandler:
             self.action_map[10] = GameAction.SELECT  # Enter key
             self.action_map[13] = GameAction.SELECT  # Also Enter key
             self.action_map[curses.KEY_ENTER] = GameAction.SELECT  # Also also Enter key
-            self.action_map[ord('c')] = GameAction.CANCEL  # 'c' key for cancel
+            self.action_map[ord(' ')] = GameAction.SELECT  # Space bar for selection
             self.action_map[27] = GameAction.CANCEL  # Escape key for cancel
+            self.action_map[ord('c')] = GameAction.CANCEL  # Keep 'c' key for cancel
             self.action_map[ord('m')] = GameAction.MOVE_MODE
             self.action_map[ord('a')] = GameAction.ATTACK_MODE
+            self.action_map[ord('s')] = GameAction.SKILL_MODE  # New key for skills
             self.action_map[ord('e')] = GameAction.END_TURN
             self.action_map[ord('t')] = GameAction.TEST_MODE
             self.action_map[ord('q')] = GameAction.QUIT

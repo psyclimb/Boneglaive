@@ -22,7 +22,7 @@ from boneglaive.utils.event_system import (
 from boneglaive.ui.ui_components import (
     MessageLogComponent, HelpComponent, ChatComponent, 
     CursorManager, GameModeManager, DebugComponent,
-    AnimationComponent, InputManager
+    AnimationComponent, InputManager, ActionMenuComponent
 )
 from boneglaive.ui.ui_renderer import UIRenderer
 
@@ -65,6 +65,7 @@ class GameUI:
         self.mode_manager = GameModeManager(self.renderer, self)
         self.debug_component = DebugComponent(self.renderer, self)
         self.animation_component = AnimationComponent(self.renderer, self)
+        self.action_menu_component = ActionMenuComponent(self.renderer, self)
         self.input_manager = InputManager(self.renderer, self, self.input_handler)
         self.ui_renderer = UIRenderer(self.renderer, self)
         
@@ -220,6 +221,18 @@ class GameUI:
             self.mode_manager.show_setup_instructions = False
             self.draw_board()
             return True
+            
+        # Check if action menu wants to handle the input first
+        if self.action_menu_component.visible and self.action_menu_component.handle_input(key):
+            return True
+        
+        # Check if message log component wants to handle the input
+        if self.message_log_component.handle_input(key):
+            return True
+            
+        # Check if chat component is in chat mode
+        if self.chat_component.chat_mode:
+            return self.chat_component.handle_chat_input(key)
         
         # Delegate input handling to the input manager
         return self.input_manager.process_input(key)
