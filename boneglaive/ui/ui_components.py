@@ -1773,8 +1773,8 @@ class ActionMenuComponent(UIComponent):
         menu_y = 2              # Start higher up to avoid collision with bottom UI elements
         
         # Calculate menu dimensions
-        menu_width = 20  # Smaller fixed width for the menu
-        menu_height = len(self.actions) + 3  # More compact layout
+        menu_width = 25  # Width that comfortably fits content
+        menu_height = len(self.actions) + 3  # Header + actions + bottom border
         
         # Draw menu border
         # Top border
@@ -1826,11 +1826,7 @@ class ActionMenuComponent(UIComponent):
             self.renderer.draw_text(y_pos, key_x, key_part, key_color, attr)
             self.renderer.draw_text(y_pos, label_x, label_part, label_color, attr)
             
-        # Include ESC instruction on last menu item line to save space
-        footer_text = "ESC: Cancel"
-        footer_x = menu_x + menu_width - len(footer_text) - 2
-        footer_y = menu_y + menu_height - 2
-        self.renderer.draw_text(footer_y, footer_x, footer_text, 1, curses.A_DIM)
+        # No ESC cancel text per user request
         
     def handle_input(self, key: int) -> bool:
         """Handle input specific to the action menu."""
