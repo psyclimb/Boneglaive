@@ -320,9 +320,11 @@ class Game:
         if not self.map.is_passable(y, x):
             return False
         
-        # Check if position is within move range (using chess distance for diagonals)
+        # Check if position is within effective move range (using chess distance for diagonals)
         distance = self.chess_distance(unit.y, unit.x, y, x)
-        if distance > unit.move_range:
+        effective_stats = unit.get_effective_stats()
+        effective_move_range = effective_stats['move_range']
+        if distance > effective_move_range:
             return False
             
         # Check if path passes through any units (both enemy and allied)
@@ -349,9 +351,11 @@ class Game:
         if not target or target.player == unit.player:
             return False
         
-        # Check if target is within attack range (using chess distance for diagonals)
+        # Check if target is within effective attack range (using chess distance for diagonals)
         distance = self.chess_distance(unit.y, unit.x, y, x)
-        return distance <= unit.attack_range
+        effective_stats = unit.get_effective_stats()
+        effective_attack_range = effective_stats['attack_range']
+        return distance <= effective_attack_range
     
     def get_possible_moves(self, unit):
         """
@@ -361,9 +365,13 @@ class Game:
             List of (y, x) tuples representing valid move positions.
         """
         moves = []
-        # Check all positions within move range
-        for y in range(max(0, unit.y - unit.move_range), min(HEIGHT, unit.y + unit.move_range + 1)):
-            for x in range(max(0, unit.x - unit.move_range), min(WIDTH, unit.x + unit.move_range + 1)):
+        # Get effective move range that includes bonuses/penalties
+        effective_stats = unit.get_effective_stats()
+        effective_move_range = effective_stats['move_range']
+        
+        # Check all positions within the effective move range
+        for y in range(max(0, unit.y - effective_move_range), min(HEIGHT, unit.y + effective_move_range + 1)):
+            for x in range(max(0, unit.x - effective_move_range), min(WIDTH, unit.x + effective_move_range + 1)):
                 if self.can_move_to(unit, y, x):
                     moves.append((y, x))
         return moves
@@ -384,14 +392,18 @@ class Game:
         # Use provided position or unit's current position
         y_pos, x_pos = from_pos if from_pos else (unit.y, unit.x)
         
-        for y in range(max(0, y_pos - unit.attack_range), min(HEIGHT, y_pos + unit.attack_range + 1)):
-            for x in range(max(0, x_pos - unit.attack_range), min(WIDTH, x_pos + unit.attack_range + 1)):
+        # Get effective attack range
+        effective_stats = unit.get_effective_stats()
+        effective_attack_range = effective_stats['attack_range']
+        
+        for y in range(max(0, y_pos - effective_attack_range), min(HEIGHT, y_pos + effective_attack_range + 1)):
+            for x in range(max(0, x_pos - effective_attack_range), min(WIDTH, x_pos + effective_attack_range + 1)):
                 # Check if there's an enemy unit at this position
                 target = self.get_unit_at(y, x)
                 if target and target.player != unit.player:
                     # Calculate chess distance (allows diagonals) from the attack position
                     distance = self.chess_distance(y_pos, x_pos, y, x)
-                    if distance <= unit.attack_range:
+                    if distance <= effective_attack_range:
                         attacks.append((y, x))
         
         return attacks
