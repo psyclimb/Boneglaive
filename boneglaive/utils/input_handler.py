@@ -6,7 +6,7 @@ Maps raw input to logical game actions.
 
 import curses
 from enum import Enum, auto
-from typing import Callable, Dict, Optional, Set
+from typing import Callable, Dict, Optional, Set, List
 
 class GameAction(Enum):
     """Logical game actions that can be triggered by input."""
@@ -60,62 +60,85 @@ class InputHandler:
     def __init__(self, backend_type: str = "curses"):
         self.backend_type = backend_type
         self.action_map: Dict[int, GameAction] = {}
+        self.context_sensitive_maps: Dict[str, Dict[int, GameAction]] = {}
         self.action_callbacks: Dict[GameAction, Callable] = {}
+        self.current_context = "default"
         self._setup_default_mappings()
     
     def _setup_default_mappings(self) -> None:
         """Set up default input mappings for the current backend."""
         if self.backend_type == "curses":
-            # Vim-style movement keys (hjkl for cardinal directions)
-            self.action_map[ord('h')] = GameAction.MOVE_LEFT
-            self.action_map[ord('j')] = GameAction.MOVE_DOWN
-            self.action_map[ord('k')] = GameAction.MOVE_UP
-            self.action_map[ord('l')] = GameAction.MOVE_RIGHT
-            
-            # Diagonal movement keys (yubn)
-            self.action_map[ord('y')] = GameAction.MOVE_UP_LEFT     # Up-left
-            self.action_map[ord('u')] = GameAction.MOVE_UP_RIGHT    # Up-right
-            self.action_map[ord('b')] = GameAction.MOVE_DOWN_LEFT   # Down-left
-            self.action_map[ord('n')] = GameAction.MOVE_DOWN_RIGHT  # Down-right
-            
-            # Keep arrow keys as alternative
+            # Default context mappings (arrow keys always work)
             self.action_map[curses.KEY_UP] = GameAction.MOVE_UP
             self.action_map[curses.KEY_DOWN] = GameAction.MOVE_DOWN
             self.action_map[curses.KEY_LEFT] = GameAction.MOVE_LEFT
             self.action_map[curses.KEY_RIGHT] = GameAction.MOVE_RIGHT
             
-            # Action keys
+            # Create movement context for Vim-style keys
+            movement_context = {}
+            # Vim-style movement keys (hjkl for cardinal directions)
+            movement_context[ord('h')] = GameAction.MOVE_LEFT
+            movement_context[ord('j')] = GameAction.MOVE_DOWN
+            movement_context[ord('k')] = GameAction.MOVE_UP
+            movement_context[ord('l')] = GameAction.MOVE_RIGHT
+            
+            # Diagonal movement keys (yubn)
+            movement_context[ord('y')] = GameAction.MOVE_UP_LEFT     # Up-left
+            movement_context[ord('u')] = GameAction.MOVE_UP_RIGHT    # Up-right
+            movement_context[ord('b')] = GameAction.MOVE_DOWN_LEFT   # Down-left
+            movement_context[ord('n')] = GameAction.MOVE_DOWN_RIGHT  # Down-right
+            
+            # Store context
+            self.context_sensitive_maps["movement"] = movement_context
+            
+            # Action keys (always available)
             self.action_map[10] = GameAction.SELECT  # Enter key
             self.action_map[13] = GameAction.SELECT  # Also Enter key
             self.action_map[curses.KEY_ENTER] = GameAction.SELECT  # Also also Enter key
             self.action_map[ord(' ')] = GameAction.SELECT  # Space bar for selection
             self.action_map[27] = GameAction.CANCEL  # Escape key for cancel
             self.action_map[ord('c')] = GameAction.CANCEL  # Keep 'c' key for cancel
-            self.action_map[ord('m')] = GameAction.MOVE_MODE
-            self.action_map[ord('a')] = GameAction.ATTACK_MODE
-            self.action_map[ord('s')] = GameAction.SKILL_MODE  # New key for skills
-            self.action_map[ord('e')] = GameAction.END_TURN
-            self.action_map[ord('t')] = GameAction.TEST_MODE
             self.action_map[ord('q')] = GameAction.QUIT
             
-            # Debug keys
-            self.action_map[ord('d')] = GameAction.DEBUG_INFO
-            self.action_map[ord('D')] = GameAction.DEBUG_TOGGLE
-            self.action_map[ord('O')] = GameAction.DEBUG_OVERLAY
-            self.action_map[ord('P')] = GameAction.DEBUG_PERFORMANCE
-            self.action_map[ord('S')] = GameAction.DEBUG_SAVE
+            # Action context (only available when not in movement mode)
+            action_context = {}
+            action_context[ord('m')] = GameAction.MOVE_MODE
+            action_context[ord('a')] = GameAction.ATTACK_MODE
+            action_context[ord('s')] = GameAction.SKILL_MODE  # New key for skills
+            action_context[ord('e')] = GameAction.END_TURN
+            action_context[ord('t')] = GameAction.TEST_MODE
             
+            # Store action context
+            self.context_sensitive_maps["action"] = action_context
+            
+            # Debug context
+            debug_context = {}
+            debug_context[ord('d')] = GameAction.DEBUG_INFO
+            debug_context[ord('D')] = GameAction.DEBUG_TOGGLE
+            debug_context[ord('O')] = GameAction.DEBUG_OVERLAY
+            debug_context[ord('P')] = GameAction.DEBUG_PERFORMANCE
+            debug_context[ord('S')] = GameAction.DEBUG_SAVE
+            
+            # Store debug context
+            self.context_sensitive_maps["debug"] = debug_context
+            
+            # UI context for help, chat, etc.
+            ui_context = {}
             # Help key
-            self.action_map[ord('?')] = GameAction.HELP
-            
+            ui_context[ord('?')] = GameAction.HELP
             # Chat key
-            self.action_map[ord('r')] = GameAction.CHAT_MODE
-            
+            ui_context[ord('r')] = GameAction.CHAT_MODE
             # Log history key (Shift+L)
-            self.action_map[ord('L')] = GameAction.LOG_HISTORY
+            ui_context[ord('L')] = GameAction.LOG_HISTORY
             
-            # Confirm setup key (Enter also works, but 'y' is more explicit for confirmation)
-            self.action_map[ord('y')] = GameAction.CONFIRM
+            # Store UI context
+            self.context_sensitive_maps["ui"] = ui_context
+            
+            # Setup mode context (empty for now but kept for future setup-specific actions)
+            setup_context = {}
+            
+            # Store setup context
+            self.context_sensitive_maps["setup"] = setup_context
             
             # Cycle units keys (Tab and Shift+Tab)
             self.action_map[9] = GameAction.CYCLE_UNITS  # ASCII code 9 is Tab
@@ -131,13 +154,61 @@ class InputHandler:
         """Register multiple callback functions for game actions."""
         self.action_callbacks.update(callbacks)
     
+    def set_context(self, context: str) -> None:
+        """
+        Set the current input context.
+        
+        Args:
+            context: The name of the context to set as current
+        """
+        self.current_context = context
+        
+    def get_active_contexts(self) -> List[str]:
+        """
+        Get a list of active contexts based on game state.
+        
+        Returns:
+            List of active context names
+        """
+        contexts = ["default"]
+        
+        # If we're in the default context, add all available contexts
+        if self.current_context == "default":
+            contexts.extend(["movement", "action", "debug", "ui"])
+        # If we're in menu context, allow movement but not action keys
+        elif self.current_context == "menu":
+            contexts.extend(["movement", "debug", "ui"])
+        # If we're in setup phase, include all contexts including movement
+        # The 'y' conflict will be handled by checking for a confirmation dialog
+        elif self.current_context == "setup_phase":
+            contexts.extend(["movement", "debug", "ui", "setup"])
+            # Keep movement consistent, we'll handle 'y' conflict at a higher level
+        # If we're in help/log context, restrict to minimal controls
+        elif self.current_context == "help" or self.current_context == "log":
+            # No extra contexts
+            pass
+        # If we're in a specific context, only add that one
+        elif self.current_context in self.context_sensitive_maps:
+            contexts.append(self.current_context)
+            
+        return contexts
+        
     def process_input(self, raw_input: int) -> bool:
         """
         Process raw input and trigger appropriate action callbacks.
         Returns True to continue processing, False to quit.
         """
-        # Map input to action
+        # Get action from default map
         action = self.action_map.get(raw_input)
+        
+        # If no action found in default map, check context-sensitive maps
+        if not action:
+            for context in self.get_active_contexts():
+                if context in self.context_sensitive_maps:
+                    context_map = self.context_sensitive_maps[context]
+                    if raw_input in context_map:
+                        action = context_map[raw_input]
+                        break
         
         # If we have a mapping and a callback for this action, execute it
         if action and action in self.action_callbacks:
@@ -150,11 +221,35 @@ class InputHandler:
         
         return True
     
-    def add_mapping(self, raw_input: int, action: GameAction) -> None:
-        """Add or modify an input mapping."""
-        self.action_map[raw_input] = action
+    def add_mapping(self, raw_input: int, action: GameAction, context: str = "default") -> None:
+        """
+        Add or modify an input mapping.
+        
+        Args:
+            raw_input: The input key code
+            action: The action to map to
+            context: The context for this mapping (default is the base context)
+        """
+        if context == "default":
+            self.action_map[raw_input] = action
+        else:
+            if context not in self.context_sensitive_maps:
+                self.context_sensitive_maps[context] = {}
+            self.context_sensitive_maps[context][raw_input] = action
     
-    def remove_mapping(self, raw_input: int) -> None:
-        """Remove an input mapping."""
-        if raw_input in self.action_map:
-            del self.action_map[raw_input]
+    def remove_mapping(self, raw_input: int, context: str = "default") -> None:
+        """
+        Remove an input mapping.
+        
+        Args:
+            raw_input: The input key code to remove
+            context: The context to remove from (default is the base context)
+        """
+        if context == "default":
+            if raw_input in self.action_map:
+                del self.action_map[raw_input]
+        else:
+            if context in self.context_sensitive_maps:
+                context_map = self.context_sensitive_maps[context]
+                if raw_input in context_map:
+                    del context_map[raw_input]
