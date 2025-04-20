@@ -520,7 +520,47 @@ class PrySkill(ActiveSkill):
         # Animate the displacement if UI is available
         if ui and hasattr(ui, 'draw_board'):
             ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-            time.sleep(0.3)  # Short pause to show displacement
+            time.sleep(0.2)  # Short pause to show displacement
+            
+            # Get impact animation sequence from asset manager
+            if hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+                # Get the impact animation sequence
+                impact_animation = ui.asset_manager.get_skill_animation_sequence('pry_impact')
+                
+                # Show impact animation at the landing position
+                ui.renderer.animate_attack_sequence(
+                    target.y, target.x,
+                    impact_animation,
+                    6,  # color ID - different from normal attacks for distinction
+                    0.25  # duration
+                )
+                
+                # Flash the target to show it was hit
+                if hasattr(ui, 'asset_manager'):
+                    tile_ids = [ui.asset_manager.get_unit_tile(target.type)] * 4
+                    color_ids = [6 if target.player == 1 else 5, 3 if target.player == 1 else 4] * 2
+                    durations = [0.1] * 4
+                    
+                    # Use renderer's flash tile method
+                    ui.renderer.flash_tile(target.y, target.x, tile_ids, color_ids, durations)
+                
+                # Show damage number above target with improved visualization
+                damage_text = f"-{self.damage}"
+                
+                # Make damage text more prominent
+                for i in range(3):
+                    # First clear the area
+                    ui.renderer.draw_text(target.y-1, target.x*2, " " * len(damage_text), 7)
+                    # Draw with alternating bold/normal for a flashing effect
+                    attrs = curses.A_BOLD if i % 2 == 0 else 0
+                    ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, attrs)
+                    ui.renderer.refresh()
+                    time.sleep(0.1)
+                    
+                # Final damage display (stays on screen slightly longer)
+                ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, curses.A_BOLD)
+                ui.renderer.refresh()
+                time.sleep(0.2)
         
         # Check if target was defeated
         if target.hp <= 0:
