@@ -107,6 +107,12 @@ class CursesRenderer(RenderInterface):
         curses.init_pair(9, curses.COLOR_BLACK, curses.COLOR_YELLOW) # Selected unit highlight
         # Red background for attack targets
         curses.init_pair(10, curses.COLOR_WHITE, curses.COLOR_RED)   # Attack target
+        
+        # Terrain colors
+        curses.init_pair(11, curses.COLOR_WHITE, curses.COLOR_BLACK)  # Dust (light white)
+        curses.init_pair(12, curses.COLOR_YELLOW, curses.COLOR_BLACK) # Limestone (yellow)
+        curses.init_pair(13, curses.COLOR_MAGENTA, curses.COLOR_BLACK) # Pillar (magenta)
+        curses.init_pair(14, curses.COLOR_CYAN, curses.COLOR_BLACK)   # Furniture (cyan)
     
     def animate_projectile(self, start_pos: Tuple[int, int], end_pos: Tuple[int, int], 
                           tile_id: str, color_id: int = 7, duration: float = 0.5) -> None:

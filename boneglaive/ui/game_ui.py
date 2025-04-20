@@ -765,16 +765,26 @@ class GameUI:
                 # Get terrain at this position
                 terrain = self.game.map.get_terrain_at(y, x)
                 
-                # Map terrain type to tile representation
+                # Map terrain type to tile representation and color
                 if terrain == TerrainType.EMPTY:
                     tile = self.asset_manager.get_terrain_tile("empty")
+                    color_id = 1  # Default color
                 elif terrain == TerrainType.LIMESTONE:
                     tile = self.asset_manager.get_terrain_tile("limestone")
+                    color_id = 12  # Yellow for limestone
+                elif terrain == TerrainType.DUST:
+                    tile = self.asset_manager.get_terrain_tile("dust")
+                    color_id = 11  # Light white for dust
+                elif terrain == TerrainType.PILLAR:
+                    tile = self.asset_manager.get_terrain_tile("pillar")
+                    color_id = 13  # Magenta for pillars
+                elif terrain == TerrainType.FURNITURE:
+                    tile = self.asset_manager.get_terrain_tile("furniture")
+                    color_id = 14  # Cyan for furniture
                 else:
                     # Fallback for any new terrain types
                     tile = self.asset_manager.get_terrain_tile("empty")
-                
-                color_id = 1  # Default color
+                    color_id = 1  # Default color
                 
                 # Check if there's a unit at this position
                 unit = self.game.get_unit_at(y, x)
