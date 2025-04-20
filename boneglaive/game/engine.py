@@ -602,6 +602,17 @@ class Game:
                 # Reduce cooldowns for skills
                 unit.tick_cooldowns()
                 
+                # Handle units that were affected by Pry during the turn that just ended
+                # They need to keep their was_pried status until after THEIR next turn
+                if unit.was_pried and unit.player == self.current_player:
+                    # This unit was just pried this turn - next turn it will feel the effects
+                    # Keep was_pried flag until after their turn is done
+                    pass
+                elif unit.was_pried and unit.player != self.current_player:
+                    # This unit was pried on their previous turn and just finished a turn with the penalty
+                    # Time to clear the was_pried flag
+                    unit.was_pried = False  # Keep the move_range_bonus until end of turn
+                
                 # Apply passive skills (can be affected by game state)
                 # Pass ui reference for animations if available
                 unit.apply_passive_skills(self)
@@ -615,20 +626,21 @@ class Game:
             time.sleep(0.5)
             ui.draw_board(show_cursor=True, show_selection=True, show_attack_targets=True)  # Restore all UI elements
         
-        # In multiplayer modes, player switching is primarily handled by the multiplayer manager
-        # But we still need to update the game's current_player property here
+        # Before changing players, reset movement penalties for units of the player
+        # whose turn is ENDING (not starting). This way penalties last through their entire next turn.
         if not self.winner:
+            # Reset penalties for current player's units BEFORE switching players
+            for unit in self.units:
+                if unit.is_alive() and unit.player == self.current_player:
+                    # If this unit was pried during THIS turn, don't reset (penalty should last next turn)
+                    if not unit.was_pried:
+                        unit.reset_movement_penalty()
+                        
             # Toggle between player 1 and 2
             self.current_player = 3 - self.current_player
             # Increment turn counter when player 1's turn comes around again
             if self.current_player == 1:
                 self.turn += 1
-                
-            # Reset movement penalties for units of the player whose turn is starting
-            # This ensures movement penalties from Pry last exactly one turn
-            for unit in self.units:
-                if unit.is_alive() and unit.player == self.current_player:
-                    unit.reset_movement_penalty()
     
     def check_game_over(self):
         player1_alive = any(unit.is_alive() and unit.player == 1 for unit in self.units)
