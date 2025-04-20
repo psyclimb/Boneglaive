@@ -599,8 +599,9 @@ class Game:
                 # Reset action targets
                 unit.reset_action_targets()
                 
-                # Reduce cooldowns for skills
-                unit.tick_cooldowns()
+                # Reduce cooldowns for skills ONLY for units belonging to current player
+                if unit.player == self.current_player:
+                    unit.tick_cooldowns()
                 
                 # Handle units that were affected by Pry during the turn that just ended
                 # They need to keep their was_pried status until after THEIR next turn
