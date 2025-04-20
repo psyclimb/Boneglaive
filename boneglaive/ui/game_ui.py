@@ -49,6 +49,9 @@ class GameUI:
         self.show_log = True  # Whether to show the message log
         self.log_height = 5   # Number of log lines to display
         self.show_help = False  # Whether to show help screen
+        self.chat_mode = False  # Whether in chat input mode
+        self.chat_input = ""  # Current chat input text
+        self.player_colors = {1: 3, 2: 4}  # Player colors (matching message_log)
         
         # Welcome message
         message_log.add_system_message("Welcome to Boneglaive!")
@@ -80,7 +83,8 @@ class GameUI:
             GameAction.DEBUG_OVERLAY: self._handle_debug_overlay,
             GameAction.DEBUG_PERFORMANCE: self._handle_debug_performance,
             GameAction.DEBUG_SAVE: self._handle_debug_save,
-            GameAction.HELP: self._toggle_help_screen
+            GameAction.HELP: self._toggle_help_screen,
+            GameAction.CHAT_MODE: self._toggle_chat_mode
         })
         
         # Add custom key for toggling message log
@@ -94,9 +98,35 @@ class GameUI:
     
     def _toggle_help_screen(self):
         """Toggle the help screen display."""
+        # Can't use help screen while in chat mode
+        if self.chat_mode:
+            return
+            
         self.show_help = not self.show_help
         self.draw_board()  # Redraw the board immediately to show/hide help
         message_log.add_system_message(f"Help screen {'shown' if self.show_help else 'hidden'}")
+        
+    def _toggle_chat_mode(self):
+        """Toggle chat input mode."""
+        # Can't use chat while help screen is shown
+        if self.show_help:
+            return
+            
+        # Toggle chat mode
+        self.chat_mode = not self.chat_mode
+        
+        # Clear any existing input when entering chat mode
+        if self.chat_mode:
+            self.chat_input = ""
+            self.message = "Chat mode: Type message and press Enter to send, Escape to cancel"
+            # Ensure log is visible when entering chat mode
+            if not self.show_log:
+                self._toggle_message_log()
+        else:
+            self.message = "Chat mode exited"
+            
+        # Redraw the board
+        self.draw_board()
     
     def _move_cursor(self, dy: int, dx: int):
         """Move the cursor by the given delta."""
@@ -118,7 +148,8 @@ class GameUI:
             current_player = self.multiplayer.get_current_player()
             
             # Check if unit belongs to current player or test mode is on
-            if unit and (unit.player == current_player or self.game.test_mode):
+            if unit and (unit.player == current_player or self.game.test_mode or 
+                         (self.multiplayer.is_local_multiplayer() and unit.player == self.game.current_player)):
                 self.selected_unit = unit
                 self.message = f"Selected {unit.type.name}"
                 message_log.add_message(
@@ -174,8 +205,8 @@ class GameUI:
     
     def _handle_move_mode(self):
         """Enter move mode."""
-        # In multiplayer, only allow actions on current player's turn
-        if self.multiplayer.is_multiplayer() and not self.multiplayer.is_current_player_turn():
+        # In network multiplayer, only allow actions on current player's turn
+        if self.multiplayer.is_network_multiplayer() and not self.multiplayer.is_current_player_turn():
             if not self.game.test_mode:  # Test mode overrides turn restrictions
                 self.message = "Not your turn!"
                 return
@@ -184,7 +215,10 @@ class GameUI:
             current_player = self.multiplayer.get_current_player()
             
             # Check if unit belongs to current player or test mode is on
-            if self.selected_unit.player == current_player or self.game.test_mode:
+            # Also allow control in local multiplayer for the active player
+            if (self.selected_unit.player == current_player or
+                self.game.test_mode or
+                (self.multiplayer.is_local_multiplayer() and self.selected_unit.player == self.game.current_player)):
                 self.mode = "move"
                 
                 # Convert positions to Position objects
@@ -201,8 +235,8 @@ class GameUI:
     
     def _handle_attack_mode(self):
         """Enter attack mode."""
-        # In multiplayer, only allow actions on current player's turn
-        if self.multiplayer.is_multiplayer() and not self.multiplayer.is_current_player_turn():
+        # In network multiplayer, only allow actions on current player's turn
+        if self.multiplayer.is_network_multiplayer() and not self.multiplayer.is_current_player_turn():
             if not self.game.test_mode:  # Test mode overrides turn restrictions
                 self.message = "Not your turn!"
                 return
@@ -211,7 +245,10 @@ class GameUI:
             current_player = self.multiplayer.get_current_player()
             
             # Check if unit belongs to current player or test mode is on
-            if self.selected_unit.player == current_player or self.game.test_mode:
+            # Also allow control in local multiplayer for the active player
+            if (self.selected_unit.player == current_player or 
+                self.game.test_mode or
+                (self.multiplayer.is_local_multiplayer() and self.selected_unit.player == self.game.current_player)):
                 self.mode = "attack"
                 
                 # Convert positions to Position objects
@@ -336,7 +373,7 @@ class GameUI:
                 7,  # color ID
                 0.1  # duration
             )
-        # For melee attacks (warrior), just flash the effect on target
+        # For melee attacks (glaiveman), just flash the effect on target
         else:
             # Draw effect at target position
             self.renderer.draw_tile(target.y, target.x, effect_tile, 7)
@@ -375,9 +412,12 @@ class GameUI:
         current_player = self.multiplayer.get_current_player()
         game_mode = "Single" if not self.multiplayer.is_multiplayer() else "Local" if self.multiplayer.is_local_multiplayer() else "LAN"
         
-        header = f"Player: {current_player} | Mode: {self.mode} | Game: {game_mode}"
-        if self.multiplayer.is_multiplayer():
+        header = f"Player {current_player}'s Turn | Mode: {self.mode} | Game: {game_mode}"
+        if self.multiplayer.is_network_multiplayer():  # Only show YOUR TURN/WAITING in network multiplayer
             header += f" | {'YOUR TURN' if self.multiplayer.is_current_player_turn() else 'WAITING'}"
+            
+        if self.chat_mode:
+            header += " | CHAT MODE"
             
         if debug_config.enabled:
             header += " | DEBUG ON"
@@ -421,6 +461,10 @@ class GameUI:
         # Draw message log if enabled
         if self.show_log:
             self._draw_message_log()
+            
+        # Draw chat input field if in chat mode
+        if self.chat_mode:
+            self._draw_chat_input()
         
         # Draw unit info
         if self.selected_unit:
@@ -482,6 +526,26 @@ class GameUI:
             # Never let message log crash the game
             logger.error(f"Error displaying message log: {str(e)}")
     
+    def _draw_chat_input(self):
+        """Draw the chat input field at the bottom of the message log."""
+        try:
+            # Calculate position for the chat input (below the message log)
+            input_y = HEIGHT + 5 + self.log_height + 1
+            
+            # Calculate the current player
+            current_player = self.multiplayer.get_current_player()
+            
+            # Draw the input prompt
+            prompt = f"Player {current_player}> "
+            self.renderer.draw_text(input_y, 0, prompt, self.player_colors.get(current_player, 1))
+            
+            # Draw the input text with a cursor at the end
+            current_input = self.chat_input + "_"  # Add a simple cursor
+            self.renderer.draw_text(input_y, len(prompt), current_input, 1)
+        except Exception as e:
+            # Never let chat input crash the game
+            logger.error(f"Error displaying chat input: {str(e)}")
+    
     def _draw_help_screen(self):
         """Draw the help screen overlay."""
         try:
@@ -501,6 +565,7 @@ class GameUI:
                 "e: End turn",
                 "c: Clear selection",
                 "l: Toggle message log",
+                "r: Enter chat/message mode",
                 "t: Toggle test mode (allows controlling both players' units)",
                 "q: Quit game",
                 "?: Toggle this help screen"
@@ -533,9 +598,62 @@ class GameUI:
         Handle user input.
         Returns True to continue running, False to quit.
         """
-        # Quick exit for 'q' key
-        if key == ord('q'):
+        # Quick exit for 'q' key (except in chat mode)
+        if key == ord('q') and not self.chat_mode:
             return False
+        
+        # If in chat mode, handle chat input
+        if self.chat_mode:
+            return self._handle_chat_input(key)
         
         # Process through input handler
         return self.input_handler.process_input(key)
+        
+    def _handle_chat_input(self, key: int) -> bool:
+        """
+        Handle input while in chat mode.
+        Returns True to continue running, False to quit.
+        """
+        # Check for special keys
+        if key == 27:  # Escape key - exit chat mode
+            self.chat_mode = False
+            self.message = "Chat cancelled"
+            self.draw_board()
+            return True
+            
+        elif key == 10 or key == 13:  # Enter key - send message
+            if self.chat_input.strip():  # Only send non-empty messages
+                # Get current player
+                current_player = self.multiplayer.get_current_player()
+                
+                # Add message to log
+                message_log.add_player_message(current_player, self.chat_input)
+                
+                # Clear input and exit chat mode
+                self.chat_input = ""
+                self.chat_mode = False
+                self.message = ""
+            else:
+                # Empty message, just exit chat mode
+                self.chat_mode = False
+                self.message = "Chat cancelled"
+                
+            self.draw_board()
+            return True
+            
+        elif key == curses.KEY_BACKSPACE or key == 127:  # Backspace
+            # Remove last character
+            if self.chat_input:
+                self.chat_input = self.chat_input[:-1]
+                self.draw_board()
+            return True
+            
+        elif 32 <= key <= 126:  # Printable ASCII characters
+            # Add character to input (limit to reasonable length)
+            if len(self.chat_input) < 60:  # Limit message length
+                self.chat_input += chr(key)
+                self.draw_board()
+            return True
+            
+        # Ignore other keys in chat mode
+        return True

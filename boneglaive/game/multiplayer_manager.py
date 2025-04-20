@@ -84,8 +84,13 @@ class MultiplayerManager:
             # In single player, it's always the player's turn
             return True
             
-        # In multiplayer, check if the current player matches the network player number
-        return self.current_player == self.network_interface.get_player_number()
+        # For LAN multiplayer, check if the current player matches the network player number
+        if self.is_network_multiplayer():
+            return self.current_player == self.network_interface.get_player_number()
+            
+        # For local multiplayer, always return true since both players are on the same computer
+        # and take turns physically passing control
+        return True
     
     def is_multiplayer(self) -> bool:
         """Check if the game is in multiplayer mode."""
@@ -97,7 +102,7 @@ class MultiplayerManager:
                 self.network_interface.is_local_multiplayer())
     
     def is_network_multiplayer(self) -> bool:
-        """Check if the game is in network multiplayer mode."""
+        """Check if the game is in network multiplayer mode (LAN)."""
         return (self.network_interface is not None and 
                 self.network_interface.is_network_multiplayer())
     
@@ -112,6 +117,9 @@ class MultiplayerManager:
             if isinstance(self.network_interface, LocalMultiplayerInterface):
                 self.network_interface.switch_player()
                 self.current_player = self.network_interface.get_player_number()
+                # Ensure the player number in the game engine is also updated
+                # This is redundant with our engine.py change but ensures consistency
+                self.game.current_player = self.current_player
                 logger.info(f"Switched to player {self.current_player}")
     
     def get_current_player(self) -> int:

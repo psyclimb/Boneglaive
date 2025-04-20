@@ -22,12 +22,12 @@ class Game:
     
     def setup_initial_units(self):
         # Player 1 units (left side)
-        self.add_unit(UnitType.WARRIOR, 1, 4, 8)
+        self.add_unit(UnitType.GLAIVEMAN, 1, 4, 8)
         self.add_unit(UnitType.ARCHER, 1, 5, 7)
         self.add_unit(UnitType.MAGE, 1, 6, 8)
         
         # Player 2 units (right side)
-        self.add_unit(UnitType.WARRIOR, 2, 4, 12)
+        self.add_unit(UnitType.GLAIVEMAN, 2, 4, 12)
         self.add_unit(UnitType.ARCHER, 2, 5, 13)
         self.add_unit(UnitType.MAGE, 2, 6, 12)
     
@@ -141,10 +141,12 @@ class Game:
         # Check if game is over
         self.check_game_over()
         
-        # In single player mode, switch player automatically
-        # In multiplayer, the player switching is handled by the multiplayer manager
-        if not self.winner and not self.local_multiplayer:
-            self.current_player = 3 - self.current_player  # Toggle between 1 and 2
+        # In multiplayer modes, player switching is primarily handled by the multiplayer manager
+        # But we still need to update the game's current_player property here
+        if not self.winner:
+            # Toggle between player 1 and 2
+            self.current_player = 3 - self.current_player
+            # Increment turn counter when player 1's turn comes around again
             if self.current_player == 1:
                 self.turn += 1
     

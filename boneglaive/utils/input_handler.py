@@ -26,6 +26,7 @@ class GameAction(Enum):
     DEBUG_PERFORMANCE = auto()
     DEBUG_SAVE = auto()
     HELP = auto()  # New action for help screen
+    CHAT_MODE = auto()  # New action for chat mode
     QUIT = auto()
 
 class InputHandler:
@@ -69,6 +70,9 @@ class InputHandler:
             
             # Help key
             self.action_map[ord('?')] = GameAction.HELP
+            
+            # Chat key
+            self.action_map[ord('r')] = GameAction.CHAT_MODE
     
     def register_action_callback(self, action: GameAction, callback: Callable) -> None:
         """Register a callback function for a game action."""
