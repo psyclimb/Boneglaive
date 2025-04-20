@@ -74,7 +74,8 @@ class AssetManager:
             'archer_attack': ['.', '>', '-', '>', '->'],
             'mage_attack': ['.', '*', '*', '*', '*'],
             'autoclave': ['*', '+', 'x', '#', 'X', '#', 'x', '+', '*'],  # Intense cross pattern for Autoclave
-            'pry': ['/', '|', '_', '/', '↑', '↗', '→']  # Lever-like prying motion
+            'pry': ['/', '|', '_', '/', '↑', '↗', '→'],  # Lever-like prying motion
+            'pry_impact': ['v', 'V', '#', '*', '.']  # Simple ground impact animation for Pry landing
         }
     
     def _initialize_graphical_assets(self) -> None:
@@ -118,7 +119,8 @@ class AssetManager:
             'archer_attack': ['archer_attack_1.png', 'archer_attack_2.png', 'archer_attack_3.png'],
             'mage_attack': ['mage_attack_1.png', 'mage_attack_2.png', 'mage_attack_3.png'],
             'autoclave': ['autoclave_1.png', 'autoclave_2.png', 'autoclave_3.png', 'autoclave_4.png'],
-            'pry': ['pry_1.png', 'pry_2.png', 'pry_3.png', 'pry_4.png']
+            'pry': ['pry_1.png', 'pry_2.png', 'pry_3.png', 'pry_4.png'],
+            'pry_impact': ['pry_impact_1.png', 'pry_impact_2.png', 'pry_impact_3.png']
         }
     
     def get_unit_tile(self, unit_type: UnitType) -> str:
