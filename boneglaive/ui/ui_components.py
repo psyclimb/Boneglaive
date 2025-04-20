@@ -1920,15 +1920,7 @@ class ActionMenuComponent(UIComponent):
         self.actions = []
         self.menu_mode = "skills"
         
-        # Add header action for going back (not selectable)
-        self.actions.append({
-            'key': '\x1b',  # Escape key character
-            'key_display': 'ESC',  # Display text for the key
-            'label': ' back',  # Will be displayed as [ESC] back
-            'action': GameAction.CANCEL,
-            'enabled': True,
-            'is_header': True
-        })
+        # We don't need a header action
         
         # Add available skills
         available_skills = []
@@ -2029,9 +2021,6 @@ class ActionMenuComponent(UIComponent):
             # Special handling for placeholder skills (marked as not implemented)
             if 'placeholder' in action and action['placeholder']:
                 label_color = 7  # Yellow for placeholders
-                # Add "(coming soon)" suffix to placeholder skills
-                if self.menu_mode == "skills":
-                    action_text += " (coming soon)"
             else:
                 label_color = 1 if action['enabled'] else 8  # Normal color or gray
             
