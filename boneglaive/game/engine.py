@@ -323,7 +323,7 @@ class Game:
         if distance > unit.move_range:
             return False
             
-        # Check if path passes through any enemy units
+        # Check if path passes through any units (both enemy and allied)
         # We only need to check this for moves that aren't adjacent
         if distance > 1:
             from boneglaive.utils.coordinates import Position, get_line
@@ -335,9 +335,9 @@ class Game:
             
             # Skip the first position (the unit's current position)
             for pos in path[1:-1]:  # Skip start and end positions
-                # Check if there's an enemy unit at this position
+                # Check if there's ANY unit at this position
                 blocking_unit = self.get_unit_at(pos.y, pos.x)
-                if blocking_unit and blocking_unit.player != unit.player:
+                if blocking_unit:
                     return False
         
         return True

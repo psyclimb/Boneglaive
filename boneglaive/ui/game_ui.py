@@ -263,9 +263,14 @@ class GameUI:
                     
                     for pos in path[1:-1]:  # Skip start and end positions
                         blocking_unit = self.game.get_unit_at(pos.y, pos.x)
-                        if blocking_unit and blocking_unit.player != self.selected_unit.player:
-                            self.message = "Path blocked by enemy unit"
-                            message_log.add_message("You cannot move through enemy units", MessageType.WARNING)
+                        if blocking_unit:
+                            # Determine if it's an ally or enemy for the message
+                            if blocking_unit.player == self.selected_unit.player:
+                                self.message = "Path blocked by allied unit"
+                                message_log.add_message("You cannot move through other units", MessageType.WARNING)
+                            else:
+                                self.message = "Path blocked by enemy unit"
+                                message_log.add_message("You cannot move through other units", MessageType.WARNING)
                             return
                 # Check if there's a unit at the destination
                 elif self.game.get_unit_at(y, x):
