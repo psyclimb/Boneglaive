@@ -200,7 +200,47 @@ class GameUI:
             self.highlighted_positions = []
     
     def _handle_cancel(self):
-        """Handle cancel action."""
+        """
+        Handle cancel action (Escape key or 'c' key).
+        Cancels the current action based on the current state.
+        """
+        # First check if help screen is showing - cancel it
+        if self.show_help:
+            self.show_help = False
+            self.message = "Help screen closed"
+            self.draw_board()
+            return
+            
+        # If in chat mode, cancel chat (handled in _handle_chat_input for Escape)
+        if self.chat_mode:
+            self.chat_mode = False
+            self.message = "Chat cancelled"
+            self.draw_board()
+            return
+            
+        # If in attack or move mode, cancel the mode but keep unit selected
+        if self.mode in ["attack", "move"] and self.selected_unit:
+            self.highlighted_positions = []
+            self.mode = "select"
+            self.message = f"{self.mode.capitalize()} mode cancelled, unit still selected"
+            self.draw_board()
+            return
+            
+        # If unit is selected with a planned move, cancel the move
+        if self.selected_unit and self.selected_unit.move_target:
+            self.selected_unit.move_target = None
+            self.message = "Move order cancelled"
+            self.draw_board()
+            return
+            
+        # If unit is selected with a planned attack, cancel the attack
+        if self.selected_unit and self.selected_unit.attack_target:
+            self.selected_unit.attack_target = None
+            self.message = "Attack order cancelled"
+            self.draw_board()
+            return
+            
+        # Otherwise, clear the selection entirely
         self.selected_unit = None
         self.highlighted_positions = []
         self.mode = "select"
@@ -630,7 +670,8 @@ class GameUI:
                 "m: Move selected unit",
                 "a: Attack with selected unit",
                 "e: End turn",
-                "c: Clear selection",
+                "Esc: Cancel current action/selection",
+                "c: Clear selection (same as Esc)",
                 "l: Toggle message log",
                 "r: Enter chat/message mode",
                 "t: Toggle test mode (allows controlling both players' units)",
@@ -682,7 +723,7 @@ class GameUI:
         Returns True to continue running, False to quit.
         """
         # Check for special keys
-        if key == 27:  # Escape key - exit chat mode
+        if key == 27:  # Escape key - exit chat mode (handled separately from CANCEL action)
             self.chat_mode = False
             self.message = "Chat cancelled"
             self.draw_board()

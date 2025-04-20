@@ -54,7 +54,8 @@ class InputHandler:
             self.action_map[10] = GameAction.SELECT  # Enter key
             self.action_map[13] = GameAction.SELECT  # Also Enter key
             self.action_map[curses.KEY_ENTER] = GameAction.SELECT  # Also also Enter key
-            self.action_map[ord('c')] = GameAction.CANCEL
+            self.action_map[ord('c')] = GameAction.CANCEL  # 'c' key for cancel
+            self.action_map[27] = GameAction.CANCEL  # Escape key for cancel
             self.action_map[ord('m')] = GameAction.MOVE_MODE
             self.action_map[ord('a')] = GameAction.ATTACK_MODE
             self.action_map[ord('e')] = GameAction.END_TURN
