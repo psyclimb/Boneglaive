@@ -1617,25 +1617,30 @@ class AnimationComponent(UIComponent):
         start_pos = Position(attacker.y, attacker.x)
         end_pos = Position(target.y, target.x)
         
-        # For ranged attacks (archer and mage), show projectile path
+        # For ranged attacks (archer and mage), show animation at origin then projectile path
         if attacker.type in [UnitType.ARCHER, UnitType.MAGE]:
-            # Animate projectile using renderer
+            # First show attack preparation at attacker's position
+            prep_sequence = animation_sequence[:2]  # First few frames of animation sequence
+            self.renderer.animate_attack_sequence(
+                start_pos.y, start_pos.x,
+                prep_sequence,
+                7,  # color ID
+                0.2  # quick preparation animation
+            )
+            
+            # Then animate projectile from attacker to target
             self.renderer.animate_projectile(
                 (start_pos.y, start_pos.x),
                 (end_pos.y, end_pos.x),
                 effect_tile,
                 7,  # color ID
-                0.3  # duration - slightly longer for better visibility
+                0.3  # duration
             )
         # For melee attacks (glaiveman), show swinging animation
         else:
-            # Calculate mid-point between attacker and target for melee animation
-            mid_y = (start_pos.y + end_pos.y) // 2
-            mid_x = (start_pos.x + end_pos.x) // 2
-            
-            # Show melee animation at the mid-point 
+            # Show the attack animation at the attacker's position
             self.renderer.animate_attack_sequence(
-                mid_y, mid_x,
+                start_pos.y, start_pos.x, 
                 animation_sequence,
                 7,  # color ID
                 0.5  # duration
