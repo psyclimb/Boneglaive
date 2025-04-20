@@ -43,6 +43,9 @@ class Unit:
         self.skill_target = None
         self.selected_skill = None
         
+        # Status effects
+        self.was_pried = False  # Track if this unit was affected by Pry skill
+        
         # Experience and leveling
         self.level = 1
         self.xp = 0
@@ -100,15 +103,14 @@ class Unit:
     def tick_cooldowns(self) -> None:
         """
         Reduce cooldowns for all skills by 1 turn.
-        Also clear any temporary movement penalties.
+        Movement penalties are handled separately in reset_movement_penalty.
         """
         # Tick skill cooldowns
         for skill in self.active_skills:
             skill.tick_cooldown()
-            
-        # Clear movement penalty (applied by Pry skill)
-        if self.move_range_bonus < 0:
-            self.move_range_bonus = 0
+        
+        # Movement penalties are now handled in reset_movement_penalty method
+        # which is called at the beginning of a player's turn
     
     def add_xp(self, amount: int) -> bool:
         """
@@ -154,6 +156,12 @@ class Unit:
         self.attack_target = None
         self.skill_target = None
         self.selected_skill = None
+        
+    def reset_movement_penalty(self) -> None:
+        """Clear any movement penalties and reset the Pry status."""
+        if self.move_range_bonus < 0:
+            self.move_range_bonus = 0
+        self.was_pried = False
         
     def get_skill_by_key(self, key: str) -> Optional:
         """Get an active skill by its key (for UI selection)."""
