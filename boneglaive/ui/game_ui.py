@@ -134,6 +134,21 @@ class GameUI:
         new_x = max(0, min(WIDTH-1, self.cursor_pos.x + dx))
         self.cursor_pos = Position(new_y, new_x)
     
+    def _find_unit_by_ghost(self, y, x):
+        """
+        Find a unit that has a move target at the given position.
+        
+        Args:
+            y, x: The position to check for a ghost unit
+            
+        Returns:
+            The unit that has a move target at (y, x), or None if no such unit exists
+        """
+        for unit in self.game.units:
+            if unit.is_alive() and unit.move_target == (y, x):
+                return unit
+        return None
+    
     def _handle_select(self):
         """Handle selection action."""
         # In multiplayer, only allow actions on current player's turn
@@ -144,7 +159,13 @@ class GameUI:
                 return
         
         if self.mode == "select":
+            # First check if there's a real unit at the cursor position
             unit = self.game.get_unit_at(self.cursor_pos.y, self.cursor_pos.x)
+            
+            # If not, check if there's a ghost unit (planned move) at this position
+            if not unit:
+                unit = self._find_unit_by_ghost(self.cursor_pos.y, self.cursor_pos.x)
+                
             current_player = self.multiplayer.get_current_player()
             
             # Check if unit belongs to current player or test mode is on
@@ -152,12 +173,24 @@ class GameUI:
                          (self.multiplayer.is_local_multiplayer() and unit.player == self.game.current_player)):
                 # Clear any previous selection
                 self.selected_unit = unit
-                self.message = f"Selected {unit.type.name}"
-                message_log.add_message(
-                    f"Selected {unit.type.name} at ({unit.y},{unit.x})", 
-                    MessageType.SYSTEM,
-                    player=current_player
-                )
+                
+                # Check if we're selecting a ghost (unit with a move_target at current position)
+                is_ghost = (unit.move_target == (self.cursor_pos.y, self.cursor_pos.x))
+                
+                if is_ghost:
+                    self.message = f"Selected {unit.type.name} (ghost at planned position)"
+                    message_log.add_message(
+                        f"Selected {unit.type.name} at planned position ({self.cursor_pos.y},{self.cursor_pos.x})", 
+                        MessageType.SYSTEM,
+                        player=current_player
+                    )
+                else:
+                    self.message = f"Selected {unit.type.name}"
+                    message_log.add_message(
+                        f"Selected {unit.type.name} at ({unit.y},{unit.x})", 
+                        MessageType.SYSTEM,
+                        player=current_player
+                    )
                 # Redraw the board to immediately show the selection
                 self.draw_board()
             else:
@@ -297,7 +330,8 @@ class GameUI:
                 (self.multiplayer.is_local_multiplayer() and self.selected_unit.player == self.game.current_player)):
                 self.mode = "attack"
                 
-                # If unit has a pending move, calculate attacks from the destination position
+                # If we selected a unit directly, use its position
+                # If we selected a ghost, always use the ghost position
                 from_pos = None
                 if self.selected_unit.move_target:
                     from_pos = self.selected_unit.move_target
@@ -454,16 +488,17 @@ class GameUI:
         self.renderer.refresh()
         time.sleep(0.5)
         
-        # Redraw board to clear effects (without cursor)
-        self.draw_board(show_cursor=False)
+        # Redraw board to clear effects (without cursor or selection highlighting)
+        self.draw_board(show_cursor=False, show_selection=False)
     
     @measure_perf
-    def draw_board(self, show_cursor=True):
+    def draw_board(self, show_cursor=True, show_selection=True):
         """
         Draw the game board and UI.
         
         Args:
             show_cursor: Whether to show the cursor (default: True)
+            show_selection: Whether to show selected unit highlighting (default: True)
         """
         # Set cursor visibility
         self.renderer.set_cursor(False)  # Always hide the physical cursor
@@ -546,8 +581,8 @@ class GameUI:
                             self.renderer.draw_tile(y, x, tile, 10, curses.A_BOLD)
                         continue
                         
-                    # If this is the selected unit, use special highlighting with yellow background
-                    if self.selected_unit and unit == self.selected_unit:
+                    # If this is the selected unit and we should show selection, use special highlighting
+                    if show_selection and self.selected_unit and unit == self.selected_unit:
                         # Check if cursor is also here
                         is_cursor_here = (pos == self.cursor_pos and show_cursor)
                         
@@ -564,12 +599,19 @@ class GameUI:
                     tile = self.asset_manager.get_unit_tile(target_unit.type)
                     color_id = 8  # Gray preview color
                     
-                    # Check if cursor is here before drawing ghost
+                    # Check if it's selected (user selected the ghost)
+                    is_selected = show_selection and self.selected_unit and self.selected_unit == target_unit and self.selected_unit.move_target == (y, x)
+                    
+                    # Check if cursor is here
                     is_cursor_here = (pos == self.cursor_pos and show_cursor)
                     
-                    # If cursor is here and we're showing cursor, draw with cursor color instead
-                    if is_cursor_here:
-                        self.renderer.draw_tile(y, x, tile, 2)  # Use cursor color
+                    if is_selected:
+                        # Draw as selected ghost (yellow background)
+                        self.renderer.draw_tile(y, x, tile, 9, curses.A_DIM)
+                        continue
+                    elif is_cursor_here:
+                        # Draw with cursor color
+                        self.renderer.draw_tile(y, x, tile, 2)
                         continue
                     
                     # Otherwise draw normal ghost
