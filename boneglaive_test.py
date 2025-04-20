@@ -108,34 +108,46 @@ def test_terrain_effects():
     print("Terrain effects test passed!")
 
 def test_unit_blocking():
-    """Test that enemy units block movement."""
+    """Test that all units (allies and enemies) block movement."""
     game = Game(skip_setup=True)
     
     # Clear any existing units
     game.units = []
     
-    # Add a player 1 unit
+    # Add player 1 units
     game.add_unit(UnitType.GLAIVEMAN, 1, 5, 5)
-    player1_unit = game.units[0]
+    player1_unit1 = game.units[0]
+    
+    game.add_unit(UnitType.GLAIVEMAN, 1, 5, 7)
+    player1_unit2 = game.units[1]
     
     # Add a player 2 unit
-    game.add_unit(UnitType.GLAIVEMAN, 2, 5, 7)
-    player2_unit = game.units[1]
+    game.add_unit(UnitType.GLAIVEMAN, 2, 5, 9)
+    player2_unit = game.units[2]
     
-    # Test that player 1 unit can't move through player 2 unit
-    can_move_through = game.can_move_to(player1_unit, 5, 9)
-    print(f"Can player 1 unit move through player 2 unit? {can_move_through}")
-    assert not can_move_through, "Player should not be able to move through enemy units"
+    # Test that unit can't move through allied unit
+    can_move_through_ally = game.can_move_to(player1_unit1, 5, 8)
+    print(f"Can unit move through allied unit? {can_move_through_ally}")
+    assert not can_move_through_ally, "Unit should not be able to move through allied units"
     
-    # Test that player 1 unit can still move to positions not blocked by player 2 unit
-    can_move_around = game.can_move_to(player1_unit, 3, 5)
-    print(f"Can player 1 unit move to unblocked position? {can_move_around}")
-    assert can_move_around, "Player should be able to move to unblocked positions"
+    # Test that unit can't move through enemy unit
+    can_move_through_enemy = game.can_move_to(player1_unit2, 5, 10)
+    print(f"Can unit move through enemy unit? {can_move_through_enemy}")
+    assert not can_move_through_enemy, "Unit should not be able to move through enemy units"
+    
+    # Test that unit can still move to positions not blocked by other units
+    can_move_around = game.can_move_to(player1_unit1, 3, 5)
+    print(f"Can unit move to unblocked position? {can_move_around}")
+    assert can_move_around, "Unit should be able to move to unblocked positions"
     
     # Check if adjacent moves are still allowed
-    can_move_adjacent = game.can_move_to(player1_unit, 5, 6)
-    print(f"Can player 1 unit move adjacent to enemy? {can_move_adjacent}")
-    assert can_move_adjacent, "Player should be able to move adjacent to enemy units"
+    can_move_adjacent_ally = game.can_move_to(player1_unit1, 5, 6)
+    print(f"Can unit move adjacent to allied unit? {can_move_adjacent_ally}")
+    assert can_move_adjacent_ally, "Unit should be able to move adjacent to other units"
+    
+    can_move_adjacent_enemy = game.can_move_to(player1_unit2, 5, 8)
+    print(f"Can unit move adjacent to enemy unit? {can_move_adjacent_enemy}")
+    assert can_move_adjacent_enemy, "Unit should be able to move adjacent to enemy units"
     
     print("Unit blocking test passed!")
 
