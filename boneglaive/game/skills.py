@@ -545,9 +545,18 @@ class PrySkill(ActiveSkill):
             # No actual displacement, but the skill still did damage
             return True
             
-        # Choose the best displacement position (farthest from other units)
+        # Choose the best displacement position
         best_pos = self._select_best_displacement(displacement_positions, game)
         
+        # Handle case where no valid positions were found (shouldn't happen with our validation, but just in case)
+        if best_pos is None:
+            message_log.add_message(
+                f"Pry failed: no valid displacement positions.",
+                MessageType.ABILITY,
+                player=user.player
+            )
+            return False
+            
         # Log the skill activation
         message_log.add_message(
             f"GLAIVEMAN uses Pry on {target.type.name}!",
@@ -630,8 +639,49 @@ class PrySkill(ActiveSkill):
         
         # Animate the displacement if UI is available
         if ui and hasattr(ui, 'draw_board'):
+            # Calculate all positions along the path from original to final position
+            from boneglaive.utils.coordinates import Position, get_line
+            
+            # Get all positions along the path for animation
+            start_pos = Position(original_y, original_x)
+            end_pos = Position(target.y, target.x)
+            path = get_line(start_pos, end_pos)
+            
+            # Show the initial position first
             ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-            time.sleep(0.2)  # Short pause to show displacement
+            time.sleep(0.2)  # Short pause before displacement animation
+            
+            # Temporarily set target back to original position
+            temp_y, temp_x = target.y, target.x
+            
+            # Animate movement along the path
+            for i, pos in enumerate(path[1:], 1):  # Skip the starting position
+                # Update unit position for animation
+                target.y, target.x = pos.y, pos.x
+                
+                # Redraw to show unit in intermediate position
+                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+                
+                # Show trailing animation if available
+                if hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager') and i < len(path) - 1:  # Not on the final position
+                    # Get the trail animation for the path
+                    trail_animation = ui.asset_manager.get_skill_animation_sequence('pry_trail')
+                    if trail_animation:
+                        # Show trail animation at previous position
+                        prev_pos = path[i-1]
+                        ui.renderer.animate_attack_sequence(
+                            prev_pos.y, prev_pos.x,
+                            trail_animation,
+                            6,  # color ID for trail
+                            0.05  # quick animation
+                        )
+                
+                # Shorter delay for intermediate positions
+                time.sleep(0.05)
+            
+            # Restore the final position
+            target.y, target.x = temp_y, temp_x
+            ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
             
             # Get impact animation sequence from asset manager
             if hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
@@ -693,13 +743,12 @@ class PrySkill(ActiveSkill):
         
     def _get_displacement_positions(self, user: 'Unit', target: 'Unit', game: 'Game') -> List[Tuple[int, int]]:
         """Calculate valid positions where the target can be displaced to."""
-        # Calculate direction from user to target
+        # Calculate direction FROM USER TO TARGET (important for direction calculation)
         dy = target.y - user.y
         dx = target.x - user.x
         
-        # Normalize direction vector
-        length = max(1, game.chess_distance(0, 0, dy, dx))
-        
+        # Normalize direction vector to get the displacement direction
+        # This ensures displacement follows a straight line away from the user
         if dy != 0:
             direction_y = dy // abs(dy)  # Will be -1 or 1
         else:
@@ -710,13 +759,16 @@ class PrySkill(ActiveSkill):
         else:
             direction_x = 0
             
-        # First, check if we can displace the unit along the path
-        # This will implement more realistic physics, where units stop at terrain
+        # Calculate exact direction for more precise straight-line displacement
+        # This will maintain the same angle of displacement as the original attack
+        # First, project the path beyond the target in a straight line
         max_displacement_distance = 3  # Maximum distance to displace unit
         
         # Check each step along the path for the first valid position
         positions_along_path = []
         for distance in range(1, max_displacement_distance + 1):
+            # IMPORTANT: The displacement is FROM TARGET in direction AWAY FROM USER
+            # We use target position as starting point, and direction vector points away from user
             y = target.y + (direction_y * distance)
             x = target.x + (direction_x * distance)
             
@@ -740,42 +792,21 @@ class PrySkill(ActiveSkill):
         
         # If we found valid positions along the path, use the furthest one
         if positions_along_path:
-            # Get the furthest valid position (last in list)
-            furthest_y, furthest_x = positions_along_path[-1]
-            
-            # Generate potential positions around the furthest valid position
-            potential_positions = [
-                (furthest_y, furthest_x),  # Ideal position
-                (furthest_y + 1, furthest_x), (furthest_y - 1, furthest_x),  # Adjacent vertical
-                (furthest_y, furthest_x + 1), (furthest_y, furthest_x - 1),  # Adjacent horizontal
-                # Include diagonals if we have a displacement of at least 2
-                (furthest_y + 1, furthest_x + 1), (furthest_y + 1, furthest_x - 1),  # Diagonal positions
-                (furthest_y - 1, furthest_x + 1), (furthest_y - 1, furthest_x - 1)   # Diagonal positions
-            ]
-            
-            # Filter positions to only those within map boundaries
-            positions = []
-            for y, x in potential_positions:
-                if game.is_valid_position(y, x):
-                    positions.append((y, x))
+            # The displacement positions should only be those DIRECTLY IN LINE with the force direction
+            # No additional adjacent positions are needed, as we want strict straight-line movement
+            positions = positions_along_path
         else:
             # No valid positions found along the original path
-            # Try positions around the target, but ONLY within the map boundaries
+            # As a fallback, try just one step in the displacement direction
+            fallback_y = target.y + direction_y
+            fallback_x = target.x + direction_x
+            
             positions = []
-            
-            # Only consider positions that are within map boundaries (prevent off-map displacements)
-            potential_positions = [
-                (target.y + direction_y, target.x + direction_x),  # One tile in direction
-                (target.y + 1, target.x), (target.y - 1, target.x),  # Adjacent vertical
-                (target.y, target.x + 1), (target.y, target.x - 1),  # Adjacent horizontal
-                (target.y + 1, target.x + 1), (target.y + 1, target.x - 1),  # Diagonal positions
-                (target.y - 1, target.x + 1), (target.y - 1, target.x - 1)   # Diagonal positions
-            ]
-            
-            # First filter out positions that are outside the map boundaries
-            for y, x in potential_positions:
-                if game.is_valid_position(y, x):
-                    positions.append((y, x))
+            # Only add the fallback position if it's valid
+            if (game.is_valid_position(fallback_y, fallback_x) and 
+                game.map.is_passable(fallback_y, fallback_x) and
+                not game.get_unit_at(fallback_y, fallback_x)):
+                positions.append((fallback_y, fallback_x))
         
         # Filter for valid positions (completely passable and unoccupied)
         valid_positions = []
@@ -798,32 +829,22 @@ class PrySkill(ActiveSkill):
         return valid_positions
     
     def _select_best_displacement(self, positions: List[Tuple[int, int]], game: 'Game') -> Tuple[int, int]:
-        """Select the best displacement position, prioritizing positions away from other units."""
+        """
+        Select the best displacement position.
+        With our straight-line implementation, we prioritize the position furthest from the original position.
+        """
+        # If no positions, return None (handled by caller)
+        if not positions:
+            return None
+            
         # If only one position, return it
         if len(positions) == 1:
             return positions[0]
             
-        # Calculate scores for each position based on distance to other units
-        # Higher score is better (farther from other units)
-        position_scores = []
-        
-        for pos_y, pos_x in positions:
-            score = 0
-            for unit in game.units:
-                if not unit.is_alive():
-                    continue
-                    
-                # Calculate distance to other unit
-                distance = game.chess_distance(pos_y, pos_x, unit.y, unit.x)
-                score += distance  # Higher distance is better
-                
-            position_scores.append((score, (pos_y, pos_x)))
-            
-        # Sort by score in descending order (highest score first)
-        position_scores.sort(reverse=True)
-        
-        # Return the position with the highest score
-        return position_scores[0][1]
+        # Now we want the position furthest from the original position of the target
+        # Since our positions are in order of distance (furthest last), we want the last one
+        # This maintains the "maximum force" effect where units are pushed as far as possible
+        return positions[-1]
         
     def _get_lever_positions(self, user: 'Unit', target: 'Unit') -> List[Tuple[int, int]]:
         """Get positions for lever animation between user and target."""
