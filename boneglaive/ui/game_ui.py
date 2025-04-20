@@ -222,9 +222,22 @@ class GameUI:
             self.draw_board()
             return True
             
-        # Check if action menu wants to handle the input first
-        if self.action_menu_component.visible and self.action_menu_component.handle_input(key):
-            return True
+        # Special handling for 'y' key in setup phase - check if confirmation is needed
+        # This resolves the conflict with 'y' for diagonal movement in setup phase
+        if self.game.setup_phase and key == ord('y'):
+            # If all units are placed, interpret 'y' as confirm
+            if self.mode_manager.check_confirmation_needed():
+                self.mode_manager.handle_confirm()
+                return True
+            # Otherwise, let it pass through as movement
+            
+        # Check if action menu wants to handle direct key presses first (for m/a/s keys)
+        # But this won't block other inputs like movement keys
+        if self.action_menu_component.visible:
+            handled = self.action_menu_component.handle_input(key)
+            if handled:
+                return True
+            # If not handled, continue with normal input processing
         
         # Check if message log component wants to handle the input
         if self.message_log_component.handle_input(key):

@@ -1359,22 +1359,58 @@ class GameModeManager(UIComponent):
         # Check if all units have been placed
         setup_player = self.game_ui.game.setup_player
         if self.game_ui.game.setup_units_remaining[setup_player] > 0:
-            self.game_ui.message = f"Place all units before confirming ({self.game_ui.game.setup_units_remaining[setup_player]} remaining)"
+            # Use event system for message
+            self.publish_event(
+                EventType.MESSAGE_DISPLAY_REQUESTED,
+                MessageDisplayEventData(
+                    message=f"Place all units before confirming ({self.game_ui.game.setup_units_remaining[setup_player]} remaining)",
+                    message_type=MessageType.WARNING
+                )
+            )
             return
             
         # Confirm the current player's setup
         game_start = self.game_ui.game.confirm_setup()
         
-        # Add appropriate status message (not in log)
+        # Add appropriate status message through event system
         if setup_player == 1:
-            self.game_ui.message = "Setup confirmed. Player 2's turn to place units."
+            self.publish_event(
+                EventType.MESSAGE_DISPLAY_REQUESTED,
+                MessageDisplayEventData(
+                    message="Setup confirmed. Player 2's turn to place units.",
+                    message_type=MessageType.INFO
+                )
+            )
             # Start player 2 with cursor in center
             self.game_ui.cursor_manager.cursor_pos = Position(HEIGHT // 2, WIDTH // 2)
+            # Publish cursor moved event
+            self.publish_event(
+                EventType.CURSOR_MOVED, 
+                CursorMovedEventData(position=self.game_ui.cursor_manager.cursor_pos)
+            )
         elif game_start:
-            self.game_ui.message = "Game begins!"
+            self.publish_event(
+                EventType.MESSAGE_DISPLAY_REQUESTED,
+                MessageDisplayEventData(
+                    message="Game begins!",
+                    message_type=MessageType.INFO
+                )
+            )
             
-        # Redraw the board
-        self.game_ui.draw_board()
+        # Request UI redraw
+        self.publish_event(
+            EventType.UI_REDRAW_REQUESTED,
+            UIRedrawEventData()
+        )
+        
+    def check_confirmation_needed(self):
+        """Check if confirmation is needed in setup phase."""
+        if not self.game_ui.game.setup_phase:
+            return False
+        
+        # Check if all units have been placed
+        setup_player = self.game_ui.game.setup_player
+        return self.game_ui.game.setup_units_remaining[setup_player] == 0
             
     def is_valid_setup_position(self, y, x):
         """Check if a position is valid for unit placement during setup."""
@@ -1407,15 +1443,19 @@ class GameModeManager(UIComponent):
                 "Each player must place 3 Glaivemen (melee) units.",
                 "",
                 "Controls:",
-                "- Arrow keys: Move cursor",
-                "- Enter: Place unit at cursor position",
+                "- Arrow keys or HJKL: Move cursor",
+                "- YUBN: Move cursor diagonally",
+                "- Enter/Space: Place unit at cursor position",
                 "- y: Confirm unit placement (when all units are placed)",
                 "",
                 "Special rules:",
                 "- Player 1's units will be hidden during Player 2's placement",
                 "- After both players finish placement, any units overlapping",
                 "  will be automatically displaced to nearby positions",
-                "- First-placed units will remain in their positions"
+                "- First-placed units will remain in their positions",
+                "",
+                "Note: The 'y' key works as diagonal movement until all units are placed,",
+                "      then it becomes confirmation key."
             ]
             
             # Draw instructions
@@ -1641,8 +1681,8 @@ class ActionMenuComponent(UIComponent):
             # Choose color based on whether action is enabled
             color = 1 if action['enabled'] else 8  # Normal color or gray
             
-            # Add highlight if this is the selected action
-            attr = curses.A_BOLD if i == self.selected_index else 0
+            # Make all enabled actions bold to show they're interactive
+            attr = curses.A_BOLD if action['enabled'] else 0
             
             # If action is disabled, use dim attribute
             if not action['enabled']:
@@ -1652,7 +1692,7 @@ class ActionMenuComponent(UIComponent):
             
         # Draw footer with instructions
         footer_y = menu_y + len(self.actions) + 3
-        self.renderer.draw_text(footer_y, menu_x, "ESC: Cancel", 1)
+        self.renderer.draw_text(footer_y, menu_x, "Press key shown in brackets | ESC: Cancel", 1)
         
     def handle_input(self, key: int) -> bool:
         """Handle input specific to the action menu."""
@@ -1663,33 +1703,15 @@ class ActionMenuComponent(UIComponent):
         if not self.actions:
             return False
             
-        # Handle up/down navigation
-        if key == curses.KEY_UP or key == ord('k'):
-            self.selected_index = max(0, self.selected_index - 1)
-            self.publish_event(
-                EventType.UI_REDRAW_REQUESTED,
-                UIRedrawEventData()
-            )
-            return True
-            
-        elif key == curses.KEY_DOWN or key == ord('j'):
-            self.selected_index = min(len(self.actions) - 1, self.selected_index + 1)
-            self.publish_event(
-                EventType.UI_REDRAW_REQUESTED,
-                UIRedrawEventData()
-            )
-            return True
-            
-        # Handle selection
-        elif key == 10 or key == 13 or key == ord(' '):  # Enter or space
-            selected_action = self.actions[self.selected_index]
-            if selected_action['enabled']:
-                # Trigger the action based on the action type
-                if selected_action['action'] == GameAction.MOVE_MODE:
+        # Handle direct key selection only
+        for action in self.actions:
+            if key == ord(action['key']) and action['enabled']:
+                # Trigger action
+                if action['action'] == GameAction.MOVE_MODE:
                     self.publish_event(EventType.MOVE_MODE_REQUESTED, EventData())
-                elif selected_action['action'] == GameAction.ATTACK_MODE:
+                elif action['action'] == GameAction.ATTACK_MODE:
                     self.publish_event(EventType.ATTACK_MODE_REQUESTED, EventData())
-                elif selected_action['action'] == GameAction.SKILL_MODE:
+                elif action['action'] == GameAction.SKILL_MODE:
                     # For now, just show a message that skills are not implemented
                     self.publish_event(
                         EventType.MESSAGE_DISPLAY_REQUESTED,
@@ -1699,27 +1721,8 @@ class ActionMenuComponent(UIComponent):
                         )
                     )
                 return True
-            
-        # Handle direct key selection
-        else:
-            for action in self.actions:
-                if key == ord(action['key']) and action['enabled']:
-                    # Trigger action
-                    if action['action'] == GameAction.MOVE_MODE:
-                        self.publish_event(EventType.MOVE_MODE_REQUESTED, EventData())
-                    elif action['action'] == GameAction.ATTACK_MODE:
-                        self.publish_event(EventType.ATTACK_MODE_REQUESTED, EventData())
-                    elif action['action'] == GameAction.SKILL_MODE:
-                        # For now, just show a message that skills are not implemented
-                        self.publish_event(
-                            EventType.MESSAGE_DISPLAY_REQUESTED,
-                            MessageDisplayEventData(
-                                message="Skills not implemented yet",
-                                message_type=MessageType.INFO
-                            )
-                        )
-                    return True
-                    
+                
+        # All other keys pass through - this allows movement keys to still work
         return False
 
 # Input manager component
@@ -1802,5 +1805,43 @@ class InputManager(UIComponent):
         if self.game_ui.chat_component.chat_mode:
             return self.game_ui.chat_component.handle_chat_input(key)
         
+        # Update input context based on current state
+        self._update_input_context()
+        
         # Default processing
         return self.input_handler.process_input(key)
+        
+    def _update_input_context(self):
+        """Update the input handler context based on current game state."""
+        # Default context includes all available contexts
+        contexts = ["default", "movement", "action", "debug", "ui"]
+        
+        # In chat mode, only basic controls are active
+        if self.game_ui.chat_component.chat_mode:
+            self.input_handler.set_context("default")
+            return
+            
+        # If help screen is showing, limit controls
+        if self.game_ui.help_component.show_help:
+            self.input_handler.set_context("help")
+            return
+            
+        # If log history is showing, only allow log navigation
+        if self.game_ui.message_log_component.show_log_history:
+            self.input_handler.set_context("log")
+            return
+            
+        # If action menu is visible, we want all normal keys to work (menu handles direct key presses)
+        # So we just use the default context which includes everything
+        if self.game_ui.action_menu_component.visible:
+            self.input_handler.set_context("default")
+            return
+            
+        # If in setup phase, enable the setup context
+        if self.game_ui.game.setup_phase:
+            # Create a special context that includes setup commands and movement, but not 'y' for diagonal
+            self.input_handler.set_context("setup_phase")
+            return
+            
+        # Default - all contexts active
+        self.input_handler.set_context("default")
