@@ -412,7 +412,14 @@ class GameUI:
         current_player = self.multiplayer.get_current_player()
         game_mode = "Single" if not self.multiplayer.is_multiplayer() else "Local" if self.multiplayer.is_local_multiplayer() else "LAN"
         
-        header = f"Player {current_player}'s Turn | Mode: {self.mode} | Game: {game_mode}"
+        # Get player color for the header
+        player_color = self.player_colors.get(current_player, 1)
+        
+        # Create shorter player indicator
+        player_indicator = f"Player {current_player}"
+        
+        # Build the rest of the header
+        header = f"{player_indicator} | Mode: {self.mode} | Game: {game_mode}"
         if self.multiplayer.is_network_multiplayer():  # Only show YOUR TURN/WAITING in network multiplayer
             header += f" | {'YOUR TURN' if self.multiplayer.is_current_player_turn() else 'WAITING'}"
             
@@ -421,8 +428,10 @@ class GameUI:
             
         if debug_config.enabled:
             header += " | DEBUG ON"
-            
-        self.renderer.draw_text(0, 0, header)
+        
+        # Draw player indicator with player color and the rest with default color
+        self.renderer.draw_text(0, 0, player_indicator, player_color, curses.A_BOLD)
+        self.renderer.draw_text(0, len(player_indicator), header[len(player_indicator):], 1)
         
         # Draw the battlefield
         for y in range(HEIGHT):
@@ -435,7 +444,16 @@ class GameUI:
                 
                 # Check if there's a unit at this position
                 unit = self.game.get_unit_at(y, x)
+                
+                # Check if any unit has a move target set to this position
+                target_unit = None
+                for u in self.game.units:
+                    if u.is_alive() and u.move_target == (y, x):
+                        target_unit = u
+                        break
+                
                 if unit:
+                    # There's a real unit here
                     tile = self.asset_manager.get_unit_tile(unit.type)
                     color_id = 3 if unit.player == 1 else 4
                     
@@ -443,6 +461,14 @@ class GameUI:
                     if self.selected_unit and unit == self.selected_unit:
                         self.renderer.draw_tile(y, x, tile, color_id)
                         continue
+                
+                elif target_unit and not unit:
+                    # This is a move target location - draw a "ghost" of the moving unit
+                    tile = self.asset_manager.get_unit_tile(target_unit.type)
+                    color_id = 8  # Gray preview color
+                    # Add dim attribute to make it look like a ghost/preview
+                    self.renderer.draw_tile(y, x, tile, color_id, curses.A_DIM)
+                    continue  # Skip further drawing for this cell
                 
                 # Check if position is highlighted for movement or attack
                 if pos in self.highlighted_positions:
@@ -521,7 +547,13 @@ class GameUI:
             # Draw messages in reverse order (newest at the bottom)
             for i, (text, color_id) in enumerate(reversed(messages)):
                 y_pos = start_y + self.log_height - i
-                self.renderer.draw_text(y_pos, 2, text, color_id)
+                
+                # Add bold attribute for player messages to make them stand out more
+                attributes = 0
+                if "[Player " in text:  # It's a chat message
+                    attributes = curses.A_BOLD
+                
+                self.renderer.draw_text(y_pos, 2, text, color_id, attributes)
         except Exception as e:
             # Never let message log crash the game
             logger.error(f"Error displaying message log: {str(e)}")
@@ -534,14 +566,15 @@ class GameUI:
             
             # Calculate the current player
             current_player = self.multiplayer.get_current_player()
+            player_color = self.player_colors.get(current_player, 1)
             
-            # Draw the input prompt
-            prompt = f"Player {current_player}> "
-            self.renderer.draw_text(input_y, 0, prompt, self.player_colors.get(current_player, 1))
+            # Draw the input prompt with player-specific color
+            prompt = f"[Player {current_player}]> "
+            self.renderer.draw_text(input_y, 0, prompt, player_color)
             
             # Draw the input text with a cursor at the end
             current_input = self.chat_input + "_"  # Add a simple cursor
-            self.renderer.draw_text(input_y, len(prompt), current_input, 1)
+            self.renderer.draw_text(input_y, len(prompt), current_input, player_color)
         except Exception as e:
             # Never let chat input crash the game
             logger.error(f"Error displaying chat input: {str(e)}")
@@ -626,13 +659,13 @@ class GameUI:
                 # Get current player
                 current_player = self.multiplayer.get_current_player()
                 
-                # Add message to log
+                # Add message to log with player information
                 message_log.add_player_message(current_player, self.chat_input)
                 
                 # Clear input and exit chat mode
                 self.chat_input = ""
                 self.chat_mode = False
-                self.message = ""
+                self.message = "Message sent"
             else:
                 # Empty message, just exit chat mode
                 self.chat_mode = False

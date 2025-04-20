@@ -58,13 +58,13 @@ class CursesRenderer(RenderInterface):
             # Catch errors from writing outside window bounds
             pass
     
-    def draw_tile(self, y: int, x: int, tile_id: str, color_id: int = 1) -> None:
+    def draw_tile(self, y: int, x: int, tile_id: str, color_id: int = 1, attributes: int = 0) -> None:
         """Draw a tile (character) at the specified position."""
         # In curses mode, tile_id is just a character
         screen_y = y + self.ui_offset_y
         screen_x = x * self.tile_width
         try:
-            self.stdscr.addstr(screen_y, screen_x, tile_id, curses.color_pair(color_id))
+            self.stdscr.addstr(screen_y, screen_x, tile_id, curses.color_pair(color_id) | attributes)
         except curses.error:
             # Catch errors from writing outside window bounds
             pass
@@ -86,11 +86,13 @@ class CursesRenderer(RenderInterface):
         curses.start_color()
         curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLACK)  # Default
         curses.init_pair(2, curses.COLOR_BLACK, curses.COLOR_WHITE)  # Cursor
-        curses.init_pair(3, curses.COLOR_RED, curses.COLOR_BLACK)    # Player 1
+        curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)  # Player 1 (changed to green)
         curses.init_pair(4, curses.COLOR_BLUE, curses.COLOR_BLACK)   # Player 2
         curses.init_pair(5, curses.COLOR_BLACK, curses.COLOR_GREEN)  # Highlighted move
         curses.init_pair(6, curses.COLOR_BLACK, curses.COLOR_RED)    # Highlighted attack
         curses.init_pair(7, curses.COLOR_YELLOW, curses.COLOR_BLACK) # Attack animation
+        # Use dim white (appears gray in most terminals) for move target preview
+        curses.init_pair(8, curses.COLOR_WHITE, curses.COLOR_BLACK)  # Move target preview (gray)
     
     def animate_projectile(self, start_pos: Tuple[int, int], end_pos: Tuple[int, int], 
                           tile_id: str, color_id: int = 7, duration: float = 0.5) -> None:

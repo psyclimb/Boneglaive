@@ -1,0 +1,16 @@
+{
+  "display_mode": "text",
+  "window_width": 800,
+  "window_height": 600,
+  "fullscreen": false,
+  "animation_speed": 1.0,
+  "show_grid": true,
+  "network_mode": "local",
+  "server_ip": "127.0.0.1",
+  "server_port": 7777,
+  "player_name": "Player",
+  "audio_enabled": true,
+  "music_volume": 0.7,
+  "sfx_volume": 1.0,
+  "custom_keybindings": {}
+}
