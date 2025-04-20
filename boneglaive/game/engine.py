@@ -320,7 +320,27 @@ class Game:
         
         # Check if position is within move range (using chess distance for diagonals)
         distance = self.chess_distance(unit.y, unit.x, y, x)
-        return distance <= unit.move_range
+        if distance > unit.move_range:
+            return False
+            
+        # Check if path passes through any enemy units
+        # We only need to check this for moves that aren't adjacent
+        if distance > 1:
+            from boneglaive.utils.coordinates import Position, get_line
+            
+            # Get all positions along the path
+            start_pos = Position(unit.y, unit.x)
+            end_pos = Position(y, x)
+            path = get_line(start_pos, end_pos)
+            
+            # Skip the first position (the unit's current position)
+            for pos in path[1:-1]:  # Skip start and end positions
+                # Check if there's an enemy unit at this position
+                blocking_unit = self.get_unit_at(pos.y, pos.x)
+                if blocking_unit and blocking_unit.player != unit.player:
+                    return False
+        
+        return True
     
     def can_attack(self, unit, y, x):
         target = self.get_unit_at(y, x)
@@ -332,7 +352,14 @@ class Game:
         return distance <= unit.attack_range
     
     def get_possible_moves(self, unit):
+        """
+        Get all valid moves for a unit, checking for blocked paths.
+        
+        Returns:
+            List of (y, x) tuples representing valid move positions.
+        """
         moves = []
+        # Check all positions within move range
         for y in range(max(0, unit.y - unit.move_range), min(HEIGHT, unit.y + unit.move_range + 1)):
             for x in range(max(0, unit.x - unit.move_range), min(WIDTH, unit.x + unit.move_range + 1)):
                 if self.can_move_to(unit, y, x):

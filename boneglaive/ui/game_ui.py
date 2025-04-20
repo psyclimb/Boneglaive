@@ -231,16 +231,48 @@ class GameUI:
                 else:
                     message_log.add_message("No unit at that position", MessageType.WARNING)
         
-        elif self.mode == "move" and Position(self.cursor_pos.y, self.cursor_pos.x) in self.highlighted_positions:
-            self.selected_unit.move_target = (self.cursor_pos.y, self.cursor_pos.x)
-            unit_type = self.selected_unit.type.name
-            start_pos = (self.selected_unit.y, self.selected_unit.x)
-            end_pos = (self.cursor_pos.y, self.cursor_pos.x)
-            
-            self.message = f"Move set to ({self.cursor_pos.y}, {self.cursor_pos.x})"
-            # No message added to log for planned movements
-            self.mode = "select"
-            self.highlighted_positions = []
+        elif self.mode == "move":
+            # Check if the position is a valid move target
+            if Position(self.cursor_pos.y, self.cursor_pos.x) in self.highlighted_positions:
+                self.selected_unit.move_target = (self.cursor_pos.y, self.cursor_pos.x)
+                unit_type = self.selected_unit.type.name
+                start_pos = (self.selected_unit.y, self.selected_unit.x)
+                end_pos = (self.cursor_pos.y, self.cursor_pos.x)
+                
+                self.message = f"Move set to ({self.cursor_pos.y}, {self.cursor_pos.x})"
+                # No message added to log for planned movements
+                self.mode = "select"
+                self.highlighted_positions = []
+            else:
+                # Check why the position isn't valid
+                y, x = self.cursor_pos.y, self.cursor_pos.x
+                
+                # Check if the position is in range
+                distance = self.game.chess_distance(self.selected_unit.y, self.selected_unit.x, y, x)
+                if distance > self.selected_unit.move_range:
+                    self.message = "Position is out of movement range"
+                # Check if there's an enemy unit blocking the path
+                elif distance > 1:
+                    # Check the path for enemy units
+                    from boneglaive.utils.coordinates import Position, get_line
+                    start_pos = Position(self.selected_unit.y, self.selected_unit.x)
+                    end_pos = Position(y, x)
+                    path = get_line(start_pos, end_pos)
+                    
+                    for pos in path[1:-1]:  # Skip start and end positions
+                        blocking_unit = self.game.get_unit_at(pos.y, pos.x)
+                        if blocking_unit and blocking_unit.player != self.selected_unit.player:
+                            self.message = "Path blocked by enemy unit"
+                            message_log.add_message("You cannot move through enemy units", MessageType.WARNING)
+                            return
+                # Check if there's a unit at the destination
+                elif self.game.get_unit_at(y, x):
+                    self.message = "Position is occupied by another unit"
+                # Check if the terrain is blocking
+                elif not self.game.map.is_passable(y, x):
+                    self.message = "Terrain is impassable"
+                else:
+                    self.message = "Invalid move target"
         
         elif self.mode == "attack" and Position(self.cursor_pos.y, self.cursor_pos.x) in self.highlighted_positions:
             self.selected_unit.attack_target = (self.cursor_pos.y, self.cursor_pos.x)
@@ -743,8 +775,7 @@ class GameUI:
             if self.multiplayer.is_network_multiplayer():  # Only show YOUR TURN/WAITING in network multiplayer
                 header += f" | {'YOUR TURN' if self.multiplayer.is_current_player_turn() else 'WAITING'}"
                 
-        # Add map name to the header
-        header += f" | Map: {self.game.map.name}"
+        # Map name removed from header
         
         # Additional header indicators
         if self.chat_mode:
