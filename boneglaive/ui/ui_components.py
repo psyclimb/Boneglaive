@@ -1171,6 +1171,18 @@ class GameModeManager(UIComponent):
             # Check if unit belongs to current player or test mode is on
             # Also allow control in local multiplayer for the active player
             if cursor_manager.can_select_unit(cursor_manager.selected_unit):
+                # Check if unit has already planned an attack
+                if cursor_manager.selected_unit.attack_target:
+                    # Use event system for message
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message="Unit has already planned an attack and cannot move",
+                            message_type=MessageType.WARNING
+                        )
+                    )
+                    return
+                    
                 # Change mode (will publish mode changed event)
                 self.set_mode("move")
                 
