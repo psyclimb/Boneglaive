@@ -30,6 +30,7 @@ class GameAction(Enum):
     CYCLE_UNITS = auto()  # Cycle through player's units (forward)
     CYCLE_UNITS_REVERSE = auto()  # Cycle through player's units (backward)
     LOG_HISTORY = auto()  # Full log history screen
+    CONFIRM = auto()  # Confirm setup/action
     QUIT = auto()
 
 class InputHandler:
@@ -80,6 +81,9 @@ class InputHandler:
             
             # Log history key (Shift+L)
             self.action_map[ord('L')] = GameAction.LOG_HISTORY
+            
+            # Confirm setup key (Enter also works, but 'y' is more explicit for confirmation)
+            self.action_map[ord('y')] = GameAction.CONFIRM
             
             # Cycle units keys (Tab and Shift+Tab)
             self.action_map[9] = GameAction.CYCLE_UNITS  # ASCII code 9 is Tab

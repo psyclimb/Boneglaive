@@ -9,7 +9,7 @@ from boneglaive.utils.message_log import message_log, MessageType
 logger = debug_config.setup_logging('game.engine')
 
 class Game:
-    def __init__(self):
+    def __init__(self, skip_setup=False):
         self.units = []
         self.current_player = 1
         self.turn = 1
@@ -17,19 +17,180 @@ class Game:
         self.test_mode = False  # For debugging
         self.local_multiplayer = False
         
-        # Initialize with some units
-        self.setup_initial_units()
+        # Game state
+        self.setup_phase = not skip_setup  # Whether we're in setup phase
+        self.setup_player = 1    # Which player is placing units
+        self.setup_confirmed = {1: False, 2: False}  # Whether players have confirmed setup
+        self.setup_units_remaining = {1: 3, 2: 3}    # How many units each player can still place (3 glaivemen)
+        
+        # If skipping setup, add default units
+        if skip_setup:
+            self.setup_initial_units()
     
     def setup_initial_units(self):
+        """
+        Add predefined units (used for testing only).
+        In normal play, units are placed by players during the setup phase.
+        """
+        # Clear any existing units
+        self.units = []
+        
         # Player 1 units (left side)
         self.add_unit(UnitType.GLAIVEMAN, 1, 4, 8)
-        self.add_unit(UnitType.ARCHER, 1, 5, 7)
-        self.add_unit(UnitType.MAGE, 1, 6, 8)
+        self.add_unit(UnitType.GLAIVEMAN, 1, 5, 7)
+        self.add_unit(UnitType.GLAIVEMAN, 1, 6, 8)
         
         # Player 2 units (right side)
         self.add_unit(UnitType.GLAIVEMAN, 2, 4, 12)
-        self.add_unit(UnitType.ARCHER, 2, 5, 13)
-        self.add_unit(UnitType.MAGE, 2, 6, 12)
+        self.add_unit(UnitType.GLAIVEMAN, 2, 5, 13)
+        self.add_unit(UnitType.GLAIVEMAN, 2, 6, 12)
+        
+        # Skip setup phase when using test setup
+        self.setup_phase = False
+        self.setup_player = 1
+        self.setup_confirmed = {1: True, 2: True}
+        self.setup_units_remaining = {1: 0, 2: 0}
+        
+    def place_setup_unit(self, y, x):
+        """
+        Place a unit during the setup phase.
+        
+        Args:
+            y, x: The position to place the unit
+            
+        Returns:
+            True if unit was placed, False if invalid or no units remaining
+        """
+        # Check if position is valid
+        if not self.is_valid_position(y, x):
+            return False
+            
+        # Check if this player has units remaining to place
+        if self.setup_units_remaining[self.setup_player] <= 0:
+            return False
+        
+        # Place the unit (always a Glaiveman for now)
+        # Allow placement even if position is occupied - we'll resolve conflicts later
+        self.add_unit(UnitType.GLAIVEMAN, self.setup_player, y, x)
+        
+        # Decrement remaining units
+        self.setup_units_remaining[self.setup_player] -= 1
+        
+        return True
+            
+        
+    def confirm_setup(self):
+        """
+        Confirm the current player's setup and proceed.
+        
+        Returns:
+            True if game should now start, False otherwise
+        """
+        # Make sure all units have been placed
+        if self.setup_units_remaining[self.setup_player] > 0:
+            return False
+            
+        # Mark this player's setup as confirmed
+        self.setup_confirmed[self.setup_player] = True
+        
+        # If player 1 is done, switch to player 2
+        if self.setup_player == 1:
+            self.setup_player = 2
+            # Here, game still in setup phase
+            return False
+            
+        # If player 2 is done, start the game
+        if self.setup_player == 2:
+            # Resolve any unit placement conflicts before the game starts
+            self._resolve_unit_placement_conflicts()
+            
+            self.setup_phase = False
+            
+            # Add welcome messages now that game is starting
+            message_log.add_system_message("Welcome to Boneglaive!")
+            message_log.add_system_message("Game begins!")
+            
+            # Game should start
+            return True
+            
+        return False
+        
+    def _resolve_unit_placement_conflicts(self):
+        """
+        Resolve conflicts in unit placement by displacing units on the same position.
+        This is called when player 2 confirms setup before starting the game.
+        """
+        import random
+        
+        # Simple approach: create a set of occupied positions and move units that conflict
+        occupied_positions = set()
+        units_to_check = sorted(self.units, key=lambda u: u.player)  # Sort by player to prioritize player 1
+        
+        for unit in units_to_check:
+            if not unit.is_alive():
+                continue
+                
+            pos = (unit.y, unit.x)
+            if pos in occupied_positions:
+                # This unit is at a position that's already taken - find a new spot
+                placed = False
+                
+                # Try adjacent positions first
+                for dy in [-1, 0, 1]:
+                    for dx in [-1, 0, 1]:
+                        if dy == 0 and dx == 0:
+                            continue  # Skip current position
+                            
+                        new_y = unit.y + dy
+                        new_x = unit.x + dx
+                        
+                        # Check if position is valid and unoccupied
+                        if (self.is_valid_position(new_y, new_x) and
+                            (new_y, new_x) not in occupied_positions):
+                            # Found a valid spot!
+                            unit.y = new_y
+                            unit.x = new_x
+                            occupied_positions.add((new_y, new_x))
+                            placed = True
+                            break
+                    if placed:
+                        break
+                        
+                # If adjacent positions didn't work, try random positions
+                if not placed:
+                    for _ in range(20):  # Try up to 20 random positions
+                        new_y = random.randint(0, HEIGHT-1)
+                        new_x = random.randint(0, WIDTH-1)
+                        
+                        if (new_y, new_x) not in occupied_positions:
+                            unit.y = new_y
+                            unit.x = new_x
+                            occupied_positions.add((new_y, new_x))
+                            placed = True
+                            break
+                            
+                # Last resort - iterate through entire board to find an open spot
+                if not placed:
+                    for y in range(HEIGHT):
+                        for x in range(WIDTH):
+                            if (y, x) not in occupied_positions:
+                                unit.y = y
+                                unit.x = x
+                                occupied_positions.add((y, x))
+                                placed = True
+                                break
+                        if placed:
+                            break
+                            
+                # If we still haven't placed, just put it somewhere and accept the overlap
+                if not placed:
+                    unit.y = random.randint(0, HEIGHT-1)
+                    unit.x = random.randint(0, WIDTH-1)
+                    occupied_positions.add((unit.y, unit.x))
+            else:
+                # Position is free, mark it as occupied
+                occupied_positions.add(pos)
+        
     
     def add_unit(self, unit_type, player, y, x):
         self.units.append(Unit(unit_type, player, y, x))

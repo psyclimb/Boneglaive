@@ -34,17 +34,19 @@ class GameUI:
         self.input_handler = InputHandler()
         self._setup_input_callbacks()
         
-        # Game state
-        self.game = Game()
+        # Game state with setup phase by default
+        self.game = Game(skip_setup=False)
         
         # Set up multiplayer manager
         from boneglaive.game.multiplayer_manager import MultiplayerManager
         self.multiplayer = MultiplayerManager(self.game)
         
+        # Don't show any welcome message during setup phase
+        
         self.cursor_pos = Position(HEIGHT // 2, WIDTH // 2)
         self.selected_unit = None
         self.highlighted_positions = []
-        self.mode = "select"  # select, move, attack
+        self.mode = "select"  # select, move, attack, setup
         self.message = ""
         self.show_log = True  # Whether to show the message log
         self.log_height = 5   # Number of log lines to display
@@ -57,14 +59,19 @@ class GameUI:
         self.show_log_history = False  # Whether to show the full log history screen
         self.log_history_scroll = 0    # Scroll position in log history
         
-        # Welcome message
-        message_log.add_system_message("Welcome to Boneglaive!")
+        # Setup phase state
+        self.show_setup_instructions = False  # Don't show setup instructions by default
         
-        # Add game mode message
-        if self.multiplayer.is_local_multiplayer():
-            message_log.add_system_message("Local multiplayer mode. Players will take turns on this computer.")
-        elif self.multiplayer.is_network_multiplayer():
-            message_log.add_system_message("LAN multiplayer mode. Connected to remote player.")
+        # Only show welcome message when not in setup phase
+        if not self.game.setup_phase:
+            message_log.add_system_message("Welcome to Boneglaive!")
+        
+        # Only show game mode message when not in setup phase
+        if not self.game.setup_phase:
+            if self.multiplayer.is_local_multiplayer():
+                message_log.add_system_message("Local multiplayer mode. Players will take turns on this computer.")
+            elif self.multiplayer.is_network_multiplayer():
+                message_log.add_system_message("LAN multiplayer mode. Connected to remote player.")
         
         # Update message with current player
         self._update_player_message()
@@ -91,7 +98,8 @@ class GameUI:
             GameAction.CHAT_MODE: self._toggle_chat_mode,
             GameAction.CYCLE_UNITS: self._cycle_units,
             GameAction.CYCLE_UNITS_REVERSE: self._cycle_units_reverse,
-            GameAction.LOG_HISTORY: self._toggle_log_history
+            GameAction.LOG_HISTORY: self._toggle_log_history,
+            GameAction.CONFIRM: self._handle_confirm  # For setup phase confirmation
         })
         
         # Add custom key for toggling message log
@@ -178,6 +186,10 @@ class GameUI:
     
     def _handle_select(self):
         """Handle selection action."""
+        # In setup phase, the select action places units
+        if self.game.setup_phase:
+            return self._handle_setup_select()
+            
         # In multiplayer, only allow actions on current player's turn
         if self.multiplayer.is_multiplayer() and not self.multiplayer.is_current_player_turn():
             if not self.game.test_mode:  # Test mode overrides turn restrictions
@@ -225,11 +237,7 @@ class GameUI:
             end_pos = (self.cursor_pos.y, self.cursor_pos.x)
             
             self.message = f"Move set to ({self.cursor_pos.y}, {self.cursor_pos.x})"
-            message_log.add_message(
-                f"{unit_type} will move from {start_pos} to {end_pos}", 
-                MessageType.MOVEMENT,
-                player=self.selected_unit.player
-            )
+            # No message added to log for planned movements
             self.mode = "select"
             self.highlighted_positions = []
         
@@ -238,12 +246,7 @@ class GameUI:
             target = self.game.get_unit_at(self.cursor_pos.y, self.cursor_pos.x)
             
             self.message = f"Attack set against {target.type.name}"
-            message_log.add_message(
-                f"{self.selected_unit.type.name} will attack {target.type.name}", 
-                MessageType.COMBAT,
-                player=self.selected_unit.player,
-                target=target.player
-            )
+            # No message added to log for planned attacks
             self.mode = "select"
             self.highlighted_positions = []
     
@@ -393,9 +396,72 @@ class GameUI:
             
         # Redraw the board to update visuals
         self.draw_board()
+        
+    def _handle_setup_select(self):
+        """Handle unit placement during setup phase."""
+        # Get the current setup player
+        setup_player = self.game.setup_player
+        
+        # Check if cursor position is valid for this player
+        if not self._is_valid_setup_position(self.cursor_pos.y, self.cursor_pos.x):
+            self.message = f"Cannot place unit here"
+            return
+            
+        # Check if there are units remaining to place
+        if self.game.setup_units_remaining[setup_player] <= 0:
+            self.message = f"All units placed. Press 'y' to confirm."
+            return
+            
+        # Try to place the unit (no displacement yet)
+        success = self.game.place_setup_unit(self.cursor_pos.y, self.cursor_pos.x)
+        
+        if success:
+            # Unit was placed at the original position
+            self.message = f"Unit placed. {self.game.setup_units_remaining[setup_player]} remaining."
+            
+            # No log message during setup phase
+        else:
+            self.message = "Failed to place unit"
+            
+        # Redraw the board
+        self.draw_board()
+        
+    def _is_valid_setup_position(self, y, x):
+        """Check if a position is valid for unit placement during setup."""
+        # Basic bounds check only - allow placement anywhere on the board
+        return self.game.is_valid_position(y, x)
+        
+    def _handle_confirm(self):
+        """Handle confirmation action (mainly for setup phase)."""
+        if not self.game.setup_phase:
+            return  # Ignore outside of setup
+            
+        # Check if all units have been placed
+        setup_player = self.game.setup_player
+        if self.game.setup_units_remaining[setup_player] > 0:
+            self.message = f"Place all units before confirming ({self.game.setup_units_remaining[setup_player]} remaining)"
+            return
+            
+        # Confirm the current player's setup
+        game_start = self.game.confirm_setup()
+        
+        # Add appropriate status message (not in log)
+        if setup_player == 1:
+            self.message = "Setup confirmed. Player 2's turn to place units."
+            # Start player 2 with cursor in center
+            self.cursor_pos = Position(HEIGHT // 2, WIDTH // 2)
+        elif game_start:
+            self.message = "Game begins!"
+            
+        # Redraw the board
+        self.draw_board()
     
     def _update_player_message(self):
         """Update the message showing the current player (only in message log)."""
+        # Don't show any player messages during setup phase
+        if self.game.setup_phase:
+            return
+            
         current_player = self.multiplayer.get_current_player()
         
         if self.multiplayer.is_multiplayer():
@@ -413,8 +479,18 @@ class GameUI:
         """Toggle test mode."""
         self.game.toggle_test_mode()
         if self.game.test_mode:
-            self.message = "Test mode ON - both players can control all units"
-            message_log.add_system_message("Test mode enabled")
+            # If in setup phase, skip it and use test units
+            if self.game.setup_phase:
+                self.game.setup_phase = False
+                self.game.setup_initial_units()
+                self.message = "Test mode ON - setup phase skipped, using test units"
+                
+                # Add welcome messages when skipping setup phase
+                message_log.add_system_message("Welcome to Boneglaive!")
+                message_log.add_system_message("Test mode enabled, using predefined units")
+            else:
+                self.message = "Test mode ON - both players can control all units"
+                message_log.add_system_message("Test mode enabled")
         else:
             self.message = "Test mode OFF"
             message_log.add_system_message("Test mode disabled")
@@ -619,22 +695,42 @@ class GameUI:
             self._draw_log_history_screen()
             self.renderer.refresh()
             return
+            
+        # If setup instructions are being shown, draw them and return
+        if self.game.setup_phase and self.show_setup_instructions:
+            self._draw_setup_instructions()
+            self.renderer.refresh()
+            return
         
         # Draw header
-        current_player = self.multiplayer.get_current_player()
-        game_mode = "Single" if not self.multiplayer.is_multiplayer() else "Local" if self.multiplayer.is_local_multiplayer() else "LAN"
-        
-        # Get player color for the header
-        player_color = self.player_colors.get(current_player, 1)
-        
-        # Create shorter player indicator
-        player_indicator = f"Player {current_player}"
-        
-        # Build the rest of the header
-        header = f"{player_indicator} | Mode: {self.mode} | Game: {game_mode}"
-        if self.multiplayer.is_network_multiplayer():  # Only show YOUR TURN/WAITING in network multiplayer
-            header += f" | {'YOUR TURN' if self.multiplayer.is_current_player_turn() else 'WAITING'}"
+        if self.game.setup_phase:
+            # Setup phase header
+            setup_player = self.game.setup_player
+            player_color = self.player_colors.get(setup_player, 1)
+            player_indicator = f"Player {setup_player}"
             
+            # Show setup-specific header
+            header = f"{player_indicator} | SETUP PHASE | Units left: {self.game.setup_units_remaining[setup_player]}"
+            
+            if self.game.setup_units_remaining[setup_player] == 0:
+                header += " | Press 'y' to confirm"
+        else:
+            # Normal game header
+            current_player = self.multiplayer.get_current_player()
+            game_mode = "Single" if not self.multiplayer.is_multiplayer() else "Local" if self.multiplayer.is_local_multiplayer() else "LAN"
+            
+            # Get player color for the header
+            player_color = self.player_colors.get(current_player, 1)
+            
+            # Create shorter player indicator
+            player_indicator = f"Player {current_player}"
+            
+            # Build the rest of the header
+            header = f"{player_indicator} | Mode: {self.mode} | Game: {game_mode}"
+            if self.multiplayer.is_network_multiplayer():  # Only show YOUR TURN/WAITING in network multiplayer
+                header += f" | {'YOUR TURN' if self.multiplayer.is_current_player_turn() else 'WAITING'}"
+        
+        # Additional header indicators
         if self.chat_mode:
             header += " | CHAT MODE"
             
@@ -672,34 +768,55 @@ class GameUI:
                         break
                 
                 if unit:
-                    # There's a real unit here
-                    tile = self.asset_manager.get_unit_tile(unit.type)
-                    color_id = 3 if unit.player == 1 else 4
-                    
-                    # If this unit is being targeted for attack and attack targets should be shown
-                    if attacking_unit and show_attack_targets:
-                        # Check if cursor is here before drawing targeted unit
-                        is_cursor_here = (pos == self.cursor_pos and show_cursor)
-                        
-                        if is_cursor_here:
-                            # Draw with cursor color but still bold to show it's selected
-                            self.renderer.draw_tile(y, x, tile, 2, curses.A_BOLD)
-                        else:
-                            # Use red background to show this unit is targeted for attack
-                            self.renderer.draw_tile(y, x, tile, 10, curses.A_BOLD)
+                    # Check if this unit should be hidden during setup
+                    hide_unit = (self.game.setup_phase and 
+                                 self.game.setup_player == 2 and 
+                                 unit.player == 1)
+                                 
+                    # Even if unit is hidden, still draw cursor if it's here
+                    if hide_unit and pos == self.cursor_pos and show_cursor:
+                        self.renderer.draw_tile(y, x, self.asset_manager.get_terrain_tile("empty"), 2)
                         continue
+                                 
+                    if not hide_unit:
+                        # There's a real unit here
+                        tile = self.asset_manager.get_unit_tile(unit.type)
+                        color_id = 3 if unit.player == 1 else 4
                         
-                    # If this is the selected unit and we should show selection, use special highlighting
-                    if show_selection and self.selected_unit and unit == self.selected_unit:
-                        # Check if cursor is also here
+                        # If this unit is being targeted for attack and attack targets should be shown
+                        if attacking_unit and show_attack_targets:
+                            # Check if cursor is here before drawing targeted unit
+                            is_cursor_here = (pos == self.cursor_pos and show_cursor)
+                            
+                            if is_cursor_here:
+                                # Draw with cursor color but still bold to show it's selected
+                                self.renderer.draw_tile(y, x, tile, 2, curses.A_BOLD)
+                            else:
+                                # Use red background to show this unit is targeted for attack
+                                self.renderer.draw_tile(y, x, tile, 10, curses.A_BOLD)
+                            continue
+                            
+                        # If this is the selected unit and we should show selection, use special highlighting
+                        if show_selection and self.selected_unit and unit == self.selected_unit:
+                            # Check if cursor is also here
+                            is_cursor_here = (pos == self.cursor_pos and show_cursor)
+                            
+                            if is_cursor_here:
+                                # Draw with cursor color but bold to show it's selected
+                                self.renderer.draw_tile(y, x, tile, 2, curses.A_BOLD)
+                            else:
+                                # Use yellow background to highlight the selected unit
+                                self.renderer.draw_tile(y, x, tile, 9, curses.A_BOLD)
+                            continue
+                            
+                        # Check if cursor is here for normal unit draw
                         is_cursor_here = (pos == self.cursor_pos and show_cursor)
-                        
                         if is_cursor_here:
-                            # Draw with cursor color but bold to show it's selected
-                            self.renderer.draw_tile(y, x, tile, 2, curses.A_BOLD)
+                            # Draw with cursor color
+                            self.renderer.draw_tile(y, x, tile, 2)
                         else:
-                            # Use yellow background to highlight the selected unit
-                            self.renderer.draw_tile(y, x, tile, 9, curses.A_BOLD)
+                            # Normal unit draw
+                            self.renderer.draw_tile(y, x, tile, color_id)
                         continue
                 
                 elif target_unit and not unit:
@@ -940,11 +1057,67 @@ class GameUI:
             # Never let log history crash the game
             logger.error(f"Error displaying log history: {str(e)}")
     
+    def _draw_setup_instructions(self):
+        """Draw the setup phase instructions screen."""
+        try:
+            # Get terminal size
+            term_height, term_width = self.renderer.get_terminal_size()
+            
+            # Draw title
+            self.renderer.draw_text(2, 2, "=== BONEGLAIVE SETUP PHASE ===", 1, curses.A_BOLD)
+            
+            # Draw instructions
+            setup_player = self.game.setup_player
+            player_color = self.player_colors.get(setup_player, 1)
+            
+            instructions = [
+                f"Player {setup_player}, place your units on the battlefield.",
+                "",
+                "Each player must place 3 Glaivemen (melee) units.",
+                "",
+                "Controls:",
+                "- Arrow keys: Move cursor",
+                "- Enter: Place unit at cursor position",
+                "- y: Confirm unit placement (when all units are placed)",
+                "",
+                "Special rules:",
+                "- Player 1's units will be hidden during Player 2's placement",
+                "- After both players finish placement, any units overlapping",
+                "  will be automatically displaced to nearby positions",
+                "- First-placed units will remain in their positions"
+            ]
+            
+            # Draw instructions
+            for i, line in enumerate(instructions):
+                y_pos = 5 + i
+                if "Player 1" in line and setup_player == 1:
+                    self.renderer.draw_text(y_pos, 4, line, 3)  # Player 1 color
+                elif "Player 2" in line and setup_player == 2:
+                    self.renderer.draw_text(y_pos, 4, line, 4)  # Player 2 color
+                else:
+                    self.renderer.draw_text(y_pos, 4, line)
+            
+            # Draw current player indicator
+            player_text = f"Player {setup_player}'s turn to place units"
+            self.renderer.draw_text(5 + len(instructions) + 2, 4, player_text, player_color, curses.A_BOLD)
+            
+            # Draw footer
+            self.renderer.draw_text(term_height - 3, 2, "Press any key to continue...", 1, curses.A_BOLD)
+            
+        except Exception as e:
+            logger.error(f"Error displaying setup instructions: {str(e)}")
+            
     def handle_input(self, key: int) -> bool:
         """
         Handle user input.
         Returns True to continue running, False to quit.
         """
+        # Handle setup instructions screen
+        if self.game.setup_phase and self.show_setup_instructions:
+            self.show_setup_instructions = False
+            self.draw_board()
+            return True
+            
         # Quick exit for 'q' key (except in chat mode)
         if key == ord('q') and not self.chat_mode and not self.show_log_history:
             return False
