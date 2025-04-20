@@ -1446,7 +1446,7 @@ class GameModeManager(UIComponent):
                 "- Arrow keys or HJKL: Move cursor",
                 "- YUBN: Move cursor diagonally",
                 "- Enter/Space: Place unit at cursor position",
-                "- y: Confirm unit placement (when all units are placed)",
+                "- [Y]es: Confirm unit placement (when all units are placed)",
                 "",
                 "Special rules:",
                 "- Player 1's units will be hidden during Player 2's placement",
@@ -1455,7 +1455,7 @@ class GameModeManager(UIComponent):
                 "- First-placed units will remain in their positions",
                 "",
                 "Note: The 'y' key works as diagonal movement until all units are placed,",
-                "      then it becomes confirmation key."
+                "      then it becomes [Y]es confirmation key."
             ]
             
             # Draw instructions
@@ -1624,20 +1624,28 @@ class ActionMenuComponent(UIComponent):
         self.selected_index = 0
         
     def populate_actions(self, unit):
-        """Populate available actions for the selected unit."""
+        """
+        Populate available actions for the selected unit.
+        
+        Note: Action labels should follow the [K]ey format convention:
+        - The key is shown in brackets and capitalized
+        - The rest of the label is lowercase and without spaces
+        - Example: [M]ove, [A]ttack, [S]kills
+        This convention is used throughout the game UI.
+        """
         self.actions = []
         
         # Add standard actions
         self.actions.append({
             'key': 'm',
-            'label': 'Move',
+            'label': 'ove',  # Will be displayed as [M]ove
             'action': GameAction.MOVE_MODE,
             'enabled': True
         })
         
         self.actions.append({
             'key': 'a',
-            'label': 'Attack',
+            'label': 'ttack',  # Will be displayed as [A]ttack
             'action': GameAction.ATTACK_MODE,
             'enabled': True
         })
@@ -1645,7 +1653,7 @@ class ActionMenuComponent(UIComponent):
         # Add skill action (placeholder)
         self.actions.append({
             'key': 's',
-            'label': 'Skills',
+            'label': 'kills',  # Will be displayed as [S]kills
             'action': GameAction.SKILL_MODE,
             'enabled': False  # Disabled for now
         })
@@ -1675,8 +1683,8 @@ class ActionMenuComponent(UIComponent):
         for i, action in enumerate(self.actions):
             y_pos = menu_y + i + 2  # Skip a line after header
             
-            # Format action label with key in brackets
-            label = f"[{action['key']}] {action['label']}"
+            # Format action label with capitalized key followed by lowercase label: [K]ey
+            label = f"[{action['key'].upper()}]{action['label']}"
             
             # Choose color based on whether action is enabled
             color = 1 if action['enabled'] else 8  # Normal color or gray
@@ -1692,7 +1700,7 @@ class ActionMenuComponent(UIComponent):
             
         # Draw footer with instructions
         footer_y = menu_y + len(self.actions) + 3
-        self.renderer.draw_text(footer_y, menu_x, "Press key shown in brackets | ESC: Cancel", 1)
+        self.renderer.draw_text(footer_y, menu_x, "Press letter key shown in brackets | ESC: Cancel", 1)
         
     def handle_input(self, key: int) -> bool:
         """Handle input specific to the action menu."""
