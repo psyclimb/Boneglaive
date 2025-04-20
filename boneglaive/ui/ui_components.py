@@ -1732,17 +1732,17 @@ class ActionMenuComponent(UIComponent):
         """
         self.actions = []
         
-        # Add standard actions
+        # Add standard actions with consistent labeling
         self.actions.append({
             'key': 'm',
-            'label': 'ove',  # Will be displayed as [M]ove
+            'label': 'ove',  # Will be displayed as [M]ove without space
             'action': GameAction.MOVE_MODE,
             'enabled': True
         })
         
         self.actions.append({
             'key': 'a',
-            'label': 'ttack',  # Will be displayed as [A]ttack
+            'label': 'ttack',  # Will be displayed as [A]ttack without space
             'action': GameAction.ATTACK_MODE,
             'enabled': True
         })
@@ -1750,7 +1750,7 @@ class ActionMenuComponent(UIComponent):
         # Add skill action (placeholder)
         self.actions.append({
             'key': 's',
-            'label': 'kills',  # Will be displayed as [S]kills
+            'label': 'kills',  # Will be displayed as [S]kills without space
             'action': GameAction.SKILL_MODE,
             'enabled': False  # Disabled for now
         })
@@ -1803,28 +1803,28 @@ class ActionMenuComponent(UIComponent):
         for i, action in enumerate(self.actions):
             y_pos = menu_y + i + 3  # Position after header and separator
             
-            # Format action label with capitalized key followed by lowercase label: [K]ey
-            key_part = f"[{action['key'].upper()}]"
-            label_part = action['label']
+            # Format action label with capitalized key directly followed by lowercase label: [K]ey
+            # Combined into a single string for consistent spacing
+            action_text = f"[{action['key'].upper()}]{action['label']}"
             
-            # Calculate x positions for proper alignment
-            key_x = menu_x + 3  # Increase left margin for keys
-            label_x = key_x + len(key_part) + 1  # Add space between key and label
+            # Calculate x position with consistent left margin
+            action_x = menu_x + 3  # Left margin for all actions
             
             # Choose color based on whether action is enabled
             key_color = player_color if action['enabled'] else 8  # Player color or gray
             label_color = 1 if action['enabled'] else 8  # Normal color or gray
             
-            # Make all enabled actions bold to show they're interactive
-            attr = curses.A_BOLD if action['enabled'] else 0
+            # Set attributes based on enabled status
+            attr = curses.A_BOLD if action['enabled'] else curses.A_DIM
             
-            # If action is disabled, use dim attribute
-            if not action['enabled']:
-                attr |= curses.A_DIM
-                
-            # Draw key part (colored) and label part separately
-            self.renderer.draw_text(y_pos, key_x, key_part, key_color, attr)
-            self.renderer.draw_text(y_pos, label_x, label_part, label_color, attr)
+            # Draw the single consistent action text
+            key_length = 3  # Length of "[X]" part
+            
+            # Draw the key part with key color
+            self.renderer.draw_text(y_pos, action_x, action_text[:key_length], key_color, attr)
+            
+            # Draw the label part with label color
+            self.renderer.draw_text(y_pos, action_x + key_length, action_text[key_length:], label_color, attr)
             
         # No ESC cancel text per user request
         
