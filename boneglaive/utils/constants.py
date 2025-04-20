@@ -5,6 +5,7 @@ from enum import Enum
 WIDTH = 20
 HEIGHT = 10
 MAX_UNITS = 3  # Maximum units per player
+CRITICAL_HEALTH_PERCENT = 0.3  # Percentage of max HP considered "critical"
 
 class UnitType(Enum):
     GLAIVEMAN = 0

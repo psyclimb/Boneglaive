@@ -26,7 +26,7 @@ class MessageLog:
     Allows for filtering, formatting, and retrieval of messages.
     """
     
-    MAX_MESSAGES = 100  # Maximum number of messages to store
+    MAX_MESSAGES = 500  # Maximum number of messages to store
     
     def __init__(self):
         self.messages: List[Dict[str, Any]] = []

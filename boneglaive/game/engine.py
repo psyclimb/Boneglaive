@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import logging
-from boneglaive.utils.constants import UnitType, HEIGHT, WIDTH
+from boneglaive.utils.constants import UnitType, HEIGHT, WIDTH, CRITICAL_HEALTH_PERCENT
 from boneglaive.game.units import Unit
 from boneglaive.utils.debug import debug_config, measure_perf, game_assert
 from boneglaive.utils.message_log import message_log, MessageType
@@ -134,7 +134,7 @@ class Game:
         # PHASE 1: Execute and animate all movements
         if moving_units and ui:
             message_log.add_system_message("Units moving...")
-            ui.draw_board(show_cursor=False, show_selection=False)  # Show initial state without cursor or selection
+            ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)  # Hide UI elements during animation
             time.sleep(0.5)  # Short delay before movements start
             
         for unit in moving_units:
@@ -150,8 +150,8 @@ class Game:
                     # Update unit position
                     unit.y, unit.x = y, x
                     
-                    # Redraw to show unit in new position without cursor or selection
-                    ui.draw_board(show_cursor=False, show_selection=False)
+                    # Redraw to show unit in new position without UI elements during animation
+                    ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
                     
                     # Log movement
                     message_log.add_message(
@@ -170,7 +170,7 @@ class Game:
         if moving_units and attacking_units and ui:
             time.sleep(1.0)  # Longer delay between movement and attack phases
             message_log.add_system_message("Executing attacks...")
-            ui.draw_board(show_cursor=False, show_selection=False)  # Show updated state without cursor or selection
+            ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)  # Hide UI elements during animation transition
             time.sleep(0.5)  # Short delay before attacks start
         
         # PHASE 2: Execute all attacks
@@ -186,8 +186,14 @@ class Game:
                     if ui:
                         ui.show_attack_animation(unit, target)
                     
-                    # Calculate and apply damage
+                    # Calculate damage
                     damage = max(1, unit.attack - target.defense)
+                    
+                    # Store previous HP to check for status changes
+                    previous_hp = target.hp
+                    critical_threshold = int(target.max_hp * CRITICAL_HEALTH_PERCENT)
+                    
+                    # Apply damage
                     target.hp = max(0, target.hp - damage)
                     
                     # Log combat message
@@ -199,11 +205,21 @@ class Game:
                         target_player=target.player
                     )
                     
+                    # Format unit name with player info
+                    target_info = f"Player {target.player}'s {target.type.name}" if target.player else f"{target.type.name}"
+                    
                     # Check if target was defeated
                     if target.hp <= 0:
-                        target_info = f"Player {target.player}'s {target.type.name}" if target.player else f"{target.type.name}"
                         message_log.add_message(
-                            f"{target_info} was defeated!",
+                            f"{target_info} perishes!",
+                            MessageType.COMBAT,
+                            player=unit.player,
+                            target=target.player
+                        )
+                    # Check if target just entered critical health
+                    elif previous_hp > critical_threshold and target.hp <= critical_threshold:
+                        message_log.add_message(
+                            f"{target_info} wretches!",
                             MessageType.COMBAT,
                             player=unit.player,
                             target=target.player
@@ -217,11 +233,11 @@ class Game:
         # Check if game is over
         self.check_game_over()
         
-        # If UI is provided, redraw with cursor and selection before finishing
+        # If UI is provided, redraw with cursor, selection, and attack targets before finishing
         if ui:
             # Slight delay before showing final state
             time.sleep(0.5)
-            ui.draw_board(show_cursor=True, show_selection=True)  # Restore cursor and selection
+            ui.draw_board(show_cursor=True, show_selection=True, show_attack_targets=True)  # Restore all UI elements
         
         # In multiplayer modes, player switching is primarily handled by the multiplayer manager
         # But we still need to update the game's current_player property here
