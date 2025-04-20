@@ -855,17 +855,252 @@ class PrySkill(ActiveSkill):
 
 
 class VaultSkill(ActiveSkill):
-    """Active skill for GLAIVEMAN."""
+    """
+    Active skill for GLAIVEMAN.
+    Vault allows the GLAIVEMAN to leap over obstacles and enemies,
+    landing in an empty space within range. The GLAIVEMAN can vault over
+    otherwise impassable terrain and units, making it a powerful mobility skill.
+    """
     
     def __init__(self):
         super().__init__(
             name="Vault",
             key="V",
-            description="Movement skill - implementation details to be defined.",
+            description="Leap over obstacles to any empty position within range, ignoring pathing restrictions.",
             target_type=TargetType.AREA,
             cooldown=3,
             range_=3
         )
+        
+    def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        """Check if Vault can be used to the target position."""
+        from boneglaive.utils.debug import logger
+        
+        # Debug information
+        logger.debug(f"Checking if Vault can be used from ({user.y},{user.x}) to {target_pos}")
+        
+        # First check basic cooldown
+        if not super().can_use(user, target_pos, game):
+            logger.debug("Vault failed: cooldown not ready")
+            return False
+            
+        # Need game and target position to validate
+        if not game or not target_pos:
+            logger.debug("Vault failed: missing game or target position")
+            return False
+            
+        # Check if target position is within map bounds
+        if not game.is_valid_position(target_pos[0], target_pos[1]):
+            logger.debug(f"Vault failed: position {target_pos} out of bounds")
+            return False
+            
+        # Cannot vault to the same position
+        if (user.y, user.x) == target_pos:
+            logger.debug("Vault failed: cannot vault to same position")
+            return False
+            
+        # Check if the target position is occupied by another unit
+        unit_at_target = game.get_unit_at(target_pos[0], target_pos[1])
+        if unit_at_target:
+            logger.debug(f"Vault failed: position occupied by {unit_at_target.type.name}")
+            return False
+        
+        # Check if the target position is valid for Vault
+        # Vault can only land on completely empty or dusty terrain
+        terrain = game.map.get_terrain_at(target_pos[0], target_pos[1])
+        from boneglaive.game.map import TerrainType
+        
+        # Cannot vault onto:
+        # - Limestone (solid piles)
+        # - Pillars (they extend to the ceiling)
+        # - Furniture (can vault over them but not land on them)
+        if terrain not in [TerrainType.EMPTY, TerrainType.DUST]:
+            logger.debug(f"Vault failed: cannot vault onto terrain {terrain}")
+            return False
+            
+        # Get the user's position (actual or planned move)
+        from_y = user.y
+        from_x = user.x
+        
+        # If unit has a planned move, use that position instead
+        if user.move_target:
+            from_y, from_x = user.move_target
+            logger.debug(f"Using planned move position ({from_y},{from_x}) as origin")
+            
+        # Check if target is within skill range
+        distance = game.chess_distance(from_y, from_x, target_pos[0], target_pos[1])
+        if distance > self.range:
+            logger.debug(f"Vault failed: position out of range ({distance} > {self.range})")
+            return False
+            
+        # Check for pillars in the path - cannot vault over pillars
+        # Calculate positions along the path
+        from boneglaive.utils.coordinates import Position, get_line
+        start_pos = Position(from_y, from_x)
+        end_pos = Position(target_pos[0], target_pos[1])
+        path = get_line(start_pos, end_pos)
+        
+        # Check all positions along the path (excluding start and end)
+        for pos in path[1:-1]:  # Skip start and end positions
+            # Check if there's a pillar at this position
+            terrain_in_path = game.map.get_terrain_at(pos.y, pos.x)
+            if terrain_in_path == TerrainType.PILLAR:
+                logger.debug(f"Vault failed: cannot vault over pillars at ({pos.y},{pos.x})")
+                return False
+            
+        logger.debug("Vault check passed - skill can be used")
+        return True
+        
+    def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        """
+        Queue up the Vault skill for execution at the end of the turn.
+        Sets the skill target and records the skill for execution.
+        """
+        from boneglaive.utils.message_log import message_log, MessageType
+        
+        # Validate skill use conditions
+        if not self.can_use(user, target_pos, game):
+            return False
+        
+        # Set the skill target
+        user.skill_target = target_pos
+        user.selected_skill = self
+        
+        # Set cooldown immediately when queuing up the action
+        self.current_cooldown = self.cooldown
+        
+        # Log that the skill has been queued
+        message_log.add_message(
+            f"GLAIVEMAN readies Vault to position ({target_pos[0]}, {target_pos[1]})!",
+            MessageType.ABILITY,
+            player=user.player
+        )
+        
+        return True
+        
+    def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
+        """
+        Execute the Vault skill during the turn resolution phase.
+        This moves the unit to the target position, showing an animation of the leap.
+        """
+        from boneglaive.utils.message_log import message_log, MessageType
+        import time
+        from boneglaive.utils.debug import logger
+        
+        # Debug information to help identify issues
+        logger.debug(f"Executing Vault skill from ({user.y},{user.x}) to ({target_pos[0]},{target_pos[1]})")
+        
+        # IMPORTANT: Don't do validation again at execute time to avoid issues
+        # We already verified the target was valid when the skill was queued, and game state
+        # may have changed since then (unit may have moved due to previous turn actions)
+        
+        # Just check basic validity
+        if not game.is_valid_position(target_pos[0], target_pos[1]):
+            message_log.add_message(
+                "Vault failed: target position is out of bounds.",
+                MessageType.ABILITY,
+                player=user.player
+            )
+            return False
+            
+        # Check if target position is now occupied by a unit
+        if game.get_unit_at(target_pos[0], target_pos[1]):
+            message_log.add_message(
+                "Vault failed: target position is now occupied.",
+                MessageType.ABILITY,
+                player=user.player
+            )
+            return False
+            
+        # Log the skill activation
+        message_log.add_message(
+            f"GLAIVEMAN uses Vault!",
+            MessageType.ABILITY,
+            player=user.player
+        )
+        
+        # Store original position for animation
+        original_y, original_x = user.y, user.x
+        
+        # Calculate visible path for animation
+        from boneglaive.utils.coordinates import Position, get_line
+        start_pos = Position(original_y, original_x)
+        end_pos = Position(target_pos[0], target_pos[1])
+        path = get_line(start_pos, end_pos)
+        
+        # Play animation if UI is available
+        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+            # Get animation sequence for Vault (if we had one defined)
+            animation_sequence = ui.asset_manager.get_skill_animation_sequence('vault')
+            
+            # If no specific vault animation is defined, create a simple one
+            if not animation_sequence:
+                animation_sequence = ['^', 'Λ', '↑', '!']
+            
+            # Show animation at user's position
+            ui.renderer.animate_attack_sequence(
+                user.y, user.x,
+                animation_sequence,
+                7,  # color ID
+                0.3  # duration
+            )
+            time.sleep(0.2)
+            
+            # Show arc animation along the path
+            for i, pos in enumerate(path[1:-1], 1):  # Skip start and end positions
+                # Create a simple arc character based on position in the path
+                progress = i / len(path)
+                
+                # Arc animation - rises then falls
+                if progress < 0.5:
+                    arc_char = ['⋰', '↗', '↑', '⇑'][min(3, int(progress * 8))]
+                else:
+                    arc_char = ['⇓', '↓', '↘', '⋱'][min(3, int((progress - 0.5) * 8))]
+                
+                # Show the arc character at this path position
+                ui.renderer.draw_tile(pos.y, pos.x, arc_char, 7)
+                ui.renderer.refresh()
+                time.sleep(0.05)  # Quick animation
+        
+        # Set user's position to the target
+        user.y, user.x = target_pos
+        
+        # Log the movement
+        message_log.add_message(
+            f"GLAIVEMAN vaults from ({original_y},{original_x}) to ({target_pos[0]},{target_pos[1]})!",
+            MessageType.ABILITY,
+            player=user.player
+        )
+        
+        # Animate the landing if UI is available
+        if ui and hasattr(ui, 'renderer'):
+            # Redraw to show unit in new position
+            ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+            
+            # Get or create landing animation
+            impact_animation = ui.asset_manager.get_skill_animation_sequence('vault_impact')
+            if not impact_animation:
+                impact_animation = ['v', 'V', '*', '.']  # Simple landing animation
+                
+            # Show landing animation at the target position
+            ui.renderer.animate_attack_sequence(
+                target_pos[0], target_pos[1],
+                impact_animation,
+                7,  # color ID
+                0.25  # duration
+            )
+            
+            # Flash the unit to show successful vault
+            if hasattr(ui, 'asset_manager'):
+                tile_ids = [ui.asset_manager.get_unit_tile(user.type)] * 4
+                player_color = 3 if user.player == 1 else 4
+                color_ids = [7, player_color] * 2  # Alternate white with player color
+                durations = [0.1] * 4
+                
+                # Use renderer's flash tile method
+                ui.renderer.flash_tile(user.y, user.x, tile_ids, color_ids, durations)
+        
+        return True
 
 
 # Skill Registry - maps unit types to their skills

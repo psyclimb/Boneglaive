@@ -76,7 +76,9 @@ class AssetManager:
             'autoclave': ['*', '+', 'x', '#', 'X', '#', 'x', '+', '*'],  # Intense cross pattern for Autoclave
             'pry': ['/', '|', '_', '/', '↑', '↗', '→'],  # Lever-like prying motion
             'pry_impact': ['v', 'V', '#', '*', '.'],  # Simple ground impact animation for Pry landing
-            'pry_collision': ['#', 'X', '#', '*', '.']  # Impact animation for when a unit hits an obstacle
+            'pry_collision': ['#', 'X', '#', '*', '.'],  # Impact animation for when a unit hits an obstacle
+            'vault': ['^', 'Λ', '↑', '↟', '↑'],  # Vault initiation animation - upward movement
+            'vault_impact': ['↓', 'v', 'V', '*', '.']  # Vault landing animation
         }
     
     def _initialize_graphical_assets(self) -> None:
@@ -122,7 +124,9 @@ class AssetManager:
             'autoclave': ['autoclave_1.png', 'autoclave_2.png', 'autoclave_3.png', 'autoclave_4.png'],
             'pry': ['pry_1.png', 'pry_2.png', 'pry_3.png', 'pry_4.png'],
             'pry_impact': ['pry_impact_1.png', 'pry_impact_2.png', 'pry_impact_3.png'],
-            'pry_collision': ['pry_collision_1.png', 'pry_collision_2.png', 'pry_collision_3.png']
+            'pry_collision': ['pry_collision_1.png', 'pry_collision_2.png', 'pry_collision_3.png'],
+            'vault': ['vault_1.png', 'vault_2.png', 'vault_3.png', 'vault_4.png'],
+            'vault_impact': ['vault_impact_1.png', 'vault_impact_2.png', 'vault_impact_3.png']
         }
     
     def get_unit_tile(self, unit_type: UnitType) -> str:
