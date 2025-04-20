@@ -412,9 +412,10 @@ class Game:
             
         logger.info(f"Executing turn {self.turn} for player {self.current_player}")
         
-        # Track units that will move and units that will attack
+        # Track units that will move and units that will attack or use skills
         moving_units = []
         attacking_units = []
+        skill_using_units = []
         
         # Identify units with actions
         for unit in self.units:
@@ -426,6 +427,9 @@ class Game:
                 
             if unit.attack_target:
                 attacking_units.append(unit)
+                
+            if unit.skill_target and unit.selected_skill:
+                skill_using_units.append(unit)
         
         # PHASE 1: Execute and animate all movements
         if moving_units and ui:
@@ -463,11 +467,12 @@ class Game:
                 logger.warning(f"Invalid move target ({y},{x}) for unit at ({unit.y},{unit.x})")
         
         # After all movements, pause to show the new board state
-        if moving_units and attacking_units and ui:
-            time.sleep(1.0)  # Longer delay between movement and attack phases
-            message_log.add_system_message("Executing attacks...")
+        has_actions_after_movement = (attacking_units or skill_using_units)
+        if moving_units and has_actions_after_movement and ui:
+            time.sleep(1.0)  # Longer delay between movement and attack/skill phases
+            message_log.add_system_message("Executing attacks and skills...")
             ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)  # Hide UI elements during animation transition
-            time.sleep(0.5)  # Short delay before attacks start
+            time.sleep(0.5)  # Short delay before attacks/skills start
         
         # PHASE 2: Execute all attacks
         for unit in attacking_units:
@@ -559,6 +564,22 @@ class Game:
                         logger.warning(f"Attack failed: target out of range (distance={attack_distance}, range={unit.attack_range})")
                     else:
                         logger.warning(f"Attack failed: unknown reason")
+        
+        # PHASE 3: Execute all skills
+        for unit in skill_using_units:
+            if not unit.is_alive():
+                continue
+                
+            if unit.skill_target and unit.selected_skill:
+                # Execute the skill
+                skill = unit.selected_skill
+                target_pos = unit.skill_target
+                
+                # Execute the skill if it has an execute method
+                if hasattr(skill, 'execute'):
+                    skill.execute(unit, target_pos, self, ui)
+                else:
+                    logger.warning(f"Skill {skill.name} has no execute method")
         
         # Clear all actions and update skill cooldowns
         for unit in self.units:

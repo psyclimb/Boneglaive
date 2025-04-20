@@ -385,28 +385,60 @@ class PrySkill(ActiveSkill):
         return True
         
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
-        """Use the Pry skill to displace target, reduce movement, and deal damage."""
+        """
+        Queue up the Pry skill for execution at the end of the turn.
+        This now works similarly to move and attack actions.
+        """
         from boneglaive.utils.message_log import message_log, MessageType
-        import time
         
         # Validate skill use conditions
         if not self.can_use(user, target_pos, game):
             return False
-            
-        # Set cooldown
-        self.current_cooldown = self.cooldown
         
         # Get target unit
         target = game.get_unit_at(target_pos[0], target_pos[1])
+        if not target:
+            return False
+            
+        # Set the skill target
+        user.skill_target = target_pos
+        user.selected_skill = self
         
-        # Get UI reference for animations if available
-        ui = getattr(game, 'ui', None)
+        # Set cooldown - done immediately when queuing up the action
+        self.current_cooldown = self.cooldown
         
+        # Log that the skill has been queued
+        message_log.add_message(
+            f"GLAIVEMAN readies Pry against {target.type.name}!",
+            MessageType.ABILITY,
+            player=user.player
+        )
+        
+        return True
+        
+    def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
+        """
+        Execute the Pry skill during the turn resolution phase.
+        This is called by the game engine when processing actions.
+        """
+        from boneglaive.utils.message_log import message_log, MessageType
+        import time
+        
+        # Get target unit (might have moved)
+        target = game.get_unit_at(target_pos[0], target_pos[1])
+        if not target or target.player == user.player:
+            # Target is no longer valid
+            message_log.add_message(
+                "Pry failed: target no longer valid.",
+                MessageType.ABILITY,
+                player=user.player
+            )
+            return False
+            
         # Calculate usable displacement positions
         displacement_positions = self._get_displacement_positions(user, target, game)
         
         if not displacement_positions:
-            # This should not happen as we checked in can_use, but just in case
             message_log.add_message(
                 "Pry failed: no valid displacement positions.",
                 MessageType.ABILITY,
