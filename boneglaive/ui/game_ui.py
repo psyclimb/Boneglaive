@@ -54,6 +54,9 @@ class GameUI:
         from boneglaive.game.multiplayer_manager import MultiplayerManager
         self.multiplayer = MultiplayerManager(self.game)
         
+        # Set UI reference in game engine for animations
+        self.game.set_ui_reference(self)
+        
         # Message buffer for UI feedback
         self.message = ""
         
