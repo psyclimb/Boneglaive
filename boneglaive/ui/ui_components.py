@@ -10,6 +10,7 @@ from boneglaive.utils.coordinates import Position
 from boneglaive.utils.debug import debug_config, measure_perf, logger
 from boneglaive.utils.message_log import message_log, MessageType
 from boneglaive.utils.input_handler import GameAction
+from boneglaive.game.skills import TargetType
 from boneglaive.utils.event_system import (
     get_event_manager, EventType, EventData,
     UnitSelectedEventData, UnitDeselectedEventData,
