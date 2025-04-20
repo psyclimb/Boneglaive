@@ -1126,6 +1126,7 @@ class GameModeManager(UIComponent):
         # Subscribe to mode request events
         self.subscribe_to_event(EventType.MOVE_MODE_REQUESTED, self._on_move_mode_requested)
         self.subscribe_to_event(EventType.ATTACK_MODE_REQUESTED, self._on_attack_mode_requested)
+        self.subscribe_to_event(EventType.SKILL_MODE_REQUESTED, self._on_skill_mode_requested)
         self.subscribe_to_event(EventType.SELECT_MODE_REQUESTED, self._on_select_mode_requested)
         self.subscribe_to_event(EventType.CANCEL_REQUESTED, self._on_cancel_requested)
         
@@ -1138,6 +1139,11 @@ class GameModeManager(UIComponent):
         """Handle attack mode request events."""
         # Delegate to handle_attack_mode which already has the logic
         self.handle_attack_mode()
+        
+    def _on_skill_mode_requested(self, event_type, event_data):
+        """Handle skill mode request events."""
+        # Delegate to handle_skill_mode which we'll implement
+        self.handle_skill_mode()
         
     def _on_select_mode_requested(self, event_type, event_data):
         """Handle select mode request events."""
@@ -1219,6 +1225,115 @@ class GameModeManager(UIComponent):
                 )
             )
     
+    def handle_skill_mode(self):
+        """Enter skill mode to select and use active skills."""
+        cursor_manager = self.game_ui.cursor_manager
+        
+        # Check if player can act this turn
+        if not cursor_manager.can_act_this_turn():
+            # Use event system for message
+            self.publish_event(
+                EventType.MESSAGE_DISPLAY_REQUESTED,
+                MessageDisplayEventData(
+                    message="Not your turn!",
+                    message_type=MessageType.WARNING
+                )
+            )
+            return
+                
+        if cursor_manager.selected_unit:
+            # Check if unit belongs to current player or test mode is on
+            if cursor_manager.can_select_unit(cursor_manager.selected_unit):
+                # Get available skills (not on cooldown)
+                available_skills = cursor_manager.selected_unit.get_available_skills()
+                
+                if not available_skills:
+                    # Use event system for message
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message="No available skills to use",
+                            message_type=MessageType.WARNING
+                        )
+                    )
+                    return
+                
+                # For now, we'll just use the first available skill
+                # In a more advanced implementation, we would show a skill selection UI
+                selected_skill = available_skills[0]
+                
+                # Change mode to skill targeting
+                self.set_mode("skill")
+                
+                # Set the selected skill for targeting
+                cursor_manager.selected_unit.selected_skill = selected_skill
+                
+                # Use event system for message
+                self.publish_event(
+                    EventType.MESSAGE_DISPLAY_REQUESTED,
+                    MessageDisplayEventData(
+                        message=f"Using skill: {selected_skill.name}. Select target."
+                    )
+                )
+                
+                # Highlight valid targets for the skill
+                if selected_skill.target_type == TargetType.ENEMY:
+                    # For enemy-targeted skills, highlight enemy units in range
+                    targets = []
+                    game = self.game_ui.game
+                    
+                    # Check all positions within skill range
+                    for y in range(game.HEIGHT):
+                        for x in range(game.WIDTH):
+                            # Check if there's an enemy unit at this position
+                            target = game.get_unit_at(y, x)
+                            if target and target.player != cursor_manager.selected_unit.player:
+                                # Check if target is within skill range
+                                distance = game.chess_distance(
+                                    cursor_manager.selected_unit.y, 
+                                    cursor_manager.selected_unit.x, 
+                                    y, x
+                                )
+                                
+                                if distance <= selected_skill.range:
+                                    targets.append((y, x))
+                    
+                    # Convert targets to Position objects
+                    cursor_manager.highlighted_positions = [Position(y, x) for y, x in targets]
+                    
+                    if not cursor_manager.highlighted_positions:
+                        # Use event system for message
+                        self.publish_event(
+                            EventType.MESSAGE_DISPLAY_REQUESTED,
+                            MessageDisplayEventData(
+                                message="No valid targets in range",
+                                message_type=MessageType.WARNING
+                            )
+                        )
+                        
+                        # Reset selected skill
+                        cursor_manager.selected_unit.selected_skill = None
+                        # Return to select mode
+                        self.set_mode("select")
+            else:
+                # Use event system for message
+                self.publish_event(
+                    EventType.MESSAGE_DISPLAY_REQUESTED,
+                    MessageDisplayEventData(
+                        message="You can only use skills with your own units!",
+                        message_type=MessageType.WARNING
+                    )
+                )
+        else:
+            # Use event system for message
+            self.publish_event(
+                EventType.MESSAGE_DISPLAY_REQUESTED,
+                MessageDisplayEventData(
+                    message="No unit selected",
+                    message_type=MessageType.WARNING
+                )
+            )
+            
     def handle_attack_mode(self):
         """Enter attack mode."""
         cursor_manager = self.game_ui.cursor_manager
@@ -1325,6 +1440,56 @@ class GameModeManager(UIComponent):
             # Return to select mode after successful attack (publishes mode changed event)
             self.set_mode("select")
         return result
+        
+    def handle_select_in_skill_mode(self):
+        """Handle selection when in skill mode."""
+        result = self.select_skill_target()
+        if result:
+            # Return to select mode after successful skill use (publishes mode changed event)
+            self.set_mode("select")
+        return result
+        
+    def select_skill_target(self):
+        """Select a target for the currently selected skill."""
+        cursor_manager = self.game_ui.cursor_manager
+        
+        # Get the selected unit and skill
+        unit = cursor_manager.selected_unit
+        if not unit or not unit.selected_skill:
+            return False
+            
+        skill = unit.selected_skill
+        target_pos = (cursor_manager.cursor_pos.y, cursor_manager.cursor_pos.x)
+        
+        # Check if the target position is valid for this skill
+        if cursor_manager.cursor_pos not in cursor_manager.highlighted_positions:
+            # Use event system for message
+            self.publish_event(
+                EventType.MESSAGE_DISPLAY_REQUESTED,
+                MessageDisplayEventData(
+                    message="Invalid target for this skill",
+                    message_type=MessageType.WARNING
+                )
+            )
+            return False
+            
+        # Use the skill
+        if skill.use(unit, target_pos, self.game_ui.game):
+            # Clear selection
+            cursor_manager.highlighted_positions = []
+            
+            # Skill used successfully
+            return True
+        else:
+            # Use event system for message
+            self.publish_event(
+                EventType.MESSAGE_DISPLAY_REQUESTED,
+                MessageDisplayEventData(
+                    message="Failed to use skill",
+                    message_type=MessageType.WARNING
+                )
+            )
+            return False
     
     def handle_end_turn(self):
         """End the current turn."""
@@ -1764,12 +1929,13 @@ class ActionMenuComponent(UIComponent):
             'enabled': True
         })
         
-        # Add skill action (placeholder)
+        # Add skill action
+        unit_has_skills = unit is not None and hasattr(unit, 'active_skills') and len(unit.get_available_skills()) > 0
         self.actions.append({
             'key': 's',
             'label': 'kills',  # Will be displayed as [S]kills without space
             'action': GameAction.SKILL_MODE,
-            'enabled': False  # Disabled for now
+            'enabled': unit_has_skills  # Enabled if unit has available skills
         })
         
         # Reset selected index
@@ -1863,14 +2029,8 @@ class ActionMenuComponent(UIComponent):
                 elif action['action'] == GameAction.ATTACK_MODE:
                     self.publish_event(EventType.ATTACK_MODE_REQUESTED, EventData())
                 elif action['action'] == GameAction.SKILL_MODE:
-                    # For now, just show a message that skills are not implemented
-                    self.publish_event(
-                        EventType.MESSAGE_DISPLAY_REQUESTED,
-                        MessageDisplayEventData(
-                            message="Skills not implemented yet",
-                            message_type=MessageType.SYSTEM
-                        )
-                    )
+                    # Add a SKILL_MODE_REQUESTED event type
+                    self.publish_event(EventType.SKILL_MODE_REQUESTED, EventData())
                 return True
                 
         # All other keys pass through - this allows movement keys to still work
