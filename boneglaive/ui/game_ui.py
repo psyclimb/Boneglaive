@@ -150,6 +150,7 @@ class GameUI:
             # Check if unit belongs to current player or test mode is on
             if unit and (unit.player == current_player or self.game.test_mode or 
                          (self.multiplayer.is_local_multiplayer() and unit.player == self.game.current_player)):
+                # Clear any previous selection
                 self.selected_unit = unit
                 self.message = f"Selected {unit.type.name}"
                 message_log.add_message(
@@ -157,6 +158,8 @@ class GameUI:
                     MessageType.SYSTEM,
                     player=current_player
                 )
+                # Redraw the board to immediately show the selection
+                self.draw_board()
             else:
                 self.message = "No valid unit selected"
                 if unit:
@@ -202,6 +205,9 @@ class GameUI:
         self.highlighted_positions = []
         self.mode = "select"
         self.message = "Selection cleared"
+        
+        # Redraw the board to immediately update selection visuals
+        self.draw_board()
     
     def _handle_move_mode(self):
         """Enter move mode."""
@@ -251,13 +257,24 @@ class GameUI:
                 (self.multiplayer.is_local_multiplayer() and self.selected_unit.player == self.game.current_player)):
                 self.mode = "attack"
                 
-                # Convert positions to Position objects
+                # If unit has a pending move, calculate attacks from the destination position
+                from_pos = None
+                if self.selected_unit.move_target:
+                    from_pos = self.selected_unit.move_target
+                    self.message = "Select attack from planned move position"
+                else:
+                    self.message = "Select attack target"
+                
+                # Convert positions to Position objects, using move destination if set
                 self.highlighted_positions = [
-                    Position(y, x) for y, x in self.game.get_possible_attacks(self.selected_unit)
+                    Position(y, x) for y, x in self.game.get_possible_attacks(self.selected_unit, from_pos)
                 ]
                 
                 if not self.highlighted_positions:
-                    self.message = "No valid targets in range"
+                    if self.selected_unit.move_target:
+                        self.message = "No valid targets in range from move destination"
+                    else:
+                        self.message = "No valid targets in range"
             else:
                 self.message = "You can only attack with your own units!"
         else:
@@ -276,6 +293,9 @@ class GameUI:
             # End turn in multiplayer manager
             self.multiplayer.end_turn()
             self._update_player_message()
+            
+        # Redraw the board to update visuals
+        self.draw_board()
     
     def _update_player_message(self):
         """Update the message showing the current player (only in message log)."""
@@ -451,15 +471,29 @@ class GameUI:
                     if u.is_alive() and u.move_target == (y, x):
                         target_unit = u
                         break
+                        
+                # Check if any unit is targeting this position for attack
+                attacking_unit = None
+                for u in self.game.units:
+                    if u.is_alive() and u.attack_target == (y, x):
+                        attacking_unit = u
+                        break
                 
                 if unit:
                     # There's a real unit here
                     tile = self.asset_manager.get_unit_tile(unit.type)
                     color_id = 3 if unit.player == 1 else 4
                     
-                    # If this is the selected unit, make it bold
+                    # If this unit is being targeted for attack, use red background
+                    if attacking_unit:
+                        # Use red background to show this unit is targeted for attack
+                        self.renderer.draw_tile(y, x, tile, 10, curses.A_BOLD)
+                        continue
+                        
+                    # If this is the selected unit, use special highlighting with yellow background
                     if self.selected_unit and unit == self.selected_unit:
-                        self.renderer.draw_tile(y, x, tile, color_id)
+                        # Use yellow background to highlight the selected unit
+                        self.renderer.draw_tile(y, x, tile, 9, curses.A_BOLD)
                         continue
                 
                 elif target_unit and not unit:

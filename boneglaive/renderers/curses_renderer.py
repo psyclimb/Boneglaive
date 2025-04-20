@@ -93,6 +93,10 @@ class CursesRenderer(RenderInterface):
         curses.init_pair(7, curses.COLOR_YELLOW, curses.COLOR_BLACK) # Attack animation
         # Use dim white (appears gray in most terminals) for move target preview
         curses.init_pair(8, curses.COLOR_WHITE, curses.COLOR_BLACK)  # Move target preview (gray)
+        # Yellow background for selected unit
+        curses.init_pair(9, curses.COLOR_BLACK, curses.COLOR_YELLOW) # Selected unit highlight
+        # Red background for attack targets
+        curses.init_pair(10, curses.COLOR_WHITE, curses.COLOR_RED)   # Attack target
     
     def animate_projectile(self, start_pos: Tuple[int, int], end_pos: Tuple[int, int], 
                           tile_id: str, color_id: int = 7, duration: float = 0.5) -> None:
