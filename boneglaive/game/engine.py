@@ -2,6 +2,7 @@
 import logging
 from boneglaive.utils.constants import UnitType, HEIGHT, WIDTH, CRITICAL_HEALTH_PERCENT
 from boneglaive.game.units import Unit
+from boneglaive.game.map import GameMap, MapFactory, TerrainType
 from boneglaive.utils.debug import debug_config, measure_perf, game_assert
 from boneglaive.utils.message_log import message_log, MessageType
 
@@ -9,13 +10,17 @@ from boneglaive.utils.message_log import message_log, MessageType
 logger = debug_config.setup_logging('game.engine')
 
 class Game:
-    def __init__(self, skip_setup=False):
+    def __init__(self, skip_setup=False, map_name="lime_foyer"):
         self.units = []
         self.current_player = 1
         self.turn = 1
         self.winner = None
         self.test_mode = False  # For debugging
         self.local_multiplayer = False
+        
+        # Create the game map
+        self.map = MapFactory.create_map(map_name)
+        self.map_name = map_name  # Store current map name
         
         # Game state
         self.setup_phase = not skip_setup  # Whether we're in setup phase
@@ -26,6 +31,38 @@ class Game:
         # If skipping setup, add default units
         if skip_setup:
             self.setup_initial_units()
+            
+    def change_map(self, new_map_name):
+        """
+        Change the current map and reset the game.
+        Used for switching maps between games.
+        
+        Args:
+            new_map_name: The name of the new map to use
+            
+        Returns:
+            Success flag
+        """
+        try:
+            self.map = MapFactory.create_map(new_map_name)
+            self.map_name = new_map_name
+            
+            # Reset game state for a new game
+            self.units = []
+            self.current_player = 1
+            self.turn = 1
+            self.winner = None
+            
+            # Start in setup phase
+            self.setup_phase = True
+            self.setup_player = 1
+            self.setup_confirmed = {1: False, 2: False}
+            self.setup_units_remaining = {1: 3, 2: 3}
+            
+            return True
+        except Exception as e:
+            logger.error(f"Failed to change map: {e}")
+            return False
     
     def setup_initial_units(self):
         """
@@ -35,15 +72,48 @@ class Game:
         # Clear any existing units
         self.units = []
         
-        # Player 1 units (left side)
-        self.add_unit(UnitType.GLAIVEMAN, 1, 4, 8)
-        self.add_unit(UnitType.GLAIVEMAN, 1, 5, 7)
-        self.add_unit(UnitType.GLAIVEMAN, 1, 6, 8)
+        # Find valid positions for units that aren't on limestone
+        valid_positions = []
         
-        # Player 2 units (right side)
-        self.add_unit(UnitType.GLAIVEMAN, 2, 4, 12)
-        self.add_unit(UnitType.GLAIVEMAN, 2, 5, 13)
-        self.add_unit(UnitType.GLAIVEMAN, 2, 6, 12)
+        # Check left side for player 1
+        for y in range(3, 7):
+            for x in range(5, 9):
+                if self.map.can_place_unit(y, x):
+                    valid_positions.append((1, y, x))
+                    if len(valid_positions) >= 3:
+                        break
+            if len(valid_positions) >= 3:
+                break
+                
+        # Check right side for player 2
+        p2_positions = []
+        for y in range(3, 7):
+            for x in range(11, 15):
+                if self.map.can_place_unit(y, x):
+                    p2_positions.append((2, y, x))
+                    if len(p2_positions) >= 3:
+                        break
+            if len(p2_positions) >= 3:
+                break
+                
+        valid_positions.extend(p2_positions)
+        
+        # Place units at valid positions
+        for player, y, x in valid_positions:
+            self.add_unit(UnitType.GLAIVEMAN, player, y, x)
+        
+        # If we couldn't find enough valid positions, add some emergency units
+        # at fixed positions (shouldn't happen with our current map)
+        if len(self.units) < 6:
+            missing = 6 - len(self.units)
+            emergency_positions = [
+                (1, 1, 1), (1, 1, 2), (1, 1, 3),
+                (2, 8, 16), (2, 8, 17), (2, 8, 18)
+            ]
+            
+            for i in range(missing):
+                player, y, x = emergency_positions[i]
+                self.add_unit(UnitType.GLAIVEMAN, player, y, x)
         
         # Skip setup phase when using test setup
         self.setup_phase = False
@@ -65,12 +135,16 @@ class Game:
         if not self.is_valid_position(y, x):
             return False
             
+        # Check if position has blocking terrain (like limestone)
+        if not self.map.can_place_unit(y, x):
+            return False
+            
         # Check if this player has units remaining to place
         if self.setup_units_remaining[self.setup_player] <= 0:
             return False
         
         # Place the unit (always a Glaiveman for now)
-        # Allow placement even if position is occupied - we'll resolve conflicts later
+        # Allow placement even if position is occupied by another unit - we'll resolve conflicts later
         self.add_unit(UnitType.GLAIVEMAN, self.setup_player, y, x)
         
         # Decrement remaining units
@@ -144,8 +218,9 @@ class Game:
                         new_y = unit.y + dy
                         new_x = unit.x + dx
                         
-                        # Check if position is valid and unoccupied
+                        # Check if position is valid, passable, and unoccupied
                         if (self.is_valid_position(new_y, new_x) and
+                            self.map.is_passable(new_y, new_x) and
                             (new_y, new_x) not in occupied_positions):
                             # Found a valid spot!
                             unit.y = new_y
@@ -162,7 +237,8 @@ class Game:
                         new_y = random.randint(0, HEIGHT-1)
                         new_x = random.randint(0, WIDTH-1)
                         
-                        if (new_y, new_x) not in occupied_positions:
+                        if ((new_y, new_x) not in occupied_positions and 
+                            self.map.is_passable(new_y, new_x)):
                             unit.y = new_y
                             unit.x = new_x
                             occupied_positions.add((new_y, new_x))
@@ -173,7 +249,8 @@ class Game:
                 if not placed:
                     for y in range(HEIGHT):
                         for x in range(WIDTH):
-                            if (y, x) not in occupied_positions:
+                            if ((y, x) not in occupied_positions and
+                                self.map.is_passable(y, x)):
                                 unit.y = y
                                 unit.x = x
                                 occupied_positions.add((y, x))
@@ -182,11 +259,26 @@ class Game:
                         if placed:
                             break
                             
-                # If we still haven't placed, just put it somewhere and accept the overlap
+                # If we still haven't placed, just put it somewhere passable and accept the overlap if needed
                 if not placed:
-                    unit.y = random.randint(0, HEIGHT-1)
-                    unit.x = random.randint(0, WIDTH-1)
-                    occupied_positions.add((unit.y, unit.x))
+                    # Try to find any passable position
+                    passable_positions = []
+                    for y in range(HEIGHT):
+                        for x in range(WIDTH):
+                            if self.map.is_passable(y, x):
+                                passable_positions.append((y, x))
+                    
+                    if passable_positions:
+                        # Choose a random passable position
+                        new_y, new_x = random.choice(passable_positions)
+                        unit.y = new_y
+                        unit.x = new_x
+                        occupied_positions.add((unit.y, unit.x))
+                    else:
+                        # Extremely unlikely case - no passable positions
+                        unit.y = random.randint(0, HEIGHT-1)
+                        unit.x = random.randint(0, WIDTH-1)
+                        occupied_positions.add((unit.y, unit.x))
             else:
                 # Position is free, mark it as occupied
                 occupied_positions.add(pos)
@@ -202,6 +294,7 @@ class Game:
         return None
     
     def is_valid_position(self, y, x):
+        """Check if a position is within map bounds."""
         return 0 <= y < HEIGHT and 0 <= x < WIDTH
     
     def chess_distance(self, y1, x1, y2, x2):
@@ -217,8 +310,12 @@ class Game:
         if not self.is_valid_position(y, x):
             return False
         
-        # Check if position is occupied
+        # Check if position is occupied by another unit
         if self.get_unit_at(y, x):
+            return False
+        
+        # Check if terrain is passable (not limestone or other blocking terrain)
+        if not self.map.is_passable(y, x):
             return False
         
         # Check if position is within move range (using chess distance for diagonals)

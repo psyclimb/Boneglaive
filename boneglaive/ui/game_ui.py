@@ -7,6 +7,7 @@ from typing import Optional, List, Tuple, Dict
 
 from boneglaive.utils.constants import HEIGHT, WIDTH, UnitType
 from boneglaive.game.engine import Game
+from boneglaive.game.map import TerrainType
 from boneglaive.utils.coordinates import Position
 from boneglaive.utils.debug import debug_config, measure_perf, logger
 from boneglaive.utils.asset_manager import AssetManager
@@ -402,9 +403,14 @@ class GameUI:
         # Get the current setup player
         setup_player = self.game.setup_player
         
-        # Check if cursor position is valid for this player
-        if not self._is_valid_setup_position(self.cursor_pos.y, self.cursor_pos.x):
-            self.message = f"Cannot place unit here"
+        # Check if cursor position is in bounds
+        if not self.game.is_valid_position(self.cursor_pos.y, self.cursor_pos.x):
+            self.message = f"Cannot place unit here: out of bounds"
+            return
+            
+        # Check if cursor position has blocking terrain
+        if not self.game.map.can_place_unit(self.cursor_pos.y, self.cursor_pos.x):
+            self.message = f"Cannot place unit here: blocked by limestone"
             return
             
         # Check if there are units remaining to place
@@ -421,15 +427,22 @@ class GameUI:
             
             # No log message during setup phase
         else:
-            self.message = "Failed to place unit"
+            self.message = "Failed to place unit: unknown error"
             
         # Redraw the board
         self.draw_board()
         
     def _is_valid_setup_position(self, y, x):
         """Check if a position is valid for unit placement during setup."""
-        # Basic bounds check only - allow placement anywhere on the board
-        return self.game.is_valid_position(y, x)
+        # Check if position is in bounds
+        if not self.game.is_valid_position(y, x):
+            return False
+            
+        # Check if position has blocking terrain (like limestone)
+        if not self.game.map.can_place_unit(y, x):
+            return False
+            
+        return True
         
     def _handle_confirm(self):
         """Handle confirmation action (mainly for setup phase)."""
@@ -729,6 +742,9 @@ class GameUI:
             header = f"{player_indicator} | Mode: {self.mode} | Game: {game_mode}"
             if self.multiplayer.is_network_multiplayer():  # Only show YOUR TURN/WAITING in network multiplayer
                 header += f" | {'YOUR TURN' if self.multiplayer.is_current_player_turn() else 'WAITING'}"
+                
+        # Add map name to the header
+        header += f" | Map: {self.game.map.name}"
         
         # Additional header indicators
         if self.chat_mode:
@@ -746,8 +762,18 @@ class GameUI:
             for x in range(WIDTH):
                 pos = Position(y, x)
                 
-                # Default content is empty ground
-                tile = self.asset_manager.get_terrain_tile("empty")
+                # Get terrain at this position
+                terrain = self.game.map.get_terrain_at(y, x)
+                
+                # Map terrain type to tile representation
+                if terrain == TerrainType.EMPTY:
+                    tile = self.asset_manager.get_terrain_tile("empty")
+                elif terrain == TerrainType.LIMESTONE:
+                    tile = self.asset_manager.get_terrain_tile("limestone")
+                else:
+                    # Fallback for any new terrain types
+                    tile = self.asset_manager.get_terrain_tile("empty")
+                
                 color_id = 1  # Default color
                 
                 # Check if there's a unit at this position
@@ -851,7 +877,11 @@ class GameUI:
                 
                 # Cursor takes priority for visibility when it should be shown
                 if show_cursor and pos == self.cursor_pos:
-                    color_id = 2
+                    # Show cursor with different color if hovering over impassable terrain
+                    if not self.game.map.is_passable(y, x):
+                        color_id = 6  # Red background to indicate impassable
+                    else:
+                        color_id = 2  # Normal cursor color
                 
                 # Draw the cell
                 self.renderer.draw_tile(y, x, tile, color_id)

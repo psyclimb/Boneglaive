@@ -47,7 +47,8 @@ class AssetManager:
             'empty': '.',
             'wall': '#',
             'water': '~',
-            'forest': '^'
+            'forest': '^',
+            'limestone': '▒'  # Limestone terrain uses a medium shade block character
         }
         
         # UI symbols
@@ -80,7 +81,8 @@ class AssetManager:
             'empty': 'assets/tiles/floor.png',
             'wall': 'assets/tiles/wall.png',
             'water': 'assets/tiles/water.png',
-            'forest': 'assets/tiles/forest.png'
+            'forest': 'assets/tiles/forest.png',
+            'limestone': 'assets/tiles/limestone.png'
         }
         
         self.ui_tiles = {
