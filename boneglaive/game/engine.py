@@ -43,6 +43,14 @@ class Game:
     def is_valid_position(self, y, x):
         return 0 <= y < HEIGHT and 0 <= x < WIDTH
     
+    def chess_distance(self, y1, x1, y2, x2):
+        """
+        Calculate the chess/Chebyshev distance between two points.
+        This allows diagonal movement, where the distance is the maximum
+        of the horizontal and vertical distances.
+        """
+        return max(abs(y1 - y2), abs(x1 - x2))
+    
     def can_move_to(self, unit, y, x):
         # Check if position is in bounds
         if not self.is_valid_position(y, x):
@@ -52,8 +60,8 @@ class Game:
         if self.get_unit_at(y, x):
             return False
         
-        # Check if position is within move range (using Manhattan distance)
-        distance = abs(unit.y - y) + abs(unit.x - x)
+        # Check if position is within move range (using chess distance for diagonals)
+        distance = self.chess_distance(unit.y, unit.x, y, x)
         return distance <= unit.move_range
     
     def can_attack(self, unit, y, x):
@@ -61,8 +69,8 @@ class Game:
         if not target or target.player == unit.player:
             return False
         
-        # Check if target is within attack range
-        distance = abs(unit.y - y) + abs(unit.x - x)
+        # Check if target is within attack range (using chess distance for diagonals)
+        distance = self.chess_distance(unit.y, unit.x, y, x)
         return distance <= unit.attack_range
     
     def get_possible_moves(self, unit):
@@ -94,8 +102,8 @@ class Game:
                 # Check if there's an enemy unit at this position
                 target = self.get_unit_at(y, x)
                 if target and target.player != unit.player:
-                    # Calculate Manhattan distance from the attack position
-                    distance = abs(y_pos - y) + abs(x_pos - x)
+                    # Calculate chess distance (allows diagonals) from the attack position
+                    distance = self.chess_distance(y_pos, x_pos, y, x)
                     if distance <= unit.attack_range:
                         attacks.append((y, x))
         
