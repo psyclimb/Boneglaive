@@ -662,19 +662,7 @@ class PrySkill(ActiveSkill):
                 # Redraw to show unit in intermediate position
                 ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
                 
-                # Show trailing animation if available
-                if hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager') and i < len(path) - 1:  # Not on the final position
-                    # Get the trail animation for the path
-                    trail_animation = ui.asset_manager.get_skill_animation_sequence('pry_trail')
-                    if trail_animation:
-                        # Show trail animation at previous position
-                        prev_pos = path[i-1]
-                        ui.renderer.animate_attack_sequence(
-                            prev_pos.y, prev_pos.x,
-                            trail_animation,
-                            6,  # color ID for trail
-                            0.05  # quick animation
-                        )
+                # No trail animation, just show the unit moving along the path
                 
                 # Shorter delay for intermediate positions
                 time.sleep(0.05)
