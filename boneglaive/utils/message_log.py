@@ -115,6 +115,7 @@ class MessageLog:
             player: Player number (1 or 2)
             message: The chat message text
         """
+        # Format message to show player identifier
         self.add_message(
             text=message,
             msg_type=MessageType.PLAYER,
@@ -192,7 +193,9 @@ class MessageLog:
             
             # Format text with prefix based on type
             if msg['type'] == MessageType.PLAYER and msg['player'] is not None:
-                text = f"Player {msg['player']}: {msg['text']}"
+                # Format player chat messages with clear player indicator
+                player_num = msg['player']
+                text = f"[Player {player_num}] {msg['text']}"
             else:
                 text = msg['text']
                 

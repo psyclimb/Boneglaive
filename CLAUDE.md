@@ -92,6 +92,30 @@ boneglaive/
 - Add new features to debug overlay when appropriate
 - Save game states for debugging using 'S' key in debug mode
 
+## Common Issues and Prevention
+
+### Multiplayer Turn Handling
+- Both game.current_player and multiplayer.current_player must stay in sync
+- Local multiplayer should allow control of whichever player is active
+- UI should reflect current player at all times
+- Any code that checks player ownership should consider local multiplayer mode
+
+### UI Updates
+- Always redraw the board after state changes
+- Keep message log and chat system active in local multiplayer
+
+## Development Workflow
+
+### Testing Multiplayer
+1. Update config.json to set `"network_mode": "local"`
+2. Run with `python -m boneglaive.main --mode local --skip-menu`
+3. Verify turn switching, unit control, and UI updates
+
+### Debug Tools
+- 'd' key shows unit positions
+- 'D' toggles debug mode
+- Message log provides game event history
+
 ## Renderer Abstraction
 
 - All rendering should use the RenderInterface abstraction
@@ -100,6 +124,26 @@ boneglaive/
 - Asset references should use the AssetManager
 - Input handling should use the InputHandler's logical actions
 - Configuration changes should persist using ConfigManager
+
+## UI Components
+
+### Message Log
+- Displays game events, combat outcomes, and player messages
+- Toggle visibility with 'l' key
+- Player messages are color-coded (Player 1: green, Player 2: blue)
+- Combat messages indicate which player's units are involved
+
+### Help Screen
+- Access with '?' key
+- Displays all available controls and their functions
+- Press '?' again to return to game
+
+### Chat System
+- Press 'r' key to enter chat mode
+- Type message and press Enter to send
+- Messages appear in message log with player-specific colors
+- Chat mode automatically activates message log if hidden
+- Escape key cancels chat input
 
 ## Networking Architecture
 
@@ -115,8 +159,14 @@ boneglaive/
   - Always handle network errors gracefully
   - Provide fallback to local play if network disconnects
 
-### LAN Multiplayer Guidelines
+### Local Multiplayer
+- Game supports "hot seat" style local multiplayer where players take turns
+- Player switching occurs when ending turn with 'e' key
+- UI header shows "Player X's Turn" to indicate current player
+- Both players use the same computer, controlling their respective units
+- Start with: `python -m boneglaive.main --mode local --skip-menu`
 
+### LAN Multiplayer Guidelines
 - Test multiplayer features on actual networks, not just localhost
 - Add simple game discovery for finding LAN games
 - Implement basic connection status indicators in UI
@@ -124,6 +174,12 @@ boneglaive/
 - Add timeout handling for network operations
 - Log network events for debugging connection issues
 - Consider latency when designing game mechanics
+
+### Network Architecture
+- Abstraction layer in `network_interface.py` supports multiple connection types
+- Local implementation in `local_multiplayer.py`
+- LAN implementation in `lan_multiplayer.py`
+- Player state managed in `multiplayer_manager.py`
 
 ## Versioning
 
@@ -149,3 +205,19 @@ boneglaive/
   - Use targeted git diff with specific file paths instead of full diff
   - Include only essential context in commit analysis
   - Skip viewing unchanged files when staging
+
+## Continuity Guidelines After /compact
+
+- On resuming, start with a quick reference to CLAUDE.md to restore context
+- Include these elements in the first message after /compact:
+  1. The specific feature or issue being worked on
+  2. Key files relevant to the current task (1-3 most important ones)
+  3. Any immediate next steps planned before the /compact
+- Avoid lengthy explanations of what was done before - stay focused on next steps
+- Use action-oriented language: "We need to implement X" rather than "We were working on X"
+- For complex topics, reference specific sections in CLAUDE.md rather than re-explaining
+- If picking up a refactoring task, mention only the specific files still needing attention
+- Keep task descriptions concise and targeted - prefer bullet points over paragraphs
+- Avoid full file exploration when a directed search can locate relevant code sections
+- Keep responses brief and to the point unless asked to elaborate
+- Prefer single-sentence answers when possible and appropriate
