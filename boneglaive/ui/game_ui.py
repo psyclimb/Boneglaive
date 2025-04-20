@@ -93,113 +93,24 @@ class GameUI:
         self.message = ""
     
     def handle_select(self):
-        """Handle selection action."""
+        """Route selection to appropriate handler based on mode."""
         # In setup phase, the select action places units
         if self.game.setup_phase:
             return self.mode_manager.handle_setup_select()
-            
-        # In multiplayer, only allow actions on current player's turn
-        if self.multiplayer.is_multiplayer() and not self.multiplayer.is_current_player_turn():
-            if not self.game.test_mode:  # Test mode overrides turn restrictions
-                self.message = "Not your turn!"
-                message_log.add_message("Not your turn!", MessageType.WARNING)
-                return
         
+        # Check if player can act on this turn
+        if not self.cursor_manager.can_act_this_turn():
+            self.message = "Not your turn!"
+            message_log.add_message("Not your turn!", MessageType.WARNING)
+            return
+        
+        # Route to appropriate mode handler
         if self.mode_manager.mode == "select":
-            # First check if there's a real unit at the cursor position
-            unit = self.game.get_unit_at(self.cursor_manager.cursor_pos.y, self.cursor_manager.cursor_pos.x)
-            
-            # If not, check if there's a ghost unit (planned move) at this position
-            if not unit:
-                unit = self.cursor_manager.find_unit_by_ghost(
-                    self.cursor_manager.cursor_pos.y, self.cursor_manager.cursor_pos.x)
-                
-            current_player = self.multiplayer.get_current_player()
-            
-            # Check if unit belongs to current player or test mode is on
-            if unit and (unit.player == current_player or self.game.test_mode or 
-                     (self.multiplayer.is_local_multiplayer() and unit.player == self.game.current_player)):
-                # Clear any previous selection
-                self.cursor_manager.selected_unit = unit
-                
-                # Check if we're selecting a ghost (unit with a move_target at current position)
-                is_ghost = (unit.move_target == (self.cursor_manager.cursor_pos.y, self.cursor_manager.cursor_pos.x))
-                
-                # Clear the message to avoid redundancy with unit info display
-                self.message = ""
-                # Redraw the board to immediately show the selection
-                self.draw_board()
-            else:
-                self.message = "No valid unit selected"
-                if unit:
-                    message_log.add_message(
-                        f"Cannot select {unit.type.name} - belongs to Player {unit.player}", 
-                        MessageType.WARNING
-                    )
-                else:
-                    message_log.add_message("No unit at that position", MessageType.WARNING)
-        
+            self.mode_manager.handle_select_in_select_mode()
         elif self.mode_manager.mode == "move":
-            # Import Position to use get_line
-            from boneglaive.utils.coordinates import Position, get_line
-            
-            # Check if the position is a valid move target
-            if Position(self.cursor_manager.cursor_pos.y, self.cursor_manager.cursor_pos.x) in self.cursor_manager.highlighted_positions:
-                self.cursor_manager.selected_unit.move_target = (self.cursor_manager.cursor_pos.y, self.cursor_manager.cursor_pos.x)
-                
-                self.message = f"Move set to ({self.cursor_manager.cursor_pos.y}, {self.cursor_manager.cursor_pos.x})"
-                # No message added to log for planned movements
-                self.mode_manager.mode = "select"
-                self.cursor_manager.highlighted_positions = []
-            else:
-                # Check why the position isn't valid
-                y, x = self.cursor_manager.cursor_pos.y, self.cursor_manager.cursor_pos.x
-                
-                # Check if the position is in range
-                distance = self.game.chess_distance(self.cursor_manager.selected_unit.y, self.cursor_manager.selected_unit.x, y, x)
-                if distance > self.cursor_manager.selected_unit.move_range:
-                    self.message = "Position is out of movement range"
-                # Check if there's an enemy unit blocking the path
-                elif distance > 1:
-                    # Check the path for enemy units
-                    start_pos = Position(self.cursor_manager.selected_unit.y, self.cursor_manager.selected_unit.x)
-                    end_pos = Position(y, x)
-                    path = get_line(start_pos, end_pos)
-                    
-                    for pos in path[1:-1]:  # Skip start and end positions
-                        blocking_unit = self.game.get_unit_at(pos.y, pos.x)
-                        if blocking_unit:
-                            # Determine if it's an ally or enemy for the message
-                            if blocking_unit.player == self.cursor_manager.selected_unit.player:
-                                self.message = "Path blocked by allied unit"
-                                message_log.add_message("You cannot move through other units", MessageType.WARNING)
-                            else:
-                                self.message = "Path blocked by enemy unit"
-                                message_log.add_message("You cannot move through other units", MessageType.WARNING)
-                            return
-                # Check if there's a unit at the destination
-                elif self.game.get_unit_at(y, x):
-                    self.message = "Position is occupied by another unit"
-                # Check if the terrain is blocking
-                elif not self.game.map.is_passable(y, x):
-                    self.message = "Terrain is impassable"
-                else:
-                    self.message = "Invalid move target"
-        
+            self.mode_manager.handle_select_in_move_mode()
         elif self.mode_manager.mode == "attack":
-            # Import Position for position checking
-            from boneglaive.utils.coordinates import Position
-            
-            if Position(self.cursor_manager.cursor_pos.y, self.cursor_manager.cursor_pos.x) in self.cursor_manager.highlighted_positions:
-                self.cursor_manager.selected_unit.attack_target = (self.cursor_manager.cursor_pos.y, self.cursor_manager.cursor_pos.x)
-                target = self.game.get_unit_at(self.cursor_manager.cursor_pos.y, self.cursor_manager.cursor_pos.x)
-                
-                self.message = f"Attack set against {target.type.name}"
-                # No message added to log for planned attacks
-                self.mode_manager.mode = "select"
-                self.cursor_manager.highlighted_positions = []
-            else:
-                self.message = "Invalid attack target"
+            self.mode_manager.handle_select_in_attack_mode()
     
     def draw_board(self, show_cursor=True, show_selection=True, show_attack_targets=True):
         """Delegate board drawing to the UI renderer component."""
