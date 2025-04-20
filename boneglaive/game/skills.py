@@ -373,9 +373,17 @@ class PrySkill(ActiveSkill):
         target = game.get_unit_at(target_pos[0], target_pos[1])
         if not target or target.player == user.player:
             return False
+        
+        # Check if target is within range from the correct position
+        # (either current position or planned move position)
+        from_y = user.y
+        from_x = user.x
+        
+        # If unit has a planned move, use that position instead
+        if user.move_target:
+            from_y, from_x = user.move_target
             
-        # Check if target is within range
-        distance = game.chess_distance(user.y, user.x, target_pos[0], target_pos[1])
+        distance = game.chess_distance(from_y, from_x, target_pos[0], target_pos[1])
         if distance > self.range:
             return False
             

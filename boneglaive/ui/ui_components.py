@@ -1279,17 +1279,8 @@ class GameModeManager(UIComponent):
                     )
                     return
                     
-                # Check if unit has already planned a move (skills can be used before moving, but not after)
-                if cursor_manager.selected_unit.move_target:
-                    # Use event system for message
-                    self.publish_event(
-                        EventType.MESSAGE_DISPLAY_REQUESTED,
-                        MessageDisplayEventData(
-                            message="Unit has already planned a move and cannot use a skill",
-                            message_type=MessageType.WARNING
-                        )
-                    )
-                    return
+                # Previously there was a restriction that prevented using skills after moving
+                # This has been removed to allow move+skill combinations
                 
                 # Get available skills (not on cooldown)
                 available_skills = cursor_manager.selected_unit.get_available_skills()
@@ -1312,12 +1303,21 @@ class GameModeManager(UIComponent):
                 self.game_ui.action_menu_component.show_skill_menu(cursor_manager.selected_unit)
                 
                 # Use event system for message
-                self.publish_event(
-                    EventType.MESSAGE_DISPLAY_REQUESTED,
-                    MessageDisplayEventData(
-                        message="Select a skill to use"
+                # If the unit has a planned move, indicate that the skill will be used from the move position
+                if cursor_manager.selected_unit.move_target:
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message="Select a skill to use from planned move position"
+                        )
                     )
-                )
+                else:
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message="Select a skill to use"
+                        )
+                    )
                 
             else:
                 # Use event system for message
@@ -2190,9 +2190,17 @@ class ActionMenuComponent(UIComponent):
                         target = game.get_unit_at(y, x)
                         if target and target.player != cursor_manager.selected_unit.player:
                             # Check if target is within skill range
+                            # Use the planned move position if available
+                            from_y = cursor_manager.selected_unit.y
+                            from_x = cursor_manager.selected_unit.x
+                            
+                            # If unit has a planned move, use that position instead
+                            if cursor_manager.selected_unit.move_target:
+                                from_y, from_x = cursor_manager.selected_unit.move_target
+                                
                             distance = game.chess_distance(
-                                cursor_manager.selected_unit.y, 
-                                cursor_manager.selected_unit.x, 
+                                from_y, 
+                                from_x, 
                                 y, x
                             )
                             
