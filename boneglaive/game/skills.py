@@ -245,8 +245,8 @@ class Autoclave(PassiveSkill):
                 # Check if there's a unit at this position
                 target = game.get_unit_at(target_y, target_x)
                 if target and target.player != user.player:
-                    # Calculate damage (same as regular attack)
-                    damage = max(1, user.attack - target.defense)
+                    # Calculate damage (fixed at 8 regardless of defense)
+                    damage = 8
                     
                     # Apply damage to target
                     previous_hp = target.hp

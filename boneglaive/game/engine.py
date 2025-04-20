@@ -396,11 +396,20 @@ class Game:
         
         return attacks
     
+    # Store reference to the UI for animations
+    def set_ui_reference(self, ui):
+        """Store a reference to the game UI for animations."""
+        self.ui = ui
+    
     @measure_perf
     def execute_turn(self, ui=None):
         """Execute all unit actions for the current turn with animated sequence."""
         import time
         
+        # Store UI reference for animations if provided
+        if ui:
+            self.ui = ui
+            
         logger.info(f"Executing turn {self.turn} for player {self.current_player}")
         
         # Track units that will move and units that will attack
