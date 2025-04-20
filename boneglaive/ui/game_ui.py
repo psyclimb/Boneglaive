@@ -84,7 +84,9 @@ class GameUI:
             GameAction.DEBUG_PERFORMANCE: self._handle_debug_performance,
             GameAction.DEBUG_SAVE: self._handle_debug_save,
             GameAction.HELP: self._toggle_help_screen,
-            GameAction.CHAT_MODE: self._toggle_chat_mode
+            GameAction.CHAT_MODE: self._toggle_chat_mode,
+            GameAction.CYCLE_UNITS: self._cycle_units,
+            GameAction.CYCLE_UNITS_REVERSE: self._cycle_units_reverse
         })
         
         # Add custom key for toggling message log
@@ -420,6 +422,83 @@ class GameUI:
         logger.info(message_text)
         message_log.add_message(message_text, MessageType.DEBUG)
     
+    def _cycle_units_internal(self, reverse=False):
+        """
+        Cycle through the player's units.
+        
+        Args:
+            reverse: If True, cycle backward through the units
+        """
+        # Skip if in help or chat mode
+        if self.show_help or self.chat_mode:
+            return
+            
+        # Get the current player
+        current_player = self.multiplayer.get_current_player()
+        
+        # Get a list of units belonging to the current player
+        player_units = [unit for unit in self.game.units 
+                       if unit.is_alive() and 
+                          (unit.player == current_player or 
+                           (self.game.test_mode and unit.player in [1, 2]))]
+        
+        if not player_units:
+            self.message = "No units available to cycle through"
+            return
+            
+        # If no unit is selected, select the first or last one depending on direction
+        if not self.selected_unit:
+            # In reverse mode, start from the last unit
+            next_unit = player_units[-1 if reverse else 0]
+            self.cursor_pos = Position(next_unit.y, next_unit.x)
+            self.selected_unit = next_unit
+            self.message = f"Selected {next_unit.type.name}"
+            self.draw_board()
+            return
+            
+        # Find the index of the currently selected unit
+        try:
+            current_index = player_units.index(self.selected_unit)
+            
+            # Calculate the next index based on direction
+            if reverse:
+                # Select the previous unit (loop back to last if at the beginning)
+                next_index = (current_index - 1) % len(player_units)
+            else:
+                # Select the next unit (loop back to first if at the end)
+                next_index = (current_index + 1) % len(player_units)
+                
+            next_unit = player_units[next_index]
+            
+            # If the unit has a move target, cycle to the ghost instead
+            if next_unit.move_target:
+                self.cursor_pos = Position(next_unit.move_target[0], next_unit.move_target[1])
+                self.message = f"Selected {next_unit.type.name} (at planned position)"
+            else:
+                self.cursor_pos = Position(next_unit.y, next_unit.x)
+                self.message = f"Selected {next_unit.type.name}"
+                
+            self.selected_unit = next_unit
+            
+        except ValueError:
+            # If the selected unit isn't in the player's units (could happen in test mode)
+            # In reverse mode, start from the last unit
+            next_unit = player_units[-1 if reverse else 0]
+            self.cursor_pos = Position(next_unit.y, next_unit.x)
+            self.selected_unit = next_unit
+            self.message = f"Selected {next_unit.type.name}"
+        
+        # Redraw the board to show the new selection
+        self.draw_board()
+        
+    def _cycle_units(self):
+        """Cycle forward through player's units (Tab key)."""
+        self._cycle_units_internal(reverse=False)
+        
+    def _cycle_units_reverse(self):
+        """Cycle backward through player's units (Shift+Tab key)."""
+        self._cycle_units_internal(reverse=True)
+    
     def _handle_debug_overlay(self):
         """Toggle debug overlay."""
         overlay_enabled = debug_config.toggle_overlay()
@@ -740,6 +819,8 @@ class GameUI:
             controls = [
                 "Arrow keys: Move cursor",
                 "Enter: Select unit/confirm action",
+                "Tab: Cycle forward through your units",
+                "Shift+Tab: Cycle backward through your units",
                 "m: Move selected unit",
                 "a: Attack with selected unit",
                 "e: End turn",

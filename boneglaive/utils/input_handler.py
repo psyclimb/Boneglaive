@@ -25,8 +25,10 @@ class GameAction(Enum):
     DEBUG_OVERLAY = auto()
     DEBUG_PERFORMANCE = auto()
     DEBUG_SAVE = auto()
-    HELP = auto()  # New action for help screen
-    CHAT_MODE = auto()  # New action for chat mode
+    HELP = auto()  # Help screen
+    CHAT_MODE = auto()  # Chat mode
+    CYCLE_UNITS = auto()  # Cycle through player's units (forward)
+    CYCLE_UNITS_REVERSE = auto()  # Cycle through player's units (backward)
     QUIT = auto()
 
 class InputHandler:
@@ -74,6 +76,12 @@ class InputHandler:
             
             # Chat key
             self.action_map[ord('r')] = GameAction.CHAT_MODE
+            
+            # Cycle units keys (Tab and Shift+Tab)
+            self.action_map[9] = GameAction.CYCLE_UNITS  # ASCII code 9 is Tab
+            # Map both common representations of Shift+Tab
+            self.action_map[curses.KEY_BTAB] = GameAction.CYCLE_UNITS_REVERSE  # Shift+Tab in most terminals
+            self.action_map[353] = GameAction.CYCLE_UNITS_REVERSE  # Alternative code for Shift+Tab
     
     def register_action_callback(self, action: GameAction, callback: Callable) -> None:
         """Register a callback function for a game action."""
