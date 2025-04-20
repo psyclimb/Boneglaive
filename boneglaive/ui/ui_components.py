@@ -1048,12 +1048,22 @@ class GameModeManager(UIComponent):
             self.game_ui.draw_board()
             return
             
-        # If in attack or move mode, cancel the mode but keep unit selected
-        if self.mode in ["attack", "move"] and cursor_manager.selected_unit:
+        # If in attack, move or skill mode, cancel the mode but keep unit selected
+        if self.mode in ["attack", "move", "skill"] and cursor_manager.selected_unit:
             cursor_manager.highlighted_positions = []
             # Change to select mode (will publish mode changed event)
             self.set_mode("select")
             self.game_ui.message = f"{self.mode.capitalize()} mode cancelled, unit still selected"
+            self.game_ui.draw_board()
+            return
+            
+        # If in skill_select mode, return to normal menu
+        if self.mode == "skill_select" and cursor_manager.selected_unit:
+            # Return to standard menu
+            self.set_mode("select")
+            # Reset action menu to standard mode
+            self.game_ui.action_menu_component.populate_actions(cursor_manager.selected_unit)
+            self.game_ui.message = "Skill selection cancelled"
             self.game_ui.draw_board()
             return
             
@@ -1226,7 +1236,7 @@ class GameModeManager(UIComponent):
             )
     
     def handle_skill_mode(self):
-        """Enter skill mode to select and use active skills."""
+        """Enter skill mode to select from available skills."""
         cursor_manager = self.game_ui.cursor_manager
         
         # Check if player can act this turn
@@ -1258,63 +1268,20 @@ class GameModeManager(UIComponent):
                     )
                     return
                 
-                # For now, we'll just use the first available skill
-                # In a more advanced implementation, we would show a skill selection UI
-                selected_skill = available_skills[0]
+                # Change mode to skill selection
+                self.set_mode("skill_select")
                 
-                # Change mode to skill targeting
-                self.set_mode("skill")
-                
-                # Set the selected skill for targeting
-                cursor_manager.selected_unit.selected_skill = selected_skill
+                # Update the action menu to show skills
+                self.game_ui.action_menu_component.show_skill_menu(cursor_manager.selected_unit)
                 
                 # Use event system for message
                 self.publish_event(
                     EventType.MESSAGE_DISPLAY_REQUESTED,
                     MessageDisplayEventData(
-                        message=f"Using skill: {selected_skill.name}. Select target."
+                        message="Select a skill to use"
                     )
                 )
                 
-                # Highlight valid targets for the skill
-                if selected_skill.target_type == TargetType.ENEMY:
-                    # For enemy-targeted skills, highlight enemy units in range
-                    targets = []
-                    game = self.game_ui.game
-                    
-                    # Check all positions within skill range
-                    for y in range(game.HEIGHT):
-                        for x in range(game.WIDTH):
-                            # Check if there's an enemy unit at this position
-                            target = game.get_unit_at(y, x)
-                            if target and target.player != cursor_manager.selected_unit.player:
-                                # Check if target is within skill range
-                                distance = game.chess_distance(
-                                    cursor_manager.selected_unit.y, 
-                                    cursor_manager.selected_unit.x, 
-                                    y, x
-                                )
-                                
-                                if distance <= selected_skill.range:
-                                    targets.append((y, x))
-                    
-                    # Convert targets to Position objects
-                    cursor_manager.highlighted_positions = [Position(y, x) for y, x in targets]
-                    
-                    if not cursor_manager.highlighted_positions:
-                        # Use event system for message
-                        self.publish_event(
-                            EventType.MESSAGE_DISPLAY_REQUESTED,
-                            MessageDisplayEventData(
-                                message="No valid targets in range",
-                                message_type=MessageType.WARNING
-                            )
-                        )
-                        
-                        # Reset selected skill
-                        cursor_manager.selected_unit.selected_skill = None
-                        # Return to select mode
-                        self.set_mode("select")
             else:
                 # Use event system for message
                 self.publish_event(
@@ -1875,6 +1842,7 @@ class ActionMenuComponent(UIComponent):
         self.visible = False
         self.actions = []
         self.selected_index = 0
+        self.menu_mode = "standard"  # Can be "standard" or "skills"
         
     def _setup_event_handlers(self):
         """Set up event handlers for action menu."""
@@ -1913,6 +1881,7 @@ class ActionMenuComponent(UIComponent):
         This convention is used throughout the game UI.
         """
         self.actions = []
+        self.menu_mode = "standard"
         
         # Add standard actions with consistent labeling
         self.actions.append({
@@ -1936,6 +1905,54 @@ class ActionMenuComponent(UIComponent):
             'label': 'kills',  # Will be displayed as [S]kills without space
             'action': GameAction.SKILL_MODE,
             'enabled': unit_has_skills  # Enabled if unit has available skills
+        })
+        
+        # Reset selected index
+        self.selected_index = 0
+        
+    def show_skill_menu(self, unit):
+        """
+        Show a menu of available skills for the selected unit.
+        
+        Args:
+            unit: The unit whose skills to display
+        """
+        self.actions = []
+        self.menu_mode = "skills"
+        
+        # Add header action for going back (not selectable)
+        self.actions.append({
+            'key': 'esc',
+            'label': ' back',  # Will be displayed as [ESC] back
+            'action': GameAction.CANCEL,
+            'enabled': True,
+            'is_header': True
+        })
+        
+        # Add available skills
+        available_skills = []
+        if unit and hasattr(unit, 'active_skills'):
+            available_skills = unit.get_available_skills()
+        
+        # Add Pry skill
+        pry_skill = next((skill for skill in available_skills if skill.name == "Pry"), None)
+        self.actions.append({
+            'key': 'p',
+            'label': 'ry',  # Will be displayed as [P]ry
+            'action': 'pry_skill',  # Custom action identifier for handling
+            'enabled': pry_skill is not None,
+            'skill': pry_skill
+        })
+        
+        # Add Vault skill (placeholder for now)
+        vault_skill = next((skill for skill in available_skills if skill.name == "Vault"), None)
+        self.actions.append({
+            'key': 'v',
+            'label': 'ault',  # Will be displayed as [V]ault
+            'action': 'vault_skill',  # Custom action identifier for handling
+            'enabled': vault_skill is not None,
+            'skill': vault_skill,
+            'placeholder': True  # Mark as placeholder (not implemented yet)
         })
         
         # Reset selected index
@@ -1973,7 +1990,12 @@ class ActionMenuComponent(UIComponent):
         
         # Draw menu header with unit player color
         player_color = 3 if unit.player == 1 else 4
-        header = f" {unit.type.name} Actions "
+        
+        # Set header text based on menu mode
+        if self.menu_mode == "standard":
+            header = f" {unit.type.name} Actions "
+        else:
+            header = f" {unit.type.name} Skills "
         
         # Center the header
         header_x = menu_x + (menu_width - len(header)) // 2
@@ -1988,19 +2010,31 @@ class ActionMenuComponent(UIComponent):
             
             # Format action label with capitalized key directly followed by lowercase label: [K]ey
             # Combined into a single string for consistent spacing
-            action_text = f"[{action['key'].upper()}]{action['label']}"
+            if 'is_header' in action and action['is_header']:
+                # Special handling for header actions (like ESC back)
+                action_text = f"[{action['key'].upper()}]{action['label']}"
+            else:
+                action_text = f"[{action['key'].upper()}]{action['label']}"
             
             # Calculate x position with consistent left margin
             action_x = menu_x + 3  # Left margin for all actions
             
             # Choose color based on whether action is enabled
             key_color = player_color if action['enabled'] else 8  # Player color or gray
-            label_color = 1 if action['enabled'] else 8  # Normal color or gray
+            
+            # Special handling for placeholder skills (marked as not implemented)
+            if 'placeholder' in action and action['placeholder']:
+                label_color = 7  # Yellow for placeholders
+                # Add "(coming soon)" suffix to placeholder skills
+                if self.menu_mode == "skills":
+                    action_text += " (coming soon)"
+            else:
+                label_color = 1 if action['enabled'] else 8  # Normal color or gray
             
             # Set attributes based on enabled status
             attr = curses.A_BOLD if action['enabled'] else curses.A_DIM
             
-            # Draw the single consistent action text
+            # Draw the action text
             key_length = 3  # Length of "[X]" part
             
             # Draw the key part with key color
@@ -2019,22 +2053,117 @@ class ActionMenuComponent(UIComponent):
         # Exit if no actions
         if not self.actions:
             return False
+        
+        # Handle escape key for the skills menu (return to standard menu)
+        if self.menu_mode == "skills" and key == 27:  # Escape key
+            # Return to standard menu
+            self.publish_event(EventType.CANCEL_REQUESTED, EventData())
+            return True
             
-        # Handle direct key selection only
+        # Handle direct key selection based on menu mode
         for action in self.actions:
             if key == ord(action['key']) and action['enabled']:
-                # Trigger action
-                if action['action'] == GameAction.MOVE_MODE:
-                    self.publish_event(EventType.MOVE_MODE_REQUESTED, EventData())
-                elif action['action'] == GameAction.ATTACK_MODE:
-                    self.publish_event(EventType.ATTACK_MODE_REQUESTED, EventData())
-                elif action['action'] == GameAction.SKILL_MODE:
-                    # Add a SKILL_MODE_REQUESTED event type
-                    self.publish_event(EventType.SKILL_MODE_REQUESTED, EventData())
-                return True
+                # Standard menu actions
+                if self.menu_mode == "standard":
+                    if action['action'] == GameAction.MOVE_MODE:
+                        self.publish_event(EventType.MOVE_MODE_REQUESTED, EventData())
+                    elif action['action'] == GameAction.ATTACK_MODE:
+                        self.publish_event(EventType.ATTACK_MODE_REQUESTED, EventData())
+                    elif action['action'] == GameAction.SKILL_MODE:
+                        self.publish_event(EventType.SKILL_MODE_REQUESTED, EventData())
+                    return True
+                
+                # Skills menu actions
+                elif self.menu_mode == "skills":
+                    # Handle specific skill selection
+                    if action['action'] == 'pry_skill':
+                        # Use the Pry skill
+                        self._select_skill(action['skill'])
+                        return True
+                    elif action['action'] == 'vault_skill':
+                        if 'placeholder' in action and action['placeholder']:
+                            # Show message that vault is not implemented yet
+                            self.publish_event(
+                                EventType.MESSAGE_DISPLAY_REQUESTED,
+                                MessageDisplayEventData(
+                                    message="Vault skill not implemented yet",
+                                    message_type=MessageType.WARNING
+                                )
+                            )
+                        else:
+                            # Use the Vault skill
+                            self._select_skill(action['skill'])
+                        return True
                 
         # All other keys pass through - this allows movement keys to still work
         return False
+        
+    def _select_skill(self, skill):
+        """
+        Select a skill to use and enter targeting mode.
+        
+        Args:
+            skill: The skill to use
+        """
+        cursor_manager = self.game_ui.cursor_manager
+        mode_manager = self.game_ui.mode_manager
+        
+        # Set the selected skill
+        if cursor_manager.selected_unit:
+            cursor_manager.selected_unit.selected_skill = skill
+            
+            # Change to skill targeting mode
+            mode_manager.set_mode("skill")
+            
+            # Use event system for message
+            self.publish_event(
+                EventType.MESSAGE_DISPLAY_REQUESTED,
+                MessageDisplayEventData(
+                    message=f"Using skill: {skill.name}. Select target."
+                )
+            )
+            
+            # Highlight valid targets for the skill
+            if skill.target_type == TargetType.ENEMY:
+                # For enemy-targeted skills, highlight enemy units in range
+                targets = []
+                game = self.game_ui.game
+                
+                # Check all positions within skill range
+                for y in range(game.HEIGHT):
+                    for x in range(game.WIDTH):
+                        # Check if there's an enemy unit at this position
+                        target = game.get_unit_at(y, x)
+                        if target and target.player != cursor_manager.selected_unit.player:
+                            # Check if target is within skill range
+                            distance = game.chess_distance(
+                                cursor_manager.selected_unit.y, 
+                                cursor_manager.selected_unit.x, 
+                                y, x
+                            )
+                            
+                            if distance <= skill.range:
+                                # Check if skill can be used on this target
+                                if skill.can_use(cursor_manager.selected_unit, (y, x), game):
+                                    targets.append((y, x))
+                
+                # Convert targets to Position objects
+                cursor_manager.highlighted_positions = [Position(y, x) for y, x in targets]
+                
+                if not cursor_manager.highlighted_positions:
+                    # Use event system for message
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message="No valid targets in range",
+                            message_type=MessageType.WARNING
+                        )
+                    )
+                    
+                    # Reset selected skill
+                    cursor_manager.selected_unit.selected_skill = None
+                    # Return to select mode
+                    mode_manager.set_mode("select")
 
 # Input manager component
 class InputManager(UIComponent):
