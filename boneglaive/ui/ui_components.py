@@ -1922,7 +1922,8 @@ class ActionMenuComponent(UIComponent):
         
         # Add header action for going back (not selectable)
         self.actions.append({
-            'key': 'esc',
+            'key': '\x1b',  # Escape key character
+            'key_display': 'ESC',  # Display text for the key
             'label': ' back',  # Will be displayed as [ESC] back
             'action': GameAction.CANCEL,
             'enabled': True,
@@ -2010,11 +2011,14 @@ class ActionMenuComponent(UIComponent):
             
             # Format action label with capitalized key directly followed by lowercase label: [K]ey
             # Combined into a single string for consistent spacing
-            if 'is_header' in action and action['is_header']:
-                # Special handling for header actions (like ESC back)
-                action_text = f"[{action['key'].upper()}]{action['label']}"
+            if 'key_display' in action:
+                # Use key_display for special keys like ESC
+                key_display = action['key_display']
             else:
-                action_text = f"[{action['key'].upper()}]{action['label']}"
+                # For regular keys, capitalize
+                key_display = action['key'].upper()
+                
+            action_text = f"[{key_display}]{action['label']}"
             
             # Calculate x position with consistent left margin
             action_x = menu_x + 3  # Left margin for all actions
@@ -2062,7 +2066,18 @@ class ActionMenuComponent(UIComponent):
             
         # Handle direct key selection based on menu mode
         for action in self.actions:
-            if key == ord(action['key']) and action['enabled']:
+            # Check if key matches - handle both char and int keys
+            key_match = False
+            if isinstance(action['key'], str) and len(action['key']) == 1:
+                key_match = (key == ord(action['key']))
+            elif isinstance(action['key'], str) and len(action['key']) > 1:
+                # Special escape sequence
+                if action['key'] == '\x1b' and key == 27:  # ESC key
+                    key_match = True
+            else:
+                key_match = (key == action['key'])
+                
+            if key_match and action['enabled']:
                 # Standard menu actions
                 if self.menu_mode == "standard":
                     if action['action'] == GameAction.MOVE_MODE:
