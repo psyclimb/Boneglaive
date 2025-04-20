@@ -477,7 +477,13 @@ class Game:
             if unit.attack_target:
                 y, x = unit.attack_target
                 target = self.get_unit_at(y, x)
-                if target and target.player != unit.player:  # Valid attack
+                
+                # Calculate attacking position (either unit's current position or move target)
+                attacking_pos = unit.move_target if unit.move_target else (unit.y, unit.x)
+                
+                # Verify attack is within range from the attacking position
+                attack_distance = self.chess_distance(attacking_pos[0], attacking_pos[1], y, x)
+                if target and target.player != unit.player and attack_distance <= unit.attack_range:  # Valid attack
                     # Show attack animation if UI is provided
                     if ui:
                         ui.show_attack_animation(unit, target)
@@ -543,6 +549,16 @@ class Game:
                            target.passive_skill.name == "Autoclave":
                             # Mark Autoclave as ready to trigger during the apply_passive_skills phase
                             target.passive_skill.mark_ready_to_trigger()
+                else:
+                    # Log invalid attack attempts for debugging
+                    if not target:
+                        logger.warning(f"Attack failed: no target at ({y},{x})")
+                    elif target.player == unit.player:
+                        logger.warning(f"Attack failed: cannot attack allied unit")
+                    elif attack_distance > unit.attack_range:
+                        logger.warning(f"Attack failed: target out of range (distance={attack_distance}, range={unit.attack_range})")
+                    else:
+                        logger.warning(f"Attack failed: unknown reason")
         
         # Clear all actions and update skill cooldowns
         for unit in self.units:
