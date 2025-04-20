@@ -80,6 +80,16 @@ class CursesRenderer(RenderInterface):
     def get_size(self) -> Tuple[int, int]:
         """Get the size of the rendering area."""
         return self.height, self.width
+        
+    def get_terminal_size(self) -> Tuple[int, int]:
+        """
+        Get the current terminal size (updates each time it's called).
+        
+        Returns:
+            Tuple of (height, width)
+        """
+        height, width = self.stdscr.getmaxyx()
+        return height, width
     
     def setup_colors(self) -> None:
         """Set up color pairs for the renderer."""

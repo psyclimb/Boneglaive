@@ -29,6 +29,7 @@ class GameAction(Enum):
     CHAT_MODE = auto()  # Chat mode
     CYCLE_UNITS = auto()  # Cycle through player's units (forward)
     CYCLE_UNITS_REVERSE = auto()  # Cycle through player's units (backward)
+    LOG_HISTORY = auto()  # Full log history screen
     QUIT = auto()
 
 class InputHandler:
@@ -76,6 +77,9 @@ class InputHandler:
             
             # Chat key
             self.action_map[ord('r')] = GameAction.CHAT_MODE
+            
+            # Log history key (Shift+L)
+            self.action_map[ord('L')] = GameAction.LOG_HISTORY
             
             # Cycle units keys (Tab and Shift+Tab)
             self.action_map[9] = GameAction.CYCLE_UNITS  # ASCII code 9 is Tab

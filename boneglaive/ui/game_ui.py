@@ -53,6 +53,10 @@ class GameUI:
         self.chat_input = ""  # Current chat input text
         self.player_colors = {1: 3, 2: 4}  # Player colors (matching message_log)
         
+        # Log history screen state
+        self.show_log_history = False  # Whether to show the full log history screen
+        self.log_history_scroll = 0    # Scroll position in log history
+        
         # Welcome message
         message_log.add_system_message("Welcome to Boneglaive!")
         
@@ -86,7 +90,8 @@ class GameUI:
             GameAction.HELP: self._toggle_help_screen,
             GameAction.CHAT_MODE: self._toggle_chat_mode,
             GameAction.CYCLE_UNITS: self._cycle_units,
-            GameAction.CYCLE_UNITS_REVERSE: self._cycle_units_reverse
+            GameAction.CYCLE_UNITS_REVERSE: self._cycle_units_reverse,
+            GameAction.LOG_HISTORY: self._toggle_log_history
         })
         
         # Add custom key for toggling message log
@@ -97,6 +102,26 @@ class GameUI:
         self.show_log = not self.show_log
         self.message = f"Message log {'shown' if self.show_log else 'hidden'}"
         message_log.add_system_message(f"Message log {'shown' if self.show_log else 'hidden'}")
+        
+    def _toggle_log_history(self):
+        """Toggle the full log history screen."""
+        # Don't show log history while in help or chat mode
+        if self.show_help or self.chat_mode:
+            return
+            
+        # Toggle log history screen
+        self.show_log_history = not self.show_log_history
+        
+        # Reset scroll position when opening
+        if self.show_log_history:
+            self.log_history_scroll = 0
+            # No log message when opening
+        else:
+            # No log message when closing
+            pass
+            
+        # Immediately redraw the board
+        self.draw_board()
     
     def _toggle_help_screen(self):
         """Toggle the help screen display."""
@@ -179,20 +204,8 @@ class GameUI:
                 # Check if we're selecting a ghost (unit with a move_target at current position)
                 is_ghost = (unit.move_target == (self.cursor_pos.y, self.cursor_pos.x))
                 
-                if is_ghost:
-                    self.message = f"Selected {unit.type.name} (ghost at planned position)"
-                    message_log.add_message(
-                        f"Selected {unit.type.name} at planned position ({self.cursor_pos.y},{self.cursor_pos.x})", 
-                        MessageType.SYSTEM,
-                        player=current_player
-                    )
-                else:
-                    self.message = f"Selected {unit.type.name}"
-                    message_log.add_message(
-                        f"Selected {unit.type.name} at ({unit.y},{unit.x})", 
-                        MessageType.SYSTEM,
-                        player=current_player
-                    )
+                # Clear the message to avoid redundancy with unit info display
+                self.message = ""
                 # Redraw the board to immediately show the selection
                 self.draw_board()
             else:
@@ -239,7 +252,15 @@ class GameUI:
         Handle cancel action (Escape key or 'c' key).
         Cancels the current action based on the current state.
         """
-        # First check if help screen is showing - cancel it
+        # First check if log history screen is showing - cancel it
+        if self.show_log_history:
+            self.show_log_history = False
+            self.log_history_scroll = 0  # Reset scroll position
+            self.message = "Log history closed"
+            self.draw_board()
+            return
+            
+        # Next check if help screen is showing - cancel it
         if self.show_help:
             self.show_help = False
             self.message = "Help screen closed"
@@ -452,7 +473,7 @@ class GameUI:
             next_unit = player_units[-1 if reverse else 0]
             self.cursor_pos = Position(next_unit.y, next_unit.x)
             self.selected_unit = next_unit
-            self.message = f"Selected {next_unit.type.name}"
+            self.message = ""  # Clear message to avoid redundancy with unit info display
             self.draw_board()
             return
             
@@ -473,10 +494,11 @@ class GameUI:
             # If the unit has a move target, cycle to the ghost instead
             if next_unit.move_target:
                 self.cursor_pos = Position(next_unit.move_target[0], next_unit.move_target[1])
-                self.message = f"Selected {next_unit.type.name} (at planned position)"
             else:
                 self.cursor_pos = Position(next_unit.y, next_unit.x)
-                self.message = f"Selected {next_unit.type.name}"
+                
+            # Clear message to avoid redundancy with unit info display
+            self.message = ""
                 
             self.selected_unit = next_unit
             
@@ -486,7 +508,7 @@ class GameUI:
             next_unit = player_units[-1 if reverse else 0]
             self.cursor_pos = Position(next_unit.y, next_unit.x)
             self.selected_unit = next_unit
-            self.message = f"Selected {next_unit.type.name}"
+            self.message = ""  # Clear message to avoid redundancy with unit info display
         
         # Redraw the board to show the new selection
         self.draw_board()
@@ -567,17 +589,18 @@ class GameUI:
         self.renderer.refresh()
         time.sleep(0.5)
         
-        # Redraw board to clear effects (without cursor or selection highlighting)
-        self.draw_board(show_cursor=False, show_selection=False)
+        # Redraw board to clear effects (without cursor, selection, or attack target highlighting)
+        self.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
     
     @measure_perf
-    def draw_board(self, show_cursor=True, show_selection=True):
+    def draw_board(self, show_cursor=True, show_selection=True, show_attack_targets=True):
         """
         Draw the game board and UI.
         
         Args:
             show_cursor: Whether to show the cursor (default: True)
             show_selection: Whether to show selected unit highlighting (default: True)
+            show_attack_targets: Whether to show attack target highlighting (default: True)
         """
         # Set cursor visibility
         self.renderer.set_cursor(False)  # Always hide the physical cursor
@@ -588,6 +611,12 @@ class GameUI:
         # If help screen is being shown, draw it and return
         if self.show_help:
             self._draw_help_screen()
+            self.renderer.refresh()
+            return
+            
+        # If log history screen is being shown, draw it and return
+        if self.show_log_history:
+            self._draw_log_history_screen()
             self.renderer.refresh()
             return
         
@@ -647,8 +676,8 @@ class GameUI:
                     tile = self.asset_manager.get_unit_tile(unit.type)
                     color_id = 3 if unit.player == 1 else 4
                     
-                    # If this unit is being targeted for attack, use red background
-                    if attacking_unit:
+                    # If this unit is being targeted for attack and attack targets should be shown
+                    if attacking_unit and show_attack_targets:
                         # Check if cursor is here before drawing targeted unit
                         is_cursor_here = (pos == self.cursor_pos and show_cursor)
                         
@@ -827,6 +856,7 @@ class GameUI:
                 "Esc: Cancel current action/selection",
                 "c: Clear selection (same as Esc)",
                 "l: Toggle message log",
+                "Shift+L: View full game log history (scrollable)",
                 "r: Enter chat/message mode",
                 "t: Toggle test mode (allows controlling both players' units)",
                 "q: Quit game",
@@ -855,14 +885,87 @@ class GameUI:
         except Exception as e:
             logger.error(f"Error displaying help screen: {str(e)}")
     
+    def _draw_log_history_screen(self):
+        """Draw the full log history screen with scrolling."""
+        try:
+            # Calculate available height for messages (terminal height minus headers/footers)
+            term_height, term_width = self.renderer.get_terminal_size()
+            available_height = term_height - 6  # Space for title, instructions and bottom margin
+            
+            # Get all messages from the log (we'll format and scroll them)
+            # Avoid filtering when viewing full history - get all messages
+            all_messages = message_log.get_formatted_messages(count=message_log.MAX_MESSAGES, filter_types=None)
+            
+            # Calculate max scroll position
+            max_scroll = max(0, len(all_messages) - available_height)
+            # Clamp scroll position
+            self.log_history_scroll = max(0, min(self.log_history_scroll, max_scroll))
+            
+            # Draw title
+            self.renderer.draw_text(1, 2, "=== BONEGLAIVE LOG HISTORY ===", 1, curses.A_BOLD)
+            
+            # Draw navigation instructions
+            nav_text = "UP/DOWN: Scroll | ESC: Close | L: Toggle regular log"
+            self.renderer.draw_text(3, 2, nav_text, 1)
+            
+            # Draw scroll indicator
+            if len(all_messages) > available_height:
+                scroll_pct = int((self.log_history_scroll / max_scroll) * 100)
+                scroll_text = f"Showing {self.log_history_scroll+1}-{min(self.log_history_scroll+available_height, len(all_messages))} " \
+                             f"of {len(all_messages)} messages ({scroll_pct}%)"
+                self.renderer.draw_text(term_height-2, 2, scroll_text, 1)
+            else:
+                self.renderer.draw_text(term_height-2, 2, f"Showing all {len(all_messages)} messages", 1)
+            
+            # Slice messages based on scroll position
+            visible_messages = all_messages[self.log_history_scroll:self.log_history_scroll+available_height]
+            
+            # Draw messages (in chronological order, oldest first)
+            for i, (text, color_id) in enumerate(visible_messages):
+                y_pos = i + 5  # Start after title and instructions
+                
+                # Add bold attribute for player messages
+                attributes = 0
+                if "[Player " in text:  # It's a chat message
+                    attributes = curses.A_BOLD
+                
+                # Truncate messages that are too long for the screen
+                max_text_width = term_width - 4  # Leave margin
+                if len(text) > max_text_width:
+                    text = text[:max_text_width-3] + "..."
+                
+                self.renderer.draw_text(y_pos, 2, text, color_id, attributes)
+                
+        except Exception as e:
+            # Never let log history crash the game
+            logger.error(f"Error displaying log history: {str(e)}")
+    
     def handle_input(self, key: int) -> bool:
         """
         Handle user input.
         Returns True to continue running, False to quit.
         """
         # Quick exit for 'q' key (except in chat mode)
-        if key == ord('q') and not self.chat_mode:
+        if key == ord('q') and not self.chat_mode and not self.show_log_history:
             return False
+        
+        # Special handling for log history screen scrolling
+        if self.show_log_history:
+            if key == curses.KEY_UP:
+                # Scroll up
+                self.log_history_scroll = max(0, self.log_history_scroll - 1)
+                self.draw_board()
+                return True
+            elif key == curses.KEY_DOWN:
+                # Scroll down (max scroll is enforced in draw method)
+                self.log_history_scroll += 1
+                self.draw_board()
+                return True
+            elif key == ord('l'):
+                # Toggle regular log view while in history
+                self._toggle_message_log()
+                self.draw_board()
+                return True
         
         # If in chat mode, handle chat input
         if self.chat_mode:
