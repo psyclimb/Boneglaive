@@ -134,7 +134,7 @@ class Game:
         # PHASE 1: Execute and animate all movements
         if moving_units and ui:
             message_log.add_system_message("Units moving...")
-            ui.draw_board()  # Show initial state
+            ui.draw_board(show_cursor=False)  # Show initial state without cursor
             time.sleep(0.5)  # Short delay before movements start
             
         for unit in moving_units:
@@ -150,8 +150,8 @@ class Game:
                     # Update unit position
                     unit.y, unit.x = y, x
                     
-                    # Redraw to show unit in new position
-                    ui.draw_board()
+                    # Redraw to show unit in new position without cursor
+                    ui.draw_board(show_cursor=False)
                     
                     # Log movement
                     message_log.add_message(
@@ -170,7 +170,7 @@ class Game:
         if moving_units and attacking_units and ui:
             time.sleep(1.0)  # Longer delay between movement and attack phases
             message_log.add_system_message("Executing attacks...")
-            ui.draw_board()  # Show updated state after movements
+            ui.draw_board(show_cursor=False)  # Show updated state after movements without cursor
             time.sleep(0.5)  # Short delay before attacks start
         
         # PHASE 2: Execute all attacks
@@ -216,6 +216,12 @@ class Game:
         
         # Check if game is over
         self.check_game_over()
+        
+        # If UI is provided, redraw with cursor before finishing
+        if ui:
+            # Slight delay before showing final state
+            time.sleep(0.5)
+            ui.draw_board(show_cursor=True)  # Restore cursor
         
         # In multiplayer modes, player switching is primarily handled by the multiplayer manager
         # But we still need to update the game's current_player property here
