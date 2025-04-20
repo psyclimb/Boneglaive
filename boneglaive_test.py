@@ -6,6 +6,7 @@ This script tests the map and terrain functionality without running the full gam
 
 from boneglaive.game.map import GameMap, MapFactory, TerrainType
 from boneglaive.game.engine import Game
+from boneglaive.utils.constants import UnitType
 from boneglaive.utils.coordinates import Position
 
 def test_map_creation():
@@ -106,10 +107,43 @@ def test_terrain_effects():
     
     print("Terrain effects test passed!")
 
+def test_unit_blocking():
+    """Test that enemy units block movement."""
+    game = Game(skip_setup=True)
+    
+    # Clear any existing units
+    game.units = []
+    
+    # Add a player 1 unit
+    game.add_unit(UnitType.GLAIVEMAN, 1, 5, 5)
+    player1_unit = game.units[0]
+    
+    # Add a player 2 unit
+    game.add_unit(UnitType.GLAIVEMAN, 2, 5, 7)
+    player2_unit = game.units[1]
+    
+    # Test that player 1 unit can't move through player 2 unit
+    can_move_through = game.can_move_to(player1_unit, 5, 9)
+    print(f"Can player 1 unit move through player 2 unit? {can_move_through}")
+    assert not can_move_through, "Player should not be able to move through enemy units"
+    
+    # Test that player 1 unit can still move to positions not blocked by player 2 unit
+    can_move_around = game.can_move_to(player1_unit, 3, 5)
+    print(f"Can player 1 unit move to unblocked position? {can_move_around}")
+    assert can_move_around, "Player should be able to move to unblocked positions"
+    
+    # Check if adjacent moves are still allowed
+    can_move_adjacent = game.can_move_to(player1_unit, 5, 6)
+    print(f"Can player 1 unit move adjacent to enemy? {can_move_adjacent}")
+    assert can_move_adjacent, "Player should be able to move adjacent to enemy units"
+    
+    print("Unit blocking test passed!")
+
 if __name__ == "__main__":
     print("Testing Boneglaive Map Implementation\n")
     
     test_map_creation()
     test_terrain_effects()
+    test_unit_blocking()
     
     print("\nAll tests passed successfully!")
