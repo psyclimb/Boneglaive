@@ -61,13 +61,18 @@ class Unit:
         if unit_type_name in UNIT_SKILLS:
             skill_set = UNIT_SKILLS[unit_type_name]
             
-            # Set passive skill
+            # Set passive skill - create new instance for each unit
             if 'passive' in skill_set:
-                self.passive_skill = skill_set['passive']
+                passive_class = skill_set['passive'].__class__
+                self.passive_skill = passive_class()
                 
-            # Set active skills
+            # Set active skills - create new instances for each unit
             if 'active' in skill_set:
-                self.active_skills = skill_set['active']
+                self.active_skills = []
+                for skill in skill_set['active']:
+                    # Create a new instance of the skill for this unit
+                    skill_class = skill.__class__
+                    self.active_skills.append(skill_class())
     
     def is_alive(self) -> bool:
         """Check if the unit is alive."""
