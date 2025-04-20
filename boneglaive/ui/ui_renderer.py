@@ -309,16 +309,30 @@ class UIRenderer:
             effective_move = effective_stats['move_range']
             effective_attack = effective_stats['attack_range']
             
+            # Split the movement and range display so we can color only MOVE red when penalized
+            move_part = f"MOVE: {effective_move}"
+            range_part = f"RANGE: {effective_attack}"
+            
+            # Calculate position for each part
+            move_pos = len(type_info) + len(hp_info) + len(combat_info) + 8
+            range_pos = move_pos + len(move_part) + 3  # +3 for the " | " separator
+            
             # Determine if there's a movement penalty for display purposes
             move_color = 1  # Default color
             move_attr = 0   # Default attribute
             if unit.move_range_bonus < 0:
-                # Show negative bonus in red to indicate penalty
+                # Show negative MOVE bonus in red to indicate penalty
                 move_color = 6  # Red for penalty
                 move_attr = curses.A_BOLD  # Make it bold for emphasis
             
-            move_info = f"MOVE: {effective_move} | RANGE: {effective_attack}"
-            self.renderer.draw_text(info_line, len(type_info) + len(hp_info) + len(combat_info) + 8, move_info, move_color, move_attr)
+            # Draw MOVE part with appropriate color
+            self.renderer.draw_text(info_line, move_pos, move_part, move_color, move_attr)
+            
+            # Draw separator
+            self.renderer.draw_text(info_line, move_pos + len(move_part), " | ", 1)
+            
+            # Draw RANGE part with normal color (always)
+            self.renderer.draw_text(info_line, range_pos, range_part, 1)
         
         # Draw message with better visibility
         msg_line = HEIGHT+2
