@@ -232,6 +232,9 @@ class GameUI:
                     message_log.add_message("No unit at that position", MessageType.WARNING)
         
         elif self.mode == "move":
+            # Import Position at the top of the function to avoid errors
+            from boneglaive.utils.coordinates import Position, get_line
+            
             # Check if the position is a valid move target
             if Position(self.cursor_pos.y, self.cursor_pos.x) in self.highlighted_positions:
                 self.selected_unit.move_target = (self.cursor_pos.y, self.cursor_pos.x)
@@ -254,7 +257,6 @@ class GameUI:
                 # Check if there's an enemy unit blocking the path
                 elif distance > 1:
                     # Check the path for enemy units
-                    from boneglaive.utils.coordinates import Position, get_line
                     start_pos = Position(self.selected_unit.y, self.selected_unit.x)
                     end_pos = Position(y, x)
                     path = get_line(start_pos, end_pos)
@@ -274,14 +276,20 @@ class GameUI:
                 else:
                     self.message = "Invalid move target"
         
-        elif self.mode == "attack" and Position(self.cursor_pos.y, self.cursor_pos.x) in self.highlighted_positions:
-            self.selected_unit.attack_target = (self.cursor_pos.y, self.cursor_pos.x)
-            target = self.game.get_unit_at(self.cursor_pos.y, self.cursor_pos.x)
+        elif self.mode == "attack":
+            # Import Position at the top of the function to avoid errors
+            from boneglaive.utils.coordinates import Position
             
-            self.message = f"Attack set against {target.type.name}"
-            # No message added to log for planned attacks
-            self.mode = "select"
-            self.highlighted_positions = []
+            if Position(self.cursor_pos.y, self.cursor_pos.x) in self.highlighted_positions:
+                self.selected_unit.attack_target = (self.cursor_pos.y, self.cursor_pos.x)
+                target = self.game.get_unit_at(self.cursor_pos.y, self.cursor_pos.x)
+                
+                self.message = f"Attack set against {target.type.name}"
+                # No message added to log for planned attacks
+                self.mode = "select"
+                self.highlighted_positions = []
+            else:
+                self.message = "Invalid attack target"
     
     def _handle_cancel(self):
         """
