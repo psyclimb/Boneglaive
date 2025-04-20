@@ -37,7 +37,7 @@ class AssetManager:
         """Initialize text-based assets (ASCII/Unicode characters)."""
         # Unit symbols
         self.unit_tiles = {
-            UnitType.WARRIOR: 'W',
+            UnitType.GLAIVEMAN: 'G',
             UnitType.ARCHER: 'A',
             UnitType.MAGE: 'M'
         }
@@ -59,9 +59,9 @@ class AssetManager:
         
         # Effect symbols
         self.effect_tiles = {
-            'warrior_attack': '⚔️',  # Sword (melee)
-            'archer_attack': '→',    # Arrow (ranged)
-            'mage_attack': '*'       # Magic star (ranged)
+            'glaiveman_attack': '⚔️',  # Glaive (melee)
+            'archer_attack': '→',      # Arrow (ranged)
+            'mage_attack': '*'         # Magic star (ranged)
         }
     
     def _initialize_graphical_assets(self) -> None:
@@ -71,7 +71,7 @@ class AssetManager:
         """
         # These would be asset paths in graphical mode
         self.unit_tiles = {
-            UnitType.WARRIOR: 'assets/sprites/warrior.png',
+            UnitType.GLAIVEMAN: 'assets/sprites/glaiveman.png',
             UnitType.ARCHER: 'assets/sprites/archer.png',
             UnitType.MAGE: 'assets/sprites/mage.png'
         }
@@ -90,7 +90,7 @@ class AssetManager:
         }
         
         self.effect_tiles = {
-            'warrior_attack': 'assets/effects/sword.png',
+            'glaiveman_attack': 'assets/effects/glaive.png',
             'archer_attack': 'assets/effects/arrow.png',
             'mage_attack': 'assets/effects/magic.png'
         }
@@ -114,11 +114,11 @@ class AssetManager:
     def get_attack_effect(self, unit_type: UnitType) -> str:
         """Get the attack effect for a unit type."""
         effect_map = {
-            UnitType.WARRIOR: 'warrior_attack',
+            UnitType.GLAIVEMAN: 'glaiveman_attack',
             UnitType.ARCHER: 'archer_attack',
             UnitType.MAGE: 'mage_attack'
         }
-        effect_type = effect_map.get(unit_type, 'warrior_attack')
+        effect_type = effect_map.get(unit_type, 'glaiveman_attack')
         return self.get_effect_tile(effect_type)
     
     def reload_assets(self) -> None:
