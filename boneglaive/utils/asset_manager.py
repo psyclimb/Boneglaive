@@ -6,7 +6,7 @@ but can be extended to handle image assets for graphical mode.
 """
 
 from enum import Enum
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 
 from boneglaive.utils.config import ConfigManager
 from boneglaive.utils.constants import UnitType
