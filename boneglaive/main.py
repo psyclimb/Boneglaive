@@ -5,7 +5,9 @@ Handles argument parsing and starts the game.
 """
 import curses
 import argparse
+import os
 import sys
+import logging
 from typing import Optional, Tuple
 
 from boneglaive.ui.game_ui import GameUI
@@ -119,6 +121,18 @@ def main(stdscr):
     configure_settings(args)
     
     # Initialize logging
+    logger.setLevel(debug_config.log_level.value)
+    if debug_config.log_to_file:
+        # If we're logging to a file, make sure the root logger is set up properly
+        os.makedirs('logs', exist_ok=True)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        file_handler = logging.FileHandler('logs/boneglaive.log')
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+    else:
+        # Otherwise use a null handler to prevent stdout logging
+        logger.addHandler(logging.NullHandler())
+    
     logger.info("Starting Boneglaive")
     
     # Run menu or skip to game

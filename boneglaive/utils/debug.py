@@ -30,26 +30,31 @@ class DebugConfig:
         """Set up logging for a specific module"""
         logger = logging.getLogger(module_name)
         
-        # Configure logger if not already set up
-        if module_name not in self.loggers:
-            logger.setLevel(self.log_level.value)
-            
-            # Create formatters and handlers
-            formatter = logging.Formatter(
-                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-            )
-            
-            # Console handler
-            console_handler = logging.StreamHandler(sys.stdout)
-            console_handler.setFormatter(formatter)
-            logger.addHandler(console_handler)
-            
-            # File handler (optional)
-            if self.log_to_file:
-                os.makedirs('logs', exist_ok=True)
-                file_handler = logging.FileHandler(f'logs/{module_name}.log')
-                file_handler.setFormatter(formatter)
-                logger.addHandler(file_handler)
+        # Always reset logger to make sure handlers don't pile up
+        logger.setLevel(self.log_level.value)
+        
+        # Remove any existing handlers to avoid duplicates
+        for handler in logger.handlers[:]:
+            logger.removeHandler(handler)
+        
+        # Create formatters and handlers
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+        
+        # Only log to console if not in curses mode
+        # In a curses application, logging to stdout interferes with the UI
+        # If log_to_file is True, we'll log to file instead
+        if not self.log_to_file:
+            # Set up a null handler - we'll only log to file when explicitly enabled
+            logger.addHandler(logging.NullHandler())
+        
+        # File handler (optional)
+        if self.log_to_file:
+            os.makedirs('logs', exist_ok=True)
+            file_handler = logging.FileHandler(f'logs/{module_name}.log')
+            file_handler.setFormatter(formatter)
+            logger.addHandler(file_handler)
             
             # Store logger
             self.loggers[module_name] = logger
