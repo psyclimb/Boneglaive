@@ -493,8 +493,9 @@ class PrySkill(ActiveSkill):
                 target_player=target.player
             )
             
-            # Apply movement reduction effect
+            # Apply movement reduction effect and mark unit as pried
             target.move_range_bonus = -1
+            target.was_pried = True  # Mark the unit as affected by Pry
             
             # Log the movement reduction
             message_log.add_message(
@@ -610,8 +611,9 @@ class PrySkill(ActiveSkill):
             target_player=target.player
         )
         
-        # Apply movement reduction effect
+        # Apply movement reduction effect and mark unit as pried
         target.move_range_bonus = -1
+        target.was_pried = True  # Mark the unit as affected by Pry
         
         # Log the movement reduction
         message_log.add_message(

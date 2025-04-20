@@ -623,6 +623,12 @@ class Game:
             # Increment turn counter when player 1's turn comes around again
             if self.current_player == 1:
                 self.turn += 1
+                
+            # Reset movement penalties for units of the player whose turn is starting
+            # This ensures movement penalties from Pry last exactly one turn
+            for unit in self.units:
+                if unit.is_alive() and unit.player == self.current_player:
+                    unit.reset_movement_penalty()
     
     def check_game_over(self):
         player1_alive = any(unit.is_alive() and unit.player == 1 for unit in self.units)
