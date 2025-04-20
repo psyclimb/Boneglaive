@@ -73,32 +73,100 @@ class Game:
                     moves.append((y, x))
         return moves
     
-    def get_possible_attacks(self, unit):
+    def get_possible_attacks(self, unit, from_pos=None):
+        """
+        Get possible attack targets for a unit.
+        
+        Args:
+            unit: The unit to check attacks for
+            from_pos: Optional (y, x) position to calculate attacks from (for post-move attacks)
+        
+        Returns:
+            List of (y, x) tuples representing possible attack positions
+        """
         attacks = []
-        for y in range(max(0, unit.y - unit.attack_range), min(HEIGHT, unit.y + unit.attack_range + 1)):
-            for x in range(max(0, unit.x - unit.attack_range), min(WIDTH, unit.x + unit.attack_range + 1)):
-                if self.can_attack(unit, y, x):
-                    attacks.append((y, x))
+        
+        # Use provided position or unit's current position
+        y_pos, x_pos = from_pos if from_pos else (unit.y, unit.x)
+        
+        for y in range(max(0, y_pos - unit.attack_range), min(HEIGHT, y_pos + unit.attack_range + 1)):
+            for x in range(max(0, x_pos - unit.attack_range), min(WIDTH, x_pos + unit.attack_range + 1)):
+                # Check if there's an enemy unit at this position
+                target = self.get_unit_at(y, x)
+                if target and target.player != unit.player:
+                    # Calculate Manhattan distance from the attack position
+                    distance = abs(y_pos - y) + abs(x_pos - x)
+                    if distance <= unit.attack_range:
+                        attacks.append((y, x))
+        
         return attacks
     
     @measure_perf
     def execute_turn(self, ui=None):
+        """Execute all unit actions for the current turn with animated sequence."""
+        import time
+        
         logger.info(f"Executing turn {self.turn} for player {self.current_player}")
-        # Execute all movements first
+        
+        # Track units that will move and units that will attack
+        moving_units = []
+        attacking_units = []
+        
+        # Identify units with actions
         for unit in self.units:
             if not unit.is_alive():
                 continue
-            
+                
             if unit.move_target:
-                y, x = unit.move_target
-                if self.can_move_to(unit, y, x):  # Double-check the move is still valid
-                    logger.debug(f"Moving {unit.type.name} from ({unit.y},{unit.x}) to ({y},{x})")
-                    unit.y, unit.x = y, x
-                else:
-                    logger.warning(f"Invalid move target ({y},{x}) for unit at ({unit.y},{unit.x})")
+                moving_units.append(unit)
+                
+            if unit.attack_target:
+                attacking_units.append(unit)
         
-        # Then execute all attacks
-        for unit in self.units:
+        # PHASE 1: Execute and animate all movements
+        if moving_units and ui:
+            message_log.add_system_message("Units moving...")
+            ui.draw_board()  # Show initial state
+            time.sleep(0.5)  # Short delay before movements start
+            
+        for unit in moving_units:
+            y, x = unit.move_target
+            if self.can_move_to(unit, y, x):  # Double-check the move is still valid
+                logger.debug(f"Moving {unit.type.name} from ({unit.y},{unit.x}) to ({y},{x})")
+                
+                # Show movement animation if UI is provided
+                if ui:
+                    # Save original position
+                    start_y, start_x = unit.y, unit.x
+                    
+                    # Update unit position
+                    unit.y, unit.x = y, x
+                    
+                    # Redraw to show unit in new position
+                    ui.draw_board()
+                    
+                    # Log movement
+                    message_log.add_message(
+                        f"{unit.type.name} moved from ({start_y},{start_x}) to ({y},{x})",
+                        MessageType.MOVEMENT,
+                        player=unit.player
+                    )
+                    time.sleep(0.3)  # Short delay after each unit moves
+                else:
+                    # Without UI, just update position
+                    unit.y, unit.x = y, x
+            else:
+                logger.warning(f"Invalid move target ({y},{x}) for unit at ({unit.y},{unit.x})")
+        
+        # After all movements, pause to show the new board state
+        if moving_units and attacking_units and ui:
+            time.sleep(1.0)  # Longer delay between movement and attack phases
+            message_log.add_system_message("Executing attacks...")
+            ui.draw_board()  # Show updated state after movements
+            time.sleep(0.5)  # Short delay before attacks start
+        
+        # PHASE 2: Execute all attacks
+        for unit in attacking_units:
             if not unit.is_alive():
                 continue
             
