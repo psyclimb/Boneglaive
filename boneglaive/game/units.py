@@ -93,9 +93,17 @@ class Unit:
         return [skill for skill in self.active_skills if skill.current_cooldown == 0]
     
     def tick_cooldowns(self) -> None:
-        """Reduce cooldowns for all skills by 1 turn."""
+        """
+        Reduce cooldowns for all skills by 1 turn.
+        Also clear any temporary movement penalties.
+        """
+        # Tick skill cooldowns
         for skill in self.active_skills:
             skill.tick_cooldown()
+            
+        # Clear movement penalty (applied by Pry skill)
+        if self.move_range_bonus < 0:
+            self.move_range_bonus = 0
     
     def add_xp(self, amount: int) -> bool:
         """

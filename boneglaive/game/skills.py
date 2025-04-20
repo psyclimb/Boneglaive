@@ -339,17 +339,255 @@ class Autoclave(PassiveSkill):
 
 
 class PrySkill(ActiveSkill):
-    """Active skill for GLAIVEMAN."""
+    """
+    Active skill for GLAIVEMAN.
+    Pry displaces the targeted unit to 3 tiles away from the GLAIVEMAN,
+    reduces that unit's move value by 1 on their next turn, and deals damage.
+    Visually, the GLAIVEMAN shoves his glaive polearm into the ground under 
+    the enemy's feet and pries them into a new position like it's a lever.
+    """
     
     def __init__(self):
         super().__init__(
             name="Pry",
             key="P",
-            description="Attack skill - implementation details to be defined.",
+            description="Displaces target enemy 3 tiles away, reduces movement by 1 next turn, and deals damage.",
             target_type=TargetType.ENEMY,
             cooldown=2,
             range_=1
         )
+        self.damage = 5  # Fixed damage amount
+        
+    def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        """Check if Pry can be used on the target."""
+        # First check basic cooldown
+        if not super().can_use(user, target_pos, game):
+            return False
+            
+        # Need game and target position to validate
+        if not game or not target_pos:
+            return False
+            
+        # Check if there's an enemy unit at target position
+        target = game.get_unit_at(target_pos[0], target_pos[1])
+        if not target or target.player == user.player:
+            return False
+            
+        # Check if target is within range
+        distance = game.chess_distance(user.y, user.x, target_pos[0], target_pos[1])
+        if distance > self.range:
+            return False
+            
+        # Check if there's at least one valid displacement position
+        if not self._get_displacement_positions(user, target, game):
+            return False
+            
+        return True
+        
+    def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        """Use the Pry skill to displace target, reduce movement, and deal damage."""
+        from boneglaive.utils.message_log import message_log, MessageType
+        import time
+        
+        # Validate skill use conditions
+        if not self.can_use(user, target_pos, game):
+            return False
+            
+        # Set cooldown
+        self.current_cooldown = self.cooldown
+        
+        # Get target unit
+        target = game.get_unit_at(target_pos[0], target_pos[1])
+        
+        # Get UI reference for animations if available
+        ui = getattr(game, 'ui', None)
+        
+        # Calculate usable displacement positions
+        displacement_positions = self._get_displacement_positions(user, target, game)
+        
+        if not displacement_positions:
+            # This should not happen as we checked in can_use, but just in case
+            message_log.add_message(
+                "Pry failed: no valid displacement positions.",
+                MessageType.ABILITY,
+                player=user.player
+            )
+            return False
+            
+        # Choose the best displacement position (farthest from other units)
+        best_pos = self._select_best_displacement(displacement_positions, game)
+        
+        # Log the skill activation
+        message_log.add_message(
+            f"GLAIVEMAN uses Pry on {target.type.name}!",
+            MessageType.ABILITY,
+            player=user.player
+        )
+        
+        # Play animation if UI is available
+        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+            # Get animation sequence for Pry
+            animation_sequence = ui.asset_manager.get_skill_animation_sequence('pry')
+            if animation_sequence:
+                # Show animation at user's position
+                ui.renderer.animate_attack_sequence(
+                    user.y, user.x,
+                    animation_sequence,
+                    7,  # color ID
+                    0.3  # duration
+                )
+                time.sleep(0.2)
+                
+                # Show lever effect animation between user and target
+                lever_positions = self._get_lever_positions(user, target)
+                for y, x in lever_positions:
+                    ui.renderer.animate_attack_sequence(
+                        y, x,
+                        ['/', '|', '\\'],
+                        7,  # color ID
+                        0.1  # quick animation
+                    )
+            
+        # Apply damage to target
+        previous_hp = target.hp
+        target.hp = max(0, target.hp - self.damage)
+        
+        # Log the damage
+        message_log.add_combat_message(
+            attacker_name=f"{user.type.name}",
+            target_name=f"{target.type.name}",
+            damage=self.damage,
+            ability="Pry",
+            attacker_player=user.player,
+            target_player=target.player
+        )
+        
+        # Apply movement reduction effect
+        target.move_range_bonus = -1
+        
+        # Log the movement reduction
+        message_log.add_message(
+            f"{target.type.name}'s movement reduced by 1 for next turn!",
+            MessageType.ABILITY,
+            player=user.player
+        )
+        
+        # Store original position for animation
+        original_y, original_x = target.y, target.x
+        
+        # Displace the target to the selected position
+        target.y, target.x = best_pos
+        
+        # Log the displacement
+        message_log.add_message(
+            f"{target.type.name} displaced from ({original_y},{original_x}) to ({best_pos[0]},{best_pos[1]})!",
+            MessageType.ABILITY,
+            player=user.player
+        )
+        
+        # Animate the displacement if UI is available
+        if ui and hasattr(ui, 'draw_board'):
+            ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+            time.sleep(0.3)  # Short pause to show displacement
+        
+        # Check if target was defeated
+        if target.hp <= 0:
+            message_log.add_message(
+                f"Player {target.player}'s {target.type.name} perishes!",
+                MessageType.COMBAT,
+                player=user.player,
+                target=target.player
+            )
+            
+        return True
+        
+    def _get_displacement_positions(self, user: 'Unit', target: 'Unit', game: 'Game') -> List[Tuple[int, int]]:
+        """Calculate valid positions where the target can be displaced to."""
+        # Calculate direction from user to target
+        dy = target.y - user.y
+        dx = target.x - user.x
+        
+        # Normalize direction vector
+        length = max(1, game.chess_distance(0, 0, dy, dx))
+        
+        if dy != 0:
+            direction_y = dy // abs(dy)  # Will be -1 or 1
+        else:
+            direction_y = 0
+            
+        if dx != 0:
+            direction_x = dx // abs(dx)  # Will be -1 or 1
+        else:
+            direction_x = 0
+        
+        # Calculate possible displacement positions (3 tiles away in the same direction)
+        displacement_distance = 3
+        y = target.y + (direction_y * displacement_distance)
+        x = target.x + (direction_x * displacement_distance)
+        
+        # Get alternative positions around the ideal position
+        positions = [
+            (y, x),  # Ideal position
+            (y + 1, x), (y - 1, x), (y, x + 1), (y, x - 1),  # Adjacent positions
+            (y + 1, x + 1), (y + 1, x - 1), (y - 1, x + 1), (y - 1, x - 1)  # Diagonal positions
+        ]
+        
+        # Filter for valid positions
+        valid_positions = []
+        for pos_y, pos_x in positions:
+            # Check if position is in bounds
+            if not game.is_valid_position(pos_y, pos_x):
+                continue
+                
+            # Check if position is passable terrain
+            if not game.map.is_passable(pos_y, pos_x):
+                continue
+                
+            # Check if position is already occupied by another unit
+            if game.get_unit_at(pos_y, pos_x):
+                continue
+                
+            # This position is valid
+            valid_positions.append((pos_y, pos_x))
+            
+        return valid_positions
+    
+    def _select_best_displacement(self, positions: List[Tuple[int, int]], game: 'Game') -> Tuple[int, int]:
+        """Select the best displacement position, prioritizing positions away from other units."""
+        # If only one position, return it
+        if len(positions) == 1:
+            return positions[0]
+            
+        # Calculate scores for each position based on distance to other units
+        # Higher score is better (farther from other units)
+        position_scores = []
+        
+        for pos_y, pos_x in positions:
+            score = 0
+            for unit in game.units:
+                if not unit.is_alive():
+                    continue
+                    
+                # Calculate distance to other unit
+                distance = game.chess_distance(pos_y, pos_x, unit.y, unit.x)
+                score += distance  # Higher distance is better
+                
+            position_scores.append((score, (pos_y, pos_x)))
+            
+        # Sort by score in descending order (highest score first)
+        position_scores.sort(reverse=True)
+        
+        # Return the position with the highest score
+        return position_scores[0][1]
+        
+    def _get_lever_positions(self, user: 'Unit', target: 'Unit') -> List[Tuple[int, int]]:
+        """Get positions for lever animation between user and target."""
+        # Find midpoint for lever effect
+        mid_y = (user.y + target.y) // 2
+        mid_x = (user.x + target.x) // 2
+        
+        # Return list of positions for lever animation
+        return [(mid_y, mid_x)]
 
 
 class VaultSkill(ActiveSkill):

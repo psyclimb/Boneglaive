@@ -73,7 +73,8 @@ class AssetManager:
             'glaiveman_attack': ['\\', '|', '/', '-', '⚔', '-', '/', '|', '\\'],
             'archer_attack': ['.', '>', '-', '>', '->'],
             'mage_attack': ['.', '*', '*', '*', '*'],
-            'autoclave': ['*', '+', 'x', '#', 'X', '#', 'x', '+', '*']  # Intense cross pattern for Autoclave
+            'autoclave': ['*', '+', 'x', '#', 'X', '#', 'x', '+', '*'],  # Intense cross pattern for Autoclave
+            'pry': ['/', '|', '_', '/', '↑', '↗', '→']  # Lever-like prying motion
         }
     
     def _initialize_graphical_assets(self) -> None:
@@ -116,7 +117,8 @@ class AssetManager:
             'glaiveman_attack': ['glaiveman_attack_1.png', 'glaiveman_attack_2.png', 'glaiveman_attack_3.png'],
             'archer_attack': ['archer_attack_1.png', 'archer_attack_2.png', 'archer_attack_3.png'],
             'mage_attack': ['mage_attack_1.png', 'mage_attack_2.png', 'mage_attack_3.png'],
-            'autoclave': ['autoclave_1.png', 'autoclave_2.png', 'autoclave_3.png', 'autoclave_4.png']
+            'autoclave': ['autoclave_1.png', 'autoclave_2.png', 'autoclave_3.png', 'autoclave_4.png'],
+            'pry': ['pry_1.png', 'pry_2.png', 'pry_3.png', 'pry_4.png']
         }
     
     def get_unit_tile(self, unit_type: UnitType) -> str:
