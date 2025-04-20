@@ -1378,7 +1378,7 @@ class GameModeManager(UIComponent):
                 EventType.MESSAGE_DISPLAY_REQUESTED,
                 MessageDisplayEventData(
                     message="Setup confirmed. Player 2's turn to place units.",
-                    message_type=MessageType.INFO
+                    message_type=MessageType.SYSTEM
                 )
             )
             # Start player 2 with cursor in center
@@ -1393,7 +1393,7 @@ class GameModeManager(UIComponent):
                 EventType.MESSAGE_DISPLAY_REQUESTED,
                 MessageDisplayEventData(
                     message="Game begins!",
-                    message_type=MessageType.INFO
+                    message_type=MessageType.SYSTEM
                 )
             )
             
@@ -1717,7 +1717,7 @@ class ActionMenuComponent(UIComponent):
                         EventType.MESSAGE_DISPLAY_REQUESTED,
                         MessageDisplayEventData(
                             message="Skills not implemented yet",
-                            message_type=MessageType.INFO
+                            message_type=MessageType.SYSTEM
                         )
                     )
                 return True
