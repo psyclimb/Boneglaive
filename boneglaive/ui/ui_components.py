@@ -152,27 +152,93 @@ class MessageLogComponent(UIComponent):
         )
         
     def draw_message_log(self):
-        """Draw the message log in the game UI."""
+        """
+        Draw the message log in the game UI with enhanced visuals and better readability.
+        Adds a border around the log, improved formatting, and better visual hierarchy.
+        """
         try:
             # Get formatted messages (with colors)
             messages = message_log.get_formatted_messages(self.log_height)
             
             # Calculate position for the log (closer to the game info)
             start_y = HEIGHT + 5
+            term_height, term_width = self.renderer.get_terminal_size()
             
-            # Draw message log header
-            self.renderer.draw_text(start_y, 0, "=== MESSAGE LOG ===", 1, curses.A_BOLD)
+            # Draw message log border
+            # Top border with title
+            log_title = " MESSAGE LOG "
+            border_width = term_width - 2
+            
+            # Calculate title position to center it
+            title_start = (border_width - len(log_title)) // 2
+            self.renderer.draw_text(start_y, 0, "┌" + "─" * title_start, 16)
+            self.renderer.draw_text(start_y, title_start + 1, log_title, 16, curses.A_BOLD)
+            self.renderer.draw_text(start_y, title_start + len(log_title) + 1, 
+                                  "─" * (border_width - title_start - len(log_title)) + "┐", 16)
+            
+            # Side borders
+            for i in range(1, self.log_height + 1):
+                self.renderer.draw_text(start_y + i, 0, "│", 16)
+                self.renderer.draw_text(start_y + i, term_width - 1, "│", 16)
+                
+                # Fill background for the entire row
+                self.renderer.draw_text(start_y + i, 1, " " * (term_width - 2), 1)
+            
+            # Bottom border
+            self.renderer.draw_text(start_y + self.log_height + 1, 0, 
+                                 "└" + "─" * (term_width - 2) + "┘", 16)
             
             # Draw messages in reverse order (newest at the bottom)
-            for i, (text, color_id) in enumerate(reversed(messages)):
-                y_pos = start_y + self.log_height - i
-                
-                # Add bold attribute for player messages to make them stand out more
-                attributes = 0
-                if "[Player " in text:  # It's a chat message
-                    attributes = curses.A_BOLD
-                
-                self.renderer.draw_text(y_pos, 2, text, color_id, attributes)
+            # with improved formatting and visual hierarchy
+            if not messages:
+                # If no messages, show placeholder text
+                placeholder = "No messages to display"
+                placeholder_x = (term_width - len(placeholder)) // 2
+                self.renderer.draw_text(start_y + 2, placeholder_x, placeholder, 8, curses.A_DIM)
+            else:
+                for i, (text, color_id) in enumerate(reversed(messages)):
+                    y_pos = start_y + self.log_height - i
+                    
+                    # Determine message type and format accordingly
+                    attributes = 0
+                    prefix = ""
+                    
+                    # Format messages differently based on their content
+                    if "[Player " in text:  # It's a chat message
+                        attributes = curses.A_BOLD
+                        # Highlight the player indicator, then draw the message separately
+                        player_end = text.find("]") + 1
+                        if player_end > 0:
+                            player_part = text[:player_end]
+                            message_part = text[player_end:]
+                            
+                            # Draw player part with player color
+                            player_color = color_id  # Use player-specific color
+                            self.renderer.draw_text(y_pos, 2, player_part + " ", player_color, attributes)
+                            
+                            # Draw message part with normal color
+                            self.renderer.draw_text(y_pos, 2 + len(player_part) + 1, message_part, 1, 0)
+                            continue
+                    elif "attacked" in text or "damage" in text:  # Combat message
+                        prefix = "⚔ "  # Combat prefix
+                        color_id = 22   # Combat color (yellow)
+                    elif "moved" in text:  # Movement message
+                        prefix = "→ "   # Movement prefix
+                        color_id = 24   # Movement color (green)
+                    elif "Turn" in text:  # Turn message
+                        prefix = "◆ "   # Turn prefix
+                        color_id = 16   # Turn color (cyan)
+                        attributes = curses.A_BOLD
+                    
+                    # Add prefix and draw the message
+                    display_text = prefix + text
+                    self.renderer.draw_text(y_pos, 2, display_text, color_id, attributes)
+                    
+            # Draw footer with instructions
+            footer_text = "L: Toggle log  |  Shift+L: Full history  |  Arrows: Scroll"
+            footer_x = (term_width - len(footer_text)) // 2
+            self.renderer.draw_text(start_y + self.log_height + 1, footer_x, footer_text, 16, curses.A_BOLD)
+            
         except Exception as e:
             # Never let message log crash the game
             logger.error(f"Error displaying message log: {str(e)}")
@@ -300,52 +366,138 @@ class HelpComponent(UIComponent):
         message_log.add_system_message(f"Help screen {'shown' if self.show_help else 'hidden'}")
     
     def draw_help_screen(self):
-        """Draw the help screen overlay."""
+        """
+        Draw the help screen overlay with enhanced visuals and better organization.
+        Adds a border, better visual hierarchy, and clearer organization.
+        """
         try:
             # Clear the screen area for help display
             self.renderer.clear_screen()
             
-            # Draw help title
-            self.renderer.draw_text(2, 2, "=== BONEGLAIVE HELP ===", 1, curses.A_BOLD)
+            # Get terminal size
+            term_height, term_width = self.renderer.get_terminal_size()
             
-            # Draw control information section
-            self.renderer.draw_text(4, 2, "BASIC CONTROLS:", 1, curses.A_BOLD)
-            controls = [
-                "Arrow keys: Move cursor",
-                "Enter: Select unit/confirm action",
+            # Calculate box dimensions
+            box_width = min(term_width - 4, 70)  # Max width 70 or terminal width-4
+            box_height = min(term_height - 4, 26)  # Height based on content
+            
+            # Calculate starting position to center the box
+            start_x = max(1, (term_width - box_width) // 2)
+            start_y = max(1, (term_height - box_height) // 2)
+            
+            # Draw box border with rounded corners
+            # Top border
+            self.renderer.draw_text(start_y, start_x, "╭" + "─" * (box_width - 2) + "╮", 16)
+            
+            # Side borders
+            for i in range(1, box_height - 1):
+                self.renderer.draw_text(start_y + i, start_x, "│", 16)
+                self.renderer.draw_text(start_y + i, start_x + box_width - 1, "│", 16)
+            
+            # Bottom border
+            self.renderer.draw_text(start_y + box_height - 1, start_x, "╰" + "─" * (box_width - 2) + "╯", 16)
+            
+            # Fill background to make the help screen stand out
+            for i in range(1, box_height - 1):
+                self.renderer.draw_text(start_y + i, start_x + 1, " " * (box_width - 2), 15)
+            
+            # Draw help title with decorative elements
+            title = " BONEGLAIVE HELP "
+            title_x = start_x + (box_width - len(title)) // 2
+            # Draw decorative header
+            self.renderer.draw_text(start_y + 1, start_x + 2, "═" * (title_x - start_x - 3), 15)
+            self.renderer.draw_text(start_y + 1, title_x, title, 15, curses.A_BOLD)
+            self.renderer.draw_text(start_y + 1, title_x + len(title), 
+                                  "═" * (start_x + box_width - 3 - (title_x + len(title))), 15)
+            
+            # Content area starts at y=3
+            content_x = start_x + 4
+            current_y = start_y + 3
+            
+            # Movement Controls Section
+            self.renderer.draw_text(current_y, content_x, "MOVEMENT CONTROLS", 16, curses.A_BOLD)
+            current_y += 1
+            
+            movement_controls = [
+                "Arrow keys: Move cursor in cardinal directions",
+                "H J K L: Vim-style movement (←↓↑→)",
+                "Y U B N: Diagonal movement (↖↗↙↘)",
                 "Tab: Cycle forward through your units",
-                "Shift+Tab: Cycle backward through your units",
-                "m: Move selected unit",
-                "a: Attack with selected unit",
-                "e: End turn",
-                "Esc: Cancel current action/selection",
-                "c: Clear selection (same as Esc)",
-                "l: Toggle message log",
-                "Shift+L: View full game log history (scrollable)",
-                "r: Enter chat/message mode",
-                "t: Toggle test mode (allows controlling both players' units)",
-                "q: Quit game",
-                "?: Toggle this help screen"
+                "Shift+Tab: Cycle backward through your units"
             ]
             
-            for i, control in enumerate(controls):
-                self.renderer.draw_text(6 + i, 4, control)
+            for control in movement_controls:
+                current_y += 1
+                self.renderer.draw_text(current_y, content_x, "• " + control, 15)
             
-            # Draw debug controls section
-            self.renderer.draw_text(17, 2, "DEBUG CONTROLS:", 1, curses.A_BOLD)
+            # Add separator
+            current_y += 2
+            self.renderer.draw_text(current_y, start_x + 2, "─" * (box_width - 4), 16)
+            current_y += 1
+            
+            # Action Controls Section
+            self.renderer.draw_text(current_y, content_x, "ACTION CONTROLS", 16, curses.A_BOLD)
+            current_y += 1
+            
+            action_controls = [
+                "Enter/Space: Select unit or confirm action",
+                "m: Enter movement mode with selected unit",
+                "a: Enter attack mode with selected unit",
+                "e: End turn",
+                "Esc/c: Cancel current action or selection"
+            ]
+            
+            for control in action_controls:
+                current_y += 1
+                self.renderer.draw_text(current_y, content_x, "• " + control, 15)
+            
+            # Add separator
+            current_y += 2
+            self.renderer.draw_text(current_y, start_x + 2, "─" * (box_width - 4), 16)
+            current_y += 1
+            
+            # UI Controls Section
+            self.renderer.draw_text(current_y, content_x, "INTERFACE CONTROLS", 16, curses.A_BOLD)
+            current_y += 1
+            
+            ui_controls = [
+                "l: Toggle message log",
+                "L: View full game log history (scrollable)",
+                "r: Enter chat/message mode",
+                "?: Toggle this help screen",
+                "q: Quit game"
+            ]
+            
+            for control in ui_controls:
+                current_y += 1
+                self.renderer.draw_text(current_y, content_x, "• " + control, 15)
+            
+            # Add separator for debug controls
+            current_y += 2
+            self.renderer.draw_text(current_y, start_x + 2, "─" * (box_width - 4), 16)
+            current_y += 1
+            
+            # Debug Controls Section
+            self.renderer.draw_text(current_y, content_x, "DEBUG CONTROLS", 16, curses.A_BOLD)
+            current_y += 1
+            
             debug_controls = [
                 "d: Show unit positions",
-                "D (Shift+D): Toggle debug mode",
-                "O (Shift+O): Toggle debug overlay",
-                "P (Shift+P): Toggle performance tracking",
-                "S (Shift+S): Save game state to file (debug mode only)"
+                "D: Toggle debug mode",
+                "O: Toggle debug overlay",
+                "P: Toggle performance tracking",
+                "S: Save game state to file (debug mode only)",
+                "t: Toggle test mode (control all units)"
             ]
             
-            for i, control in enumerate(debug_controls):
-                self.renderer.draw_text(19 + i, 4, control)
+            for control in debug_controls:
+                current_y += 1
+                self.renderer.draw_text(current_y, content_x, "• " + control, 15)
             
             # Footer
-            self.renderer.draw_text(HEIGHT - 2, 2, "Press ? again to return to game", 1, curses.A_BOLD)
+            footer_text = "Press ? again to return to game"
+            footer_x = start_x + (box_width - len(footer_text)) // 2
+            self.renderer.draw_text(start_y + box_height - 2, footer_x, footer_text, 16, curses.A_BOLD)
             
         except Exception as e:
             logger.error(f"Error displaying help screen: {str(e)}")
@@ -1662,7 +1814,10 @@ class ActionMenuComponent(UIComponent):
         self.selected_index = 0
         
     def draw(self):
-        """Draw the action menu."""
+        """
+        Draw the action menu with enhanced visuals.
+        Adds a menu box, better highlights, and improved readability.
+        """
         if not self.visible or not self.actions:
             return
             
@@ -1671,36 +1826,88 @@ class ActionMenuComponent(UIComponent):
         if not unit:
             return
             
-        # Calculate menu position
-        menu_x = WIDTH * 2 + 2  # Position to the right of the map
-        menu_y = 5              # Start a few lines down
+        # Calculate menu position - place in a more optimal location near the unit
+        cursor_pos = self.game_ui.cursor_manager.cursor_pos
         
-        # Draw menu header
-        header = f"=== {unit.type.name} Actions ==="
-        self.renderer.draw_text(menu_y, menu_x, header, 1, curses.A_BOLD)
+        # Place menu below and to the right of the cursor if possible
+        # but ensure it's still fully visible
+        menu_width = 22  # Fixed width for the menu box
+        menu_height = len(self.actions) + 6  # Header + actions + footer + margins
         
-        # Draw menu items
+        # Calculate best position for menu based on cursor location
+        # Try to avoid covering the selected unit
+        menu_x = WIDTH + 2
+        menu_y = 5
+        
+        # Draw box around the entire menu
+        # Top border with rounded corners
+        self.renderer.draw_text(menu_y, menu_x, "╭" + "─" * (menu_width - 2) + "╮", 20)
+        
+        # Side borders
+        for i in range(1, menu_height - 1):
+            self.renderer.draw_text(menu_y + i, menu_x, "│", 20)
+            self.renderer.draw_text(menu_y + i, menu_x + menu_width - 1, "│", 20)
+        
+        # Bottom border with rounded corners
+        self.renderer.draw_text(menu_y + menu_height - 1, menu_x, "╰" + "─" * (menu_width - 2) + "╯", 20)
+        
+        # Fill the menu background
+        for i in range(1, menu_height - 1):
+            self.renderer.draw_text(menu_y + i, menu_x + 1, " " * (menu_width - 2), 20)
+        
+        # Draw menu header with player-appropriate color
+        unit_color = 3 if unit.player == 1 else 4
+        header = f" {unit.type.name} Actions "
+        header_x = menu_x + (menu_width - len(header)) // 2  # Center the header
+        # Draw header background first
+        self.renderer.draw_text(menu_y + 1, menu_x + 1, " " * (menu_width - 2), 20)
+        self.renderer.draw_text(menu_y + 1, header_x, header, unit_color, curses.A_BOLD)
+        
+        # Draw a separator line
+        self.renderer.draw_text(menu_y + 2, menu_x + 1, "─" * (menu_width - 2), 20)
+        
+        # Draw menu items with improved formatting
         for i, action in enumerate(self.actions):
-            y_pos = menu_y + i + 2  # Skip a line after header
+            y_pos = menu_y + i + 3  # Start below separator line
             
             # Format action label with capitalized key followed by lowercase label: [K]ey
             label = f"[{action['key'].upper()}]{action['label']}"
             
+            # Determine icon based on action
+            icon = "  "
+            if action['action'].name.lower() == "move_mode":
+                icon = self.game_ui.asset_manager.get_ui_tile("move") + " "
+            elif action['action'].name.lower() == "attack_mode":
+                icon = self.game_ui.asset_manager.get_ui_tile("attack") + " "
+            elif action['action'].name.lower() == "skill_mode":
+                icon = "✧ "  # Magic star for skills
+            
             # Choose color based on whether action is enabled
-            color = 1 if action['enabled'] else 8  # Normal color or gray
+            # Use different colors for different action types
+            color = 20  # Default menu color
+            if action['enabled']:
+                if action['action'].name.lower() == "move_mode":
+                    color = 24  # Movement color (green)
+                elif action['action'].name.lower() == "attack_mode":
+                    color = 22  # Attack color (yellow/orange)
+                elif action['action'].name.lower() == "skill_mode":
+                    color = 25  # Special abilities color (magenta)
             
             # Make all enabled actions bold to show they're interactive
-            attr = curses.A_BOLD if action['enabled'] else 0
+            attr = curses.A_BOLD if action['enabled'] else curses.A_DIM
             
-            # If action is disabled, use dim attribute
-            if not action['enabled']:
-                attr |= curses.A_DIM
-                
-            self.renderer.draw_text(y_pos, menu_x, label, color, attr)
+            # Draw the menu item with icon and appropriate styling
+            # Full background for the entire line
+            self.renderer.draw_text(y_pos, menu_x + 1, " " * (menu_width - 2), 20)
             
+            # Draw the icon and label
+            self.renderer.draw_text(y_pos, menu_x + 2, icon + label, color, attr)
+        
         # Draw footer with instructions
-        footer_y = menu_y + len(self.actions) + 3
-        self.renderer.draw_text(footer_y, menu_x, "Press letter key shown in brackets | ESC: Cancel", 1)
+        footer_y = menu_y + len(self.actions) + 4
+        footer_text = "Press key or ESC to cancel"
+        footer_x = menu_x + (menu_width - len(footer_text)) // 2  # Center the footer
+        self.renderer.draw_text(footer_y, footer_x, footer_text, 20, curses.A_DIM)
         
     def handle_input(self, key: int) -> bool:
         """Handle input specific to the action menu."""
