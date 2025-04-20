@@ -511,12 +511,24 @@ class PrySkill(ActiveSkill):
         # Displace the target to the selected position
         target.y, target.x = best_pos
         
-        # Log the displacement
-        message_log.add_message(
-            f"{target.type.name} displaced from ({original_y},{original_x}) to ({best_pos[0]},{best_pos[1]})!",
-            MessageType.ABILITY,
-            player=user.player
-        )
+        # Calculate displacement distance
+        displacement_distance = game.chess_distance(original_y, original_x, best_pos[0], best_pos[1])
+        
+        # Log the displacement with additional details if needed
+        if displacement_distance < 3:
+            # If displaced less than the full 3 tiles, the unit probably hit an obstacle
+            message_log.add_message(
+                f"{target.type.name} collides with obstacle after being displaced from ({original_y},{original_x}) to ({best_pos[0]},{best_pos[1]})!",
+                MessageType.ABILITY,
+                player=user.player
+            )
+        else:
+            # Normal displacement message
+            message_log.add_message(
+                f"{target.type.name} displaced from ({original_y},{original_x}) to ({best_pos[0]},{best_pos[1]})!",
+                MessageType.ABILITY,
+                player=user.player
+            )
         
         # Animate the displacement if UI is available
         if ui and hasattr(ui, 'draw_board'):
@@ -525,14 +537,21 @@ class PrySkill(ActiveSkill):
             
             # Get impact animation sequence from asset manager
             if hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-                # Get the impact animation sequence
-                impact_animation = ui.asset_manager.get_skill_animation_sequence('pry_impact')
+                # Choose animation based on whether there was a collision
+                if displacement_distance < 3:
+                    # Use collision animation for impacts with terrain
+                    impact_animation = ui.asset_manager.get_skill_animation_sequence('pry_collision')
+                    color_id = 5  # Different color for collision (reddish)
+                else:
+                    # Use normal landing animation
+                    impact_animation = ui.asset_manager.get_skill_animation_sequence('pry_impact')
+                    color_id = 6  # Normal impact color
                 
                 # Show impact animation at the landing position
                 ui.renderer.animate_attack_sequence(
                     target.y, target.x,
                     impact_animation,
-                    6,  # color ID - different from normal attacks for distinction
+                    color_id,  # Color based on collision type
                     0.25  # duration
                 )
                 
@@ -592,18 +611,59 @@ class PrySkill(ActiveSkill):
             direction_x = dx // abs(dx)  # Will be -1 or 1
         else:
             direction_x = 0
+            
+        # First, check if we can displace the unit along the path
+        # This will implement more realistic physics, where units stop at terrain
+        max_displacement_distance = 3  # Maximum distance to displace unit
         
-        # Calculate possible displacement positions (3 tiles away in the same direction)
-        displacement_distance = 3
-        y = target.y + (direction_y * displacement_distance)
-        x = target.x + (direction_x * displacement_distance)
+        # Check each step along the path for the first valid position
+        positions_along_path = []
+        for distance in range(1, max_displacement_distance + 1):
+            y = target.y + (direction_y * distance)
+            x = target.x + (direction_x * distance)
+            
+            # Check if this position is valid
+            if not game.is_valid_position(y, x):
+                # Hit map boundary, use last valid position
+                break
+                
+            # Check for impassable terrain - unit stops here
+            if not game.map.is_passable(y, x):
+                # Hit obstacle, use last valid position
+                break
+                
+            # Check for other units - unit stops here
+            if game.get_unit_at(y, x):
+                # Hit another unit, use last valid position
+                break
+                
+            # Position is valid, add it to list
+            positions_along_path.append((y, x))
         
-        # Get alternative positions around the ideal position
-        positions = [
-            (y, x),  # Ideal position
-            (y + 1, x), (y - 1, x), (y, x + 1), (y, x - 1),  # Adjacent positions
-            (y + 1, x + 1), (y + 1, x - 1), (y - 1, x + 1), (y - 1, x - 1)  # Diagonal positions
-        ]
+        # If we found valid positions along the path, use the furthest one
+        if positions_along_path:
+            # Get the furthest valid position (last in list)
+            furthest_y, furthest_x = positions_along_path[-1]
+            
+            # Get alternative positions around the furthest valid position
+            positions = [
+                (furthest_y, furthest_x),  # Ideal position
+                (furthest_y + 1, furthest_x), (furthest_y - 1, furthest_x),  # Adjacent vertical
+                (furthest_y, furthest_x + 1), (furthest_y, furthest_x - 1),  # Adjacent horizontal
+                # Include diagonals if we have a displacement of at least 2
+                (furthest_y + 1, furthest_x + 1), (furthest_y + 1, furthest_x - 1),  # Diagonal positions
+                (furthest_y - 1, furthest_x + 1), (furthest_y - 1, furthest_x - 1)   # Diagonal positions
+            ]
+        else:
+            # No positions found along the path, create a position adjacent to the target
+            # This happens when there's an obstacle right next to the target
+            positions = [
+                (target.y + direction_y, target.x + direction_x),  # One tile in direction
+                (target.y + 1, target.x), (target.y - 1, target.x),  # Adjacent vertical
+                (target.y, target.x + 1), (target.y, target.x - 1),  # Adjacent horizontal
+                (target.y + 1, target.x + 1), (target.y + 1, target.x - 1),  # Diagonal positions
+                (target.y - 1, target.x + 1), (target.y - 1, target.x - 1)   # Diagonal positions
+            ]
         
         # Filter for valid positions
         valid_positions = []
