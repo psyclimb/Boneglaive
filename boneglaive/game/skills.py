@@ -354,7 +354,7 @@ class PrySkill(ActiveSkill):
             key="P",
             description="Displaces target enemy 3 tiles away, reduces movement by 1 next turn, and deals damage.",
             target_type=TargetType.ENEMY,
-            cooldown=2,
+            cooldown=1,
             range_=1
         )
         self.damage = 5  # Fixed damage amount
@@ -1117,7 +1117,7 @@ class JudgementThrowSkill(ActiveSkill):
             key="J",
             description="Throw a sacred glaive at an enemy (range 3). Deals double damage if enemy is wretched.",
             target_type=TargetType.ENEMY,
-            cooldown=3,
+            cooldown=2,
             range_=3
         )
         self.base_damage = 3  # Base damage amount
