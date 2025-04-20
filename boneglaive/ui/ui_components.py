@@ -1986,15 +1986,14 @@ class ActionMenuComponent(UIComponent):
             'skill': pry_skill
         })
         
-        # Add Vault skill (placeholder for now)
+        # Add Vault skill
         vault_skill = next((skill for skill in available_skills if skill.name == "Vault"), None)
         self.actions.append({
             'key': 'v',
             'label': 'ault',  # Will be displayed as [V]ault
             'action': 'vault_skill',  # Custom action identifier for handling
             'enabled': vault_skill is not None,
-            'skill': vault_skill,
-            'placeholder': True  # Mark as placeholder (not implemented yet)
+            'skill': vault_skill
         })
         
         # Reset selected index
@@ -2134,18 +2133,8 @@ class ActionMenuComponent(UIComponent):
                         self._select_skill(action['skill'])
                         return True
                     elif action['action'] == 'vault_skill':
-                        if 'placeholder' in action and action['placeholder']:
-                            # Show message that vault is not implemented yet
-                            self.publish_event(
-                                EventType.MESSAGE_DISPLAY_REQUESTED,
-                                MessageDisplayEventData(
-                                    message="Vault skill not implemented yet",
-                                    message_type=MessageType.WARNING
-                                )
-                            )
-                        else:
-                            # Use the Vault skill
-                            self._select_skill(action['skill'])
+                        # Use the Vault skill
+                        self._select_skill(action['skill'])
                         return True
                 
         # All other keys pass through - this allows movement keys to still work
@@ -2176,56 +2165,67 @@ class ActionMenuComponent(UIComponent):
                 )
             )
             
-            # Highlight valid targets for the skill
+            # Highlight valid targets for the skill based on target type
+            game = self.game_ui.game
+            targets = []
+            from boneglaive.utils.constants import HEIGHT, WIDTH
+            
+            # Get the unit's current or planned position
+            from_y = cursor_manager.selected_unit.y
+            from_x = cursor_manager.selected_unit.x
+            
+            # If unit has a planned move, use that position instead
+            if cursor_manager.selected_unit.move_target:
+                from_y, from_x = cursor_manager.selected_unit.move_target
+            
+            # Different targeting logic based on skill target type
             if skill.target_type == TargetType.ENEMY:
                 # For enemy-targeted skills, highlight enemy units in range
-                targets = []
-                game = self.game_ui.game
-                
-                # Check all positions within skill range
-                from boneglaive.utils.constants import HEIGHT, WIDTH
                 for y in range(HEIGHT):
                     for x in range(WIDTH):
                         # Check if there's an enemy unit at this position
                         target = game.get_unit_at(y, x)
                         if target and target.player != cursor_manager.selected_unit.player:
                             # Check if target is within skill range
-                            # Use the planned move position if available
-                            from_y = cursor_manager.selected_unit.y
-                            from_x = cursor_manager.selected_unit.x
-                            
-                            # If unit has a planned move, use that position instead
-                            if cursor_manager.selected_unit.move_target:
-                                from_y, from_x = cursor_manager.selected_unit.move_target
-                                
-                            distance = game.chess_distance(
-                                from_y, 
-                                from_x, 
-                                y, x
-                            )
+                            distance = game.chess_distance(from_y, from_x, y, x)
                             
                             if distance <= skill.range:
                                 # Check if skill can be used on this target
                                 if skill.can_use(cursor_manager.selected_unit, (y, x), game):
                                     targets.append((y, x))
-                
-                # Convert targets to Position objects
-                cursor_manager.highlighted_positions = [Position(y, x) for y, x in targets]
-                
-                if not cursor_manager.highlighted_positions:
-                    # Use event system for message
-                    self.publish_event(
-                        EventType.MESSAGE_DISPLAY_REQUESTED,
-                        MessageDisplayEventData(
-                            message="No valid targets in range",
-                            message_type=MessageType.WARNING
-                        )
+            
+            elif skill.target_type == TargetType.AREA:
+                # For area-targeted skills like Vault, highlight all valid positions
+                for y in range(HEIGHT):
+                    for x in range(WIDTH):
+                        # Skip current position
+                        if y == from_y and x == from_x:
+                            continue
+                            
+                        # Check if position is within skill range
+                        distance = game.chess_distance(from_y, from_x, y, x)
+                        if distance <= skill.range:
+                            # Check if skill can be used on this position (will check for obstacles, etc.)
+                            if skill.can_use(cursor_manager.selected_unit, (y, x), game):
+                                targets.append((y, x))
+            
+            # Convert targets to Position objects
+            cursor_manager.highlighted_positions = [Position(y, x) for y, x in targets]
+            
+            if not cursor_manager.highlighted_positions:
+                # Use event system for message
+                self.publish_event(
+                    EventType.MESSAGE_DISPLAY_REQUESTED,
+                    MessageDisplayEventData(
+                        message="No valid targets in range",
+                        message_type=MessageType.WARNING
                     )
-                    
-                    # Reset selected skill
-                    cursor_manager.selected_unit.selected_skill = None
-                    # Return to select mode
-                    mode_manager.set_mode("select")
+                )
+                
+                # Reset selected skill
+                cursor_manager.selected_unit.selected_skill = None
+                # Return to select mode
+                mode_manager.set_mode("select")
 
 # Input manager component
 class InputManager(UIComponent):
