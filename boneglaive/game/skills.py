@@ -440,12 +440,110 @@ class PrySkill(ActiveSkill):
         displacement_positions = self._get_displacement_positions(user, target, game)
         
         if not displacement_positions:
+            # No valid positions, but still apply damage and movement penalty
             message_log.add_message(
-                "Pry failed: no valid displacement positions.",
+                f"GLAIVEMAN uses Pry on {target.type.name}!",
                 MessageType.ABILITY,
                 player=user.player
             )
-            return False
+            
+            # Play animation if UI is available
+            if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+                # Get animation sequence for Pry
+                animation_sequence = ui.asset_manager.get_skill_animation_sequence('pry')
+                if animation_sequence:
+                    # Show animation at user's position
+                    ui.renderer.animate_attack_sequence(
+                        user.y, user.x,
+                        animation_sequence,
+                        7,  # color ID
+                        0.3  # duration
+                    )
+                    time.sleep(0.2)
+                    
+                    # Show lever effect animation between user and target
+                    lever_positions = self._get_lever_positions(user, target)
+                    for y, x in lever_positions:
+                        ui.renderer.animate_attack_sequence(
+                            y, x,
+                            ['/', '|', '\\'],
+                            7,  # color ID
+                            0.1  # quick animation
+                        )
+            
+            # Apply damage to target
+            previous_hp = target.hp
+            target.hp = max(0, target.hp - self.damage)
+            
+            # Log the damage
+            message_log.add_combat_message(
+                attacker_name=f"{user.type.name}",
+                target_name=f"{target.type.name}",
+                damage=self.damage,
+                ability="Pry",
+                attacker_player=user.player,
+                target_player=target.player
+            )
+            
+            # Apply movement reduction effect
+            target.move_range_bonus = -1
+            
+            # Log the movement reduction
+            message_log.add_message(
+                f"{target.type.name}'s movement reduced by 1 for next turn!",
+                MessageType.ABILITY,
+                player=user.player
+            )
+            
+            # Log that the target couldn't be moved
+            message_log.add_message(
+                f"{target.type.name} is braced against terrain and cannot be displaced!",
+                MessageType.ABILITY,
+                player=user.player
+            )
+            
+            # Show collision animation at the target's current position
+            if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+                # Get collision animation
+                impact_animation = ui.asset_manager.get_skill_animation_sequence('pry_collision')
+                
+                # Show impact animation at target's current position (no displacement)
+                ui.renderer.animate_attack_sequence(
+                    target.y, target.x,
+                    impact_animation,
+                    5,  # color ID for collision
+                    0.25  # duration
+                )
+                
+                # Flash the target to show it was hit
+                if hasattr(ui, 'asset_manager'):
+                    tile_ids = [ui.asset_manager.get_unit_tile(target.type)] * 4
+                    color_ids = [6 if target.player == 1 else 5, 3 if target.player == 1 else 4] * 2
+                    durations = [0.1] * 4
+                    
+                    # Use renderer's flash tile method
+                    ui.renderer.flash_tile(target.y, target.x, tile_ids, color_ids, durations)
+                
+                # Show damage number
+                damage_text = f"-{self.damage}"
+                
+                # Make damage text more prominent
+                for i in range(3):
+                    # First clear the area
+                    ui.renderer.draw_text(target.y-1, target.x*2, " " * len(damage_text), 7)
+                    # Draw with alternating bold/normal for a flashing effect
+                    attrs = curses.A_BOLD if i % 2 == 0 else 0
+                    ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, attrs)
+                    ui.renderer.refresh()
+                    time.sleep(0.1)
+                
+                # Final damage display (stays on screen slightly longer)
+                ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, curses.A_BOLD)
+                ui.renderer.refresh()
+                time.sleep(0.2)
+                
+            # No actual displacement, but the skill still did damage
+            return True
             
         # Choose the best displacement position (farthest from other units)
         best_pos = self._select_best_displacement(displacement_positions, game)
@@ -622,9 +720,9 @@ class PrySkill(ActiveSkill):
             y = target.y + (direction_y * distance)
             x = target.x + (direction_x * distance)
             
-            # Check if this position is valid
+            # Check if this position is within map bounds
             if not game.is_valid_position(y, x):
-                # Hit map boundary, use last valid position
+                # Hit map boundary, stop checking further positions
                 break
                 
             # Check for impassable terrain - unit stops here
@@ -645,8 +743,8 @@ class PrySkill(ActiveSkill):
             # Get the furthest valid position (last in list)
             furthest_y, furthest_x = positions_along_path[-1]
             
-            # Get alternative positions around the furthest valid position
-            positions = [
+            # Generate potential positions around the furthest valid position
+            potential_positions = [
                 (furthest_y, furthest_x),  # Ideal position
                 (furthest_y + 1, furthest_x), (furthest_y - 1, furthest_x),  # Adjacent vertical
                 (furthest_y, furthest_x + 1), (furthest_y, furthest_x - 1),  # Adjacent horizontal
@@ -654,21 +752,35 @@ class PrySkill(ActiveSkill):
                 (furthest_y + 1, furthest_x + 1), (furthest_y + 1, furthest_x - 1),  # Diagonal positions
                 (furthest_y - 1, furthest_x + 1), (furthest_y - 1, furthest_x - 1)   # Diagonal positions
             ]
+            
+            # Filter positions to only those within map boundaries
+            positions = []
+            for y, x in potential_positions:
+                if game.is_valid_position(y, x):
+                    positions.append((y, x))
         else:
-            # No positions found along the path, create a position adjacent to the target
-            # This happens when there's an obstacle right next to the target
-            positions = [
+            # No valid positions found along the original path
+            # Try positions around the target, but ONLY within the map boundaries
+            positions = []
+            
+            # Only consider positions that are within map boundaries (prevent off-map displacements)
+            potential_positions = [
                 (target.y + direction_y, target.x + direction_x),  # One tile in direction
                 (target.y + 1, target.x), (target.y - 1, target.x),  # Adjacent vertical
                 (target.y, target.x + 1), (target.y, target.x - 1),  # Adjacent horizontal
                 (target.y + 1, target.x + 1), (target.y + 1, target.x - 1),  # Diagonal positions
                 (target.y - 1, target.x + 1), (target.y - 1, target.x - 1)   # Diagonal positions
             ]
+            
+            # First filter out positions that are outside the map boundaries
+            for y, x in potential_positions:
+                if game.is_valid_position(y, x):
+                    positions.append((y, x))
         
-        # Filter for valid positions
+        # Filter for valid positions (completely passable and unoccupied)
         valid_positions = []
         for pos_y, pos_x in positions:
-            # Check if position is in bounds
+            # We already filtered for map boundaries above, but check again to be safe
             if not game.is_valid_position(pos_y, pos_x):
                 continue
                 
