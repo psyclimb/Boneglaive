@@ -528,6 +528,12 @@ class Game:
                             player=unit.player,
                             target=target.player
                         )
+                        
+                        # Check if target is a GLAIVEMAN and has the Autoclave passive
+                        if target.type == UnitType.GLAIVEMAN and target.passive_skill and \
+                           target.passive_skill.name == "Autoclave":
+                            # Mark Autoclave as ready to trigger during the apply_passive_skills phase
+                            target.passive_skill.mark_ready_to_trigger()
         
         # Clear all actions and update skill cooldowns
         for unit in self.units:
@@ -539,6 +545,7 @@ class Game:
                 unit.tick_cooldowns()
                 
                 # Apply passive skills (can be affected by game state)
+                # Pass ui reference for animations if available
                 unit.apply_passive_skills(self)
         
         # Check if game is over
