@@ -12,8 +12,11 @@ from boneglaive.utils.coordinates import Position
 
 class TerrainType(Enum):
     """Types of terrain that can appear on the map."""
-    EMPTY = 0     # Basic empty tile, no effects
-    LIMESTONE = 1 # Limestone formation, blocks movement and unit placement
+    EMPTY = 0      # Basic empty tile, no effects
+    LIMESTONE = 1  # Limestone formation, blocks movement and unit placement
+    DUST = 2       # Light limestone dusting, visual only (passable)
+    PILLAR = 3     # Large limestone pillar, blocks movement and unit placement
+    FURNITURE = 4  # Foyer furniture, blocks movement but not line of sight
 
 
 class GameMap:
@@ -46,15 +49,21 @@ class GameMap:
     def is_passable(self, y: int, x: int) -> bool:
         """Check if a position is passable (can be moved through)."""
         terrain = self.get_terrain_at(y, x)
-        return terrain == TerrainType.EMPTY
+        return terrain in [TerrainType.EMPTY, TerrainType.DUST]
     
     def can_place_unit(self, y: int, x: int) -> bool:
         """Check if a unit can be placed at this position."""
-        return self.is_passable(y, x)
+        terrain = self.get_terrain_at(y, x)
+        return terrain in [TerrainType.EMPTY, TerrainType.DUST]
+        
+    def blocks_line_of_sight(self, y: int, x: int) -> bool:
+        """Check if a position blocks line of sight for ranged attacks."""
+        terrain = self.get_terrain_at(y, x)
+        return terrain in [TerrainType.LIMESTONE, TerrainType.PILLAR]
 
 
 class LimeFoyerMap(GameMap):
-    """The Lime Foyer map with limestone formations."""
+    """The Lime Foyer map with pillars, furniture and windswept dust patterns."""
     
     def __init__(self):
         super().__init__()
@@ -62,48 +71,93 @@ class LimeFoyerMap(GameMap):
         self.generate_map()
     
     def generate_map(self) -> None:
-        """Generate the Lime Foyer map with limestone formations."""
+        """Generate the enhanced Lime Foyer map based on the mockup."""
         # Reset to empty first
         self.reset_to_empty()
         
-        # Central limestone pillar
-        self.set_terrain_at(4, 9, TerrainType.LIMESTONE)
-        self.set_terrain_at(4, 10, TerrainType.LIMESTONE)
-        self.set_terrain_at(5, 9, TerrainType.LIMESTONE)
-        self.set_terrain_at(5, 10, TerrainType.LIMESTONE)
+        # Large limestone powder piles (block movement)
+        limestone_piles = [
+            (1, 2), (1, 3), (1, 16), (1, 17),  # Top edge piles
+            (2, 1), (2, 18),                    # Side piles
+            (4, 0), (6, 19),                    # More side piles
+            (6, 2), (7, 3),                     # Left side piles
+            (9, 0), (9, 1), (9, 13), (9, 15)    # Bottom piles
+        ]
+        for y, x in limestone_piles:
+            self.set_terrain_at(y, x, TerrainType.LIMESTONE)
         
-        # Left side limestone formations
-        self.set_terrain_at(2, 5, TerrainType.LIMESTONE)
-        self.set_terrain_at(2, 6, TerrainType.LIMESTONE)
-        self.set_terrain_at(7, 5, TerrainType.LIMESTONE)
-        self.set_terrain_at(7, 6, TerrainType.LIMESTONE)
+        # Top round pillar (3x3)
+        pillar_top = [
+            (2, 7), (2, 8), (2, 9),
+            (3, 7), (3, 8), (3, 9),
+            (4, 7), (4, 8), (4, 9)
+        ]
+        for y, x in pillar_top:
+            self.set_terrain_at(y, x, TerrainType.PILLAR)
+            
+        # Bottom round pillar (3x5)
+        pillar_bottom = [
+            (7, 7), (7, 8), (7, 9), (7, 10), (7, 11),
+            (8, 7), (8, 8), (8, 9), (8, 10), (8, 11),
+            (9, 7), (9, 8), (9, 9), (9, 10), (9, 11)
+        ]
+        for y, x in pillar_bottom:
+            self.set_terrain_at(y, x, TerrainType.PILLAR)
         
-        # Right side limestone formations
-        self.set_terrain_at(2, 13, TerrainType.LIMESTONE)
-        self.set_terrain_at(2, 14, TerrainType.LIMESTONE)
-        self.set_terrain_at(7, 13, TerrainType.LIMESTONE)
-        self.set_terrain_at(7, 14, TerrainType.LIMESTONE)
+        # Furniture pieces
+        # Coat racks
+        self.set_terrain_at(0, 5, TerrainType.FURNITURE)  # Left coat rack
+        self.set_terrain_at(0, 14, TerrainType.FURNITURE) # Right coat rack
         
-        # Top border formations
-        for x in range(3, 17, 6):
-            self.set_terrain_at(0, x, TerrainType.LIMESTONE)
-            self.set_terrain_at(0, x+1, TerrainType.LIMESTONE)
+        # Console table
+        self.set_terrain_at(4, 3, TerrainType.FURNITURE)  # Entry console
         
-        # Bottom border formations
-        for x in range(3, 17, 6):
-            self.set_terrain_at(9, x, TerrainType.LIMESTONE)
-            self.set_terrain_at(9, x+1, TerrainType.LIMESTONE)
+        # Benches
+        self.set_terrain_at(5, 13, TerrainType.FURNITURE) # Middle bench
+        self.set_terrain_at(8, 13, TerrainType.FURNITURE) # Bottom bench
         
-        # Add some scattered limestone deposits
-        scattered_positions = [
-            (1, 8), (1, 11),
-            (8, 8), (8, 11),
-            (4, 3), (5, 3),
-            (4, 16), (5, 16)
+        # Decorative tables
+        self.set_terrain_at(0, 10, TerrainType.FURNITURE) # Top table
+        self.set_terrain_at(4, 16, TerrainType.FURNITURE) # Right table
+        
+        # Light limestone dustings (windswept patterns)
+        # This is a partial list - approximately 50% of tiles will have dust
+        dust_patterns = [
+            # Top row dust
+            (0, 0), (0, 1), (0, 2), (0, 3), (0, 6), (0, 7), (0, 15), (0, 16), (0, 17), (0, 18), (0, 19),
+            
+            # Second row dust
+            (1, 0), (1, 1), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (1, 11), (1, 12), (1, 19),
+            
+            # Third row dust
+            (2, 0), (2, 2), (2, 3), (2, 6), (2, 10), (2, 11), (2, 12), (2, 14), (2, 15), (2, 17), (2, 19),
+            
+            # Fourth row dust
+            (3, 0), (3, 1), (3, 4), (3, 10), (3, 11), (3, 12), (3, 13), (3, 17), (3, 18),
+            
+            # Fifth row dust
+            (4, 1), (4, 2), (4, 4), (4, 10), (4, 11), (4, 12), (4, 13), (4, 14), (4, 15), (4, 17), (4, 18),
+            
+            # Sixth row dust
+            (5, 0), (5, 1), (5, 2), (5, 3), (5, 4), (5, 5), (5, 7), (5, 8), (5, 14), (5, 15), (5, 16), (5, 17), (5, 18),
+            
+            # Seventh row dust
+            (6, 0), (6, 3), (6, 7), (6, 8), (6, 9), (6, 10), (6, 15), (6, 16), (6, 17), (6, 18),
+            
+            # Eighth row dust
+            (7, 0), (7, 1), (7, 2), (7, 4), (7, 5), (7, 12), (7, 13), (7, 14), (7, 15), (7, 16), (7, 17), (7, 18), (7, 19),
+            
+            # Ninth row dust
+            (8, 0), (8, 1), (8, 2), (8, 3), (8, 4), (8, 5), (8, 12), (8, 14), (8, 15), (8, 16), (8, 17), (8, 18), (8, 19),
+            
+            # Bottom row dust
+            (9, 2), (9, 3), (9, 4), (9, 5), (9, 6), (9, 12), (9, 14), (9, 16), (9, 17), (9, 18), (9, 19)
         ]
         
-        for y, x in scattered_positions:
-            self.set_terrain_at(y, x, TerrainType.LIMESTONE)
+        for y, x in dust_patterns:
+            # Only set dust if the tile is empty (not already a pillar, furniture, etc.)
+            if self.get_terrain_at(y, x) == TerrainType.EMPTY:
+                self.set_terrain_at(y, x, TerrainType.DUST)
 
 
 class MapFactory:

@@ -48,7 +48,10 @@ class AssetManager:
             'wall': '#',
             'water': '~',
             'forest': '^',
-            'limestone': '▒'  # Limestone terrain uses a medium shade block character
+            'limestone': '▒',  # Limestone powder piles use a medium shade block
+            'dust': ',',       # Light limestone dusting use a comma
+            'pillar': 'O',     # Pillars use capital O
+            'furniture': '■'   # Furniture uses a solid square
         }
         
         # UI symbols
@@ -82,7 +85,10 @@ class AssetManager:
             'wall': 'assets/tiles/wall.png',
             'water': 'assets/tiles/water.png',
             'forest': 'assets/tiles/forest.png',
-            'limestone': 'assets/tiles/limestone.png'
+            'limestone': 'assets/tiles/limestone.png',
+            'dust': 'assets/tiles/dust.png',
+            'pillar': 'assets/tiles/pillar.png',
+            'furniture': 'assets/tiles/furniture.png'
         }
         
         self.ui_tiles = {

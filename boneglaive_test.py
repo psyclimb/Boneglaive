@@ -18,7 +18,13 @@ def test_map_creation():
     assert lime_map.name == "The Lime Foyer", f"Expected 'The Lime Foyer', got '{lime_map.name}'"
     
     # Get counts of each terrain type
-    terrain_counts = {TerrainType.EMPTY: 0, TerrainType.LIMESTONE: 0}
+    terrain_counts = {
+        TerrainType.EMPTY: 0, 
+        TerrainType.LIMESTONE: 0,
+        TerrainType.DUST: 0,
+        TerrainType.PILLAR: 0,
+        TerrainType.FURNITURE: 0
+    }
     
     for y in range(lime_map.height):
         for x in range(lime_map.width):
@@ -32,6 +38,9 @@ def test_map_creation():
     
     # Verify terrain exists
     assert terrain_counts[TerrainType.LIMESTONE] > 0, "Expected limestone terrain to exist"
+    assert terrain_counts[TerrainType.DUST] > 0, "Expected dust terrain to exist"
+    assert terrain_counts[TerrainType.PILLAR] > 0, "Expected pillar terrain to exist"
+    assert terrain_counts[TerrainType.FURNITURE] > 0, "Expected furniture terrain to exist"
     assert terrain_counts[TerrainType.EMPTY] > 0, "Expected empty terrain to exist"
     
     print("Map creation test passed!\n")
