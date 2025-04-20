@@ -1188,13 +1188,25 @@ class GameModeManager(UIComponent):
             # Check if unit belongs to current player or test mode is on
             # Also allow control in local multiplayer for the active player
             if cursor_manager.can_select_unit(cursor_manager.selected_unit):
-                # Check if unit has already planned an attack
+                # Check if unit has already planned an attack or skill use
                 if cursor_manager.selected_unit.attack_target:
                     # Use event system for message
                     self.publish_event(
                         EventType.MESSAGE_DISPLAY_REQUESTED,
                         MessageDisplayEventData(
                             message="Unit has already planned an attack and cannot move",
+                            message_type=MessageType.WARNING
+                        )
+                    )
+                    return
+                
+                # Check if unit has already planned a skill use
+                if cursor_manager.selected_unit.skill_target and cursor_manager.selected_unit.selected_skill:
+                    # Use event system for message
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message="Unit has already planned a skill use and cannot move",
                             message_type=MessageType.WARNING
                         )
                     )
@@ -1255,6 +1267,30 @@ class GameModeManager(UIComponent):
         if cursor_manager.selected_unit:
             # Check if unit belongs to current player or test mode is on
             if cursor_manager.can_select_unit(cursor_manager.selected_unit):
+                # Check if unit has already planned an attack
+                if cursor_manager.selected_unit.attack_target:
+                    # Use event system for message
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message="Unit has already planned an attack and cannot use a skill",
+                            message_type=MessageType.WARNING
+                        )
+                    )
+                    return
+                    
+                # Check if unit has already planned a move (skills can be used before moving, but not after)
+                if cursor_manager.selected_unit.move_target:
+                    # Use event system for message
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message="Unit has already planned a move and cannot use a skill",
+                            message_type=MessageType.WARNING
+                        )
+                    )
+                    return
+                
                 # Get available skills (not on cooldown)
                 available_skills = cursor_manager.selected_unit.get_available_skills()
                 
@@ -1321,6 +1357,18 @@ class GameModeManager(UIComponent):
         if cursor_manager.selected_unit:
             # Check if unit belongs to current player or test mode is on
             if cursor_manager.can_select_unit(cursor_manager.selected_unit):
+                # Check if the unit has already queued a skill
+                if cursor_manager.selected_unit.skill_target and cursor_manager.selected_unit.selected_skill:
+                    # Use event system for message
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message="Unit has already planned a skill use and cannot attack",
+                            message_type=MessageType.WARNING
+                        )
+                    )
+                    return
+                
                 # Change mode (will publish mode changed event)
                 self.set_mode("attack")
                 
