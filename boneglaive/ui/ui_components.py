@@ -351,6 +351,162 @@ class CursorManager(UIComponent):
         new_x = max(0, min(WIDTH-1, self.cursor_pos.x + dx))
         self.cursor_pos = Position(new_y, new_x)
     
+    def can_act_this_turn(self):
+        """Check if the player can act on the current turn."""
+        # Always allow in test mode
+        if self.game_ui.game.test_mode:
+            return True
+        
+        # In multiplayer, check if it's the player's turn
+        if self.game_ui.multiplayer.is_multiplayer():
+            # In local multiplayer, can control active player's units
+            if self.game_ui.multiplayer.is_local_multiplayer():
+                return True
+            # In network multiplayer, can only act on own turn
+            return self.game_ui.multiplayer.is_current_player_turn()
+        
+        # Single player can always act
+        return True
+    
+    def get_unit_at_cursor(self):
+        """Get the unit at the current cursor position."""
+        # First check for a real unit
+        unit = self.game_ui.game.get_unit_at(self.cursor_pos.y, self.cursor_pos.x)
+        
+        # If no real unit, check for a ghost unit
+        if not unit:
+            unit = self.find_unit_by_ghost(self.cursor_pos.y, self.cursor_pos.x)
+            
+        return unit
+    
+    def can_select_unit(self, unit):
+        """Check if the unit can be selected by the current player."""
+        if not unit:
+            return False
+            
+        current_player = self.game_ui.multiplayer.get_current_player()
+        
+        # Test mode can select any unit
+        if self.game_ui.game.test_mode:
+            return True
+            
+        # Local multiplayer can select current player's units
+        if self.game_ui.multiplayer.is_local_multiplayer():
+            return unit.player == self.game_ui.game.current_player
+            
+        # Otherwise, can only select own units
+        return unit.player == current_player
+    
+    def select_unit_at_cursor(self):
+        """Select the unit at the current cursor position.
+        Returns True if a unit was selected, False otherwise.
+        """
+        unit = self.get_unit_at_cursor()
+        
+        if not unit or not self.can_select_unit(unit):
+            if unit:
+                self.game_ui.message = f"Cannot select {unit.type.name} - belongs to Player {unit.player}"
+                message_log.add_message(
+                    f"Cannot select {unit.type.name} - belongs to Player {unit.player}", 
+                    MessageType.WARNING
+                )
+            else:
+                self.game_ui.message = "No unit at that position"
+                message_log.add_message("No unit at that position", MessageType.WARNING)
+            return False
+        
+        # Select the unit
+        self.selected_unit = unit
+        
+        # Check if we're selecting a ghost (unit with a move_target at current position)
+        is_ghost = (unit.move_target == (self.cursor_pos.y, self.cursor_pos.x))
+        
+        # Clear the message to avoid redundancy with unit info display
+        self.game_ui.message = ""
+        
+        # Redraw the board to immediately show the selection
+        self.game_ui.draw_board()
+        return True
+    
+    def select_move_target(self):
+        """Select the current cursor position as a move target for the selected unit.
+        Returns True if a move target was set, False otherwise.
+        """
+        # Import Position to use get_line
+        from boneglaive.utils.coordinates import Position, get_line
+        
+        cursor_position = Position(self.cursor_pos.y, self.cursor_pos.x)
+        
+        # Check if the position is a valid move target
+        if cursor_position in self.highlighted_positions:
+            self.selected_unit.move_target = (self.cursor_pos.y, self.cursor_pos.x)
+            
+            self.game_ui.message = f"Move set to ({self.cursor_pos.y}, {self.cursor_pos.x})"
+            # No message added to log for planned movements
+            self.highlighted_positions = []
+            return True
+        else:
+            # Check why the position isn't valid
+            y, x = self.cursor_pos.y, self.cursor_pos.x
+            
+            # Check if the position is in range
+            distance = self.game_ui.game.chess_distance(self.selected_unit.y, self.selected_unit.x, y, x)
+            if distance > self.selected_unit.move_range:
+                self.game_ui.message = "Position is out of movement range"
+            # Check if there's a unit blocking the path
+            elif distance > 1:
+                # Check the path for blocking units
+                start_pos = Position(self.selected_unit.y, self.selected_unit.x)
+                end_pos = Position(y, x)
+                path = get_line(start_pos, end_pos)
+                
+                for pos in path[1:-1]:  # Skip start and end positions
+                    blocking_unit = self.game_ui.game.get_unit_at(pos.y, pos.x)
+                    if blocking_unit:
+                        # Determine if it's an ally or enemy for the message
+                        if blocking_unit.player == self.selected_unit.player:
+                            self.game_ui.message = "Path blocked by allied unit"
+                            message_log.add_message("You cannot move through other units", MessageType.WARNING)
+                        else:
+                            self.game_ui.message = "Path blocked by enemy unit"
+                            message_log.add_message("You cannot move through other units", MessageType.WARNING)
+                        return False
+            # Check if there's a unit at the destination
+            elif self.game_ui.game.get_unit_at(y, x):
+                self.game_ui.message = "Position is occupied by another unit"
+            # Check if the terrain is blocking
+            elif not self.game_ui.game.map.is_passable(y, x):
+                self.game_ui.message = "Terrain is impassable"
+            else:
+                self.game_ui.message = "Invalid move target"
+            return False
+    
+    def select_attack_target(self):
+        """Select the current cursor position as an attack target for the selected unit.
+        Returns True if an attack target was set, False otherwise.
+        """
+        # Import Position for position checking
+        from boneglaive.utils.coordinates import Position
+        
+        cursor_position = Position(self.cursor_pos.y, self.cursor_pos.x)
+        
+        if cursor_position in self.highlighted_positions:
+            self.selected_unit.attack_target = (self.cursor_pos.y, self.cursor_pos.x)
+            target = self.game_ui.game.get_unit_at(self.cursor_pos.y, self.cursor_pos.x)
+            
+            self.game_ui.message = f"Attack set against {target.type.name}"
+            # No message added to log for planned attacks
+            self.highlighted_positions = []
+            return True
+        else:
+            self.game_ui.message = "Invalid attack target"
+            return False
+    
+    def clear_selection(self):
+        """Clear the current unit selection and highlighted positions."""
+        self.selected_unit = None
+        self.highlighted_positions = []
+    
     def cycle_units_internal(self, reverse=False):
         """Cycle through the player's units.
         
@@ -455,6 +611,8 @@ class GameModeManager(UIComponent):
         """Handle cancel action (Escape key or 'c' key).
         Cancels the current action based on the current state.
         """
+        cursor_manager = self.game_ui.cursor_manager
+        
         # First check if log history screen is showing - cancel it
         if self.game_ui.message_log_component.show_log_history:
             self.game_ui.message_log_component.show_log_history = False
@@ -478,30 +636,29 @@ class GameModeManager(UIComponent):
             return
             
         # If in attack or move mode, cancel the mode but keep unit selected
-        if self.mode in ["attack", "move"] and self.game_ui.cursor_manager.selected_unit:
-            self.game_ui.cursor_manager.highlighted_positions = []
+        if self.mode in ["attack", "move"] and cursor_manager.selected_unit:
+            cursor_manager.highlighted_positions = []
             self.mode = "select"
             self.game_ui.message = f"{self.mode.capitalize()} mode cancelled, unit still selected"
             self.game_ui.draw_board()
             return
             
         # If unit is selected with a planned move, cancel the move
-        if self.game_ui.cursor_manager.selected_unit and self.game_ui.cursor_manager.selected_unit.move_target:
-            self.game_ui.cursor_manager.selected_unit.move_target = None
+        if cursor_manager.selected_unit and cursor_manager.selected_unit.move_target:
+            cursor_manager.selected_unit.move_target = None
             self.game_ui.message = "Move order cancelled"
             self.game_ui.draw_board()
             return
             
         # If unit is selected with a planned attack, cancel the attack
-        if self.game_ui.cursor_manager.selected_unit and self.game_ui.cursor_manager.selected_unit.attack_target:
-            self.game_ui.cursor_manager.selected_unit.attack_target = None
+        if cursor_manager.selected_unit and cursor_manager.selected_unit.attack_target:
+            cursor_manager.selected_unit.attack_target = None
             self.game_ui.message = "Attack order cancelled"
             self.game_ui.draw_board()
             return
             
         # Otherwise, clear the selection entirely
-        self.game_ui.cursor_manager.selected_unit = None
-        self.game_ui.cursor_manager.highlighted_positions = []
+        cursor_manager.clear_selection()
         self.mode = "select"
         self.game_ui.message = "Selection cleared"
         
@@ -510,29 +667,27 @@ class GameModeManager(UIComponent):
     
     def handle_move_mode(self):
         """Enter move mode."""
-        # In network multiplayer, only allow actions on current player's turn
-        if self.game_ui.multiplayer.is_network_multiplayer() and not self.game_ui.multiplayer.is_current_player_turn():
-            if not self.game_ui.game.test_mode:  # Test mode overrides turn restrictions
-                self.game_ui.message = "Not your turn!"
-                return
+        cursor_manager = self.game_ui.cursor_manager
+        
+        # Check if player can act this turn
+        if not cursor_manager.can_act_this_turn():
+            self.game_ui.message = "Not your turn!"
+            return
                 
-        if self.game_ui.cursor_manager.selected_unit:
+        if cursor_manager.selected_unit:
             current_player = self.game_ui.multiplayer.get_current_player()
             
             # Check if unit belongs to current player or test mode is on
             # Also allow control in local multiplayer for the active player
-            if (self.game_ui.cursor_manager.selected_unit.player == current_player or
-                self.game_ui.game.test_mode or
-                (self.game_ui.multiplayer.is_local_multiplayer() and 
-                 self.game_ui.cursor_manager.selected_unit.player == self.game_ui.game.current_player)):
+            if cursor_manager.can_select_unit(cursor_manager.selected_unit):
                 self.mode = "move"
                 
                 # Convert positions to Position objects
-                self.game_ui.cursor_manager.highlighted_positions = [
-                    Position(y, x) for y, x in self.game_ui.game.get_possible_moves(self.game_ui.cursor_manager.selected_unit)
+                cursor_manager.highlighted_positions = [
+                    Position(y, x) for y, x in self.game_ui.game.get_possible_moves(cursor_manager.selected_unit)
                 ]
                 
-                if not self.game_ui.cursor_manager.highlighted_positions:
+                if not cursor_manager.highlighted_positions:
                     self.game_ui.message = "No valid moves available"
             else:
                 self.game_ui.message = "You can only move your own units!"
@@ -541,40 +696,35 @@ class GameModeManager(UIComponent):
     
     def handle_attack_mode(self):
         """Enter attack mode."""
-        # In network multiplayer, only allow actions on current player's turn
-        if self.game_ui.multiplayer.is_network_multiplayer() and not self.game_ui.multiplayer.is_current_player_turn():
-            if not self.game_ui.game.test_mode:  # Test mode overrides turn restrictions
-                self.game_ui.message = "Not your turn!"
-                return
+        cursor_manager = self.game_ui.cursor_manager
+        
+        # Check if player can act this turn
+        if not cursor_manager.can_act_this_turn():
+            self.game_ui.message = "Not your turn!"
+            return
                 
-        if self.game_ui.cursor_manager.selected_unit:
-            current_player = self.game_ui.multiplayer.get_current_player()
-            
+        if cursor_manager.selected_unit:
             # Check if unit belongs to current player or test mode is on
-            # Also allow control in local multiplayer for the active player
-            if (self.game_ui.cursor_manager.selected_unit.player == current_player or 
-                self.game_ui.game.test_mode or
-                (self.game_ui.multiplayer.is_local_multiplayer() and 
-                 self.game_ui.cursor_manager.selected_unit.player == self.game_ui.game.current_player)):
+            if cursor_manager.can_select_unit(cursor_manager.selected_unit):
                 self.mode = "attack"
                 
                 # If we selected a unit directly, use its position
                 # If we selected a ghost, always use the ghost position
                 from_pos = None
-                if self.game_ui.cursor_manager.selected_unit.move_target:
-                    from_pos = self.game_ui.cursor_manager.selected_unit.move_target
+                if cursor_manager.selected_unit.move_target:
+                    from_pos = cursor_manager.selected_unit.move_target
                     self.game_ui.message = "Select attack from planned move position"
                 else:
                     self.game_ui.message = "Select attack target"
                 
                 # Convert positions to Position objects, using move destination if set
-                self.game_ui.cursor_manager.highlighted_positions = [
+                cursor_manager.highlighted_positions = [
                     Position(y, x) for y, x in self.game_ui.game.get_possible_attacks(
-                        self.game_ui.cursor_manager.selected_unit, from_pos)
+                        cursor_manager.selected_unit, from_pos)
                 ]
                 
-                if not self.game_ui.cursor_manager.highlighted_positions:
-                    if self.game_ui.cursor_manager.selected_unit.move_target:
+                if not cursor_manager.highlighted_positions:
+                    if cursor_manager.selected_unit.move_target:
                         self.game_ui.message = "No valid targets in range from move destination"
                     else:
                         self.game_ui.message = "No valid targets in range"
@@ -583,12 +733,32 @@ class GameModeManager(UIComponent):
         else:
             self.game_ui.message = "No unit selected"
     
+    def handle_select_in_select_mode(self):
+        """Handle selection when in select mode."""
+        return self.game_ui.cursor_manager.select_unit_at_cursor()
+    
+    def handle_select_in_move_mode(self):
+        """Handle selection when in move mode."""
+        result = self.game_ui.cursor_manager.select_move_target()
+        if result:
+            self.mode = "select"  # Return to select mode after successful move
+        return result
+    
+    def handle_select_in_attack_mode(self):
+        """Handle selection when in attack mode."""
+        result = self.game_ui.cursor_manager.select_attack_target()
+        if result:
+            self.mode = "select"  # Return to select mode after successful attack
+        return result
+    
     def handle_end_turn(self):
         """End the current turn."""
+        cursor_manager = self.game_ui.cursor_manager
+        
         # Pass UI to execute_turn for animations
         self.game_ui.game.execute_turn(self.game_ui)
-        self.game_ui.cursor_manager.selected_unit = None
-        self.game_ui.cursor_manager.highlighted_positions = []
+        cursor_manager.selected_unit = None
+        cursor_manager.highlighted_positions = []
         self.mode = "select"
         
         # Handle multiplayer turn switching
@@ -624,18 +794,15 @@ class GameModeManager(UIComponent):
         """Handle unit placement during setup phase."""
         # Get the current setup player
         setup_player = self.game_ui.game.setup_player
+        cursor_pos = self.game_ui.cursor_manager.cursor_pos
         
         # Check if cursor position is in bounds
-        if not self.game_ui.game.is_valid_position(
-                self.game_ui.cursor_manager.cursor_pos.y, 
-                self.game_ui.cursor_manager.cursor_pos.x):
+        if not self.game_ui.game.is_valid_position(cursor_pos.y, cursor_pos.x):
             self.game_ui.message = f"Cannot place unit here: out of bounds"
             return
             
         # Check if cursor position has blocking terrain
-        if not self.game_ui.game.map.can_place_unit(
-                self.game_ui.cursor_manager.cursor_pos.y, 
-                self.game_ui.cursor_manager.cursor_pos.x):
+        if not self.game_ui.game.map.can_place_unit(cursor_pos.y, cursor_pos.x):
             self.game_ui.message = f"Cannot place unit here: blocked by limestone"
             return
             
@@ -645,9 +812,7 @@ class GameModeManager(UIComponent):
             return
             
         # Try to place the unit (no displacement yet)
-        success = self.game_ui.game.place_setup_unit(
-            self.game_ui.cursor_manager.cursor_pos.y, 
-            self.game_ui.cursor_manager.cursor_pos.x)
+        success = self.game_ui.game.place_setup_unit(cursor_pos.y, cursor_pos.x)
         
         if success:
             # Unit was placed at the original position
