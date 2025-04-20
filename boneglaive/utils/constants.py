@@ -10,8 +10,8 @@ CRITICAL_HEALTH_PERCENT = 0.3  # Percentage of max HP considered "critical"
 
 # Experience and leveling constants
 MAX_LEVEL = 5  # Maximum level a unit can reach
-XP_KILL_REWARD = 10  # Base XP for killing an enemy
-XP_DAMAGE_FACTOR = 0.5  # XP per point of damage dealt
+XP_KILL_REWARD = 0  # Base XP for killing an enemy (temporarily set to 0 for testing)
+XP_DAMAGE_FACTOR = 0  # XP per point of damage dealt (temporarily set to 0 for testing)
 
 # XP required for each level
 XP_PER_LEVEL = {
