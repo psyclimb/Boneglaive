@@ -1103,11 +1103,266 @@ class VaultSkill(ActiveSkill):
         return True
 
 
+class JudgementThrowSkill(ActiveSkill):
+    """
+    Active skill for GLAIVEMAN.
+    The GLAIVEMAN throws a sacred spinning glaive up to a range of 3 at an enemy unit.
+    This deals double damage if the enemy is at or below their wretch threshold.
+    When it deals double damage, there is a lightning strike effect on the target.
+    """
+    
+    def __init__(self):
+        super().__init__(
+            name="Judgement Throw",
+            key="J",
+            description="Throw a sacred glaive at an enemy (range 3). Deals double damage if enemy is wretched.",
+            target_type=TargetType.ENEMY,
+            cooldown=3,
+            range_=3
+        )
+        self.base_damage = 3  # Base damage amount
+        self.critical_damage = 14  # Fixed damage amount when critical
+        
+    def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        """Check if Judgement Throw can be used on the target."""
+        # First check basic cooldown
+        if not super().can_use(user, target_pos, game):
+            return False
+            
+        # Need game and target position to validate
+        if not game or not target_pos:
+            return False
+            
+        # Check if there's an enemy unit at target position
+        target = game.get_unit_at(target_pos[0], target_pos[1])
+        if not target or target.player == user.player:
+            return False
+        
+        # Check if target is within range from the correct position
+        # (either current position or planned move position)
+        from_y = user.y
+        from_x = user.x
+        
+        # If unit has a planned move, use that position instead
+        if user.move_target:
+            from_y, from_x = user.move_target
+            
+        distance = game.chess_distance(from_y, from_x, target_pos[0], target_pos[1])
+        if distance > self.range:
+            return False
+            
+        return True
+        
+    def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        """
+        Queue up the Judgement Throw skill for execution at the end of the turn.
+        This works similarly to move and attack actions.
+        """
+        from boneglaive.utils.message_log import message_log, MessageType
+        from boneglaive.utils.debug import logger
+        
+        # Validate skill use conditions
+        if not self.can_use(user, target_pos, game):
+            return False
+        
+        # Get target unit
+        target = game.get_unit_at(target_pos[0], target_pos[1])
+        if not target:
+            return False
+            
+        # Set the skill target
+        user.skill_target = target_pos
+        user.selected_skill = self
+        
+        # Set cooldown explicitly - done immediately when queuing up the action
+        self.current_cooldown = self.cooldown
+        logger.debug(f"Setting {self.name} cooldown to {self.current_cooldown}")
+        
+        # Log that the skill has been queued
+        message_log.add_message(
+            f"GLAIVEMAN readies Judgement Throw against {target.type.name}!",
+            MessageType.ABILITY,
+            player=user.player
+        )
+        
+        return True
+        
+    def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
+        """
+        Execute the Judgement Throw skill during the turn resolution phase.
+        This is called by the game engine when processing actions.
+        """
+        from boneglaive.utils.message_log import message_log, MessageType
+        from boneglaive.utils.constants import CRITICAL_HEALTH_PERCENT
+        from boneglaive.utils.debug import logger
+        import time
+        import curses
+        
+        # Log current cooldown for debugging
+        logger.debug(f"Executing {self.name} with cooldown: {self.current_cooldown}")
+        
+        # Get target unit (might have moved)
+        target = game.get_unit_at(target_pos[0], target_pos[1])
+        if not target or target.player == user.player:
+            # Target is no longer valid
+            message_log.add_message(
+                "Judgement Throw failed: target no longer valid.",
+                MessageType.ABILITY,
+                player=user.player
+            )
+            return False
+            
+        # Log the skill activation
+        message_log.add_message(
+            f"GLAIVEMAN throws sacred glaive at {target.type.name}!",
+            MessageType.ABILITY,
+            player=user.player
+        )
+        
+        # Calculate path for animation
+        from boneglaive.utils.coordinates import Position, get_line
+        start_pos = Position(user.y, user.x)
+        end_pos = Position(target_pos[0], target_pos[1])
+        path = get_line(start_pos, end_pos)
+        
+        # Check if target is at wretch threshold for double damage
+        critical_threshold = int(target.max_hp * CRITICAL_HEALTH_PERCENT)
+        is_critical = target.hp <= critical_threshold
+        
+        # Calculate damage
+        damage = self.critical_damage if is_critical else self.base_damage
+            
+        # Play animation if UI is available
+        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+            # Get animation sequence for Judgement Throw
+            animation_sequence = ui.asset_manager.get_skill_animation_sequence('judgement_throw')
+            if not animation_sequence:
+                # If not defined yet, use a temporary animation
+                animation_sequence = ['*', '#', 'O', '⚡', '↺', '↻']
+            
+            # Show animation at user's position
+            ui.renderer.animate_attack_sequence(
+                user.y, user.x,
+                animation_sequence[:2],
+                7,  # color ID
+                0.2  # duration
+            )
+            time.sleep(0.1)
+            
+            # Animate the glaive flying along the path
+            spinning_chars = ['↺', '↻', '↻', '↺']
+            for i, pos in enumerate(path[1:-1]):  # Skip start and end positions
+                # Create a spinning animation
+                spin_char = spinning_chars[i % len(spinning_chars)]
+                
+                # Show animation at this path position
+                ui.renderer.draw_tile(pos.y, pos.x, spin_char, 7)
+                ui.renderer.refresh()
+                time.sleep(0.075)  # Quick animation
+                
+                # Clear previous position if not at start
+                if i > 0:
+                    prev_pos = path[i]
+                    ui.renderer.draw_tile(prev_pos.y, prev_pos.x, ' ', 0)
+                    
+            # Show impact animation at target position
+            impact_animation = ['X', '#', '*', '⚡'] if is_critical else ['X', '#', '*']
+            impact_color = 5 if is_critical else 6  # Yellow for critical, Red for normal
+            
+            # If critical hit, add lightning effect
+            if is_critical:
+                # Show lightning animation
+                lightning_chars = ['⌁', '⚡', '⌁', '⚡']
+                for char in lightning_chars:
+                    ui.renderer.draw_tile(target_pos[0], target_pos[1], char, 5)  # Yellow for lightning
+                    ui.renderer.refresh()
+                    time.sleep(0.1)
+                    
+                # Show "CRITICAL!" text
+                ui.renderer.draw_text(target_pos[0]-1, target_pos[1]*2-4, "CRITICAL!", 5, curses.A_BOLD)
+                ui.renderer.refresh()
+                time.sleep(0.3)
+            
+            # Show impact animation
+            ui.renderer.animate_attack_sequence(
+                target_pos[0], target_pos[1],
+                impact_animation,
+                impact_color,
+                0.15
+            )
+            
+            # Flash the target unit
+            if hasattr(ui, 'asset_manager'):
+                tile_ids = [ui.asset_manager.get_unit_tile(target.type)] * 4
+                color_ids = [impact_color, 3 if target.player == 1 else 4] * 2
+                durations = [0.1] * 4
+                
+                # Use renderer's flash tile method
+                ui.renderer.flash_tile(target_pos[0], target_pos[1], tile_ids, color_ids, durations)
+        
+        # Apply damage to target
+        previous_hp = target.hp
+        target.hp = max(0, target.hp - damage)
+        
+        # Log the damage with critical indication
+        if is_critical:
+            message_log.add_combat_message(
+                attacker_name=f"{user.type.name}",
+                target_name=f"{target.type.name}",
+                damage=damage,
+                ability="Judgement Throw (CRITICAL)",
+                attacker_player=user.player,
+                target_player=target.player
+            )
+            
+            message_log.add_message(
+                f"Sacred glaive strikes with divine justice! MASSIVE critical damage!",
+                MessageType.ABILITY,
+                player=user.player
+            )
+        else:
+            message_log.add_combat_message(
+                attacker_name=f"{user.type.name}",
+                target_name=f"{target.type.name}",
+                damage=damage,
+                ability="Judgement Throw",
+                attacker_player=user.player,
+                target_player=target.player
+            )
+        
+        # If UI is available, show damage number
+        if ui and hasattr(ui, 'renderer'):
+            damage_text = f"-{damage}"
+            
+            # Make damage text more prominent
+            for i in range(3):
+                ui.renderer.draw_text(target_pos[0]-1, target_pos[1]*2, " " * len(damage_text), 7)
+                attrs = curses.A_BOLD if i % 2 == 0 else 0
+                ui.renderer.draw_text(target_pos[0]-1, target_pos[1]*2, damage_text, impact_color, attrs)
+                ui.renderer.refresh()
+                time.sleep(0.1)
+            
+            # Final damage display
+            ui.renderer.draw_text(target_pos[0]-1, target_pos[1]*2, damage_text, impact_color, curses.A_BOLD)
+            ui.renderer.refresh()
+            time.sleep(0.2)
+        
+        # Check if target was defeated
+        if target.hp <= 0:
+            message_log.add_message(
+                f"Player {target.player}'s {target.type.name} perishes!",
+                MessageType.COMBAT,
+                player=user.player,
+                target=target.player
+            )
+            
+        return True
+
 # Skill Registry - maps unit types to their skills
 UNIT_SKILLS = {
     'GLAIVEMAN': {
         'passive': Autoclave(),
-        'active': [PrySkill(), VaultSkill()]
+        'active': [PrySkill(), VaultSkill(), JudgementThrowSkill()]
     }
     # Other unit types will be added here
 }

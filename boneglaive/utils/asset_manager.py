@@ -78,7 +78,9 @@ class AssetManager:
             'pry_impact': ['v', 'V', '#', '*', '.'],  # Simple ground impact animation for Pry landing
             'pry_collision': ['#', 'X', '#', '*', '.'],  # Impact animation for when a unit hits an obstacle
             'vault': ['^', 'Λ', '↑', '↟', '↑'],  # Vault initiation animation - upward movement
-            'vault_impact': ['↓', 'v', 'V', '*', '.']  # Vault landing animation
+            'vault_impact': ['↓', 'v', 'V', '*', '.'],  # Vault landing animation
+            'judgement_throw': ['*', '↺', '↻', '⚡', '⚓', '⊕'],  # Sacred glaive animation
+            'judgement_critical': ['⚡', '⌁', '⌁', '⚡', '※']  # Lightning strike critical effect
         }
     
     def _initialize_graphical_assets(self) -> None:
@@ -126,7 +128,9 @@ class AssetManager:
             'pry_impact': ['pry_impact_1.png', 'pry_impact_2.png', 'pry_impact_3.png'],
             'pry_collision': ['pry_collision_1.png', 'pry_collision_2.png', 'pry_collision_3.png'],
             'vault': ['vault_1.png', 'vault_2.png', 'vault_3.png', 'vault_4.png'],
-            'vault_impact': ['vault_impact_1.png', 'vault_impact_2.png', 'vault_impact_3.png']
+            'vault_impact': ['vault_impact_1.png', 'vault_impact_2.png', 'vault_impact_3.png'],
+            'judgement_throw': ['judgement_throw_1.png', 'judgement_throw_2.png', 'judgement_throw_3.png', 'judgement_throw_4.png'],
+            'judgement_critical': ['judgement_critical_1.png', 'judgement_critical_2.png', 'judgement_critical_3.png']
         }
     
     def get_unit_tile(self, unit_type: UnitType) -> str:

@@ -105,8 +105,12 @@ class Unit:
         Reduce cooldowns for all skills by 1 turn.
         Movement penalties are handled separately in reset_movement_penalty.
         """
+        from boneglaive.utils.debug import logger
+        
         # Tick skill cooldowns
         for skill in self.active_skills:
+            # Log cooldown before ticking
+            logger.debug(f"Ticking {skill.name} cooldown: {skill.current_cooldown} -> {max(0, skill.current_cooldown-1)}")
             skill.tick_cooldown()
         
         # Movement penalties are now handled in reset_movement_penalty method

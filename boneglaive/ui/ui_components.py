@@ -1996,6 +1996,16 @@ class ActionMenuComponent(UIComponent):
             'skill': vault_skill
         })
         
+        # Add Judgement Throw skill
+        judgement_skill = next((skill for skill in available_skills if skill.name == "Judgement Throw"), None)
+        self.actions.append({
+            'key': 'j',
+            'label': 'udgement',  # Will be displayed as [J]udgement
+            'action': 'judgement_skill',  # Custom action identifier for handling
+            'enabled': judgement_skill is not None,
+            'skill': judgement_skill
+        })
+        
         # Reset selected index
         self.selected_index = 0
         
@@ -2134,6 +2144,10 @@ class ActionMenuComponent(UIComponent):
                         return True
                     elif action['action'] == 'vault_skill':
                         # Use the Vault skill
+                        self._select_skill(action['skill'])
+                        return True
+                    elif action['action'] == 'judgement_skill':
+                        # Use the Judgement Throw skill
                         self._select_skill(action['skill'])
                         return True
                 
