@@ -526,23 +526,45 @@ class GameUI:
                     
                     # If this unit is being targeted for attack, use red background
                     if attacking_unit:
-                        # Use red background to show this unit is targeted for attack
-                        self.renderer.draw_tile(y, x, tile, 10, curses.A_BOLD)
+                        # Check if cursor is here before drawing targeted unit
+                        is_cursor_here = (pos == self.cursor_pos)
+                        
+                        if is_cursor_here:
+                            # Draw with cursor color but still bold to show it's selected
+                            self.renderer.draw_tile(y, x, tile, 2, curses.A_BOLD)
+                        else:
+                            # Use red background to show this unit is targeted for attack
+                            self.renderer.draw_tile(y, x, tile, 10, curses.A_BOLD)
                         continue
                         
                     # If this is the selected unit, use special highlighting with yellow background
                     if self.selected_unit and unit == self.selected_unit:
-                        # Use yellow background to highlight the selected unit
-                        self.renderer.draw_tile(y, x, tile, 9, curses.A_BOLD)
+                        # Check if cursor is also here
+                        is_cursor_here = (pos == self.cursor_pos)
+                        
+                        if is_cursor_here:
+                            # Draw with cursor color but bold to show it's selected
+                            self.renderer.draw_tile(y, x, tile, 2, curses.A_BOLD)
+                        else:
+                            # Use yellow background to highlight the selected unit
+                            self.renderer.draw_tile(y, x, tile, 9, curses.A_BOLD)
                         continue
                 
                 elif target_unit and not unit:
                     # This is a move target location - draw a "ghost" of the moving unit
                     tile = self.asset_manager.get_unit_tile(target_unit.type)
                     color_id = 8  # Gray preview color
-                    # Add dim attribute to make it look like a ghost/preview
+                    
+                    # Check if cursor is here before drawing ghost
+                    is_cursor_here = (pos == self.cursor_pos)
+                    
+                    # If cursor is here, draw with cursor color instead
+                    if is_cursor_here:
+                        self.renderer.draw_tile(y, x, tile, 2)  # Use cursor color
+                        continue
+                    
+                    # Otherwise draw normal ghost
                     self.renderer.draw_tile(y, x, tile, color_id, curses.A_DIM)
-                    continue  # Skip further drawing for this cell
                 
                 # Check if position is highlighted for movement or attack
                 if pos in self.highlighted_positions:
@@ -551,7 +573,7 @@ class GameUI:
                     elif self.mode == "attack":
                         color_id = 6
                 
-                # Check if cursor is here
+                # Cursor always takes priority for visibility
                 if pos == self.cursor_pos:
                     color_id = 2
                 
