@@ -1774,7 +1774,7 @@ class ActionMenuComponent(UIComponent):
         
         # Calculate menu dimensions
         menu_width = 25  # Width that comfortably fits content
-        menu_height = len(self.actions) + 3  # Header + actions + bottom border
+        menu_height = len(self.actions) + 4  # Add extra space to ensure all items fit within borders
         
         # Draw menu border
         # Top border
@@ -1808,8 +1808,8 @@ class ActionMenuComponent(UIComponent):
             label_part = action['label']
             
             # Calculate x positions for proper alignment
-            key_x = menu_x + 2
-            label_x = key_x + len(key_part)
+            key_x = menu_x + 3  # Increase left margin for keys
+            label_x = key_x + len(key_part) + 1  # Add space between key and label
             
             # Choose color based on whether action is enabled
             key_color = player_color if action['enabled'] else 8  # Player color or gray
