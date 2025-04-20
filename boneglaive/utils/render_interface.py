@@ -79,3 +79,9 @@ class RenderInterface(abc.ABC):
                   durations: List[float]) -> None:
         """Flash a tile with different characters and colors in sequence."""
         pass
+        
+    @abc.abstractmethod
+    def animate_attack_sequence(self, y: int, x: int, sequence: List[str], 
+                              color_id: int = 1, duration: float = 0.5) -> None:
+        """Animate an attack sequence at the specified position."""
+        pass

@@ -237,3 +237,27 @@ class CursesRenderer(RenderInterface):
             time.sleep(durations[i])
             
         # No need to restore tile as the next full redraw will handle it
+        
+    def animate_attack_sequence(self, y: int, x: int, sequence: List[str], 
+                             color_id: int = 7, duration: float = 0.5) -> None:
+        """Animate an attack sequence at the specified position.
+        
+        Args:
+            y, x: The position to show the animation
+            sequence: List of characters to show in sequence
+            color_id: Color to use for the animation
+            duration: Total duration of the animation
+        """
+        if not sequence:
+            return
+            
+        # Calculate time per frame
+        frame_duration = duration / len(sequence)
+        
+        # Show each frame in sequence
+        for frame in sequence:
+            self.draw_tile(y, x, frame, color_id)
+            self.refresh()
+            time.sleep(frame_duration)
+            
+        # No need to restore tile as the next full redraw will handle it

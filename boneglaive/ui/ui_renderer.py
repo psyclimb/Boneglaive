@@ -55,44 +55,72 @@ class UIRenderer:
             self.renderer.refresh()
             return
         
-        # Draw header
+        # Draw header with improved formatting
+        header_y = 0
+        
+        # Clear the header line first
+        self.renderer.draw_text(header_y, 0, " " * self.renderer.width, 1)
+        
         if self.game_ui.game.setup_phase:
             # Setup phase header
             setup_player = self.game_ui.game.setup_player
             player_color = chat_component.player_colors.get(setup_player, 1)
-            player_indicator = f"Player {setup_player}"
             
-            # Show setup-specific header
-            header = f"{player_indicator} | SETUP PHASE | Units left: {self.game_ui.game.setup_units_remaining[setup_player]}"
+            # Draw player indicator with box drawing chars
+            player_text = f"■ PLAYER {setup_player} ■"
+            self.renderer.draw_text(header_y, 2, player_text, player_color, curses.A_BOLD)
             
-            if self.game_ui.game.setup_units_remaining[setup_player] == 0:
-                header += " | Press 'y' to confirm"
+            # Draw setup phase info
+            setup_text = "SETUP PHASE"
+            self.renderer.draw_text(header_y, len(player_text) + 4, setup_text, 1, curses.A_BOLD)
+            
+            # Draw units remaining
+            units_left = self.game_ui.game.setup_units_remaining[setup_player]
+            units_text = f"UNITS LEFT: {units_left}"
+            self.renderer.draw_text(header_y, len(player_text) + len(setup_text) + 6, units_text, 1)
+            
+            # Add confirmation indicator if all units placed
+            if units_left == 0:
+                confirm_text = "PRESS 'Y' TO CONFIRM"
+                self.renderer.draw_text(header_y, len(player_text) + len(setup_text) + len(units_text) + 8, confirm_text, 1, curses.A_BOLD)
         else:
             # Normal game header
             current_player = self.game_ui.multiplayer.get_current_player()
-            game_mode = "Single" if not self.game_ui.multiplayer.is_multiplayer() else "Local" if self.game_ui.multiplayer.is_local_multiplayer() else "LAN"
-            
-            # Get player color for the header
             player_color = chat_component.player_colors.get(current_player, 1)
             
-            # Create shorter player indicator
-            player_indicator = f"Player {current_player}"
+            # Draw player indicator with box drawing chars 
+            player_text = f"■ PLAYER {current_player} ■"
+            self.renderer.draw_text(header_y, 2, player_text, player_color, curses.A_BOLD)
             
-            # Build the rest of the header
-            header = f"{player_indicator} | Mode: {mode_manager.mode} | Game: {game_mode}"
-            if self.game_ui.multiplayer.is_network_multiplayer():  # Only show YOUR TURN/WAITING in network multiplayer
-                header += f" | {'YOUR TURN' if self.game_ui.multiplayer.is_current_player_turn() else 'WAITING'}"
+            # Draw action mode (select/move/attack)
+            mode_text = f"MODE: {mode_manager.mode.upper()}"
+            self.renderer.draw_text(header_y, len(player_text) + 4, mode_text, 1)
+            
+            # Draw multiplayer info
+            game_mode = "SINGLE" if not self.game_ui.multiplayer.is_multiplayer() else "LOCAL" if self.game_ui.multiplayer.is_local_multiplayer() else "LAN"
+            game_text = f"GAME: {game_mode}"
+            self.renderer.draw_text(header_y, len(player_text) + len(mode_text) + 6, game_text, 1)
+            
+            # Add turn indicator for network play
+            if self.game_ui.multiplayer.is_network_multiplayer():
+                turn_text = "YOUR TURN" if self.game_ui.multiplayer.is_current_player_turn() else "WAITING"
+                self.renderer.draw_text(header_y, len(player_text) + len(mode_text) + len(game_text) + 8, turn_text, 1, curses.A_BOLD)
         
-        # Additional header indicators
+        # Add chat mode indicator if active
         if chat_component.chat_mode:
-            header += " | CHAT MODE"
+            chat_text = "CHAT MODE"
+            self.renderer.draw_text(header_y, self.renderer.width - len(chat_text) - 2, chat_text, 1, curses.A_BOLD)
             
+        # Add debug indicator if enabled
         if debug_config.enabled:
-            header += " | DEBUG ON"
-        
-        # Draw player indicator with player color and the rest with default color
-        self.renderer.draw_text(0, 0, player_indicator, player_color, curses.A_BOLD)
-        self.renderer.draw_text(0, len(player_indicator), header[len(player_indicator):], 1)
+            debug_text = "DEBUG"
+            # Position at far right if chat is not active
+            x_pos = self.renderer.width - len(debug_text) - 2
+            if chat_component.chat_mode:
+                # Position before chat indicator
+                chat_text = "CHAT MODE"
+                x_pos = self.renderer.width - len(chat_text) - len(debug_text) - 4
+            self.renderer.draw_text(header_y, x_pos, debug_text, 1, curses.A_BOLD)
         
         # Draw the battlefield
         for y in range(HEIGHT):
@@ -247,24 +275,62 @@ class UIRenderer:
         if self.game_ui.action_menu_component.visible:
             self.game_ui.action_menu_component.draw()
         
-        # Draw unit info
+        # Draw unit info with improved formatting
+        info_line = HEIGHT+1
+        
+        # Clear the unit info line
+        self.renderer.draw_text(info_line, 0, " " * self.renderer.width, 1)
+        
         if cursor_manager.selected_unit:
             unit = cursor_manager.selected_unit
-            unit_info = f"Selected: {unit.type.name} | HP: {unit.hp}/{unit.max_hp} | " \
-                        f"ATK: {unit.attack} | DEF: {unit.defense} | " \
-                        f"Move: {unit.move_range} | Range: {unit.attack_range}"
-            self.renderer.draw_text(HEIGHT+1, 0, unit_info)
+            
+            # Draw unit type with player color
+            player_color = 3 if unit.player == 1 else 4
+            type_info = f"▶ UNIT: {unit.type.name} ◀"
+            self.renderer.draw_text(info_line, 2, type_info, player_color, curses.A_BOLD)
+            
+            # Draw HP with color based on health percentage
+            hp_percent = unit.hp / unit.max_hp
+            hp_color = 2  # default green
+            if hp_percent <= 0.3:
+                hp_color = 6  # red for critical
+            elif hp_percent <= 0.7:
+                hp_color = 7  # yellow for damaged
+                
+            hp_info = f"HP: {unit.hp}/{unit.max_hp}"
+            self.renderer.draw_text(info_line, len(type_info) + 4, hp_info, hp_color)
+            
+            # Draw combat stats
+            combat_info = f"ATK: {unit.attack} | DEF: {unit.defense}"
+            self.renderer.draw_text(info_line, len(type_info) + len(hp_info) + 6, combat_info, 1)
+            
+            # Draw movement stats
+            move_info = f"MOVE: {unit.move_range} | RANGE: {unit.attack_range}"
+            self.renderer.draw_text(info_line, len(type_info) + len(hp_info) + len(combat_info) + 8, move_info, 1)
         
-        # Draw message
-        self.renderer.draw_text(HEIGHT+2, 0, self.game_ui.message)
+        # Draw message with better visibility
+        msg_line = HEIGHT+2
+        self.renderer.draw_text(msg_line, 0, " " * self.renderer.width, 1)  # Clear line
+        if self.game_ui.message:
+            msg_indicator = ">> "
+            self.renderer.draw_text(msg_line, 2, msg_indicator, 1, curses.A_BOLD)
+            self.renderer.draw_text(msg_line, 2 + len(msg_indicator), self.game_ui.message, 1)
         
-        # Draw simplified help reminder
-        help_text = "Press ? for help"
-        self.renderer.draw_text(HEIGHT+3, 0, help_text)
+        # Draw simplified help reminder and controls
+        help_line = HEIGHT+3
+        self.renderer.draw_text(help_line, 0, " " * self.renderer.width, 1)  # Clear line
+        help_text = "Press ? for help | [M]ove | [A]ttack | [E]nd Turn"
+        self.renderer.draw_text(help_line, 2, help_text, 1)
         
         # Draw winner info if game is over
         if self.game_ui.game.winner:
-            self.renderer.draw_text(HEIGHT+4, 0, f"Player {self.game_ui.game.winner} wins!", curses.A_BOLD)
+            winner_line = HEIGHT+4
+            self.renderer.draw_text(winner_line, 0, " " * self.renderer.width, 1)  # Clear line
+            winner_color = 3 if self.game_ui.game.winner == 1 else 4
+            winner_text = f"★★★ PLAYER {self.game_ui.game.winner} WINS! ★★★"
+            # Center the winner text
+            center_pos = (self.renderer.width - len(winner_text)) // 2
+            self.renderer.draw_text(winner_line, center_pos, winner_text, winner_color, curses.A_BOLD)
         
         # Draw debug overlay if enabled
         if debug_config.show_debug_overlay:

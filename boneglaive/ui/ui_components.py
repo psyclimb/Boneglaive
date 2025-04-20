@@ -160,8 +160,26 @@ class MessageLogComponent(UIComponent):
             # Calculate position for the log (closer to the game info)
             start_y = HEIGHT + 5
             
-            # Draw message log header
-            self.renderer.draw_text(start_y, 0, "=== MESSAGE LOG ===", 1, curses.A_BOLD)
+            # Get terminal width for drawing borders
+            term_height, term_width = self.renderer.get_terminal_size()
+            
+            # Draw message log border and header
+            # Top border with title
+            border_top = "┌─── MESSAGE LOG " + "─" * (term_width - 19) + "┐"
+            self.renderer.draw_text(start_y, 0, border_top, 1, curses.A_BOLD)
+            
+            # Draw side borders and clear message area
+            for i in range(1, self.log_height + 1):
+                # Left border
+                self.renderer.draw_text(start_y + i, 0, "│", 1)
+                # Clear line
+                self.renderer.draw_text(start_y + i, 1, " " * (term_width - 2), 1)
+                # Right border
+                self.renderer.draw_text(start_y + i, term_width - 1, "│", 1)
+            
+            # Bottom border
+            border_bottom = "└" + "─" * (term_width - 2) + "┘"
+            self.renderer.draw_text(start_y + self.log_height + 1, 0, border_bottom, 1)
             
             # Draw messages in reverse order (newest at the bottom)
             for i, (text, color_id) in enumerate(reversed(messages)):
@@ -172,7 +190,17 @@ class MessageLogComponent(UIComponent):
                 if "[Player " in text:  # It's a chat message
                     attributes = curses.A_BOLD
                 
+                # Format the message with timestamp prefix if not already formatted
+                if not text.startswith("["):
+                    text = "» " + text
+                    
+                # Truncate message if too long for display
+                max_text_width = term_width - 4  # Allow for borders
+                if len(text) > max_text_width:
+                    text = text[:max_text_width-3] + "..."
+                
                 self.renderer.draw_text(y_pos, 2, text, color_id, attributes)
+                
         except Exception as e:
             # Never let message log crash the game
             logger.error(f"Error displaying message log: {str(e)}")
@@ -182,7 +210,39 @@ class MessageLogComponent(UIComponent):
         try:
             # Calculate available height for messages (terminal height minus headers/footers)
             term_height, term_width = self.renderer.get_terminal_size()
-            available_height = term_height - 6  # Space for title, instructions and bottom margin
+            
+            # Clear the screen first
+            for y in range(term_height):
+                self.renderer.draw_text(y, 0, " " * term_width, 1)
+            
+            # Draw border around the entire screen
+            # Top border with title
+            border_top = "┌─── BONEGLAIVE MESSAGE HISTORY " + "─" * (term_width - 32) + "┐"
+            self.renderer.draw_text(0, 0, border_top, 1, curses.A_BOLD)
+            
+            # Side borders
+            for y in range(1, term_height - 1):
+                self.renderer.draw_text(y, 0, "│", 1)
+                self.renderer.draw_text(y, term_width - 1, "│", 1)
+            
+            # Bottom border
+            border_bottom = "└" + "─" * (term_width - 2) + "┘"
+            self.renderer.draw_text(term_height - 1, 0, border_bottom, 1)
+            
+            # Define content area dimensions
+            content_start_y = 3  # After the navigation bar
+            content_end_y = term_height - 3  # Before the status bar
+            available_height = content_end_y - content_start_y
+            
+            # Draw navigation instructions in a bar
+            nav_bar = "│ " + "─" * (term_width - 4) + " │"
+            self.renderer.draw_text(1, 0, nav_bar, 1)
+            nav_text = "↑/↓: Scroll | ESC: Close | L: Toggle regular log"
+            self.renderer.draw_text(1, 2, nav_text, 1, curses.A_BOLD)
+            
+            # Draw a separator below the navigation
+            separator = "├" + "─" * (term_width - 2) + "┤"
+            self.renderer.draw_text(2, 0, separator, 1)
             
             # Get all messages from the log (we'll format and scroll them)
             # Avoid filtering when viewing full history - get all messages
@@ -193,36 +253,37 @@ class MessageLogComponent(UIComponent):
             # Clamp scroll position
             self.log_history_scroll = max(0, min(self.log_history_scroll, max_scroll))
             
-            # Draw title
-            self.renderer.draw_text(1, 2, "=== BONEGLAIVE LOG HISTORY ===", 1, curses.A_BOLD)
+            # Draw a separator above the status bar
+            separator_bottom = "├" + "─" * (term_width - 2) + "┤"
+            self.renderer.draw_text(term_height - 2, 0, separator_bottom, 1)
             
-            # Draw navigation instructions
-            nav_text = "UP/DOWN: Scroll | ESC: Close | L: Toggle regular log"
-            self.renderer.draw_text(3, 2, nav_text, 1)
-            
-            # Draw scroll indicator
+            # Draw scroll indicator in status bar
             if len(all_messages) > available_height:
                 scroll_pct = int((self.log_history_scroll / max_scroll) * 100)
                 scroll_text = f"Showing {self.log_history_scroll+1}-{min(self.log_history_scroll+available_height, len(all_messages))} " \
                              f"of {len(all_messages)} messages ({scroll_pct}%)"
-                self.renderer.draw_text(term_height-2, 2, scroll_text, 1)
+                self.renderer.draw_text(term_height - 2, 2, scroll_text, 1, curses.A_BOLD)
             else:
-                self.renderer.draw_text(term_height-2, 2, f"Showing all {len(all_messages)} messages", 1)
+                self.renderer.draw_text(term_height - 2, 2, f"Showing all {len(all_messages)} messages", 1, curses.A_BOLD)
             
             # Slice messages based on scroll position
             visible_messages = all_messages[self.log_history_scroll:self.log_history_scroll+available_height]
             
             # Draw messages (in chronological order, oldest first)
             for i, (text, color_id) in enumerate(visible_messages):
-                y_pos = i + 5  # Start after title and instructions
+                y_pos = content_start_y + i
                 
                 # Add bold attribute for player messages
                 attributes = 0
                 if "[Player " in text:  # It's a chat message
                     attributes = curses.A_BOLD
                 
+                # Format the message with timestamp prefix if not already formatted
+                if not text.startswith("["):
+                    text = "» " + text
+                
                 # Truncate messages that are too long for the screen
-                max_text_width = term_width - 4  # Leave margin
+                max_text_width = term_width - 4  # Leave margin for borders
                 if len(text) > max_text_width:
                     text = text[:max_text_width-3] + "..."
                 
@@ -1549,6 +1610,9 @@ class AnimationComponent(UIComponent):
         # Get attack effect from asset manager
         effect_tile = self.game_ui.asset_manager.get_attack_effect(attacker.type)
         
+        # Get animation sequence
+        animation_sequence = self.game_ui.asset_manager.get_attack_animation_sequence(attacker.type)
+        
         # Create start and end positions
         start_pos = Position(attacker.y, attacker.x)
         end_pos = Position(target.y, target.x)
@@ -1561,28 +1625,61 @@ class AnimationComponent(UIComponent):
                 (end_pos.y, end_pos.x),
                 effect_tile,
                 7,  # color ID
-                0.1  # duration
+                0.3  # duration - slightly longer for better visibility
             )
-        # For melee attacks (glaiveman), just flash the effect on target
+        # For melee attacks (glaiveman), show swinging animation
         else:
-            # Draw effect at target position
-            self.renderer.draw_tile(target.y, target.x, effect_tile, 7)
-            self.renderer.refresh()
-            time.sleep(0.2)
+            # Calculate mid-point between attacker and target for melee animation
+            mid_y = (start_pos.y + end_pos.y) // 2
+            mid_x = (start_pos.x + end_pos.x) // 2
+            
+            # Show melee animation at the mid-point 
+            self.renderer.animate_attack_sequence(
+                mid_y, mid_x,
+                animation_sequence,
+                7,  # color ID
+                0.5  # duration
+            )
+        
+        # Show impact animation at target position with simpler ASCII characters
+        impact_animation = ['!', '*', '!'] if attacker.type == UnitType.MAGE else ['+', 'x', '+']
+        impact_colors = [7] * len(impact_animation)
+        impact_durations = [0.05] * len(impact_animation)
+        
+        # Use renderer's animate_attack_sequence for impact
+        self.renderer.animate_attack_sequence(
+            target.y, target.x,
+            impact_animation,
+            7,  # color ID 
+            0.25  # duration
+        )
         
         # Flash the target to show it was hit
-        tile_ids = [self.game_ui.asset_manager.get_unit_tile(target.type)] * 6
-        color_ids = [6 if target.player == 1 else 5, 3 if target.player == 1 else 4] * 3
-        durations = [0.1] * 6
+        tile_ids = [self.game_ui.asset_manager.get_unit_tile(target.type)] * 4
+        color_ids = [6 if target.player == 1 else 5, 3 if target.player == 1 else 4] * 2
+        durations = [0.1] * 4
         
         # Use renderer's flash tile method
         self.renderer.flash_tile(target.y, target.x, tile_ids, color_ids, durations)
         
-        # Show damage number above target
+        # Show damage number above target with improved visualization
         damage = max(1, attacker.attack - target.defense)
-        self.renderer.draw_text(target.y+1, target.x*2, f"-{damage}", 7, curses.A_BOLD)
+        damage_text = f"-{damage}"
+        
+        # Make damage text more prominent
+        for i in range(3):
+            # First clear the area
+            self.renderer.draw_text(target.y-1, target.x*2, " " * len(damage_text), 7)
+            # Draw with alternating bold/normal for a flashing effect
+            attrs = curses.A_BOLD if i % 2 == 0 else 0
+            self.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, attrs)
+            self.renderer.refresh()
+            time.sleep(0.1)
+            
+        # Final damage display (stays on screen slightly longer)
+        self.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, curses.A_BOLD)
         self.renderer.refresh()
-        time.sleep(0.5)
+        time.sleep(0.3)
         
         # Redraw board to clear effects (without cursor, selection, or attack target highlighting)
         self.game_ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
@@ -1675,19 +1772,48 @@ class ActionMenuComponent(UIComponent):
         menu_x = WIDTH * 2 + 2  # Position to the right of the map
         menu_y = 5              # Start a few lines down
         
-        # Draw menu header
-        header = f"=== {unit.type.name} Actions ==="
-        self.renderer.draw_text(menu_y, menu_x, header, 1, curses.A_BOLD)
+        # Calculate menu dimensions
+        menu_width = 25  # Fixed width for the menu
+        menu_height = len(self.actions) + 4  # Header + actions + footer
+        
+        # Draw menu border
+        # Top border
+        self.renderer.draw_text(menu_y, menu_x, "┌" + "─" * (menu_width - 2) + "┐", 1)
+        
+        # Side borders
+        for i in range(1, menu_height - 1):
+            self.renderer.draw_text(menu_y + i, menu_x, "│", 1)
+            self.renderer.draw_text(menu_y + i, menu_x + menu_width - 1, "│", 1)
+        
+        # Bottom border
+        self.renderer.draw_text(menu_y + menu_height - 1, menu_x, "└" + "─" * (menu_width - 2) + "┘", 1)
+        
+        # Draw menu header with unit player color
+        player_color = 3 if unit.player == 1 else 4
+        header = f" {unit.type.name} Actions "
+        
+        # Center the header
+        header_x = menu_x + (menu_width - len(header)) // 2
+        self.renderer.draw_text(menu_y + 1, header_x, header, player_color, curses.A_BOLD)
+        
+        # Draw a separator line
+        self.renderer.draw_text(menu_y + 2, menu_x + 1, "─" * (menu_width - 2), 1)
         
         # Draw menu items
         for i, action in enumerate(self.actions):
-            y_pos = menu_y + i + 2  # Skip a line after header
+            y_pos = menu_y + i + 3  # Position after header and separator
             
             # Format action label with capitalized key followed by lowercase label: [K]ey
-            label = f"[{action['key'].upper()}]{action['label']}"
+            key_part = f"[{action['key'].upper()}]"
+            label_part = action['label']
+            
+            # Calculate x positions for proper alignment
+            key_x = menu_x + 2
+            label_x = key_x + len(key_part)
             
             # Choose color based on whether action is enabled
-            color = 1 if action['enabled'] else 8  # Normal color or gray
+            key_color = player_color if action['enabled'] else 8  # Player color or gray
+            label_color = 1 if action['enabled'] else 8  # Normal color or gray
             
             # Make all enabled actions bold to show they're interactive
             attr = curses.A_BOLD if action['enabled'] else 0
@@ -1696,11 +1822,16 @@ class ActionMenuComponent(UIComponent):
             if not action['enabled']:
                 attr |= curses.A_DIM
                 
-            self.renderer.draw_text(y_pos, menu_x, label, color, attr)
+            # Draw key part (colored) and label part separately
+            self.renderer.draw_text(y_pos, key_x, key_part, key_color, attr)
+            self.renderer.draw_text(y_pos, label_x, label_part, label_color, attr)
             
         # Draw footer with instructions
-        footer_y = menu_y + len(self.actions) + 3
-        self.renderer.draw_text(footer_y, menu_x, "Press letter key shown in brackets | ESC: Cancel", 1)
+        footer_y = menu_y + menu_height - 2
+        footer_text = "ESC: Cancel"
+        # Center the footer
+        footer_x = menu_x + (menu_width - len(footer_text)) // 2
+        self.renderer.draw_text(footer_y, footer_x, footer_text, 1)
         
     def handle_input(self, key: int) -> bool:
         """Handle input specific to the action menu."""
