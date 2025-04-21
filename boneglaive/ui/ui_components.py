@@ -743,6 +743,10 @@ class CursorManager(UIComponent):
             # Set the move target
             self.selected_unit.move_target = (to_position.y, to_position.x)
             
+            # Track action order
+            self.selected_unit.action_timestamp = self.game_ui.game.action_counter
+            self.game_ui.game.action_counter += 1
+            
             # Publish move planned event
             self.publish_event(
                 EventType.MOVE_PLANNED,
@@ -805,6 +809,10 @@ class CursorManager(UIComponent):
         if cursor_position in self.highlighted_positions:
             # Set the attack target
             self.selected_unit.attack_target = (self.cursor_pos.y, self.cursor_pos.x)
+            
+            # Track action order
+            self.selected_unit.action_timestamp = self.game_ui.game.action_counter
+            self.game_ui.game.action_counter += 1
             
             # Get the target unit for the event data
             target = self.game_ui.game.get_unit_at(self.cursor_pos.y, self.cursor_pos.x)
