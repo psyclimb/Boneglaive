@@ -197,7 +197,7 @@ class Autoclave(PassiveSkill):
         import time
         
         message_log.add_message(
-            f"GLAIVEMAN's Autoclave activates!",
+            f"{user.get_display_name()}'s Autoclave activates!",
             MessageType.ABILITY,
             player=user.player
         )
@@ -308,7 +308,7 @@ class Autoclave(PassiveSkill):
             
             # Log the healing
             message_log.add_message(
-                f"GLAIVEMAN absorbs life essence, healing for {healing} HP!",
+                f"{user.get_display_name()} absorbs life essence, healing for {healing} HP!",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -454,7 +454,7 @@ class PrySkill(ActiveSkill):
         if not displacement_positions:
             # No valid positions, but still apply damage and movement penalty
             message_log.add_message(
-                f"GLAIVEMAN uses Pry on {target.type.name}!",
+                f"{user.get_display_name()} uses Pry on {target.get_display_name()}!",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -568,7 +568,7 @@ class PrySkill(ActiveSkill):
             
         # Log the skill activation
         message_log.add_message(
-            f"GLAIVEMAN uses Pry on {target.type.name}!",
+            f"{user.get_display_name()} uses Pry on {target.get_display_name()}!",
             MessageType.ABILITY,
             player=user.player
         )
@@ -732,7 +732,7 @@ class PrySkill(ActiveSkill):
         # Check if target was defeated
         if target.hp <= 0:
             message_log.add_message(
-                f"Player {target.player}'s {target.type.name} perishes!",
+                f"Player {target.player}'s {target.get_display_name()} perishes!",
                 MessageType.COMBAT,
                 player=user.player,
                 target=target.player
@@ -1020,7 +1020,7 @@ class VaultSkill(ActiveSkill):
             
         # Log the skill activation
         message_log.add_message(
-            f"GLAIVEMAN uses Vault!",
+            f"{user.get_display_name()} uses Vault!",
             MessageType.ABILITY,
             player=user.player
         )
@@ -1073,7 +1073,7 @@ class VaultSkill(ActiveSkill):
         
         # Log the movement
         message_log.add_message(
-            f"GLAIVEMAN vaults from ({original_y},{original_x}) to ({target_pos[0]},{target_pos[1]})!",
+            f"{user.get_display_name()} vaults from ({original_y},{original_x}) to ({target_pos[0]},{target_pos[1]})!",
             MessageType.ABILITY,
             player=user.player
         )
@@ -1247,7 +1247,7 @@ class JudgementThrowSkill(ActiveSkill):
             
         # Log the skill activation
         message_log.add_message(
-            f"GLAIVEMAN throws sacred glaive at {target.type.name}!",
+            f"{user.get_display_name()} throws sacred glaive at {target.get_display_name()}!",
             MessageType.ABILITY,
             player=user.player
         )
@@ -1345,8 +1345,8 @@ class JudgementThrowSkill(ActiveSkill):
         # Log the damage with critical indication
         if is_critical:
             message_log.add_combat_message(
-                attacker_name=f"{user.type.name}",
-                target_name=f"{target.type.name}",
+                attacker_name=user.get_display_name(),
+                target_name=target.get_display_name(),
                 damage=damage,
                 ability="Judgement Throw (CRITICAL)",
                 attacker_player=user.player,
@@ -1360,8 +1360,8 @@ class JudgementThrowSkill(ActiveSkill):
             )
         else:
             message_log.add_combat_message(
-                attacker_name=f"{user.type.name}",
-                target_name=f"{target.type.name}",
+                attacker_name=user.get_display_name(),
+                target_name=target.get_display_name(),
                 damage=damage,
                 ability="Judgement Throw",
                 attacker_player=user.player,
@@ -1388,7 +1388,7 @@ class JudgementThrowSkill(ActiveSkill):
         # Check if target was defeated
         if target.hp <= 0:
             message_log.add_message(
-                f"Player {target.player}'s {target.type.name} perishes!",
+                f"Player {target.player}'s {target.get_display_name()} perishes!",
                 MessageType.COMBAT,
                 player=user.player,
                 target=target.player
