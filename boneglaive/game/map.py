@@ -82,16 +82,11 @@ class LimeFoyerMap(GameMap):
         # Reset to empty first
         self.reset_to_empty()
         
-        # Large limestone powder piles (block movement)
-        limestone_piles = [
-            (1, 2), (1, 3), (1, 16), (1, 17),  # Top edge piles
-            (2, 1), (2, 18),                    # Side piles
-            (4, 0), (6, 19),                    # More side piles
-            (6, 2), (7, 3),                     # Left side piles
-            (9, 0), (9, 1), (9, 13), (9, 15)    # Bottom piles
-        ]
-        for y, x in limestone_piles:
-            self.set_terrain_at(y, x, TerrainType.LIMESTONE)
+        # Add strategically placed furniture
+        
+        # Entry vestibule furniture
+        self.set_terrain_at(1, 1, TerrainType.FURNITURE)   # Corner plant (entrance decor)
+        self.set_terrain_at(1, 18, TerrainType.FURNITURE)  # Corner plant (entrance decor)
         
         # Top round pillar (3x3)
         pillar_top = [
@@ -111,51 +106,63 @@ class LimeFoyerMap(GameMap):
         for y, x in pillar_bottom:
             self.set_terrain_at(y, x, TerrainType.PILLAR)
         
-        # Furniture pieces
-        # Coat racks
-        self.set_terrain_at(0, 5, TerrainType.COAT_RACK)  # Left coat rack
-        self.set_terrain_at(0, 14, TerrainType.COAT_RACK) # Right coat rack
+        # Logical furniture arrangement for a foyer
         
-        # Console table
-        self.set_terrain_at(4, 3, TerrainType.CONSOLE)  # Entry console
+        # Coat racks near entrance
+        self.set_terrain_at(0, 4, TerrainType.COAT_RACK)  # Left coat rack for visitors
+        self.set_terrain_at(0, 15, TerrainType.COAT_RACK) # Right coat rack for visitors
         
-        # Benches/Ottomans
-        self.set_terrain_at(5, 13, TerrainType.BENCH) # Middle bench
-        self.set_terrain_at(8, 13, TerrainType.BENCH) # Bottom bench
+        # Reception/check-in area
+        self.set_terrain_at(2, 4, TerrainType.CONSOLE)    # Reception desk
+        self.set_terrain_at(2, 5, TerrainType.FURNITURE)  # Reception chair
         
-        # Decorative tables
-        self.set_terrain_at(0, 10, TerrainType.DEC_TABLE) # Top table
-        self.set_terrain_at(4, 16, TerrainType.DEC_TABLE) # Right table
+        # Main waiting area (centered in open space)
+        self.set_terrain_at(4, 15, TerrainType.BENCH)     # Right waiting bench
+        self.set_terrain_at(5, 15, TerrainType.BENCH)     # Right waiting bench extension
+        self.set_terrain_at(4, 4, TerrainType.BENCH)      # Left waiting bench
+        self.set_terrain_at(5, 4, TerrainType.BENCH)      # Left waiting bench extension
+        
+        # Center coffee/magazine tables
+        self.set_terrain_at(4, 3, TerrainType.DEC_TABLE)  # Side table by bench
+        self.set_terrain_at(4, 16, TerrainType.DEC_TABLE) # Side table by bench
+        
+        # Lower seating area (near second pillar)
+        self.set_terrain_at(8, 4, TerrainType.BENCH)      # Lower lobby bench
+        self.set_terrain_at(8, 15, TerrainType.BENCH)     # Lower lobby bench opposite
+        
+        # Decorative elements
+        self.set_terrain_at(6, 5, TerrainType.FURNITURE)  # Plant between seating areas
+        self.set_terrain_at(6, 14, TerrainType.FURNITURE) # Plant between seating areas
         
         # Light limestone dustings (windswept patterns)
         # This is a partial list - approximately 50% of tiles will have dust
         dust_patterns = [
             # Top row dust
-            (0, 0), (0, 1), (0, 2), (0, 3), (0, 6), (0, 7), (0, 15), (0, 16), (0, 17), (0, 18), (0, 19),
+            (0, 0), (0, 1), (0, 3), (0, 4), (0, 6), (0, 7), (0, 8), (0, 9), (0, 11), (0, 12), (0, 13), (0, 15), (0, 16), (0, 18), (0, 19),
             
             # Second row dust
-            (1, 0), (1, 1), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (1, 11), (1, 12), (1, 19),
+            (1, 0), (1, 1), (1, 4), (1, 5), (1, 6), (1, 8), (1, 9), (1, 10), (1, 11), (1, 12), (1, 13), (1, 14), (1, 15), (1, 19),
             
             # Third row dust
-            (2, 0), (2, 2), (2, 3), (2, 6), (2, 10), (2, 11), (2, 12), (2, 14), (2, 15), (2, 17), (2, 19),
+            (2, 0), (2, 2), (2, 3), (2, 4), (2, 5), (2, 6), (2, 10), (2, 11), (2, 12), (2, 13), (2, 15), (2, 16), (2, 17), (2, 19),
             
             # Fourth row dust
-            (3, 0), (3, 1), (3, 4), (3, 10), (3, 11), (3, 12), (3, 13), (3, 17), (3, 18),
+            (3, 0), (3, 1), (3, 4), (3, 5), (3, 6), (3, 10), (3, 11), (3, 12), (3, 14), (3, 15), (3, 17), (3, 18), (3, 19),
             
             # Fifth row dust
-            (4, 1), (4, 2), (4, 4), (4, 10), (4, 11), (4, 12), (4, 13), (4, 14), (4, 15), (4, 17), (4, 18),
+            (4, 1), (4, 2), (4, 4), (4, 5), (4, 6), (4, 10), (4, 11), (4, 12), (4, 13), (4, 14), (4, 15), (4, 17), (4, 18), (4, 19),
             
             # Sixth row dust
-            (5, 0), (5, 1), (5, 2), (5, 3), (5, 4), (5, 5), (5, 7), (5, 8), (5, 14), (5, 15), (5, 16), (5, 17), (5, 18),
+            (5, 0), (5, 1), (5, 3), (5, 5), (5, 6), (5, 7), (5, 8), (5, 9), (5, 11), (5, 12), (5, 14), (5, 15), (5, 16), (5, 17), (5, 18), (5, 19),
             
             # Seventh row dust
-            (6, 0), (6, 3), (6, 7), (6, 8), (6, 9), (6, 10), (6, 15), (6, 16), (6, 17), (6, 18),
+            (6, 0), (6, 1), (6, 3), (6, 4), (6, 5), (6, 6), (6, 7), (6, 8), (6, 9), (6, 11), (6, 12), (6, 13), (6, 14), (6, 17), (6, 18),
             
             # Eighth row dust
-            (7, 0), (7, 1), (7, 2), (7, 4), (7, 5), (7, 12), (7, 13), (7, 14), (7, 15), (7, 16), (7, 17), (7, 18), (7, 19),
+            (7, 0), (7, 1), (7, 2), (7, 4), (7, 5), (7, 6), (7, 12), (7, 13), (7, 14), (7, 15), (7, 17), (7, 18), (7, 19),
             
             # Ninth row dust
-            (8, 0), (8, 1), (8, 2), (8, 3), (8, 4), (8, 5), (8, 12), (8, 14), (8, 15), (8, 16), (8, 17), (8, 18), (8, 19),
+            (8, 0), (8, 1), (8, 2), (8, 4), (8, 5), (8, 6), (8, 12), (8, 14), (8, 15), (8, 16), (8, 17), (8, 18), (8, 19),
             
             # Bottom row dust
             (9, 2), (9, 3), (9, 4), (9, 5), (9, 6), (9, 12), (9, 14), (9, 16), (9, 17), (9, 18), (9, 19)
