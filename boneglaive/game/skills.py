@@ -503,12 +503,7 @@ class PrySkill(ActiveSkill):
                 player=user.player
             )
             
-            # Log that the target couldn't be moved
-            message_log.add_message(
-                f"{target.type.name} is braced against terrain and cannot be displaced!",
-                MessageType.ABILITY,
-                player=user.player
-            )
+            # No need for a message about being braced against terrain - it's implied
             
             # Show collision animation at the target's current position
             if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
