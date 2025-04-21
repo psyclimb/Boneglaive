@@ -674,14 +674,15 @@ class CursorManager(UIComponent):
                 unit_at_pos = self.game_ui.game.get_unit_at(y, x)
                 if unit_at_pos:
                     # Show information about enemy unit
-                    unit_info = f"Enemy {unit_at_pos.type.name} (Player {unit_at_pos.player}): {unit_at_pos.hp}/{unit_at_pos.max_hp} HP"
+                    unit_info = f"Player {unit_at_pos.player}'s {unit_at_pos.type.name} - HP: {unit_at_pos.hp}/{unit_at_pos.max_hp}"
                     
                     # Send message through event system
                     self.publish_event(
                         EventType.MESSAGE_DISPLAY_REQUESTED,
                         MessageDisplayEventData(
                             message=unit_info,
-                            message_type=MessageType.SYSTEM
+                            message_type=MessageType.SYSTEM,
+                            log_message=False  # Don't add to message log
                         )
                     )
                 else:
@@ -694,7 +695,8 @@ class CursorManager(UIComponent):
                         EventType.MESSAGE_DISPLAY_REQUESTED,
                         MessageDisplayEventData(
                             message=f"Tile: {terrain_name}",
-                            message_type=MessageType.SYSTEM
+                            message_type=MessageType.SYSTEM,
+                            log_message=False  # Don't add to message log
                         )
                     )
                 
