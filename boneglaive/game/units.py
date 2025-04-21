@@ -43,6 +43,9 @@ class Unit:
         self.skill_target = None
         self.selected_skill = None
         
+        # Action order tracking (lower is earlier)
+        self.action_timestamp = 0
+        
         # Status effects
         self.was_pried = False  # Track if this unit was affected by Pry skill
         
@@ -162,6 +165,7 @@ class Unit:
         self.attack_target = None
         self.skill_target = None
         self.selected_skill = None
+        self.action_timestamp = 0  # Reset the action timestamp
         
     def reset_movement_penalty(self) -> None:
         """Clear any movement penalties and reset the Pry status."""

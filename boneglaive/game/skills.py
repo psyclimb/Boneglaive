@@ -412,6 +412,11 @@ class PrySkill(ActiveSkill):
         user.skill_target = target_pos
         user.selected_skill = self
         
+        # Track action order (assumes the Game instance is passed)
+        if game:
+            user.action_timestamp = game.action_counter
+            game.action_counter += 1
+        
         # Set cooldown - done immediately when queuing up the action
         self.current_cooldown = self.cooldown
         
@@ -962,6 +967,11 @@ class VaultSkill(ActiveSkill):
         user.skill_target = target_pos
         user.selected_skill = self
         
+        # Track action order (assumes the Game instance is passed)
+        if game:
+            user.action_timestamp = game.action_counter
+            game.action_counter += 1
+        
         # Set cooldown immediately when queuing up the action
         self.current_cooldown = self.cooldown
         
@@ -1169,6 +1179,11 @@ class JudgementThrowSkill(ActiveSkill):
         # Set the skill target
         user.skill_target = target_pos
         user.selected_skill = self
+        
+        # Track action order (assumes the Game instance is passed)
+        if game:
+            user.action_timestamp = game.action_counter
+            game.action_counter += 1
         
         # Set cooldown explicitly - done immediately when queuing up the action
         self.current_cooldown = self.cooldown

@@ -18,6 +18,9 @@ class Game:
         self.test_mode = False  # For debugging
         self.local_multiplayer = False
         
+        # Action ordering
+        self.action_counter = 0  # Track order of unit actions
+        
         # Create the game map
         self.map = MapFactory.create_map(map_name)
         self.map_name = map_name  # Store current map name
@@ -52,6 +55,7 @@ class Game:
             self.current_player = 1
             self.turn = 1
             self.winner = None
+            self.action_counter = 0  # Reset action counter
             
             # Start in setup phase
             self.setup_phase = True
@@ -424,79 +428,70 @@ class Game:
             
         logger.info(f"Executing turn {self.turn} for player {self.current_player}")
         
-        # Track units that will move and units that will attack or use skills
-        moving_units = []
-        attacking_units = []
-        skill_using_units = []
+        # Create a single list of units with actions, ordered by timestamp
+        units_with_actions = []
         
         # Identify units with actions
         for unit in self.units:
             if not unit.is_alive():
                 continue
                 
+            if unit.move_target or unit.attack_target or (unit.skill_target and unit.selected_skill):
+                units_with_actions.append(unit)
+        
+        # Sort units by action timestamp (lower numbers = earlier actions)
+        units_with_actions.sort(key=lambda unit: unit.action_timestamp)
+        
+        logger.info(f"Executing {len(units_with_actions)} actions in timestamp order")
+        
+        # Display starting message if we have actions and UI
+        if units_with_actions and ui:
+            message_log.add_system_message("Executing actions in order...")
+            ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+            time.sleep(0.5)  # Short delay before actions start
+        
+        # Process each unit's actions in timestamp order
+        for unit in units_with_actions:
+            # Log the unit and its action
+            logger.debug(f"Processing unit {unit.type.name} with timestamp {unit.action_timestamp}")
+        
+            # EXECUTE MOVE if unit has a move target
             if unit.move_target:
-                moving_units.append(unit)
-                
-            if unit.attack_target:
-                attacking_units.append(unit)
-                
-            if unit.skill_target and unit.selected_skill:
-                skill_using_units.append(unit)
-        
-        # PHASE 1: Execute and animate all movements
-        if moving_units and ui:
-            message_log.add_system_message("Units moving...")
-            ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)  # Hide UI elements during animation
-            time.sleep(0.5)  # Short delay before movements start
-            
-        for unit in moving_units:
-            y, x = unit.move_target
-            if self.can_move_to(unit, y, x):  # Double-check the move is still valid
-                logger.debug(f"Moving {unit.type.name} from ({unit.y},{unit.x}) to ({y},{x})")
-                
-                # Show movement animation if UI is provided
-                if ui:
-                    # Save original position
-                    start_y, start_x = unit.y, unit.x
+                y, x = unit.move_target
+                if self.can_move_to(unit, y, x):  # Double-check the move is still valid
+                    logger.debug(f"Moving {unit.type.name} from ({unit.y},{unit.x}) to ({y},{x})")
                     
-                    # Update unit position
-                    unit.y, unit.x = y, x
-                    
-                    # Redraw to show unit in new position without UI elements during animation
-                    ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-                    
-                    # Log movement
-                    message_log.add_message(
-                        f"{unit.type.name} moved from ({start_y},{start_x}) to ({y},{x})",
-                        MessageType.MOVEMENT,
-                        player=unit.player
-                    )
-                    time.sleep(0.3)  # Short delay after each unit moves
+                    # Show movement animation if UI is provided
+                    if ui:
+                        # Save original position
+                        start_y, start_x = unit.y, unit.x
+                        
+                        # Update unit position
+                        unit.y, unit.x = y, x
+                        
+                        # Redraw to show unit in new position without UI elements during animation
+                        ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+                        
+                        # Log movement
+                        message_log.add_message(
+                            f"{unit.type.name} moved from ({start_y},{start_x}) to ({y},{x})",
+                            MessageType.MOVEMENT,
+                            player=unit.player
+                        )
+                        time.sleep(0.3)  # Short delay after each unit moves
+                    else:
+                        # Without UI, just update position
+                        unit.y, unit.x = y, x
                 else:
-                    # Without UI, just update position
-                    unit.y, unit.x = y, x
-            else:
-                logger.warning(f"Invalid move target ({y},{x}) for unit at ({unit.y},{unit.x})")
-        
-        # After all movements, pause to show the new board state
-        has_actions_after_movement = (attacking_units or skill_using_units)
-        if moving_units and has_actions_after_movement and ui:
-            time.sleep(1.0)  # Longer delay between movement and attack/skill phases
-            message_log.add_system_message("Executing attacks and skills...")
-            ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)  # Hide UI elements during animation transition
-            time.sleep(0.5)  # Short delay before attacks/skills start
-        
-        # PHASE 2: Execute all attacks
-        for unit in attacking_units:
-            if not unit.is_alive():
-                continue
+                    logger.warning(f"Invalid move target ({y},{x}) for unit at ({unit.y},{unit.x})")
             
+            # EXECUTE ATTACK if unit has an attack target
             if unit.attack_target:
                 y, x = unit.attack_target
                 target = self.get_unit_at(y, x)
                 
                 # Calculate attacking position (either unit's current position or move target)
-                attacking_pos = unit.move_target if unit.move_target else (unit.y, unit.x)
+                attacking_pos = (unit.y, unit.x)  # Unit's position is already updated if it moved
                 
                 # Verify attack is within range from the attacking position
                 attack_distance = self.chess_distance(attacking_pos[0], attacking_pos[1], y, x)
@@ -577,12 +572,12 @@ class Game:
                         logger.warning(f"Attack failed: target out of range (distance={attack_distance}, range={unit.attack_range})")
                     else:
                         logger.warning(f"Attack failed: unknown reason")
-        
-        # PHASE 3: Execute all skills
-        for unit in skill_using_units:
-            if not unit.is_alive():
-                continue
                 
+                # Add a slight pause between actions for a unit
+                if ui:
+                    time.sleep(0.3)
+            
+            # EXECUTE SKILL if unit has a skill target
             if unit.skill_target and unit.selected_skill:
                 # Execute the skill
                 skill = unit.selected_skill
@@ -593,6 +588,14 @@ class Game:
                     skill.execute(unit, target_pos, self, ui)
                 else:
                     logger.warning(f"Skill {skill.name} has no execute method")
+                
+                # Add a slight pause after the skill
+                if ui:
+                    time.sleep(0.3)
+            
+            # Add a slight pause between units' actions
+            if ui:
+                time.sleep(0.5)
         
         # Clear all actions and update skill cooldowns
         for unit in self.units:
