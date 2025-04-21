@@ -654,51 +654,35 @@ class CursorManager(UIComponent):
         
         if not unit or not self.can_select_unit(unit):
             if unit:
+                # Show information about enemy unit instead of selection error
+                unit_info = f"Player {unit.player}'s {unit.type.name} - HP: {unit.hp}/{unit.max_hp}"
+                
                 # Send message through event system
                 self.publish_event(
                     EventType.MESSAGE_DISPLAY_REQUESTED,
                     MessageDisplayEventData(
-                        message=f"Cannot select {unit.type.name} - belongs to Player {unit.player}",
-                        message_type=MessageType.WARNING
+                        message=unit_info,
+                        message_type=MessageType.SYSTEM,
+                        log_message=False  # Don't add to message log
                     )
-                )
-                message_log.add_message(
-                    f"Cannot select {unit.type.name} - belongs to Player {unit.player}", 
-                    MessageType.WARNING
                 )
             else:
                 # Get information about what's at this position
                 y, x = self.cursor_pos.y, self.cursor_pos.x
                 
-                # Check if there's an enemy unit
-                unit_at_pos = self.game_ui.game.get_unit_at(y, x)
-                if unit_at_pos:
-                    # Show information about enemy unit
-                    unit_info = f"Player {unit_at_pos.player}'s {unit_at_pos.type.name} - HP: {unit_at_pos.hp}/{unit_at_pos.max_hp}"
-                    
-                    # Send message through event system
-                    self.publish_event(
-                        EventType.MESSAGE_DISPLAY_REQUESTED,
-                        MessageDisplayEventData(
-                            message=unit_info,
-                            message_type=MessageType.SYSTEM,
-                            log_message=False  # Don't add to message log
-                        )
+                # Check terrain type - we don't need to check for units again since that's handled in the 'if unit:' case above
+                terrain = self.game_ui.game.map.get_terrain_at(y, x)
+                terrain_name = terrain.name.lower().replace('_', ' ')
+                
+                # Send message through event system
+                self.publish_event(
+                    EventType.MESSAGE_DISPLAY_REQUESTED,
+                    MessageDisplayEventData(
+                        message=f"Tile: {terrain_name}",
+                        message_type=MessageType.SYSTEM,
+                        log_message=False  # Don't add to message log
                     )
-                else:
-                    # Check terrain type
-                    terrain = self.game_ui.game.map.get_terrain_at(y, x)
-                    terrain_name = terrain.name.lower().replace('_', ' ')
-                    
-                    # Send message through event system
-                    self.publish_event(
-                        EventType.MESSAGE_DISPLAY_REQUESTED,
-                        MessageDisplayEventData(
-                            message=f"Tile: {terrain_name}",
-                            message_type=MessageType.SYSTEM,
-                            log_message=False  # Don't add to message log
-                        )
-                    )
+                )
                 
                 # No message in log - this is just UI feedback
             return False
