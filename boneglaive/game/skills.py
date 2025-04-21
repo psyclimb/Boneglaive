@@ -270,10 +270,11 @@ class Autoclave(PassiveSkill):
                     # Check if target was defeated
                     if target.hp <= 0:
                         message_log.add_message(
-                            f"Player {target.player}'s {target.get_display_name()} perishes!",
+                            f"{target.get_display_name()} perishes!",
                             MessageType.COMBAT,
                             player=user.player,
-                            target=target.player
+                            target=target.player,
+                            target_name=target.get_display_name()
                         )
             
             # Store targets for animation
@@ -424,7 +425,9 @@ class PrySkill(ActiveSkill):
         message_log.add_message(
             f"{user.get_display_name()} readies Pry against {target.get_display_name()}!",
             MessageType.ABILITY,
-            player=user.player
+            player=user.player,
+            attacker_name=user.get_display_name(),
+            target_name=target.get_display_name()
         )
         
         return True
@@ -456,7 +459,9 @@ class PrySkill(ActiveSkill):
             message_log.add_message(
                 f"{user.get_display_name()} uses Pry on {target.get_display_name()}!",
                 MessageType.ABILITY,
-                player=user.player
+                player=user.player,
+                attacker_name=user.get_display_name(),
+                target_name=target.get_display_name()
             )
             
             # Play animation if UI is available
@@ -504,9 +509,10 @@ class PrySkill(ActiveSkill):
             
             # Log the movement reduction
             message_log.add_message(
-                f"{target.type.name}'s movement reduced by 1 for next turn!",
+                f"{target.get_display_name()}'s movement reduced by 1 for next turn!",
                 MessageType.ABILITY,
-                player=user.player
+                player=user.player,
+                target_name=target.get_display_name()
             )
             
             # No need for a message about being braced against terrain - it's implied
@@ -570,7 +576,9 @@ class PrySkill(ActiveSkill):
         message_log.add_message(
             f"{user.get_display_name()} uses Pry on {target.get_display_name()}!",
             MessageType.ABILITY,
-            player=user.player
+            player=user.player,
+            attacker_name=user.get_display_name(),
+            target_name=target.get_display_name()
         )
         
         # Play animation if UI is available
@@ -645,7 +653,8 @@ class PrySkill(ActiveSkill):
             message_log.add_message(
                 f"{target.get_display_name()} displaced from ({original_y},{original_x}) to ({best_pos[0]},{best_pos[1]})!",
                 MessageType.ABILITY,
-                player=user.player
+                player=user.player,
+                target_name=target.get_display_name()
             )
         
         # Animate the displacement if UI is available
@@ -732,10 +741,11 @@ class PrySkill(ActiveSkill):
         # Check if target was defeated
         if target.hp <= 0:
             message_log.add_message(
-                f"Player {target.player}'s {target.get_display_name()} perishes!",
+                f"{target.get_display_name()} perishes!",
                 MessageType.COMBAT,
                 player=user.player,
-                target=target.player
+                target=target.player,
+                target_name=target.get_display_name()
             )
             
         return True
@@ -1388,10 +1398,11 @@ class JudgementThrowSkill(ActiveSkill):
         # Check if target was defeated
         if target.hp <= 0:
             message_log.add_message(
-                f"Player {target.player}'s {target.get_display_name()} perishes!",
+                f"{target.get_display_name()} perishes!",
                 MessageType.COMBAT,
                 player=user.player,
-                target=target.player
+                target=target.player,
+                target_name=target.get_display_name()
             )
             
         return True

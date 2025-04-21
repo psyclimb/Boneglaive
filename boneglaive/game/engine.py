@@ -526,7 +526,9 @@ class Game:
                         message_log.add_message(
                             f"{unit.get_display_name()} moved from ({start_y},{start_x}) to ({y},{x})",
                             MessageType.MOVEMENT,
-                            player=unit.player
+                            player=unit.player,
+                            # Include unit name for coloring
+                            attacker_name=unit.get_display_name()
                         )
                         time.sleep(0.3)  # Short delay after each unit moves
                     else:
@@ -587,24 +589,26 @@ class Game:
                         target_player=target.player
                     )
                     
-                    # Format unit name with player info
-                    target_info = f"Player {target.player}'s {target.get_display_name()}" if target.player else target.get_display_name()
-                    
+                    # No need to format with player info anymore - just use the unit's display name
                     # Check if target was defeated
                     if target.hp <= 0:
                         message_log.add_message(
-                            f"{target_info} perishes!",
+                            f"{target.get_display_name()} perishes!",
                             MessageType.COMBAT,
                             player=unit.player,
-                            target=target.player
+                            target=target.player,
+                            # Store unit names explicitly to help with coloring
+                            target_name=target.get_display_name()
                         )
                     # Check if target just entered critical health
                     elif previous_hp > critical_threshold and target.hp <= critical_threshold:
                         message_log.add_message(
-                            f"{target_info} wretches!",
+                            f"{target.get_display_name()} wretches!",
                             MessageType.COMBAT,
                             player=unit.player,
-                            target=target.player
+                            target=target.player,
+                            # Store unit names explicitly to help with coloring
+                            target_name=target.get_display_name()
                         )
                         
                         # Check if target is a GLAIVEMAN and has the Autoclave passive
