@@ -198,8 +198,8 @@ class GameOverEventData(EventData):
 
 class MessageDisplayEventData(EventData):
     """Data for MESSAGE_DISPLAY_REQUESTED events."""
-    def __init__(self, message, message_type=None):
-        super().__init__(message=message, message_type=message_type)
+    def __init__(self, message, message_type=None, log_message=True):
+        super().__init__(message=message, message_type=message_type, log_message=log_message)
 
 
 class UIRedrawEventData(EventData):

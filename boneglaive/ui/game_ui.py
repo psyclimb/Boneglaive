@@ -166,8 +166,9 @@ class GameUI:
         # Update the message display
         self.message = event_data.message
         
-        # If message type is provided, also add to message log
-        if hasattr(event_data, 'message_type') and event_data.message_type is not None:
+        # If message type is provided and log_message is not explicitly set to False, add to message log
+        if (hasattr(event_data, 'message_type') and event_data.message_type is not None and
+            not (hasattr(event_data, 'log_message') and event_data.log_message is False)):
             message_log.add_message(event_data.message, event_data.message_type)
     
     def update_player_message(self):
