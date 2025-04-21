@@ -1497,25 +1497,225 @@ class Viceroy(PassiveSkill):
     """
     Passive skill for MANDIBLE_FOREMAN.
     When the MANDIBLE FOREMAN attacks a unit, they are trapped in his mechanical jaws.
-    The trapped unit's move value is reduce to 0 and they cannot activate skills as long as they are trapped.
-    The MANDIBLE FOREMAN applies attack damage to the trapped unit at the start of every combat phase.
-    If the MANDIBLE FOREMAN discharges, perishes, moves, or performs any other action, the trapped effect on the unit ends.
+    The trapped unit cannot move and takes damage each turn.
+    The trap is released when the MANDIBLE FOREMAN takes any action or is defeated.
     """
     
     def __init__(self):
         super().__init__(
             name="Viceroy",
             key="V",
-            description="When attacking, traps the enemy unit in mechanical jaws. Trapped units cannot move or use skills and take damage each turn. Effect ends if the FOREMAN does any action or perishes."
+            description="When attacking, traps the enemy unit in mechanical jaws. Trapped units cannot move and take damage each turn. Effect ends if the FOREMAN takes an action or is defeated."
         )
-        self.trapped_unit = None  # Track the currently trapped unit
     
     def apply_passive(self, user: 'Unit', game: Optional['Game'] = None) -> None:
         """
-        Placeholder for Viceroy passive effect.
-        Full implementation to be added later.
+        Apply the Viceroy passive effect.
+        The actual trap mechanics are handled by the Game engine.
         """
-        pass  # Will be implemented later
+        # No passive work needed here - trapping happens on attack in Game.process_turn
+        # and releasing happens in Game.process_turn_end
+        pass
+
+
+class RecalibrateSkill(ActiveSkill):
+    """
+    Active skill for MANDIBLE_FOREMAN.
+    The FOREMAN adjusts his mechanical jaws, increasing his attack value for 2 turns.
+    If a unit is trapped, also applies a defensive debuff to them.
+    """
+    
+    def __init__(self):
+        super().__init__(
+            name="Recalibrate",
+            key="R",
+            description="Adjust mechanical jaws for +2 attack for 2 turns. If a unit is trapped, also applies -1 defense to them.",
+            target_type=TargetType.SELF,
+            cooldown=3,
+            range_=0  # Self-targeted skill
+        )
+        self.attack_bonus = 2
+        self.defense_debuff = -1
+        self.duration = 2  # Effect lasts for 2 turns
+        self.turns_remaining = 0  # Track remaining duration
+        
+    def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        """Check if Recalibrate can be used."""
+        # Basic cooldown and validation check
+        if not super().can_use(user, target_pos, game):
+            return False
+            
+        # Always usable as a self-buff, no further restrictions
+        return True
+        
+    def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        """Queue up Recalibrate for execution."""
+        from boneglaive.utils.message_log import message_log, MessageType
+        
+        # Validate skill use conditions
+        if not self.can_use(user, target_pos, game):
+            return False
+        
+        # Set the skill target (for self-targeted skills, we still need this for the action system)
+        user.skill_target = (user.y, user.x)  # Target self
+        user.selected_skill = self
+        
+        # Track action order
+        if game:
+            user.action_timestamp = game.action_counter
+            game.action_counter += 1
+        
+        # Set cooldown when queuing the action
+        self.current_cooldown = self.cooldown
+        
+        # Log that the skill has been queued
+        message_log.add_message(
+            f"{user.get_display_name()} prepares to recalibrate mechanical jaws!",
+            MessageType.ABILITY,
+            player=user.player,
+            attacker_name=user.get_display_name()
+        )
+        
+        return True
+        
+    def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
+        """Execute the Recalibrate skill."""
+        from boneglaive.utils.message_log import message_log, MessageType
+        import time
+        
+        # Handle existing effect if it's still active
+        if self.turns_remaining > 0:
+            # Remove existing effect before applying a new one
+            user.attack_bonus -= self.attack_bonus
+            
+            # If we had a trapped unit with defense debuff, remove it
+            if hasattr(user, 'passive_skill') and user.passive_skill and \
+               hasattr(user.passive_skill, 'trapped_unit') and user.passive_skill.trapped_unit:
+                user.passive_skill.trapped_unit.defense_bonus -= self.defense_debuff
+        
+        # Apply the attack bonus to the user
+        user.attack_bonus += self.attack_bonus
+        
+        # Reset the duration
+        self.turns_remaining = self.duration
+        
+        # Log main effect activation
+        message_log.add_message(
+            f"{user.get_display_name()} recalibrates mechanical jaws, gaining +{self.attack_bonus} attack for {self.duration} turns!",
+            MessageType.ABILITY,
+            player=user.player,
+            attacker_name=user.get_display_name()
+        )
+        
+        # Check if a unit is trapped in the jaws and apply defense debuff if so
+        if hasattr(user, 'passive_skill') and user.passive_skill and \
+           hasattr(user.passive_skill, 'trapped_unit') and user.passive_skill.trapped_unit:
+            trapped_unit = user.passive_skill.trapped_unit
+            
+            # Apply defense debuff
+            trapped_unit.defense_bonus += self.defense_debuff
+            
+            # Log secondary effect
+            message_log.add_message(
+                f"Jaws tighten on {trapped_unit.get_display_name()}, reducing defense by {abs(self.defense_debuff)}!",
+                MessageType.ABILITY,
+                player=user.player,
+                attacker_name=user.get_display_name(),
+                target_name=trapped_unit.get_display_name()
+            )
+        
+        # Play animation if UI is available
+        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+            # Get animation sequence for Recalibrate
+            animation_sequence = ui.asset_manager.get_skill_animation_sequence('recalibrate')
+            if not animation_sequence:
+                # Default animation if not defined
+                animation_sequence = ['<', '≡', '>', '≡', '<', '≡', '>']
+            
+            # Show animation at user's position
+            ui.renderer.animate_attack_sequence(
+                user.y, user.x,
+                animation_sequence,
+                7,  # color ID
+                0.2  # duration
+            )
+            
+            # Add visual indicator for the attack bonus
+            import curses
+            
+            # Show attack bonus indicator
+            bonus_text = f"+{self.attack_bonus} ATK"
+            
+            # Make the text more prominent
+            for i in range(3):
+                # First clear the area
+                ui.renderer.draw_text(user.y-1, user.x*2, " " * len(bonus_text), 7)
+                # Draw with alternating bold/normal for a flashing effect
+                attrs = curses.A_BOLD if i % 2 == 0 else 0
+                ui.renderer.draw_text(user.y-1, user.x*2, bonus_text, 2, attrs)  # Green color
+                ui.renderer.refresh()
+                time.sleep(0.1)
+            
+            # If a unit is trapped, also show defense debuff animation
+            if hasattr(user, 'passive_skill') and user.passive_skill and \
+               hasattr(user.passive_skill, 'trapped_unit') and user.passive_skill.trapped_unit:
+                trapped_unit = user.passive_skill.trapped_unit
+                
+                # Get animation for jaws tightening
+                jaw_animation = ui.asset_manager.get_skill_animation_sequence('jaws_tighten')
+                if not jaw_animation:
+                    jaw_animation = ['[', ']', '{', '}', '⟨', '⟩', '(', ')']
+                
+                # Show animation at trapped unit's position
+                ui.renderer.animate_attack_sequence(
+                    trapped_unit.y, trapped_unit.x,
+                    jaw_animation,
+                    5,  # Color ID (red/yellow)
+                    0.2  # duration
+                )
+                
+                # Show defense debuff indicator
+                debuff_text = f"{self.defense_debuff} DEF"
+                
+                # Make the text more prominent
+                for i in range(3):
+                    # First clear the area
+                    ui.renderer.draw_text(trapped_unit.y-1, trapped_unit.x*2, " " * len(debuff_text), 7)
+                    # Draw with alternating bold/normal for a flashing effect
+                    attrs = curses.A_BOLD if i % 2 == 0 else 0
+                    ui.renderer.draw_text(trapped_unit.y-1, trapped_unit.x*2, debuff_text, 5, attrs)  # Red color
+                    ui.renderer.refresh()
+                    time.sleep(0.1)
+        
+        return True
+    
+    def tick_cooldown(self) -> None:
+        """
+        Reduce cooldown by 1 and handle effect duration.
+        This is called at the end of each turn.
+        """
+        # First do normal cooldown tick
+        super().tick_cooldown()
+        
+        # Also track duration of the effect
+        if self.turns_remaining > 0:
+            self.turns_remaining -= 1
+            
+            # If effect just expired, remove bonuses
+            if self.turns_remaining == 0:
+                # Find the user of this skill to remove their bonus
+                # This requires tracking the owner of this skill
+                from boneglaive.utils.event_system import get_event_manager, EventType, EffectExpiredEventData
+                
+                # Publish an event that the effect expired
+                event_manager = get_event_manager()
+                event_manager.publish(
+                    EventType.EFFECT_EXPIRED,
+                    EffectExpiredEventData(skill_name=self.name)
+                )
+                
+                # The Game class will handle this event and remove the bonus
+                # We can't directly access the user here, so we use the event system
 
 # Skill Registry - maps unit types to their skills
 UNIT_SKILLS = {
