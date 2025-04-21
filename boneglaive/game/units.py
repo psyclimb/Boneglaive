@@ -135,14 +135,10 @@ class Unit:
         """
         Add XP to the unit and level up if threshold reached.
         Returns True if unit leveled up.
-        """
-        self.xp += amount
         
-        # Check if we should level up
-        if self.level < MAX_LEVEL and self.xp >= XP_PER_LEVEL[self.level]:
-            self.level_up()
-            return True
-            
+        Note: Currently disabled - no XP gain will occur.
+        """
+        # XP gain is temporarily disabled
         return False
     
     def level_up(self) -> None:
