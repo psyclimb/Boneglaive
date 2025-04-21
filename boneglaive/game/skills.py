@@ -387,10 +387,9 @@ class PrySkill(ActiveSkill):
         if distance > self.range:
             return False
             
-        # Check if there's at least one valid displacement position
-        if not self._get_displacement_positions(user, target, game):
-            return False
-            
+        # Remove the displacement position check - allow using Pry even if unit can't be moved
+        # The execute method will handle the case where there are no valid displacement positions
+        # by applying damage and movement penalty without displacement
         return True
         
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
