@@ -667,15 +667,38 @@ class CursorManager(UIComponent):
                     MessageType.WARNING
                 )
             else:
-                # Send message through event system
-                self.publish_event(
-                    EventType.MESSAGE_DISPLAY_REQUESTED,
-                    MessageDisplayEventData(
-                        message="No unit at that position",
-                        message_type=MessageType.WARNING
+                # Get information about what's at this position
+                y, x = self.cursor_pos.y, self.cursor_pos.x
+                
+                # Check if there's an enemy unit
+                unit_at_pos = self.game_ui.game.get_unit_at(y, x)
+                if unit_at_pos:
+                    # Show information about enemy unit
+                    unit_info = f"Enemy {unit_at_pos.type.name} (Player {unit_at_pos.player}): {unit_at_pos.hp}/{unit_at_pos.max_hp} HP"
+                    
+                    # Send message through event system
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message=unit_info,
+                            message_type=MessageType.SYSTEM
+                        )
                     )
-                )
-                message_log.add_message("No unit at that position", MessageType.WARNING)
+                else:
+                    # Check terrain type
+                    terrain = self.game_ui.game.map.get_terrain_at(y, x)
+                    terrain_name = terrain.name.lower().replace('_', ' ')
+                    
+                    # Send message through event system
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message=f"Tile: {terrain_name}",
+                            message_type=MessageType.SYSTEM
+                        )
+                    )
+                
+                # No message in log - this is just UI feedback
             return False
         
         # Select the unit
