@@ -201,8 +201,11 @@ class MessageLog:
             # Standard message handling with basic player coloring
             text = msg['text']
             
-            # Use player color for messages with attacker/target info
-            if 'attacker_name' in msg and msg['player'] is not None:
+            # Check for debuff messages (like movement reduction)
+            if "movement reduced" in text or "debuff" in text.lower() or "penalty" in text.lower():
+                color = 7  # Yellow for debuffs/negative effects
+            # Otherwise, use player color for messages with attacker/target info
+            elif 'attacker_name' in msg and msg['player'] is not None:
                 player_num = msg['player']
                 color = self.player_colors.get(player_num, 8)  # Use player color (green/blue) instead of gray
             

@@ -207,6 +207,8 @@ class MessageLogComponent(UIComponent):
                     attributes |= curses.A_DIM  # Add dim attribute to make it gray
                 elif color_id in [3, 4]:  # Player colors (green or blue)
                     attributes |= curses.A_BOLD  # Make player text bold
+                elif color_id == 7:  # Yellow debuff text
+                    attributes |= curses.A_BOLD  # Make debuff text bold for emphasis
                 self.renderer.draw_text(y_pos, 2, text, color_id, attributes)
                 
         except Exception as e:
@@ -300,6 +302,8 @@ class MessageLogComponent(UIComponent):
                     attributes |= curses.A_DIM  # Add dim attribute to make it gray
                 elif color_id in [3, 4]:  # Player colors (green or blue)
                     attributes |= curses.A_BOLD  # Make player text bold
+                elif color_id == 7:  # Yellow debuff text
+                    attributes |= curses.A_BOLD  # Make debuff text bold for emphasis
                 self.renderer.draw_text(y_pos, 2, text, color_id, attributes)
                 
         except Exception as e:
