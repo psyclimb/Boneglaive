@@ -1346,6 +1346,9 @@ class JudgementThrowSkill(ActiveSkill):
             
             # If critical hit, add a more dramatic lightning from sky effect
             if is_critical:
+                # Import WIDTH from constants
+                from boneglaive.utils.constants import WIDTH
+                
                 # Create a vertical path from above the target (from "sky")
                 sky_height = max(0, target_pos[0] - 5)  # Start 5 spaces above target or at top of screen
                 
