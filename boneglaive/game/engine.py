@@ -190,9 +190,8 @@ class Game:
             
             self.setup_phase = False
             
-            # Add welcome messages now that game is starting
+            # Add welcome message now that game is starting
             message_log.add_system_message(f"Entering {self.map.name}")
-            message_log.add_system_message("Game begins!")
             
             # Game should start
             return True
