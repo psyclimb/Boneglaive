@@ -955,10 +955,15 @@ class VaultSkill(ActiveSkill):
             from_y, from_x = user.move_target
             logger.debug(f"Using planned move position ({from_y},{from_x}) as origin")
             
-        # Check if target is within skill range
+        # Get unit's effective move range (which includes any Pry debuff)
+        effective_stats = user.get_effective_stats()
+        effective_range = min(self.range, effective_stats['move_range'])
+        
+        # Check if target is within effective skill range
         distance = game.chess_distance(from_y, from_x, target_pos[0], target_pos[1])
-        if distance > self.range:
-            logger.debug(f"Vault failed: position out of range ({distance} > {self.range})")
+        if distance > effective_range:
+            logger.debug(f"Vault failed: position out of range ({distance} > {effective_range})")
+            logger.debug(f"(Note: Effective range {effective_range} is limited by move range due to Pry)")
             return False
             
         # Check for pillars in the path - cannot vault over pillars
