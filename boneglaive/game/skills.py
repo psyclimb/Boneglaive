@@ -7,6 +7,7 @@ This module provides the foundation for implementing unit skills.
 import curses
 from enum import Enum, auto
 from typing import Optional, Dict, List, Any, Tuple, TYPE_CHECKING
+from boneglaive.utils.constants import UnitType
 
 if TYPE_CHECKING:
     from boneglaive.game.units import Unit
@@ -527,6 +528,24 @@ class PrySkill(ActiveSkill):
                 target_name=target.get_display_name()
             )
             
+            # If the target is a MANDIBLE_FOREMAN, release any units it has trapped
+            # Even though no displacement occurred, the unit was still affected by Pry
+            if target.type == UnitType.MANDIBLE_FOREMAN:
+                # Find and release any trapped units
+                trapped_units = [u for u in game.units if u.is_alive() and u.trapped_by == target]
+                if trapped_units:
+                    from boneglaive.utils.debug import logger
+                    logger.debug(f"MANDIBLE_FOREMAN {target.get_display_name()} was affected by Pry, releasing trapped units")
+                    
+                    # Release the trapped units
+                    for trapped_unit in trapped_units:
+                        trapped_unit.trapped_by = None
+                        message_log.add_message(
+                            f"{trapped_unit.get_display_name()} is released from mechanical jaws!",
+                            MessageType.ABILITY,
+                            target_name=trapped_unit.get_display_name()
+                        )
+            
             # No need for a message about being braced against terrain - it's implied
             
             # Show collision animation at the target's current position
@@ -654,6 +673,23 @@ class PrySkill(ActiveSkill):
         
         # Calculate displacement distance
         displacement_distance = game.chess_distance(original_y, original_x, best_pos[0], best_pos[1])
+        
+        # If the target is a MANDIBLE_FOREMAN, release any units it has trapped
+        if target.type == UnitType.MANDIBLE_FOREMAN:
+            # Find and release any trapped units
+            trapped_units = [u for u in game.units if u.is_alive() and u.trapped_by == target]
+            if trapped_units:
+                from boneglaive.utils.debug import logger
+                logger.debug(f"MANDIBLE_FOREMAN {target.get_display_name()} was displaced by Pry, releasing trapped units")
+                
+                # Release the trapped units
+                for trapped_unit in trapped_units:
+                    trapped_unit.trapped_by = None
+                    message_log.add_message(
+                        f"{trapped_unit.get_display_name()} is released from mechanical jaws!",
+                        MessageType.ABILITY,
+                        target_name=trapped_unit.get_display_name()
+                    )
         
         # Log the displacement with additional details if needed
         if displacement_distance < 3:
