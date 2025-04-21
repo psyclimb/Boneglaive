@@ -201,9 +201,15 @@ class MessageLog:
             # Standard message handling with basic player coloring
             text = msg['text']
             
-            # Check for debuff messages (like movement reduction)
-            if "movement reduced" in text or "debuff" in text.lower() or "penalty" in text.lower():
-                color = 7  # Yellow for debuffs/negative effects
+            # Check for critical event messages
+            if " perishes!" in text:
+                color = 18  # Dark red for death messages
+            elif " wretches!" in text:
+                color = 17  # Bright red for wretch messages
+            # Check for debuff messages and forced displacement messages
+            elif ("movement reduced" in text or "debuff" in text.lower() or "penalty" in text.lower() or 
+                "displaced from" in text or "collides with" in text):
+                color = 7  # Yellow for debuffs/negative effects and displacements
             # Otherwise, use player color for messages with attacker/target info
             elif 'attacker_name' in msg and msg['player'] is not None:
                 player_num = msg['player']

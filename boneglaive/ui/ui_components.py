@@ -209,6 +209,10 @@ class MessageLogComponent(UIComponent):
                     attributes |= curses.A_BOLD  # Make player text bold
                 elif color_id == 7:  # Yellow debuff text
                     attributes |= curses.A_BOLD  # Make debuff text bold for emphasis
+                elif color_id == 17:  # Wretch messages (red)
+                    attributes |= curses.A_BOLD  # Make wretch messages bold red
+                elif color_id == 18:  # Death messages (dark red)
+                    attributes |= curses.A_DIM  # Make death messages dim red
                 self.renderer.draw_text(y_pos, 2, text, color_id, attributes)
                 
         except Exception as e:
@@ -304,6 +308,10 @@ class MessageLogComponent(UIComponent):
                     attributes |= curses.A_BOLD  # Make player text bold
                 elif color_id == 7:  # Yellow debuff text
                     attributes |= curses.A_BOLD  # Make debuff text bold for emphasis
+                elif color_id == 17:  # Wretch messages (red)
+                    attributes |= curses.A_BOLD  # Make wretch messages bold red
+                elif color_id == 18:  # Death messages (dark red)
+                    attributes |= curses.A_DIM  # Make death messages dim red
                 self.renderer.draw_text(y_pos, 2, text, color_id, attributes)
                 
         except Exception as e:
