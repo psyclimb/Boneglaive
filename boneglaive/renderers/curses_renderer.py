@@ -174,11 +174,13 @@ class CursesRenderer(RenderInterface):
         # Red background for attack targets
         curses.init_pair(10, curses.COLOR_WHITE, curses.COLOR_RED)   # Attack target
         
-        # Terrain colors
-        curses.init_pair(11, curses.COLOR_WHITE, curses.COLOR_BLACK)  # Dust (light white)
-        curses.init_pair(12, curses.COLOR_YELLOW, curses.COLOR_BLACK) # Limestone (yellow)
-        curses.init_pair(13, curses.COLOR_MAGENTA, curses.COLOR_BLACK) # Pillar (magenta)
-        curses.init_pair(14, curses.COLOR_CYAN, curses.COLOR_BLACK)   # Furniture (cyan)
+        # Terrain colors - different shades of white for the Lime Foyer
+        curses.init_pair(11, curses.COLOR_WHITE, curses.COLOR_BLACK)    # Dust (normal white)
+        # For color_pair(12), use bright white by using A_BOLD attribute when drawing
+        curses.init_pair(12, curses.COLOR_WHITE, curses.COLOR_BLACK)    # Limestone (bright white, applied with A_BOLD)
+        curses.init_pair(13, curses.COLOR_WHITE, curses.COLOR_BLACK)    # Pillar (white, different symbol)
+        # For dim white (gray), we'll use a lower intensity of white
+        curses.init_pair(14, curses.COLOR_WHITE, curses.COLOR_BLACK)    # Furniture (will use dim white/gray)
         
         # Skill target color - blue background to differentiate from attack targets (red)
         curses.init_pair(15, curses.COLOR_WHITE, curses.COLOR_BLUE)   # Skill target
