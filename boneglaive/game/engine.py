@@ -504,14 +504,6 @@ class Game:
             message_log.add_system_message("Executing actions in order...")
             ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
             time.sleep(0.5)  # Short delay before actions start
-            
-            # Apply trap damage as the first action of the turn
-            self._apply_trap_damage()
-            
-            # Redraw the board after trap damage to show updated health
-            if ui:
-                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-                time.sleep(0.3)  # Short pause after trap damage
         
         # Process each unit's actions in timestamp order
         for unit in units_with_actions:
@@ -740,6 +732,16 @@ class Game:
             if ui:
                 time.sleep(0.5)
         
+        # Now that all planned actions have been processed, apply trap damage
+        # This ensures that FOREMENs that moved/attacked/used skills have released their trapped units
+        # before trap damage is applied
+        self._apply_trap_damage()
+        
+        # Redraw the board after trap damage to show updated health
+        if ui:
+            ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+            time.sleep(0.3)  # Short pause after trap damage
+            
         # Clear all actions and update skill cooldowns
         for unit in self.units:
             if unit.is_alive():
@@ -813,9 +815,14 @@ class Game:
             if not unit.is_alive() or unit.trapped_by is None:
                 continue
                 
-            # Only apply trap damage if the trapper's turn is starting
+            # Only apply trap damage if:
+            # 1. The trapper is alive
+            # 2. It's the trapper's turn
+            # 3. The trapper has not taken any action this turn that would have released the trapped unit
             foreman = unit.trapped_by
-            if foreman.is_alive() and foreman.player == self.current_player:
+            if (foreman.is_alive() and 
+                foreman.player == self.current_player and
+                not (foreman.move_target or foreman.attack_target or foreman.skill_target)):
                 logger.debug(f"Applying Viceroy trap damage to {unit.get_display_name()}")
                 
                 # Play trap animation if UI is available
@@ -891,7 +898,10 @@ class Game:
                     unit.trapped_by = None
     
     def _release_trapped_units(self):
-        """Release any trapped units for MANDIBLE_FOREMENs that took actions."""
+        """
+        Release any trapped units for MANDIBLE_FOREMENs that took actions.
+        No damage is applied when a unit is released from the jaws.
+        """
         from boneglaive.utils.message_log import message_log, MessageType
         from boneglaive.utils.debug import logger
         import time
