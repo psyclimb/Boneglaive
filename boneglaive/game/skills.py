@@ -1438,8 +1438,8 @@ class JudgementThrowSkill(ActiveSkill):
         if ui and hasattr(ui, 'renderer'):
             damage_text = f"-{damage}"
             
-            # Use a consistent color (red) for the damage number regardless of critical status
-            damage_color = 6  # Red - using the same color for both critical and normal hits
+            # Match regular attack damage display exactly - using color 7 (white/yellow)
+            damage_color = 7  # Same color used by regular attacks
             
             # Make damage text more prominent
             for i in range(3):
@@ -1452,7 +1452,7 @@ class JudgementThrowSkill(ActiveSkill):
             # Final damage display
             ui.renderer.draw_text(target_pos[0]-1, target_pos[1]*2, damage_text, damage_color, curses.A_BOLD)
             ui.renderer.refresh()
-            time.sleep(0.2)
+            time.sleep(0.3)  # Matching 0.3s delay used by regular attacks
         
         # Check if target was defeated
         if target.hp <= 0:
