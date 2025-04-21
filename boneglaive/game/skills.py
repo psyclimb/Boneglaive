@@ -1391,7 +1391,7 @@ class JudgementThrowSkill(ActiveSkill):
             )
             
             message_log.add_message(
-                f"Sacred glaive strikes with divine justice! MASSIVE critical damage!",
+                f"Sacred glaive strikes with divine justice!",
                 MessageType.ABILITY,
                 player=user.player,
                 attacker_name=user.get_display_name(),
