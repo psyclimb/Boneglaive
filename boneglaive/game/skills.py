@@ -183,6 +183,10 @@ class Autoclave(PassiveSkill):
                 # Check if position is valid
                 if not game.is_valid_position(target_y, target_x):
                     continue
+                
+                # Check if terrain is passable - stop checking this direction if we hit terrain
+                if not game.map.is_passable(target_y, target_x):
+                    break
                     
                 # Check if there's an enemy unit at this position
                 target = game.get_unit_at(target_y, target_x)
@@ -239,6 +243,12 @@ class Autoclave(PassiveSkill):
                 # Check if position is valid
                 if not game.is_valid_position(target_y, target_x):
                     continue
+                
+                # Check if terrain is passable - stop the beam if it hits impassable terrain
+                if not game.map.is_passable(target_y, target_x):
+                    # Add position for animation but don't continue past this point
+                    targets_in_direction.append((target_y, target_x))
+                    break
                     
                 # Mark this position for animation
                 targets_in_direction.append((target_y, target_x))
