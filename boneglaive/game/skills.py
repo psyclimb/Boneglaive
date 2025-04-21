@@ -985,6 +985,7 @@ class VaultSkill(ActiveSkill):
         Sets the skill target and records the skill for execution.
         """
         from boneglaive.utils.message_log import message_log, MessageType
+        from boneglaive.utils.event_system import get_event_manager, EventType, UIRedrawEventData
         
         # Validate skill use conditions
         if not self.can_use(user, target_pos, game):
@@ -1001,6 +1002,18 @@ class VaultSkill(ActiveSkill):
         
         # Set cooldown immediately when queuing up the action
         self.current_cooldown = self.cooldown
+        
+        # Create a visual indicator on the target position
+        if hasattr(game, 'ui') and game.ui:
+            # Store the vault target position in the unit for the UI to render
+            user.vault_target_indicator = target_pos
+            
+            # Request a redraw to show the indicator immediately
+            event_manager = get_event_manager()
+            event_manager.publish(
+                EventType.UI_REDRAW_REQUESTED,
+                UIRedrawEventData()
+            )
         
         # Log that the skill has been queued
         message_log.add_message(
@@ -1027,6 +1040,9 @@ class VaultSkill(ActiveSkill):
         # IMPORTANT: Don't do validation again at execute time to avoid issues
         # We already verified the target was valid when the skill was queued, and game state
         # may have changed since then (unit may have moved due to previous turn actions)
+        
+        # Clear vault target indicator to prevent it from showing after execution
+        user.vault_target_indicator = None
         
         # Just check basic validity
         if not game.is_valid_position(target_pos[0], target_pos[1]):
