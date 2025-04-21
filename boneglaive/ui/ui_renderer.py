@@ -130,22 +130,26 @@ class UIRenderer:
                 # Get terrain at this position
                 terrain = self.game_ui.game.map.get_terrain_at(y, x)
                 
-                # Map terrain type to tile representation and color
+                # Map terrain type to tile representation, color, and attribute
+                tile_attr = 0  # Default: no special attributes
+                
                 if terrain == TerrainType.EMPTY:
                     tile = self.game_ui.asset_manager.get_terrain_tile("empty")
                     color_id = 1  # Default color
                 elif terrain == TerrainType.LIMESTONE:
                     tile = self.game_ui.asset_manager.get_terrain_tile("limestone")
-                    color_id = 12  # Yellow for limestone
+                    color_id = 12  # White for limestone
+                    tile_attr = curses.A_BOLD  # Bright white via bold attribute
                 elif terrain == TerrainType.DUST:
                     tile = self.game_ui.asset_manager.get_terrain_tile("dust")
-                    color_id = 11  # Light white for dust
+                    color_id = 11  # Normal white for dust
                 elif terrain == TerrainType.PILLAR:
                     tile = self.game_ui.asset_manager.get_terrain_tile("pillar")
-                    color_id = 13  # Magenta for pillars
+                    color_id = 13  # White for pillars
                 elif terrain == TerrainType.FURNITURE:
                     tile = self.game_ui.asset_manager.get_terrain_tile("furniture")
-                    color_id = 14  # Cyan for furniture
+                    color_id = 14  # White for furniture
+                    tile_attr = curses.A_DIM  # Dim white/gray via dim attribute
                 else:
                     # Fallback for any new terrain types
                     tile = self.game_ui.asset_manager.get_terrain_tile("empty")
@@ -283,8 +287,8 @@ class UIRenderer:
                     else:
                         color_id = 2  # Normal cursor color
                 
-                # Draw the cell
-                self.renderer.draw_tile(y, x, tile, color_id)
+                # Draw the cell with the tile attribute
+                self.renderer.draw_tile(y, x, tile, color_id, tile_attr)
                 
         # Draw message log if enabled
         if message_log_component.show_log:
