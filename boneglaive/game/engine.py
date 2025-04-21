@@ -598,7 +598,7 @@ class Game:
                             # Store unit names explicitly to help with coloring
                             target_name=target.get_display_name()
                         )
-                    # Check if target just entered critical health
+                    # Check if target just entered critical health - trigger wretches message and Autoclave
                     elif previous_hp > critical_threshold and target.hp <= critical_threshold:
                         message_log.add_message(
                             f"{target.get_display_name()} wretches!",
@@ -609,6 +609,13 @@ class Game:
                             target_name=target.get_display_name()
                         )
                         
+                        # Check if target is a GLAIVEMAN and has the Autoclave passive
+                        if target.type == UnitType.GLAIVEMAN and target.passive_skill and \
+                           target.passive_skill.name == "Autoclave":
+                            # Mark Autoclave as ready to trigger during the apply_passive_skills phase
+                            target.passive_skill.mark_ready_to_trigger()
+                    # Check if target is already in critical health and took more damage - also trigger Autoclave
+                    elif previous_hp <= critical_threshold and target.hp <= critical_threshold and target.hp > 0:
                         # Check if target is a GLAIVEMAN and has the Autoclave passive
                         if target.type == UnitType.GLAIVEMAN and target.passive_skill and \
                            target.passive_skill.name == "Autoclave":
