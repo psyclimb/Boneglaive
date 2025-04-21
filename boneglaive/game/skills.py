@@ -897,7 +897,7 @@ class VaultSkill(ActiveSkill):
             description="Leap over obstacles to any empty position within range, ignoring pathing restrictions.",
             target_type=TargetType.AREA,
             cooldown=3,
-            range_=4
+            range_=3
         )
         
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
