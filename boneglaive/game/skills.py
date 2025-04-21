@@ -447,7 +447,8 @@ class PrySkill(ActiveSkill):
             message_log.add_message(
                 "Pry failed: target no longer valid.",
                 MessageType.ABILITY,
-                player=user.player
+                player=user.player,
+                attacker_name=user.get_display_name()
             )
             return False
             
@@ -568,7 +569,8 @@ class PrySkill(ActiveSkill):
             message_log.add_message(
                 f"Pry failed: no valid displacement positions.",
                 MessageType.ABILITY,
-                player=user.player
+                player=user.player,
+                attacker_name=user.get_display_name()
             )
             return False
             
@@ -628,7 +630,9 @@ class PrySkill(ActiveSkill):
         message_log.add_message(
             f"{target.get_display_name()}'s movement reduced by 1 for next turn!",
             MessageType.ABILITY,
-            player=user.player
+            player=user.player,
+            attacker_name=user.get_display_name(),
+            target_name=target.get_display_name()
         )
         
         # Store original position for animation
@@ -646,7 +650,9 @@ class PrySkill(ActiveSkill):
             message_log.add_message(
                 f"{target.get_display_name()} collides with obstacle after being displaced from ({original_y},{original_x}) to ({best_pos[0]},{best_pos[1]})!",
                 MessageType.ABILITY,
-                player=user.player
+                player=user.player,
+                attacker_name=user.get_display_name(),
+                target_name=target.get_display_name()
             )
         else:
             # Normal displacement message
@@ -989,7 +995,8 @@ class VaultSkill(ActiveSkill):
         message_log.add_message(
             f"{user.get_display_name()} readies Vault to position ({target_pos[0]}, {target_pos[1]})!",
             MessageType.ABILITY,
-            player=user.player
+            player=user.player,
+            attacker_name=user.get_display_name()
         )
         
         return True
@@ -1015,7 +1022,8 @@ class VaultSkill(ActiveSkill):
             message_log.add_message(
                 "Vault failed: target position is out of bounds.",
                 MessageType.ABILITY,
-                player=user.player
+                player=user.player,
+                attacker_name=user.get_display_name()
             )
             return False
             
@@ -1024,7 +1032,8 @@ class VaultSkill(ActiveSkill):
             message_log.add_message(
                 "Vault failed: target position is now occupied.",
                 MessageType.ABILITY,
-                player=user.player
+                player=user.player,
+                attacker_name=user.get_display_name()
             )
             return False
             
@@ -1032,7 +1041,8 @@ class VaultSkill(ActiveSkill):
         message_log.add_message(
             f"{user.get_display_name()} uses Vault!",
             MessageType.ABILITY,
-            player=user.player
+            player=user.player,
+            attacker_name=user.get_display_name()
         )
         
         # Store original position for animation
@@ -1085,7 +1095,8 @@ class VaultSkill(ActiveSkill):
         message_log.add_message(
             f"{user.get_display_name()} vaults from ({original_y},{original_x}) to ({target_pos[0]},{target_pos[1]})!",
             MessageType.ABILITY,
-            player=user.player
+            player=user.player,
+            attacker_name=user.get_display_name()
         )
         
         # Animate the landing if UI is available
@@ -1203,7 +1214,9 @@ class JudgementThrowSkill(ActiveSkill):
         message_log.add_message(
             f"{user.get_display_name()} readies Judgement Throw against {target.get_display_name()}!",
             MessageType.ABILITY,
-            player=user.player
+            player=user.player,
+            attacker_name=user.get_display_name(),
+            target_name=target.get_display_name()
         )
         
         return True
@@ -1251,7 +1264,8 @@ class JudgementThrowSkill(ActiveSkill):
                 message_log.add_message(
                     "Judgement Throw failed: no targets in range.",
                     MessageType.ABILITY,
-                    player=user.player
+                    player=user.player,
+                    attacker_name=user.get_display_name()
                 )
                 return False
             
@@ -1259,7 +1273,9 @@ class JudgementThrowSkill(ActiveSkill):
         message_log.add_message(
             f"{user.get_display_name()} throws sacred glaive at {target.get_display_name()}!",
             MessageType.ABILITY,
-            player=user.player
+            player=user.player,
+            attacker_name=user.get_display_name(),
+            target_name=target.get_display_name()
         )
         
         # Calculate path for animation
@@ -1366,7 +1382,9 @@ class JudgementThrowSkill(ActiveSkill):
             message_log.add_message(
                 f"Sacred glaive strikes with divine justice! MASSIVE critical damage!",
                 MessageType.ABILITY,
-                player=user.player
+                player=user.player,
+                attacker_name=user.get_display_name(),
+                target_name=target.get_display_name()
             )
         else:
             message_log.add_combat_message(

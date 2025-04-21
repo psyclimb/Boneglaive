@@ -152,92 +152,7 @@ class MessageLogComponent(UIComponent):
             UIRedrawEventData()
         )
         
-    def _draw_colored_text(self, y_pos, x_pos, text, default_color, default_attr=0):
-        """
-        Draw text with embedded color markers to allow specific parts to have different colors.
-        
-        Format of color markers: __COLOR{color_id}:{text}__
-        
-        Args:
-            y_pos: Y position to draw at
-            x_pos: Starting X position
-            text: Text with embedded color markers
-            default_color: Default color for non-marked text
-            default_attr: Default attributes for text
-        """
-        try:
-            # First, clean up potentially nested or malformed color markers
-            cleaned_text = self._clean_color_markers(text)
-            
-            # Current position for drawing
-            current_x = x_pos
-            
-            # Apply dim attribute for gray text
-            if default_color == 8:  # Gray message text
-                default_attr |= curses.A_DIM
-            
-            # Find color markers and draw text segments
-            import re
-            pattern = r'__COLOR(\d+):([^_]+)__'
-            
-            # Find all color markers in the text
-            last_end = 0
-            for match in re.finditer(pattern, cleaned_text):
-                # Draw text before this color marker
-                prefix = cleaned_text[last_end:match.start()]
-                if prefix:
-                    self.renderer.draw_text(y_pos, current_x, prefix, default_color, default_attr)
-                    current_x += len(prefix)
-                
-                # Draw the colored text
-                color_id = int(match.group(1))
-                colored_text = match.group(2)
-                self.renderer.draw_text(y_pos, current_x, colored_text, color_id, curses.A_BOLD)
-                current_x += len(colored_text)
-                
-                # Update last position
-                last_end = match.end()
-            
-            # Draw any remaining text after the last color marker
-            if last_end < len(cleaned_text):
-                suffix = cleaned_text[last_end:]
-                self.renderer.draw_text(y_pos, current_x, suffix, default_color, default_attr)
-                
-        except Exception as e:
-            # Fall back to regular text drawing if there's an error
-            logger.error(f"Error in _draw_colored_text: {str(e)}")
-            # Draw text without color markers as fallback
-            cleaned = re.sub(r'__COLOR\d+:[^_]+__', '', text)
-            self.renderer.draw_text(y_pos, x_pos, cleaned, default_color, default_attr)
-    
-    def _clean_color_markers(self, text):
-        """
-        Clean up potentially nested or malformed color markers.
-        
-        Args:
-            text: Text that may contain color markers
-            
-        Returns:
-            Cleaned text with properly formatted color markers
-        """
-        import re
-        
-        # First, let's identify any nested markers
-        while '__COLOR' in text and re.search(r'__COLOR\d+:.*__COLOR', text):
-            # Find the innermost marker pair
-            pattern = r'__COLOR(\d+):([^_]*)__COLOR(\d+):([^_]*)__'
-            match = re.search(pattern, text)
-            if not match:
-                break
-                
-            # Replace the nested marker with just the innermost one
-            # We'll prioritize the second color (usually the target)
-            color_id = match.group(3)
-            inner_text = match.group(4)
-            replacement = f"__COLOR{color_id}:{inner_text}__"
-            text = text[:match.start()] + replacement + text[match.end():]
-        
-        return text
+    # Removed colored text handling methods as they're no longer needed
     
     def draw_message_log(self):
         """Draw the message log in the game UI."""
@@ -287,15 +202,10 @@ class MessageLogComponent(UIComponent):
                 if len(text) > max_text_width:
                     text = text[:max_text_width-3] + "..."
                 
-                # Check if text contains color markers
-                if "__COLOR" in text:
-                    # Draw text with colored segments
-                    self._draw_colored_text(y_pos, 2, text, color_id, attributes)
-                else:
-                    # Draw normal text - use dim attribute for gray text (color_id 8)
-                    if color_id == 8:  # Gray message log text
-                        attributes |= curses.A_DIM  # Add dim attribute to make it gray
-                    self.renderer.draw_text(y_pos, 2, text, color_id, attributes)
+                # Draw normal text - use dim attribute for gray text (color_id 8)
+                if color_id == 8:  # Gray message log text
+                    attributes |= curses.A_DIM  # Add dim attribute to make it gray
+                self.renderer.draw_text(y_pos, 2, text, color_id, attributes)
                 
         except Exception as e:
             # Never let message log crash the game
@@ -383,15 +293,10 @@ class MessageLogComponent(UIComponent):
                 if len(text) > max_text_width:
                     text = text[:max_text_width-3] + "..."
                 
-                # Check if text contains color markers
-                if "__COLOR" in text:
-                    # Draw text with colored segments
-                    self._draw_colored_text(y_pos, 2, text, color_id, attributes)
-                else:
-                    # Draw normal text - use dim attribute for gray text (color_id 8)
-                    if color_id == 8:  # Gray message log text
-                        attributes |= curses.A_DIM  # Add dim attribute to make it gray
-                    self.renderer.draw_text(y_pos, 2, text, color_id, attributes)
+                # Draw normal text - use dim attribute for gray text (color_id 8)
+                if color_id == 8:  # Gray message log text
+                    attributes |= curses.A_DIM  # Add dim attribute to make it gray
+                self.renderer.draw_text(y_pos, 2, text, color_id, attributes)
                 
         except Exception as e:
             # Never let log history crash the game
