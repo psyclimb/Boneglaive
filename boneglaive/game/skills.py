@@ -528,8 +528,8 @@ class PrySkill(ActiveSkill):
                     # Use renderer's flash tile method
                     ui.renderer.flash_tile(target.y, target.x, tile_ids, color_ids, durations)
                 
-                # Show damage number
-                damage_text = f"-{self.damage}"
+                # Show damage number - use calculated damage after defense reduction
+                damage_text = f"-{damage}"
                 
                 # Make damage text more prominent
                 for i in range(3):
@@ -707,7 +707,7 @@ class PrySkill(ActiveSkill):
                     ui.renderer.flash_tile(target.y, target.x, tile_ids, color_ids, durations)
                 
                 # Show damage number above target with improved visualization
-                damage_text = f"-{self.damage}"
+                damage_text = f"-{damage}"  # Use calculated damage after defense reduction
                 
                 # Make damage text more prominent
                 for i in range(3):
