@@ -100,10 +100,15 @@ class Unit:
         
     def get_display_name(self) -> str:
         """Get the unit's display name including the Greek identifier."""
+        # Format unit type name for display (replace underscores with spaces)
+        display_type = self.type.name
+        if display_type == "MANDIBLE_FOREMAN":
+            display_type = "MANDIBLE FOREMAN"
+            
         if self.greek_id:
-            return f"{self.type.name} {self.greek_id}"
+            return f"{display_type} {self.greek_id}"
         else:
-            return f"{self.type.name}"
+            return f"{display_type}"
     
     def apply_passive_skills(self, game=None) -> None:
         """Apply effects of passive skills."""
@@ -162,6 +167,10 @@ class Unit:
             self.max_hp += 2
             self.attack += 4
             self.defense += 1
+        elif self.type == UnitType.MANDIBLE_FOREMAN:
+            self.max_hp += 6  # Focus on increasing durability
+            self.attack += 2
+            self.defense += 3
         
         # Heal unit when leveling up
         self.hp = self.max_hp
@@ -174,6 +183,13 @@ class Unit:
         self.selected_skill = None
         self.vault_target_indicator = None  # Clear vault target indicator
         self.action_timestamp = 0  # Reset the action timestamp
+        
+        # Check if this is a MANDIBLE_FOREMAN and release any trapped unit
+        if self.type == UnitType.MANDIBLE_FOREMAN and self.passive_skill:
+            if hasattr(self.passive_skill, 'trapped_unit') and self.passive_skill.trapped_unit:
+                # We'll implement the full trap release logic later
+                # For now, just clear the reference
+                self.passive_skill.trapped_unit = None
         
     def reset_movement_penalty(self) -> None:
         """Clear any movement penalties and reset the Pry status."""

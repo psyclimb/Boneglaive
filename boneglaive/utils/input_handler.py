@@ -134,8 +134,9 @@ class InputHandler:
             # Store UI context
             self.context_sensitive_maps["ui"] = ui_context
             
-            # Setup mode context (empty for now but kept for future setup-specific actions)
+            # Setup mode context
             setup_context = {}
+            setup_context[ord('t')] = GameAction.TEST_MODE  # Reuse TEST_MODE for unit type toggle
             
             # Store setup context
             self.context_sensitive_maps["setup"] = setup_context

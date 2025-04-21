@@ -128,12 +128,13 @@ class Game:
         self.setup_confirmed = {1: True, 2: True}
         self.setup_units_remaining = {1: 0, 2: 0}
         
-    def place_setup_unit(self, y, x):
+    def place_setup_unit(self, y, x, unit_type=UnitType.GLAIVEMAN):
         """
         Place a unit during the setup phase.
         
         Args:
             y, x: The position to place the unit
+            unit_type: The type of unit to place (defaults to GLAIVEMAN)
             
         Returns:
             True if unit was placed, False if invalid or no units remaining
@@ -150,9 +151,9 @@ class Game:
         if self.setup_units_remaining[self.setup_player] <= 0:
             return False
         
-        # Place the unit (always a Glaiveman for now)
+        # Place the unit with the specified type
         # Allow placement even if position is occupied by another unit - we'll resolve conflicts later
-        self.add_unit(UnitType.GLAIVEMAN, self.setup_player, y, x)
+        self.add_unit(unit_type, self.setup_player, y, x)
         
         # Decrement remaining units
         self.setup_units_remaining[self.setup_player] -= 1
@@ -343,7 +344,7 @@ class Game:
             player_units = [u for u in self.units if u.is_alive() and u.player == player]
             if player_units:
                 message_log.add_message(
-                    f"Player {player} units: " + ", ".join([f"{u.type.name} {u.greek_id}" for u in player_units]),
+                    f"Player {player} units: " + ", ".join([f"{u.get_display_name()}" for u in player_units]),
                     MessageType.SYSTEM
                 )
     

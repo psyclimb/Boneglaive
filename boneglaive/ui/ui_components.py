@@ -990,6 +990,7 @@ class GameModeManager(UIComponent):
         super().__init__(renderer, game_ui)
         self.mode = "select"  # select, move, attack, setup
         self.show_setup_instructions = False  # Don't show setup instructions by default
+        self.setup_unit_type = UnitType.GLAIVEMAN  # Default unit type for setup phase
     
     def _setup_event_handlers(self):
         """Set up event handlers for game mode manager."""
@@ -1551,7 +1552,18 @@ class GameModeManager(UIComponent):
         self.game_ui.draw_board()
     
     def handle_test_mode(self):
-        """Toggle test mode."""
+        """
+        Toggle test mode or toggle unit type during setup phase.
+        The 't' key serves dual purpose - in setup phase it toggles unit type,
+        during gameplay it toggles test mode.
+        """
+        # In setup phase, use the 't' key to toggle unit type instead of test mode
+        # but only if we haven't enabled the actual test mode yet
+        if self.game_ui.game.setup_phase and not self.game_ui.game.test_mode:
+            self.toggle_setup_unit_type()
+            return
+            
+        # Continue with normal test mode functionality
         self.game_ui.game.toggle_test_mode()
         if self.game_ui.game.test_mode:
             # If in setup phase, skip it and use test units
@@ -1570,6 +1582,21 @@ class GameModeManager(UIComponent):
             self.game_ui.message = "Test mode OFF"
             message_log.add_system_message("Test mode disabled")
     
+    def toggle_setup_unit_type(self):
+        """
+        Toggle between unit types during the setup phase.
+        Currently toggles between GLAIVEMAN and MANDIBLE FOREMAN.
+        """
+        if self.setup_unit_type == UnitType.GLAIVEMAN:
+            self.setup_unit_type = UnitType.MANDIBLE_FOREMAN
+            self.game_ui.message = "Setup unit type: MANDIBLE FOREMAN"
+        else:
+            self.setup_unit_type = UnitType.GLAIVEMAN
+            self.game_ui.message = "Setup unit type: GLAIVEMAN"
+        
+        # Redraw the board to show the message
+        self.game_ui.draw_board()
+        
     def handle_setup_select(self):
         """Handle unit placement during setup phase."""
         # Get the current setup player
@@ -1591,12 +1618,13 @@ class GameModeManager(UIComponent):
             self.game_ui.message = f"All units placed. Press 'y' to confirm."
             return
             
-        # Try to place the unit (no displacement yet)
-        success = self.game_ui.game.place_setup_unit(cursor_pos.y, cursor_pos.x)
+        # Try to place the unit with the current unit type
+        success = self.game_ui.game.place_setup_unit(cursor_pos.y, cursor_pos.x, self.setup_unit_type)
         
         if success:
             # Unit was placed at the original position
-            self.game_ui.message = f"Unit placed. {self.game_ui.game.setup_units_remaining[setup_player]} remaining."
+            unit_type_name = "GLAIVEMAN" if self.setup_unit_type == UnitType.GLAIVEMAN else "MANDIBLE FOREMAN"
+            self.game_ui.message = f"{unit_type_name} placed. {self.game_ui.game.setup_units_remaining[setup_player]} remaining."
         else:
             self.game_ui.message = "Failed to place unit: unknown error"
             
@@ -1689,15 +1717,18 @@ class GameModeManager(UIComponent):
             setup_player = self.game_ui.game.setup_player
             player_color = self.game_ui.chat_component.player_colors.get(setup_player, 1)
             
+            current_unit_type = "GLAIVEMAN" if self.setup_unit_type == UnitType.GLAIVEMAN else "MANDIBLE FOREMAN"
+            
             instructions = [
                 f"Player {setup_player}, place your units on the battlefield.",
                 "",
-                "Each player must place 3 Glaivemen (melee) units.",
+                f"Each player must place 3 units (Current unit type: {current_unit_type}).",
                 "",
                 "Controls:",
                 "- Arrow keys or HJKL: Move cursor",
                 "- YUBN: Move cursor diagonally",
                 "- Enter/Space: Place unit at cursor position",
+                "- [T]oggle: Switch between GLAIVEMAN and MANDIBLE FOREMAN units",
                 "- [Y]es: Confirm unit placement (when all units are placed)",
                 "",
                 "Special rules:",
