@@ -1377,32 +1377,24 @@ class JudgementThrowSkill(ActiveSkill):
         previous_hp = target.hp
         target.hp = max(0, target.hp - damage)
         
-        # Log the damage with critical indication
+        # Log the damage - use the same message format for both critical and normal hits
+        message_log.add_combat_message(
+            attacker_name=user.get_display_name(),
+            target_name=target.get_display_name(),
+            damage=damage,
+            ability="Judgement Throw",
+            attacker_player=user.player,
+            target_player=target.player
+        )
+        
+        # Add the special message only for critical hits
         if is_critical:
-            message_log.add_combat_message(
-                attacker_name=user.get_display_name(),
-                target_name=target.get_display_name(),
-                damage=damage,
-                ability="Judgement Throw (CRITICAL)",
-                attacker_player=user.player,
-                target_player=target.player
-            )
-            
             message_log.add_message(
                 f"Sacred glaive strikes with divine justice!",
                 MessageType.ABILITY,
                 player=user.player,
                 attacker_name=user.get_display_name(),
                 target_name=target.get_display_name()
-            )
-        else:
-            message_log.add_combat_message(
-                attacker_name=user.get_display_name(),
-                target_name=target.get_display_name(),
-                damage=damage,
-                ability="Judgement Throw",
-                attacker_player=user.player,
-                target_player=target.player
             )
         
         # If UI is available, show damage number
