@@ -198,8 +198,13 @@ class MessageLog:
                 formatted.append((text, player_color))
                 continue
             
-            # Standard message handling - no special coloring for unit names
+            # Standard message handling with basic player coloring
             text = msg['text']
+            
+            # Use player color for messages with attacker/target info
+            if 'attacker_name' in msg and msg['player'] is not None:
+                player_num = msg['player']
+                color = self.player_colors.get(player_num, 8)  # Use player color (green/blue) instead of gray
             
             # Add the formatted message
             formatted.append((text, color))

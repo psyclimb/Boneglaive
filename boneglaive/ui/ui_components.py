@@ -202,9 +202,11 @@ class MessageLogComponent(UIComponent):
                 if len(text) > max_text_width:
                     text = text[:max_text_width-3] + "..."
                 
-                # Draw normal text - use dim attribute for gray text (color_id 8)
+                # Set appropriate attributes based on color
                 if color_id == 8:  # Gray message log text
                     attributes |= curses.A_DIM  # Add dim attribute to make it gray
+                elif color_id in [3, 4]:  # Player colors (green or blue)
+                    attributes |= curses.A_BOLD  # Make player text bold
                 self.renderer.draw_text(y_pos, 2, text, color_id, attributes)
                 
         except Exception as e:
@@ -293,9 +295,11 @@ class MessageLogComponent(UIComponent):
                 if len(text) > max_text_width:
                     text = text[:max_text_width-3] + "..."
                 
-                # Draw normal text - use dim attribute for gray text (color_id 8)
+                # Set appropriate attributes based on color
                 if color_id == 8:  # Gray message log text
                     attributes |= curses.A_DIM  # Add dim attribute to make it gray
+                elif color_id in [3, 4]:  # Player colors (green or blue)
+                    attributes |= curses.A_BOLD  # Make player text bold
                 self.renderer.draw_text(y_pos, 2, text, color_id, attributes)
                 
         except Exception as e:
