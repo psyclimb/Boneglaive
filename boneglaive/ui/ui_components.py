@@ -898,115 +898,63 @@ class CursorManager(UIComponent):
             self.game_ui.message = "No units available to cycle through"
             return
         
-        # Deselect current unit if there is one
-        if self.selected_unit:
+        # Store reference to currently selected unit before deselecting
+        previously_selected_unit = self.selected_unit
+        
+        # If no unit was selected, select the first or last one depending on direction
+        if not previously_selected_unit:
+            # In reverse mode, start from the last unit
+            next_unit = player_units[-1 if reverse else 0]
+        else:
+            # Find the index of the currently selected unit
+            try:
+                current_index = player_units.index(previously_selected_unit)
+                
+                # Calculate the next index based on direction
+                if reverse:
+                    # Select the previous unit (loop back to last if at the beginning)
+                    next_index = (current_index - 1) % len(player_units)
+                else:
+                    # Select the next unit (loop back to first if at the end)
+                    next_index = (current_index + 1) % len(player_units)
+                    
+                next_unit = player_units[next_index]
+            except ValueError:
+                # If the selected unit isn't in the player's units (could happen in test mode)
+                # In reverse mode, start from the last unit
+                next_unit = player_units[-1 if reverse else 0]
+        
+        # Only deselect the current unit after finding the next one
+        if previously_selected_unit:
             self._deselect_unit()
             
-        # If no unit was selected, select the first or last one depending on direction
-        if not self.selected_unit:
-            # In reverse mode, start from the last unit
-            next_unit = player_units[-1 if reverse else 0]
-            # Move cursor to unit position (which will publish cursor moved event)
-            previous_pos = self.cursor_pos
+        # Move cursor to the next unit's position
+        previous_pos = self.cursor_pos
+        
+        # Set position based on whether unit has a move target
+        if next_unit.move_target:
+            self.cursor_pos = Position(next_unit.move_target[0], next_unit.move_target[1])
+        else:
+            self.cursor_pos = Position(next_unit.y, next_unit.x)
             
-            # Set position based on whether unit has a move target
-            if next_unit.move_target:
-                self.cursor_pos = Position(next_unit.move_target[0], next_unit.move_target[1])
-            else:
-                self.cursor_pos = Position(next_unit.y, next_unit.x)
-                
-            # Publish cursor moved event if position changed
-            if self.cursor_pos != previous_pos:
-                self.publish_event(
-                    EventType.CURSOR_MOVED, 
-                    CursorMovedEventData(position=self.cursor_pos, previous_position=previous_pos)
-                )
-            
-            # Select the unit
-            self.selected_unit = next_unit
-            
-            # Publish unit selected event
+        # Publish cursor moved event if position changed
+        if self.cursor_pos != previous_pos:
             self.publish_event(
-                EventType.UNIT_SELECTED,
-                UnitSelectedEventData(unit=next_unit, position=self.cursor_pos)
+                EventType.CURSOR_MOVED, 
+                CursorMovedEventData(position=self.cursor_pos, previous_position=previous_pos)
             )
-            
-            self.game_ui.message = ""  # Clear message to avoid redundancy with unit info display
-            self.game_ui.draw_board()
-            return
-            
-        # Find the index of the currently selected unit
-        try:
-            current_index = player_units.index(self.selected_unit)
-            
-            # Calculate the next index based on direction
-            if reverse:
-                # Select the previous unit (loop back to last if at the beginning)
-                next_index = (current_index - 1) % len(player_units)
-            else:
-                # Select the next unit (loop back to first if at the end)
-                next_index = (current_index + 1) % len(player_units)
-                
-            next_unit = player_units[next_index]
-            
-            # Move cursor to unit position
-            previous_pos = self.cursor_pos
-            
-            # If the unit has a move target, cycle to the ghost instead
-            if next_unit.move_target:
-                self.cursor_pos = Position(next_unit.move_target[0], next_unit.move_target[1])
-            else:
-                self.cursor_pos = Position(next_unit.y, next_unit.x)
-            
-            # Publish cursor moved event if position changed
-            if self.cursor_pos != previous_pos:
-                self.publish_event(
-                    EventType.CURSOR_MOVED, 
-                    CursorMovedEventData(position=self.cursor_pos, previous_position=previous_pos)
-                )
-                
-            # Clear message to avoid redundancy with unit info display
-            self.game_ui.message = ""
-                
-            # Select the unit
-            self.selected_unit = next_unit
-            
-            # Publish unit selected event
-            self.publish_event(
-                EventType.UNIT_SELECTED,
-                UnitSelectedEventData(unit=next_unit, position=self.cursor_pos)
-            )
-            
-        except ValueError:
-            # If the selected unit isn't in the player's units (could happen in test mode)
-            # In reverse mode, start from the last unit
-            next_unit = player_units[-1 if reverse else 0]
-            
-            # Move cursor to unit position
-            previous_pos = self.cursor_pos
-            
-            if next_unit.move_target:
-                self.cursor_pos = Position(next_unit.move_target[0], next_unit.move_target[1])
-            else:
-                self.cursor_pos = Position(next_unit.y, next_unit.x)
-            
-            # Publish cursor moved event if position changed
-            if self.cursor_pos != previous_pos:
-                self.publish_event(
-                    EventType.CURSOR_MOVED, 
-                    CursorMovedEventData(position=self.cursor_pos, previous_position=previous_pos)
-                )
-            
-            # Select the unit
-            self.selected_unit = next_unit
-            
-            # Publish unit selected event
-            self.publish_event(
-                EventType.UNIT_SELECTED,
-                UnitSelectedEventData(unit=next_unit, position=self.cursor_pos)
-            )
-            
-            self.game_ui.message = ""  # Clear message to avoid redundancy with unit info display
+        
+        # Select the unit
+        self.selected_unit = next_unit
+        
+        # Publish unit selected event
+        self.publish_event(
+            EventType.UNIT_SELECTED,
+            UnitSelectedEventData(unit=next_unit, position=self.cursor_pos)
+        )
+        
+        # Clear message to avoid redundancy with unit info display
+        self.game_ui.message = ""
         
         # Redraw the board to show the new selection
         self.game_ui.draw_board()
