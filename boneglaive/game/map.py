@@ -18,7 +18,7 @@ class TerrainType(Enum):
     PILLAR = 3     # Large limestone pillar, blocks movement and unit placement
     FURNITURE = 4  # Generic furniture, blocks movement but not line of sight
     COAT_RACK = 5  # Coat rack, blocks movement but not line of sight
-    BENCH = 6      # Bench/ottoman seating, blocks movement but not line of sight
+    OTTOMAN = 6    # Ottoman seating, blocks movement but not line of sight
     CONSOLE = 7    # Console table, blocks movement but not line of sight
     DEC_TABLE = 8  # Decorative table, blocks movement but not line of sight
 
@@ -117,18 +117,18 @@ class LimeFoyerMap(GameMap):
         self.set_terrain_at(2, 5, TerrainType.FURNITURE)  # Reception chair
         
         # Main waiting area (centered in open space)
-        self.set_terrain_at(4, 15, TerrainType.BENCH)     # Right waiting bench
-        self.set_terrain_at(5, 15, TerrainType.BENCH)     # Right waiting bench extension
-        self.set_terrain_at(4, 4, TerrainType.BENCH)      # Left waiting bench
-        self.set_terrain_at(5, 4, TerrainType.BENCH)      # Left waiting bench extension
+        self.set_terrain_at(4, 15, TerrainType.OTTOMAN)   # Right ottoman
+        self.set_terrain_at(5, 15, TerrainType.OTTOMAN)   # Right ottoman extension
+        self.set_terrain_at(4, 4, TerrainType.OTTOMAN)    # Left ottoman
+        self.set_terrain_at(5, 4, TerrainType.OTTOMAN)    # Left ottoman extension
         
         # Center coffee/magazine tables
-        self.set_terrain_at(4, 3, TerrainType.DEC_TABLE)  # Side table by bench
-        self.set_terrain_at(4, 16, TerrainType.DEC_TABLE) # Side table by bench
+        self.set_terrain_at(4, 3, TerrainType.DEC_TABLE)  # Side table by ottoman
+        self.set_terrain_at(4, 16, TerrainType.DEC_TABLE) # Side table by ottoman
         
         # Lower seating area (near second pillar)
-        self.set_terrain_at(8, 4, TerrainType.BENCH)      # Lower lobby bench
-        self.set_terrain_at(8, 15, TerrainType.BENCH)     # Lower lobby bench opposite
+        self.set_terrain_at(8, 4, TerrainType.OTTOMAN)    # Lower lobby ottoman
+        self.set_terrain_at(8, 15, TerrainType.OTTOMAN)   # Lower lobby ottoman opposite
         
         # Decorative elements
         self.set_terrain_at(6, 5, TerrainType.FURNITURE)  # Plant between seating areas

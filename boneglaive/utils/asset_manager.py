@@ -53,7 +53,7 @@ class AssetManager:
             'pillar': 'O',     # Pillars use capital O
             'furniture': '#',  # Generic furniture uses hash symbol
             'coat_rack': 'ł',  # Coat rack uses slashed l
-            'bench': '=',      # Bench/ottoman uses equals sign
+            'ottoman': '=',    # Ottoman uses equals sign
             'console': 'ε',    # Console table uses epsilon
             'dec_table': 'Π'   # Decorative table uses Pi symbol
         }

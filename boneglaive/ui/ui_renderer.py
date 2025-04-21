@@ -155,8 +155,8 @@ class UIRenderer:
                     tile = self.game_ui.asset_manager.get_terrain_tile("coat_rack")
                     color_id = 14  # White for furniture
                     tile_attr = curses.A_DIM  # Dim white/gray via dim attribute
-                elif terrain == TerrainType.BENCH:
-                    tile = self.game_ui.asset_manager.get_terrain_tile("bench")
+                elif terrain == TerrainType.OTTOMAN:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("ottoman")
                     color_id = 14  # White for furniture
                     tile_attr = curses.A_DIM  # Dim white/gray via dim attribute
                 elif terrain == TerrainType.CONSOLE:
@@ -331,7 +331,7 @@ class UIRenderer:
             
             # Draw unit type with player color
             player_color = 3 if unit.player == 1 else 4
-            type_info = f"▶ UNIT: {unit.type.name} ◀"
+            type_info = f"▶ UNIT: {unit.get_display_name()} ◀"
             self.renderer.draw_text(info_line, 2, type_info, player_color, curses.A_BOLD)
             
             # Draw HP with color based on health percentage

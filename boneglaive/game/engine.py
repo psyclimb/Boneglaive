@@ -119,6 +119,9 @@ class Game:
                 player, y, x = emergency_positions[i]
                 self.add_unit(UnitType.GLAIVEMAN, player, y, x)
         
+        # Assign Greek identifiers
+        self._assign_greek_identifiers()
+        
         # Skip setup phase when using test setup
         self.setup_phase = False
         self.setup_player = 1
@@ -181,6 +184,9 @@ class Game:
         if self.setup_player == 2:
             # Resolve any unit placement conflicts before the game starts
             self._resolve_unit_placement_conflicts()
+            
+            # Assign Greek identification letters to units
+            self._assign_greek_identifiers()
             
             self.setup_phase = False
             
@@ -298,6 +304,50 @@ class Game:
             if unit.is_alive() and unit.y == y and unit.x == x:
                 return unit
         return None
+        
+    def _assign_greek_identifiers(self):
+        """
+        Assign Greek letter identifiers to all units based on unit type.
+        This makes it easier to distinguish between multiple units of the same type.
+        """
+        from boneglaive.utils.constants import GREEK_ALPHABET
+        import collections
+        from boneglaive.utils.message_log import message_log, MessageType
+        
+        # Group units by player and type
+        unit_groups = collections.defaultdict(list)
+        
+        # First, collect all units into groups
+        for unit in self.units:
+            if unit.is_alive():
+                # Group key is (player, unit_type)
+                key = (unit.player, unit.type)
+                unit_groups[key].append(unit)
+        
+        # Now assign Greek letters to each unit within its group
+        for (player, unit_type), units in unit_groups.items():
+            # Sort units by position for consistency
+            units.sort(key=lambda u: (u.y, u.x))
+            
+            # Assign Greek letters
+            for i, unit in enumerate(units):
+                if i < len(GREEK_ALPHABET):
+                    unit.greek_id = GREEK_ALPHABET[i]
+                    logger.debug(f"Assigned {unit.greek_id} to Player {unit.player}'s {unit.type.name}")
+                else:
+                    # Fallback if we have more units than Greek letters
+                    unit.greek_id = f"{i+1}"
+                    logger.debug(f"Used number {unit.greek_id} for Player {unit.player}'s {unit.type.name}")
+        
+        # Log the assignments
+        message_log.add_system_message("Units have been assigned identifiers.")
+        for player in [1, 2]:
+            player_units = [u for u in self.units if u.is_alive() and u.player == player]
+            if player_units:
+                message_log.add_message(
+                    f"Player {player} units: " + ", ".join([f"{u.type.name} {u.greek_id}" for u in player_units]),
+                    MessageType.SYSTEM
+                )
     
     def is_valid_position(self, y, x):
         """Check if a position is within map bounds."""
@@ -523,22 +573,22 @@ class Game:
                     if unit.add_xp(xp_gained):
                         # Unit leveled up - add a message
                         message_log.add_message(
-                            f"{unit.type.name} gained experience and reached level {unit.level}!",
+                            f"{unit.get_display_name()} gained experience and reached level {unit.level}!",
                             MessageType.SYSTEM,
                             player=unit.player
                         )
                     
                     # Log combat message
                     message_log.add_combat_message(
-                        attacker_name=f"{unit.type.name}",
-                        target_name=f"{target.type.name}",
+                        attacker_name=unit.get_display_name(),
+                        target_name=target.get_display_name(),
                         damage=damage,
                         attacker_player=unit.player,
                         target_player=target.player
                     )
                     
                     # Format unit name with player info
-                    target_info = f"Player {target.player}'s {target.type.name}" if target.player else f"{target.type.name}"
+                    target_info = f"Player {target.player}'s {target.get_display_name()}" if target.player else target.get_display_name()
                     
                     # Check if target was defeated
                     if target.hp <= 0:

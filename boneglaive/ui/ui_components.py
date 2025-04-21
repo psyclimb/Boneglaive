@@ -826,7 +826,7 @@ class CursorManager(UIComponent):
                 )
             )
             
-            self.game_ui.message = f"Attack set against {target.type.name}"
+            self.game_ui.message = f"Attack set against {target.get_display_name()}"
             # No message added to log for planned attacks
             self.highlighted_positions = []
             return True
@@ -2061,9 +2061,9 @@ class ActionMenuComponent(UIComponent):
         
         # Set header text based on menu mode
         if self.menu_mode == "standard":
-            header = f" {unit.type.name} Actions "
+            header = f" {unit.get_display_name()} Actions "
         else:
-            header = f" {unit.type.name} Skills "
+            header = f" {unit.get_display_name()} Skills "
         
         # Center the header
         header_x = menu_x + (menu_width - len(header)) // 2
