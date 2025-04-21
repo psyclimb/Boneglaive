@@ -565,6 +565,9 @@ class Game:
                         # Update unit position
                         unit.y, unit.x = y, x
                         
+                        # Check for trap release due to position change
+                        self._check_position_change_trap_release(unit, start_y, start_x)
+                        
                         # Redraw to show unit in new position without UI elements during animation
                         ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
                         
@@ -578,8 +581,14 @@ class Game:
                         )
                         time.sleep(0.3)  # Short delay after each unit moves
                     else:
+                        # Save original position
+                        start_y, start_x = unit.y, unit.x
+                        
                         # Without UI, just update position
                         unit.y, unit.x = y, x
+                        
+                        # Check for trap release due to position change
+                        self._check_position_change_trap_release(unit, start_y, start_x)
                 else:
                     logger.warning(f"Invalid move target ({y},{x}) for unit at ({unit.y},{unit.x})")
             
@@ -896,6 +905,55 @@ class Game:
                         target_name=unit.get_display_name()
                     )
                     unit.trapped_by = None
+    
+    def _check_position_change_trap_release(self, unit, old_y, old_x):
+        """
+        Check if the unit that changed position is either:
+        1. A MANDIBLE_FOREMAN that has trapped units
+        2. A unit that is trapped by a MANDIBLE_FOREMAN
+        
+        If either case is true, release the trap since the jaws can't maintain
+        their grip when either unit's position changes.
+        
+        Args:
+            unit: The unit that moved
+            old_y, old_x: Previous position of the unit
+        """
+        from boneglaive.utils.message_log import message_log, MessageType
+        from boneglaive.utils.debug import logger
+        
+        # Case 1: The unit is a MANDIBLE_FOREMAN that has trapped units
+        if unit.type == UnitType.MANDIBLE_FOREMAN:
+            # Find any units trapped by this FOREMAN
+            trapped_units = [u for u in self.units if u.is_alive() and u.trapped_by == unit]
+            if trapped_units:
+                logger.debug(f"MANDIBLE_FOREMAN {unit.get_display_name()} moved, releasing trapped units")
+                
+                # Release the trapped units
+                for trapped_unit in trapped_units:
+                    trapped_unit.trapped_by = None
+                    message_log.add_message(
+                        f"{trapped_unit.get_display_name()} is released from mechanical jaws as FOREMAN moves!",
+                        MessageType.ABILITY,
+                        target_name=trapped_unit.get_display_name()
+                    )
+        
+        # Case 2: The unit is trapped by a MANDIBLE_FOREMAN
+        if unit.trapped_by is not None:
+            logger.debug(f"Trapped unit {unit.get_display_name()} moved, breaking free from jaws")
+            
+            # Store reference to the foreman for the message
+            foreman = unit.trapped_by
+            
+            # Release the unit
+            unit.trapped_by = None
+            
+            # Log the release
+            message_log.add_message(
+                f"{unit.get_display_name()} breaks free from mechanical jaws by moving!",
+                MessageType.ABILITY,
+                target_name=unit.get_display_name()
+            )
     
     def _release_trapped_units(self):
         """

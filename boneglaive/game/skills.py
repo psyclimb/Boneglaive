@@ -528,23 +528,7 @@ class PrySkill(ActiveSkill):
                 target_name=target.get_display_name()
             )
             
-            # If the target is a MANDIBLE_FOREMAN, release any units it has trapped
-            # Even though no displacement occurred, the unit was still affected by Pry
-            if target.type == UnitType.MANDIBLE_FOREMAN:
-                # Find and release any trapped units
-                trapped_units = [u for u in game.units if u.is_alive() and u.trapped_by == target]
-                if trapped_units:
-                    from boneglaive.utils.debug import logger
-                    logger.debug(f"MANDIBLE_FOREMAN {target.get_display_name()} was affected by Pry, releasing trapped units")
-                    
-                    # Release the trapped units
-                    for trapped_unit in trapped_units:
-                        trapped_unit.trapped_by = None
-                        message_log.add_message(
-                            f"{trapped_unit.get_display_name()} is released from mechanical jaws!",
-                            MessageType.ABILITY,
-                            target_name=trapped_unit.get_display_name()
-                        )
+            # Note: The engine will handle releasing trapped units automatically
             
             # No need for a message about being braced against terrain - it's implied
             
@@ -674,22 +658,7 @@ class PrySkill(ActiveSkill):
         # Calculate displacement distance
         displacement_distance = game.chess_distance(original_y, original_x, best_pos[0], best_pos[1])
         
-        # If the target is a MANDIBLE_FOREMAN, release any units it has trapped
-        if target.type == UnitType.MANDIBLE_FOREMAN:
-            # Find and release any trapped units
-            trapped_units = [u for u in game.units if u.is_alive() and u.trapped_by == target]
-            if trapped_units:
-                from boneglaive.utils.debug import logger
-                logger.debug(f"MANDIBLE_FOREMAN {target.get_display_name()} was displaced by Pry, releasing trapped units")
-                
-                # Release the trapped units
-                for trapped_unit in trapped_units:
-                    trapped_unit.trapped_by = None
-                    message_log.add_message(
-                        f"{trapped_unit.get_display_name()} is released from mechanical jaws!",
-                        MessageType.ABILITY,
-                        target_name=trapped_unit.get_display_name()
-                    )
+        # The engine will now handle releasing trapped units when position changes
         
         # Log the displacement with additional details if needed
         if displacement_distance < 3:
