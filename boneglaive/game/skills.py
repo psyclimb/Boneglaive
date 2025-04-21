@@ -117,7 +117,8 @@ class ActiveSkill(Skill):
 class Autoclave(PassiveSkill):
     """
     Passive skill for GLAIVEMAN.
-    When the GLAIVEMAN wretches (is brought to critical health but not killed),
+    When the GLAIVEMAN wretches (is brought to critical health but not killed)
+    or takes damage while already at critical health,
     he retaliates with a four-directional, range 3, cross-shaped attack that
     heals him for half of the damage he dealt.
     Can only occur once per game per GLAIVEMAN.
@@ -128,7 +129,7 @@ class Autoclave(PassiveSkill):
         super().__init__(
             name="Autoclave",
             key="A",
-            description="When wretched but not killed, unleashes a cross-shaped attack in four directions (range 3) and heals for half the damage dealt. One-time use. Requires enemy in range."
+            description="When wretched or damaged while at critical health, unleashes a cross-shaped attack in four directions (range 3) and heals for half the damage dealt. One-time use. Requires enemy in range."
         )
         self.activated = False  # Track if this skill has been used
         self.ready_to_trigger = False  # Flag for when conditions are met to trigger
