@@ -506,6 +506,7 @@ class Game:
                         ui.show_attack_animation(unit, target)
                     
                     # Calculate damage
+                    # Defense acts as flat damage reduction
                     damage = max(1, unit.attack - target.defense)
                     
                     # Store previous HP to check for status changes

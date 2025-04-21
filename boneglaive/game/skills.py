@@ -246,8 +246,8 @@ class Autoclave(PassiveSkill):
                 # Check if there's a unit at this position
                 target = game.get_unit_at(target_y, target_x)
                 if target and target.player != user.player:
-                    # Calculate damage (fixed at 8 regardless of defense)
-                    damage = 8
+                    # Calculate damage, accounting for defense
+                    damage = max(1, 8 - target.defense)
                     
                     # Apply damage to target
                     previous_hp = target.hp
@@ -478,9 +478,10 @@ class PrySkill(ActiveSkill):
                             0.1  # quick animation
                         )
             
-            # Apply damage to target
+            # Apply damage to target, accounting for defense
+            damage = max(1, self.damage - target.defense)
             previous_hp = target.hp
-            target.hp = max(0, target.hp - self.damage)
+            target.hp = max(0, target.hp - damage)
             
             # Log the damage
             message_log.add_combat_message(
@@ -591,9 +592,10 @@ class PrySkill(ActiveSkill):
                         0.1  # quick animation
                     )
             
-        # Apply damage to target
+        # Apply damage to target, accounting for defense
+        damage = max(1, self.damage - target.defense)
         previous_hp = target.hp
-        target.hp = max(0, target.hp - self.damage)
+        target.hp = max(0, target.hp - damage)
         
         # Log the damage
         message_log.add_combat_message(
@@ -1114,8 +1116,8 @@ class JudgementThrowSkill(ActiveSkill):
             cooldown=2,
             range_=3
         )
-        self.base_damage = 3  # Base damage amount
-        self.critical_damage = 14  # Fixed damage amount when critical
+        self.base_damage = 4  # Base damage amount
+        self.critical_damage = 8  # Fixed damage amount when critical
         
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Check if Judgement Throw can be used on the target."""
@@ -1224,7 +1226,12 @@ class JudgementThrowSkill(ActiveSkill):
         is_critical = target.hp <= critical_threshold
         
         # Calculate damage
-        damage = self.critical_damage if is_critical else self.base_damage
+        if is_critical:
+            # Critical damage bypasses defense
+            damage = self.critical_damage
+        else:
+            # Regular damage is affected by defense
+            damage = max(1, self.base_damage - target.defense)
             
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):

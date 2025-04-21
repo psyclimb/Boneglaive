@@ -29,9 +29,9 @@ class UnitType(Enum):
 
 # Unit stats: (hp, attack, defense, move_range, attack_range)
 UNIT_STATS = {
-    UnitType.GLAIVEMAN: (20, 8, 5, 2, 1),
-    UnitType.ARCHER: (15, 7, 2, 2, 3),
-    UnitType.MAGE: (12, 10, 1, 1, 2)
+    UnitType.GLAIVEMAN: (20, 5, 1, 2, 1),
+    UnitType.ARCHER: (15, 5, 2, 2, 3),
+    UnitType.MAGE: (12, 6, 1, 1, 2)
 }
 
 UNIT_SYMBOLS = {
