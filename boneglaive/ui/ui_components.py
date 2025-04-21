@@ -851,7 +851,15 @@ class CursorManager(UIComponent):
             )
             
             self.game_ui.message = f"Attack set against {target.get_display_name()}"
-            # No message added to log for planned attacks
+            # Add message to log for planned attacks, similar to skill messages
+            from boneglaive.utils.message_log import message_log, MessageType
+            message_log.add_message(
+                f"{self.selected_unit.get_display_name()} readies attack against {target.get_display_name()}!",
+                MessageType.COMBAT,
+                player=self.selected_unit.player,
+                attacker_name=self.selected_unit.get_display_name(),
+                target_name=target.get_display_name()
+            )
             self.highlighted_positions = []
             return True
         else:
