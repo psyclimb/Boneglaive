@@ -1344,17 +1344,51 @@ class JudgementThrowSkill(ActiveSkill):
             impact_animation = ['X', '#', '*', '⚡'] if is_critical else ['X', '#', '*']
             impact_color = 5 if is_critical else 6  # Yellow for critical, Red for normal
             
-            # If critical hit, add lightning effect
+            # If critical hit, add a more dramatic lightning from sky effect
             if is_critical:
-                # Show lightning animation
-                lightning_chars = ['⌁', '⚡', '⌁', '⚡']
-                for char in lightning_chars:
-                    ui.renderer.draw_tile(target_pos[0], target_pos[1], char, 5)  # Yellow for lightning
-                    ui.renderer.refresh()
-                    time.sleep(0.1)
+                # Create a vertical path from above the target (from "sky")
+                sky_height = max(0, target_pos[0] - 5)  # Start 5 spaces above target or at top of screen
+                
+                # Draw lightning bolt coming from the sky
+                lightning_path = []
+                for y in range(sky_height, target_pos[0] + 1):
+                    # Add some randomness to the x position for zigzag effect
+                    offset = 0
+                    if y > sky_height and y < target_pos[0]:
+                        offset = (y % 3) - 1  # Values: -1, 0, 1 for zigzag
+                    x_pos = target_pos[1] + offset
                     
-                # Small pause for effect (but no "CRITICAL!" text)
+                    # Make sure we're still on screen
+                    if x_pos >= 0 and x_pos < WIDTH:
+                        lightning_path.append((y, x_pos))
+                
+                # Lightning bolt characters based on position in path
+                lightning_chars = ['⋰', '│', '⚡', '↯', '⚡', '↯']
+                
+                # First flash - draw the entire path
+                for i, (y, x) in enumerate(lightning_path):
+                    char_index = min(i % len(lightning_chars), len(lightning_chars) - 1)
+                    ui.renderer.draw_tile(y, x, lightning_chars[char_index], 5)  # Yellow for lightning
+                ui.renderer.refresh()
+                time.sleep(0.15)
+                
+                # Clear the path
+                for y, x in lightning_path:
+                    ui.renderer.draw_tile(y, x, ' ', 0)
+                ui.renderer.refresh()
+                time.sleep(0.05)
+                
+                # Second flash - more intense
+                for i, (y, x) in enumerate(lightning_path):
+                    char_index = min(i % len(lightning_chars), len(lightning_chars) - 1)
+                    ui.renderer.draw_tile(y, x, lightning_chars[char_index], 3)  # Brighter color
+                ui.renderer.refresh()
                 time.sleep(0.2)
+                
+                # Final strike - most intense at target position
+                ui.renderer.draw_tile(target_pos[0], target_pos[1], '※', 7)  # White for maximum flash
+                ui.renderer.refresh()
+                time.sleep(0.15)
             
             # Show impact animation
             ui.renderer.animate_attack_sequence(
