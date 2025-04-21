@@ -62,7 +62,8 @@ class AssetManager:
         self.ui_tiles = {
             'cursor': '[]',
             'selected': '**',
-            'health': 'HP'
+            'health': 'HP',
+            'vault_target': '◎'  # Circle target for vault landing spot
         }
         
         # Effect symbols - enhanced ASCII for attacks

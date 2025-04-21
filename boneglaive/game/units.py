@@ -45,6 +45,7 @@ class Unit:
         self.attack_target = None
         self.skill_target = None
         self.selected_skill = None
+        self.vault_target_indicator = None  # Visual indicator for Vault destination
         
         # Action order tracking (lower is earlier)
         self.action_timestamp = 0
@@ -171,6 +172,7 @@ class Unit:
         self.attack_target = None
         self.skill_target = None
         self.selected_skill = None
+        self.vault_target_indicator = None  # Clear vault target indicator
         self.action_timestamp = 0  # Reset the action timestamp
         
     def reset_movement_penalty(self) -> None:
