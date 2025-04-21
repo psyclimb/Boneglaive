@@ -308,26 +308,26 @@ class Game:
     def _assign_greek_identifiers(self):
         """
         Assign Greek letter identifiers to all units based on unit type.
-        This makes it easier to distinguish between multiple units of the same type.
+        Greek letters are shared between players and assigned sequentially.
         """
         from boneglaive.utils.constants import GREEK_ALPHABET
         import collections
         from boneglaive.utils.message_log import message_log, MessageType
         
-        # Group units by player and type
+        # Group units by type only (not by player)
         unit_groups = collections.defaultdict(list)
         
-        # First, collect all units into groups
+        # First, collect all units into groups by type
         for unit in self.units:
             if unit.is_alive():
-                # Group key is (player, unit_type)
-                key = (unit.player, unit.type)
+                # Group key is just unit_type
+                key = unit.type
                 unit_groups[key].append(unit)
         
         # Now assign Greek letters to each unit within its group
-        for (player, unit_type), units in unit_groups.items():
-            # Sort units by position for consistency
-            units.sort(key=lambda u: (u.y, u.x))
+        for unit_type, units in unit_groups.items():
+            # Sort units by player first, then position
+            units.sort(key=lambda u: (u.player, u.y, u.x))
             
             # Assign Greek letters
             for i, unit in enumerate(units):
