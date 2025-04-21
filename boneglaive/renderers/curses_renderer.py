@@ -18,7 +18,7 @@ class CursesRenderer(RenderInterface):
         self.stdscr = stdscr
         self.height = 0
         self.width = 0
-        self.ui_offset_y = 2  # Header space
+        self.ui_offset_y = 1  # Reduced header space to ensure bottom row is visible
         self.tile_width = 2   # Width of each tile in characters
         
         # Create a buffer pad for double buffering to reduce flicker
