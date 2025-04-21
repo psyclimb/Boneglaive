@@ -869,7 +869,7 @@ class Game:
                         # Use renderer's flash tile method
                         ui.renderer.flash_tile(unit.y, unit.x, tile_ids, color_ids, durations)
                     
-                    # Show damage number
+                    # Show damage number above target with same appearance as attack damage
                     damage_text = f"-{damage}"
                     
                     # Make damage text more prominent
@@ -878,14 +878,14 @@ class Game:
                         ui.renderer.draw_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
                         # Draw with alternating bold/normal for a flashing effect
                         attrs = curses.A_BOLD if i % 2 == 0 else 0
-                        ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 5, attrs)  # Red for trap damage
+                        ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, attrs)  # White color (same as attack damage)
                         ui.renderer.refresh()
                         time.sleep(0.1)
                     
-                    # Final damage display
-                    ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 5, curses.A_BOLD)
+                    # Final damage display (stays on screen slightly longer)
+                    ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
                     ui.renderer.refresh()
-                    time.sleep(0.2)
+                    time.sleep(0.3)  # Match the 0.3s delay used in attack damage
                 
                 # Check if the trapped unit was defeated
                 if unit.hp <= 0:
