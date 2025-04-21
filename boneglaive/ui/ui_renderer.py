@@ -146,8 +146,25 @@ class UIRenderer:
                 elif terrain == TerrainType.PILLAR:
                     tile = self.game_ui.asset_manager.get_terrain_tile("pillar")
                     color_id = 13  # White for pillars
+                # Different furniture types
                 elif terrain == TerrainType.FURNITURE:
                     tile = self.game_ui.asset_manager.get_terrain_tile("furniture")
+                    color_id = 14  # White for furniture
+                    tile_attr = curses.A_DIM  # Dim white/gray via dim attribute
+                elif terrain == TerrainType.COAT_RACK:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("coat_rack")
+                    color_id = 14  # White for furniture
+                    tile_attr = curses.A_DIM  # Dim white/gray via dim attribute
+                elif terrain == TerrainType.BENCH:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("bench")
+                    color_id = 14  # White for furniture
+                    tile_attr = curses.A_DIM  # Dim white/gray via dim attribute
+                elif terrain == TerrainType.CONSOLE:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("console")
+                    color_id = 14  # White for furniture
+                    tile_attr = curses.A_DIM  # Dim white/gray via dim attribute
+                elif terrain == TerrainType.DEC_TABLE:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("dec_table")
                     color_id = 14  # White for furniture
                     tile_attr = curses.A_DIM  # Dim white/gray via dim attribute
                 else:

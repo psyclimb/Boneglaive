@@ -51,7 +51,11 @@ class AssetManager:
             'limestone': '▒',  # Limestone powder piles use a medium shade block
             'dust': ',',       # Light limestone dusting use a comma
             'pillar': 'O',     # Pillars use capital O
-            'furniture': '■'   # Furniture uses a solid square
+            'furniture': '#',  # Generic furniture uses hash symbol
+            'coat_rack': 'ł',  # Coat rack uses slashed l
+            'bench': '=',      # Bench/ottoman uses equals sign
+            'console': 'ε',    # Console table uses epsilon
+            'dec_table': 'Π'   # Decorative table uses Pi symbol
         }
         
         # UI symbols
