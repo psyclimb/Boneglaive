@@ -55,7 +55,7 @@ class UIRenderer:
             self.renderer.refresh()
             return
         
-        # Draw header with improved formatting
+        # Draw header with improved formatting - keeping it compact
         header_y = 0
         
         # Clear the header line first
@@ -299,7 +299,8 @@ class UIRenderer:
             self.game_ui.action_menu_component.draw()
         
         # Draw unit info with improved formatting
-        info_line = HEIGHT+1
+        # Add +2 to ensure a blank line between map and info
+        info_line = HEIGHT+2
         
         # Clear the unit info line
         self.renderer.draw_text(info_line, 0, " " * self.renderer.width, 1)
@@ -358,7 +359,7 @@ class UIRenderer:
             self.renderer.draw_text(info_line, range_pos, range_part, 1)
         
         # Draw message with better visibility
-        msg_line = HEIGHT+2
+        msg_line = HEIGHT+3
         self.renderer.draw_text(msg_line, 0, " " * self.renderer.width, 1)  # Clear line
         if self.game_ui.message:
             msg_indicator = ">> "
@@ -366,14 +367,14 @@ class UIRenderer:
             self.renderer.draw_text(msg_line, 2 + len(msg_indicator), self.game_ui.message, 1)
         
         # Draw simplified help reminder and controls
-        help_line = HEIGHT+3
+        help_line = HEIGHT+4
         self.renderer.draw_text(help_line, 0, " " * self.renderer.width, 1)  # Clear line
         help_text = "Press ? for help | [M]ove | [A]ttack | [E]nd Turn"
         self.renderer.draw_text(help_line, 2, help_text, 1)
         
         # Draw winner info if game is over
         if self.game_ui.game.winner:
-            winner_line = HEIGHT+4
+            winner_line = HEIGHT+5
             self.renderer.draw_text(winner_line, 0, " " * self.renderer.width, 1)  # Clear line
             winner_color = 3 if self.game_ui.game.winner == 1 else 4
             winner_text = f"★★★ PLAYER {self.game_ui.game.winner} WINS! ★★★"
@@ -393,7 +394,7 @@ class UIRenderer:
                 overlay_lines.append(f"Units: {len(game_state['units'])}")
                 
                 # Display overlay below message log
-                line_offset = HEIGHT + 5 + message_log_component.log_height + 2
+                line_offset = HEIGHT + 6 + message_log_component.log_height + 2
                 for i, line in enumerate(overlay_lines):
                     self.renderer.draw_text(line_offset + i, 0, line, 1, curses.A_DIM)
             except Exception as e:

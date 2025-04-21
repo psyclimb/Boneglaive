@@ -159,7 +159,7 @@ class MessageLogComponent(UIComponent):
             messages = message_log.get_formatted_messages(self.log_height)
             
             # Calculate position for the log (closer to the game info)
-            start_y = HEIGHT + 5
+            start_y = HEIGHT + 6
             
             # Get terminal width for drawing borders
             term_height, term_width = self.renderer.get_terminal_size()
@@ -480,7 +480,7 @@ class ChatComponent(UIComponent):
         """Draw the chat input field at the bottom of the message log."""
         try:
             # Calculate position for the chat input (below the message log)
-            input_y = HEIGHT + 5 + self.game_ui.message_log_component.log_height + 1
+            input_y = HEIGHT + 6 + self.game_ui.message_log_component.log_height + 1
             
             # Calculate the current player
             current_player = self.game_ui.multiplayer.get_current_player()
