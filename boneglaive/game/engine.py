@@ -339,8 +339,7 @@ class Game:
                     unit.greek_id = f"{i+1}"
                     logger.debug(f"Used number {unit.greek_id} for Player {unit.player}'s {unit.type.name}")
         
-        # Log the assignments
-        message_log.add_system_message("Units have been assigned identifiers.")
+        # No need to log the identifier assignments
         for player in [1, 2]:
             player_units = [u for u in self.units if u.is_alive() and u.player == player]
             if player_units:
