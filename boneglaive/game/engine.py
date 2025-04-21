@@ -915,8 +915,13 @@ class Game:
         If either case is true, release the trap since the jaws can't maintain
         their grip when either unit's position changes.
         
+        This method is called for any position change, including:
+        - Regular movement
+        - Forced displacement (like Pry skill)
+        - Any other position change mechanism
+        
         Args:
-            unit: The unit that moved
+            unit: The unit that had its position changed
             old_y, old_x: Previous position of the unit
         """
         from boneglaive.utils.message_log import message_log, MessageType
@@ -927,20 +932,20 @@ class Game:
             # Find any units trapped by this FOREMAN
             trapped_units = [u for u in self.units if u.is_alive() and u.trapped_by == unit]
             if trapped_units:
-                logger.debug(f"MANDIBLE_FOREMAN {unit.get_display_name()} moved, releasing trapped units")
+                logger.debug(f"MANDIBLE_FOREMAN {unit.get_display_name()} position changed, releasing trapped units")
                 
                 # Release the trapped units
                 for trapped_unit in trapped_units:
                     trapped_unit.trapped_by = None
                     message_log.add_message(
-                        f"{trapped_unit.get_display_name()} is released from mechanical jaws as FOREMAN moves!",
+                        f"{trapped_unit.get_display_name()} is released from mechanical jaws as FOREMAN is displaced!",
                         MessageType.ABILITY,
                         target_name=trapped_unit.get_display_name()
                     )
         
         # Case 2: The unit is trapped by a MANDIBLE_FOREMAN
         if unit.trapped_by is not None:
-            logger.debug(f"Trapped unit {unit.get_display_name()} moved, breaking free from jaws")
+            logger.debug(f"Trapped unit {unit.get_display_name()} position changed, breaking free from jaws")
             
             # Store reference to the foreman for the message
             foreman = unit.trapped_by
@@ -950,7 +955,7 @@ class Game:
             
             # Log the release
             message_log.add_message(
-                f"{unit.get_display_name()} breaks free from mechanical jaws by moving!",
+                f"{unit.get_display_name()} breaks free from mechanical jaws due to position change!",
                 MessageType.ABILITY,
                 target_name=unit.get_display_name()
             )
