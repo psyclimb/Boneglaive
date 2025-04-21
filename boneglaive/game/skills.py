@@ -896,7 +896,7 @@ class VaultSkill(ActiveSkill):
             key="V",
             description="Leap over obstacles to any empty position within range, ignoring pathing restrictions.",
             target_type=TargetType.AREA,
-            cooldown=3,
+            cooldown=4,
             range_=3
         )
         
