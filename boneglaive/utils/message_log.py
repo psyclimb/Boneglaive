@@ -210,8 +210,8 @@ class MessageLog:
             elif ("movement reduced" in text or "debuff" in text.lower() or "penalty" in text.lower() or 
                 "displaced from" in text or "collides with" in text):
                 color = 7  # Yellow for debuffs/negative effects and displacements
-            # Otherwise, use player color for messages with attacker/target info
-            elif 'attacker_name' in msg and msg['player'] is not None:
+            # Otherwise, use player color for messages with attacker/target info or ability messages
+            elif ('attacker_name' in msg and msg['player'] is not None) or (msg['type'] == MessageType.ABILITY and msg['player'] is not None):
                 player_num = msg['player']
                 color = self.player_colors.get(player_num, 8)  # Use player color (green/blue) instead of gray
             
