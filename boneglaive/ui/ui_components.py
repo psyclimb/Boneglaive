@@ -1210,6 +1210,18 @@ class GameModeManager(UIComponent):
                         )
                     )
                     return
+                
+                # Check if unit is trapped
+                if cursor_manager.selected_unit.trapped_by is not None:
+                    # Use event system for message
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message="Unit is trapped and cannot move",
+                            message_type=MessageType.WARNING
+                        )
+                    )
+                    return
                     
                 # Change mode (will publish mode changed event)
                 self.set_mode("move")
@@ -1273,6 +1285,18 @@ class GameModeManager(UIComponent):
                         EventType.MESSAGE_DISPLAY_REQUESTED,
                         MessageDisplayEventData(
                             message="Unit has already planned an attack and cannot use a skill",
+                            message_type=MessageType.WARNING
+                        )
+                    )
+                    return
+                
+                # Check if unit is trapped
+                if cursor_manager.selected_unit.trapped_by is not None:
+                    # Use event system for message
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message="Unit is trapped and cannot use skills",
                             message_type=MessageType.WARNING
                         )
                     )
@@ -1995,11 +2019,13 @@ class ActionMenuComponent(UIComponent):
         self.menu_mode = "standard"
         
         # Add standard actions with consistent labeling
+        # Disable move for trapped units
+        unit_can_move = unit is not None and unit.trapped_by is None
         self.actions.append({
             'key': 'm',
             'label': 'ove',  # Will be displayed as [M]ove without space
             'action': GameAction.MOVE_MODE,
-            'enabled': True
+            'enabled': unit_can_move  # Enabled only if unit is not trapped
         })
         
         self.actions.append({
@@ -2011,11 +2037,12 @@ class ActionMenuComponent(UIComponent):
         
         # Add skill action
         unit_has_skills = unit is not None and hasattr(unit, 'active_skills') and len(unit.get_available_skills()) > 0
+        unit_can_use_skills = unit_has_skills and unit.trapped_by is None
         self.actions.append({
             'key': 's',
             'label': 'kills',  # Will be displayed as [S]kills without space
             'action': GameAction.SKILL_MODE,
-            'enabled': unit_has_skills  # Enabled if unit has available skills
+            'enabled': unit_can_use_skills  # Enabled if unit has available skills and is not trapped
         })
         
         # Reset selected index
