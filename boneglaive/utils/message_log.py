@@ -81,8 +81,8 @@ class MessageLog:
         Add a combat-specific message with a consistent format.
         
         Args:
-            attacker_name: Name of the attacking unit
-            target_name: Name of the target unit
+            attacker_name: Name of the attacking unit (should include Greek identifier)
+            target_name: Name of the target unit (should include Greek identifier)
             damage: Amount of damage dealt
             ability: Name of ability used (optional)
             attacker_player: Player number of attacker (optional)

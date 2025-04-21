@@ -259,8 +259,8 @@ class Autoclave(PassiveSkill):
                     
                     # Log the attack
                     message_log.add_combat_message(
-                        attacker_name=f"{user.type.name}",
-                        target_name=f"{target.type.name}",
+                        attacker_name=user.get_display_name(),
+                        target_name=target.get_display_name(),
                         damage=damage,  # Already using the calculated damage value
                         ability="Autoclave",
                         attacker_player=user.player,
@@ -270,7 +270,7 @@ class Autoclave(PassiveSkill):
                     # Check if target was defeated
                     if target.hp <= 0:
                         message_log.add_message(
-                            f"Player {target.player}'s {target.type.name} perishes!",
+                            f"Player {target.player}'s {target.get_display_name()} perishes!",
                             MessageType.COMBAT,
                             player=user.player,
                             target=target.player
@@ -422,7 +422,7 @@ class PrySkill(ActiveSkill):
         
         # Log that the skill has been queued
         message_log.add_message(
-            f"GLAIVEMAN readies Pry against {target.type.name}!",
+            f"{user.get_display_name()} readies Pry against {target.get_display_name()}!",
             MessageType.ABILITY,
             player=user.player
         )
@@ -604,8 +604,8 @@ class PrySkill(ActiveSkill):
         
         # Log the damage
         message_log.add_combat_message(
-            attacker_name=f"{user.type.name}",
-            target_name=f"{target.type.name}",
+            attacker_name=user.get_display_name(),
+            target_name=target.get_display_name(),
             damage=damage,  # Use the calculated damage value
             ability="Pry",
             attacker_player=user.player,
@@ -977,7 +977,7 @@ class VaultSkill(ActiveSkill):
         
         # Log that the skill has been queued
         message_log.add_message(
-            f"GLAIVEMAN readies Vault to position ({target_pos[0]}, {target_pos[1]})!",
+            f"{user.get_display_name()} readies Vault to position ({target_pos[0]}, {target_pos[1]})!",
             MessageType.ABILITY,
             player=user.player
         )
@@ -1191,7 +1191,7 @@ class JudgementThrowSkill(ActiveSkill):
         
         # Log that the skill has been queued
         message_log.add_message(
-            f"GLAIVEMAN readies Judgement Throw against {target.type.name}!",
+            f"{user.get_display_name()} readies Judgement Throw against {target.get_display_name()}!",
             MessageType.ABILITY,
             player=user.player
         )
@@ -1212,16 +1212,38 @@ class JudgementThrowSkill(ActiveSkill):
         # Log current cooldown for debugging
         logger.debug(f"Executing {self.name} with cooldown: {self.current_cooldown}")
         
-        # Get target unit (might have moved)
+        # Get target at the original position
         target = game.get_unit_at(target_pos[0], target_pos[1])
+        
+        # Validate whether the ability should resolve - it should resolve as long as:
+        # 1. There's a valid enemy at the original position, OR
+        # 2. There's a valid enemy within range of the user
         if not target or target.player == user.player:
-            # Target is no longer valid
-            message_log.add_message(
-                "Judgement Throw failed: target no longer valid.",
-                MessageType.ABILITY,
-                player=user.player
-            )
-            return False
+            # Look for any valid enemy unit within range
+            valid_targets = []
+            for potential_target in game.units:
+                if (potential_target.is_alive() and 
+                    potential_target.player != user.player):
+                    # Check if this unit is within range
+                    distance = game.chess_distance(user.y, user.x, potential_target.y, potential_target.x)
+                    if distance <= self.range:
+                        valid_targets.append((potential_target, distance))
+            
+            # If we found valid targets, take the closest one
+            if valid_targets:
+                # Sort by distance (closest first)
+                valid_targets.sort(key=lambda x: x[1])
+                target = valid_targets[0][0]
+                # Update target position for animation
+                target_pos = (target.y, target.x)
+            else:
+                # No valid targets at all
+                message_log.add_message(
+                    "Judgement Throw failed: no targets in range.",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
+                return False
             
         # Log the skill activation
         message_log.add_message(

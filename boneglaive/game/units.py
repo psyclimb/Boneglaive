@@ -19,6 +19,9 @@ class Unit:
         self.y = y
         self.x = x
         
+        # Greek letter identifier (assigned later when all units are spawned)
+        self.greek_id = None
+        
         # Get base stats from constants
         base_hp, base_attack, base_defense, base_move_range, base_attack_range = UNIT_STATS[unit_type]
         
@@ -93,6 +96,13 @@ class Unit:
             'move_range': self.move_range + self.move_range_bonus,
             'attack_range': self.attack_range + self.attack_range_bonus
         }
+        
+    def get_display_name(self) -> str:
+        """Get the unit's display name including the Greek identifier."""
+        if self.greek_id:
+            return f"{self.type.name} {self.greek_id}"
+        else:
+            return f"{self.type.name}"
     
     def apply_passive_skills(self, game=None) -> None:
         """Apply effects of passive skills."""
