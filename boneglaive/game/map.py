@@ -16,7 +16,11 @@ class TerrainType(Enum):
     LIMESTONE = 1  # Limestone formation, blocks movement and unit placement
     DUST = 2       # Light limestone dusting, visual only (passable)
     PILLAR = 3     # Large limestone pillar, blocks movement and unit placement
-    FURNITURE = 4  # Foyer furniture, blocks movement but not line of sight
+    FURNITURE = 4  # Generic furniture, blocks movement but not line of sight
+    COAT_RACK = 5  # Coat rack, blocks movement but not line of sight
+    BENCH = 6      # Bench/ottoman seating, blocks movement but not line of sight
+    CONSOLE = 7    # Console table, blocks movement but not line of sight
+    DEC_TABLE = 8  # Decorative table, blocks movement but not line of sight
 
 
 class GameMap:
@@ -49,16 +53,19 @@ class GameMap:
     def is_passable(self, y: int, x: int) -> bool:
         """Check if a position is passable (can be moved through)."""
         terrain = self.get_terrain_at(y, x)
+        # All furniture types (including the new ones) are impassable, like pillars and limestone
         return terrain in [TerrainType.EMPTY, TerrainType.DUST]
     
     def can_place_unit(self, y: int, x: int) -> bool:
         """Check if a unit can be placed at this position."""
         terrain = self.get_terrain_at(y, x)
+        # Units can only be placed on empty or dusty tiles, not on any type of furniture
         return terrain in [TerrainType.EMPTY, TerrainType.DUST]
         
     def blocks_line_of_sight(self, y: int, x: int) -> bool:
         """Check if a position blocks line of sight for ranged attacks."""
         terrain = self.get_terrain_at(y, x)
+        # Only limestone and pillars block line of sight - furniture doesn't
         return terrain in [TerrainType.LIMESTONE, TerrainType.PILLAR]
 
 
@@ -106,19 +113,19 @@ class LimeFoyerMap(GameMap):
         
         # Furniture pieces
         # Coat racks
-        self.set_terrain_at(0, 5, TerrainType.FURNITURE)  # Left coat rack
-        self.set_terrain_at(0, 14, TerrainType.FURNITURE) # Right coat rack
+        self.set_terrain_at(0, 5, TerrainType.COAT_RACK)  # Left coat rack
+        self.set_terrain_at(0, 14, TerrainType.COAT_RACK) # Right coat rack
         
         # Console table
-        self.set_terrain_at(4, 3, TerrainType.FURNITURE)  # Entry console
+        self.set_terrain_at(4, 3, TerrainType.CONSOLE)  # Entry console
         
-        # Benches
-        self.set_terrain_at(5, 13, TerrainType.FURNITURE) # Middle bench
-        self.set_terrain_at(8, 13, TerrainType.FURNITURE) # Bottom bench
+        # Benches/Ottomans
+        self.set_terrain_at(5, 13, TerrainType.BENCH) # Middle bench
+        self.set_terrain_at(8, 13, TerrainType.BENCH) # Bottom bench
         
         # Decorative tables
-        self.set_terrain_at(0, 10, TerrainType.FURNITURE) # Top table
-        self.set_terrain_at(4, 16, TerrainType.FURNITURE) # Right table
+        self.set_terrain_at(0, 10, TerrainType.DEC_TABLE) # Top table
+        self.set_terrain_at(4, 16, TerrainType.DEC_TABLE) # Right table
         
         # Light limestone dustings (windswept patterns)
         # This is a partial list - approximately 50% of tiles will have dust
