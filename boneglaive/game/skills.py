@@ -658,7 +658,8 @@ class PrySkill(ActiveSkill):
         # Calculate displacement distance
         displacement_distance = game.chess_distance(original_y, original_x, best_pos[0], best_pos[1])
         
-        # The engine will now handle releasing trapped units when position changes
+        # Explicitly check for trap release due to position change
+        game._check_position_change_trap_release(target, original_y, original_x)
         
         # Log the displacement with additional details if needed
         if displacement_distance < 3:
@@ -1132,6 +1133,9 @@ class VaultSkill(ActiveSkill):
         
         # Set user's position to the target
         user.y, user.x = target_pos
+        
+        # Check for trap release due to position change
+        game._check_position_change_trap_release(user, original_y, original_x)
         
         # Log the movement
         message_log.add_message(
