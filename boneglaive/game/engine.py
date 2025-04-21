@@ -503,13 +503,13 @@ class Game:
         # Process each unit's actions in timestamp order
         for unit in units_with_actions:
             # Log the unit and its action
-            logger.debug(f"Processing unit {unit.type.name} with timestamp {unit.action_timestamp}")
+            logger.debug(f"Processing unit {unit.get_display_name()} with timestamp {unit.action_timestamp}")
         
             # EXECUTE MOVE if unit has a move target
             if unit.move_target:
                 y, x = unit.move_target
                 if self.can_move_to(unit, y, x):  # Double-check the move is still valid
-                    logger.debug(f"Moving {unit.type.name} from ({unit.y},{unit.x}) to ({y},{x})")
+                    logger.debug(f"Moving {unit.get_display_name()} from ({unit.y},{unit.x}) to ({y},{x})")
                     
                     # Show movement animation if UI is provided
                     if ui:
@@ -524,7 +524,7 @@ class Game:
                         
                         # Log movement
                         message_log.add_message(
-                            f"{unit.type.name} moved from ({start_y},{start_x}) to ({y},{x})",
+                            f"{unit.get_display_name()} moved from ({start_y},{start_x}) to ({y},{x})",
                             MessageType.MOVEMENT,
                             player=unit.player
                         )

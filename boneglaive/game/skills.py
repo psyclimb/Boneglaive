@@ -618,7 +618,7 @@ class PrySkill(ActiveSkill):
         
         # Log the movement reduction
         message_log.add_message(
-            f"{target.type.name}'s movement reduced by 1 for next turn!",
+            f"{target.get_display_name()}'s movement reduced by 1 for next turn!",
             MessageType.ABILITY,
             player=user.player
         )
@@ -636,14 +636,14 @@ class PrySkill(ActiveSkill):
         if displacement_distance < 3:
             # If displaced less than the full 3 tiles, the unit probably hit an obstacle
             message_log.add_message(
-                f"{target.type.name} collides with obstacle after being displaced from ({original_y},{original_x}) to ({best_pos[0]},{best_pos[1]})!",
+                f"{target.get_display_name()} collides with obstacle after being displaced from ({original_y},{original_x}) to ({best_pos[0]},{best_pos[1]})!",
                 MessageType.ABILITY,
                 player=user.player
             )
         else:
             # Normal displacement message
             message_log.add_message(
-                f"{target.type.name} displaced from ({original_y},{original_x}) to ({best_pos[0]},{best_pos[1]})!",
+                f"{target.get_display_name()} displaced from ({original_y},{original_x}) to ({best_pos[0]},{best_pos[1]})!",
                 MessageType.ABILITY,
                 player=user.player
             )
