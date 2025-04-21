@@ -361,6 +361,12 @@ class Game:
         return max(abs(y1 - y2), abs(x1 - x2))
     
     def can_move_to(self, unit, y, x):
+        # If unit is trapped by a MANDIBLE_FOREMAN, it cannot move
+        if unit.trapped_by is not None:
+            from boneglaive.utils.debug import logger
+            logger.debug(f"{unit.get_display_name()} cannot move because it is trapped by {unit.trapped_by.get_display_name()}")
+            return False
+            
         # Check if position is in bounds
         if not self.is_valid_position(y, x):
             return False
@@ -494,16 +500,65 @@ class Game:
         logger.info(f"Executing {len(units_with_actions)} actions in timestamp order")
         
         # Display starting message if we have actions and UI
-        if units_with_actions and ui:
+        if (units_with_actions or any(unit.trapped_by is not None for unit in self.units)) and ui:
             message_log.add_system_message("Executing actions in order...")
             ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
             time.sleep(0.5)  # Short delay before actions start
+            
+            # Apply trap damage as the first action of the turn
+            self._apply_trap_damage()
+            
+            # Redraw the board after trap damage to show updated health
+            if ui:
+                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+                time.sleep(0.3)  # Short pause after trap damage
         
         # Process each unit's actions in timestamp order
         for unit in units_with_actions:
             # Log the unit and its action
             logger.debug(f"Processing unit {unit.get_display_name()} with timestamp {unit.action_timestamp}")
-        
+            
+            # Flag to track if this is a MANDIBLE_FOREMAN taking an action
+            is_foreman_taking_action = (unit.type == UnitType.MANDIBLE_FOREMAN and 
+                                       (unit.move_target is not None or 
+                                        unit.attack_target is not None or 
+                                        unit.skill_target is not None))
+            
+            # If this is a MANDIBLE_FOREMAN taking action, release any trapped units
+            if is_foreman_taking_action:
+                # Find all units trapped by this FOREMAN
+                trapped_units = [u for u in self.units if u.is_alive() and u.trapped_by == unit]
+                if trapped_units:
+                    logger.debug(f"MANDIBLE_FOREMAN {unit.get_display_name()} is taking action, releasing trapped units")
+                    
+                    # Release trapped units before the FOREMAN's action is executed
+                    for trapped_unit in trapped_units:
+                        # Play release animation if UI is available
+                        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+                            # Create a series of jaw opening characters for the release
+                            release_animation = ['{}', '[]', '  ']
+                            
+                            # Show animation at the trapped unit's position
+                            ui.renderer.animate_attack_sequence(
+                                trapped_unit.y, trapped_unit.x,
+                                release_animation,
+                                6,  # color ID (yellowish)
+                                0.2  # duration
+                            )
+                        
+                        # Release the unit
+                        trapped_unit.trapped_by = None
+                        message_log.add_message(
+                            f"{trapped_unit.get_display_name()} is released from mechanical jaws!",
+                            MessageType.ABILITY,
+                            target_name=trapped_unit.get_display_name()
+                        )
+                    
+                    # Redraw the board to show the updated state
+                    if ui:
+                        ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+                        time.sleep(0.2)  # Short pause after release
+            
             # EXECUTE MOVE if unit has a move target
             if unit.move_target:
                 y, x = unit.move_target
@@ -562,6 +617,21 @@ class Game:
                     # Apply damage
                     target.hp = max(0, target.hp - damage)
                     
+                    # Check if attacker is a MANDIBLE_FOREMAN with the Viceroy passive
+                    # If so, trap the target unit
+                    if unit.type == UnitType.MANDIBLE_FOREMAN and unit.passive_skill and \
+                       unit.passive_skill.name == "Viceroy" and target.hp > 0:
+                        # Only trap if the target is still alive
+                        target.trapped_by = unit
+                        
+                        # Log the trapping
+                        message_log.add_message(
+                            f"{target.get_display_name()} is trapped in mechanical jaws!",
+                            MessageType.ABILITY,
+                            player=unit.player,
+                            target_name=target.get_display_name()
+                        )
+                    
                     # Award XP to the attacker based on damage dealt
                     from boneglaive.utils.constants import XP_DAMAGE_FACTOR, XP_KILL_REWARD
                     xp_gained = int(damage * XP_DAMAGE_FACTOR)
@@ -599,6 +669,19 @@ class Game:
                             # Store unit names explicitly to help with coloring
                             target_name=target.get_display_name()
                         )
+                        
+                        # If a MANDIBLE_FOREMAN dies, release any trapped unit
+                        if target.type == UnitType.MANDIBLE_FOREMAN:
+                            # Find any units trapped by this FOREMAN
+                            for trapped_unit in self.units:
+                                if trapped_unit.is_alive() and trapped_unit.trapped_by == target:
+                                    logger.debug(f"MANDIBLE_FOREMAN perished, releasing {trapped_unit.get_display_name()}")
+                                    trapped_unit.trapped_by = None
+                                    message_log.add_message(
+                                        f"{trapped_unit.get_display_name()} is released from mechanical jaws!",
+                                        MessageType.ABILITY,
+                                        target_name=trapped_unit.get_display_name()
+                                    )
                     # Check if target just entered critical health - trigger wretches message and Autoclave
                     elif previous_hp > critical_threshold and target.hp <= critical_threshold:
                         message_log.add_message(
@@ -717,6 +800,155 @@ class Game:
         elif not player2_alive:
             self.winner = 1
             message_log.add_system_message(f"Player 1 wins! All Player 2 units have been defeated.")
+    
+    def _apply_trap_damage(self):
+        """Apply damage to units trapped by MANDIBLE_FOREMENs."""
+        from boneglaive.utils.message_log import message_log, MessageType
+        from boneglaive.utils.debug import logger
+        import time
+        import curses
+        
+        # Find all trapped units
+        for unit in self.units:
+            if not unit.is_alive() or unit.trapped_by is None:
+                continue
+                
+            # Only apply trap damage if the trapper's turn is starting
+            foreman = unit.trapped_by
+            if foreman.is_alive() and foreman.player == self.current_player:
+                logger.debug(f"Applying Viceroy trap damage to {unit.get_display_name()}")
+                
+                # Play trap animation if UI is available
+                ui = getattr(self, 'ui', None)
+                if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+                    # Get animation sequence for Viceroy trap
+                    animation_sequence = ui.asset_manager.get_skill_animation_sequence('viceroy_trap')
+                    
+                    # Show jaw animation at trapped unit's position
+                    ui.renderer.animate_attack_sequence(
+                        unit.y, unit.x,
+                        animation_sequence,
+                        5,  # color ID (reddish)
+                        0.2  # duration
+                    )
+                    time.sleep(0.2)
+                
+                # Calculate damage using the FOREMAN's attack
+                damage = max(1, foreman.attack - unit.defense)
+                
+                # Apply damage to the trapped unit
+                previous_hp = unit.hp
+                unit.hp = max(0, unit.hp - damage)
+                
+                # Log the damage
+                message_log.add_combat_message(
+                    attacker_name=foreman.get_display_name(),
+                    target_name=unit.get_display_name(),
+                    damage=damage,
+                    ability="Viceroy Trap",
+                    attacker_player=foreman.player,
+                    target_player=unit.player
+                )
+                
+                # Show damage number if UI is available
+                if ui and hasattr(ui, 'renderer'):
+                    # Flash the unit to show damage
+                    if hasattr(ui, 'asset_manager'):
+                        # Flash the unit with damage colors
+                        tile_ids = [ui.asset_manager.get_unit_tile(unit.type)] * 4
+                        color_ids = [5, 3 if unit.player == 1 else 4] * 2  # Alternate red with player color
+                        durations = [0.1] * 4
+                        
+                        # Use renderer's flash tile method
+                        ui.renderer.flash_tile(unit.y, unit.x, tile_ids, color_ids, durations)
+                    
+                    # Show damage number
+                    damage_text = f"-{damage}"
+                    
+                    # Make damage text more prominent
+                    for i in range(3):
+                        # First clear the area
+                        ui.renderer.draw_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
+                        # Draw with alternating bold/normal for a flashing effect
+                        attrs = curses.A_BOLD if i % 2 == 0 else 0
+                        ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 5, attrs)  # Red for trap damage
+                        ui.renderer.refresh()
+                        time.sleep(0.1)
+                    
+                    # Final damage display
+                    ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 5, curses.A_BOLD)
+                    ui.renderer.refresh()
+                    time.sleep(0.2)
+                
+                # Check if the trapped unit was defeated
+                if unit.hp <= 0:
+                    message_log.add_message(
+                        f"{unit.get_display_name()} perishes in the jaws!",
+                        MessageType.COMBAT,
+                        target=unit.player,
+                        target_name=unit.get_display_name()
+                    )
+                    unit.trapped_by = None
+    
+    def _release_trapped_units(self):
+        """Release any trapped units for MANDIBLE_FOREMENs that took actions."""
+        from boneglaive.utils.message_log import message_log, MessageType
+        from boneglaive.utils.debug import logger
+        import time
+        
+        # Find all MANDIBLE_FOREMENs that took actions
+        for foreman in self.units:
+            if not foreman.is_alive() or foreman.type != UnitType.MANDIBLE_FOREMAN or not foreman.took_action:
+                continue
+                
+            # Release any units trapped by this foreman
+            for unit in self.units:
+                if unit.is_alive() and unit.trapped_by == foreman:
+                    logger.debug(f"MANDIBLE_FOREMAN took action, releasing {unit.get_display_name()}")
+                    
+                    # Play release animation if UI is available
+                    ui = getattr(self, 'ui', None)
+                    if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+                        # Create a series of jaw opening characters for the release
+                        release_animation = ['{}', '[]', '  ']
+                        
+                        # Show animation at the trapped unit's position
+                        ui.renderer.animate_attack_sequence(
+                            unit.y, unit.x,
+                            release_animation,
+                            6,  # color ID (yellowish)
+                            0.2  # duration
+                        )
+                        
+                        # Draw a line between the FOREMAN and the unit to show the release
+                        if foreman.is_alive():
+                            # Calculate positions along the path
+                            from boneglaive.utils.coordinates import Position, get_line
+                            start_pos = Position(foreman.y, foreman.x)
+                            end_pos = Position(unit.y, unit.x)
+                            path = get_line(start_pos, end_pos)
+                            
+                            # Show the connection breaking
+                            for pos in path[1:-1]:  # Skip start and end positions
+                                ui.renderer.draw_tile(pos.y, pos.x, '·', 7)  # Small dots showing connection breaking
+                            ui.renderer.refresh()
+                            time.sleep(0.1)
+                            
+                            # Clear the connection
+                            for pos in path[1:-1]:
+                                ui.renderer.draw_tile(pos.y, pos.x, ' ', 0)
+                            ui.renderer.refresh()
+                    
+                    # Release the unit
+                    unit.trapped_by = None
+                    message_log.add_message(
+                        f"{unit.get_display_name()} is released from mechanical jaws!",
+                        MessageType.ABILITY,
+                        target_name=unit.get_display_name()
+                    )
+            
+            # Reset the foreman's action tracking
+            foreman.took_action = False
     
     def toggle_test_mode(self):
         self.test_mode = not self.test_mode

@@ -258,8 +258,27 @@ class UIRenderer:
                             # Draw with cursor color
                             self.renderer.draw_tile(y, x, tile, 2)
                         else:
-                            # Normal unit draw
-                            self.renderer.draw_tile(y, x, tile, color_id)
+                            # Check if unit is trapped by a MANDIBLE FOREMAN's Viceroy ability
+                            is_trapped = unit.trapped_by is not None
+                            
+                            if is_trapped:
+                                # Draw with special attributes to show trapped status
+                                # Combine the unit symbol with a mandible symbol to show trapped status
+                                enhanced_tile = f"{tile}Ξ"  # Combine unit symbol with mandible symbol
+                                trap_color = 7  # Yellow/white
+                                trap_attr = curses.A_BOLD  # Make it stand out
+                                self.renderer.draw_tile(y, x, enhanced_tile, trap_color, trap_attr)
+                                
+                                # Also add a mandible symbol below the unit to reinforce the trap visual
+                                trap_y = min(y + 1, HEIGHT - 1)  # Ensure we don't go off the bottom
+                                trap_x = x
+                                # Only draw if position is empty and within bounds
+                                if trap_y < HEIGHT and not self.game_ui.game.get_unit_at(trap_y, trap_x):
+                                    trap_symbol = "Ξ"  # Mandible symbol
+                                    self.renderer.draw_tile(trap_y, trap_x, trap_symbol, trap_color)
+                            else:
+                                # Normal unit draw
+                                self.renderer.draw_tile(y, x, tile, color_id)
                         continue
                 
                 elif target_unit and not unit:

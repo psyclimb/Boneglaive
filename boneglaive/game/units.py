@@ -52,6 +52,8 @@ class Unit:
         
         # Status effects
         self.was_pried = False  # Track if this unit was affected by Pry skill
+        self.trapped_by = None  # Reference to MANDIBLE_FOREMAN that trapped this unit, None if not trapped
+        self.took_action = False  # Track if this unit took an action this turn
         
         # Experience and leveling
         self.level = 1
@@ -177,6 +179,9 @@ class Unit:
         
     def reset_action_targets(self) -> None:
         """Reset all action targets."""
+        # Check if the unit took any action this turn
+        self.took_action = self.move_target is not None or self.attack_target is not None or self.skill_target is not None
+        
         self.move_target = None
         self.attack_target = None
         self.skill_target = None
@@ -184,17 +189,12 @@ class Unit:
         self.vault_target_indicator = None  # Clear vault target indicator
         self.action_timestamp = 0  # Reset the action timestamp
         
-        # Check if this is a MANDIBLE_FOREMAN and release any trapped unit
-        if self.type == UnitType.MANDIBLE_FOREMAN and self.passive_skill:
-            if hasattr(self.passive_skill, 'trapped_unit') and self.passive_skill.trapped_unit:
-                # We'll implement the full trap release logic later
-                # For now, just clear the reference
-                self.passive_skill.trapped_unit = None
-        
     def reset_movement_penalty(self) -> None:
         """Clear any movement penalties and reset the Pry status."""
+        # Reset movement penalties (Viceroy trap is handled separately via trapped_by)
         if self.move_range_bonus < 0:
             self.move_range_bonus = 0
+            
         self.was_pried = False
         
     def get_skill_by_key(self, key: str) -> Optional:
