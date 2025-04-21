@@ -1353,10 +1353,8 @@ class JudgementThrowSkill(ActiveSkill):
                     ui.renderer.refresh()
                     time.sleep(0.1)
                     
-                # Show "CRITICAL!" text
-                ui.renderer.draw_text(target_pos[0]-1, target_pos[1]*2-4, "CRITICAL!", 5, curses.A_BOLD)
-                ui.renderer.refresh()
-                time.sleep(0.3)
+                # Small pause for effect (but no "CRITICAL!" text)
+                time.sleep(0.2)
             
             # Show impact animation
             ui.renderer.animate_attack_sequence(
