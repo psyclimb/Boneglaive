@@ -261,7 +261,7 @@ class Autoclave(PassiveSkill):
                     message_log.add_combat_message(
                         attacker_name=f"{user.type.name}",
                         target_name=f"{target.type.name}",
-                        damage=damage,
+                        damage=damage,  # Already using the calculated damage value
                         ability="Autoclave",
                         attacker_player=user.player,
                         target_player=target.player
@@ -487,7 +487,7 @@ class PrySkill(ActiveSkill):
             message_log.add_combat_message(
                 attacker_name=f"{user.type.name}",
                 target_name=f"{target.type.name}",
-                damage=self.damage,
+                damage=damage,  # Use the calculated damage value
                 ability="Pry",
                 attacker_player=user.player,
                 target_player=target.player
@@ -601,7 +601,7 @@ class PrySkill(ActiveSkill):
         message_log.add_combat_message(
             attacker_name=f"{user.type.name}",
             target_name=f"{target.type.name}",
-            damage=self.damage,
+            damage=damage,  # Use the calculated damage value
             ability="Pry",
             attacker_player=user.player,
             target_player=target.player
