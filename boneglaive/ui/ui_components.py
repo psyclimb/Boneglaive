@@ -679,7 +679,8 @@ class CursorManager(UIComponent):
         if not unit or not self.can_select_unit(unit):
             if unit:
                 # Show information about enemy unit instead of selection error
-                unit_info = f"Player {unit.player}'s {unit.type.name} - HP: {unit.hp}/{unit.max_hp}"
+                # Use the unit's display name (includes Greek identifier) instead of "Player X's UNITTYPE"
+                unit_info = f"{unit.get_display_name()} - HP: {unit.hp}/{unit.max_hp}"
                 
                 # Send message through event system
                 self.publish_event(
