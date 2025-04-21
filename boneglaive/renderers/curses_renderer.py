@@ -168,7 +168,7 @@ class CursesRenderer(RenderInterface):
         curses.init_pair(16, curses.COLOR_BLACK, curses.COLOR_BLUE)  # Highlighted skill target
         curses.init_pair(7, curses.COLOR_YELLOW, curses.COLOR_BLACK) # Attack animation
         # Use dim white (appears gray in most terminals) for move target preview
-        curses.init_pair(8, curses.COLOR_WHITE, curses.COLOR_BLACK)  # Move target preview (gray)
+        curses.init_pair(8, curses.COLOR_WHITE, curses.COLOR_BLACK)  # Message log text (gray with dim attribute)
         # Yellow background for selected unit
         curses.init_pair(9, curses.COLOR_BLACK, curses.COLOR_YELLOW) # Selected unit highlight
         # Red background for attack targets

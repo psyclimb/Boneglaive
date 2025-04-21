@@ -88,14 +88,12 @@ class MessageLog:
             attacker_player: Player number of attacker (optional)
             target_player: Player number of target (optional)
         """
-        # Build the message text based on available information with player information
-        attacker_info = f"Player {attacker_player}'s {attacker_name}" if attacker_player else f"{attacker_name}"
-        target_info = f"Player {target_player}'s {target_name}" if target_player else f"{target_name}"
-        
+        # Simple message format without player prefixes
+        # The get_formatted_messages method will color the unit names appropriately
         if ability:
-            message = f"{attacker_info} hits {target_info} for {damage} damage with {ability}!"
+            message = f"{attacker_name} hits {target_name} for {damage} damage with {ability}!"
         else:
-            message = f"{attacker_info} hits {target_info} for {damage} damage!"
+            message = f"{attacker_name} hits {target_name} for {damage} damage!"
             
         # Add the message
         self.add_message(
@@ -104,7 +102,10 @@ class MessageLog:
             player=attacker_player,
             target=target_player,
             damage=damage,
-            ability=ability
+            ability=ability,
+            # Store unit names explicitly to help with coloring
+            attacker_name=attacker_name,
+            target_name=target_name
         )
     
     def add_player_message(self, player: int, message: str) -> None:
@@ -172,33 +173,118 @@ class MessageLog:
             filter_types: List of message types to exclude (optional)
         
         Returns:
-            List of (message_text, color_id) tuples
+            List of (message_text, color_id) tuples with special colored unit formatting
         """
         messages = self.get_recent_messages(count, filter_types)
         formatted = []
         
         for msg in messages:
-            # Determine message color based on type and player
-            if msg['type'] == MessageType.SYSTEM:
-                color = 1  # Default white
-            elif msg['type'] == MessageType.ERROR:
+            # All regular message text is grey (color 8) except for unit names which will 
+            # be colored based on their player ownership
+            color = 8  # Grey for standard text
+            
+            # Error and warning messages are exceptions and use special colors
+            if msg['type'] == MessageType.ERROR:
                 color = 6  # Red bg
             elif msg['type'] == MessageType.WARNING:
                 color = 7  # Yellow
-            elif msg['player'] is not None:
-                # Use player color
-                color = self.player_colors.get(msg['player'], 1)
-            else:
-                color = 1  # Default white
             
             # Format text with prefix based on type
             if msg['type'] == MessageType.PLAYER and msg['player'] is not None:
                 # Format player chat messages with clear player indicator
                 player_num = msg['player']
+                player_color = self.player_colors.get(player_num, 1)
                 text = f"[Player {player_num}] {msg['text']}"
-            else:
-                text = msg['text']
-                
+                # Chat messages use player color for the entire message
+                formatted.append((text, player_color))
+                continue
+            
+            # Standard message handling
+            text = msg['text']
+            
+            # For combat, movement, and ability messages, we need to apply colorization to unit names
+            if msg['type'] in [MessageType.COMBAT, MessageType.MOVEMENT, MessageType.ABILITY]:
+                # Handle full combat messages with attacker and target
+                if 'attacker_name' in msg and 'target_name' in msg:
+                    attacker_name = msg['attacker_name']
+                    target_name = msg['target_name']
+                    attacker_player = msg['player']
+                    target_player = msg['target']
+                    
+                    # Replace unit names with colored indicators for the renderer
+                    # We'll use special markers to indicate colored text segments
+                    # These will be interpreted by the UI renderer
+                    attacker_color = self.player_colors.get(attacker_player, 1)
+                    target_color = self.player_colors.get(target_player, 1)
+                    
+                    # Format for colored text: __COLOR{color_id}:{text}__
+                    # We need to handle cases where both attacker and target have the same name
+                    # by being more careful with replacements
+                    
+                    if attacker_name == target_name:
+                        # When names are identical, use a regex to identify distinct instances
+                        import re
+                        
+                        # Find all instances of the name in the text
+                        pattern = re.escape(attacker_name)
+                        matches = list(re.finditer(pattern, text))
+                        
+                        # Replace instances backwards to avoid offset issues
+                        # First instance is usually the attacker, second is the target
+                        if len(matches) >= 2:
+                            # Replace second occurrence (target) first
+                            start2, end2 = matches[1].span()
+                            colored_target = f"__COLOR{target_color}:{target_name}__"
+                            text = text[:start2] + colored_target + text[end2:]
+                            
+                            # Replace first occurrence (attacker)
+                            start1, end1 = matches[0].span()
+                            colored_attacker = f"__COLOR{attacker_color}:{attacker_name}__"
+                            text = text[:start1] + colored_attacker + text[end1:]
+                    else:
+                        # Different names - simpler replacement
+                        colored_attacker = f"__COLOR{attacker_color}:{attacker_name}__"
+                        colored_target = f"__COLOR{target_color}:{target_name}__"
+                        
+                        # Replace longer name first to avoid partial replacements
+                        if len(attacker_name) >= len(target_name):
+                            text = text.replace(attacker_name, colored_attacker)
+                            text = text.replace(target_name, colored_target)
+                        else:
+                            text = text.replace(target_name, colored_target)
+                            text = text.replace(attacker_name, colored_attacker)
+                # Handle simple messages with just one unit name
+                elif 'target_name' in msg:
+                    target_name = msg['target_name']
+                    target_player = msg['target']
+                    
+                    # Get the color for the target
+                    target_color = self.player_colors.get(target_player, 1)
+                    
+                    # Format the colored version
+                    colored_target = f"__COLOR{target_color}:{target_name}__"
+                    
+                    # Use regex for safer replacement
+                    import re
+                    pattern = re.escape(target_name)
+                    text = re.sub(pattern, colored_target, text)
+                # Handle messages with just an attacker name
+                elif 'attacker_name' in msg:
+                    attacker_name = msg['attacker_name']
+                    attacker_player = msg['player']
+                    
+                    # Get the color for the attacker
+                    attacker_color = self.player_colors.get(attacker_player, 1)
+                    
+                    # Format the colored version
+                    colored_attacker = f"__COLOR{attacker_color}:{attacker_name}__"
+                    
+                    # Use regex for safer replacement
+                    import re
+                    pattern = re.escape(attacker_name)
+                    text = re.sub(pattern, colored_attacker, text)
+            
+            # Add the formatted message
             formatted.append((text, color))
         
         return formatted
