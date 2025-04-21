@@ -1858,7 +1858,34 @@ class AnimationComponent(UIComponent):
                 7,  # color ID
                 0.3  # duration
             )
-        # For melee attacks (glaiveman), show swinging animation
+        # For MANDIBLE_FOREMAN, show a special animation sequence for mandible jaws
+        elif attacker.type == UnitType.MANDIBLE_FOREMAN:
+            # Show the jaws animation at the attacker's position
+            self.renderer.animate_attack_sequence(
+                start_pos.y, start_pos.x, 
+                animation_sequence[:3],  # First three frames - jaws opening
+                7,  # color ID
+                0.3  # slightly faster animation
+            )
+            
+            # Show a short connecting animation between attacker and target
+            # to visualize the mandibles reaching out
+            self.renderer.animate_projectile(
+                (start_pos.y, start_pos.x),
+                (end_pos.y, end_pos.x),
+                'Ξ',  # Mandible symbol
+                7,    # color ID
+                0.2   # quick connection
+            )
+            
+            # Show the final part of the animation at the target position
+            self.renderer.animate_attack_sequence(
+                end_pos.y, end_pos.x, 
+                animation_sequence[3:],  # Last frames - jaws clamping and retracting
+                7,  # color ID
+                0.4  # duration
+            )
+        # For other melee attacks (glaiveman), show swinging animation
         else:
             # Show the attack animation at the attacker's position
             self.renderer.animate_attack_sequence(
@@ -1868,8 +1895,14 @@ class AnimationComponent(UIComponent):
                 0.5  # duration
             )
         
-        # Show impact animation at target position with simpler ASCII characters
-        impact_animation = ['!', '*', '!'] if attacker.type == UnitType.MAGE else ['+', 'x', '+']
+        # Show impact animation at target position with appropriate ASCII characters based on unit type
+        if attacker.type == UnitType.MAGE:
+            impact_animation = ['!', '*', '!']  # Magic impact
+        elif attacker.type == UnitType.MANDIBLE_FOREMAN:
+            impact_animation = ['>', '<', '}', '{', '≡']  # Mandible crushing impact
+        else:
+            impact_animation = ['+', 'x', '+']  # Standard melee/arrow impact
+            
         impact_colors = [7] * len(impact_animation)
         impact_durations = [0.05] * len(impact_animation)
         
