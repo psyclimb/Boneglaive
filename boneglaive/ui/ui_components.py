@@ -2105,15 +2105,6 @@ class ActionMenuComponent(UIComponent):
         
         # MANDIBLE_FOREMAN skills
         elif unit.type == self.UnitType.MANDIBLE_FOREMAN:
-            # Add Recalibrate skill
-            recalibrate_skill = next((skill for skill in available_skills if skill.name == "Recalibrate"), None)
-            self.actions.append({
-                'key': 'r',
-                'label': 'ecalibrate',  # Will be displayed as [R]ecalibrate
-                'action': 'recalibrate_skill',
-                'enabled': recalibrate_skill is not None,
-                'skill': recalibrate_skill
-            })
             
             # Add Discharge skill
             discharge_skill = next((skill for skill in available_skills if skill.name == "Discharge"), None)

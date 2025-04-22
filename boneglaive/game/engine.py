@@ -1068,10 +1068,7 @@ class Game:
         
         logger.debug(f"Handling effect expiration for skill: {skill_name}")
         
-        # Handle different skills
-        # Recalibrate skill removed
-        
-        # Handle other skill types here as needed
+        # Handle different skills if needed in the future
         
     @measure_perf
     def get_game_state(self):

@@ -125,32 +125,9 @@ class Unit:
     def get_available_skills(self) -> List:
         """
         Get list of available active skills (not on cooldown).
-        Special handling for Recalibrate skill to enforce cooldown.
         """
-        from boneglaive.utils.debug import logger
-        available_skills = []
-        
-        # Special brute-force approach for MANDIBLE_FOREMAN units
-        if self.type == UnitType.MANDIBLE_FOREMAN:
-            logger.debug(f"Checking available skills for {self.get_display_name()}")
-            
-            for skill in self.active_skills:
-                if skill.name == "Recalibrate":
-                    # Force check cooldown on the skill
-                    logger.debug(f"Recalibrate cooldown check: {skill.current_cooldown}")
-                    if skill.current_cooldown == 0:
-                        available_skills.append(skill)
-                    else:
-                        logger.debug(f"Recalibrate on cooldown ({skill.current_cooldown}), not available")
-                else:
-                    # Normal check for other skills
-                    if skill.current_cooldown == 0:
-                        available_skills.append(skill)
-            
-            return available_skills
-        else:
-            # Regular units - just check cooldown normally
-            return [skill for skill in self.active_skills if skill.current_cooldown == 0]
+        # Just check cooldown for all skills
+        return [skill for skill in self.active_skills if skill.current_cooldown == 0]
     
     def tick_cooldowns(self) -> None:
         """
@@ -159,18 +136,9 @@ class Unit:
         A skill with cooldown=1 can be used every turn, cooldown=2 every other turn, etc.
         Movement penalties are handled separately in reset_movement_penalty.
         """
-        from boneglaive.utils.debug import logger
-        
         # Tick skill cooldowns
         for skill in self.active_skills:
-            # Log cooldown before ticking
-            logger.debug(f"Ticking {skill.name} cooldown: {skill.current_cooldown} -> {max(0, skill.current_cooldown-1)}")
             skill.tick_cooldown()
-        
-        # Special case for MANDIBLE_FOREMAN's recalibrate cooldown
-        if hasattr(self, 'recalibrate_cooldown') and self.recalibrate_cooldown > 0:
-            logger.debug(f"Ticking UNIT LEVEL Recalibrate cooldown: {self.recalibrate_cooldown} -> {self.recalibrate_cooldown-1}")
-            self.recalibrate_cooldown -= 1
         
         # Movement penalties are now handled in reset_movement_penalty method
         # which is called at the beginning of a player's turn
@@ -223,13 +191,7 @@ class Unit:
                       self.attack_target is not None or 
                       self.skill_target is not None)
                       
-        # Special case for MANDIBLE_FOREMAN using Recalibrate
-        if (self.type == UnitType.MANDIBLE_FOREMAN and 
-            self.skill_target is not None and 
-            self.selected_skill and 
-            self.selected_skill.name == "Recalibrate"):
-            # Using Recalibrate doesn't count as an action that releases trapped units
-            took_action = False
+        # No special cases anymore
             
         # Set the took_action flag
         self.took_action = took_action
@@ -241,7 +203,7 @@ class Unit:
         self.selected_skill = None
         self.vault_target_indicator = None  # Clear vault target indicator
         self.action_timestamp = 0  # Reset the action timestamp
-        self.used_recalibrate = False  # Reset recalibrate tracking
+        # No Recalibrate tracking
         
     def reset_movement_penalty(self) -> None:
         """Clear any movement penalties and reset relevant status flags."""
