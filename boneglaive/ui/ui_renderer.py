@@ -219,8 +219,8 @@ class UIRenderer:
                             
                         # Check for echo units (priority over estranged)
                         if hasattr(unit, 'is_echo') and unit.is_echo:
-                            # Use a faint cane symbol ⟋ to show it's an echo
-                            tile = f"{tile}⟋"
+                            # Use lowercase psi (ψ) symbol to show it's an echo of GRAYMAN's Ψ
+                            tile = f"ψ"
                             # Use dim attribute for echo units to make them appear faint
                             attributes = curses.A_DIM
                         # Check for estranged units
