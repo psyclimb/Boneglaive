@@ -57,11 +57,6 @@ class Skill:
         
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Check if the skill can be used."""
-        # Log for RecalibrateSkill to debug cooldown issues
-        from boneglaive.utils.debug import logger
-        if self.name == "Recalibrate":
-            logger.debug(f"COOLDOWN CHECK: {self.id} has cooldown {self.current_cooldown}")
-            
         # Check cooldown
         if self.current_cooldown > 0:
             return False
@@ -77,11 +72,6 @@ class Skill:
         # Set cooldown
         self.current_cooldown = self.cooldown
         
-        # Log for RecalibrateSkill to debug cooldown issues
-        from boneglaive.utils.debug import logger
-        if hasattr(self, 'name') and self.name == "Recalibrate":
-            logger.debug(f"COOLDOWN SET: {self.id} cooldown set to {self.current_cooldown}")
-        
         # Skill effect implemented in subclasses
         return True
         
@@ -91,11 +81,6 @@ class Skill:
         
     def tick_cooldown(self) -> None:
         """Reduce cooldown by 1."""
-        # Log for RecalibrateSkill to debug cooldown issues
-        from boneglaive.utils.debug import logger
-        if hasattr(self, 'name') and self.name == "Recalibrate":
-            logger.debug(f"COOLDOWN TICK: {self.id} cooldown {self.current_cooldown} -> {max(0, self.current_cooldown-1)}")
-            
         if self.current_cooldown > 0:
             self.current_cooldown -= 1
 
