@@ -1502,14 +1502,7 @@ class GameModeManager(UIComponent):
         
         # Check if the target position is valid for this skill
         if cursor_manager.cursor_pos not in cursor_manager.highlighted_positions:
-            # Use event system for message
-            self.publish_event(
-                EventType.MESSAGE_DISPLAY_REQUESTED,
-                MessageDisplayEventData(
-                    message="Invalid target for this skill",
-                    message_type=MessageType.WARNING
-                )
-            )
+            # Simply return false without showing a message
             return False
             
         # Use the skill
