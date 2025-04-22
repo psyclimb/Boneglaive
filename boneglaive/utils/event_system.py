@@ -57,6 +57,9 @@ class EventType(Enum):
     SETUP_PHASE_PLAYER_CHANGED = auto()
     UNIT_PLACED = auto()
     SETUP_PHASE_COMPLETED = auto()
+    
+    # Skill effect events
+    EFFECT_EXPIRED = auto()
 
 
 class EventData:
@@ -227,6 +230,12 @@ class SetupPhaseEventData(EventData):
     """Data for SETUP_PHASE_STARTED and SETUP_PHASE_PLAYER_CHANGED events."""
     def __init__(self, player, units_remaining):
         super().__init__(player=player, units_remaining=units_remaining)
+
+
+class EffectExpiredEventData(EventData):
+    """Data for EFFECT_EXPIRED events."""
+    def __init__(self, skill_name):
+        super().__init__(skill_name=skill_name)
 
 
 # Helper function to get event manager instance
