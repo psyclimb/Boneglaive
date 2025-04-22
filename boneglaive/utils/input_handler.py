@@ -105,8 +105,8 @@ class InputHandler:
             action_context[ord('m')] = GameAction.MOVE_MODE
             action_context[ord('a')] = GameAction.ATTACK_MODE
             action_context[ord('s')] = GameAction.SKILL_MODE  # New key for skills
-            action_context[ord('e')] = GameAction.END_TURN
-            action_context[ord('t')] = GameAction.TEST_MODE
+            action_context[ord('t')] = GameAction.END_TURN
+            action_context[ord('e')] = GameAction.TEST_MODE
             
             # Store action context
             self.context_sensitive_maps["action"] = action_context
@@ -136,7 +136,8 @@ class InputHandler:
             
             # Setup mode context
             setup_context = {}
-            setup_context[ord('t')] = GameAction.TEST_MODE  # Reuse TEST_MODE for unit type toggle
+            setup_context[curses.KEY_BACKSPACE] = GameAction.TEST_MODE  # Reuse TEST_MODE for unit type toggle using backspace
+            setup_context[127] = GameAction.TEST_MODE  # ASCII 127 is also backspace on some systems
             
             # Store setup context
             self.context_sensitive_maps["setup"] = setup_context
