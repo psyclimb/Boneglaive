@@ -1608,11 +1608,13 @@ class RecalibrateSkill(ActiveSkill):
         user.attack_bonus += self.attack_bonus
         
         # Reset the duration
+        # This duration is counted in player turns, not game turns
+        # The effect will last for this many turns of the unit's owner
         self.turns_remaining = self.duration
         
         # Log main effect activation
         message_log.add_message(
-            f"{user.get_display_name()} recalibrates mechanical jaws, gaining +{self.attack_bonus} attack for {self.duration} turns!",
+            f"{user.get_display_name()} recalibrates mechanical jaws, gaining +{self.attack_bonus} attack for {self.duration} of your turns!",
             MessageType.ABILITY,
             player=user.player,
             attacker_name=user.get_display_name()
@@ -1702,17 +1704,22 @@ class RecalibrateSkill(ActiveSkill):
     def tick_cooldown(self) -> None:
         """
         Reduce cooldown by 1 and handle effect duration.
-        This is called at the end of each turn.
+        This is called at the end of each turn, but only for the current player's units.
         """
         # First do normal cooldown tick
         super().tick_cooldown()
         
         # Also track duration of the effect
+        # Note: This will only run when the owning player's turn ends,
+        # ensuring the effect lasts for the full duration regardless of player turn order
         if self.turns_remaining > 0:
             self.turns_remaining -= 1
             
             # If effect just expired, publish an event to remove bonuses
             if self.turns_remaining == 0:
+                from boneglaive.utils.debug import logger
+                logger.debug(f"Recalibrate effect duration expired, triggering effect removal")
+                
                 from boneglaive.utils.event_system import get_event_manager, EventType, EffectExpiredEventData
                 
                 # Publish an event that the effect expired
@@ -1722,7 +1729,7 @@ class RecalibrateSkill(ActiveSkill):
                     EffectExpiredEventData(skill_name=self.name)
                 )
                 
-                # The Game class should handle this event and:
+                # The Game class will handle this event and:
                 # 1. Find the owner of this skill
                 # 2. Remove the attack bonus from the owner
                 # 3. Remove defense debuffs from any trapped units
