@@ -1521,7 +1521,7 @@ class JudgementThrowSkill(ActiveSkill):
         return True
 
 # MANDIBLE_FOREMAN skills
-class Viceroy(PassiveSkill):
+class Viseroy(PassiveSkill):
     """
     Passive skill for MANDIBLE_FOREMAN.
     When the MANDIBLE FOREMAN attacks a unit, they are trapped in his mechanical jaws.
@@ -1531,14 +1531,14 @@ class Viceroy(PassiveSkill):
     
     def __init__(self):
         super().__init__(
-            name="Viceroy",
+            name="Viseroy",
             key="V",
             description="When attacking, traps the enemy unit in mechanical jaws. Trapped units cannot move and take damage each turn. Effect ends if the FOREMAN takes an action or is defeated."
         )
     
     def apply_passive(self, user: 'Unit', game: Optional['Game'] = None) -> None:
         """
-        Apply the Viceroy passive effect.
+        Apply the Viseroy passive effect.
         The actual trap mechanics are handled by the Game engine.
         """
         # No passive work needed here - trapping happens on attack in Game.process_turn
@@ -2047,7 +2047,7 @@ UNIT_SKILLS = {
         'active': [PrySkill(), VaultSkill(), JudgementThrowSkill()]
     },
     'MANDIBLE_FOREMAN': {
-        'passive': Viceroy(),
+        'passive': Viseroy(),
         'active': [DischargeSkill(), SiteInspectionSkill(), JawlineSkill()]  # Added Jawline skill
     }
     # Other unit types will be added here
