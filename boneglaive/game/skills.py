@@ -1564,42 +1564,69 @@ class DischargeSkill(ActiveSkill):
         )
         self.impact_damage = 6  # Base damage on impact
         
+        
+class SiteInspectionSkill(ActiveSkill):
+    """
+    Active skill for MANDIBLE_FOREMAN.
+    FOREMAN surveys a 3x3 area, studying structure and terrain.
+    Grants a flat +1 movement bonus to all allied units in the area.
+    Additionally grants +1 attack for each unique terrain type present in the area.
+    These bonuses are permanent.
+    """
+    
+    def __init__(self):
+        super().__init__(
+            name="Site Inspection",
+            key="S",
+            description="Survey a 3x3 area. Grants +1 movement and +1 attack per unique terrain type to all allied units in area.",
+            target_type=TargetType.AREA,
+            cooldown=4,
+            range_=3,
+            area=1  # 3x3 area (center + 1 in each direction)
+        )
+        
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
-        """Check if Discharge can be used."""
+        """Check if Site Inspection can be used on the target position."""
+        from boneglaive.utils.debug import logger
+        
         # First check basic cooldown
         if not super().can_use(user, target_pos, game):
             return False
             
-        # Need game to validate
-        if not game:
+        # Need game and target position to validate
+        if not game or not target_pos:
             return False
             
-        # Check if the FOREMAN has any trapped units
-        trapped_units = [u for u in game.units if u.is_alive() and u.trapped_by == user]
-        if not trapped_units:
+        # Check if target position is within map bounds
+        if not game.is_valid_position(target_pos[0], target_pos[1]):
+            logger.debug(f"Site Inspection failed: target position {target_pos} is out of bounds")
             return False
             
-        # Check if target position is valid - must be within bounds and within range
-        if target_pos:
-            if not game.is_valid_position(target_pos[0], target_pos[1]):
-                return False
-                
-            # Check if target is within valid throw range
-            distance = game.chess_distance(user.y, user.x, target_pos[0], target_pos[1])
-            if distance > self.range or distance == 0:  # Cannot throw to current position
-                return False
-                
+        # Get the user's position (actual or planned move)
+        from_y = user.y
+        from_x = user.x
+        
+        # If unit has a planned move, use that position instead
+        if user.move_target:
+            from_y, from_x = user.move_target
+            
+        # Check if target is within effective skill range
+        distance = game.chess_distance(from_y, from_x, target_pos[0], target_pos[1])
+        if distance > self.range:
+            logger.debug(f"Site Inspection failed: target position out of range ({distance} > {self.range})")
+            return False
+            
         return True
         
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
-        """Queue up the Discharge skill for execution at the end of the turn."""
+        """Queue up the Site Inspection skill for execution at the end of the turn."""
         from boneglaive.utils.message_log import message_log, MessageType
         
         # Validate skill use conditions
         if not self.can_use(user, target_pos, game):
             return False
         
-        # Set the skill target (direction to throw)
+        # Set the skill target
         user.skill_target = target_pos
         user.selected_skill = self
         
@@ -1612,223 +1639,161 @@ class DischargeSkill(ActiveSkill):
         self.current_cooldown = self.cooldown
         
         # Log that the skill has been queued
-        trapped_units = [u for u in game.units if u.is_alive() and u.trapped_by == user]
-        if trapped_units:
-            trapped_unit = trapped_units[0]  # Only one unit can be trapped at a time
-            message_log.add_message(
-                f"{user.get_display_name()} prepares to discharge {trapped_unit.get_display_name()}!",
-                MessageType.ABILITY,
-                player=user.player,
-                attacker_name=user.get_display_name(),
-                target_name=trapped_unit.get_display_name()
-            )
+        message_log.add_message(
+            f"{user.get_display_name()} prepares Site Inspection at coordinates ({target_pos[0]}, {target_pos[1]})!",
+            MessageType.ABILITY,
+            player=user.player,
+            attacker_name=user.get_display_name()
+        )
         
         return True
         
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """
-        Execute the Discharge skill.
-        Throws a trapped unit in the specified direction and deals damage on impact.
+        Execute the Site Inspection skill.
+        Surveys a 3x3 area, applying bonuses to all allied units in the area.
         """
         from boneglaive.utils.message_log import message_log, MessageType
-        from boneglaive.utils.coordinates import Position, get_line
+        from boneglaive.game.map import TerrainType
         import time
         import curses
         
-        # Find any trapped units
-        trapped_units = [u for u in game.units if u.is_alive() and u.trapped_by == user]
-        if not trapped_units:
+        # Check if target position is valid
+        if not game.is_valid_position(target_pos[0], target_pos[1]):
             message_log.add_message(
-                f"Discharge failed: no trapped units!",
+                f"Site Inspection failed: target position is invalid!",
                 MessageType.ABILITY,
                 player=user.player,
                 attacker_name=user.get_display_name()
             )
             return False
             
-        # Get the trapped unit
-        trapped_unit = trapped_units[0]  # Only one unit can be trapped at a time
-        
-        # Calculate throw direction based on the target position
-        # Direction is FROM the FOREMAN TOWARDS the target position
-        direction_y = target_pos[0] - user.y
-        direction_x = target_pos[1] - user.x
-        
-        # Normalize direction vector
-        magnitude = max(abs(direction_y), abs(direction_x))
-        if magnitude > 0:
-            direction_y = direction_y / magnitude
-            direction_x = direction_x / magnitude
-        
-        # Round to nearest integer to get a clean direction
-        direction_y = round(direction_y)
-        direction_x = round(direction_x)
-        
-        # Log the discharge activation
+        # Log the skill activation
         message_log.add_message(
-            f"{user.get_display_name()} discharges {trapped_unit.get_display_name()}!",
+            f"{user.get_display_name()} performs Site Inspection at ({target_pos[0]}, {target_pos[1]})!",
             MessageType.ABILITY,
             player=user.player,
-            attacker_name=user.get_display_name(),
-            target_name=trapped_unit.get_display_name()
+            attacker_name=user.get_display_name()
+        )
+        
+        # Get the 3x3 area around the target position
+        area_positions = []
+        for dy in [-1, 0, 1]:
+            for dx in [-1, 0, 1]:
+                y = target_pos[0] + dy
+                x = target_pos[1] + dx
+                if game.is_valid_position(y, x):
+                    area_positions.append((y, x))
+        
+        # Find unique terrain types in the area
+        unique_terrain_types = set()
+        for y, x in area_positions:
+            terrain = game.map.get_terrain_at(y, x)
+            unique_terrain_types.add(terrain)
+        
+        # Calculate attack bonus based on number of unique terrain types
+        attack_bonus = len(unique_terrain_types)
+        move_bonus = 1  # Flat +1 move bonus
+        
+        # Find all allied units in the area
+        affected_units = []
+        for unit in game.units:
+            if not unit.is_alive() or unit.player != user.player:
+                continue
+                
+            if (unit.y, unit.x) in area_positions:
+                affected_units.append(unit)
+        
+        # Log the terrain analysis
+        terrain_names = ", ".join([t.name for t in unique_terrain_types])
+        message_log.add_message(
+            f"Site Inspection identifies {len(unique_terrain_types)} terrain types: {terrain_names}",
+            MessageType.ABILITY,
+            player=user.player
         )
         
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer'):
-            # Animate jaw release
-            release_animation = ['{}', '[]', '  ']
-            ui.renderer.animate_attack_sequence(
-                trapped_unit.y, trapped_unit.x,
-                release_animation,
-                6,  # color ID (yellowish)
-                0.2  # duration
-            )
+            # Show scanning animation across the area
+            for y, x in area_positions:
+                # Skip positions with units for cleaner display
+                if game.get_unit_at(y, x) is None:
+                    # Create a measurement animation sequence
+                    scan_chars = ['·', '+', '×', '◎']
+                    
+                    # Show at each position
+                    for char in scan_chars:
+                        ui.renderer.draw_tile(y, x, char, 3)  # Green for measurement
+                        ui.renderer.refresh()
+                        time.sleep(0.05)
             
-            # Short pause before throwing
-            time.sleep(0.2)
-        
-        # Release the unit (remove trapped state)
-        original_y, original_x = trapped_unit.y, trapped_unit.x
-        trapped_unit.trapped_by = None
-        
-        # Calculate possible landing positions along the throw direction
-        max_distance = min(self.range, 3)  # Maximum throw distance is 3 tiles
-        landing_positions = []
-        
-        for distance in range(1, max_distance + 1):
-            landing_y = original_y + int(direction_y * distance)
-            landing_x = original_x + int(direction_x * distance)
+            # Highlight terrain types found
+            for terrain_type in unique_terrain_types:
+                # Find all positions with this terrain type
+                for y, x in area_positions:
+                    if game.map.get_terrain_at(y, x) == terrain_type:
+                        # Flash these positions
+                        for i in range(2):
+                            ui.renderer.draw_tile(y, x, '□', 5 if i % 2 == 0 else 6)  # Alternate colors
+                            ui.renderer.refresh()
+                            time.sleep(0.1)
             
-            # Check if position is valid
-            if not game.is_valid_position(landing_y, landing_x):
-                break  # Hit map boundary, stop checking further
+            # Show connection lines between foreman and affected units
+            if affected_units:
+                # Draw lines from foreman to each affected ally
+                for unit in affected_units:
+                    if unit != user:  # Skip drawing a line to self
+                        # Get line positions
+                        from boneglaive.utils.coordinates import Position, get_line
+                        start_pos = Position(user.y, user.x)
+                        end_pos = Position(unit.y, unit.x)
+                        path = get_line(start_pos, end_pos)
+                        
+                        # Draw dotted line
+                        for i, pos in enumerate(path[1:-1]):  # Skip start and end
+                            if i % 2 == 0:  # Every other position for dotted line
+                                ui.renderer.draw_tile(pos.y, pos.x, '·', 3)
+                        ui.renderer.refresh()
+                time.sleep(0.3)
                 
-            # Check for units or impassable terrain
-            if game.get_unit_at(landing_y, landing_x) or not game.map.is_passable(landing_y, landing_x):
-                # Hit obstacle, stop here and apply impact damage
-                landing_positions.append((landing_y, landing_x, True))  # True = impact
-                break
-                
-            # Position is valid for landing without impact
-            landing_positions.append((landing_y, landing_x, False))  # False = no impact
+                # Clear the lines
+                for unit in affected_units:
+                    if unit != user:
+                        start_pos = Position(user.y, user.x)
+                        end_pos = Position(unit.y, unit.x)
+                        path = get_line(start_pos, end_pos)
+                        for pos in path[1:-1]:
+                            # Only clear if no unit is present
+                            if game.get_unit_at(pos.y, pos.x) is None:
+                                ui.renderer.draw_tile(pos.y, pos.x, ' ', 0)
+            
+            # Redraw board
+            ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
         
-        # If no valid landing positions found, unit remains in place
-        if not landing_positions:
+        # Apply bonuses to all affected units
+        for unit in affected_units:
+            # Apply the bonuses
+            unit.attack_bonus += attack_bonus
+            unit.move_range_bonus += move_bonus
+            
+            # Log the bonus application
             message_log.add_message(
-                f"{trapped_unit.get_display_name()} remains in place!",
+                f"{unit.get_display_name()} gains +{attack_bonus} attack and +{move_bonus} movement from Site Inspection!",
                 MessageType.ABILITY,
                 player=user.player,
-                target_name=trapped_unit.get_display_name()
+                target_name=unit.get_display_name()
             )
-            return True
             
-        # Get the furthest valid landing position
-        final_landing = landing_positions[-1]
-        landing_y, landing_x, has_impact = final_landing
+        # Redraw the board to ensure everything is updated properly
+        if ui and hasattr(ui, 'draw_board'):
+            ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
         
-        # If landing position has a unit or obstacle, back up one position if possible
-        if has_impact and len(landing_positions) > 1:
-            # Use the position before the impact
-            landing_y, landing_x, _ = landing_positions[-2]
-        
-        # Calculate actual displacement distance
-        displacement_distance = game.chess_distance(original_y, original_x, landing_y, landing_x)
-        
-        # Move the unit to the landing position
-        trapped_unit.y, trapped_unit.x = landing_y, landing_x
-        
-        # Calculate damage if there was an impact
-        damage = 0
-        if has_impact:
-            # Damage increases with throw distance
-            damage = self.impact_damage - trapped_unit.defense
-            damage = max(1, damage)  # Minimum 1 damage
-            
-            # Apply damage to the trapped unit
-            trapped_unit.hp = max(0, trapped_unit.hp - damage)
-            
-            # Log the impact damage
-            message_log.add_message(
-                f"{trapped_unit.get_display_name()} impacts obstacle for {damage} damage!",
-                MessageType.COMBAT,
-                player=user.player,
-                target=trapped_unit.player,
-                target_name=trapped_unit.get_display_name()
-            )
-        
-        # Log the displacement
+        # Final message about permanent bonuses
         message_log.add_message(
-            f"{trapped_unit.get_display_name()} is thrown {displacement_distance} tiles!",
+            f"Site Inspection bonuses are permanent: +{attack_bonus} attack and +{move_bonus} movement!",
             MessageType.ABILITY,
-            player=user.player,
-            target_name=trapped_unit.get_display_name()
+            player=user.player
         )
-        
-        # Animate the discharge if UI is available
-        if ui and hasattr(ui, 'renderer'):
-            # Temporarily move unit back to start for animation
-            trapped_unit.y, trapped_unit.x = original_y, original_x
-            
-            # Calculate path for animation
-            start_pos = Position(original_y, original_x)
-            end_pos = Position(landing_y, landing_x)
-            path = get_line(start_pos, end_pos)
-            
-            # Animate movement along the path
-            for i, pos in enumerate(path[1:], 1):  # Skip the starting position
-                # Update unit position for animation
-                trapped_unit.y, trapped_unit.x = pos.y, pos.x
-                
-                # Redraw to show unit in intermediate position
-                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-                
-                # Shorter delay for intermediate positions
-                time.sleep(0.05)
-            
-            # Ensure unit is at final position
-            trapped_unit.y, trapped_unit.x = landing_y, landing_x
-            
-            # If impact occurred, show impact animation
-            if has_impact:
-                # Impact animation
-                impact_animation = ['*', '#', '@', '!']
-                ui.renderer.animate_attack_sequence(
-                    landing_y, landing_x,
-                    impact_animation,
-                    5,  # color ID (reddish)
-                    0.25  # duration
-                )
-                
-                # Show damage number
-                if damage > 0:
-                    damage_text = f"-{damage}"
-                    
-                    # Make damage text more prominent
-                    for i in range(3):
-                        ui.renderer.draw_text(landing_y-1, landing_x*2, " " * len(damage_text), 7)
-                        attrs = curses.A_BOLD if i % 2 == 0 else 0
-                        ui.renderer.draw_text(landing_y-1, landing_x*2, damage_text, 7, attrs)
-                        ui.renderer.refresh()
-                        time.sleep(0.1)
-            
-            # Final landing animation
-            landing_animation = ['v', 'V', '.']
-            ui.renderer.animate_attack_sequence(
-                landing_y, landing_x,
-                landing_animation,
-                6,  # yellowish color
-                0.2  # duration
-            )
-        
-        # Check if trapped unit was defeated by the impact
-        if trapped_unit.hp <= 0:
-            message_log.add_message(
-                f"{trapped_unit.get_display_name()} perishes from the impact!",
-                MessageType.COMBAT,
-                player=user.player,
-                target=trapped_unit.player,
-                target_name=trapped_unit.get_display_name()
-            )
         
         return True
 
@@ -1840,7 +1805,7 @@ UNIT_SKILLS = {
     },
     'MANDIBLE_FOREMAN': {
         'passive': Viceroy(),
-        'active': [DischargeSkill()]  # Added Discharge skill
+        'active': [DischargeSkill(), SiteInspectionSkill()]  # Added Discharge and Site Inspection skills
     }
     # Other unit types will be added here
 }
