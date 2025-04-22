@@ -1760,7 +1760,7 @@ class GameModeManager(UIComponent):
                 "- Arrow keys or HJKL: Move cursor",
                 "- YUBN: Move cursor diagonally",
                 "- Enter/Space: Place unit at cursor position",
-                "- [T]oggle: Switch between GLAIVEMAN and MANDIBLE FOREMAN units",
+                "- [Backspace]: Switch between unit types",
                 "- [Y]es: Confirm unit placement (when all units are placed)",
                 "",
                 "Special rules:",

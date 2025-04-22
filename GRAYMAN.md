@@ -26,9 +26,8 @@ A hybridized entity existing outside normal laws of reality - part alien, part e
 
 ### 2. Estrange
 "Fire a beam up to 5 tiles away that partially phases the target out of normal spacetime. Target becomes semi-transparent and receives -1 to all actions permanently."
-- Long-range control ability that weakens effectiveness without changing stats
+- Long-range control ability that weakens effectiveness.
 - Visually causes target to become partially transparent/grayscale
-- Affected units appear to glitch/stutter when moving
 - Cooldown: 3 turns
 
 ### 3. Græ Exchange

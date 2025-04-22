@@ -161,7 +161,7 @@ boneglaive/
 
 ### Local Multiplayer
 - Game supports "hot seat" style local multiplayer where players take turns
-- Player switching occurs when ending turn with 'e' key
+- Player switching occurs when ending turn with 't' key
 - UI header shows "Player X's Turn" to indicate current player
 - Both players use the same computer, controlling their respective units
 - Start with: `python -m boneglaive.main --mode local --skip-menu`
