@@ -1981,6 +1981,7 @@ class ActionMenuComponent(UIComponent):
         self.actions = []
         self.selected_index = 0
         self.menu_mode = "standard"  # Can be "standard" or "skills"
+        self.jawline_shown_units = set()  # Track units that have shown Jawline messages
         
         # Need to import UnitType for unit-specific skill checks
         from boneglaive.utils.constants import UnitType
@@ -2333,18 +2334,43 @@ class ActionMenuComponent(UIComponent):
                     # Set the skill target to self
                     cursor_manager.selected_unit.skill_target = (from_y, from_x)
                     # Show message
+                    unit = cursor_manager.selected_unit
+                    
                     # Special message for Jawline skill
                     if skill.name == "Jawline":
-                        message = f"{cursor_manager.selected_unit.get_display_name()} prepares to deploy JAWLINE network!"
+                        # Only show the Jawline message once per unit (until skill is used)
+                        # Check if this unit already has the jawline_message_shown property set
+                        jawline_shown = hasattr(unit, 'jawline_message_shown') and unit.jawline_message_shown
+                        
+                        if not jawline_shown:
+                            message = f"{unit.get_display_name()} prepares to deploy JAWLINE network!"
+                            # Mark that we've shown this message
+                            unit.jawline_message_shown = True
+                            
+                            # Add the message directly to the message log with player information
+                            # This ensures it will be colored according to the player
+                            message_log.add_message(
+                                text=message,
+                                msg_type=MessageType.ABILITY,
+                                player=unit.player,
+                                attacker_name=unit.get_display_name()
+                            )
                     else:
                         message = f"{skill.name} will be used at end of turn"
                         
-                    self.publish_event(
-                        EventType.MESSAGE_DISPLAY_REQUESTED,
-                        MessageDisplayEventData(
-                            message=message,
-                            message_type=MessageType.ABILITY
+                        # Add the message directly to the message log with player information
+                        # This ensures it will be colored according to the player
+                        message_log.add_message(
+                            text=message,
+                            msg_type=MessageType.ABILITY,
+                            player=unit.player,
+                            attacker_name=unit.get_display_name()
                         )
+                    
+                    # Request a UI redraw to show the message immediately
+                    self.publish_event(
+                        EventType.UI_REDRAW_REQUESTED,
+                        UIRedrawEventData()
                     )
                     # Return to select mode
                     mode_manager.set_mode("select")
