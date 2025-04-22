@@ -216,6 +216,14 @@ class UIRenderer:
                         if unit.type == UnitType.GRAYMAN and hasattr(unit, 'teleport_target_indicator') and unit.teleport_target_indicator is not None:
                             # Use a special ∴ (therefore) symbol combined with the normal unit symbol
                             tile = f"{tile}∴"
+                            
+                        # Check for estranged units
+                        if hasattr(unit, 'estranged') and unit.estranged:
+                            # Use a wavey ~ symbol to show estranged effect
+                            tile = f"~{tile}~"
+                            # Use gray color (white with dim attribute) for estranged units to indicate they're phased
+                            color_id = 19
+                            attributes = curses.A_DIM
                         
                         # If this unit is being targeted for attack and attack targets should be shown
                         if attacking_unit and show_attack_targets:

@@ -364,6 +364,48 @@ class Game:
         of the horizontal and vertical distances.
         """
         return max(abs(y1 - y2), abs(x1 - x2))
+        
+    def has_line_of_sight(self, from_y, from_x, to_y, to_x):
+        """
+        Check if there is a clear line of sight between two positions.
+        Line of sight is blocked by solid terrain like pillars and limestone.
+        
+        Args:
+            from_y, from_x: Starting position coordinates
+            to_y, to_x: Target position coordinates
+            
+        Returns:
+            bool: True if there is line of sight, False if blocked
+        """
+        from boneglaive.utils.coordinates import Position, get_line
+        from boneglaive.utils.debug import logger
+        from boneglaive.game.map import TerrainType
+        
+        # Get all positions along the line
+        start_pos = Position(from_y, from_x)
+        end_pos = Position(to_y, to_x)
+        path = get_line(start_pos, end_pos)
+        
+        # Skip the source and target positions - we only care about positions between them
+        path_between = path[1:-1] if len(path) > 2 else []
+        
+        # Check each position along the path
+        for pos in path_between:
+            # Check if terrain at this position blocks line of sight
+            terrain = self.map.get_terrain_at(pos.y, pos.x)
+            
+            # Terrain types that block line of sight
+            if terrain in [TerrainType.PILLAR, TerrainType.LIMESTONE]:
+                logger.debug(f"Line of sight blocked by {terrain} at position ({pos.y}, {pos.x})")
+                return False
+            
+            # Check if there's a unit at this position that might block line of sight
+            blocking_unit = self.get_unit_at(pos.y, pos.x)
+            if blocking_unit:
+                logger.debug(f"Line of sight blocked by unit {blocking_unit.get_display_name()} at position ({pos.y}, {pos.x})")
+                return False
+        
+        return True
     
     def can_move_to(self, unit, y, x):
         # If unit is trapped by a MANDIBLE_FOREMAN, it cannot move

@@ -2629,6 +2629,166 @@ class EstrangeSkill(ActiveSkill):
             range_=5
         )
         
+    def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        """Check if Estrange can be used on target."""
+        from boneglaive.utils.debug import logger
+        
+        # First check basic cooldown
+        if not super().can_use(user, target_pos, game):
+            logger.debug("Estrange failed: cooldown not ready")
+            return False
+            
+        # Need game and target position to validate
+        if not game or not target_pos:
+            logger.debug("Estrange failed: missing game or target position")
+            return False
+            
+        # Check if target position is within map bounds
+        if not game.is_valid_position(target_pos[0], target_pos[1]):
+            logger.debug(f"Estrange failed: position {target_pos} out of bounds")
+            return False
+        
+        # Get target unit at position
+        target_unit = game.get_unit_at(target_pos[0], target_pos[1])
+        
+        # Check if there's actually a unit at target position
+        if not target_unit:
+            logger.debug("Estrange failed: no unit at target position")
+            return False
+            
+        # Check if target is an enemy
+        if target_unit.player == user.player:
+            logger.debug("Estrange failed: cannot target friendly units")
+            return False
+        
+        # Check if target is already estranged
+        if target_unit.estranged:
+            logger.debug("Estrange failed: unit is already under Estrange effect")
+            return False
+        
+        # Check if the target is in range
+        from_y, from_x = user.y, user.x
+        to_y, to_x = target_pos
+        
+        # Use chess distance (max of x distance and y distance)
+        distance = game.chess_distance(from_y, from_x, to_y, to_x)
+        if distance > self.range:
+            logger.debug(f"Estrange failed: target out of range ({distance} > {self.range})")
+            return False
+        
+        # Check line of sight
+        if not game.has_line_of_sight(from_y, from_x, to_y, to_x):
+            logger.debug("Estrange failed: no line of sight to target")
+            return False
+            
+        logger.debug("Estrange check passed - skill can be used")
+        return True
+    
+    def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        """Queue up Estrange for execution."""
+        from boneglaive.utils.message_log import message_log, MessageType
+        
+        # Validate skill use conditions
+        if not self.can_use(user, target_pos, game):
+            return False
+            
+        # Set the skill target
+        user.skill_target = target_pos
+        user.selected_skill = self
+        
+        # Track action order
+        if game:
+            user.action_timestamp = game.action_counter
+            game.action_counter += 1
+            
+        # Set cooldown immediately
+        self.current_cooldown = self.cooldown
+        
+        # Get target unit
+        target_unit = game.get_unit_at(target_pos[0], target_pos[1])
+        
+        # Log that the skill has been queued
+        message_log.add_message(
+            f"{user.get_display_name()} prepares to estrange {target_unit.get_display_name()}!",
+            MessageType.ABILITY,
+            player=user.player
+        )
+        
+        return True
+        
+    def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
+        """Execute Estrange on the target."""
+        from boneglaive.utils.message_log import message_log, MessageType
+        import time
+        from boneglaive.utils.debug import logger
+        
+        # Get target unit at position
+        target_unit = game.get_unit_at(target_pos[0], target_pos[1])
+        
+        # Check if there's still a unit at target position
+        if not target_unit:
+            message_log.add_message(
+                "Estrange failed: no unit at target position",
+                MessageType.ABILITY,
+                player=user.player
+            )
+            return False
+            
+        # Check if target is an enemy
+        if target_unit.player == user.player:
+            message_log.add_message(
+                "Estrange failed: cannot target friendly units",
+                MessageType.ABILITY,
+                player=user.player
+            )
+            return False
+        
+        # Apply the Estrange effect
+        target_unit.estranged = True
+        
+        # Log the effect
+        message_log.add_message(
+            f"{target_unit.get_display_name()} is phased out of normal spacetime!",
+            MessageType.ABILITY,
+            player=user.player,
+            target_name=target_unit.get_display_name()
+        )
+        
+        # Play animation if UI is available
+        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+            # Show beam animation from user to target
+            beam_animation = ui.asset_manager.get_skill_animation_sequence('estrange')
+            
+            if beam_animation:
+                # Draw a line of animation frames between user and target
+                from boneglaive.utils.coordinates import get_line, Position
+                
+                start_pos = Position(user.y, user.x)
+                end_pos = Position(target_pos[0], target_pos[1])
+                
+                # Get line of positions between user and target
+                path = get_line(start_pos, end_pos)
+                
+                # Animate along the path
+                for pos in path[1:]:  # Skip the starting position (user)
+                    ui.renderer.animate_attack_sequence(
+                        pos.y, pos.x,
+                        beam_animation,
+                        7,  # color ID
+                        0.1  # quick animation for beam
+                    )
+            
+            # Flash the target to show it was affected
+            ui.renderer.flash_tile(
+                target_unit.y, target_unit.x,
+                [ui.asset_manager.get_unit_tile(target_unit.type)] * 4,
+                [8, 7, 8, 7],  # Alternate colors for flashing effect
+                [0.1, 0.1, 0.1, 0.1]  # Duration for each frame
+            )
+            
+        logger.debug(f"Estrange completed: {target_unit.get_display_name()} is now estranged")
+        return True
+        
 class GraeExchangeSkill(ActiveSkill):
     """
     Active skill for GRAYMAN.
