@@ -2487,7 +2487,7 @@ class DeltaConfigSkill(ActiveSkill):
             key="D",
             description="Teleport to any unoccupied tile on the map that isn't a pillar or furniture.",
             target_type=TargetType.AREA,
-            cooldown=5,  # Increased from 4 for better balance
+            cooldown=6,  # Increased from 5 for better balance
             range_=99  # Unlimited range effectively
         )
         
@@ -2879,8 +2879,8 @@ class GraeExchangeSkill(ActiveSkill):
             key="G",
             description="Teleport to target location, leaving an echo at starting position. Echo lasts 2 turns.",
             target_type=TargetType.AREA,  # Using AREA for targeting a position on the map
-            cooldown=7,  # Increased from 5 for better balance
-            range_=6  # Limited teleport range
+            cooldown=3,  # Decreased from 7 for more frequent use
+            range_=3  # Reduced from 6 for better balance
         )
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
