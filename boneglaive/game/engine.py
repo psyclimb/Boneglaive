@@ -681,16 +681,25 @@ class Game:
                     # If so, trap the target unit
                     if unit.type == UnitType.MANDIBLE_FOREMAN and unit.passive_skill and \
                        unit.passive_skill.name == "Viseroy" and target.hp > 0:
-                        # Only trap if the target is still alive
-                        target.trapped_by = unit
-                        
-                        # Log the trapping (using MessageType.COMBAT for yellow coloring)
-                        message_log.add_message(
-                            f"{target.get_display_name()} is trapped in mechanical jaws!",
-                            MessageType.WARNING,  # WARNING messages are explicitly colored yellow
-                            player=unit.player,
-                            target_name=target.get_display_name()
-                        )
+                        # Check if target is immune to being trapped
+                        if target.is_immune_to_effects():
+                            message_log.add_message(
+                                f"{target.get_display_name()} is immune to Viseroy's trap due to Stasiality!",
+                                MessageType.ABILITY,
+                                player=unit.player,
+                                target_name=target.get_display_name()
+                            )
+                        else:
+                            # Only trap if the target is still alive and not immune
+                            target.trapped_by = unit
+                            
+                            # Log the trapping (using MessageType.COMBAT for yellow coloring)
+                            message_log.add_message(
+                                f"{target.get_display_name()} is trapped in mechanical jaws!",
+                                MessageType.WARNING,  # WARNING messages are explicitly colored yellow
+                                player=unit.player,
+                                target_name=target.get_display_name()
+                            )
                     
                     # Award XP to the attacker based on damage dealt
                     from boneglaive.utils.constants import XP_DAMAGE_FACTOR, XP_KILL_REWARD

@@ -102,6 +102,17 @@ class Unit:
     
     def get_effective_stats(self) -> Dict[str, int]:
         """Get the unit's effective stats including bonuses and penalties."""
+        # If unit has Stasiality, return base stats only (immune to all changes)
+        if self.is_immune_to_effects():
+            return {
+                'hp': self.max_hp,  # HP bonuses are still tracked separately
+                'attack': self.attack,
+                'defense': self.defense,
+                'move_range': self.move_range, 
+                'attack_range': self.attack_range
+            }
+            
+        # For all other units, apply bonuses and penalties normally
         # Apply Estrange effect (-1 to all stats) if unit is estranged
         estrange_penalty = -1 if self.estranged else 0
         
@@ -129,6 +140,11 @@ class Unit:
         """Apply effects of passive skills."""
         if self.passive_skill:
             self.passive_skill.apply_passive(self, game)
+            
+    def is_immune_to_effects(self) -> bool:
+        """Check if this unit has immunity to status effects and debuffs.
+        Currently only GRAYMAN with Stasiality passive has this immunity."""
+        return self.passive_skill and self.passive_skill.name == "Stasiality"
     
     def get_available_skills(self) -> List:
         """
