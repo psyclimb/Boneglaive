@@ -262,12 +262,10 @@ class UIRenderer:
                             is_trapped = unit.trapped_by is not None
                             
                             if is_trapped:
-                                # Draw with special attributes to show trapped status
-                                # Combine the unit symbol with a mandible symbol to show trapped status
+                                # Combine the unit symbol with a mandible symbol but keep original color
                                 enhanced_tile = f"{tile}Ξ"  # Combine unit symbol with mandible symbol
-                                trap_color = 7  # Yellow/white
-                                trap_attr = curses.A_BOLD  # Make it stand out
-                                self.renderer.draw_tile(y, x, enhanced_tile, trap_color, trap_attr)
+                                # Use the unit's original color instead of changing to yellow
+                                self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_BOLD)
                                 
                                 # Also add a mandible symbol below the unit to reinforce the trap visual
                                 trap_y = min(y + 1, HEIGHT - 1)  # Ensure we don't go off the bottom
@@ -275,7 +273,8 @@ class UIRenderer:
                                 # Only draw if position is empty and within bounds
                                 if trap_y < HEIGHT and not self.game_ui.game.get_unit_at(trap_y, trap_x):
                                     trap_symbol = "Ξ"  # Mandible symbol
-                                    self.renderer.draw_tile(trap_y, trap_x, trap_symbol, trap_color)
+                                    jaw_color = 7  # Keep jaw symbol yellow
+                                    self.renderer.draw_tile(trap_y, trap_x, trap_symbol, jaw_color, curses.A_BOLD)
                             else:
                                 # Normal unit draw
                                 self.renderer.draw_tile(y, x, tile, color_id)
