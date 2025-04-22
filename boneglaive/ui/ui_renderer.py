@@ -212,10 +212,15 @@ class UIRenderer:
                         tile = self.game_ui.asset_manager.get_unit_tile(unit.type)
                         color_id = 3 if unit.player == 1 else 4
                         
-                        # Check for GRAYMAN with Delta Config queued
+                        # Check for GRAYMAN with teleport queued
                         if unit.type == UnitType.GRAYMAN and hasattr(unit, 'teleport_target_indicator') and unit.teleport_target_indicator is not None:
-                            # Use a special ∴ (therefore) symbol combined with the normal unit symbol
-                            tile = f"{tile}∴"
+                            # Check if it's Delta Config or Grae Exchange
+                            if unit.selected_skill and unit.selected_skill.name == "Græ Exchange":
+                                # Use a | symbol for Grae Exchange
+                                tile = f"{tile}|"
+                            elif unit.selected_skill and unit.selected_skill.name == "Delta Config":
+                                # Use a ∴ (therefore) symbol for Delta Config
+                                tile = f"{tile}∴"
                             
                         # Check for echo units (priority over estranged)
                         if hasattr(unit, 'is_echo') and unit.is_echo:
@@ -346,11 +351,20 @@ class UIRenderer:
                 # Check if this position is a teleport target indicator
                 for u in self.game_ui.game.units:
                     if u.is_alive() and u.selected_skill and hasattr(u.selected_skill, 'name') and \
-                       (u.selected_skill.name == "Teleport" or u.selected_skill.name == "Delta Config") and \
+                       (u.selected_skill.name == "Teleport" or 
+                        u.selected_skill.name == "Delta Config" or 
+                        u.selected_skill.name == "Græ Exchange") and \
                        hasattr(u, 'teleport_target_indicator') and u.teleport_target_indicator == (y, x):
-                        # This position is a teleport target - draw an indicator
-                        tile = self.game_ui.asset_manager.get_ui_tile("teleport_target")
-                        color_id = 3 if u.player == 1 else 4  # Color based on player
+                        
+                        # Different visualization based on skill type
+                        if u.selected_skill.name == "Græ Exchange":
+                            # For Grae Exchange, show a gray Ψ
+                            tile = "Ψ"
+                            color_id = 8  # Gray color
+                        else:
+                            # For other teleport skills, use the standard indicator
+                            tile = self.game_ui.asset_manager.get_ui_tile("teleport_target")
+                            color_id = 3 if u.player == 1 else 4  # Color based on player
                         
                         # Check if cursor is here
                         is_cursor_here = (pos == cursor_manager.cursor_pos and show_cursor)
@@ -359,8 +373,9 @@ class UIRenderer:
                             # Draw with cursor color 
                             self.renderer.draw_tile(y, x, tile, 2, curses.A_BOLD)
                         else:
-                            # Draw the teleport target indicator
-                            self.renderer.draw_tile(y, x, tile, color_id, curses.A_BOLD)
+                            # Draw the teleport target indicator - use dim for Grae Exchange
+                            attrs = curses.A_DIM if u.selected_skill.name == "Græ Exchange" else curses.A_BOLD
+                            self.renderer.draw_tile(y, x, tile, color_id, attrs)
                         continue
                         
                 # Check if this position is a Site Inspection target indicator or within its area

@@ -1423,24 +1423,8 @@ class GameModeManager(UIComponent):
                 ]
                 
                 if not cursor_manager.highlighted_positions:
-                    if cursor_manager.selected_unit.move_target:
-                        # Use event system for message
-                        self.publish_event(
-                            EventType.MESSAGE_DISPLAY_REQUESTED,
-                            MessageDisplayEventData(
-                                message="No valid targets in range from move destination",
-                                message_type=MessageType.WARNING
-                            )
-                        )
-                    else:
-                        # Use event system for message
-                        self.publish_event(
-                            EventType.MESSAGE_DISPLAY_REQUESTED,
-                            MessageDisplayEventData(
-                                message="No valid targets in range",
-                                message_type=MessageType.WARNING
-                            )
-                        )
+                    # No message when there are no valid targets
+                    pass
             else:
                 # Use event system for message
                 self.publish_event(
@@ -2410,14 +2394,7 @@ class ActionMenuComponent(UIComponent):
                     mode_manager.set_mode("select")
                     return
                 else:
-                    # If can't use, show error
-                    self.publish_event(
-                        EventType.MESSAGE_DISPLAY_REQUESTED,
-                        MessageDisplayEventData(
-                            message=f"Cannot use {skill.name} right now",
-                            message_type=MessageType.WARNING
-                        )
-                    )
+                    # If can't use, don't show an error message
                     # Reset selected skill
                     cursor_manager.selected_unit.selected_skill = None
                     # Return to select mode
@@ -2457,14 +2434,7 @@ class ActionMenuComponent(UIComponent):
             cursor_manager.highlighted_positions = [Position(y, x) for y, x in targets]
             
             if not cursor_manager.highlighted_positions:
-                # Use event system for message
-                self.publish_event(
-                    EventType.MESSAGE_DISPLAY_REQUESTED,
-                    MessageDisplayEventData(
-                        message="No valid targets in range",
-                        message_type=MessageType.WARNING
-                    )
-                )
+                # No message when there are no valid targets
                 
                 # Reset selected skill
                 cursor_manager.selected_unit.selected_skill = None

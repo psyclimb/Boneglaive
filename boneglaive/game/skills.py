@@ -2592,6 +2592,14 @@ class DeltaConfigSkill(ActiveSkill):
         # Log debug info
         logger.debug(f"Executing Delta Config from ({user.y},{user.x}) to {target_pos}")
         
+        # Clear teleport indicator before animation starts to remove the ∴ symbol
+        teleport_target = user.teleport_target_indicator  # Store for validation later
+        user.teleport_target_indicator = None
+        
+        # Force a redraw to remove the ∴ symbol
+        if ui and hasattr(ui, 'draw_board'):
+            ui.draw_board(show_cursor=False, show_selection=True, show_attack_targets=False)
+            
         # Ensure the target position is still valid
         # First check if target position is within map bounds
         if not game.is_valid_position(target_pos[0], target_pos[1]):
@@ -2654,9 +2662,7 @@ class DeltaConfigSkill(ActiveSkill):
             old_y, old_x = user.y, user.x
             user.y, user.x = target_pos
             
-            # Clear any teleport indicator
-            if hasattr(user, 'teleport_target_indicator'):
-                user.teleport_target_indicator = None
+            # Teleport indicator already cleared at the start of animation
             
             # Animate teleportation in at the new position
             if teleport_in_sequence:
@@ -2671,9 +2677,7 @@ class DeltaConfigSkill(ActiveSkill):
             # If no UI is available, just perform the teleportation
             user.y, user.x = target_pos
             
-            # Clear any teleport indicator
-            if hasattr(user, 'teleport_target_indicator'):
-                user.teleport_target_indicator = None
+            # Teleport indicator already cleared at the start of animation
         
         logger.debug(f"Delta Config completed: teleported to {target_pos}")
         return True
@@ -2817,7 +2821,12 @@ class EstrangeSkill(ActiveSkill):
             )
             return False
         
-        # Check if target is immune to the effect
+        # Apply fixed damage that ignores defense, regardless of immunity
+        damage = 4  # Fixed damage amount
+        previous_hp = target_unit.hp
+        target_unit.hp = max(0, target_unit.hp - damage)
+        
+        # Check if target is immune to the effect (but not the damage)
         if target_unit.is_immune_to_effects():
             message_log.add_message(
                 f"{target_unit.get_display_name()} is immune to Estrange due to Stasiality!",
@@ -2825,23 +2834,18 @@ class EstrangeSkill(ActiveSkill):
                 player=user.player,
                 target_name=target_unit.get_display_name()
             )
-            return False
+        else:
+            # Apply the Estrange effect if not immune
+            target_unit.estranged = True
             
-        # Apply the Estrange effect
-        target_unit.estranged = True
+            # Log the debuff effect
+            message_log.add_message(
+                f"{target_unit.get_display_name()} is phased out of normal spacetime and takes {damage} damage!",
+                MessageType.ABILITY,
+                player=user.player,
+                target_name=target_unit.get_display_name()
+            )
         
-        # Apply fixed damage that ignores defense
-        damage = 4  # Fixed damage amount
-        previous_hp = target_unit.hp
-        target_unit.hp = max(0, target_unit.hp - damage)
-        
-        # Log the debuff effect
-        message_log.add_message(
-            f"{target_unit.get_display_name()} is phased out of normal spacetime and takes {damage} damage!",
-            MessageType.ABILITY,
-            player=user.player,
-            target_name=target_unit.get_display_name()
-        )
         
         # Log damage as combat message
         message_log.add_combat_message(
@@ -2965,7 +2969,12 @@ class GraeExchangeSkill(ActiveSkill):
             return False
             
         # Check if the position is within range of the user
+        # Use planned move position if it exists
         from_y, from_x = user.y, user.x
+        if hasattr(user, 'move_target') and user.move_target:
+            from_y, from_x = user.move_target
+            logger.debug(f"Græ Exchange using planned move position: ({from_y}, {from_x})")
+            
         to_y, to_x = target_pos
         distance = game.chess_distance(from_y, from_x, to_y, to_x)
         if distance > self.range:
@@ -2987,6 +2996,7 @@ class GraeExchangeSkill(ActiveSkill):
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Queue up Græ Exchange for execution."""
         from boneglaive.utils.message_log import message_log, MessageType
+        from boneglaive.utils.event_system import get_event_manager, EventType, UIRedrawEventData
         
         if not self.can_use(user, target_pos, game):
             return False
@@ -3002,6 +3012,18 @@ class GraeExchangeSkill(ActiveSkill):
         if game:
             user.action_timestamp = game.action_counter
             game.action_counter += 1
+        
+        # Create a visual indicator on the target position
+        if hasattr(game, 'ui') and game.ui:
+            # Store the teleport target position for the UI to render
+            user.teleport_target_indicator = target_pos
+            
+            # Request a redraw to show the indicator immediately
+            event_manager = get_event_manager()
+            event_manager.publish(
+                EventType.UI_REDRAW_REQUESTED,
+                UIRedrawEventData()
+            )
             
         # Log the skill use
         message_log.add_message(
@@ -3020,18 +3042,37 @@ class GraeExchangeSkill(ActiveSkill):
         from boneglaive.utils.constants import UnitType
         from boneglaive.game.units import Unit
         
-        # Store original position to create echo there
-        original_y, original_x = user.y, user.x
+        # Store original position to create echo there - use planned move position if it exists
+        if user.move_target:
+            # Create the echo at the planned move position (where the unit will be after moving)
+            original_y, original_x = user.move_target
+            from boneglaive.utils.debug import logger
+            logger.debug(f"Creating echo at planned move position: ({original_y}, {original_x})")
+        else:
+            original_y, original_x = user.y, user.x
+        
+        # Clean up the visual indicator on the unit before animation
+        # Clear teleport_target_indicator so the UI won't show the "|" symbol during animation
+        teleport_target = user.teleport_target_indicator  # Store for later use
+        user.teleport_target_indicator = None  # Clear the indicator
         
         # First play the echo creation animation at current position
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+            # Force a redraw to remove the "|" from the unit's display
+            if hasattr(ui, 'draw_board'):
+                ui.draw_board(show_cursor=False, show_selection=True, show_attack_targets=False)
+                
             # Show creation animation with slow cane tap
             animation_sequence = ui.asset_manager.get_skill_animation_sequence('grae_exchange')
             if animation_sequence:
+                # Determine animation position - if unit has a move target, 
+                # it will move first, so show animation at the target
+                anim_y, anim_x = original_y, original_x
+                
                 # First show the cane tap frames very slowly
                 for i in range(3):  # First 3 frames are the cane tap
                     ui.renderer.draw_tile(
-                        original_y, original_x,
+                        anim_y, anim_x,
                         animation_sequence[i],
                         3 if user.player == 1 else 4  # Player color
                     )
@@ -3041,7 +3082,7 @@ class GraeExchangeSkill(ActiveSkill):
                 # Then show the remaining frames at normal speed
                 for i in range(3, len(animation_sequence)):
                     ui.renderer.draw_tile(
-                        original_y, original_x,
+                        anim_y, anim_x,
                         animation_sequence[i],
                         3 if user.player == 1 else 4  # Player color
                     )
@@ -3069,7 +3110,7 @@ class GraeExchangeSkill(ActiveSkill):
         
         # Now show teleport animation and teleport the unit
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Teleport animation: first show "out" at current position
+            # Teleport animation: first show "out" at the same position as the echo creation
             teleport_out = ui.asset_manager.get_skill_animation_sequence('teleport_out')
             if teleport_out:
                 ui.renderer.animate_attack_sequence(
@@ -3102,7 +3143,7 @@ class GraeExchangeSkill(ActiveSkill):
         
         # Log the effect
         message_log.add_message(
-            f"{user.get_display_name()} strikes the ground with his cane and bifurcates, one form remaining while the other teleports away!",
+            f"{user.get_display_name()} strikes the ground with his cane and bifurcates!",
             MessageType.ABILITY,
             player=user.player
         )
