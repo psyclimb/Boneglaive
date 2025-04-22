@@ -323,6 +323,26 @@ class UIRenderer:
                             # Draw the vault target indicator
                             self.renderer.draw_tile(y, x, tile, color_id, curses.A_BOLD)
                         continue
+                
+                # Check if this position is a teleport target indicator
+                for u in self.game_ui.game.units:
+                    if u.is_alive() and u.selected_skill and hasattr(u.selected_skill, 'name') and \
+                       (u.selected_skill.name == "Teleport" or u.selected_skill.name == "Delta Config") and \
+                       hasattr(u, 'teleport_target_indicator') and u.teleport_target_indicator == (y, x):
+                        # This position is a teleport target - draw an indicator
+                        tile = self.game_ui.asset_manager.get_ui_tile("teleport_target")
+                        color_id = 3 if u.player == 1 else 4  # Color based on player
+                        
+                        # Check if cursor is here
+                        is_cursor_here = (pos == cursor_manager.cursor_pos and show_cursor)
+                        
+                        if is_cursor_here:
+                            # Draw with cursor color 
+                            self.renderer.draw_tile(y, x, tile, 2, curses.A_BOLD)
+                        else:
+                            # Draw the teleport target indicator
+                            self.renderer.draw_tile(y, x, tile, color_id, curses.A_BOLD)
+                        continue
                         
                 # Check if this position is a Site Inspection target indicator or within its area
                 for u in self.game_ui.game.units:

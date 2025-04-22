@@ -40,7 +40,8 @@ class AssetManager:
             UnitType.GLAIVEMAN: 'G',
             UnitType.ARCHER: 'A',
             UnitType.MAGE: 'M',
-            UnitType.MANDIBLE_FOREMAN: 'F'
+            UnitType.MANDIBLE_FOREMAN: 'F',
+            UnitType.GRAYMAN: 'Ψ'
         }
         
         # Terrain symbols
@@ -65,7 +66,8 @@ class AssetManager:
             'selected': '**',
             'health': 'HP',
             'vault_target': '◎',  # Circle target for vault landing spot
-            'site_inspection': '□'  # Square outline for Site Inspection target
+            'site_inspection': '□',  # Square outline for Site Inspection target
+            'teleport_target': 'Δ'  # Greek delta for teleport landing spot
         }
         
         # Effect symbols - enhanced ASCII for attacks
@@ -73,7 +75,8 @@ class AssetManager:
             'glaiveman_attack': '⚔',      # Crossed swords for melee
             'archer_attack': '→',         # Arrow for ranged
             'mage_attack': '*',           # Star for magic
-            'mandible_foreman_attack': 'Ξ' # Mandible jaws (melee)
+            'mandible_foreman_attack': 'Ξ', # Mandible jaws (melee)
+            'grayman_attack': '≈'         # Reality distortion (ranged)
         }
         
         # Add animation sequence tiles for each attack type (using simple ASCII)
@@ -82,6 +85,7 @@ class AssetManager:
             'archer_attack': ['.', '>', '-', '>', '->'],
             'mage_attack': ['.', '*', '*', '*', '*'],
             'mandible_foreman_attack': ['<', '[', '{', 'Ξ', '}', ']', '>'],  # Jaws opening and closing animation
+            'grayman_attack': ['·', ':', '≈', '≋', '≈', ':', '·'],  # Reality distortion wave
             'autoclave': ['*', '+', 'x', '#', 'X', '#', 'x', '+', '*'],  # Intense cross pattern for Autoclave
             'pry': ['/', '|', '_', '/', '↑', '↗', '→'],  # Lever-like prying motion
             'pry_impact': ['v', 'V', '#', '*', '.'],  # Simple ground impact animation for Pry landing
@@ -91,7 +95,14 @@ class AssetManager:
             'judgement_throw': ['*', '↺', '↻', '⚡', '⚓', '⊕'],  # Sacred glaive animation
             'judgement_critical': ['⚡', '⌁', '⌁', '⚡', '※'],  # Lightning strike critical effect
             'viseroy_trap': ['[]', '><', '}{', 'Ξ', '}{', '><', '[]'],  # Animation for Viseroy trapping
-            'site_inspection': ['□', '■', '□', '■', '□']  # Animation for Site Inspection
+            'site_inspection': ['□', '■', '□', '■', '□'],  # Animation for Site Inspection
+            'discharge_release': ['{⚡}', '<>>', '(  )', '    '],  # Animation for Discharge releasing unit
+            'discharge_impact': ['!', '!', '#', 'X', '*', '.'],  # Animation for Discharge impact
+            'delta_config': ['Ψ', '░', '▒', '▓', ' ', '▓', '▒', '░', 'Ψ'],  # Teleportation effect
+            'teleport_out': ['Ψ', '░', '▒', '▓', ' '],  # Teleport out animation
+            'teleport_in': [' ', '▓', '▒', '░', 'Ψ'],  # Teleport in animation
+            'estrange': ['≡', '≢', '⋍', '≈', '~', '≈', '⋍', '≢', '≡'],  # Phasing effect
+            'grae_exchange': ['Φ', 'Ψ', '⧫', '⧫', 'Ψ', 'Φ']  # Echo creation effect
         }
     
     def _initialize_graphical_assets(self) -> None:
@@ -104,7 +115,8 @@ class AssetManager:
             UnitType.GLAIVEMAN: 'assets/sprites/glaiveman.png',
             UnitType.ARCHER: 'assets/sprites/archer.png',
             UnitType.MAGE: 'assets/sprites/mage.png',
-            UnitType.MANDIBLE_FOREMAN: 'assets/sprites/mandible_foreman.png'
+            UnitType.MANDIBLE_FOREMAN: 'assets/sprites/mandible_foreman.png',
+            UnitType.GRAYMAN: 'assets/sprites/grayman.png'
         }
         
         self.terrain_tiles = {
@@ -121,14 +133,18 @@ class AssetManager:
         self.ui_tiles = {
             'cursor': 'assets/ui/cursor.png',
             'selected': 'assets/ui/selected.png',
-            'health': 'assets/ui/health.png'
+            'health': 'assets/ui/health.png',
+            'vault_target': 'assets/ui/vault_target.png',
+            'site_inspection': 'assets/ui/site_inspection.png',
+            'teleport_target': 'assets/ui/teleport_target.png'
         }
         
         self.effect_tiles = {
             'glaiveman_attack': 'assets/effects/glaive.png',
             'archer_attack': 'assets/effects/arrow.png',
             'mage_attack': 'assets/effects/magic.png',
-            'mandible_foreman_attack': 'assets/effects/mandibles.png'
+            'mandible_foreman_attack': 'assets/effects/mandibles.png',
+            'grayman_attack': 'assets/effects/distortion.png'
         }
         
         # Add animation sequences for graphical mode too
@@ -144,7 +160,13 @@ class AssetManager:
             'vault': ['vault_1.png', 'vault_2.png', 'vault_3.png', 'vault_4.png'],
             'vault_impact': ['vault_impact_1.png', 'vault_impact_2.png', 'vault_impact_3.png'],
             'judgement_throw': ['judgement_throw_1.png', 'judgement_throw_2.png', 'judgement_throw_3.png', 'judgement_throw_4.png'],
-            'judgement_critical': ['judgement_critical_1.png', 'judgement_critical_2.png', 'judgement_critical_3.png']
+            'judgement_critical': ['judgement_critical_1.png', 'judgement_critical_2.png', 'judgement_critical_3.png'],
+            'discharge_release': ['discharge_release_1.png', 'discharge_release_2.png', 'discharge_release_3.png'],
+            'discharge_impact': ['discharge_impact_1.png', 'discharge_impact_2.png', 'discharge_impact_3.png'],
+            'grayman_attack': ['grayman_attack_1.png', 'grayman_attack_2.png', 'grayman_attack_3.png'],
+            'delta_config': ['delta_config_1.png', 'delta_config_2.png', 'delta_config_3.png', 'delta_config_4.png'],
+            'estrange': ['estrange_1.png', 'estrange_2.png', 'estrange_3.png'],
+            'grae_exchange': ['grae_exchange_1.png', 'grae_exchange_2.png', 'grae_exchange_3.png']
         }
     
     def get_unit_tile(self, unit_type: UnitType) -> str:
@@ -169,7 +191,8 @@ class AssetManager:
             UnitType.GLAIVEMAN: 'glaiveman_attack',
             UnitType.ARCHER: 'archer_attack',
             UnitType.MAGE: 'mage_attack',
-            UnitType.MANDIBLE_FOREMAN: 'mandible_foreman_attack'
+            UnitType.MANDIBLE_FOREMAN: 'mandible_foreman_attack',
+            UnitType.GRAYMAN: 'grayman_attack'
         }
         effect_type = effect_map.get(unit_type, 'glaiveman_attack')
         return self.get_effect_tile(effect_type)
@@ -180,7 +203,8 @@ class AssetManager:
             UnitType.GLAIVEMAN: 'glaiveman_attack',
             UnitType.ARCHER: 'archer_attack',
             UnitType.MAGE: 'mage_attack',
-            UnitType.MANDIBLE_FOREMAN: 'mandible_foreman_attack'
+            UnitType.MANDIBLE_FOREMAN: 'mandible_foreman_attack',
+            UnitType.GRAYMAN: 'grayman_attack'
         }
         effect_type = effect_map.get(unit_type, 'glaiveman_attack')
         return self.animation_sequences.get(effect_type, [])
