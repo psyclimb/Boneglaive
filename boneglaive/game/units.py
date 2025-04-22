@@ -64,7 +64,7 @@ class Unit:
         
         # Græ Exchange echo properties
         self.is_echo = False  # Whether this unit is an echo created by Græ Exchange
-        self.echo_duration = 0  # Number of turns the echo remains (if this is an echo)
+        self.echo_duration = 0  # Number of OWNER'S turns the echo remains (decremented only on owner's turn)
         self.original_unit = None  # Reference to the original unit that created this echo
         # Removed Recalibrate tracking
         
@@ -257,24 +257,10 @@ class Unit:
         if not self.jawline_affected and self.move_range_bonus < 0:
             self.move_range_bonus = 0
             
-        # Handle Jawline duration if affected
-        if self.jawline_affected:
-            self.jawline_duration -= 1
-            
-            # If duration expires, clear the effect
-            if self.jawline_duration <= 0:
-                from boneglaive.utils.message_log import message_log, MessageType
-                self.jawline_affected = False
-                # Only restore movement if not affected by other penalties
-                if not self.was_pried and self.trapped_by is None:
-                    self.move_range_bonus += 1  # Restore the movement penalty
-                
-                message_log.add_message(
-                    f"{self.get_display_name()} breaks free from Jawline tether!",
-                    MessageType.ABILITY,
-                    target_name=self.get_display_name()
-                )
-                
+        # NOTE: Jawline duration is now decremented in Game.execute_turn
+        # to ensure it only happens on the player's own turn
+        
+        # Reset the was_pried flag
         self.was_pried = False
         
     def get_skill_by_key(self, key: str) -> Optional:

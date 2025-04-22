@@ -538,15 +538,16 @@ class Game:
         logger.info(f"Executing turn {self.turn} for player {self.current_player}")
         
         # Process echo units before executing actions
-        # Update duration and handle expired echoes
+        # Update duration and handle expired echoes - ONLY for echoes belonging to the current player
         for unit in list(self.units):  # Create a copy of the list to safely modify during iteration
-            if unit.is_alive() and unit.is_echo:
-                # Decrement echo duration
+            if unit.is_alive() and unit.is_echo and unit.player == self.current_player:
+                # Only decrement duration on the owner's turn
                 unit.echo_duration -= 1
+                logger.debug(f"Echo {unit.get_display_name()} duration decremented to {unit.echo_duration}")
                 
                 # If duration reached zero, the echo expires
                 if unit.echo_duration <= 0:
-                    logger.debug(f"Echo {unit.get_display_name()} expires")
+                    logger.debug(f"Echo {unit.get_display_name()} expires after owner's turns completed")
                     
                     # Log the expiration
                     message_log.add_message(
@@ -860,6 +861,25 @@ class Game:
                 # Reduce cooldowns for skills ONLY for units belonging to current player
                 if unit.player == self.current_player:
                     unit.tick_cooldowns()
+                    
+                    # ONLY decrement durations for effects on the unit owner's turn
+                    # This handles Jawline duration specifically
+                    if unit.jawline_affected:
+                        unit.jawline_duration -= 1
+                        
+                        # If Jawline duration expires, clear the effect
+                        if unit.jawline_duration <= 0:
+                            unit.jawline_affected = False
+                            # Only restore movement if not affected by other penalties
+                            if not unit.was_pried and unit.trapped_by is None:
+                                unit.move_range_bonus += 1  # Restore the movement penalty
+                            
+                            # Log the effect expiration
+                            message_log.add_message(
+                                f"{unit.get_display_name()} breaks free from Jawline tether!",
+                                MessageType.ABILITY,
+                                target_name=unit.get_display_name()
+                            )
                 
                 # Handle units that were affected by Pry during the turn that just ended
                 # They need to keep their was_pried status until after THEIR next turn
