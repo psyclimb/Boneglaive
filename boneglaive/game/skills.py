@@ -1551,7 +1551,346 @@ class DischargeSkill(ActiveSkill):
             range_=3  # Maximum throw distance
         )
         self.impact_damage = 6  # Base damage on impact
+    
+    def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        """Check if Discharge can be used - requires a trapped unit."""
+        from boneglaive.utils.debug import logger
         
+        # First check basic cooldown
+        if not super().can_use(user, target_pos, game):
+            logger.debug("Discharge failed: cooldown not ready")
+            return False
+            
+        # Need game and target position to validate
+        if not game or not target_pos:
+            logger.debug("Discharge failed: missing game or target position")
+            return False
+            
+        # Check if the unit is a MANDIBLE_FOREMAN
+        if user.type != UnitType.MANDIBLE_FOREMAN:
+            logger.debug("Discharge failed: only MANDIBLE_FOREMAN can use this skill")
+            return False
+            
+        # Check if there are any trapped units (the FOREMAN must have trapped a unit)
+        trapped_units = [u for u in game.units if u.is_alive() and u.trapped_by == user]
+        if not trapped_units:
+            logger.debug("Discharge failed: no trapped units to discharge")
+            return False
+            
+        # Check if target position is within map bounds
+        if not game.is_valid_position(target_pos[0], target_pos[1]):
+            logger.debug(f"Discharge failed: position {target_pos} out of bounds")
+            return False
+            
+        # Get the user's position (actual or planned move)
+        from_y = user.y
+        from_x = user.x
+        
+        # If unit has a planned move, use that position instead
+        if user.move_target:
+            from_y, from_x = user.move_target
+            
+        # Check if target is within skill range
+        distance = game.chess_distance(from_y, from_x, target_pos[0], target_pos[1])
+        if distance > self.range:
+            logger.debug(f"Discharge failed: position out of range ({distance} > {self.range})")
+            return False
+            
+        # All checks passed - the skill can be used
+        logger.debug("Discharge check passed - skill can be used")
+        return True
+        
+    def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        """
+        Queue up the Discharge skill for execution at the end of the turn.
+        Sets the skill target and records the skill for execution.
+        """
+        from boneglaive.utils.message_log import message_log, MessageType
+        
+        # Validate skill use conditions
+        if not self.can_use(user, target_pos, game):
+            return False
+        
+        # Get the trapped unit (we validated there is at least one in can_use)
+        trapped_units = [u for u in game.units if u.is_alive() and u.trapped_by == user]
+        trapped_unit = trapped_units[0]  # Take the first one if multiple (unlikely)
+        
+        # Set the skill target
+        user.skill_target = target_pos
+        user.selected_skill = self
+        
+        # Track action order (assumes the Game instance is passed)
+        if game:
+            user.action_timestamp = game.action_counter
+            game.action_counter += 1
+        
+        # Set cooldown immediately when queuing up the action
+        self.current_cooldown = self.cooldown
+        
+        # Log that the skill has been queued
+        message_log.add_message(
+            f"{user.get_display_name()} readies to discharge {trapped_unit.get_display_name()} towards ({target_pos[0]}, {target_pos[1]})!",
+            MessageType.ABILITY,
+            player=user.player,
+            attacker_name=user.get_display_name(),
+            target_name=trapped_unit.get_display_name()
+        )
+        
+        return True
+    
+    def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
+        """
+        Execute the Discharge skill during the turn resolution phase.
+        This releases a trapped unit and throws them towards the target position,
+        potentially causing damage on impact with walls or obstacles.
+        """
+        from boneglaive.utils.message_log import message_log, MessageType
+        import time
+        
+        # Get the trapped unit - we'll throw the first one if multiple (unlikely)
+        trapped_units = [u for u in game.units if u.is_alive() and u.trapped_by == user]
+        
+        # Validate if there's still a unit to throw
+        if not trapped_units:
+            message_log.add_message(
+                f"Discharge failed: no trapped units to throw!",
+                MessageType.ABILITY,
+                player=user.player,
+                attacker_name=user.get_display_name()
+            )
+            return False
+            
+        # Get the trapped unit to throw
+        trapped_unit = trapped_units[0]
+        
+        # Log the skill activation
+        message_log.add_message(
+            f"{user.get_display_name()} discharges {trapped_unit.get_display_name()}!",
+            MessageType.ABILITY,
+            player=user.player,
+            attacker_name=user.get_display_name(),
+            target_name=trapped_unit.get_display_name()
+        )
+        
+        # Store original position for animation and distance calculation
+        original_y, original_x = trapped_unit.y, trapped_unit.x
+        
+        # Calculate direction vector towards target
+        dy = target_pos[0] - user.y
+        dx = target_pos[1] - user.x
+        
+        # Normalize direction to get a unit vector
+        distance = max(1, abs(dy) + abs(dx))  # Manhattan distance
+        direction_y = int(dy / distance) if distance > 0 else 0
+        direction_x = int(dx / distance) if distance > 0 else 0
+        
+        # Calculate all possible positions along the throw path
+        max_throw_distance = 3  # Maximum distance to throw the unit
+        throw_positions = []
+        
+        # Trace the path in the direction of the target
+        for throw_distance in range(1, max_throw_distance + 1):
+            # Calculate the position at this distance
+            y = trapped_unit.y + (direction_y * throw_distance)
+            x = trapped_unit.x + (direction_x * throw_distance)
+            
+            # Check if position is valid
+            if not game.is_valid_position(y, x):
+                # Hit map boundary, stop calculating additional positions
+                break
+                
+            # Check if there's a unit at this position (can't throw through units)
+            unit_at_pos = game.get_unit_at(y, x)
+            if unit_at_pos and unit_at_pos != trapped_unit:
+                # Hit another unit, can't throw past this point
+                break
+                
+            # Check if position is passable terrain
+            if not game.map.is_passable(y, x):
+                # Hit impassable terrain - DON'T add this as a valid position
+                # Instead, use the last valid position before this one
+                break
+                
+            # Position is valid for the throw path
+            throw_positions.append((y, x))
+        
+        # Default landing position if no valid positions were found
+        landing_pos = (trapped_unit.y, trapped_unit.x)
+        
+        # Determine the actual landing position (last valid position)
+        if throw_positions:
+            landing_pos = throw_positions[-1]
+        
+        # Calculate actual throw distance
+        throw_distance = game.chess_distance(original_y, original_x, landing_pos[0], landing_pos[1])
+        
+        # First, release the trapped unit
+        trapped_unit.trapped_by = None
+        
+        # Determine if we hit an obstacle
+        # We hit an obstacle if:
+        # 1. We didn't move the full max throw distance AND there are positions beyond our landing point 
+        # 2. OR the next position after our landing point would be impassable/invalid
+        hit_obstacle = False
+        
+        # Check if we hit an obstacle by seeing if we could have gone further
+        if throw_distance > 0 and throw_distance < max_throw_distance:
+            # Check if the next position would be invalid
+            next_y = landing_pos[0] + direction_y
+            next_x = landing_pos[1] + direction_x
+            
+            # If the next position is invalid or impassable, we hit an obstacle
+            if (not game.is_valid_position(next_y, next_x) or 
+                not game.map.is_passable(next_y, next_x) or
+                game.get_unit_at(next_y, next_x)):
+                hit_obstacle = True
+        
+        if throw_distance > 0:
+            # Animation logic if UI is available
+            if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+                # First show the release animation at the trapped unit's position
+                release_animation = ui.asset_manager.get_skill_animation_sequence('discharge_release')
+                if not release_animation:
+                    # Default animation if not defined in asset manager
+                    release_animation = ['{⚡}', '[ ]', '   ']
+                
+                ui.renderer.animate_attack_sequence(
+                    trapped_unit.y, trapped_unit.x,
+                    release_animation,
+                    7,  # color ID
+                    0.2  # duration
+                )
+                time.sleep(0.2)  # Small pause
+                
+                # Now animate the throw path
+                # Calculate all positions along the path for animation
+                from boneglaive.utils.coordinates import Position, get_line
+                start_pos = Position(trapped_unit.y, trapped_unit.x)
+                end_pos = Position(landing_pos[0], landing_pos[1])
+                path = get_line(start_pos, end_pos)
+                
+                # Show the initial position
+                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+                time.sleep(0.2)  # Short pause before throw animation
+                
+                # Temporarily update unit position for animation
+                orig_y, orig_x = trapped_unit.y, trapped_unit.x
+                
+                # Animate movement along the path
+                for i, pos in enumerate(path[1:], 1):  # Skip the starting position
+                    # Update unit position for animation
+                    trapped_unit.y, trapped_unit.x = pos.y, pos.x
+                    
+                    # Redraw to show unit in intermediate position
+                    ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+                    
+                    # Short delay for smooth animation
+                    time.sleep(0.05)
+            
+            # Now update the unit position to the landing position
+            trapped_unit.y, trapped_unit.x = landing_pos
+            
+            # Log the throw result
+            if hit_obstacle:
+                message_log.add_message(
+                    f"{trapped_unit.get_display_name()} is thrown and collides with obstacle at ({landing_pos[0]},{landing_pos[1]})!",
+                    MessageType.ABILITY,
+                    player=user.player,
+                    target_name=trapped_unit.get_display_name()
+                )
+            else:
+                message_log.add_message(
+                    f"{trapped_unit.get_display_name()} is thrown to ({landing_pos[0]},{landing_pos[1]})!",
+                    MessageType.ABILITY,
+                    player=user.player,
+                    target_name=trapped_unit.get_display_name()
+                )
+        else:
+            # No actual movement but still released
+            message_log.add_message(
+                f"{trapped_unit.get_display_name()} is released from mechanical jaws!",
+                MessageType.ABILITY,
+                player=user.player,
+                target_name=trapped_unit.get_display_name()
+            )
+        
+        # Apply impact damage if the unit hit an obstacle
+        if hit_obstacle:
+            # Calculate damage (reduced by defense)
+            damage = max(1, self.impact_damage - trapped_unit.get_effective_stats()['defense'])
+            
+            # Apply damage
+            previous_hp = trapped_unit.hp
+            trapped_unit.hp = max(0, trapped_unit.hp - damage)
+            
+            # Log the damage with combat message
+            message_log.add_combat_message(
+                attacker_name=user.get_display_name(),
+                target_name=trapped_unit.get_display_name(),
+                damage=damage,
+                ability="Discharge Impact",
+                attacker_player=user.player,
+                target_player=trapped_unit.player
+            )
+            
+            # Show damage effect if UI is available
+            if ui and hasattr(ui, 'renderer'):
+                # Animate the impact
+                impact_animation = ui.asset_manager.get_skill_animation_sequence('discharge_impact')
+                if not impact_animation:
+                    # Default animation if not defined
+                    impact_animation = ['!', '*', '#', 'X']
+                
+                ui.renderer.animate_attack_sequence(
+                    landing_pos[0], landing_pos[1],
+                    impact_animation,
+                    5,  # color ID for impact (reddish)
+                    0.2  # duration
+                )
+                
+                # Flash the unit to show it took damage
+                if hasattr(ui, 'asset_manager'):
+                    tile_ids = [ui.asset_manager.get_unit_tile(trapped_unit.type)] * 4
+                    color_ids = [5, 3 if trapped_unit.player == 1 else 4] * 2  # Alternate red with player color
+                    durations = [0.1] * 4
+                    
+                    # Use renderer's flash tile method
+                    ui.renderer.flash_tile(landing_pos[0], landing_pos[1], tile_ids, color_ids, durations)
+                
+                # Show damage number above unit with improved visualization
+                damage_text = f"-{damage}"
+                
+                # Make damage text more prominent
+                import curses
+                for i in range(3):
+                    # First clear the area
+                    ui.renderer.draw_text(landing_pos[0]-1, landing_pos[1]*2, " " * len(damage_text), 7)
+                    # Draw with alternating bold/normal for a flashing effect
+                    attrs = curses.A_BOLD if i % 2 == 0 else 0
+                    ui.renderer.draw_text(landing_pos[0]-1, landing_pos[1]*2, damage_text, 7, attrs)
+                    ui.renderer.refresh()
+                    time.sleep(0.1)
+                
+                # Final damage display
+                ui.renderer.draw_text(landing_pos[0]-1, landing_pos[1]*2, damage_text, 7, curses.A_BOLD)
+                ui.renderer.refresh()
+                time.sleep(0.3)
+            
+            # Check if target was defeated
+            if trapped_unit.hp <= 0:
+                message_log.add_message(
+                    f"{trapped_unit.get_display_name()} perishes from the impact!",
+                    MessageType.COMBAT,
+                    player=user.player,
+                    target=trapped_unit.player,
+                    target_name=trapped_unit.get_display_name()
+                )
+        
+        # Final board redraw
+        if ui and hasattr(ui, 'draw_board'):
+            ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+        
+        return True
         
 class JawlineSkill(ActiveSkill):
     """
@@ -2055,6 +2394,256 @@ class SiteInspectionSkill(ActiveSkill):
         
         return True
 
+# GRAYMAN skills
+class Stasiality(PassiveSkill):
+    """
+    Passive skill for GRAYMAN.
+    GRAYMAN exists outside normal laws of reality and cannot have his stats changed
+    or be displaced by other effects.
+    """
+    
+    def __init__(self):
+        super().__init__(
+            name="Stasiality",
+            key="S",
+            description="Cannot have stats changed or be displaced. Immune to buffs, debuffs, forced movement, and terrain effects."
+        )
+        
+class DeltaConfigSkill(ActiveSkill):
+    """
+    Active skill for GRAYMAN.
+    Allows teleportation to any unoccupied tile on the map that isn't a pillar or furniture.
+    """
+    
+    def __init__(self):
+        super().__init__(
+            name="Delta Config",
+            key="D",
+            description="Teleport to any unoccupied tile on the map that isn't a pillar or furniture.",
+            target_type=TargetType.AREA,
+            cooldown=4,
+            range_=99  # Unlimited range effectively
+        )
+        
+    def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        """Check if Delta Config teleportation can be used to the target position."""
+        from boneglaive.utils.debug import logger
+        
+        # First check basic cooldown
+        if not super().can_use(user, target_pos, game):
+            logger.debug("Delta Config failed: cooldown not ready")
+            return False
+            
+        # Need game and target position to validate
+        if not game or not target_pos:
+            logger.debug("Delta Config failed: missing game or target position")
+            return False
+            
+        # Check if target position is within map bounds
+        if not game.is_valid_position(target_pos[0], target_pos[1]):
+            logger.debug(f"Delta Config failed: position {target_pos} out of bounds")
+            return False
+            
+        # Cannot teleport to the same position
+        if (user.y, user.x) == target_pos:
+            logger.debug("Delta Config failed: cannot teleport to same position")
+            return False
+            
+        # Check if the target position is occupied by another unit
+        unit_at_target = game.get_unit_at(target_pos[0], target_pos[1])
+        if unit_at_target:
+            logger.debug(f"Delta Config failed: position occupied by {unit_at_target.type.name}")
+            return False
+        
+        # Check if the target terrain is valid for teleportation
+        terrain = game.map.get_terrain_at(target_pos[0], target_pos[1])
+        from boneglaive.game.map import TerrainType
+        
+        # Cannot teleport onto pillars or furniture
+        if terrain in [TerrainType.PILLAR, TerrainType.FURNITURE]:
+            logger.debug(f"Delta Config failed: cannot teleport onto terrain {terrain}")
+            return False
+            
+        logger.debug("Delta Config check passed - skill can be used")
+        return True
+        
+    def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        """
+        Queue up the Delta Config teleportation for execution at the end of the turn.
+        Sets the skill target and records the skill for execution.
+        """
+        from boneglaive.utils.message_log import message_log, MessageType
+        from boneglaive.utils.event_system import get_event_manager, EventType, UIRedrawEventData
+        
+        # Validate skill use conditions
+        if not self.can_use(user, target_pos, game):
+            return False
+        
+        # Set the skill target
+        user.skill_target = target_pos
+        user.selected_skill = self
+        
+        # Track action order
+        if game:
+            user.action_timestamp = game.action_counter
+            game.action_counter += 1
+        
+        # Set cooldown immediately when queuing up the action
+        self.current_cooldown = self.cooldown
+        
+        # Create a visual indicator on the target position
+        if hasattr(game, 'ui') and game.ui:
+            # Store the teleport target position for the UI to render
+            user.teleport_target_indicator = target_pos
+            
+            # Request a redraw to show the indicator immediately
+            event_manager = get_event_manager()
+            event_manager.publish(
+                EventType.UI_REDRAW_REQUESTED,
+                UIRedrawEventData()
+            )
+        
+        # Log that the skill has been queued
+        message_log.add_message(
+            f"{user.get_display_name()} assumes the Delta Configuration!",
+            MessageType.ABILITY,
+            player=user.player
+        )
+        
+        return True
+        
+    def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
+        """
+        Execute the Delta Config teleportation during the turn resolution phase.
+        This is called by the game engine when processing actions.
+        """
+        from boneglaive.utils.message_log import message_log, MessageType
+        import time
+        from boneglaive.utils.debug import logger
+        from boneglaive.game.map import TerrainType
+        
+        # Log debug info
+        logger.debug(f"Executing Delta Config from ({user.y},{user.x}) to {target_pos}")
+        
+        # Ensure the target position is still valid
+        # First check if target position is within map bounds
+        if not game.is_valid_position(target_pos[0], target_pos[1]):
+            message_log.add_message(
+                "Delta Config failed: target position is out of bounds.",
+                MessageType.ABILITY,
+                player=user.player
+            )
+            logger.debug(f"Delta Config execute failed: position {target_pos} out of bounds")
+            return False
+            
+        # Check if the target position is occupied by another unit
+        unit_at_target = game.get_unit_at(target_pos[0], target_pos[1])
+        if unit_at_target:
+            message_log.add_message(
+                f"Delta Config failed: target position is occupied.",
+                MessageType.ABILITY,
+                player=user.player
+            )
+            logger.debug(f"Delta Config execute failed: position occupied by {unit_at_target.type.name}")
+            return False
+        
+        # Check if the target terrain is valid for teleportation
+        terrain = game.map.get_terrain_at(target_pos[0], target_pos[1])
+        
+        # Cannot teleport onto pillars or furniture
+        if terrain in [TerrainType.PILLAR, TerrainType.FURNITURE]:
+            message_log.add_message(
+                f"Delta Config failed: cannot teleport onto that terrain.",
+                MessageType.ABILITY,
+                player=user.player
+            )
+            logger.debug(f"Delta Config execute failed: cannot teleport onto terrain {terrain}")
+            return False
+        
+        # Log the teleportation
+        message_log.add_message(
+            f"{user.get_display_name()} shifts through spacetime to ({target_pos[0]},{target_pos[1]})!",
+            MessageType.ABILITY,
+            player=user.player
+        )
+        
+        # Play teleport animation if UI is available
+        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+            # Get the animation sequence for teleportation
+            teleport_out_sequence = ui.asset_manager.get_skill_animation_sequence('teleport_out')
+            teleport_in_sequence = ui.asset_manager.get_skill_animation_sequence('teleport_in')
+            
+            # Animate teleportation out at the original position
+            if teleport_out_sequence:
+                ui.renderer.animate_attack_sequence(
+                    user.y, user.x,
+                    teleport_out_sequence,
+                    7,  # color ID
+                    0.3  # duration
+                )
+            
+            # Perform the actual teleportation
+            old_y, old_x = user.y, user.x
+            user.y, user.x = target_pos
+            
+            # Clear any teleport indicator
+            if hasattr(user, 'teleport_target_indicator'):
+                user.teleport_target_indicator = None
+            
+            # Animate teleportation in at the new position
+            if teleport_in_sequence:
+                ui.renderer.animate_attack_sequence(
+                    user.y, user.x, 
+                    teleport_in_sequence,
+                    7,  # color ID
+                    0.3  # duration
+                )
+            
+        else:
+            # If no UI is available, just perform the teleportation
+            user.y, user.x = target_pos
+            
+            # Clear any teleport indicator
+            if hasattr(user, 'teleport_target_indicator'):
+                user.teleport_target_indicator = None
+        
+        logger.debug(f"Delta Config completed: teleported to {target_pos}")
+        return True
+        
+class EstrangeSkill(ActiveSkill):
+    """
+    Active skill for GRAYMAN.
+    Fires a beam that partially phases the target out of normal spacetime,
+    making them permanently less effective at all actions.
+    """
+    
+    def __init__(self):
+        super().__init__(
+            name="Estrange",
+            key="E",
+            description="Fire a beam that phases the target out of normal spacetime. Target receives -1 to all actions permanently.",
+            target_type=TargetType.ENEMY,
+            cooldown=3,
+            range_=5
+        )
+        
+class GraeExchangeSkill(ActiveSkill):
+    """
+    Active skill for GRAYMAN.
+    Creates a faint echo of GRAYMAN at his position, allowing him to teleport away.
+    The echo remains for 2 turns and can perform basic attacks.
+    """
+    
+    def __init__(self):
+        super().__init__(
+            name="Græ Exchange",
+            key="G",
+            description="Create a duplicate at current position, then teleport away. Echo lasts 2 turns, attacks at half damage.",
+            target_type=TargetType.SELF,
+            cooldown=5,
+            range_=0
+        )
+
 # Skill Registry - maps unit types to their skills
 UNIT_SKILLS = {
     'GLAIVEMAN': {
@@ -2063,7 +2652,11 @@ UNIT_SKILLS = {
     },
     'MANDIBLE_FOREMAN': {
         'passive': Viseroy(),
-        'active': [DischargeSkill(), SiteInspectionSkill(), JawlineSkill()]  # Added Jawline skill
+        'active': [DischargeSkill(), SiteInspectionSkill(), JawlineSkill()]
+    },
+    'GRAYMAN': {
+        'passive': Stasiality(),
+        'active': [DeltaConfigSkill(), EstrangeSkill(), GraeExchangeSkill()]
     }
     # Other unit types will be added here
 }

@@ -27,20 +27,23 @@ class UnitType(Enum):
     ARCHER = 1
     MAGE = 2
     MANDIBLE_FOREMAN = 3  # This stays as MANDIBLE_FOREMAN in the enum (no spaces allowed)
+    GRAYMAN = 4  # The Immutable Anomaly
 
 # Unit stats: (hp, attack, defense, move_range, attack_range)
 UNIT_STATS = {
     UnitType.GLAIVEMAN: (20, 5, 1, 2, 1),
     UnitType.ARCHER: (15, 5, 2, 2, 3),
     UnitType.MAGE: (12, 6, 1, 1, 2),
-    UnitType.MANDIBLE_FOREMAN: (25, 5, 2, 2, 1)  # Reduced attack from 6 to 5
+    UnitType.MANDIBLE_FOREMAN: (25, 5, 2, 2, 1),  # Reduced attack from 6 to 5
+    UnitType.GRAYMAN: (18, 4, 1, 2, 5)  # Long-range, weaker attack, moderate HP
 }
 
 UNIT_SYMBOLS = {
     UnitType.GLAIVEMAN: 'G',
     UnitType.ARCHER: 'A',
     UnitType.MAGE: 'M',
-    UnitType.MANDIBLE_FOREMAN: 'F'
+    UnitType.MANDIBLE_FOREMAN: 'F',
+    UnitType.GRAYMAN: 'Ψ'  # Greek psi symbol represents the anomalous nature
 }
 
 # Attack visual effects
@@ -48,6 +51,7 @@ ATTACK_EFFECTS = {
     UnitType.GLAIVEMAN: "⚔️",  # Glaive (melee)
     UnitType.ARCHER: "→",      # Arrow (ranged)
     UnitType.MAGE: "*",        # Magic star (ranged)
+    UnitType.GRAYMAN: "≈",     # Reality distortion (ranged)
     UnitType.MANDIBLE_FOREMAN: "Ξ"  # Mandible jaws (melee)
 }
 

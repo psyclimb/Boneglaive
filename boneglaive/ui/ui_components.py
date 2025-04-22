@@ -1609,11 +1609,14 @@ class GameModeManager(UIComponent):
     def toggle_setup_unit_type(self):
         """
         Toggle between unit types during the setup phase.
-        Currently toggles between GLAIVEMAN and MANDIBLE FOREMAN.
+        Cycles between GLAIVEMAN, MANDIBLE FOREMAN, and GRAYMAN.
         """
         if self.setup_unit_type == UnitType.GLAIVEMAN:
             self.setup_unit_type = UnitType.MANDIBLE_FOREMAN
             self.game_ui.message = "Setup unit type: MANDIBLE FOREMAN"
+        elif self.setup_unit_type == UnitType.MANDIBLE_FOREMAN:
+            self.setup_unit_type = UnitType.GRAYMAN
+            self.game_ui.message = "Setup unit type: GRAYMAN"
         else:
             self.setup_unit_type = UnitType.GLAIVEMAN
             self.game_ui.message = "Setup unit type: GLAIVEMAN"
@@ -1647,7 +1650,12 @@ class GameModeManager(UIComponent):
         
         if success:
             # Unit was placed at the original position
-            unit_type_name = "GLAIVEMAN" if self.setup_unit_type == UnitType.GLAIVEMAN else "MANDIBLE FOREMAN"
+            unit_type_name = {
+                UnitType.GLAIVEMAN: "GLAIVEMAN",
+                UnitType.MANDIBLE_FOREMAN: "MANDIBLE FOREMAN",
+                UnitType.GRAYMAN: "GRAYMAN"
+            }.get(self.setup_unit_type, "UNKNOWN")
+            
             self.game_ui.message = f"{unit_type_name} placed. {self.game_ui.game.setup_units_remaining[setup_player]} remaining."
         else:
             self.game_ui.message = "Failed to place unit: unknown error"
@@ -2135,6 +2143,39 @@ class ActionMenuComponent(UIComponent):
                 'action': 'jawline_skill',
                 'enabled': jawline_skill is not None,
                 'skill': jawline_skill
+            })
+        
+        # GRAYMAN skills
+        elif unit.type == self.UnitType.GRAYMAN:
+            
+            # Add Delta Config skill
+            delta_config_skill = next((skill for skill in available_skills if skill.name == "Delta Config"), None)
+            self.actions.append({
+                'key': 'd',
+                'label': 'elta Config',  # Will be displayed as [D]elta Config
+                'action': 'delta_config_skill',
+                'enabled': delta_config_skill is not None,
+                'skill': delta_config_skill
+            })
+            
+            # Add Estrange skill
+            estrange_skill = next((skill for skill in available_skills if skill.name == "Estrange"), None)
+            self.actions.append({
+                'key': 'e',
+                'label': 'strange',  # Will be displayed as [E]strange
+                'action': 'estrange_skill',
+                'enabled': estrange_skill is not None,
+                'skill': estrange_skill
+            })
+            
+            # Add Græ Exchange skill
+            grae_exchange_skill = next((skill for skill in available_skills if skill.name == "Græ Exchange"), None)
+            self.actions.append({
+                'key': 'g',
+                'label': 'ræ Exchange',  # Will be displayed as [G]ræ Exchange
+                'action': 'grae_exchange_skill',
+                'enabled': grae_exchange_skill is not None,
+                'skill': grae_exchange_skill
             })
         
         # Reset selected index
