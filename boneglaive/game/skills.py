@@ -1852,6 +1852,7 @@ class SiteInspectionSkill(ActiveSkill):
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Queue up the Site Inspection skill for execution at the end of the turn."""
         from boneglaive.utils.message_log import message_log, MessageType
+        from boneglaive.utils.event_system import get_event_manager, EventType, UIRedrawEventData
         
         # Validate skill use conditions
         if not self.can_use(user, target_pos, game):
@@ -1861,6 +1862,10 @@ class SiteInspectionSkill(ActiveSkill):
         user.skill_target = target_pos
         user.selected_skill = self
         
+        # Add a visual indicator for the Site Inspection area
+        # This will be a property on the unit that the renderer can use to show the area effect
+        user.site_inspection_indicator = target_pos
+        
         # Track action order
         if game:
             user.action_timestamp = game.action_counter
@@ -1868,6 +1873,14 @@ class SiteInspectionSkill(ActiveSkill):
         
         # Set cooldown immediately when queuing up the action
         self.current_cooldown = self.cooldown
+        
+        # Request a redraw to show the indicator immediately
+        if hasattr(game, 'ui') and game.ui:
+            event_manager = get_event_manager()
+            event_manager.publish(
+                EventType.UI_REDRAW_REQUESTED,
+                UIRedrawEventData()
+            )
         
         # Log that the skill has been queued
         message_log.add_message(
@@ -1888,6 +1901,9 @@ class SiteInspectionSkill(ActiveSkill):
         from boneglaive.game.map import TerrainType
         import time
         import curses
+        
+        # Clear the site inspection indicator when we start executing the skill
+        user.site_inspection_indicator = None
         
         # Check if target position is valid
         if not game.is_valid_position(target_pos[0], target_pos[1]):

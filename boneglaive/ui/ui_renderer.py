@@ -323,6 +323,38 @@ class UIRenderer:
                             # Draw the vault target indicator
                             self.renderer.draw_tile(y, x, tile, color_id, curses.A_BOLD)
                         continue
+                        
+                # Check if this position is a Site Inspection target indicator or within its area
+                for u in self.game_ui.game.units:
+                    if u.is_alive() and u.site_inspection_indicator is not None:
+                        target_y, target_x = u.site_inspection_indicator
+                        
+                        # Check if this position is within the 3x3 area of Site Inspection
+                        in_area = (abs(y - target_y) <= 1 and abs(x - target_x) <= 1)
+                        
+                        if in_area:
+                            # Determine what to draw
+                            if (y, x) == (target_y, target_x):
+                                # Center of inspection area - use full square
+                                tile = self.game_ui.asset_manager.get_ui_tile("site_inspection")
+                            else:
+                                # Edge of inspection area - use a dotted border
+                                tile = "·"
+                            
+                            color_id = 3 if u.player == 1 else 4  # Color based on player
+                            
+                            # Check if cursor is here
+                            is_cursor_here = (pos == cursor_manager.cursor_pos and show_cursor)
+                            
+                            if is_cursor_here:
+                                # Draw with cursor color 
+                                self.renderer.draw_tile(y, x, tile, 2, curses.A_BOLD)
+                            else:
+                                # Draw the site inspection indicator - lighter attribute for area
+                                attr = curses.A_BOLD if (y, x) == (target_y, target_x) else 0
+                                # Use the center square for the target and dots for the surrounding area
+                                self.renderer.draw_tile(y, x, tile, color_id, attr)
+                            continue
                 
                 # Check if position is highlighted for movement, attack, or skill
                 if pos in cursor_manager.highlighted_positions:
