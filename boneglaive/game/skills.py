@@ -2952,7 +2952,7 @@ class GraeExchangeSkill(ActiveSkill):
             
         # Log the skill use
         message_log.add_message(
-            f"{user.get_display_name()} prepares to teleport and create an echo!",
+            f"{user.get_display_name()} taps his cane, preparing to leave an afterimage!",
             MessageType.ABILITY,
             player=user.player
         )
@@ -2972,22 +2972,35 @@ class GraeExchangeSkill(ActiveSkill):
         
         # First play the echo creation animation at current position
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Show creation animation
+            # Show creation animation with slow cane tap
             animation_sequence = ui.asset_manager.get_skill_animation_sequence('grae_exchange')
             if animation_sequence:
-                ui.renderer.animate_attack_sequence(
-                    original_y, original_x,
-                    animation_sequence,
-                    3 if user.player == 1 else 4,  # Player color
-                    0.1  # Duration
-                )
+                # First show the cane tap frames very slowly
+                for i in range(3):  # First 3 frames are the cane tap
+                    ui.renderer.draw_tile(
+                        original_y, original_x,
+                        animation_sequence[i],
+                        3 if user.player == 1 else 4  # Player color
+                    )
+                    ui.renderer.refresh()
+                    time.sleep(0.3)  # Slow down for the cane tap
+                
+                # Then show the remaining frames at normal speed
+                for i in range(3, len(animation_sequence)):
+                    ui.renderer.draw_tile(
+                        original_y, original_x,
+                        animation_sequence[i],
+                        3 if user.player == 1 else 4  # Player color
+                    )
+                    ui.renderer.refresh()
+                    time.sleep(0.15)  # Slightly faster for the rest
             
         # Create an echo unit at original position
         echo_unit = Unit(UnitType.GRAYMAN, user.player, original_y, original_x)
         
         # Set echo properties
         echo_unit.is_echo = True
-        echo_unit.echo_duration = 2  # Lasts for 2 turns
+        echo_unit.echo_duration = 2  # Lasts for 2 of the owner's turns (decremented only on owner's turn)
         echo_unit.original_unit = user
         echo_unit.hp = 5  # Fixed 5 HP as specified
         
@@ -3036,7 +3049,7 @@ class GraeExchangeSkill(ActiveSkill):
         
         # Log the effect
         message_log.add_message(
-            f"{user.get_display_name()} teleports and leaves behind an echo!",
+            f"{user.get_display_name()} taps his cane, teleports away and leaves behind an afterimage!",
             MessageType.ABILITY,
             player=user.player
         )
