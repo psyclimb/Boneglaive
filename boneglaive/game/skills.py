@@ -51,8 +51,17 @@ class Skill:
         self.range = range_  # How far the skill can be used
         self.area = area     # Area of effect (0 for single target)
         
+        # Special cooldown debug string
+        import random
+        self.id = f"{name}-{random.randint(1000, 9999)}"
+        
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Check if the skill can be used."""
+        # Log for RecalibrateSkill to debug cooldown issues
+        from boneglaive.utils.debug import logger
+        if self.name == "Recalibrate":
+            logger.debug(f"COOLDOWN CHECK: {self.id} has cooldown {self.current_cooldown}")
+            
         # Check cooldown
         if self.current_cooldown > 0:
             return False
@@ -68,6 +77,11 @@ class Skill:
         # Set cooldown
         self.current_cooldown = self.cooldown
         
+        # Log for RecalibrateSkill to debug cooldown issues
+        from boneglaive.utils.debug import logger
+        if hasattr(self, 'name') and self.name == "Recalibrate":
+            logger.debug(f"COOLDOWN SET: {self.id} cooldown set to {self.current_cooldown}")
+        
         # Skill effect implemented in subclasses
         return True
         
@@ -77,6 +91,11 @@ class Skill:
         
     def tick_cooldown(self) -> None:
         """Reduce cooldown by 1."""
+        # Log for RecalibrateSkill to debug cooldown issues
+        from boneglaive.utils.debug import logger
+        if hasattr(self, 'name') and self.name == "Recalibrate":
+            logger.debug(f"COOLDOWN TICK: {self.id} cooldown {self.current_cooldown} -> {max(0, self.current_cooldown-1)}")
+            
         if self.current_cooldown > 0:
             self.current_cooldown -= 1
 
@@ -1550,23 +1569,39 @@ class RecalibrateSkill(ActiveSkill):
         
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Check if Recalibrate can be used."""
-        # Basic cooldown and validation check
+        from boneglaive.utils.debug import logger
+        
+        # Debug information
+        logger.debug(f"Checking if Recalibrate can be used by {user.get_display_name()}")
+        logger.debug(f"Current cooldown: {self.current_cooldown}")
+        
+        # First check basic cooldown
         if not super().can_use(user, target_pos, game):
+            logger.debug("Recalibrate failed: cooldown not ready")
             return False
             
         # Always usable as a self-buff, no further restrictions
+        logger.debug("Recalibrate check passed - skill can be used")
         return True
         
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
-        """Queue up Recalibrate for execution."""
+        """
+        Queue up the Recalibrate skill for execution at the end of the turn.
+        This works similarly to VaultSkill's use method.
+        """
         from boneglaive.utils.message_log import message_log, MessageType
+        from boneglaive.utils.debug import logger
+        
+        # Debug info for cooldown tracking
+        logger.debug(f"RECALIBRATE USE - current cooldown: {self.current_cooldown}")
         
         # Validate skill use conditions
         if not self.can_use(user, target_pos, game):
+            logger.debug("Cannot use Recalibrate - can_use check failed")
             return False
         
-        # Set the skill target (for self-targeted skills, we still need this for the action system)
-        user.skill_target = (user.y, user.x)  # Target self
+        # Set the skill target (self-targeted)
+        user.skill_target = (user.y, user.x)
         user.selected_skill = self
         
         # Track action order
@@ -1574,8 +1609,14 @@ class RecalibrateSkill(ActiveSkill):
             user.action_timestamp = game.action_counter
             game.action_counter += 1
         
-        # Set cooldown when queuing the action
+        # Set cooldown immediately when queuing up the action
         self.current_cooldown = self.cooldown
+        logger.debug(f"*** Setting {self.name} cooldown to {self.current_cooldown} ***")
+        
+        # Also set unit-level cooldown for redundancy
+        if hasattr(user, 'recalibrate_cooldown'):
+            user.recalibrate_cooldown = self.cooldown
+            logger.debug(f"Setting unit-level recalibrate cooldown to {user.recalibrate_cooldown}")
         
         # Log that the skill has been queued
         message_log.add_message(
@@ -1590,7 +1631,11 @@ class RecalibrateSkill(ActiveSkill):
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Recalibrate skill."""
         from boneglaive.utils.message_log import message_log, MessageType
+        from boneglaive.utils.debug import logger
         import time
+        
+        # Debug info for execution state
+        logger.debug(f"Executing Recalibrate with cooldown: {self.current_cooldown}")
         
         # Handle existing effect if it's still active
         if self.turns_remaining > 0:
@@ -1606,6 +1651,9 @@ class RecalibrateSkill(ActiveSkill):
         
         # Apply the attack bonus to the user
         user.attack_bonus += self.attack_bonus
+        
+        # Mark that recalibrate was used this turn (to allow trap damage later)
+        user.used_recalibrate = True
         
         # Reset the duration
         # This duration is counted in player turns, not game turns
@@ -1706,8 +1754,16 @@ class RecalibrateSkill(ActiveSkill):
         Reduce cooldown by 1 and handle effect duration.
         This is called at the end of each turn, but only for the current player's units.
         """
+        from boneglaive.utils.debug import logger
+        
+        # Log before ticking
+        old_cooldown = self.current_cooldown
+        
         # First do normal cooldown tick
         super().tick_cooldown()
+        
+        # Log after ticking
+        logger.debug(f"RECALIBRATE TICK: Cooldown was {old_cooldown}, now {self.current_cooldown}")
         
         # Also track duration of the effect
         # Note: This will only run when the owning player's turn ends,
@@ -1717,7 +1773,6 @@ class RecalibrateSkill(ActiveSkill):
             
             # If effect just expired, publish an event to remove bonuses
             if self.turns_remaining == 0:
-                from boneglaive.utils.debug import logger
                 logger.debug(f"Recalibrate effect duration expired, triggering effect removal")
                 
                 from boneglaive.utils.event_system import get_event_manager, EventType, EffectExpiredEventData

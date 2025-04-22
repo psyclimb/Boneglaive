@@ -383,9 +383,27 @@ class UIRenderer:
             hp_info = f"HP: {unit.hp}/{unit.max_hp}"
             self.renderer.draw_text(info_line, len(type_info) + 4, hp_info, hp_color)
             
-            # Draw combat stats
-            combat_info = f"ATK: {unit.attack} | DEF: {unit.defense}"
-            self.renderer.draw_text(info_line, len(type_info) + len(hp_info) + 6, combat_info, 1)
+            # Draw combat stats with effective values that include bonuses
+            effective_stats = unit.get_effective_stats()
+            effective_attack = effective_stats['attack']
+            effective_defense = effective_stats['defense']
+            
+            # Show bonuses in the display if they exist
+            attack_display = f"{effective_attack}"
+            if unit.attack_bonus != 0:
+                attack_display = f"{unit.attack}+{unit.attack_bonus}" if unit.attack_bonus > 0 else f"{unit.attack}{unit.attack_bonus}"
+                
+            defense_display = f"{effective_defense}"
+            if unit.defense_bonus != 0:
+                defense_display = f"{unit.defense}+{unit.defense_bonus}" if unit.defense_bonus > 0 else f"{unit.defense}{unit.defense_bonus}"
+            
+            combat_info = f"ATK: {attack_display} | DEF: {defense_display}"
+            
+            # Determine color based on bonuses
+            atk_color = 2 if unit.attack_bonus > 0 else (6 if unit.attack_bonus < 0 else 1)  # Green for bonus, red for penalty
+            
+            # Draw with appropriate coloring
+            self.renderer.draw_text(info_line, len(type_info) + len(hp_info) + 6, combat_info, atk_color)
             
             # Draw movement stats
             effective_stats = unit.get_effective_stats()
