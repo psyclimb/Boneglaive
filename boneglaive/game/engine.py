@@ -467,7 +467,17 @@ class Game:
         distance = self.chess_distance(unit.y, unit.x, y, x)
         effective_stats = unit.get_effective_stats()
         effective_attack_range = effective_stats['attack_range']
-        return distance <= effective_attack_range
+        
+        # Basic range check
+        if distance > effective_attack_range:
+            return False
+            
+        # GRAYMAN's attacks and Estrange are blocked by terrain, so check line of sight
+        if unit.type == UnitType.GRAYMAN:
+            return self.has_line_of_sight(unit.y, unit.x, y, x)
+            
+        # All other units can attack without line of sight
+        return True
     
     def get_possible_moves(self, unit):
         """
@@ -516,7 +526,13 @@ class Game:
                     # Calculate chess distance (allows diagonals) from the attack position
                     distance = self.chess_distance(y_pos, x_pos, y, x)
                     if distance <= effective_attack_range:
-                        attacks.append((y, x))
+                        # For GRAYMAN units, check line of sight
+                        if unit.type == UnitType.GRAYMAN:
+                            if self.has_line_of_sight(y_pos, x_pos, y, x):
+                                attacks.append((y, x))
+                        else:
+                            # All other units don't need line of sight
+                            attacks.append((y, x))
         
         return attacks
     
@@ -679,6 +695,7 @@ class Game:
             
             # EXECUTE ATTACK if unit has an attack target
             if unit.attack_target:
+                from boneglaive.utils.message_log import message_log, MessageType
                 y, x = unit.attack_target
                 target = self.get_unit_at(y, x)
                 
@@ -687,7 +704,19 @@ class Game:
                 
                 # Verify attack is within range from the attacking position
                 attack_distance = self.chess_distance(attacking_pos[0], attacking_pos[1], y, x)
-                if target and target.player != unit.player and attack_distance <= unit.attack_range:  # Valid attack
+                
+                # Additional line of sight check for GRAYMAN units
+                los_check = True
+                if unit.type == UnitType.GRAYMAN:
+                    los_check = self.has_line_of_sight(attacking_pos[0], attacking_pos[1], y, x)
+                    if not los_check:
+                        message_log.add_message(
+                            f"{unit.get_display_name()}'s attack is blocked by terrain!",
+                            MessageType.COMBAT,
+                            player=unit.player
+                        )
+                
+                if target and target.player != unit.player and attack_distance <= unit.attack_range and los_check:  # Valid attack
                     # Show attack animation if UI is provided
                     if ui:
                         ui.show_attack_animation(unit, target)
