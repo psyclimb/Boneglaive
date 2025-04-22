@@ -2459,8 +2459,9 @@ class DeltaConfigSkill(ActiveSkill):
         terrain = game.map.get_terrain_at(target_pos[0], target_pos[1])
         from boneglaive.game.map import TerrainType
         
-        # Cannot teleport onto pillars or furniture
-        if terrain in [TerrainType.PILLAR, TerrainType.FURNITURE]:
+        # Cannot teleport onto pillars or any furniture
+        if terrain in [TerrainType.PILLAR, TerrainType.FURNITURE, TerrainType.COAT_RACK, 
+                       TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE]:
             logger.debug(f"Delta Config failed: cannot teleport onto terrain {terrain}")
             return False
             
@@ -2550,8 +2551,9 @@ class DeltaConfigSkill(ActiveSkill):
         # Check if the target terrain is valid for teleportation
         terrain = game.map.get_terrain_at(target_pos[0], target_pos[1])
         
-        # Cannot teleport onto pillars or furniture
-        if terrain in [TerrainType.PILLAR, TerrainType.FURNITURE]:
+        # Cannot teleport onto pillars or any furniture
+        if terrain in [TerrainType.PILLAR, TerrainType.FURNITURE, TerrainType.COAT_RACK, 
+                       TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE]:
             message_log.add_message(
                 f"Delta Config failed: cannot teleport onto that terrain.",
                 MessageType.ABILITY,
