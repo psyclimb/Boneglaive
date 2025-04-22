@@ -2333,10 +2333,16 @@ class ActionMenuComponent(UIComponent):
                     # Set the skill target to self
                     cursor_manager.selected_unit.skill_target = (from_y, from_x)
                     # Show message
+                    # Special message for Jawline skill
+                    if skill.name == "Jawline":
+                        message = f"{cursor_manager.selected_unit.get_display_name()} prepares to deploy JAWLINE network!"
+                    else:
+                        message = f"{skill.name} will be used at end of turn"
+                        
                     self.publish_event(
                         EventType.MESSAGE_DISPLAY_REQUESTED,
                         MessageDisplayEventData(
-                            message=f"{skill.name} will be used at end of turn",
+                            message=message,
                             message_type=MessageType.ABILITY
                         )
                     )
