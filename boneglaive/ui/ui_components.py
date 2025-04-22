@@ -1979,6 +1979,10 @@ class ActionMenuComponent(UIComponent):
         self.selected_index = 0
         self.menu_mode = "standard"  # Can be "standard" or "skills"
         
+        # Need to import UnitType for unit-specific skill checks
+        from boneglaive.utils.constants import UnitType
+        self.UnitType = UnitType
+        
     def _setup_event_handlers(self):
         """Set up event handlers for action menu."""
         # Subscribe to unit selection/deselection events
@@ -2051,6 +2055,7 @@ class ActionMenuComponent(UIComponent):
     def show_skill_menu(self, unit):
         """
         Show a menu of available skills for the selected unit.
+        Only shows skills specific to that unit type.
         
         Args:
             unit: The unit whose skills to display
@@ -2058,52 +2063,73 @@ class ActionMenuComponent(UIComponent):
         self.actions = []
         self.menu_mode = "skills"
         
-        # We don't need a header action
-        
-        # Add available skills
+        # Get available skills
         available_skills = []
         if unit and hasattr(unit, 'active_skills'):
             available_skills = unit.get_available_skills()
         
-        # Add Pry skill
-        pry_skill = next((skill for skill in available_skills if skill.name == "Pry"), None)
-        self.actions.append({
-            'key': 'p',
-            'label': 'ry',  # Will be displayed as [P]ry
-            'action': 'pry_skill',  # Custom action identifier for handling
-            'enabled': pry_skill is not None,
-            'skill': pry_skill
-        })
+        # GLAIVEMAN skills
+        if unit.type == self.UnitType.GLAIVEMAN:
+            # Add Pry skill
+            pry_skill = next((skill for skill in available_skills if skill.name == "Pry"), None)
+            self.actions.append({
+                'key': 'p',
+                'label': 'ry',  # Will be displayed as [P]ry
+                'action': 'pry_skill',
+                'enabled': pry_skill is not None,
+                'skill': pry_skill
+            })
+            
+            # Add Vault skill
+            vault_skill = next((skill for skill in available_skills if skill.name == "Vault"), None)
+            self.actions.append({
+                'key': 'v',
+                'label': 'ault',  # Will be displayed as [V]ault
+                'action': 'vault_skill',
+                'enabled': vault_skill is not None,
+                'skill': vault_skill
+            })
+            
+            # Add Judgement Throw skill
+            judgement_skill = next((skill for skill in available_skills if skill.name == "Judgement Throw"), None)
+            self.actions.append({
+                'key': 'j',
+                'label': 'udgement',  # Will be displayed as [J]udgement
+                'action': 'judgement_skill',
+                'enabled': judgement_skill is not None,
+                'skill': judgement_skill
+            })
         
-        # Add Vault skill
-        vault_skill = next((skill for skill in available_skills if skill.name == "Vault"), None)
-        self.actions.append({
-            'key': 'v',
-            'label': 'ault',  # Will be displayed as [V]ault
-            'action': 'vault_skill',  # Custom action identifier for handling
-            'enabled': vault_skill is not None,
-            'skill': vault_skill
-        })
-        
-        # Add Judgement Throw skill
-        judgement_skill = next((skill for skill in available_skills if skill.name == "Judgement Throw"), None)
-        self.actions.append({
-            'key': 'j',
-            'label': 'udgement',  # Will be displayed as [J]udgement
-            'action': 'judgement_skill',  # Custom action identifier for handling
-            'enabled': judgement_skill is not None,
-            'skill': judgement_skill
-        })
-        
-        # Add Recalibrate skill
-        recalibrate_skill = next((skill for skill in available_skills if skill.name == "Recalibrate"), None)
-        self.actions.append({
-            'key': 'r',
-            'label': 'ecalibrate',  # Will be displayed as [R]ecalibrate
-            'action': 'recalibrate_skill',  # Custom action identifier for handling
-            'enabled': recalibrate_skill is not None,
-            'skill': recalibrate_skill
-        })
+        # MANDIBLE_FOREMAN skills
+        elif unit.type == self.UnitType.MANDIBLE_FOREMAN:
+            # Add Recalibrate skill
+            recalibrate_skill = next((skill for skill in available_skills if skill.name == "Recalibrate"), None)
+            self.actions.append({
+                'key': 'r',
+                'label': 'ecalibrate',  # Will be displayed as [R]ecalibrate
+                'action': 'recalibrate_skill',
+                'enabled': recalibrate_skill is not None,
+                'skill': recalibrate_skill
+            })
+            
+            # Add placeholder skills for MANDIBLE_FOREMAN
+            self.actions.append({
+                'key': 'd',
+                'label': 'ischarge',  # Will be displayed as [D]ischarge
+                'action': 'discharge_skill',
+                'enabled': False,
+                'placeholder': True,
+                'skill': None
+            })
+            
+            self.actions.append({
+                'key': 's',
+                'label': 'ite Inspection',  # Will be displayed as [S]ite Inspection
+                'action': 'site_inspection_skill',
+                'enabled': False,
+                'placeholder': True,
+                'skill': None
+            })
         
         # Reset selected index
         self.selected_index = 0
@@ -2222,7 +2248,8 @@ class ActionMenuComponent(UIComponent):
                     key_match = True
             else:
                 key_match = (key == action['key'])
-                
+            
+            # For standard menu, key must match and action must be enabled    
             if key_match and action['enabled']:
                 # Standard menu actions
                 if self.menu_mode == "standard":
@@ -2236,22 +2263,21 @@ class ActionMenuComponent(UIComponent):
                 
                 # Skills menu actions
                 elif self.menu_mode == "skills":
-                    # Handle specific skill selection
-                    if action['action'] == 'pry_skill':
-                        # Use the Pry skill
-                        self._select_skill(action['skill'])
+                    # For placeholder skills, show message but don't select
+                    if 'placeholder' in action and action['placeholder']:
+                        self.publish_event(
+                            EventType.MESSAGE_DISPLAY_REQUESTED,
+                            MessageDisplayEventData(
+                                message=f"{action['key'].upper()}{action['label']} not yet implemented",
+                                message_type=MessageType.WARNING
+                            )
+                        )
                         return True
-                    elif action['action'] == 'vault_skill':
-                        # Use the Vault skill
-                        self._select_skill(action['skill'])
-                        return True
-                    elif action['action'] == 'judgement_skill':
-                        # Use the Judgement Throw skill
-                        self._select_skill(action['skill'])
-                        return True
-                    elif action['action'] == 'recalibrate_skill':
-                        # Use the Recalibrate skill
-                        self._select_skill(action['skill'])
+                    
+                    # Handle specific skill selection - simplified to handle any action['action']
+                    skill = action.get('skill')
+                    if skill:
+                        self._select_skill(skill)
                         return True
                 
         # All other keys pass through - this allows movement keys to still work
