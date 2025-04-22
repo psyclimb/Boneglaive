@@ -60,6 +60,7 @@ class Unit:
         self.took_action = False  # Track if this unit took an action this turn
         self.jawline_affected = False  # Track if unit is affected by Jawline skill
         self.jawline_duration = 0  # Duration remaining for Jawline effect
+        self.estranged = False  # Track if unit is affected by Estrange skill
         # Removed Recalibrate tracking
         
         # Removed special cooldown trackers
@@ -100,13 +101,16 @@ class Unit:
         return self.hp > 0
     
     def get_effective_stats(self) -> Dict[str, int]:
-        """Get the unit's effective stats including bonuses."""
+        """Get the unit's effective stats including bonuses and penalties."""
+        # Apply Estrange effect (-1 to all stats) if unit is estranged
+        estrange_penalty = -1 if self.estranged else 0
+        
         return {
             'hp': self.max_hp + self.hp_bonus,
-            'attack': self.attack + self.attack_bonus,
-            'defense': self.defense + self.defense_bonus,
-            'move_range': self.move_range + self.move_range_bonus,
-            'attack_range': self.attack_range + self.attack_range_bonus
+            'attack': max(1, self.attack + self.attack_bonus + estrange_penalty),
+            'defense': max(0, self.defense + self.defense_bonus + estrange_penalty),
+            'move_range': max(1, self.move_range + self.move_range_bonus + estrange_penalty),
+            'attack_range': max(1, self.attack_range + self.attack_range_bonus + estrange_penalty)
         }
         
     def get_display_name(self) -> str:
