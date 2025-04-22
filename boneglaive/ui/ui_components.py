@@ -2095,6 +2095,16 @@ class ActionMenuComponent(UIComponent):
             'skill': judgement_skill
         })
         
+        # Add Recalibrate skill
+        recalibrate_skill = next((skill for skill in available_skills if skill.name == "Recalibrate"), None)
+        self.actions.append({
+            'key': 'r',
+            'label': 'ecalibrate',  # Will be displayed as [R]ecalibrate
+            'action': 'recalibrate_skill',  # Custom action identifier for handling
+            'enabled': recalibrate_skill is not None,
+            'skill': recalibrate_skill
+        })
+        
         # Reset selected index
         self.selected_index = 0
         
@@ -2239,6 +2249,10 @@ class ActionMenuComponent(UIComponent):
                         # Use the Judgement Throw skill
                         self._select_skill(action['skill'])
                         return True
+                    elif action['action'] == 'recalibrate_skill':
+                        # Use the Recalibrate skill
+                        self._select_skill(action['skill'])
+                        return True
                 
         # All other keys pass through - this allows movement keys to still work
         return False
@@ -2282,7 +2296,37 @@ class ActionMenuComponent(UIComponent):
                 from_y, from_x = cursor_manager.selected_unit.move_target
             
             # Different targeting logic based on skill target type
-            if skill.target_type == TargetType.ENEMY:
+            if skill.target_type == TargetType.SELF:
+                # For self-targeted skills like Recalibrate, use immediately
+                if skill.can_use(cursor_manager.selected_unit, (from_y, from_x), game):
+                    # Set the skill target to self
+                    cursor_manager.selected_unit.skill_target = (from_y, from_x)
+                    # Show message
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message=f"{skill.name} will be used at end of turn",
+                            message_type=MessageType.ABILITY
+                        )
+                    )
+                    # Return to select mode
+                    mode_manager.set_mode("select")
+                    return
+                else:
+                    # If can't use, show error
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message=f"Cannot use {skill.name} right now",
+                            message_type=MessageType.WARNING
+                        )
+                    )
+                    # Reset selected skill
+                    cursor_manager.selected_unit.selected_skill = None
+                    # Return to select mode
+                    mode_manager.set_mode("select")
+                    return
+            elif skill.target_type == TargetType.ENEMY:
                 # For enemy-targeted skills, highlight enemy units in range
                 for y in range(HEIGHT):
                     for x in range(WIDTH):

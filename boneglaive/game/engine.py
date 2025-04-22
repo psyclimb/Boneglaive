@@ -35,6 +35,11 @@ class Game:
         if skip_setup:
             self.setup_initial_units()
             
+        # Subscribe to events
+        from boneglaive.utils.event_system import get_event_manager, EventType
+        self.event_manager = get_event_manager()
+        self.event_manager.subscribe(EventType.EFFECT_EXPIRED, self._handle_effect_expired)
+            
     def change_map(self, new_map_name):
         """
         Change the current map and reset the game.
@@ -1029,6 +1034,69 @@ class Game:
         logger.info(f"Test mode {'enabled' if self.test_mode else 'disabled'}")
         return self.test_mode
     
+    @measure_perf
+    def _handle_effect_expired(self, event_type, event_data):
+        """
+        Handle effect expiration events from skills.
+        Removes bonuses and debuffs when a skill effect expires.
+        
+        Args:
+            event_type: The event type (should be EFFECT_EXPIRED)
+            event_data: The event data containing the skill_name
+        """
+        from boneglaive.utils.debug import logger
+        from boneglaive.utils.message_log import message_log, MessageType
+        
+        skill_name = getattr(event_data, 'skill_name', None)
+        if not skill_name:
+            logger.warning("Received EFFECT_EXPIRED event without skill_name")
+            return
+        
+        logger.debug(f"Handling effect expiration for skill: {skill_name}")
+        
+        # Handle different skills
+        if skill_name == "Recalibrate":
+            # Find all units with this skill
+            for unit in self.units:
+                if not unit.is_alive():
+                    continue
+                    
+                # Find units that have the Recalibrate skill
+                recalibrate_skill = None
+                for skill in unit.active_skills:
+                    if skill.name == "Recalibrate":
+                        recalibrate_skill = skill
+                        break
+                
+                if recalibrate_skill and recalibrate_skill.turns_remaining == 0:
+                    # Found the unit with this skill - remove the attack bonus
+                    logger.debug(f"Removing Recalibrate attack bonus from {unit.get_display_name()}")
+                    unit.attack_bonus -= recalibrate_skill.attack_bonus
+                    
+                    # Log the effect expiration
+                    message_log.add_message(
+                        f"{unit.get_display_name()}'s Recalibrate effect expires!",
+                        MessageType.ABILITY,
+                        player=unit.player,
+                        attacker_name=unit.get_display_name()
+                    )
+                    
+                    # Find any units trapped by this FOREMAN and remove defense debuff
+                    trapped_units = [u for u in self.units if u.is_alive() and u.trapped_by == unit]
+                    for trapped_unit in trapped_units:
+                        logger.debug(f"Removing Recalibrate defense debuff from {trapped_unit.get_display_name()}")
+                        trapped_unit.defense_bonus -= recalibrate_skill.defense_debuff
+                        
+                        # Log the debuff removal
+                        message_log.add_message(
+                            f"Defense penalty on {trapped_unit.get_display_name()} ends!",
+                            MessageType.ABILITY,
+                            player=unit.player,
+                            target_name=trapped_unit.get_display_name()
+                        )
+        
+        # Handle other skill types here as needed
+        
     @measure_perf
     def get_game_state(self):
         """Return a dictionary with the current game state for debugging"""

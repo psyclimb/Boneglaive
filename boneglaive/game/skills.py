@@ -1594,13 +1594,15 @@ class RecalibrateSkill(ActiveSkill):
         
         # Handle existing effect if it's still active
         if self.turns_remaining > 0:
-            # Remove existing effect before applying a new one
+            # Remove existing attack bonus before applying a new one
             user.attack_bonus -= self.attack_bonus
             
-            # If we had a trapped unit with defense debuff, remove it
-            if hasattr(user, 'passive_skill') and user.passive_skill and \
-               hasattr(user.passive_skill, 'trapped_unit') and user.passive_skill.trapped_unit:
-                user.passive_skill.trapped_unit.defense_bonus -= self.defense_debuff
+            # Find any units that might still have the defense debuff from a previous use
+            if game:
+                for unit in game.units:
+                    if unit.is_alive() and unit.trapped_by == user:
+                        # Remove the previous defense debuff
+                        unit.defense_bonus -= self.defense_debuff
         
         # Apply the attack bonus to the user
         user.attack_bonus += self.attack_bonus
@@ -1616,11 +1618,13 @@ class RecalibrateSkill(ActiveSkill):
             attacker_name=user.get_display_name()
         )
         
-        # Check if a unit is trapped in the jaws and apply defense debuff if so
-        if hasattr(user, 'passive_skill') and user.passive_skill and \
-           hasattr(user.passive_skill, 'trapped_unit') and user.passive_skill.trapped_unit:
-            trapped_unit = user.passive_skill.trapped_unit
-            
+        # Find any units trapped by this FOREMAN
+        trapped_units = []
+        if game:
+            trapped_units = [u for u in game.units if u.is_alive() and u.trapped_by == user]
+        
+        # Check if any units are trapped and apply defense debuff if so
+        for trapped_unit in trapped_units:
             # Apply defense debuff
             trapped_unit.defense_bonus += self.defense_debuff
             
@@ -1665,11 +1669,8 @@ class RecalibrateSkill(ActiveSkill):
                 ui.renderer.refresh()
                 time.sleep(0.1)
             
-            # If a unit is trapped, also show defense debuff animation
-            if hasattr(user, 'passive_skill') and user.passive_skill and \
-               hasattr(user.passive_skill, 'trapped_unit') and user.passive_skill.trapped_unit:
-                trapped_unit = user.passive_skill.trapped_unit
-                
+            # If any units are trapped, show defense debuff animation for each
+            for trapped_unit in trapped_units:
                 # Get animation for jaws tightening
                 jaw_animation = ui.asset_manager.get_skill_animation_sequence('jaws_tighten')
                 if not jaw_animation:
@@ -1710,10 +1711,8 @@ class RecalibrateSkill(ActiveSkill):
         if self.turns_remaining > 0:
             self.turns_remaining -= 1
             
-            # If effect just expired, remove bonuses
+            # If effect just expired, publish an event to remove bonuses
             if self.turns_remaining == 0:
-                # Find the user of this skill to remove their bonus
-                # This requires tracking the owner of this skill
                 from boneglaive.utils.event_system import get_event_manager, EventType, EffectExpiredEventData
                 
                 # Publish an event that the effect expired
@@ -1723,8 +1722,10 @@ class RecalibrateSkill(ActiveSkill):
                     EffectExpiredEventData(skill_name=self.name)
                 )
                 
-                # The Game class will handle this event and remove the bonus
-                # We can't directly access the user here, so we use the event system
+                # The Game class should handle this event and:
+                # 1. Find the owner of this skill
+                # 2. Remove the attack bonus from the owner
+                # 3. Remove defense debuffs from any trapped units
 
 # Skill Registry - maps unit types to their skills
 UNIT_SKILLS = {
@@ -1734,7 +1735,7 @@ UNIT_SKILLS = {
     },
     'MANDIBLE_FOREMAN': {
         'passive': Viceroy(),
-        'active': []  # Will add active skills later
+        'active': [RecalibrateSkill()]  # Added Recalibrate skill
     }
     # Other unit types will be added here
 }
