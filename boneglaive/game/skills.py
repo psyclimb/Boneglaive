@@ -2487,7 +2487,7 @@ class DeltaConfigSkill(ActiveSkill):
             key="D",
             description="Teleport to any unoccupied tile on the map that isn't a pillar or furniture.",
             target_type=TargetType.AREA,
-            cooldown=6,  # Increased from 5 for better balance
+            cooldown=4,  # Reduced from 6 to make it more useful
             range_=99  # Unlimited range effectively
         )
         
@@ -2689,7 +2689,7 @@ class EstrangeSkill(ActiveSkill):
         super().__init__(
             name="Estrange",
             key="E",
-            description="Fire a beam that phases the target out of normal spacetime. Target receives -1 to all actions permanently.",
+            description="Fire a beam that phases the target out of normal spacetime. Target receives -1 to all actions permanently and takes 4 damage (ignores defense).",
             target_type=TargetType.ENEMY,
             cooldown=3,
             range_=5
@@ -2822,13 +2822,38 @@ class EstrangeSkill(ActiveSkill):
         # Apply the Estrange effect
         target_unit.estranged = True
         
-        # Log the effect
+        # Apply fixed damage that ignores defense
+        damage = 4  # Fixed damage amount
+        previous_hp = target_unit.hp
+        target_unit.hp = max(0, target_unit.hp - damage)
+        
+        # Log the debuff effect
         message_log.add_message(
-            f"{target_unit.get_display_name()} is phased out of normal spacetime!",
+            f"{target_unit.get_display_name()} is phased out of normal spacetime and takes {damage} damage!",
             MessageType.ABILITY,
             player=user.player,
             target_name=target_unit.get_display_name()
         )
+        
+        # Log damage as combat message
+        message_log.add_combat_message(
+            attacker_name=user.get_display_name(),
+            target_name=target_unit.get_display_name(),
+            damage=damage,
+            ability="Estrange",
+            attacker_player=user.player,
+            target_player=target_unit.player
+        )
+        
+        # Check if target was defeated
+        if target_unit.hp <= 0:
+            message_log.add_message(
+                f"{target_unit.get_display_name()} perishes!",
+                MessageType.COMBAT,
+                player=user.player,
+                target=target_unit.player,
+                target_name=target_unit.get_display_name()
+            )
         
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
@@ -2861,6 +2886,26 @@ class EstrangeSkill(ActiveSkill):
                 [8, 7, 8, 7],  # Alternate colors for flashing effect
                 [0.1, 0.1, 0.1, 0.1]  # Duration for each frame
             )
+            
+            # Show damage number animation
+            import curses
+            import time
+            damage_text = f"-{damage}"
+            
+            # Make damage text more prominent with flashing effect
+            for i in range(3):
+                # First clear the area
+                ui.renderer.draw_text(target_unit.y-1, target_unit.x*2, " " * len(damage_text), 7)
+                # Draw with alternating bold/normal for a flashing effect
+                attrs = curses.A_BOLD if i % 2 == 0 else 0
+                ui.renderer.draw_text(target_unit.y-1, target_unit.x*2, damage_text, 7, attrs)
+                ui.renderer.refresh()
+                time.sleep(0.1)
+            
+            # Final damage display
+            ui.renderer.draw_text(target_unit.y-1, target_unit.x*2, damage_text, 7, curses.A_BOLD)
+            ui.renderer.refresh()
+            time.sleep(0.3)
             
         logger.debug(f"Estrange completed: {target_unit.get_display_name()} is now estranged")
         return True

@@ -697,7 +697,12 @@ class Game:
                     effective_stats = unit.get_effective_stats()
                     effective_attack = effective_stats['attack']
                     effective_defense = target.get_effective_stats()['defense']
-                    damage = max(1, effective_attack - effective_defense)
+                    
+                    # GRAYMAN's attacks bypass defense
+                    if unit.type == UnitType.GRAYMAN:
+                        damage = effective_attack  # Bypass defense completely
+                    else:
+                        damage = max(1, effective_attack - effective_defense)
                     
                     # Store previous HP to check for status changes
                     previous_hp = target.hp
@@ -1206,9 +1211,9 @@ class Game:
             
         # Apply damage to affected units
         for unit in affected_units:
-            # Fixed 3 damage
-            damage = 3
-            # Apply defense reduction
+            # Increased from 3 to 4 damage for GRAYMAN echo explosions
+            damage = 4
+            # Apply defense reduction for explosions
             effective_defense = unit.get_effective_stats()['defense']
             damage = max(1, damage - effective_defense)
             
