@@ -61,6 +61,11 @@ class Unit:
         self.jawline_affected = False  # Track if unit is affected by Jawline skill
         self.jawline_duration = 0  # Duration remaining for Jawline effect
         self.estranged = False  # Track if unit is affected by Estrange skill
+        
+        # Græ Exchange echo properties
+        self.is_echo = False  # Whether this unit is an echo created by Græ Exchange
+        self.echo_duration = 0  # Number of turns the echo remains (if this is an echo)
+        self.original_unit = None  # Reference to the original unit that created this echo
         # Removed Recalibrate tracking
         
         # Removed special cooldown trackers
@@ -116,7 +121,8 @@ class Unit:
         # Apply Estrange effect (-1 to all stats) if unit is estranged
         estrange_penalty = -1 if self.estranged else 0
         
-        return {
+        # Calculate base stats with bonuses
+        stats = {
             'hp': self.max_hp + self.hp_bonus,
             'attack': max(1, self.attack + self.attack_bonus + estrange_penalty),
             'defense': max(0, self.defense + self.defense_bonus + estrange_penalty),
@@ -124,17 +130,28 @@ class Unit:
             'attack_range': max(1, self.attack_range + self.attack_range_bonus + estrange_penalty)
         }
         
+        # If unit is an echo (from Græ Exchange), halve its attack
+        if self.is_echo:
+            stats['attack'] = max(1, stats['attack'] // 2)
+            # Echo cannot move
+            stats['move_range'] = 0
+            
+        return stats
+        
     def get_display_name(self) -> str:
         """Get the unit's display name including the Greek identifier."""
         # Format unit type name for display (replace underscores with spaces)
         display_type = self.type.name
         if display_type == "MANDIBLE_FOREMAN":
             display_type = "MANDIBLE FOREMAN"
+        
+        # For echo units, add "Echo" prefix
+        prefix = "Echo " if self.is_echo else ""
             
         if self.greek_id:
-            return f"{display_type} {self.greek_id}"
+            return f"{prefix}{display_type} {self.greek_id}"
         else:
-            return f"{display_type}"
+            return f"{prefix}{display_type}"
     
     def apply_passive_skills(self, game=None) -> None:
         """Apply effects of passive skills."""

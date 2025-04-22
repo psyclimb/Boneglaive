@@ -60,6 +60,12 @@ class Skill:
         # Check cooldown
         if self.current_cooldown > 0:
             return False
+        
+        # Echo units cannot use skills (they can only do basic attacks)
+        if hasattr(user, 'is_echo') and user.is_echo:
+            from boneglaive.utils.debug import logger
+            logger.debug(f"Skill cannot be used by echo unit: {user.get_display_name()}")
+            return False
             
         # Additional checks can be implemented in subclasses
         return True
@@ -2863,18 +2869,179 @@ class GraeExchangeSkill(ActiveSkill):
     """
     Active skill for GRAYMAN.
     Creates a faint echo of GRAYMAN at his position, allowing him to teleport away.
-    The echo remains for 2 turns and can perform basic attacks.
+    The echo remains for 2 turns and can perform basic attacks but cannot move.
+    If destroyed, the echo deals 3 damage to all adjacent units.
     """
     
     def __init__(self):
         super().__init__(
             name="Græ Exchange",
             key="G",
-            description="Create a duplicate at current position, then teleport away. Echo lasts 2 turns, attacks at half damage.",
-            target_type=TargetType.SELF,
+            description="Teleport to target location, leaving an echo at starting position. Echo lasts 2 turns.",
+            target_type=TargetType.AREA,  # Using AREA for targeting a position on the map
             cooldown=5,
-            range_=0
+            range_=6  # Limited teleport range
         )
+    
+    def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        """Check if Græ Exchange can be used."""
+        from boneglaive.utils.debug import logger
+        
+        # Check cooldown and basic conditions
+        if not super().can_use(user, target_pos, game):
+            return False
+        
+        # Cannot use if user is an echo
+        if user.is_echo:
+            logger.debug("Græ Exchange failed: echo units cannot use skills")
+            return False
+            
+        # Check if user already has an active echo
+        if game:
+            for unit in game.units:
+                if unit.is_alive() and unit.is_echo and unit.original_unit == user:
+                    logger.debug("Græ Exchange failed: another echo of this unit already exists")
+                    return False
+                    
+        # Now need target position and game since we're teleporting
+        if not target_pos or not game:
+            return False
+        
+        # Check if position is valid
+        if not game.is_valid_position(target_pos[0], target_pos[1]):
+            return False
+            
+        # Check if the position is within range of the user
+        from_y, from_x = user.y, user.x
+        to_y, to_x = target_pos
+        distance = game.chess_distance(from_y, from_x, to_y, to_x)
+        if distance > self.range:
+            logger.debug(f"Græ Exchange failed: target out of range ({distance} > {self.range})")
+            return False
+            
+        # Check if target position is empty - can't teleport onto another unit
+        if game.get_unit_at(target_pos[0], target_pos[1]):
+            logger.debug("Græ Exchange failed: target position is occupied")
+            return False
+            
+        # Check if target position is on passable terrain
+        if not game.map.is_passable(target_pos[0], target_pos[1]):
+            logger.debug("Græ Exchange failed: cannot teleport to impassable terrain")
+            return False
+        
+        return True
+        
+    def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        """Queue up Græ Exchange for execution."""
+        from boneglaive.utils.message_log import message_log, MessageType
+        
+        if not self.can_use(user, target_pos, game):
+            return False
+            
+        # Target-position skill
+        user.skill_target = target_pos
+        user.selected_skill = self
+        
+        # Set cooldown
+        self.current_cooldown = self.cooldown
+        
+        # Track action order
+        if game:
+            user.action_timestamp = game.action_counter
+            game.action_counter += 1
+            
+        # Log the skill use
+        message_log.add_message(
+            f"{user.get_display_name()} prepares to teleport and create an echo!",
+            MessageType.ABILITY,
+            player=user.player
+        )
+        
+        return True
+        
+    def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
+        """Execute Græ Exchange to create an echo and teleport to target position."""
+        from boneglaive.utils.debug import logger
+        from boneglaive.utils.message_log import message_log, MessageType
+        import time
+        from boneglaive.utils.constants import UnitType
+        from boneglaive.game.units import Unit
+        
+        # Store original position to create echo there
+        original_y, original_x = user.y, user.x
+        
+        # First play the echo creation animation at current position
+        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+            # Show creation animation
+            animation_sequence = ui.asset_manager.get_skill_animation_sequence('grae_exchange')
+            if animation_sequence:
+                ui.renderer.animate_attack_sequence(
+                    original_y, original_x,
+                    animation_sequence,
+                    3 if user.player == 1 else 4,  # Player color
+                    0.1  # Duration
+                )
+            
+        # Create an echo unit at original position
+        echo_unit = Unit(UnitType.GRAYMAN, user.player, original_y, original_x)
+        
+        # Set echo properties
+        echo_unit.is_echo = True
+        echo_unit.echo_duration = 2  # Lasts for 2 turns
+        echo_unit.original_unit = user
+        echo_unit.hp = 5  # Fixed 5 HP as specified
+        
+        # Copy Greek ID but add a prime symbol to distinguish
+        if user.greek_id:
+            echo_unit.greek_id = f"{user.greek_id}′"  # Using prime symbol (′) to indicate echo
+            
+        # Initialize skills (but they won't be usable due to is_echo flag)
+        echo_unit.initialize_skills()
+        
+        # Add the echo to the game
+        game.units.append(echo_unit)
+        
+        # Now show teleport animation and teleport the unit
+        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+            # Teleport animation: first show "out" at current position
+            teleport_out = ui.asset_manager.get_skill_animation_sequence('teleport_out')
+            if teleport_out:
+                ui.renderer.animate_attack_sequence(
+                    original_y, original_x,
+                    teleport_out,
+                    3 if user.player == 1 else 4,  # Player color
+                    0.1  # Duration
+                )
+            
+            # Move the unit to target position
+            user.y, user.x = target_pos
+            
+            # Then show "in" at target position
+            teleport_in = ui.asset_manager.get_skill_animation_sequence('teleport_in')
+            if teleport_in:
+                ui.renderer.animate_attack_sequence(
+                    target_pos[0], target_pos[1],
+                    teleport_in,
+                    3 if user.player == 1 else 4,  # Player color
+                    0.1  # Duration
+                )
+                
+            # Redraw board to show the new positions
+            if hasattr(ui, 'draw_board'):
+                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+                time.sleep(0.3)  # Short pause to observe the teleport effect
+        else:
+            # If no UI, just update position directly
+            user.y, user.x = target_pos
+        
+        # Log the effect
+        message_log.add_message(
+            f"{user.get_display_name()} teleports and leaves behind an echo!",
+            MessageType.ABILITY,
+            player=user.player
+        )
+        
+        return True
 
 # Skill Registry - maps unit types to their skills
 UNIT_SKILLS = {
