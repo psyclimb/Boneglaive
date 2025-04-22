@@ -2952,7 +2952,7 @@ class GraeExchangeSkill(ActiveSkill):
             
         # Log the skill use
         message_log.add_message(
-            f"{user.get_display_name()} taps his cane, preparing to leave an afterimage!",
+            f"{user.get_display_name()} readies his cane and prepares to bifurcate!",
             MessageType.ABILITY,
             player=user.player
         )
@@ -3049,7 +3049,7 @@ class GraeExchangeSkill(ActiveSkill):
         
         # Log the effect
         message_log.add_message(
-            f"{user.get_display_name()} taps his cane, teleports away and leaves behind an afterimage!",
+            f"{user.get_display_name()} strikes the ground with his cane and bifurcates, one form remaining while the other teleports away!",
             MessageType.ABILITY,
             player=user.player
         )
