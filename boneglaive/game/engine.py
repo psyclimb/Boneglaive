@@ -525,8 +525,10 @@ class Game:
                     is_foreman_taking_action = True
                 # Some skills release trapped units, but not all
                 elif unit.skill_target is not None and unit.selected_skill:
-                    # All skills now release trapped units
-                    is_foreman_taking_action = True
+                    # Discharge doesn't automatically release trapped units
+                    # as the Discharge skill itself handles the release
+                    if unit.selected_skill.name != "Discharge":
+                        is_foreman_taking_action = True
             
             # If this is a MANDIBLE_FOREMAN taking an action that should release trapped units
             if is_foreman_taking_action:
@@ -864,11 +866,10 @@ class Game:
                     )
                     time.sleep(0.2)
                 
-                # Calculate damage using the FOREMAN's effective attack (including bonuses)
-                effective_stats = foreman.get_effective_stats()
-                effective_attack = effective_stats['attack']
+                # Fixed trap damage (reduced from using attack value)
+                trap_damage = 3  # Fixed damage for Viceroy trap
                 effective_defense = unit.get_effective_stats()['defense']
-                damage = max(1, effective_attack - effective_defense)
+                damage = max(1, trap_damage - effective_defense)
                 
                 # Apply damage to the trapped unit
                 previous_hp = unit.hp
