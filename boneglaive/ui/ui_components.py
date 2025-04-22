@@ -1947,7 +1947,10 @@ class AnimationComponent(UIComponent):
         self.renderer.flash_tile(target.y, target.x, tile_ids, color_ids, durations)
         
         # Show damage number above target with improved visualization
-        damage = max(1, attacker.attack - target.defense)
+        # Use effective stats for correct damage display
+        effective_attack = attacker.get_effective_stats()['attack']
+        effective_defense = target.get_effective_stats()['defense']
+        damage = max(1, effective_attack - effective_defense)
         damage_text = f"-{damage}"
         
         # Make damage text more prominent
@@ -2130,6 +2133,16 @@ class ActionMenuComponent(UIComponent):
                 'action': 'site_inspection_skill',
                 'enabled': site_inspection_skill is not None,
                 'skill': site_inspection_skill
+            })
+            
+            # Add Jawline skill
+            jawline_skill = next((skill for skill in available_skills if skill.name == "Jawline"), None)
+            self.actions.append({
+                'key': 'j',
+                'label': 'awline',  # Will be displayed as [J]awline
+                'action': 'jawline_skill',
+                'enabled': jawline_skill is not None,
+                'skill': jawline_skill
             })
         
         # Reset selected index
