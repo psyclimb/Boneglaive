@@ -1655,6 +1655,10 @@ class JawlineSkill(ActiveSkill):
         import time
         import curses
         
+        # Clear the jawline_message_shown flag so it can be shown again next time
+        if hasattr(user, 'jawline_message_shown'):
+            user.jawline_message_shown = False
+        
         # Get the actual center (user's position)
         center_pos = (user.y, user.x)
         
