@@ -102,7 +102,7 @@ class AssetManager:
             'teleport_out': ['Ψ', '░', '▒', '▓', ' '],  # Teleport out animation
             'teleport_in': [' ', '▓', '▒', '░', 'Ψ'],  # Teleport in animation
             'estrange': ['≡', '≢', '⋍', '≈', '~', '≈', '⋍', '≢', '≡'],  # Phasing effect
-            'grae_exchange': ['Φ', 'Ψ', '⧫', '⧫', 'Ψ', 'Φ']  # Echo creation effect
+            'grae_exchange': ['|', '/', '_', '*', 'ψ', 'Ψ']  # Cane tapping and echo creation effect
         }
     
     def _initialize_graphical_assets(self) -> None:
