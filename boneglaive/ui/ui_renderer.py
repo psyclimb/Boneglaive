@@ -217,8 +217,14 @@ class UIRenderer:
                             # Use a special ∴ (therefore) symbol combined with the normal unit symbol
                             tile = f"{tile}∴"
                             
+                        # Check for echo units (priority over estranged)
+                        if hasattr(unit, 'is_echo') and unit.is_echo:
+                            # Use a faint cane symbol ⟋ to show it's an echo
+                            tile = f"{tile}⟋"
+                            # Use dim attribute for echo units to make them appear faint
+                            attributes = curses.A_DIM
                         # Check for estranged units
-                        if hasattr(unit, 'estranged') and unit.estranged:
+                        elif hasattr(unit, 'estranged') and unit.estranged:
                             # Use a wavey ~ symbol to show estranged effect
                             tile = f"~{tile}~"
                             # Use gray color (white with dim attribute) for estranged units to indicate they're phased

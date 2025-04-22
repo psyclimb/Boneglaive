@@ -408,6 +408,12 @@ class Game:
         return True
     
     def can_move_to(self, unit, y, x):
+        # Echo units cannot move
+        if unit.is_echo:
+            from boneglaive.utils.debug import logger
+            logger.debug(f"{unit.get_display_name()} cannot move because it is an echo")
+            return False
+            
         # If unit is trapped by a MANDIBLE_FOREMAN, it cannot move
         if unit.trapped_by is not None:
             from boneglaive.utils.debug import logger
@@ -523,12 +529,34 @@ class Game:
     def execute_turn(self, ui=None):
         """Execute all unit actions for the current turn with animated sequence."""
         import time
+        from boneglaive.utils.message_log import message_log, MessageType
         
         # Store UI reference for animations if provided
         if ui:
             self.ui = ui
             
         logger.info(f"Executing turn {self.turn} for player {self.current_player}")
+        
+        # Process echo units before executing actions
+        # Update duration and handle expired echoes
+        for unit in list(self.units):  # Create a copy of the list to safely modify during iteration
+            if unit.is_alive() and unit.is_echo:
+                # Decrement echo duration
+                unit.echo_duration -= 1
+                
+                # If duration reached zero, the echo expires
+                if unit.echo_duration <= 0:
+                    logger.debug(f"Echo {unit.get_display_name()} expires")
+                    
+                    # Log the expiration
+                    message_log.add_message(
+                        f"{unit.get_display_name()} fades away...",
+                        MessageType.ABILITY,
+                        player=unit.player
+                    )
+                    
+                    # Kill the echo (this will trigger death handling later)
+                    unit.hp = 0
         
         # Create a single list of units with actions, ordered by timestamp
         units_with_actions = []
@@ -751,6 +779,10 @@ class Game:
                                         MessageType.ABILITY,
                                         target_name=trapped_unit.get_display_name()
                                     )
+                        
+                        # If an echo unit dies, trigger its death effect
+                        elif target.is_echo:
+                            self._trigger_echo_death_effect(target, ui)
                     # Check if target just entered critical health - trigger wretches message and Autoclave
                     elif previous_hp > critical_threshold and target.hp <= critical_threshold:
                         message_log.add_message(
@@ -1098,6 +1130,105 @@ class Game:
         self.test_mode = not self.test_mode
         logger.info(f"Test mode {'enabled' if self.test_mode else 'disabled'}")
         return self.test_mode
+        
+    def _trigger_echo_death_effect(self, echo_unit, ui=None):
+        """
+        Handle the death effect when an echo unit is destroyed.
+        Echoes explode and deal 3 damage to all adjacent units when destroyed.
+        
+        Args:
+            echo_unit: The echo unit that was destroyed
+            ui: Optional UI reference for animations
+        """
+        import time
+        from boneglaive.utils.message_log import message_log, MessageType
+        from boneglaive.utils.debug import logger
+        
+        logger.debug(f"Echo {echo_unit.get_display_name()} destroyed, triggering death effect")
+        
+        # Find all units in adjacent tiles (chess distance 1)
+        affected_units = []
+        for unit in self.units:
+            if not unit.is_alive():
+                continue
+                
+            # Calculate distance to echo
+            distance = self.chess_distance(echo_unit.y, echo_unit.x, unit.y, unit.x)
+            if distance <= 1 and unit != echo_unit:  # Adjacent including diagonals, excluding the echo itself
+                affected_units.append(unit)
+        
+        if not affected_units:
+            # No units affected
+            return
+            
+        # Log the explosion
+        message_log.add_message(
+            f"{echo_unit.get_display_name()} explodes, affecting {len(affected_units)} nearby unit(s)!",
+            MessageType.ABILITY,
+            player=echo_unit.player
+        )
+        
+        # Animation for explosion
+        if ui and hasattr(ui, 'renderer'):
+            # Show explosion animation at echo position
+            explosion_animation = ['*', 'X', '#', '+', '.']
+            ui.renderer.animate_attack_sequence(
+                echo_unit.y, echo_unit.x,
+                explosion_animation,
+                7,  # Yellow/explosion color
+                0.1  # Duration
+            )
+            
+            # Redraw board after animation
+            if hasattr(ui, 'draw_board'):
+                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+                time.sleep(0.2)  # Short pause after explosion
+            
+        # Apply damage to affected units
+        for unit in affected_units:
+            # Fixed 3 damage
+            damage = 3
+            # Apply defense reduction
+            effective_defense = unit.get_effective_stats()['defense']
+            damage = max(1, damage - effective_defense)
+            
+            # Store previous HP
+            previous_hp = unit.hp
+            
+            # Apply damage
+            unit.hp = max(0, unit.hp - damage)
+            
+            # Log the damage
+            message_log.add_message(
+                f"{unit.get_display_name()} takes {damage} damage from echo explosion!",
+                MessageType.COMBAT,
+                player=echo_unit.player,
+                target_name=unit.get_display_name()
+            )
+            
+            # Check if unit was killed
+            if unit.hp <= 0 and previous_hp > 0:
+                message_log.add_message(
+                    f"{unit.get_display_name()} perishes!",
+                    MessageType.COMBAT,
+                    target_name=unit.get_display_name()
+                )
+                
+                # Check if this was a MANDIBLE_FOREMAN or another echo
+                if unit.type == UnitType.MANDIBLE_FOREMAN:
+                    # Release trapped units
+                    for trapped_unit in self.units:
+                        if trapped_unit.is_alive() and trapped_unit.trapped_by == unit:
+                            logger.debug(f"MANDIBLE_FOREMAN perished from explosion, releasing {trapped_unit.get_display_name()}")
+                            trapped_unit.trapped_by = None
+                            message_log.add_message(
+                                f"{trapped_unit.get_display_name()} is released from mechanical jaws!",
+                                MessageType.ABILITY,
+                                target_name=trapped_unit.get_display_name()
+                            )
+                elif unit.is_echo:
+                    # Chain reaction - trigger this echo's death effect too
+                    self._trigger_echo_death_effect(unit, ui)
     
     @measure_perf
     def _handle_effect_expired(self, event_type, event_data):
