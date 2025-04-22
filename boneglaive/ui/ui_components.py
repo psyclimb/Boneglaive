@@ -2122,13 +2122,14 @@ class ActionMenuComponent(UIComponent):
                 'skill': discharge_skill
             })
             
+            # Add Site Inspection skill
+            site_inspection_skill = next((skill for skill in available_skills if skill.name == "Site Inspection"), None)
             self.actions.append({
                 'key': 's',
                 'label': 'ite Inspection',  # Will be displayed as [S]ite Inspection
                 'action': 'site_inspection_skill',
-                'enabled': False,
-                'placeholder': True,
-                'skill': None
+                'enabled': site_inspection_skill is not None,
+                'skill': site_inspection_skill
             })
         
         # Reset selected index
