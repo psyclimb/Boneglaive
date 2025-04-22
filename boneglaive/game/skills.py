@@ -1565,6 +1565,249 @@ class DischargeSkill(ActiveSkill):
         self.impact_damage = 6  # Base damage on impact
         
         
+class JawlineSkill(ActiveSkill):
+    """
+    Active skill for MANDIBLE_FOREMAN.
+    Deploys a network of smaller mechanical jaws connected by cables in a 3×3 area
+    around the FOREMAN. All enemy units in the area have their movement reduced
+    and cannot use movement-based skills for a limited time.
+    """
+    
+    def __init__(self):
+        super().__init__(
+            name="Jawline",
+            key="J",
+            description="Deploy network of mechanical jaws in 3x3 area around yourself. Reduces enemy movement by 1 and prevents movement skills for 3 turns.",
+            target_type=TargetType.SELF,  # Self-centered AoE
+            cooldown=5,
+            range_=0,  # No range as it's centered on self
+            area=1  # 3x3 area (center + 1 in each direction)
+        )
+        self.effect_duration = 3  # Duration in turns
+        
+    def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        """Check if Jawline can be used."""
+        from boneglaive.utils.debug import logger
+        
+        # First check basic cooldown
+        if not super().can_use(user, target_pos, game):
+            return False
+        
+        # Since this is a self-centered AoE, no additional position validation needed
+        # Just make sure we have a game reference
+        if not game:
+            return False
+            
+        # Check that there are actually enemies in the area that can be affected
+        # Get the area around the user's position
+        area_positions = []
+        for dy in [-1, 0, 1]:
+            for dx in [-1, 0, 1]:
+                y = user.y + dy
+                x = user.x + dx
+                if game.is_valid_position(y, x):
+                    area_positions.append((y, x))
+        
+        # Check if there are any enemy units in the area
+        has_enemies = False
+        for y, x in area_positions:
+            unit = game.get_unit_at(y, x)
+            if unit and unit.is_alive() and unit.player != user.player:
+                has_enemies = True
+                break
+        
+        # Don't allow using the skill if there are no enemies to affect
+        if not has_enemies:
+            logger.debug(f"Jawline failed: no enemy units in area around {user.get_display_name()}")
+            return False
+            
+        return True
+        
+    def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        """Queue up the Jawline skill for execution at the end of the turn."""
+        from boneglaive.utils.message_log import message_log, MessageType
+        
+        # For self-targeted skills, the target_pos should be the user's position
+        target_pos = (user.y, user.x)
+        
+        # Validate skill use conditions
+        if not self.can_use(user, target_pos, game):
+            return False
+        
+        # Set the skill target to user's position
+        user.skill_target = target_pos
+        user.selected_skill = self
+        
+        # Track action order
+        if game:
+            user.action_timestamp = game.action_counter
+            game.action_counter += 1
+        
+        # Set cooldown immediately when queuing up the action
+        self.current_cooldown = self.cooldown
+        
+        # Log that the skill has been queued
+        message_log.add_message(
+            f"{user.get_display_name()} prepares to deploy Jawline network!",
+            MessageType.ABILITY,
+            player=user.player,
+            attacker_name=user.get_display_name()
+        )
+        
+        return True
+        
+    def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
+        """
+        Execute the Jawline skill.
+        Deploys a network of mechanical jaws in 3x3 area around the FOREMAN,
+        restricting enemy movement and abilities.
+        """
+        from boneglaive.utils.message_log import message_log, MessageType
+        import time
+        import curses
+        
+        # Get the actual center (user's position)
+        center_pos = (user.y, user.x)
+        
+        # Log the skill activation
+        message_log.add_message(
+            f"{user.get_display_name()} deploys Jawline network!",
+            MessageType.ABILITY,
+            player=user.player,
+            attacker_name=user.get_display_name()
+        )
+        
+        # Get the 3x3 area around the user's position
+        area_positions = []
+        for dy in [-1, 0, 1]:
+            for dx in [-1, 0, 1]:
+                y = center_pos[0] + dy
+                x = center_pos[1] + dx
+                if game.is_valid_position(y, x):
+                    area_positions.append((y, x))
+        
+        # Find all enemy units in the area
+        affected_units = []
+        for y, x in area_positions:
+            unit = game.get_unit_at(y, x)
+            if unit and unit.is_alive() and unit.player != user.player:
+                affected_units.append(unit)
+        
+        # Play animation if UI is available
+        if ui and hasattr(ui, 'renderer'):
+            # Animation sequence for the jawline deployment
+            for phase in range(3):
+                # First phase: Show radiating lines from the center
+                if phase == 0:
+                    # Draw lines emanating from the foreman
+                    for y, x in area_positions:
+                        if (y, x) != center_pos:  # Skip the center
+                            ui.renderer.draw_tile(y, x, '·', 6)  # Yellow dots
+                    ui.renderer.refresh()
+                    time.sleep(0.3)
+                    
+                # Second phase: Replace with cable visuals
+                elif phase == 1:
+                    for y, x in area_positions:
+                        if (y, x) != center_pos:  # Skip the center
+                            # Draw cable characters based on relative position
+                            dy = y - center_pos[0]
+                            dx = x - center_pos[1]
+                            
+                            if dy == 0:  # Horizontal
+                                ui.renderer.draw_tile(y, x, '─', 7)
+                            elif dx == 0:  # Vertical
+                                ui.renderer.draw_tile(y, x, '│', 7)
+                            elif dy * dx > 0:  # Diagonal (top-left to bottom-right)
+                                ui.renderer.draw_tile(y, x, '\\', 7)
+                            else:  # Diagonal (top-right to bottom-left)
+                                ui.renderer.draw_tile(y, x, '/', 7)
+                    ui.renderer.refresh()
+                    time.sleep(0.3)
+                    
+                # Third phase: Show mini-jaws at each position
+                else:
+                    for y, x in area_positions:
+                        if (y, x) != center_pos:  # Skip the center
+                            # Show mini-jaw snap animation
+                            jaw_animation = ['{.}', '{>}', '{]}']
+                            
+                            for jaw in jaw_animation:
+                                ui.renderer.draw_tile(y, x, jaw, 7)
+                                ui.renderer.refresh()
+                                time.sleep(0.05)
+                    time.sleep(0.2)
+            
+            # Final effect: Flash affected enemies
+            if affected_units:
+                for unit in affected_units:
+                    # Flash the unit to show it's been affected
+                    if hasattr(ui, 'asset_manager'):
+                        tile_ids = [ui.asset_manager.get_unit_tile(unit.type)] * 4
+                        color_ids = [7, 5] * 2  # Alternate white with red
+                        durations = [0.1] * 4
+                        
+                        # Use renderer's flash tile method
+                        ui.renderer.flash_tile(unit.y, unit.x, tile_ids, color_ids, durations)
+            
+            # Show connection cables between the FOREMAN and affected units
+            for unit in affected_units:
+                # Get line positions
+                from boneglaive.utils.coordinates import Position, get_line
+                start_pos = Position(user.y, user.x)
+                end_pos = Position(unit.y, unit.x)
+                path = get_line(start_pos, end_pos)
+                
+                # Create cable visuals
+                for i, pos in enumerate(path[1:-1]):  # Skip start and end
+                    # Skip if there's a unit at this position
+                    if not game.get_unit_at(pos.y, pos.x):
+                        # Use different symbols for the cable segments
+                        cable_chars = ['═', '║', '╬', '╣', '╩', '╠']
+                        char_idx = i % len(cable_chars)
+                        ui.renderer.draw_tile(pos.y, pos.x, cable_chars[char_idx], 6)
+                ui.renderer.refresh()
+                time.sleep(0.1)
+                
+            # Redraw the board
+            time.sleep(0.3)
+            ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+        
+        # Apply effects to all affected units
+        for unit in affected_units:
+            # Apply movement reduction
+            unit.move_range_bonus -= 1
+            
+            # Flag unit as affected by Jawline
+            # We'll need to add this attribute to the Unit class
+            unit.jawline_affected = True
+            # Store the duration to be decremented each turn
+            unit.jawline_duration = self.effect_duration
+            
+            # Log the effect application
+            message_log.add_message(
+                f"{unit.get_display_name()} is tethered by mechanical jaws! Movement -1 for {self.effect_duration} turns.",
+                MessageType.ABILITY,
+                player=user.player,
+                target_name=unit.get_display_name()
+            )
+        
+        # Final effect message
+        if affected_units:
+            message_log.add_message(
+                f"Jawline network deployed! {len(affected_units)} enemy units affected for {self.effect_duration} turns.",
+                MessageType.ABILITY,
+                player=user.player
+            )
+        else:
+            message_log.add_message(
+                f"Jawline network deployed but no enemies were caught in it!",
+                MessageType.ABILITY,
+                player=user.player
+            )
+        
+        return True
+        
 class SiteInspectionSkill(ActiveSkill):
     """
     Active skill for MANDIBLE_FOREMAN.
@@ -1805,7 +2048,7 @@ UNIT_SKILLS = {
     },
     'MANDIBLE_FOREMAN': {
         'passive': Viceroy(),
-        'active': [DischargeSkill(), SiteInspectionSkill()]  # Added Discharge and Site Inspection skills
+        'active': [DischargeSkill(), SiteInspectionSkill(), JawlineSkill()]  # Added Jawline skill
     }
     # Other unit types will be added here
 }

@@ -54,6 +54,8 @@ class Unit:
         self.was_pried = False  # Track if this unit was affected by Pry skill
         self.trapped_by = None  # Reference to MANDIBLE_FOREMAN that trapped this unit, None if not trapped
         self.took_action = False  # Track if this unit took an action this turn
+        self.jawline_affected = False  # Track if unit is affected by Jawline skill
+        self.jawline_duration = 0  # Duration remaining for Jawline effect
         # Removed Recalibrate tracking
         
         # Removed special cooldown trackers
@@ -242,11 +244,29 @@ class Unit:
         self.used_recalibrate = False  # Reset recalibrate tracking
         
     def reset_movement_penalty(self) -> None:
-        """Clear any movement penalties and reset the Pry status."""
-        # Reset movement penalties (Viceroy trap is handled separately via trapped_by)
-        if self.move_range_bonus < 0:
+        """Clear any movement penalties and reset relevant status flags."""
+        # Do not reset move_range_bonus if affected by Jawline
+        if not self.jawline_affected and self.move_range_bonus < 0:
             self.move_range_bonus = 0
             
+        # Handle Jawline duration if affected
+        if self.jawline_affected:
+            self.jawline_duration -= 1
+            
+            # If duration expires, clear the effect
+            if self.jawline_duration <= 0:
+                from boneglaive.utils.message_log import message_log, MessageType
+                self.jawline_affected = False
+                # Only restore movement if not affected by other penalties
+                if not self.was_pried and self.trapped_by is None:
+                    self.move_range_bonus += 1  # Restore the movement penalty
+                
+                message_log.add_message(
+                    f"{self.get_display_name()} breaks free from Jawline tether!",
+                    MessageType.ABILITY,
+                    target_name=self.get_display_name()
+                )
+                
         self.was_pried = False
         
     def get_skill_by_key(self, key: str) -> Optional:
