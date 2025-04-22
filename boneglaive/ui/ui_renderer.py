@@ -212,6 +212,11 @@ class UIRenderer:
                         tile = self.game_ui.asset_manager.get_unit_tile(unit.type)
                         color_id = 3 if unit.player == 1 else 4
                         
+                        # Check for GRAYMAN with Delta Config queued
+                        if unit.type == UnitType.GRAYMAN and hasattr(unit, 'teleport_target_indicator') and unit.teleport_target_indicator is not None:
+                            # Use a special ∴ (therefore) symbol combined with the normal unit symbol
+                            tile = f"{tile}∴"
+                        
                         # If this unit is being targeted for attack and attack targets should be shown
                         if attacking_unit and show_attack_targets:
                             # Check if cursor is here before drawing targeted unit
