@@ -1785,21 +1785,8 @@ class JawlineSkill(ActiveSkill):
                 target_name=unit.get_display_name()
             )
         
-        # Final effect message - include the unit name and make consistent with capitalization
-        if affected_units:
-            message_log.add_message(
-                f"{user.get_display_name()}'s JAWLINE network deployed! {len(affected_units)} enemy units affected for {self.effect_duration} turns.",
-                MessageType.ABILITY,
-                player=user.player,
-                attacker_name=user.get_display_name()
-            )
-        else:
-            message_log.add_message(
-                f"{user.get_display_name()}'s JAWLINE network deployed but no enemies were caught in it!",
-                MessageType.ABILITY,
-                player=user.player,
-                attacker_name=user.get_display_name()
-            )
+        # Remove the final summary message completely - we don't need it
+        # Individual unit effect messages are sufficient
         
         return True
         
