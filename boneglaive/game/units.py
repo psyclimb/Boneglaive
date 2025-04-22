@@ -54,10 +54,9 @@ class Unit:
         self.was_pried = False  # Track if this unit was affected by Pry skill
         self.trapped_by = None  # Reference to MANDIBLE_FOREMAN that trapped this unit, None if not trapped
         self.took_action = False  # Track if this unit took an action this turn
-        self.used_recalibrate = False  # Track if MANDIBLE_FOREMAN used Recalibrate this turn
+        # Removed Recalibrate tracking
         
-        # Special cooldown trackers for MANDIBLE_FOREMAN
-        self.recalibrate_cooldown = 0  # Track Recalibrate cooldown directly on the unit
+        # Removed special cooldown trackers
         
         # Experience and leveling
         self.level = 1

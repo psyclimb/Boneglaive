@@ -525,9 +525,8 @@ class Game:
                     is_foreman_taking_action = True
                 # Some skills release trapped units, but not all
                 elif unit.skill_target is not None and unit.selected_skill:
-                    # Recalibrate doesn't release trapped units (it just adjusts the jaws)
-                    if unit.selected_skill.name != "Recalibrate":
-                        is_foreman_taking_action = True
+                    # All skills now release trapped units
+                    is_foreman_taking_action = True
             
             # If this is a MANDIBLE_FOREMAN taking an action that should release trapped units
             if is_foreman_taking_action:
@@ -844,11 +843,10 @@ class Game:
             # 1. The trapper is alive
             # 2. It's the trapper's turn
             # 3. The trapper has not taken any action this turn that would have released the trapped unit
-            #    OR the trapper used Recalibrate (which doesn't release trapped units)
             foreman = unit.trapped_by
             if (foreman.is_alive() and 
                 foreman.player == self.current_player and
-                (not foreman.took_action or foreman.used_recalibrate)):
+                not foreman.took_action):
                 logger.debug(f"Applying Viceroy trap damage to {unit.get_display_name()}")
                 
                 # Play trap animation if UI is available
@@ -1070,45 +1068,7 @@ class Game:
         logger.debug(f"Handling effect expiration for skill: {skill_name}")
         
         # Handle different skills
-        if skill_name == "Recalibrate":
-            # Find all units with this skill
-            for unit in self.units:
-                if not unit.is_alive():
-                    continue
-                    
-                # Find units that have the Recalibrate skill
-                recalibrate_skill = None
-                for skill in unit.active_skills:
-                    if skill.name == "Recalibrate":
-                        recalibrate_skill = skill
-                        break
-                
-                if recalibrate_skill and recalibrate_skill.turns_remaining == 0:
-                    # Found the unit with this skill - remove the attack bonus
-                    logger.debug(f"Removing Recalibrate attack bonus from {unit.get_display_name()}")
-                    unit.attack_bonus -= recalibrate_skill.attack_bonus
-                    
-                    # Log the effect expiration
-                    message_log.add_message(
-                        f"{unit.get_display_name()}'s Recalibrate effect expires!",
-                        MessageType.ABILITY,
-                        player=unit.player,
-                        attacker_name=unit.get_display_name()
-                    )
-                    
-                    # Find any units trapped by this FOREMAN and remove defense debuff
-                    trapped_units = [u for u in self.units if u.is_alive() and u.trapped_by == unit]
-                    for trapped_unit in trapped_units:
-                        logger.debug(f"Removing Recalibrate defense debuff from {trapped_unit.get_display_name()}")
-                        trapped_unit.defense_bonus -= recalibrate_skill.defense_debuff
-                        
-                        # Log the debuff removal
-                        message_log.add_message(
-                            f"Defense penalty on {trapped_unit.get_display_name()} ends!",
-                            MessageType.ABILITY,
-                            player=unit.player,
-                            target_name=trapped_unit.get_display_name()
-                        )
+        # Recalibrate skill removed
         
         # Handle other skill types here as needed
         
