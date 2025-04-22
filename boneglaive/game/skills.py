@@ -1546,7 +1546,291 @@ class Viceroy(PassiveSkill):
         pass
 
 
-# RecalibrateSkill removed
+class DischargeSkill(ActiveSkill):
+    """
+    Active skill for MANDIBLE_FOREMAN.
+    The FOREMAN releases a trapped unit, throwing them 2-3 tiles in a chosen direction.
+    Deals moderate damage on impact with walls/obstacles.
+    """
+    
+    def __init__(self):
+        super().__init__(
+            name="Discharge",
+            key="D",
+            description="Release a trapped unit, throwing them 2-3 tiles away. Deals damage on impact with obstacles.",
+            target_type=TargetType.AREA,  # Target an area to throw the unit towards
+            cooldown=2,
+            range_=3  # Maximum throw distance
+        )
+        self.impact_damage = 6  # Base damage on impact
+        
+    def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        """Check if Discharge can be used."""
+        # First check basic cooldown
+        if not super().can_use(user, target_pos, game):
+            return False
+            
+        # Need game to validate
+        if not game:
+            return False
+            
+        # Check if the FOREMAN has any trapped units
+        trapped_units = [u for u in game.units if u.is_alive() and u.trapped_by == user]
+        if not trapped_units:
+            return False
+            
+        # Check if target position is valid - must be within bounds and within range
+        if target_pos:
+            if not game.is_valid_position(target_pos[0], target_pos[1]):
+                return False
+                
+            # Check if target is within valid throw range
+            distance = game.chess_distance(user.y, user.x, target_pos[0], target_pos[1])
+            if distance > self.range or distance == 0:  # Cannot throw to current position
+                return False
+                
+        return True
+        
+    def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        """Queue up the Discharge skill for execution at the end of the turn."""
+        from boneglaive.utils.message_log import message_log, MessageType
+        
+        # Validate skill use conditions
+        if not self.can_use(user, target_pos, game):
+            return False
+        
+        # Set the skill target (direction to throw)
+        user.skill_target = target_pos
+        user.selected_skill = self
+        
+        # Track action order
+        if game:
+            user.action_timestamp = game.action_counter
+            game.action_counter += 1
+        
+        # Set cooldown immediately when queuing up the action
+        self.current_cooldown = self.cooldown
+        
+        # Log that the skill has been queued
+        trapped_units = [u for u in game.units if u.is_alive() and u.trapped_by == user]
+        if trapped_units:
+            trapped_unit = trapped_units[0]  # Only one unit can be trapped at a time
+            message_log.add_message(
+                f"{user.get_display_name()} prepares to discharge {trapped_unit.get_display_name()}!",
+                MessageType.ABILITY,
+                player=user.player,
+                attacker_name=user.get_display_name(),
+                target_name=trapped_unit.get_display_name()
+            )
+        
+        return True
+        
+    def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
+        """
+        Execute the Discharge skill.
+        Throws a trapped unit in the specified direction and deals damage on impact.
+        """
+        from boneglaive.utils.message_log import message_log, MessageType
+        from boneglaive.utils.coordinates import Position, get_line
+        import time
+        import curses
+        
+        # Find any trapped units
+        trapped_units = [u for u in game.units if u.is_alive() and u.trapped_by == user]
+        if not trapped_units:
+            message_log.add_message(
+                f"Discharge failed: no trapped units!",
+                MessageType.ABILITY,
+                player=user.player,
+                attacker_name=user.get_display_name()
+            )
+            return False
+            
+        # Get the trapped unit
+        trapped_unit = trapped_units[0]  # Only one unit can be trapped at a time
+        
+        # Calculate throw direction based on the target position
+        # Direction is FROM the FOREMAN TOWARDS the target position
+        direction_y = target_pos[0] - user.y
+        direction_x = target_pos[1] - user.x
+        
+        # Normalize direction vector
+        magnitude = max(abs(direction_y), abs(direction_x))
+        if magnitude > 0:
+            direction_y = direction_y / magnitude
+            direction_x = direction_x / magnitude
+        
+        # Round to nearest integer to get a clean direction
+        direction_y = round(direction_y)
+        direction_x = round(direction_x)
+        
+        # Log the discharge activation
+        message_log.add_message(
+            f"{user.get_display_name()} discharges {trapped_unit.get_display_name()}!",
+            MessageType.ABILITY,
+            player=user.player,
+            attacker_name=user.get_display_name(),
+            target_name=trapped_unit.get_display_name()
+        )
+        
+        # Play animation if UI is available
+        if ui and hasattr(ui, 'renderer'):
+            # Animate jaw release
+            release_animation = ['{}', '[]', '  ']
+            ui.renderer.animate_attack_sequence(
+                trapped_unit.y, trapped_unit.x,
+                release_animation,
+                6,  # color ID (yellowish)
+                0.2  # duration
+            )
+            
+            # Short pause before throwing
+            time.sleep(0.2)
+        
+        # Release the unit (remove trapped state)
+        original_y, original_x = trapped_unit.y, trapped_unit.x
+        trapped_unit.trapped_by = None
+        
+        # Calculate possible landing positions along the throw direction
+        max_distance = min(self.range, 3)  # Maximum throw distance is 3 tiles
+        landing_positions = []
+        
+        for distance in range(1, max_distance + 1):
+            landing_y = original_y + int(direction_y * distance)
+            landing_x = original_x + int(direction_x * distance)
+            
+            # Check if position is valid
+            if not game.is_valid_position(landing_y, landing_x):
+                break  # Hit map boundary, stop checking further
+                
+            # Check for units or impassable terrain
+            if game.get_unit_at(landing_y, landing_x) or not game.map.is_passable(landing_y, landing_x):
+                # Hit obstacle, stop here and apply impact damage
+                landing_positions.append((landing_y, landing_x, True))  # True = impact
+                break
+                
+            # Position is valid for landing without impact
+            landing_positions.append((landing_y, landing_x, False))  # False = no impact
+        
+        # If no valid landing positions found, unit remains in place
+        if not landing_positions:
+            message_log.add_message(
+                f"{trapped_unit.get_display_name()} remains in place!",
+                MessageType.ABILITY,
+                player=user.player,
+                target_name=trapped_unit.get_display_name()
+            )
+            return True
+            
+        # Get the furthest valid landing position
+        final_landing = landing_positions[-1]
+        landing_y, landing_x, has_impact = final_landing
+        
+        # If landing position has a unit or obstacle, back up one position if possible
+        if has_impact and len(landing_positions) > 1:
+            # Use the position before the impact
+            landing_y, landing_x, _ = landing_positions[-2]
+        
+        # Calculate actual displacement distance
+        displacement_distance = game.chess_distance(original_y, original_x, landing_y, landing_x)
+        
+        # Move the unit to the landing position
+        trapped_unit.y, trapped_unit.x = landing_y, landing_x
+        
+        # Calculate damage if there was an impact
+        damage = 0
+        if has_impact:
+            # Damage increases with throw distance
+            damage = self.impact_damage - trapped_unit.defense
+            damage = max(1, damage)  # Minimum 1 damage
+            
+            # Apply damage to the trapped unit
+            trapped_unit.hp = max(0, trapped_unit.hp - damage)
+            
+            # Log the impact damage
+            message_log.add_message(
+                f"{trapped_unit.get_display_name()} impacts obstacle for {damage} damage!",
+                MessageType.COMBAT,
+                player=user.player,
+                target=trapped_unit.player,
+                target_name=trapped_unit.get_display_name()
+            )
+        
+        # Log the displacement
+        message_log.add_message(
+            f"{trapped_unit.get_display_name()} is thrown {displacement_distance} tiles!",
+            MessageType.ABILITY,
+            player=user.player,
+            target_name=trapped_unit.get_display_name()
+        )
+        
+        # Animate the discharge if UI is available
+        if ui and hasattr(ui, 'renderer'):
+            # Temporarily move unit back to start for animation
+            trapped_unit.y, trapped_unit.x = original_y, original_x
+            
+            # Calculate path for animation
+            start_pos = Position(original_y, original_x)
+            end_pos = Position(landing_y, landing_x)
+            path = get_line(start_pos, end_pos)
+            
+            # Animate movement along the path
+            for i, pos in enumerate(path[1:], 1):  # Skip the starting position
+                # Update unit position for animation
+                trapped_unit.y, trapped_unit.x = pos.y, pos.x
+                
+                # Redraw to show unit in intermediate position
+                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+                
+                # Shorter delay for intermediate positions
+                time.sleep(0.05)
+            
+            # Ensure unit is at final position
+            trapped_unit.y, trapped_unit.x = landing_y, landing_x
+            
+            # If impact occurred, show impact animation
+            if has_impact:
+                # Impact animation
+                impact_animation = ['*', '#', '@', '!']
+                ui.renderer.animate_attack_sequence(
+                    landing_y, landing_x,
+                    impact_animation,
+                    5,  # color ID (reddish)
+                    0.25  # duration
+                )
+                
+                # Show damage number
+                if damage > 0:
+                    damage_text = f"-{damage}"
+                    
+                    # Make damage text more prominent
+                    for i in range(3):
+                        ui.renderer.draw_text(landing_y-1, landing_x*2, " " * len(damage_text), 7)
+                        attrs = curses.A_BOLD if i % 2 == 0 else 0
+                        ui.renderer.draw_text(landing_y-1, landing_x*2, damage_text, 7, attrs)
+                        ui.renderer.refresh()
+                        time.sleep(0.1)
+            
+            # Final landing animation
+            landing_animation = ['v', 'V', '.']
+            ui.renderer.animate_attack_sequence(
+                landing_y, landing_x,
+                landing_animation,
+                6,  # yellowish color
+                0.2  # duration
+            )
+        
+        # Check if trapped unit was defeated by the impact
+        if trapped_unit.hp <= 0:
+            message_log.add_message(
+                f"{trapped_unit.get_display_name()} perishes from the impact!",
+                MessageType.COMBAT,
+                player=user.player,
+                target=trapped_unit.player,
+                target_name=trapped_unit.get_display_name()
+            )
+        
+        return True
 
 # Skill Registry - maps unit types to their skills
 UNIT_SKILLS = {
@@ -1556,7 +1840,7 @@ UNIT_SKILLS = {
     },
     'MANDIBLE_FOREMAN': {
         'passive': Viceroy(),
-        'active': []  # Removed Recalibrate skill
+        'active': [DischargeSkill()]  # Added Discharge skill
     }
     # Other unit types will be added here
 }

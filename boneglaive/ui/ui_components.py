@@ -2112,14 +2112,14 @@ class ActionMenuComponent(UIComponent):
                 'skill': recalibrate_skill
             })
             
-            # Add placeholder skills for MANDIBLE_FOREMAN
+            # Add Discharge skill
+            discharge_skill = next((skill for skill in available_skills if skill.name == "Discharge"), None)
             self.actions.append({
                 'key': 'd',
                 'label': 'ischarge',  # Will be displayed as [D]ischarge
                 'action': 'discharge_skill',
-                'enabled': False,
-                'placeholder': True,
-                'skill': None
+                'enabled': discharge_skill is not None,
+                'skill': discharge_skill
             })
             
             self.actions.append({

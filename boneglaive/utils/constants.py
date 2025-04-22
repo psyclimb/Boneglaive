@@ -33,7 +33,7 @@ UNIT_STATS = {
     UnitType.GLAIVEMAN: (20, 5, 1, 2, 1),
     UnitType.ARCHER: (15, 5, 2, 2, 3),
     UnitType.MAGE: (12, 6, 1, 1, 2),
-    UnitType.MANDIBLE_FOREMAN: (25, 6, 2, 2, 1)  # Higher HP and attack, melee range
+    UnitType.MANDIBLE_FOREMAN: (25, 5, 2, 2, 1)  # Reduced attack from 6 to 5
 }
 
 UNIT_SYMBOLS = {
