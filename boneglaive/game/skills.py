@@ -7,7 +7,7 @@ This module provides the foundation for implementing unit skills.
 import curses
 from enum import Enum, auto
 from typing import Optional, Dict, List, Any, Tuple, TYPE_CHECKING
-from boneglaive.utils.constants import UnitType
+from boneglaive.utils.constants import UnitType, UNIT_STATS
 
 if TYPE_CHECKING:
     from boneglaive.game.units import Unit
@@ -965,20 +965,23 @@ class VaultSkill(ActiveSkill):
             from_y, from_x = user.move_target
             logger.debug(f"Using planned move position ({from_y},{from_x}) as origin")
             
-        # Get effective range, considering Pry debuff but not limited by move_range
-        effective_stats = user.get_effective_stats()
-        move_penalty = 0
-        if user.move_range_bonus < 0:
-            move_penalty = user.move_range_bonus  # This will be negative
+        # Calculate effective range based on unit's current movement
+        # The vault range changes by the same amount as the unit's movement bonus/penalty
+        base_move = UNIT_STATS[user.type][3]  # Get the base move value from unit stats
+        effective_stats = user.get_effective_stats()  # This includes all bonuses
+        actual_move = effective_stats['move_range']   # Get final move range with all bonuses applied
+        move_difference = actual_move - base_move  # Difference can be positive or negative
         
-        # Apply the movement penalty to the Vault range, but don't cap it at move_range
-        effective_range = self.range + move_penalty
+        # Apply the movement difference to vault range
+        effective_range = self.range + move_difference
         
         # Check if target is within effective skill range
         distance = game.chess_distance(from_y, from_x, target_pos[0], target_pos[1])
         if distance > effective_range:
             logger.debug(f"Vault failed: position out of range ({distance} > {effective_range})")
-            logger.debug(f"(Note: Effective range reduced from {self.range} to {effective_range} due to Pry)")
+            if move_difference != 0:
+                modifier = "increased" if move_difference > 0 else "reduced"
+                logger.debug(f"(Note: Vault range {modifier} from {self.range} to {effective_range} based on movement changes)")
             return False
             
         # Check for pillars in the path - cannot vault over pillars
@@ -2000,11 +2003,28 @@ class SiteInspectionSkill(ActiveSkill):
         
         # Apply bonuses to all affected units
         for unit in affected_units:
-            # Apply the bonuses
+            # Apply standard bonuses
             unit.attack_bonus += attack_bonus
             unit.move_range_bonus += move_bonus
             
-            # Log the bonus application
+            # Special handling: find any GLAIVEMAN units and directly boost their vault range
+            if unit.type == UnitType.GLAIVEMAN:
+                # Find the Vault skill and directly increment its range
+                for skill in unit.active_skills:
+                    if skill.__class__.__name__ == "VaultSkill":
+                        # Directly increase the skill's range attribute
+                        skill.range += 1
+                        
+                        # Log special effect on vault range
+                        message_log.add_message(
+                            f"{unit.get_display_name()}'s Vault range increases by 1!",
+                            MessageType.ABILITY,
+                            player=user.player,
+                            target_name=unit.get_display_name()
+                        )
+                        break
+            
+            # Log the standard bonus application
             message_log.add_message(
                 f"{unit.get_display_name()} gains +{attack_bonus} attack and +{move_bonus} movement from Site Inspection!",
                 MessageType.ABILITY,
