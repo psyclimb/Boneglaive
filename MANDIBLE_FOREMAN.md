@@ -4,7 +4,7 @@
 A specialist unit that combines control mechanics with team support capabilities.
 
 ## Passive Ability
-**Viceroy**: When the MANDIBLE FOREMAN attacks a unit, they are trapped in his mechanical jaws. The trapped unit's move value is reduced to 0 and they cannot activate skills as long as they are trapped. The MANDIBLE FOREMAN applies attack damage to the trapped unit at the start of every combat phase. If the MANDIBLE FOREMAN discharges, perishes, moves, or performs any other action (except Recalibrate), the trapped effect on the unit ends.
+**Viseroy**: When the MANDIBLE FOREMAN attacks a unit, they are trapped in his mechanical jaws. The trapped unit's move value is reduced to 0 and they cannot activate skills as long as they are trapped. The MANDIBLE FOREMAN applies attack damage to the trapped unit at the start of every combat phase. If the MANDIBLE FOREMAN discharges, perishes, moves, or performs any other action (except Recalibrate), the trapped effect on the unit ends.
 
 ## Active Abilities
 

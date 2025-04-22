@@ -635,10 +635,10 @@ class Game:
                     # Apply damage
                     target.hp = max(0, target.hp - damage)
                     
-                    # Check if attacker is a MANDIBLE_FOREMAN with the Viceroy passive
+                    # Check if attacker is a MANDIBLE_FOREMAN with the Viseroy passive
                     # If so, trap the target unit
                     if unit.type == UnitType.MANDIBLE_FOREMAN and unit.passive_skill and \
-                       unit.passive_skill.name == "Viceroy" and target.hp > 0:
+                       unit.passive_skill.name == "Viseroy" and target.hp > 0:
                         # Only trap if the target is still alive
                         target.trapped_by = unit
                         
@@ -849,13 +849,13 @@ class Game:
             if (foreman.is_alive() and 
                 foreman.player == self.current_player and
                 not foreman.took_action):
-                logger.debug(f"Applying Viceroy trap damage to {unit.get_display_name()}")
+                logger.debug(f"Applying Viseroy trap damage to {unit.get_display_name()}")
                 
                 # Play trap animation if UI is available
                 ui = getattr(self, 'ui', None)
                 if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-                    # Get animation sequence for Viceroy trap
-                    animation_sequence = ui.asset_manager.get_skill_animation_sequence('viceroy_trap')
+                    # Get animation sequence for Viseroy trap
+                    animation_sequence = ui.asset_manager.get_skill_animation_sequence('viseroy_trap')
                     
                     # Show jaw animation at trapped unit's position
                     ui.renderer.animate_attack_sequence(
@@ -867,7 +867,7 @@ class Game:
                     time.sleep(0.2)
                 
                 # Fixed trap damage (reduced from using attack value)
-                trap_damage = 3  # Fixed damage for Viceroy trap
+                trap_damage = 3  # Fixed damage for Viseroy trap
                 effective_defense = unit.get_effective_stats()['defense']
                 damage = max(1, trap_damage - effective_defense)
                 
@@ -880,7 +880,7 @@ class Game:
                     attacker_name=foreman.get_display_name(),
                     target_name=unit.get_display_name(),
                     damage=damage,
-                    ability="Viceroy Trap",
+                    ability="Viseroy Trap",
                     attacker_player=foreman.player,
                     target_player=unit.player
                 )

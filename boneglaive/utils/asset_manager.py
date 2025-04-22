@@ -89,7 +89,7 @@ class AssetManager:
             'vault_impact': ['↓', 'v', 'V', '*', '.'],  # Vault landing animation
             'judgement_throw': ['*', '↺', '↻', '⚡', '⚓', '⊕'],  # Sacred glaive animation
             'judgement_critical': ['⚡', '⌁', '⌁', '⚡', '※'],  # Lightning strike critical effect
-            'viceroy_trap': ['[]', '><', '}{', 'Ξ', '}{', '><', '[]']  # Animation for Viceroy trapping
+            'viseroy_trap': ['[]', '><', '}{', 'Ξ', '}{', '><', '[]']  # Animation for Viseroy trapping
         }
     
     def _initialize_graphical_assets(self) -> None:
