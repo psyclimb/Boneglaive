@@ -45,7 +45,10 @@ class Unit:
         self.attack_target = None
         self.skill_target = None
         self.selected_skill = None
+        
+        # Visual indicators for skills
         self.vault_target_indicator = None  # Visual indicator for Vault destination
+        self.site_inspection_indicator = None  # Visual indicator for Site Inspection area
         
         # Action order tracking (lower is earlier)
         self.action_timestamp = 0
@@ -201,7 +204,11 @@ class Unit:
         self.attack_target = None
         self.skill_target = None
         self.selected_skill = None
-        self.vault_target_indicator = None  # Clear vault target indicator
+        
+        # Clear visual indicators
+        self.vault_target_indicator = None
+        self.site_inspection_indicator = None
+        
         self.action_timestamp = 0  # Reset the action timestamp
         # No Recalibrate tracking
         

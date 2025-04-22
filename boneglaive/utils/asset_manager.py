@@ -64,7 +64,8 @@ class AssetManager:
             'cursor': '[]',
             'selected': '**',
             'health': 'HP',
-            'vault_target': '◎'  # Circle target for vault landing spot
+            'vault_target': '◎',  # Circle target for vault landing spot
+            'site_inspection': '□'  # Square outline for Site Inspection target
         }
         
         # Effect symbols - enhanced ASCII for attacks
@@ -89,7 +90,8 @@ class AssetManager:
             'vault_impact': ['↓', 'v', 'V', '*', '.'],  # Vault landing animation
             'judgement_throw': ['*', '↺', '↻', '⚡', '⚓', '⊕'],  # Sacred glaive animation
             'judgement_critical': ['⚡', '⌁', '⌁', '⚡', '※'],  # Lightning strike critical effect
-            'viseroy_trap': ['[]', '><', '}{', 'Ξ', '}{', '><', '[]']  # Animation for Viseroy trapping
+            'viseroy_trap': ['[]', '><', '}{', 'Ξ', '}{', '><', '[]'],  # Animation for Viseroy trapping
+            'site_inspection': ['□', '■', '□', '■', '□']  # Animation for Site Inspection
         }
     
     def _initialize_graphical_assets(self) -> None:
