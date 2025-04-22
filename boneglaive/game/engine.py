@@ -515,13 +515,21 @@ class Game:
             # Log the unit and its action
             logger.debug(f"Processing unit {unit.get_display_name()} with timestamp {unit.action_timestamp}")
             
-            # Flag to track if this is a MANDIBLE_FOREMAN taking an action
-            is_foreman_taking_action = (unit.type == UnitType.MANDIBLE_FOREMAN and 
-                                       (unit.move_target is not None or 
-                                        unit.attack_target is not None or 
-                                        unit.skill_target is not None))
+            # Flag to track if this is a MANDIBLE_FOREMAN taking an action that should release trapped units
+            is_foreman_taking_action = False
             
-            # If this is a MANDIBLE_FOREMAN taking action, release any trapped units
+            # Check if this is a MANDIBLE_FOREMAN
+            if unit.type == UnitType.MANDIBLE_FOREMAN:
+                # Movement and attacks always release trapped units
+                if unit.move_target is not None or unit.attack_target is not None:
+                    is_foreman_taking_action = True
+                # Some skills release trapped units, but not all
+                elif unit.skill_target is not None and unit.selected_skill:
+                    # Recalibrate doesn't release trapped units (it just adjusts the jaws)
+                    if unit.selected_skill.name != "Recalibrate":
+                        is_foreman_taking_action = True
+            
+            # If this is a MANDIBLE_FOREMAN taking an action that should release trapped units
             if is_foreman_taking_action:
                 # Find all units trapped by this FOREMAN
                 trapped_units = [u for u in self.units if u.is_alive() and u.trapped_by == unit]
@@ -612,9 +620,12 @@ class Game:
                     if ui:
                         ui.show_attack_animation(unit, target)
                     
-                    # Calculate damage
+                    # Calculate damage using effective stats (including bonuses)
                     # Defense acts as flat damage reduction
-                    damage = max(1, unit.attack - target.defense)
+                    effective_stats = unit.get_effective_stats()
+                    effective_attack = effective_stats['attack']
+                    effective_defense = target.get_effective_stats()['defense']
+                    damage = max(1, effective_attack - effective_defense)
                     
                     # Store previous HP to check for status changes
                     previous_hp = target.hp
@@ -833,10 +844,11 @@ class Game:
             # 1. The trapper is alive
             # 2. It's the trapper's turn
             # 3. The trapper has not taken any action this turn that would have released the trapped unit
+            #    OR the trapper used Recalibrate (which doesn't release trapped units)
             foreman = unit.trapped_by
             if (foreman.is_alive() and 
                 foreman.player == self.current_player and
-                not (foreman.move_target or foreman.attack_target or foreman.skill_target)):
+                (not foreman.took_action or foreman.used_recalibrate)):
                 logger.debug(f"Applying Viceroy trap damage to {unit.get_display_name()}")
                 
                 # Play trap animation if UI is available
@@ -854,8 +866,11 @@ class Game:
                     )
                     time.sleep(0.2)
                 
-                # Calculate damage using the FOREMAN's attack
-                damage = max(1, foreman.attack - unit.defense)
+                # Calculate damage using the FOREMAN's effective attack (including bonuses)
+                effective_stats = foreman.get_effective_stats()
+                effective_attack = effective_stats['attack']
+                effective_defense = unit.get_effective_stats()['defense']
+                damage = max(1, effective_attack - effective_defense)
                 
                 # Apply damage to the trapped unit
                 previous_hp = unit.hp
