@@ -520,6 +520,16 @@ class PrySkill(ActiveSkill):
                 target_player=target.player
             )
             
+            # Check if target is immune to the effect
+            if target.is_immune_to_effects():
+                message_log.add_message(
+                    f"{target.get_display_name()} is immune to Pry due to Stasiality!",
+                    MessageType.ABILITY,
+                    player=user.player,
+                    target_name=target.get_display_name()
+                )
+                return True  # Continue with damage, just don't apply movement effects
+                
             # Apply movement reduction effect and mark unit as pried
             target.move_range_bonus = -1
             target.was_pried = True  # Mark the unit as affected by Pry
@@ -640,6 +650,16 @@ class PrySkill(ActiveSkill):
             target_player=target.player
         )
         
+        # Check if target is immune to the effect
+        if target.is_immune_to_effects():
+            message_log.add_message(
+                f"{target.get_display_name()} is immune to Pry due to Stasiality!",
+                MessageType.ABILITY,
+                player=user.player,
+                target_name=target.get_display_name()
+            )
+            return False
+            
         # Apply movement reduction effect and mark unit as pried
         target.move_range_bonus = -1
         target.was_pried = True  # Mark the unit as affected by Pry
@@ -2107,6 +2127,16 @@ class JawlineSkill(ActiveSkill):
         
         # Apply effects to all affected units
         for unit in affected_units:
+            # Check if unit is immune to effects
+            if unit.is_immune_to_effects():
+                message_log.add_message(
+                    f"{unit.get_display_name()} is immune to Jawline due to Stasiality!",
+                    MessageType.ABILITY,
+                    player=user.player,
+                    target_name=unit.get_display_name()
+                )
+                continue  # Skip this unit and process others
+                
             # Apply movement reduction
             unit.move_range_bonus -= 1
             
@@ -2352,6 +2382,16 @@ class SiteInspectionSkill(ActiveSkill):
         
         # Apply bonuses to all affected units
         for unit in affected_units:
+            # Check if unit is immune to statistical changes
+            if unit.is_immune_to_effects():
+                message_log.add_message(
+                    f"{unit.get_display_name()} is immune to Site Inspection bonuses due to Stasiality!",
+                    MessageType.ABILITY,
+                    player=user.player,
+                    target_name=unit.get_display_name()
+                )
+                continue
+                
             # Apply standard bonuses
             unit.attack_bonus += attack_bonus
             unit.move_range_bonus += move_bonus
@@ -2408,6 +2448,26 @@ class Stasiality(PassiveSkill):
             key="S",
             description="Cannot have stats changed or be displaced. Immune to buffs, debuffs, forced movement, and terrain effects."
         )
+    
+    def apply_passive(self, user: 'Unit', game=None) -> None:
+        """
+        Apply the Stasiality passive effect.
+        
+        This is mostly a marker skill - the actual immunity checks are performed
+        when status effects are applied to verify if the unit is immune.
+        
+        Specifically prevents ALL stat changes, both positive and negative:
+        - Estrange effect (stat reduction)
+        - Trapped by Viseroy (movement prevention)
+        - Jawline effect (movement reduction)
+        - Pry effect (movement reduction and displacement)
+        - Site Inspection effect (stat increases from terrain analysis)
+        - Any other buff or debuff that would modify stats
+        
+        The unit exists in a fixed state, immune to both helpful and harmful effects.
+        """
+        # Most of the immunity is implemented at the effect application points
+        pass
         
 class DeltaConfigSkill(ActiveSkill):
     """
@@ -2743,6 +2803,16 @@ class EstrangeSkill(ActiveSkill):
             )
             return False
         
+        # Check if target is immune to the effect
+        if target_unit.is_immune_to_effects():
+            message_log.add_message(
+                f"{target_unit.get_display_name()} is immune to Estrange due to Stasiality!",
+                MessageType.ABILITY,
+                player=user.player,
+                target_name=target_unit.get_display_name()
+            )
+            return False
+            
         # Apply the Estrange effect
         target_unit.estranged = True
         
