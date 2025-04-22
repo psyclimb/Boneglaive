@@ -625,10 +625,10 @@ class Game:
                         # Only trap if the target is still alive
                         target.trapped_by = unit
                         
-                        # Log the trapping
+                        # Log the trapping (using MessageType.COMBAT for yellow coloring)
                         message_log.add_message(
                             f"{target.get_display_name()} is trapped in mechanical jaws!",
-                            MessageType.ABILITY,
+                            MessageType.WARNING,  # WARNING messages are explicitly colored yellow
                             player=unit.player,
                             target_name=target.get_display_name()
                         )
@@ -899,8 +899,9 @@ class Game:
                 # Check if the trapped unit was defeated
                 if unit.hp <= 0:
                     message_log.add_message(
-                        f"{unit.get_display_name()} perishes in the jaws!",
+                        f"{unit.get_display_name()} perishes!",
                         MessageType.COMBAT,
+                        player=foreman.player,
                         target=unit.player,
                         target_name=unit.get_display_name()
                     )
@@ -938,7 +939,7 @@ class Game:
                 for trapped_unit in trapped_units:
                     trapped_unit.trapped_by = None
                     message_log.add_message(
-                        f"{trapped_unit.get_display_name()} is released from mechanical jaws as FOREMAN is displaced!",
+                        f"{trapped_unit.get_display_name()} is released from mechanical jaws!",
                         MessageType.ABILITY,
                         target_name=trapped_unit.get_display_name()
                     )
@@ -955,7 +956,7 @@ class Game:
             
             # Log the release
             message_log.add_message(
-                f"{unit.get_display_name()} breaks free from mechanical jaws due to position change!",
+                f"{unit.get_display_name()} breaks free from mechanical jaws!",
                 MessageType.ABILITY,
                 target_name=unit.get_display_name()
             )
