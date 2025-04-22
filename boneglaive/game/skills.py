@@ -2732,8 +2732,16 @@ class EstrangeSkill(ActiveSkill):
             logger.debug("Estrange failed: unit is already under Estrange effect")
             return False
         
-        # Check if the target is in range
-        from_y, from_x = user.y, user.x
+        # Check if the target is in range from the correct position
+        # (either current position or planned move position)
+        from_y = user.y
+        from_x = user.x
+        
+        # If unit has a planned move, use that position instead
+        if user.move_target:
+            from_y, from_x = user.move_target
+            logger.debug(f"Using planned move position ({from_y},{from_x}) as origin for Estrange")
+            
         to_y, to_x = target_pos
         
         # Use chess distance (max of x distance and y distance)
@@ -2742,7 +2750,7 @@ class EstrangeSkill(ActiveSkill):
             logger.debug(f"Estrange failed: target out of range ({distance} > {self.range})")
             return False
         
-        # Check line of sight
+        # Check line of sight from the correct position
         if not game.has_line_of_sight(from_y, from_x, to_y, to_x):
             logger.debug("Estrange failed: no line of sight to target")
             return False
