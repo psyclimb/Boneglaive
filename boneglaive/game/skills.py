@@ -2729,7 +2729,7 @@ class EstrangeSkill(ActiveSkill):
         super().__init__(
             name="Estrange",
             key="E",
-            description="Fire a beam that phases the target out of normal spacetime. Target receives -1 to all actions permanently and takes 4 damage (ignores defense).",
+            description="Fire a beam that phases the target out of normal spacetime. Target receives -1 to all actions permanently and takes 2 damage (ignores defense).",
             target_type=TargetType.ENEMY,
             cooldown=3,
             range_=5
@@ -2858,7 +2858,7 @@ class EstrangeSkill(ActiveSkill):
             return False
         
         # Apply fixed damage that ignores defense, regardless of immunity
-        damage = 4  # Fixed damage amount
+        damage = 2  # Reduced from 4 to 2
         previous_hp = target_unit.hp
         target_unit.hp = max(0, target_unit.hp - damage)
         
