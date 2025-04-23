@@ -350,7 +350,7 @@ class PrySkill(ActiveSkill):
         # Set cooldown - done immediately when queuing up the action
         self.current_cooldown = self.cooldown
         
-        # Log that the skill has been queued
+        # Log that the skill has been queued (this was already correctly implemented)
         message_log.add_message(
             f"{user.get_display_name()} readies to launch {target.get_display_name()} skyward!",
             MessageType.ABILITY,
@@ -727,6 +727,14 @@ class VaultSkill(ActiveSkill):
         # Set vault target indicator for UI
         user.vault_target_indicator = target_pos
         
+        # Log that the skill has been readied
+        from boneglaive.utils.message_log import message_log, MessageType
+        message_log.add_message(
+            f"{user.get_display_name()} prepares to vault to position ({target_pos[0]}, {target_pos[1]})!",
+            MessageType.ABILITY,
+            player=user.player
+        )
+        
         self.current_cooldown = self.cooldown
         return True
         
@@ -873,6 +881,19 @@ class JudgementThrowSkill(ActiveSkill):
             return False
         user.skill_target = target_pos
         user.selected_skill = self
+        
+        # Get target unit
+        target = game.get_unit_at(target_pos[0], target_pos[1])  
+        
+        # Log that the skill has been readied
+        from boneglaive.utils.message_log import message_log, MessageType
+        message_log.add_message(
+            f"{user.get_display_name()} readies a sacred glaive to throw at {target.get_display_name()}!",
+            MessageType.ABILITY,
+            player=user.player,
+            target_name=target.get_display_name()
+        )
+        
         self.current_cooldown = self.cooldown
         return True
         

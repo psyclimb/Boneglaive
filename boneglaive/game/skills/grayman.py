@@ -72,6 +72,14 @@ class DeltaConfigSkill(ActiveSkill):
         # Set teleport target indicator for UI
         user.teleport_target_indicator = target_pos
         
+        # Log that the skill has been readied
+        from boneglaive.utils.message_log import message_log, MessageType
+        message_log.add_message(
+            f"{user.get_display_name()} prepares to shift to Delta Config ({target_pos[0]}, {target_pos[1]})!",
+            MessageType.ABILITY,
+            player=user.player
+        )
+        
         self.current_cooldown = self.cooldown
         return True
         
@@ -196,6 +204,19 @@ class EstrangeSkill(ActiveSkill):
             return False
         user.skill_target = target_pos
         user.selected_skill = self
+        
+        # Get target unit
+        target = game.get_unit_at(target_pos[0], target_pos[1])  
+        
+        # Log that the skill has been readied
+        from boneglaive.utils.message_log import message_log, MessageType
+        message_log.add_message(
+            f"{user.get_display_name()} charges the estrangement beam targeting {target.get_display_name()}!",
+            MessageType.ABILITY,
+            player=user.player,
+            target_name=target.get_display_name()
+        )
+        
         self.current_cooldown = self.cooldown
         return True
         
@@ -405,6 +426,14 @@ class GraeExchangeSkill(ActiveSkill):
         
         # Set teleport target indicator for UI
         user.teleport_target_indicator = target_pos
+        
+        # Log that the skill has been readied
+        from boneglaive.utils.message_log import message_log, MessageType
+        message_log.add_message(
+            f"{user.get_display_name()} initiates the Græ Exchange ritual targeting position ({target_pos[0]}, {target_pos[1]})!",
+            MessageType.ABILITY,
+            player=user.player
+        )
         
         self.current_cooldown = self.cooldown
         return True
