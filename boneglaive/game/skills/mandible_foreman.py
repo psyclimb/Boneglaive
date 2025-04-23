@@ -47,11 +47,65 @@ class DischargeSkill(ActiveSkill):
         self.trap_damage = 6
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        """Check if Expedite can be used to the target position."""
         # Basic validation
         if not super().can_use(user, target_pos, game):
             return False
         if not game or not target_pos:
             return False
+            
+        # Check if position is valid
+        if not game.is_valid_position(target_pos[0], target_pos[1]):
+            return False
+            
+        # Calculate vector components to ensure this is a straight line
+        # Expedite only works in cardinal directions (horizontal, vertical, or diagonal)
+        delta_y = target_pos[0] - user.y
+        delta_x = target_pos[1] - user.x
+        
+        # Zero delta means targeting same position - disallow this
+        if delta_y == 0 and delta_x == 0:
+            return False
+            
+        # Check if movement is along a straight line (cardinal or diagonal direction)
+        # This is true if one component is zero or if both have the same absolute value
+        is_straight_line = (delta_y == 0 or delta_x == 0 or abs(delta_y) == abs(delta_x))
+        if not is_straight_line:
+            return False
+            
+        # Calculate path from user to target
+        from boneglaive.utils.coordinates import get_line, Position
+        path = get_line(Position(user.y, user.x), Position(target_pos[0], target_pos[1]))
+        
+        # Check if path is within range
+        if len(path) > self.range + 1:  # +1 because path includes starting position
+            return False
+            
+        # Check line of sight - cannot rush through impassable terrain
+        # Skip first position (user's current position)
+        for pos in path[1:]:
+            # If we've reached the target, we're done checking
+            if (pos.y, pos.x) == target_pos:
+                break
+                
+            # Check if this position is impassable
+            if not game.map.is_passable(pos.y, pos.x):
+                return False
+                
+            # Check if there's a unit blocking the path (we can only target tiles beyond enemies)
+            # But this is valid - we'll stop at the enemy in the execute method
+            blocking_unit = game.get_unit_at(pos.y, pos.x)
+            if blocking_unit:
+                # If we hit an enemy, this is actually the first valid target
+                # We'll stop here in the execute method
+                if blocking_unit.player != user.player:
+                    # Target position should be updated to this position
+                    # But we don't modify it here, just allow the skill
+                    break
+                # If we hit an ally, this is invalid - can't rush through allies
+                else:
+                    return False
+        
         return True
             
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
@@ -59,6 +113,24 @@ class DischargeSkill(ActiveSkill):
             return False
         user.skill_target = target_pos
         user.selected_skill = self
+        
+        # Create a property on the unit to track the expedite path for UI
+        # We'll store all the positions in the path for visualization
+        from boneglaive.utils.coordinates import get_line, Position
+        path = get_line(Position(user.y, user.x), Position(target_pos[0], target_pos[1]))
+        
+        # Store path positions (excluding current position) with UI indicator
+        path_positions = [(pos.y, pos.x) for pos in path[1:]]
+        user.expedite_path_indicator = path_positions
+        
+        # Log that the skill has been readied
+        from boneglaive.utils.message_log import message_log, MessageType
+        message_log.add_message(
+            f"{user.get_display_name()} readies to expedite to position ({target_pos[0]}, {target_pos[1]})!",
+            MessageType.ABILITY,
+            player=user.player
+        )
+        
         self.current_cooldown = self.cooldown
         return True
         
@@ -67,6 +139,9 @@ class DischargeSkill(ActiveSkill):
         from boneglaive.utils.message_log import message_log, MessageType
         import time
         import curses
+        
+        # Clear the expedite path indicator
+        user.expedite_path_indicator = None
         
         # Store original position
         original_pos = (user.y, user.x)
@@ -298,6 +373,14 @@ class SiteInspectionSkill(ActiveSkill):
         # Set site inspection target indicator for UI
         user.site_inspection_indicator = target_pos
         
+        # Log that the skill has been readied
+        from boneglaive.utils.message_log import message_log, MessageType
+        message_log.add_message(
+            f"{user.get_display_name()} prepares to inspect the site around ({target_pos[0]}, {target_pos[1]})!",
+            MessageType.ABILITY,
+            player=user.player
+        )
+        
         self.current_cooldown = self.cooldown
         return True
         
@@ -469,6 +552,15 @@ class JawlineSkill(ActiveSkill):
             return False
         user.skill_target = target_pos
         user.selected_skill = self
+        
+        # Log that the skill has been readied
+        from boneglaive.utils.message_log import message_log, MessageType
+        message_log.add_message(
+            f"{user.get_display_name()} prepares to deploy a JAWLINE network!",
+            MessageType.ABILITY,
+            player=user.player
+        )
+        
         self.current_cooldown = self.cooldown
         return True
         
