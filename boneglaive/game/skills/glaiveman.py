@@ -708,15 +708,112 @@ class VaultSkill(ActiveSkill):
         return True
         
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
-        # Simple implementation for minimal functionality
-        original_pos = (user.y, user.x)
-        user.y, user.x = target_pos
+        """Execute the Vault skill to leap over obstacles to a target position."""
         from boneglaive.utils.message_log import message_log, MessageType
+        import time
+        
+        # Store original position for animations
+        original_pos = (user.y, user.x)
+        
+        # Log the skill activation
+        message_log.add_message(
+            f"{user.get_display_name()} prepares to vault!",
+            MessageType.ABILITY,
+            player=user.player
+        )
+        
+        # Play animation if UI is available
+        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+            # Get vault animation sequence
+            vault_animation = ui.asset_manager.get_skill_animation_sequence('vault')
+            if not vault_animation:
+                vault_animation = ['^', 'Λ', '↑', '↟', '↑']  # Fallback
+                
+            # Get landing animation sequence
+            landing_animation = ui.asset_manager.get_skill_animation_sequence('vault_impact')
+            if not landing_animation:
+                landing_animation = ['↓', 'v', 'V', '*', '.']  # Fallback
+                
+            # Show preparation animation at original position
+            ui.renderer.animate_attack_sequence(
+                original_pos[0], original_pos[1],
+                vault_animation,
+                7,  # white color
+                0.12  # duration
+            )
+            
+            # Calculate path for visual effect (simplified - just a line)
+            from boneglaive.utils.coordinates import get_line, Position
+            path = get_line(Position(original_pos[0], original_pos[1]), Position(target_pos[0], target_pos[1]))
+            
+            # If path has intermediate points, show arc animation
+            if len(path) > 2:  # More than just start and end
+                # Get middle positions of path to show arc
+                mid_positions = path[1:-1]  # Skip first (start) and last (end) positions
+                
+                # Create arc visuals with ascending/descending characters
+                arc_chars = []
+                
+                # First half ascending
+                for i in range(len(mid_positions) // 2):
+                    arc_chars.append('↑')
+                
+                # Apex
+                if len(mid_positions) % 2 == 1:  # If odd number of midpoints
+                    arc_chars.append('↟')
+                    
+                # Second half descending
+                for i in range((len(mid_positions) + 1) // 2, len(mid_positions)):
+                    arc_chars.append('↓')
+                
+                # Show arc animation along path midpoints
+                for i, pos in enumerate(mid_positions):
+                    char = arc_chars[i] if i < len(arc_chars) else '⋅'
+                    ui.renderer.draw_tile(pos.y, pos.x, char, 7)  # White color
+                    ui.renderer.refresh()
+                    time.sleep(0.08)
+            
+            # Temporarily hide the unit
+            temp_y, temp_x = user.y, user.x
+            user.y, user.x = -999, -999  # Move off-screen
+            
+            # Redraw to show unit is gone from original position
+            if hasattr(ui, 'draw_board'):
+                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+                
+            # Show landing animation at target position
+            ui.renderer.animate_attack_sequence(
+                target_pos[0], target_pos[1],
+                landing_animation,
+                7,  # white color
+                0.12  # duration
+            )
+            
+            # Move user to target position
+            user.y, user.x = target_pos
+            
+            # Redraw board after animations
+            if hasattr(ui, 'draw_board'):
+                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+                
+            # Flash the unit to emphasize landing
+            if hasattr(ui, 'asset_manager'):
+                tile_ids = [ui.asset_manager.get_unit_tile(user.type)] * 4
+                color_ids = [7, 3 if user.player == 1 else 4] * 2  # Alternate white with player color
+                durations = [0.1] * 4
+                
+                ui.renderer.flash_tile(user.y, user.x, tile_ids, color_ids, durations)
+        else:
+            # No UI, just set position without animations
+            user.y, user.x = target_pos
+        
+        # Log the completion of vault
         message_log.add_message(
             f"{user.get_display_name()} vaults to position ({target_pos[0]}, {target_pos[1]})!",
             MessageType.ABILITY,
             player=user.player
         )
+        
         return True
 
 
@@ -754,20 +851,140 @@ class JudgementThrowSkill(ActiveSkill):
         return True
         
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
-        # Simple implementation for minimal functionality
+        """Execute the Judgement Throw skill to hurl a sacred spinning glaive."""
+        from boneglaive.utils.message_log import message_log, MessageType
+        import time
+        import curses
+        
+        # Get target unit
         target = game.get_unit_at(target_pos[0], target_pos[1])
         if not target:
             return False
             
-        from boneglaive.utils.message_log import message_log, MessageType
-        # Apply damage
-        target.hp = max(0, target.hp - self.damage)
+        # Log the skill activation
+        message_log.add_message(
+            f"{user.get_display_name()} hurls a sacred glaive!",
+            MessageType.ABILITY,
+            player=user.player,
+            attacker_name=user.get_display_name()
+        )
+        
+        # Play animation if UI is available
+        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+            # Get the animation sequence
+            throw_animation = ui.asset_manager.get_skill_animation_sequence('judgement_throw')
+            if not throw_animation:
+                throw_animation = ['*', '↺', '↻', '⚡', '⚓', '⊕']  # Fallback
+                
+            # Get critical animation
+            critical_animation = ui.asset_manager.get_skill_animation_sequence('judgement_critical')
+            if not critical_animation:
+                critical_animation = ['⚡', '⌁', '⌁', '⚡', '※']  # Fallback
+                
+            # Get the path from user to target
+            from boneglaive.utils.coordinates import get_line, Position
+            path = get_line(Position(user.y, user.x), Position(target.y, target.x))
+            
+            # Show a wind-up animation at user position first (first frame)
+            ui.renderer.draw_tile(user.y, user.x, throw_animation[0], 7)  # White color
+            ui.renderer.refresh()
+            time.sleep(0.15)
+            
+            # Show the throw motion (next two frames)
+            for i in range(1, 3):
+                if i < len(throw_animation):
+                    ui.renderer.draw_tile(user.y, user.x, throw_animation[i], 7)
+                    ui.renderer.refresh()
+                    time.sleep(0.1)
+            
+            # Animate the glaive moving along the path
+            # Skip first (user) position in the path
+            for i, pos in enumerate(path[1:]):
+                # Use spinning frames for the traveling glaive
+                frame_index = (i % 2) + 3  # Use frames 3 and 4, alternating
+                if frame_index < len(throw_animation):
+                    char = throw_animation[frame_index]
+                else:
+                    char = '⊕'  # Default spinning glaive character
+                
+                # Draw the glaive at this position
+                ui.renderer.draw_tile(pos.y, pos.x, char, 7)  # White color
+                ui.renderer.refresh()
+                
+                # Clear previous position if not the first step
+                if i > 0:
+                    prev_pos = path[i]  # Get previous position
+                    ui.renderer.draw_tile(prev_pos.y, prev_pos.x, ' ', 7)
+                
+                time.sleep(0.08)  # Fast travel for the glaive
+                
+                # If we've reached the target, stop
+                if pos.y == target.y and pos.x == target.x:
+                    break
+            
+            # Show impact at target position
+            if len(throw_animation) >= 6:
+                ui.renderer.animate_attack_sequence(
+                    target.y, target.x,
+                    [throw_animation[5]],  # Last frame for impact
+                    5,  # Reddish color
+                    0.2  # duration
+                )
+                
+            # Show critical animation (lightning effect) for piercing damage
+            ui.renderer.animate_attack_sequence(
+                target.y, target.x,
+                critical_animation,
+                6,  # Yellowish color
+                0.12  # duration
+            )
+            
+            # Flash the target to show impact
+            if hasattr(ui, 'asset_manager'):
+                tile_ids = [ui.asset_manager.get_unit_tile(target.type)] * 4
+                color_ids = [5, 3 if target.player == 1 else 4] * 2  # Alternate red with player color
+                durations = [0.1] * 4
+                
+                ui.renderer.flash_tile(target.y, target.x, tile_ids, color_ids, durations)
+        
+        # Apply damage (piercing - ignores defense)
+        damage = self.damage  # Full damage, no defense reduction
+        previous_hp = target.hp
+        target.hp = max(0, target.hp - damage)
+        
+        # Log the damage
         message_log.add_combat_message(
             attacker_name=user.get_display_name(),
             target_name=target.get_display_name(),
-            damage=self.damage,
+            damage=damage,
             ability="Judgement Throw",
             attacker_player=user.player,
             target_player=target.player
         )
+        
+        # Show damage number if UI is available
+        if ui and hasattr(ui, 'renderer'):
+            damage_text = f"-{damage}"
+            
+            for i in range(3):
+                ui.renderer.draw_text(target.y-1, target.x*2, " " * len(damage_text), 7)
+                attrs = curses.A_BOLD if i % 2 == 0 else 0
+                ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, attrs)
+                ui.renderer.refresh()
+                time.sleep(0.1)
+        
+        # Check if target was defeated
+        if target.hp <= 0:
+            message_log.add_message(
+                f"{target.get_display_name()} perishes!",
+                MessageType.COMBAT,
+                player=user.player,
+                target=target.player,
+                target_name=target.get_display_name()
+            )
+            
+        # Redraw the board after animations
+        if ui and hasattr(ui, 'draw_board'):
+            ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+            
         return True
