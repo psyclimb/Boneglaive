@@ -81,7 +81,8 @@ class AssetManager:
         
         # Add animation sequence tiles for each attack type (using simple ASCII)
         self.animation_sequences = {
-            'glaiveman_attack': ['\\', '|', '/', '-', '⚔', '-', '/', '|', '\\'],
+            'glaiveman_attack': ['\\', '|', '/', '-', '⚔', '-', '/', '|', '\\'],  # Melee range 1 attack
+            'glaiveman_extended_attack': ['/', '―', '\\', '|', '─', '─', '─', '═', '→', '⚔'],  # Extended range 2 attack
             'archer_attack': ['.', '>', '-', '>', '->'],
             'mage_attack': ['.', '*', '*', '*', '*'],
             'mandible_foreman_attack': ['<', '[', '{', 'Ξ', '}', ']', '>'],  # Jaws opening and closing animation
@@ -150,6 +151,7 @@ class AssetManager:
         # Add animation sequences for graphical mode too
         self.animation_sequences = {
             'glaiveman_attack': ['glaiveman_attack_1.png', 'glaiveman_attack_2.png', 'glaiveman_attack_3.png'],
+            'glaiveman_extended_attack': ['glaiveman_extend_1.png', 'glaiveman_extend_2.png', 'glaiveman_extend_3.png', 'glaiveman_extend_4.png', 'glaiveman_extend_5.png'],
             'archer_attack': ['archer_attack_1.png', 'archer_attack_2.png', 'archer_attack_3.png'],
             'mage_attack': ['mage_attack_1.png', 'mage_attack_2.png', 'mage_attack_3.png'],
             'mandible_foreman_attack': ['mandible_attack_1.png', 'mandible_attack_2.png', 'mandible_attack_3.png', 'mandible_attack_4.png'],
