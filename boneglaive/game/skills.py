@@ -1939,14 +1939,14 @@ class JawlineSkill(ActiveSkill):
         super().__init__(
             name="Jawline",
             key="J",
-            description="Deploy network of mechanical jaws in 3x3 area around yourself. Deals 3 damage (reduced by defense) and reduces enemy movement by 1 for 3 turns.",
+            description="Deploy network of mechanical jaws in 3x3 area around yourself. Deals 4 damage (reduced by defense) and reduces enemy movement by 1 for 3 turns.",
             target_type=TargetType.SELF,  # Self-centered AoE
             cooldown=5,
             range_=0,  # No range as it's centered on self
             area=1  # 3x3 area (center + 1 in each direction)
         )
         self.effect_duration = 3  # Duration in turns
-        self.damage = 3  # Base damage dealt to units caught in the effect (before defense)
+        self.damage = 4  # Base damage dealt to units caught in the effect (before defense)
         
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Check if Jawline can be used."""
