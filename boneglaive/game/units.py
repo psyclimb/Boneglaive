@@ -6,7 +6,7 @@ from typing import List, Dict, Optional, Tuple, TYPE_CHECKING
 from boneglaive.utils.constants import UNIT_STATS, UnitType, MAX_LEVEL, XP_PER_LEVEL
 
 if TYPE_CHECKING:
-    from boneglaive.game.skills import Skill, PassiveSkill, ActiveSkill
+    from boneglaive.game.skills.core import Skill, PassiveSkill, ActiveSkill
     from boneglaive.game.engine import Game
 
 class Unit:
@@ -81,7 +81,7 @@ class Unit:
     def initialize_skills(self) -> None:
         """Initialize skills for this unit based on its type."""
         # Avoid circular imports
-        from boneglaive.game.skills import UNIT_SKILLS
+        from boneglaive.game.skills.registry import UNIT_SKILLS
         
         # Get skills from registry if available
         unit_type_name = self.type.name
