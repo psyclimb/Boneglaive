@@ -440,6 +440,34 @@ class UIRenderer:
                                 # Use the center square for the target and dots for the surrounding area
                                 self.renderer.draw_tile(y, x, tile, color_id, attr)
                             continue
+                            
+                # Check if this position is in a Jawline network area
+                for u in self.game_ui.game.units:
+                    if u.is_alive() and u.selected_skill and hasattr(u.selected_skill, 'name') and \
+                       u.selected_skill.name == "Jawline" and u.jawline_indicator is not None:
+                        target_y, target_x = u.jawline_indicator
+                        
+                        # Check if this position is within the 3x3 area of Jawline
+                        in_area = (abs(y - target_y) <= 1 and abs(x - target_x) <= 1)
+                        # Skip center (that's the user's position)
+                        if (y, x) == (target_y, target_x):
+                            continue
+                            
+                        if in_area:
+                            # Draw jawline indicator - use mandible symbol for surrounding tiles
+                            tile = "Ξ"  # Mandible symbol for jawline network
+                            color_id = 3 if u.player == 1 else 4  # Color based on player
+                            
+                            # Check if cursor is here
+                            is_cursor_here = (pos == cursor_manager.cursor_pos and show_cursor)
+                            
+                            if is_cursor_here:
+                                # Draw with cursor color 
+                                self.renderer.draw_tile(y, x, tile, 2, curses.A_BOLD)
+                            else:
+                                # Draw the jawline indicator
+                                self.renderer.draw_tile(y, x, tile, color_id, 0)
+                            continue
                 
                 # Check if position is highlighted for movement, attack, or skill
                 if pos in cursor_manager.highlighted_positions:

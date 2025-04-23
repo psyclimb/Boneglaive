@@ -553,6 +553,9 @@ class JawlineSkill(ActiveSkill):
         user.skill_target = target_pos
         user.selected_skill = self
         
+        # Set jawline indicator for UI
+        user.jawline_indicator = target_pos
+        
         # Log that the skill has been readied
         from boneglaive.utils.message_log import message_log, MessageType
         message_log.add_message(
@@ -569,6 +572,9 @@ class JawlineSkill(ActiveSkill):
         from boneglaive.utils.message_log import message_log, MessageType
         import time
         import curses
+        
+        # Clear the jawline indicator after execution
+        user.jawline_indicator = None
         
         # Log the skill activation
         message_log.add_message(
