@@ -86,10 +86,15 @@ class MultiplayerManager:
             
             # Set the game reference so the AI can interact with it
             if result:
+                # Make sure we give the AI interface a reference to the game
                 self.network_interface.set_game(self.game)
                 # Mark the game as being in local multiplayer mode (for turn handling)
                 self.game.local_multiplayer = True
                 logger.info(f"AI interface initialized with difficulty: {ai_difficulty}")
+                # Log current player state for debugging
+                logger.debug(f"Current player in game: {self.game.current_player}")
+                logger.debug(f"AI player: {self.network_interface.ai_player_number}")
+                logger.debug(f"Human player: {self.network_interface.human_player_number}")
                 
             return result
             
