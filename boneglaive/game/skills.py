@@ -143,74 +143,87 @@ class Autoclave(PassiveSkill):
             description="When wretched or damaged while at critical health, unleashes a cross-shaped attack in four directions (range 3) and heals for half the damage dealt. One-time use. Requires enemy in range."
         )
         self.activated = False  # Track if this skill has been used
-        self.ready_to_trigger = False  # Flag for when conditions are met to trigger
         
     def apply_passive(self, user: 'Unit', game: Optional['Game'] = None) -> None:
         """
         Apply the Autoclave passive effect.
-        Triggers when a unit is brought to critical health but not killed.
+        This method is kept for backward compatibility and as a fallback check.
         """
+        from boneglaive.utils.debug import logger
+        from boneglaive.utils.constants import CRITICAL_HEALTH_PERCENT
+        
+        # If already activated or no game, skip
         if self.activated or not game:
             return
             
-        # Check if the unit is in critical health
-        from boneglaive.utils.constants import CRITICAL_HEALTH_PERCENT
+        # Check if the unit is in critical health - one more chance to trigger if missed
         critical_threshold = int(user.max_hp * CRITICAL_HEALTH_PERCENT)
         
-        if user.hp <= critical_threshold and self.ready_to_trigger:
-            # Check if there are any eligible targets before triggering
-            if self._has_eligible_targets(user, game):
-                # This means the unit just entered critical health this turn and has targets
-                self._trigger_autoclave(user, game)
-                # Mark as activated so it can't be used again
-                self.activated = True
-            else:
-                # No eligible targets, don't trigger the skill but keep it ready
-                from boneglaive.utils.message_log import message_log, MessageType
-                message_log.add_message(
-                    f"GLAIVEMAN's Autoclave fails to activate - no targets in range!",
-                    MessageType.ABILITY,
-                    player=user.player
-                )
-                
-            # Reset ready flag regardless
-            self.ready_to_trigger = False
+        if user.hp <= critical_threshold:
+            logger.debug(f"Fallback check for Autoclave in apply_passive for {user.get_display_name()}")
             
+            # Try to trigger now via the new system if there are targets
+            if hasattr(game, 'try_trigger_autoclave'):
+                game.try_trigger_autoclave(user)
+            # If game doesn't have the new method (fallback for compatibility), use old logic
+            elif self._has_eligible_targets(user, game) and not self.activated:
+                logger.debug("Using legacy fallback method to trigger Autoclave")
+                self._trigger_autoclave(user, game)
+                self.activated = True
+        
     def mark_ready_to_trigger(self) -> None:
-        """Mark the skill as ready to trigger on the next apply_passive call."""
-        if not self.activated:
-            self.ready_to_trigger = True
+        """
+        Legacy method kept for backward compatibility.
+        The new system uses direct triggering instead of this two-step process.
+        """
+        # Only log that this deprecated method was called
+        from boneglaive.utils.debug import logger
+        logger.debug("Deprecated mark_ready_to_trigger called for Autoclave. This method is now a no-op.")
             
     def _has_eligible_targets(self, user: 'Unit', game: 'Game') -> bool:
         """Check if there are any eligible targets for Autoclave."""
+        from boneglaive.utils.debug import logger
+        
         # Define the four directions (up, right, down, left)
         directions = [(-1, 0), (0, 1), (1, 0), (0, -1)]
         
         # Check each direction up to range 3
-        for dy, dx in directions:
+        for direction_idx, (dy, dx) in enumerate(directions):
+            direction_name = ["upward", "rightward", "downward", "leftward"][direction_idx]
+            logger.debug(f"Checking {direction_name} direction for Autoclave targets")
+            
             for distance in range(1, 4):  # Range 1-3
                 target_y = user.y + (dy * distance)
                 target_x = user.x + (dx * distance)
                 
                 # Check if position is valid
                 if not game.is_valid_position(target_y, target_x):
+                    logger.debug(f"Position ({target_y},{target_x}) is out of bounds, skipping")
                     continue
                 
                 # Check if terrain is passable - stop checking this direction if we hit terrain
                 if not game.map.is_passable(target_y, target_x):
+                    logger.debug(f"Terrain at ({target_y},{target_x}) blocks Autoclave path, stopping this direction")
                     break
                     
                 # Check if there's an enemy unit at this position
                 target = game.get_unit_at(target_y, target_x)
                 if target and target.player != user.player:
+                    logger.debug(f"Found eligible Autoclave target: {target.get_display_name()} at ({target_y},{target_x})")
                     return True  # Found at least one eligible target
+                
+                logger.debug(f"No target at ({target_y},{target_x}), continuing search")
                     
+        logger.debug("No eligible targets found for Autoclave in any direction")
         return False  # No eligible targets found
             
-    def _trigger_autoclave(self, user: 'Unit', game: 'Game') -> None:
+    def _trigger_autoclave(self, user: 'Unit', game: 'Game', ui=None) -> None:
         """Execute the Autoclave retaliation effect."""
         from boneglaive.utils.message_log import message_log, MessageType
+        from boneglaive.utils.debug import logger
         import time
+        
+        logger.debug(f"EXECUTING AUTOCLAVE for {user.get_display_name()}")
         
         message_log.add_message(
             f"{user.get_display_name()}'s Autoclave activates!",
@@ -218,9 +231,11 @@ class Autoclave(PassiveSkill):
             player=user.player
         )
         
-        # Get animation component from the game UI if available
-        # We need to check if the game has a ui attribute since some tests may not have it
-        ui = getattr(game, 'ui', None)
+        # Use passed UI parameter if provided, otherwise check the game for one
+        if ui is None:
+            # Get animation component from the game UI if available
+            # We need to check if the game has a ui attribute since some tests may not have it
+            ui = getattr(game, 'ui', None)
         
         # Define the four directions (up, right, down, left)
         directions = [(-1, 0), (0, 1), (1, 0), (0, -1)]

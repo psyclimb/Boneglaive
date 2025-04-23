@@ -847,18 +847,13 @@ class Game:
                             target_name=target.get_display_name()
                         )
                         
-                        # Check if target is a GLAIVEMAN and has the Autoclave passive
-                        if target.type == UnitType.GLAIVEMAN and target.passive_skill and \
-                           target.passive_skill.name == "Autoclave":
-                            # Mark Autoclave as ready to trigger during the apply_passive_skills phase
-                            target.passive_skill.mark_ready_to_trigger()
+                        # Directly try to trigger Autoclave for the target
+                        self.try_trigger_autoclave(target, ui)
+                        
                     # Check if target is already in critical health and took more damage - also trigger Autoclave
                     elif previous_hp <= critical_threshold and target.hp <= critical_threshold and target.hp > 0:
-                        # Check if target is a GLAIVEMAN and has the Autoclave passive
-                        if target.type == UnitType.GLAIVEMAN and target.passive_skill and \
-                           target.passive_skill.name == "Autoclave":
-                            # Mark Autoclave as ready to trigger during the apply_passive_skills phase
-                            target.passive_skill.mark_ready_to_trigger()
+                        # Directly try to trigger Autoclave for the target
+                        self.try_trigger_autoclave(target, ui)
                 else:
                     # Log invalid attack attempts for debugging
                     if not target:
@@ -1074,6 +1069,62 @@ class Game:
             if self.current_player == 1:
                 self.turn += 1
     
+    def try_trigger_autoclave(self, target_unit, ui=None):
+        """Try to trigger Autoclave if conditions are met."""
+        from boneglaive.utils.debug import logger
+        from boneglaive.utils.message_log import message_log, MessageType
+        from boneglaive.utils.constants import UnitType, CRITICAL_HEALTH_PERCENT
+        
+        logger.debug(f"Checking Autoclave trigger for {target_unit.get_display_name()}")
+        
+        # Skip if not a GLAIVEMAN or already activated
+        if target_unit.type != UnitType.GLAIVEMAN:
+            logger.debug("Not a GLAIVEMAN, skipping Autoclave check")
+            return False
+            
+        if not target_unit.passive_skill or target_unit.passive_skill.name != "Autoclave":
+            logger.debug("No Autoclave passive skill, skipping")
+            return False
+            
+        if target_unit.passive_skill.activated:
+            logger.debug("Autoclave already activated, skipping")
+            return False
+        
+        # Check if unit is in critical health
+        critical_threshold = int(target_unit.max_hp * CRITICAL_HEALTH_PERCENT)
+        if target_unit.hp > critical_threshold:
+            logger.debug(f"Unit not in critical health ({target_unit.hp} > {critical_threshold}), skipping Autoclave")
+            return False
+        
+        logger.debug("Checking for eligible Autoclave targets...")
+        # Check for eligible targets
+        if not target_unit.passive_skill._has_eligible_targets(target_unit, self):
+            logger.debug("No eligible targets for Autoclave, aborting")
+            message_log.add_message(
+                f"{target_unit.get_display_name()}'s Autoclave fails to activate - no targets in range!",
+                MessageType.ABILITY,
+                player=target_unit.player
+            )
+            
+            # Visual feedback if UI is available
+            if ui and hasattr(ui, 'renderer'):
+                # Show failed activation animation
+                failed_animation = ['!', '?', '!']
+                ui.renderer.animate_attack_sequence(
+                    target_unit.y, target_unit.x,
+                    failed_animation,
+                    6,  # yellowish color for warning
+                    0.2  # duration
+                )
+            
+            return False
+        
+        logger.debug("TRIGGERING AUTOCLAVE!")
+        # Trigger the effect immediately
+        target_unit.passive_skill._trigger_autoclave(target_unit, self, ui)
+        target_unit.passive_skill.activated = True
+        return True
+    
     def check_game_over(self):
         player1_alive = any(unit.is_alive() and unit.player == 1 for unit in self.units)
         player2_alive = any(unit.is_alive() and unit.player == 2 for unit in self.units)
@@ -1153,18 +1204,13 @@ class Game:
                         target_name=unit.get_display_name()
                     )
                     
-                    # Check if target is a GLAIVEMAN and has the Autoclave passive
-                    if unit.type == UnitType.GLAIVEMAN and unit.passive_skill and \
-                       unit.passive_skill.name == "Autoclave":
-                        # Mark Autoclave as ready to trigger during the apply_passive_skills phase
-                        unit.passive_skill.mark_ready_to_trigger()
+                    # Directly try to trigger Autoclave for the trapped unit
+                    self.try_trigger_autoclave(unit, ui)
+                    
                 # Check if target is already in critical health and took more damage
                 elif previous_hp <= critical_threshold and unit.hp <= critical_threshold and unit.hp > 0:
-                    # Check if target is a GLAIVEMAN and has the Autoclave passive
-                    if unit.type == UnitType.GLAIVEMAN and unit.passive_skill and \
-                       unit.passive_skill.name == "Autoclave":
-                        # Mark Autoclave as ready to trigger during the apply_passive_skills phase
-                        unit.passive_skill.mark_ready_to_trigger()
+                    # Directly try to trigger Autoclave for the trapped unit
+                    self.try_trigger_autoclave(unit, ui)
                 
                 # Show damage number if UI is available
                 if ui and hasattr(ui, 'renderer'):
