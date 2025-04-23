@@ -1671,22 +1671,38 @@ class GameModeManager(UIComponent):
         # Confirm the current player's setup
         game_start = self.game_ui.game.confirm_setup()
         
+        # No special handling for VS_AI mode yet - it's not implemented
+        is_vs_ai_mode = False
+        
         # Add appropriate status message through event system
         if setup_player == 1:
-            self.publish_event(
-                EventType.MESSAGE_DISPLAY_REQUESTED,
-                MessageDisplayEventData(
-                    message="Setup confirmed. Player 2's turn to place units.",
-                    message_type=MessageType.SYSTEM
+            # No special setup for AI mode yet (would be implemented here)
+            
+            # Show game start message if game is started
+            if game_start:
+                self.publish_event(
+                    EventType.MESSAGE_DISPLAY_REQUESTED,
+                    MessageDisplayEventData(
+                        message="Game begins! Player 1's turn",
+                        message_type=MessageType.SYSTEM
+                        )
+                    )
+            else:
+                # Normal local multiplayer mode
+                self.publish_event(
+                    EventType.MESSAGE_DISPLAY_REQUESTED,
+                    MessageDisplayEventData(
+                        message="Setup confirmed. Player 2's turn to place units.",
+                        message_type=MessageType.SYSTEM
+                    )
                 )
-            )
-            # Start player 2 with cursor in center
-            self.game_ui.cursor_manager.cursor_pos = Position(HEIGHT // 2, WIDTH // 2)
-            # Publish cursor moved event
-            self.publish_event(
-                EventType.CURSOR_MOVED, 
-                CursorMovedEventData(position=self.game_ui.cursor_manager.cursor_pos)
-            )
+                # Start player 2 with cursor in center
+                self.game_ui.cursor_manager.cursor_pos = Position(HEIGHT // 2, WIDTH // 2)
+                # Publish cursor moved event
+                self.publish_event(
+                    EventType.CURSOR_MOVED, 
+                    CursorMovedEventData(position=self.game_ui.cursor_manager.cursor_pos)
+                )
         elif game_start:
             self.publish_event(
                 EventType.MESSAGE_DISPLAY_REQUESTED,
@@ -1701,6 +1717,12 @@ class GameModeManager(UIComponent):
             EventType.UI_REDRAW_REQUESTED,
             UIRedrawEventData()
         )
+        
+    # This function would be implemented later for AI mode
+    def _placeholder_for_ai_setup(self):
+        """Placeholder for future AI unit auto-setup functionality."""
+        from boneglaive.utils.debug import logger
+        logger.info("AI setup functionality not implemented yet")
         
     def check_confirmation_needed(self):
         """Check if confirmation is needed in setup phase."""

@@ -10,7 +10,8 @@ from boneglaive.game.engine import Game
 from boneglaive.networking.network_interface import NetworkInterface
 from boneglaive.networking.local_multiplayer import LocalMultiplayerInterface
 from boneglaive.networking.lan_multiplayer import LANMultiplayerInterface
-from boneglaive.ai.ai_interface import AIInterface
+# AI interface is not available yet
+# from boneglaive.ai.ai_interface import AIInterface
 from boneglaive.utils.config import ConfigManager, NetworkMode
 from boneglaive.utils.debug import logger
 
@@ -75,27 +76,18 @@ class MultiplayerManager:
             return result
             
         elif network_mode == NetworkMode.VS_AI.value:
-            # VS AI mode uses AIInterface
-            logger.info("Initializing vs AI mode")
-            ai_difficulty = self.config.get('ai_difficulty')
-            self.network_interface = AIInterface(difficulty=ai_difficulty)
-            
-            # Initialize the AI interface
+            # VS AI mode not implemented yet
+            logger.warning("AI mode is not implemented yet. Falling back to local multiplayer.")
+            # Switch to local multiplayer instead
+            self.network_interface = LocalMultiplayerInterface()
             result = self.network_interface.initialize()
             self.initialized = result
             
-            # Set the game reference so the AI can interact with it
+            # Mark the game as being in local multiplayer mode
             if result:
-                # Make sure we give the AI interface a reference to the game
-                self.network_interface.set_game(self.game)
-                # Mark the game as being in local multiplayer mode (for turn handling)
                 self.game.local_multiplayer = True
-                logger.info(f"AI interface initialized with difficulty: {ai_difficulty}")
-                # Log current player state for debugging
-                logger.debug(f"Current player in game: {self.game.current_player}")
-                logger.debug(f"AI player: {self.network_interface.ai_player_number}")
-                logger.debug(f"Human player: {self.network_interface.human_player_number}")
-                
+                logger.info("Fallback to local multiplayer successful")
+            
             return result
             
         else:

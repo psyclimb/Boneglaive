@@ -75,9 +75,13 @@ class Game:
     
     def setup_initial_units(self):
         """
-        Add predefined units (used for testing only).
-        In normal play, units are placed by players during the setup phase.
+        Add predefined units for a new game.
+        Called when skipping setup phase (testing or AI mode).
+        In normal human play, units are placed by players during the setup phase.
         """
+        from boneglaive.utils.debug import logger
+        logger.info("Setting up initial units (skipping setup phase)")
+        
         # Clear any existing units
         self.units = []
         
@@ -85,6 +89,7 @@ class Game:
         valid_positions = []
         
         # Check left side for player 1
+        logger.info("Finding positions for player 1 units")
         for y in range(3, 7):
             for x in range(5, 9):
                 if self.map.can_place_unit(y, x):
@@ -95,6 +100,7 @@ class Game:
                 break
                 
         # Check right side for player 2
+        logger.info("Finding positions for player 2 units")
         p2_positions = []
         for y in range(3, 7):
             for x in range(11, 15):
@@ -106,15 +112,25 @@ class Game:
                 break
                 
         valid_positions.extend(p2_positions)
+        logger.info(f"Found {len(valid_positions)} valid positions for units")
         
         # Place units at valid positions
         for player, y, x in valid_positions:
-            self.add_unit(UnitType.GLAIVEMAN, player, y, x)
+            # Determine unit type - in VS_AI mode, make player 2 have some variety
+            unit_type = UnitType.GLAIVEMAN
+            
+            # For variety, we could add different unit types for player 2 in the future
+            # Currently all units are GLAIVEMAN type
+            
+            # Add the unit with the selected type
+            self.add_unit(unit_type, player, y, x)
+            logger.info(f"Added {unit_type.name} for player {player} at ({y}, {x})")
         
         # If we couldn't find enough valid positions, add some emergency units
         # at fixed positions (shouldn't happen with our current map)
         if len(self.units) < 6:
             missing = 6 - len(self.units)
+            logger.warning(f"Not enough valid positions found. Adding {missing} emergency units.")
             emergency_positions = [
                 (1, 1, 1), (1, 1, 2), (1, 1, 3),
                 (2, 8, 16), (2, 8, 17), (2, 8, 18)
@@ -124,6 +140,11 @@ class Game:
                 player, y, x = emergency_positions[i]
                 self.add_unit(UnitType.GLAIVEMAN, player, y, x)
         
+        # Count units for both players
+        p1_units = sum(1 for unit in self.units if unit.player == 1)
+        p2_units = sum(1 for unit in self.units if unit.player == 2)
+        logger.info(f"Total units setup: Player 1: {p1_units}, Player 2: {p2_units}")
+        
         # Assign Greek identifiers
         self._assign_greek_identifiers()
         
@@ -132,6 +153,7 @@ class Game:
         self.setup_player = 1
         self.setup_confirmed = {1: True, 2: True}
         self.setup_units_remaining = {1: 0, 2: 0}
+        logger.info("Setup phase skipped, game ready to begin")
         
     def place_setup_unit(self, y, x, unit_type=UnitType.GLAIVEMAN):
         """
