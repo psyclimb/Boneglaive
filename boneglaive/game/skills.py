@@ -1213,7 +1213,8 @@ class JudgementThrowSkill(ActiveSkill):
     """
     Active skill for GLAIVEMAN.
     The GLAIVEMAN throws a sacred spinning glaive up to a range of 3 at an enemy unit.
-    This deals double damage if the enemy is at or below their wretch threshold.
+    This deals piercing damage that ignores defense, and double damage if the enemy 
+    is at or below their wretch threshold.
     When it deals double damage, there is a lightning strike effect on the target.
     """
     
@@ -1221,12 +1222,12 @@ class JudgementThrowSkill(ActiveSkill):
         super().__init__(
             name="Judgement Throw",
             key="J",
-            description="Throw a sacred glaive at an enemy (range 3). Deals double damage if enemy is wretched.",
+            description="Throw a sacred glaive at an enemy (range 3). Deals pierce damage that ignores defense. Double damage if enemy is wretched.",
             target_type=TargetType.ENEMY,
             cooldown=2,
             range_=3
         )
-        self.base_damage = 4  # Base damage amount
+        self.base_damage = 4  # Base damage amount that ignores defense
         self.critical_damage = 8  # Fixed damage amount when critical
         
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
@@ -1367,13 +1368,13 @@ class JudgementThrowSkill(ActiveSkill):
         critical_threshold = int(target.max_hp * CRITICAL_HEALTH_PERCENT)
         is_critical = target.hp <= critical_threshold
         
-        # Calculate damage
+        # Calculate damage - both regular and critical now bypass defense
         if is_critical:
-            # Critical damage bypasses defense
+            # Critical damage (higher and bypasses defense)
             damage = self.critical_damage
         else:
-            # Regular damage is affected by defense
-            damage = max(1, self.base_damage - target.defense)
+            # Regular damage (also bypasses defense)
+            damage = self.base_damage
             
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
@@ -1492,10 +1493,18 @@ class JudgementThrowSkill(ActiveSkill):
             target_player=target.player
         )
         
-        # Add the special message only for critical hits
+        # Add special messages for both normal and critical hits
         if is_critical:
             message_log.add_message(
                 f"Sacred glaive strikes with divine justice!",
+                MessageType.ABILITY,
+                player=user.player,
+                attacker_name=user.get_display_name(),
+                target_name=target.get_display_name()
+            )
+        else:
+            message_log.add_message(
+                f"Sacred glaive pierces through {target.get_display_name()}'s defenses!",
                 MessageType.ABILITY,
                 player=user.player,
                 attacker_name=user.get_display_name(),
@@ -1922,21 +1931,22 @@ class JawlineSkill(ActiveSkill):
     """
     Active skill for MANDIBLE_FOREMAN.
     Deploys a network of smaller mechanical jaws connected by cables in a 3×3 area
-    around the FOREMAN. All enemy units in the area have their movement reduced
-    and cannot use movement-based skills for a limited time.
+    around the FOREMAN. All enemy units in the area take damage and have their 
+    movement reduced for a limited time.
     """
     
     def __init__(self):
         super().__init__(
             name="Jawline",
             key="J",
-            description="Deploy network of mechanical jaws in 3x3 area around yourself. Reduces enemy movement by 1 and prevents movement skills for 3 turns.",
+            description="Deploy network of mechanical jaws in 3x3 area around yourself. Deals 3 damage (reduced by defense) and reduces enemy movement by 1 for 3 turns.",
             target_type=TargetType.SELF,  # Self-centered AoE
             cooldown=5,
             range_=0,  # No range as it's centered on self
             area=1  # 3x3 area (center + 1 in each direction)
         )
         self.effect_duration = 3  # Duration in turns
+        self.damage = 3  # Base damage dealt to units caught in the effect (before defense)
         
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Check if Jawline can be used."""
@@ -2133,7 +2143,23 @@ class JawlineSkill(ActiveSkill):
         
         # Apply effects to all affected units
         for unit in affected_units:
-            # Check if unit is immune to effects
+            # Deal damage first - applies to all units even those with Stasiality
+            # Account for defense when calculating damage
+            damage = max(1, self.damage - unit.defense)
+            previous_hp = unit.hp
+            unit.hp = max(0, unit.hp - damage)
+            
+            # Log the damage using a combat message
+            message_log.add_combat_message(
+                attacker_name=user.get_display_name(),
+                target_name=unit.get_display_name(),
+                damage=damage,
+                ability="Jawline",
+                attacker_player=user.player,
+                target_player=unit.player
+            )
+            
+            # Check if unit is immune to movement effects (but not damage)
             if unit.is_immune_to_effects():
                 message_log.add_message(
                     f"{unit.get_display_name()} is immune to Jawline due to Stasiality!",
@@ -2141,24 +2167,34 @@ class JawlineSkill(ActiveSkill):
                     player=user.player,
                     target_name=unit.get_display_name()
                 )
-                continue  # Skip this unit and process others
+                # Continue to next unit without applying movement reduction
+                continue
                 
             # Apply movement reduction
             unit.move_range_bonus -= 1
             
             # Flag unit as affected by Jawline
-            # We'll need to add this attribute to the Unit class
             unit.jawline_affected = True
             # Store the duration to be decremented each turn
             unit.jawline_duration = self.effect_duration
             
             # Log the effect application
             message_log.add_message(
-                f"{unit.get_display_name()} is tethered by mechanical jaws! Movement -1 for {self.effect_duration} turns.",
+                f"{unit.get_display_name()} is tethered by mechanical jaws!",
                 MessageType.ABILITY,
                 player=user.player,
                 target_name=unit.get_display_name()
             )
+            
+            # Check if unit was defeated
+            if unit.hp <= 0:
+                message_log.add_message(
+                    f"{unit.get_display_name()} perishes from mechanical jaws!",
+                    MessageType.COMBAT,
+                    player=user.player,
+                    target=unit.player,
+                    target_name=unit.get_display_name()
+                )
         
         # Remove the final summary message completely - we don't need it
         # Individual unit effect messages are sufficient
