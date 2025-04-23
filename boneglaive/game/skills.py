@@ -2216,7 +2216,7 @@ class SiteInspectionSkill(ActiveSkill):
             key="S",
             description="Survey a 3x3 area. Grants +1 movement and +1 attack per unique terrain type to all allied units in area.",
             target_type=TargetType.AREA,
-            cooldown=4,
+            cooldown=3,  # Reduced from 4 to 3
             range_=3,
             area=1  # 3x3 area (center + 1 in each direction)
         )
