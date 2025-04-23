@@ -2159,14 +2159,14 @@ class ActionMenuComponent(UIComponent):
         # MANDIBLE_FOREMAN skills
         elif unit.type == self.UnitType.MANDIBLE_FOREMAN:
             
-            # Add Discharge skill
-            discharge_skill = next((skill for skill in available_skills if skill.name == "Discharge"), None)
+            # Add Expedite skill (previously Discharge)
+            expedite_skill = next((skill for skill in available_skills if skill.name == "Expedite"), None)
             self.actions.append({
-                'key': 'd',
-                'label': 'ischarge',  # Will be displayed as [D]ischarge
-                'action': 'discharge_skill',
-                'enabled': discharge_skill is not None,
-                'skill': discharge_skill
+                'key': 'e',
+                'label': 'xpedite',  # Will be displayed as [E]xpedite
+                'action': 'expedite_skill',
+                'enabled': expedite_skill is not None,
+                'skill': expedite_skill
             })
             
             # Add Site Inspection skill

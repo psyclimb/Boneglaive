@@ -364,6 +364,13 @@ class Game:
         of the horizontal and vertical distances.
         """
         return max(abs(y1 - y2), abs(x1 - x2))
+    
+    def is_adjacent(self, y1, x1, y2, x2):
+        """
+        Check if two positions are adjacent (including diagonals).
+        Returns True if the chess distance between them is 1.
+        """
+        return self.chess_distance(y1, x1, y2, x2) == 1
         
     def has_line_of_sight(self, from_y, from_x, to_y, to_x):
         """
