@@ -51,6 +51,7 @@ class Unit:
         self.site_inspection_indicator = None  # Visual indicator for Site Inspection area
         self.teleport_target_indicator = None  # Visual indicator for Delta Config destination
         self.expedite_path_indicator = None  # Visual indicator for Expedite path
+        self.jawline_indicator = None  # Visual indicator for Jawline network area
         
         # Action order tracking (lower is earlier)
         self.action_timestamp = 0
@@ -249,6 +250,7 @@ class Unit:
         self.site_inspection_indicator = None
         self.teleport_target_indicator = None
         self.expedite_path_indicator = None
+        self.jawline_indicator = None
         
         self.action_timestamp = 0  # Reset the action timestamp
         # No Recalibrate tracking
