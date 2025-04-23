@@ -22,10 +22,12 @@ def parse_args():
     # Game mode options
     mode_group = parser.add_argument_group('Game Mode Options')
     mode_group.add_argument('--skip-menu', action='store_true', help='Skip menu and start game directly')
-    mode_group.add_argument('--mode', choices=['single', 'local', 'lan_host', 'lan_client'],
-                        default='single', help='Game mode (single, local, lan_host, lan_client)')
+    mode_group.add_argument('--mode', choices=['single', 'local', 'lan_host', 'lan_client', 'vs_ai'],
+                        default='single', help='Game mode (single, local, lan_host, lan_client, vs_ai)')
     mode_group.add_argument('--server', default='127.0.0.1', help='Server IP address for LAN mode')
     mode_group.add_argument('--port', type=int, default=7777, help='Server port for LAN mode')
+    mode_group.add_argument('--ai-difficulty', choices=['easy', 'medium', 'hard'],
+                        default='medium', help='AI difficulty level when playing against AI')
     
     # Display options
     display_group = parser.add_argument_group('Display Options')
@@ -54,7 +56,8 @@ def configure_settings(args):
             'single': NetworkMode.SINGLE_PLAYER.value,
             'local': NetworkMode.LOCAL_MULTIPLAYER.value,
             'lan_host': NetworkMode.LAN_HOST.value,
-            'lan_client': NetworkMode.LAN_CLIENT.value
+            'lan_client': NetworkMode.LAN_CLIENT.value,
+            'vs_ai': NetworkMode.VS_AI.value
         }
         config.set('network_mode', network_mode_map[args.mode])
     
@@ -62,6 +65,11 @@ def configure_settings(args):
     if args.mode in ['lan_host', 'lan_client']:
         config.set('server_ip', args.server)
         config.set('server_port', args.port)
+        
+    # AI settings
+    if args.mode == 'vs_ai':
+        config.set('ai_difficulty', args.ai_difficulty)
+        logger.info(f"Setting AI difficulty to {args.ai_difficulty}")
     
     # Display mode
     if args.display:

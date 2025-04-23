@@ -10,6 +10,7 @@ from boneglaive.game.engine import Game
 from boneglaive.networking.network_interface import NetworkInterface
 from boneglaive.networking.local_multiplayer import LocalMultiplayerInterface
 from boneglaive.networking.lan_multiplayer import LANMultiplayerInterface
+from boneglaive.ai.ai_interface import AIInterface
 from boneglaive.utils.config import ConfigManager, NetworkMode
 from boneglaive.utils.debug import logger
 
@@ -71,6 +72,25 @@ class MultiplayerManager:
             self.network_interface = LANMultiplayerInterface(host=False, server_ip=server_ip, port=server_port)
             result = self.network_interface.initialize()
             self.initialized = result
+            return result
+            
+        elif network_mode == NetworkMode.VS_AI.value:
+            # VS AI mode uses AIInterface
+            logger.info("Initializing vs AI mode")
+            ai_difficulty = self.config.get('ai_difficulty')
+            self.network_interface = AIInterface(difficulty=ai_difficulty)
+            
+            # Initialize the AI interface
+            result = self.network_interface.initialize()
+            self.initialized = result
+            
+            # Set the game reference so the AI can interact with it
+            if result:
+                self.network_interface.set_game(self.game)
+                # Mark the game as being in local multiplayer mode (for turn handling)
+                self.game.local_multiplayer = True
+                logger.info(f"AI interface initialized with difficulty: {ai_difficulty}")
+                
             return result
             
         else:
