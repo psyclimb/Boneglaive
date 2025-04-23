@@ -692,11 +692,30 @@ class VaultSkill(ActiveSkill):
         )
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        """Check if Vault can be used on the target position."""
         # Basic validation
         if not super().can_use(user, target_pos, game):
             return False
         if not game or not target_pos:
             return False
+            
+        # Check if the target position is valid and passable
+        if not game.is_valid_position(target_pos[0], target_pos[1]):
+            return False
+            
+        # Target position must be passable terrain
+        if not game.map.is_passable(target_pos[0], target_pos[1]):
+            return False
+            
+        # Target position must be empty (no unit)
+        if game.get_unit_at(target_pos[0], target_pos[1]) is not None:
+            return False
+            
+        # Check if within range from the user's current position
+        distance = game.chess_distance(user.y, user.x, target_pos[0], target_pos[1])
+        if distance > self.range:
+            return False
+            
         return True
             
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
@@ -931,13 +950,39 @@ class JudgementThrowSkill(ActiveSkill):
                     0.2  # duration
                 )
                 
-            # Show critical animation (lightning effect) for piercing damage
-            ui.renderer.animate_attack_sequence(
-                target.y, target.x,
-                critical_animation,
-                6,  # Yellowish color
-                0.12  # duration
+            # Always show base effect message
+            message_log.add_message(
+                f"The sacred glaive pierces through {target.get_display_name()}'s defenses!",
+                MessageType.ABILITY,
+                player=user.player,
+                target_name=target.get_display_name()
             )
+            
+            # Check if the target is at critical health for enhanced animation
+            from boneglaive.utils.constants import CRITICAL_HEALTH_PERCENT
+            critical_threshold = int(target.max_hp * CRITICAL_HEALTH_PERCENT)
+            is_critical_target = target.hp <= critical_threshold
+            
+            # Show critical animation (lightning effect) for piercing damage
+            # Normal effect for regular targets, enhanced for critical targets
+            if is_critical_target:
+                # Enhance the critical animation with multiple iterations for critical targets
+                for _ in range(3):  # Triple effect for critical targets
+                    ui.renderer.animate_attack_sequence(
+                        target.y, target.x,
+                        critical_animation,
+                        6,  # Yellowish color for first pass
+                        0.12  # duration
+                    )
+                    time.sleep(0.05)  # Brief pause between iterations
+            else:
+                # Regular critical animation for normal targets
+                ui.renderer.animate_attack_sequence(
+                    target.y, target.x,
+                    critical_animation,
+                    6,  # Yellowish color
+                    0.12  # duration
+                )
             
             # Flash the target to show impact
             if hasattr(ui, 'asset_manager'):
@@ -947,9 +992,31 @@ class JudgementThrowSkill(ActiveSkill):
                 
                 ui.renderer.flash_tile(target.y, target.x, tile_ids, color_ids, durations)
         
-        # Apply damage (piercing - ignores defense)
-        damage = self.damage  # Full damage, no defense reduction
+        # Check if target is at critical health for double damage
+        from boneglaive.utils.constants import CRITICAL_HEALTH_PERCENT
+        critical_threshold = int(target.max_hp * CRITICAL_HEALTH_PERCENT)
+        is_critical_hit = target.hp <= critical_threshold
+        
+        # Apply damage with critical bonus if applicable
+        base_damage = self.damage  # Base damage
+        
+        # Double damage if target is at critical health
+        if is_critical_hit:
+            damage = base_damage * 2  # Critical hit doubles damage
+            # Log critical effect
+            message_log.add_message(
+                f"CRITICAL! {user.get_display_name()}'s sacred glaive delivers a devastating blow to the weakened {target.get_display_name()}!",
+                MessageType.ABILITY,
+                player=user.player,
+                target_name=target.get_display_name()
+            )
+        else:
+            damage = base_damage
+        
+        # Store previous HP for animation
         previous_hp = target.hp
+        
+        # Apply damage (piercing - ignores defense)
         target.hp = max(0, target.hp - damage)
         
         # Log the damage
