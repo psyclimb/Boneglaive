@@ -1904,7 +1904,64 @@ class AnimationComponent(UIComponent):
                 7,  # color ID
                 0.4  # duration
             )
-        # For other melee attacks (glaiveman), show swinging animation
+        # For GLAIVEMAN attacks, check range and choose the right animation
+        elif attacker.type == UnitType.GLAIVEMAN:
+            # Calculate distance to target
+            distance = self.game_ui.game.chess_distance(start_pos.y, start_pos.x, end_pos.y, end_pos.x)
+            
+            # For range 2 attacks, use extended animation
+            if distance == 2:
+                # Get the extended animation sequence
+                extended_sequence = self.game_ui.asset_manager.animation_sequences.get('glaiveman_extended_attack', [])
+                if extended_sequence:
+                    # First show windup animation at attacker's position
+                    self.renderer.animate_attack_sequence(
+                        start_pos.y, start_pos.x, 
+                        extended_sequence[:4],  # First few frames at attacker position
+                        7,  # color ID
+                        0.3  # duration
+                    )
+                    
+                    # Then animate the glaive extending from attacker to target
+                    # Calculate direction from attacker to target
+                    from boneglaive.utils.coordinates import get_line
+                    path = get_line(start_pos, end_pos)
+                    
+                    # Get the middle position for the extending animation (if path has at least 3 points)
+                    if len(path) >= 3:
+                        mid_pos = path[1]  # Second point in the path
+                        
+                        # Show glaive extending through middle position
+                        extension_chars = extended_sequence[4:8]  # Middle frames show extension
+                        for i, char in enumerate(extension_chars):
+                            self.renderer.draw_tile(mid_pos.y, mid_pos.x, char, 7)
+                            self.renderer.refresh()
+                            time.sleep(0.1)
+                    
+                    # Finally show the impact at target position
+                    self.renderer.animate_attack_sequence(
+                        end_pos.y, end_pos.x, 
+                        extended_sequence[8:],  # Last frames at target position
+                        7,  # color ID
+                        0.3  # duration
+                    )
+                else:
+                    # Fallback to standard animation if extended sequence isn't available
+                    self.renderer.animate_attack_sequence(
+                        start_pos.y, start_pos.x, 
+                        animation_sequence,
+                        7,  # color ID
+                        0.5  # duration
+                    )
+            else:
+                # For range 1 attacks, use standard animation
+                self.renderer.animate_attack_sequence(
+                    start_pos.y, start_pos.x, 
+                    animation_sequence,
+                    7,  # color ID
+                    0.5  # duration
+                )
+        # For all other melee attacks, show standard animation
         else:
             # Show the attack animation at the attacker's position
             self.renderer.animate_attack_sequence(
