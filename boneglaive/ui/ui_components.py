@@ -2414,10 +2414,12 @@ class ActionMenuComponent(UIComponent):
             
             # Different targeting logic based on skill target type
             if skill.target_type == TargetType.SELF:
-                # For self-targeted skills like Recalibrate, use immediately
+                # For self-targeted skills like Recalibrate or Jawline, use immediately without targeting
                 if skill.can_use(cursor_manager.selected_unit, (from_y, from_x), game):
                     # Set the skill target to self
                     cursor_manager.selected_unit.skill_target = (from_y, from_x)
+                    # Actually use the skill now
+                    skill.use(cursor_manager.selected_unit, (from_y, from_x), game)
                     # Show message
                     unit = cursor_manager.selected_unit
                     
