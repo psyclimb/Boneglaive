@@ -88,9 +88,11 @@ class AssetManager:
             'mandible_foreman_attack': ['<', '[', '{', 'Ξ', '}', ']', '>'],  # Jaws opening and closing animation
             'grayman_attack': ['·', ':', '≈', '≋', '≈', ':', '·'],  # Reality distortion wave
             'autoclave': ['*', '+', 'x', '#', 'X', '#', 'x', '+', '*'],  # Intense cross pattern for Autoclave
-            'pry': ['/', '|', '_', '/', '↑', '↗', '→'],  # Lever-like prying motion
-            'pry_impact': ['v', 'V', '#', '*', '.'],  # Simple ground impact animation for Pry landing
-            'pry_collision': ['#', 'X', '#', '*', '.'],  # Impact animation for when a unit hits an obstacle
+            'pry_range1': ['┘', '┐', '┌', '└', '/'],  # Close-range prying motion - glaive used as lever
+            'pry_range2': ['─', '/', '|', '\\', '─', '↗'],  # Extended range prying motion - glaive thrown/extended
+            'pry_launch': ['↑', '↑↑', '↑↑↑', ' '],  # Unit being launched straight up
+            'pry_impact': ['↓', 'V', '@', '*', '.'],  # Unit falling back down with heavy impact
+            'pry_debris': ['@', '#', '*', '+', '.'],  # Large chunks of debris falling straight down
             'vault': ['^', 'Λ', '↑', '↟', '↑'],  # Vault initiation animation - upward movement
             'vault_impact': ['↓', 'v', 'V', '*', '.'],  # Vault landing animation
             'judgement_throw': ['*', '↺', '↻', '⚡', '⚓', '⊕'],  # Sacred glaive animation
@@ -156,9 +158,11 @@ class AssetManager:
             'mage_attack': ['mage_attack_1.png', 'mage_attack_2.png', 'mage_attack_3.png'],
             'mandible_foreman_attack': ['mandible_attack_1.png', 'mandible_attack_2.png', 'mandible_attack_3.png', 'mandible_attack_4.png'],
             'autoclave': ['autoclave_1.png', 'autoclave_2.png', 'autoclave_3.png', 'autoclave_4.png'],
-            'pry': ['pry_1.png', 'pry_2.png', 'pry_3.png', 'pry_4.png'],
+            'pry_range1': ['pry_range1_1.png', 'pry_range1_2.png', 'pry_range1_3.png'],
+            'pry_range2': ['pry_range2_1.png', 'pry_range2_2.png', 'pry_range2_3.png', 'pry_range2_4.png'],
+            'pry_launch': ['pry_launch_1.png', 'pry_launch_2.png', 'pry_launch_3.png'],
             'pry_impact': ['pry_impact_1.png', 'pry_impact_2.png', 'pry_impact_3.png'],
-            'pry_collision': ['pry_collision_1.png', 'pry_collision_2.png', 'pry_collision_3.png'],
+            'pry_debris': ['pry_debris_1.png', 'pry_debris_2.png', 'pry_debris_3.png'],
             'vault': ['vault_1.png', 'vault_2.png', 'vault_3.png', 'vault_4.png'],
             'vault_impact': ['vault_impact_1.png', 'vault_impact_2.png', 'vault_impact_3.png'],
             'judgement_throw': ['judgement_throw_1.png', 'judgement_throw_2.png', 'judgement_throw_3.png', 'judgement_throw_4.png'],
