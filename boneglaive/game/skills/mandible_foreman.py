@@ -277,6 +277,16 @@ class SiteInspectionSkill(ActiveSkill):
             return False
         if not game or not target_pos:
             return False
+            
+        # Target position must be valid
+        if not game.is_valid_position(target_pos[0], target_pos[1]):
+            return False
+            
+        # Check if within range
+        distance = game.chess_distance(user.y, user.x, target_pos[0], target_pos[1])
+        if distance > self.range:
+            return False
+            
         return True
             
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
@@ -284,6 +294,10 @@ class SiteInspectionSkill(ActiveSkill):
             return False
         user.skill_target = target_pos
         user.selected_skill = self
+        
+        # Set site inspection target indicator for UI
+        user.site_inspection_indicator = target_pos
+        
         self.current_cooldown = self.cooldown
         return True
         
@@ -291,6 +305,9 @@ class SiteInspectionSkill(ActiveSkill):
         """Execute the Site Inspection skill."""
         from boneglaive.utils.message_log import message_log, MessageType
         import time
+        
+        # Clear the site inspection indicator after execution
+        user.site_inspection_indicator = None
         
         # Log the skill activation
         message_log.add_message(
