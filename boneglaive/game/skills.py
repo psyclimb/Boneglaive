@@ -477,37 +477,67 @@ class PrySkill(ActiveSkill):
             return False
             
         # Log the skill activation
-        message_log.add_message(
-            f"{user.get_display_name()} launches {target.get_display_name()} skyward!",
-            MessageType.ABILITY,
-            player=user.player,
-            attacker_name=user.get_display_name(),
-            target_name=target.get_display_name()
-        )
+        if game.chess_distance(user.y, user.x, target.y, target.x) == 1:
+            message_log.add_message(
+                f"{user.get_display_name()} pries {target.get_display_name()} upward with their glaive!",
+                MessageType.ABILITY,
+                player=user.player,
+                attacker_name=user.get_display_name(),
+                target_name=target.get_display_name()
+            )
+        else:
+            message_log.add_message(
+                f"{user.get_display_name()} launches {target.get_display_name()} skyward with their glaive!",
+                MessageType.ABILITY,
+                player=user.player,
+                attacker_name=user.get_display_name(),
+                target_name=target.get_display_name()
+            )
             
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Get animation sequence for Pry or create a new one for the upward launch
-            animation_sequence = ui.asset_manager.get_skill_animation_sequence('pry')
-            if not animation_sequence:
-                # Default animation if not defined
-                animation_sequence = ['↑', '↑↑', '↑↑↑', '·', '·', '·']
+            # Calculate distance between user and target
+            distance = game.chess_distance(user.y, user.x, target.y, target.x)
             
-            # Show initial animation at user's position
-            ui.renderer.animate_attack_sequence(
-                user.y, user.x,
-                animation_sequence[:3],  # First part of animation - preparing the launch
-                7,  # color ID
-                0.3  # duration
-            )
-            time.sleep(0.2)
+            # Get appropriate animation based on range
+            if distance == 1:
+                # Close range prying animation (using glaive as lever)
+                lever_animation = ui.asset_manager.get_skill_animation_sequence('pry_range1')
+                if not lever_animation:
+                    lever_animation = ['┘', '┐', '┌', '└', '/']  # Fallback if animation not found
+                
+                # Show lever animation at user's position
+                ui.renderer.animate_attack_sequence(
+                    user.y, user.x,
+                    lever_animation,
+                    7,  # color ID (white)
+                    0.2  # duration
+                )
+            else:
+                # Extended range prying animation (throwing/extending glaive)
+                extended_animation = ui.asset_manager.get_skill_animation_sequence('pry_range2')
+                if not extended_animation:
+                    extended_animation = ['─', '/', '|', '\\', '─', '↗']  # Fallback if animation not found
+                
+                # Show extended animation at user's position
+                ui.renderer.animate_attack_sequence(
+                    user.y, user.x,
+                    extended_animation,
+                    7,  # color ID (white)
+                    0.2  # duration
+                )
             
-            # Now animate the target being launched upward
-            # First store original position
-            original_y, original_x = target.y, target.x
+            time.sleep(0.1)  # Small pause before launch
             
-            # Upward launch animation
-            launch_sequence = ['↑', '↑↑', '↑↑↑', '·', '·', '·']
+            # Now animate the target being launched upward - ONLY on the target's position
+            launch_sequence = ui.asset_manager.get_skill_animation_sequence('pry_launch')
+            if not launch_sequence:
+                launch_sequence = ['↑', '↑↑', '↑↑↑', ' ']  # Fallback
+            
+            # Store original position to ensure proper placement later
+            temp_y, temp_x = target.y, target.x
+            
+            # Animate the unit going straight up
             ui.renderer.animate_attack_sequence(
                 target.y, target.x,
                 launch_sequence,
@@ -515,53 +545,37 @@ class PrySkill(ActiveSkill):
                 0.2  # quicker animation
             )
             
-            # Show the target "disappearing" into the ceiling
             # Temporarily hide the target by moving it off-screen for the animation
-            temp_y, temp_x = target.y, target.x
             target.y, target.x = -999, -999  # Move off-screen
             
             # Redraw to show target has "disappeared"
             ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
             time.sleep(0.3)  # Pause while target is "in the ceiling"
             
-            # Now show debris falling animation
-            debris_chars = ['░', '▒', '▓', '#', '*', '█']
-            
-            # Draw falling debris animation at target's position and adjacent tiles
-            adjacent_positions = []
-            for dy in [-1, 0, 1]:
-                for dx in [-1, 0, 1]:
-                    # Skip center position for first part of animation
-                    if dy == 0 and dx == 0:
-                        continue
-                    
-                    # Check if position is valid
-                    adj_y = temp_y + dy
-                    adj_x = temp_x + dx
-                    if game.is_valid_position(adj_y, adj_x):
-                        adjacent_positions.append((adj_y, adj_x))
-            
-            # Show debris falling animation on all positions simultaneously
-            for char_idx in range(len(debris_chars)):
-                # First at adjacent positions (represents ceiling breaking apart)
-                if char_idx < 3:  # Use first few characters for initial debris
-                    for adj_y, adj_x in adjacent_positions:
-                        ui.renderer.draw_tile(adj_y, adj_x, debris_chars[char_idx], 7)
-                    ui.renderer.refresh()
-                    time.sleep(0.1)
-            
-            # Return target to original position for the final impact
+            # Return target to original position for the impact
             target.y, target.x = temp_y, temp_x
             
-            # Show final impact animation with larger debris at target's position
+            # Show impact animation - unit falling straight down on SAME tile
             impact_animation = ui.asset_manager.get_skill_animation_sequence('pry_impact')
             if not impact_animation:
-                impact_animation = ['█', '#', '*', '░', '▒', '▓']
+                impact_animation = ['↓', 'V', '@', '*', '.']  # Fallback
             
             ui.renderer.animate_attack_sequence(
                 target.y, target.x,
                 impact_animation,
                 5,  # reddish color for impact
+                0.2  # duration
+            )
+            
+            # Show debris falling animation - ONLY on the same tile (straight down)
+            debris_animation = ui.asset_manager.get_skill_animation_sequence('pry_debris')
+            if not debris_animation:
+                debris_animation = ['@', '#', '*', '+', '.']  # Fallback
+            
+            ui.renderer.animate_attack_sequence(
+                target.y, target.x,
+                debris_animation,
+                7,  # white color for debris
                 0.2  # duration
             )
             
@@ -642,7 +656,21 @@ class PrySkill(ActiveSkill):
         
         # Show splash damage numbers for adjacent units if UI is available
         if ui and hasattr(ui, 'renderer') and affected_adjacents:
+            # Get the debris animation for adjacents
+            debris_animation = ui.asset_manager.get_skill_animation_sequence('pry_debris')
+            if not debris_animation:
+                debris_animation = ['@', '#', '*', '+', '.']  # Fallback
+                
+            # Animate debris and damage for each affected unit
             for adjacent_unit, splash_damage in affected_adjacents:
+                # First show individual debris animation at the adjacent unit's position
+                ui.renderer.animate_attack_sequence(
+                    adjacent_unit.y, adjacent_unit.x,
+                    debris_animation[-3:],  # Use last few frames (smaller debris chunks)
+                    7,  # color ID (white)
+                    0.15  # shorter duration for secondary effects
+                )
+                
                 # Show damage number
                 damage_text = f"-{splash_damage}"
                 
