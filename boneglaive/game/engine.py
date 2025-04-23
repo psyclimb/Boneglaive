@@ -545,6 +545,7 @@ class Game:
     def execute_turn(self, ui=None):
         """Execute all unit actions for the current turn with animated sequence."""
         import time
+        import curses
         from boneglaive.utils.message_log import message_log, MessageType
         
         # Store UI reference for animations if provided
@@ -578,12 +579,22 @@ class Game:
         # Create a single list of units with actions, ordered by timestamp
         units_with_actions = []
         
-        # Identify units with actions
+        # Identify units with actions and FOREMANs with trapped units
         for unit in self.units:
             if not unit.is_alive():
                 continue
                 
+            # Regular actions
             if unit.move_target or unit.attack_target or (unit.skill_target and unit.selected_skill):
+                units_with_actions.append(unit)
+                
+            # Add MANDIBLE_FOREMANs with trapped units (for Viseroy trap damage)
+            elif (unit.type == UnitType.MANDIBLE_FOREMAN and 
+                  unit.player == self.current_player and 
+                  not unit.took_action and
+                  any(u.is_alive() and u.trapped_by == unit for u in self.units)):
+                # Set a special flag to identify this as a trap damage action
+                unit.viseroy_trap_action = True
                 units_with_actions.append(unit)
         
         # Sort units by action timestamp (lower numbers = earlier actions)
@@ -872,19 +883,120 @@ class Game:
                 if ui:
                     time.sleep(0.3)
             
+            # EXECUTE VISEROY TRAP DAMAGE if this is a MANDIBLE_FOREMAN with trapped units
+            elif hasattr(unit, 'viseroy_trap_action') and unit.viseroy_trap_action:
+                # Find all units trapped by this foreman
+                trapped_units = [u for u in self.units if u.is_alive() and u.trapped_by == unit]
+                
+                # Apply trap damage to each trapped unit
+                for trapped_unit in trapped_units:
+                    # Play trap animation if UI is available
+                    if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+                        # Get animation sequence for Viseroy trap
+                        animation_sequence = ui.asset_manager.get_skill_animation_sequence('viseroy_trap')
+                        
+                        # Show jaw animation at trapped unit's position
+                        ui.renderer.animate_attack_sequence(
+                            trapped_unit.y, trapped_unit.x,
+                            animation_sequence,
+                            5,  # color ID (reddish)
+                            0.2  # duration
+                        )
+                        time.sleep(0.2)
+                    
+                    # Fixed trap damage (reduced from using attack value)
+                    trap_damage = 3  # Fixed damage for Viseroy trap
+                    effective_defense = trapped_unit.get_effective_stats()['defense']
+                    damage = max(1, trap_damage - effective_defense)
+                    
+                    # Apply damage to the trapped unit
+                    previous_hp = trapped_unit.hp
+                    trapped_unit.hp = max(0, trapped_unit.hp - damage)
+                    
+                    # Log the damage
+                    message_log.add_combat_message(
+                        attacker_name=unit.get_display_name(),
+                        target_name=trapped_unit.get_display_name(),
+                        damage=damage,
+                        ability="Viseroy Trap",
+                        attacker_player=unit.player,
+                        target_player=trapped_unit.player
+                    )
+                    
+                    # Check for Autoclave trigger - same logic as regular attacks
+                    critical_threshold = int(trapped_unit.max_hp * CRITICAL_HEALTH_PERCENT)
+                    # Check if target just entered critical health
+                    if previous_hp > critical_threshold and trapped_unit.hp <= critical_threshold:
+                        message_log.add_message(
+                            f"{trapped_unit.get_display_name()} wretches!",
+                            MessageType.COMBAT,
+                            player=unit.player,
+                            target=trapped_unit.player,
+                            target_name=trapped_unit.get_display_name()
+                        )
+                        
+                        # Check if target is a GLAIVEMAN and has the Autoclave passive
+                        if trapped_unit.type == UnitType.GLAIVEMAN and trapped_unit.passive_skill and \
+                           trapped_unit.passive_skill.name == "Autoclave":
+                            # Mark Autoclave as ready to trigger during the apply_passive_skills phase
+                            trapped_unit.passive_skill.mark_ready_to_trigger()
+                    # Check if target is already in critical health and took more damage
+                    elif previous_hp <= critical_threshold and trapped_unit.hp <= critical_threshold and trapped_unit.hp > 0:
+                        # Check if target is a GLAIVEMAN and has the Autoclave passive
+                        if trapped_unit.type == UnitType.GLAIVEMAN and trapped_unit.passive_skill and \
+                           trapped_unit.passive_skill.name == "Autoclave":
+                            # Mark Autoclave as ready to trigger during the apply_passive_skills phase
+                            trapped_unit.passive_skill.mark_ready_to_trigger()
+                    
+                    # Show damage number if UI is available
+                    if ui and hasattr(ui, 'renderer'):
+                        # Flash the unit to show damage
+                        if hasattr(ui, 'asset_manager'):
+                            # Flash the unit with damage colors
+                            tile_ids = [ui.asset_manager.get_unit_tile(trapped_unit.type)] * 4
+                            color_ids = [5, 3 if trapped_unit.player == 1 else 4] * 2  # Alternate red with player color
+                            durations = [0.1] * 4
+                            
+                            # Use renderer's flash tile method
+                            ui.renderer.flash_tile(trapped_unit.y, trapped_unit.x, tile_ids, color_ids, durations)
+                        
+                        # Show damage number above target with same appearance as attack damage
+                        damage_text = f"-{damage}"
+                        
+                        # Make damage text more prominent
+                        for i in range(3):
+                            # First clear the area
+                            ui.renderer.draw_text(trapped_unit.y-1, trapped_unit.x*2, " " * len(damage_text), 7)
+                            # Draw with alternating bold/normal for a flashing effect
+                            attrs = curses.A_BOLD if i % 2 == 0 else 0
+                            ui.renderer.draw_text(trapped_unit.y-1, trapped_unit.x*2, damage_text, 7, attrs)  # White color
+                            ui.renderer.refresh()
+                            time.sleep(0.1)
+                        
+                        # Final damage display (stays on screen slightly longer)
+                        ui.renderer.draw_text(trapped_unit.y-1, trapped_unit.x*2, damage_text, 7, curses.A_BOLD)
+                        ui.renderer.refresh()
+                        time.sleep(0.3)
+                    
+                    # Check if the trapped unit was defeated
+                    if trapped_unit.hp <= 0:
+                        message_log.add_message(
+                            f"{trapped_unit.get_display_name()} perishes!",
+                            MessageType.COMBAT,
+                            player=unit.player,
+                            target=trapped_unit.player,
+                            target_name=trapped_unit.get_display_name()
+                        )
+                        trapped_unit.trapped_by = None
+                
+                # Clean up the special flag
+                unit.viseroy_trap_action = False
+            
             # Add a slight pause between units' actions
             if ui:
                 time.sleep(0.5)
         
-        # Now that all planned actions have been processed, apply trap damage
-        # This ensures that FOREMENs that moved/attacked/used skills have released their trapped units
-        # before trap damage is applied
-        self._apply_trap_damage()
-        
-        # Redraw the board after trap damage to show updated health
-        if ui:
-            ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-            time.sleep(0.3)  # Short pause after trap damage
+        # Trap damage is now applied in sequence with other actions during unit processing loop
             
         # Clear all actions and update skill cooldowns
         for unit in self.units:
@@ -1021,6 +1133,31 @@ class Game:
                     attacker_player=foreman.player,
                     target_player=unit.player
                 )
+                
+                # Check for Autoclave trigger - same logic as regular attacks
+                critical_threshold = int(unit.max_hp * CRITICAL_HEALTH_PERCENT)
+                # Check if target just entered critical health
+                if previous_hp > critical_threshold and unit.hp <= critical_threshold:
+                    message_log.add_message(
+                        f"{unit.get_display_name()} wretches!",
+                        MessageType.COMBAT,
+                        player=foreman.player,
+                        target=unit.player,
+                        target_name=unit.get_display_name()
+                    )
+                    
+                    # Check if target is a GLAIVEMAN and has the Autoclave passive
+                    if unit.type == UnitType.GLAIVEMAN and unit.passive_skill and \
+                       unit.passive_skill.name == "Autoclave":
+                        # Mark Autoclave as ready to trigger during the apply_passive_skills phase
+                        unit.passive_skill.mark_ready_to_trigger()
+                # Check if target is already in critical health and took more damage
+                elif previous_hp <= critical_threshold and unit.hp <= critical_threshold and unit.hp > 0:
+                    # Check if target is a GLAIVEMAN and has the Autoclave passive
+                    if unit.type == UnitType.GLAIVEMAN and unit.passive_skill and \
+                       unit.passive_skill.name == "Autoclave":
+                        # Mark Autoclave as ready to trigger during the apply_passive_skills phase
+                        unit.passive_skill.mark_ready_to_trigger()
                 
                 # Show damage number if UI is available
                 if ui and hasattr(ui, 'renderer'):

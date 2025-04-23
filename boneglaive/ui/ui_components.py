@@ -1222,6 +1222,11 @@ class GameModeManager(UIComponent):
                         )
                     )
                     return
+                
+                # Check if unit is an echo (cannot move)
+                if cursor_manager.selected_unit.is_echo:
+                    # Don't show a message, just silently return
+                    return
                     
                 # Change mode (will publish mode changed event)
                 self.set_mode("move")
@@ -1300,6 +1305,11 @@ class GameModeManager(UIComponent):
                             message_type=MessageType.WARNING
                         )
                     )
+                    return
+                
+                # Check if unit is an echo (cannot use skills)
+                if cursor_manager.selected_unit.is_echo:
+                    # Don't show a message, just silently return
                     return
                     
                 # Previously there was a restriction that prevented using skills after moving
@@ -2012,13 +2022,13 @@ class ActionMenuComponent(UIComponent):
         self.menu_mode = "standard"
         
         # Add standard actions with consistent labeling
-        # Disable move for trapped units
-        unit_can_move = unit is not None and unit.trapped_by is None
+        # Disable move for trapped units or echoes (echoes can't move)
+        unit_can_move = unit is not None and unit.trapped_by is None and not unit.is_echo
         self.actions.append({
             'key': 'm',
             'label': 'ove',  # Will be displayed as [M]ove without space
             'action': GameAction.MOVE_MODE,
-            'enabled': unit_can_move  # Enabled only if unit is not trapped
+            'enabled': unit_can_move  # Enabled only if unit is not trapped and not an echo
         })
         
         self.actions.append({
@@ -2030,12 +2040,12 @@ class ActionMenuComponent(UIComponent):
         
         # Add skill action
         unit_has_skills = unit is not None and hasattr(unit, 'active_skills') and len(unit.get_available_skills()) > 0
-        unit_can_use_skills = unit_has_skills and unit.trapped_by is None
+        unit_can_use_skills = unit_has_skills and unit.trapped_by is None and not unit.is_echo
         self.actions.append({
             'key': 's',
             'label': 'kills',  # Will be displayed as [S]kills without space
             'action': GameAction.SKILL_MODE,
-            'enabled': unit_can_use_skills  # Enabled if unit has available skills and is not trapped
+            'enabled': unit_can_use_skills  # Enabled if unit has available skills, is not trapped, and not an echo
         })
         
         # Reset selected index
