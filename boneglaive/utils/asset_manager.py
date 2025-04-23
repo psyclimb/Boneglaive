@@ -90,7 +90,7 @@ class AssetManager:
             'autoclave': ['*', '+', 'x', '#', 'X', '#', 'x', '+', '*'],  # Intense cross pattern for Autoclave
             'pry_range1': ['┘', '┐', '┌', '└', '/'],  # Close-range prying motion - glaive used as lever
             'pry_range2': ['─', '/', '|', '\\', '─', '↗'],  # Extended range prying motion - glaive thrown/extended
-            'pry_launch': ['↑', '↑↑', '↑↑↑', ' '],  # Unit being launched straight up
+            'pry_launch': ['↑', '↟', '⇑', ' '],  # Unit being launched straight up (single character symbols)
             'pry_impact': ['↓', 'V', '@', '*', '.'],  # Unit falling back down with heavy impact
             'pry_debris': ['@', '#', '*', '+', '.'],  # Large chunks of debris falling straight down
             'vault': ['^', 'Λ', '↑', '↟', '↑'],  # Vault initiation animation - upward movement
@@ -160,7 +160,7 @@ class AssetManager:
             'autoclave': ['autoclave_1.png', 'autoclave_2.png', 'autoclave_3.png', 'autoclave_4.png'],
             'pry_range1': ['pry_range1_1.png', 'pry_range1_2.png', 'pry_range1_3.png'],
             'pry_range2': ['pry_range2_1.png', 'pry_range2_2.png', 'pry_range2_3.png', 'pry_range2_4.png'],
-            'pry_launch': ['pry_launch_1.png', 'pry_launch_2.png', 'pry_launch_3.png'],
+            'pry_launch': ['pry_launch_1.png', 'pry_launch_2.png', 'pry_launch_3.png', 'pry_launch_4.png'],
             'pry_impact': ['pry_impact_1.png', 'pry_impact_2.png', 'pry_impact_3.png'],
             'pry_debris': ['pry_debris_1.png', 'pry_debris_2.png', 'pry_debris_3.png'],
             'vault': ['vault_1.png', 'vault_2.png', 'vault_3.png', 'vault_4.png'],
