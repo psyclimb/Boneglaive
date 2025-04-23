@@ -8,6 +8,7 @@ import curses
 from enum import Enum, auto
 from typing import Optional, Dict, List, Any, Tuple, TYPE_CHECKING
 from boneglaive.utils.constants import UnitType, UNIT_STATS
+from boneglaive.game.map import TerrainType
 
 if TYPE_CHECKING:
     from boneglaive.game.units import Unit
@@ -1115,30 +1116,286 @@ class DischargeSkill(ActiveSkill):
         self.trap_damage = 6
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        """
+        Check if Expedite can be used to the target position.
+        Requires a straight line (cardinal or diagonal) path without impassable terrain.
+        """
         # Basic validation
         if not super().can_use(user, target_pos, game):
             return False
         if not game or not target_pos:
             return False
+            
+        # Check if target is within range
+        from_y, from_x = user.y, user.x
+        distance = game.chess_distance(from_y, from_x, target_pos[0], target_pos[1])
+        if distance > self.range:
+            return False
+            
+        # Calculate vector components to ensure this is a straight line
+        # Expedite only works in cardinal directions (horizontal, vertical, or diagonal)
+        delta_y = target_pos[0] - user.y
+        delta_x = target_pos[1] - user.x
+        
+        # Zero delta means targeting same position - disallow this
+        if delta_y == 0 and delta_x == 0:
+            return False
+            
+        # Check if movement is along a straight line (cardinal or diagonal direction)
+        # This is true if one component is zero or if both have the same absolute value
+        is_straight_line = (delta_y == 0 or delta_x == 0 or abs(delta_y) == abs(delta_x))
+        if not is_straight_line:
+            return False
+            
+        # Check target position is valid and passable
+        if not game.is_valid_position(target_pos[0], target_pos[1]):
+            return False
+        if not game.map.is_passable(target_pos[0], target_pos[1]):
+            return False
+            
+        # Check if any ally unit is at the target position (enemy units are fine - we can attack them)
+        target_unit = game.get_unit_at(target_pos[0], target_pos[1])
+        if target_unit and target_unit.player == user.player:
+            return False
+            
+        # Check for line of sight - ensure path is clear of obstacles
+        # Normalize direction vector to get unit direction
+        if delta_y != 0:
+            dir_y = delta_y // abs(delta_y)
+        else:
+            dir_y = 0
+            
+        if delta_x != 0:
+            dir_x = delta_x // abs(delta_x)
+        else:
+            dir_x = 0
+            
+        # Check each position along the path, except the target position
+        current_y, current_x = user.y, user.x
+        path_length = max(abs(delta_y), abs(delta_x))
+        
+        for i in range(1, path_length):  # Skip the origin (i=0) and target (i=path_length)
+            check_y = user.y + i * dir_y
+            check_x = user.x + i * dir_x
+            
+            # Check if intermediate position is valid and passable
+            if not game.is_valid_position(check_y, check_x):
+                return False
+            if not game.map.is_passable(check_y, check_x):
+                return False
+                
+            # Check if an ally unit is blocking the path
+            blocking_unit = game.get_unit_at(check_y, check_x)
+            if blocking_unit and blocking_unit.player == user.player:
+                return False
+        
+        # All checks passed
         return True
             
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        """Queue Expedite skill and create path indicator."""
         if not self.can_use(user, target_pos, game):
             return False
+            
+        # Set the skill target
         user.skill_target = target_pos
         user.selected_skill = self
+        
+        # Calculate the path for the indicator
+        delta_y = target_pos[0] - user.y
+        delta_x = target_pos[1] - user.x
+        
+        # Normalize direction vector
+        if delta_y != 0:
+            dir_y = delta_y // abs(delta_y)
+        else:
+            dir_y = 0
+            
+        if delta_x != 0:
+            dir_x = delta_x // abs(delta_x)
+        else:
+            dir_x = 0
+            
+        # Create path for the indicator
+        path_length = max(abs(delta_y), abs(delta_x))
+        path = []
+        
+        for i in range(1, path_length + 1):  # Skip the origin (i=0), include target
+            path_y = user.y + i * dir_y
+            path_x = user.x + i * dir_x
+            path.append((path_y, path_x))
+            
+        # Set the path indicator
+        user.expedite_path_indicator = path
+        
+        # Set cooldown
         self.current_cooldown = self.cooldown
         return True
         
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
-        # Simple implementation for minimal functionality
+        """Execute the Expedite skill, moving in a straight line and attacking the first enemy."""
         from boneglaive.utils.message_log import message_log, MessageType
+        import time
+        
+        # Clear the path indicator when executing
+        path = user.expedite_path_indicator
+        user.expedite_path_indicator = None
+        
+        # Check if we have a valid path (could be cleared already by reset_action_targets)
+        if not path:
+            # Calculate direction vector
+            delta_y = target_pos[0] - user.y
+            delta_x = target_pos[1] - user.x
+            
+            # Normalize direction
+            if delta_y != 0:
+                dir_y = delta_y // abs(delta_y)
+            else:
+                dir_y = 0
+                
+            if delta_x != 0:
+                dir_x = delta_x // abs(delta_x)
+            else:
+                dir_x = 0
+                
+            # Create path for animation
+            path_length = max(abs(delta_y), abs(delta_x))
+            path = []
+            
+            for i in range(1, path_length + 1):
+                path_y = user.y + i * dir_y
+                path_x = user.x + i * dir_x
+                path.append((path_y, path_x))
+        
+        # Check for enemy in path - we'll stop at the first enemy
+        enemy_pos = None
+        stop_pos = None
+        
+        for pos in path:
+            check_y, check_x = pos
+            unit_at_pos = game.get_unit_at(check_y, check_x)
+            
+            if unit_at_pos and unit_at_pos.player != user.player:
+                # Enemy found - attack and stop here
+                enemy_pos = pos
+                stop_pos = enemy_pos
+                break
+        
+        # If no enemy found, move to target position
+        if not stop_pos:
+            stop_pos = target_pos
+        
+        # Log the action
         message_log.add_message(
             f"{user.get_display_name()} expedites forward!",
             MessageType.ABILITY,
             player=user.player
         )
-        user.y, user.x = target_pos
+        
+        # Animate movement if UI is available
+        if ui and hasattr(ui, 'renderer'):
+            # Loop through path positions
+            path_to_traverse = []
+            for pos in path:
+                # Break if we've reached the stop position
+                if pos == stop_pos:
+                    path_to_traverse.append(pos)
+                    break
+                path_to_traverse.append(pos)
+                
+            # Animate the expedition
+            user_tile = ui.asset_manager.get_unit_tile(user.type)
+            original_pos = (user.y, user.x)
+            
+            # Hide user at original position
+            user.y, user.x = -999, -999  # Move offscreen temporarily
+            
+            # Draw without the unit to show it's left its position
+            ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+            
+            # Show movement animation along path
+            for i, pos in enumerate(path_to_traverse):
+                y, x = pos
+                
+                # Show the unit at this position briefly
+                ui.renderer.draw_tile(y, x, user_tile, 3 if user.player == 1 else 4)
+                ui.renderer.refresh()
+                time.sleep(0.05)  # Quick movement
+                
+                # Clear the position unless it's the final one
+                if i < len(path_to_traverse) - 1:
+                    # Reset tile to terrain
+                    terrain = game.map.get_terrain_at(y, x)
+                    terrain_tile = ui.asset_manager.get_terrain_tile("empty")  # Default
+                    if terrain == TerrainType.LIMESTONE:
+                        terrain_tile = ui.asset_manager.get_terrain_tile("limestone")
+                    elif terrain == TerrainType.DUST:
+                        terrain_tile = ui.asset_manager.get_terrain_tile("dust")
+                    ui.renderer.draw_tile(y, x, terrain_tile, 1)
+                    ui.renderer.refresh()
+        
+        # Check if we hit an enemy
+        if enemy_pos:
+            enemy = game.get_unit_at(enemy_pos[0], enemy_pos[1])
+            
+            # Apply damage to the enemy
+            damage = max(1, self.trap_damage - enemy.defense)
+            enemy.hp = max(0, enemy.hp - damage)
+            
+            # Log the damage
+            message_log.add_combat_message(
+                attacker_name=user.get_display_name(),
+                target_name=enemy.get_display_name(),
+                damage=damage,
+                ability="Expedite",
+                attacker_player=user.player,
+                target_player=enemy.player
+            )
+            
+            # If the enemy has Stasiality, mention they are immune to being trapped
+            if enemy.is_immune_to_effects():
+                message_log.add_message(
+                    f"{enemy.get_display_name()} is immune to Expedite's trapping effect due to Stasiality!",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
+            else:
+                # Trap the enemy with Viseroy effect
+                enemy.trapped_by = user
+                message_log.add_message(
+                    f"{enemy.get_display_name()} is trapped in {user.get_display_name()}'s mechanical jaws!",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
+            
+            # Check if enemy was defeated
+            if enemy.hp <= 0:
+                message_log.add_message(
+                    f"{enemy.get_display_name()} perishes!",
+                    MessageType.COMBAT,
+                    player=user.player,
+                    target=enemy.player
+                )
+                
+            # Animate the impact if UI is available
+            if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+                # Flash the enemy to show impact
+                if hasattr(ui, 'asset_manager'):
+                    # Show flash sequence
+                    enemy_tile = ui.asset_manager.get_unit_tile(enemy.type)
+                    color_ids = [5, 3 if enemy.player == 1 else 4] * 2
+                    tiles = [enemy_tile] * 4
+                    durations = [0.1] * 4
+                    
+                    ui.renderer.flash_tile(enemy.y, enemy.x, tiles, color_ids, durations)
+        
+        # Move the user to the final position
+        user.y, user.x = stop_pos[0], stop_pos[1]
+        
+        # Final redraw to show the new positions
+        if ui:
+            ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+        
         return True
 
 class JawlineSkill(ActiveSkill):
