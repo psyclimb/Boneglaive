@@ -723,6 +723,10 @@ class VaultSkill(ActiveSkill):
             return False
         user.skill_target = target_pos
         user.selected_skill = self
+        
+        # Set vault target indicator for UI
+        user.vault_target_indicator = target_pos
+        
         self.current_cooldown = self.cooldown
         return True
         
@@ -730,6 +734,9 @@ class VaultSkill(ActiveSkill):
         """Execute the Vault skill to leap over obstacles to a target position."""
         from boneglaive.utils.message_log import message_log, MessageType
         import time
+        
+        # Clear the vault target indicator after execution
+        user.vault_target_indicator = None
         
         # Store original position for animations
         original_pos = (user.y, user.x)

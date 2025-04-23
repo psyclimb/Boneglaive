@@ -48,6 +48,19 @@ class DeltaConfigSkill(ActiveSkill):
             return False
         if not game or not target_pos:
             return False
+        
+        # Target position must be valid and passable
+        if not game.is_valid_position(target_pos[0], target_pos[1]):
+            return False
+            
+        # Target position must be passable terrain
+        if not game.map.is_passable(target_pos[0], target_pos[1]):
+            return False
+            
+        # Target position must be empty (no unit)
+        if game.get_unit_at(target_pos[0], target_pos[1]) is not None:
+            return False
+            
         return True
             
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
@@ -55,6 +68,10 @@ class DeltaConfigSkill(ActiveSkill):
             return False
         user.skill_target = target_pos
         user.selected_skill = self
+        
+        # Set teleport target indicator for UI
+        user.teleport_target_indicator = target_pos
+        
         self.current_cooldown = self.cooldown
         return True
         
@@ -62,6 +79,9 @@ class DeltaConfigSkill(ActiveSkill):
         """Execute the Delta Config teleportation skill."""
         from boneglaive.utils.message_log import message_log, MessageType
         import time
+        
+        # Clear the teleport target indicator after execution
+        user.teleport_target_indicator = None
         
         # Store original position for animations
         original_pos = (user.y, user.x)
@@ -357,6 +377,24 @@ class GraeExchangeSkill(ActiveSkill):
             return False
         if not game or not target_pos:
             return False
+            
+        # Target position must be valid and passable
+        if not game.is_valid_position(target_pos[0], target_pos[1]):
+            return False
+            
+        # Target position must be passable terrain
+        if not game.map.is_passable(target_pos[0], target_pos[1]):
+            return False
+            
+        # Target position must be empty (no unit)
+        if game.get_unit_at(target_pos[0], target_pos[1]) is not None:
+            return False
+            
+        # Check if within range from the user's current position
+        distance = game.chess_distance(user.y, user.x, target_pos[0], target_pos[1])
+        if distance > self.range:
+            return False
+            
         return True
             
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
@@ -364,6 +402,10 @@ class GraeExchangeSkill(ActiveSkill):
             return False
         user.skill_target = target_pos
         user.selected_skill = self
+        
+        # Set teleport target indicator for UI
+        user.teleport_target_indicator = target_pos
+        
         self.current_cooldown = self.cooldown
         return True
         
@@ -371,6 +413,9 @@ class GraeExchangeSkill(ActiveSkill):
         """Execute the Græ Exchange skill - create an echo at current position and teleport away."""
         from boneglaive.utils.message_log import message_log, MessageType
         import time
+        
+        # Clear the teleport target indicator after execution
+        user.teleport_target_indicator = None
         
         # Store original position for creating the echo
         original_pos = (user.y, user.x)
