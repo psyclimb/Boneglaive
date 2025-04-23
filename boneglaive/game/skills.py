@@ -514,15 +514,41 @@ class PrySkill(ActiveSkill):
                     0.2  # duration
                 )
             else:
-                # Extended range prying animation (throwing/extending glaive)
+                # Extended range prying animation (extending glaive as lever)
                 extended_animation = ui.asset_manager.get_skill_animation_sequence('pry_range2')
                 if not extended_animation:
-                    extended_animation = ['─', '/', '|', '\\', '─', '↗']  # Fallback if animation not found
+                    extended_animation = ['/', '―', '\\', '|', '─', '─', '═', '→', '↗']  # Fallback if animation not found
                 
-                # Show extended animation at user's position
+                # Show initial animation at user's position (first part of the sequence)
                 ui.renderer.animate_attack_sequence(
                     user.y, user.x,
-                    extended_animation,
+                    extended_animation[:3],  # First few frames at attacker position
+                    7,  # color ID (white)
+                    0.2  # duration
+                )
+                
+                # Get the path from the user to target
+                from boneglaive.utils.coordinates import get_line, Position
+                path = get_line(Position(user.y, user.x), Position(target.y, target.x))
+                
+                # If we have at least 3 points in the path (including start and end)
+                if len(path) >= 3:
+                    # Get the middle position for extending the glaive
+                    mid_position = path[1]  # Second point in the path
+                    mid_y, mid_x = mid_position.y, mid_position.x
+                    
+                    # Show the glaive extending through the middle position
+                    # Use the middle portion of the animation sequence
+                    extension_chars = extended_animation[3:6]  # Middle frames show extension
+                    for char in extension_chars:
+                        ui.renderer.draw_tile(mid_y, mid_x, char, 7)
+                        ui.renderer.refresh()
+                        time.sleep(0.1)
+                
+                # Finally show the impact at target position with the last part of the animation
+                ui.renderer.animate_attack_sequence(
+                    target.y, target.x,
+                    extended_animation[6:],  # Last frames at target position
                     7,  # color ID (white)
                     0.2  # duration
                 )
