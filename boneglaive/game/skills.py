@@ -532,7 +532,7 @@ class PrySkill(ActiveSkill):
             # Now animate the target being launched upward - ONLY on the target's position
             launch_sequence = ui.asset_manager.get_skill_animation_sequence('pry_launch')
             if not launch_sequence:
-                launch_sequence = ['↑', '↑↑', '↑↑↑', ' ']  # Fallback
+                launch_sequence = ['↑', '↟', '⇑', ' ']  # Fallback (single character symbols)
             
             # Store original position to ensure proper placement later
             temp_y, temp_x = target.y, target.x
