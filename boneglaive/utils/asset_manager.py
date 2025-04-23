@@ -89,7 +89,7 @@ class AssetManager:
             'grayman_attack': ['·', ':', '≈', '≋', '≈', ':', '·'],  # Reality distortion wave
             'autoclave': ['*', '+', 'x', '#', 'X', '#', 'x', '+', '*'],  # Intense cross pattern for Autoclave
             'pry_range1': ['┘', '┐', '┌', '└', '/'],  # Close-range prying motion - glaive used as lever
-            'pry_range2': ['─', '/', '|', '\\', '─', '↗'],  # Extended range prying motion - glaive thrown/extended
+            'pry_range2': ['/', '―', '\\', '|', '─', '─', '═', '→', '↗'],  # Extended range prying motion - similar to extended attack
             'pry_launch': ['↑', '↟', '⇑', ' '],  # Unit being launched straight up (single character symbols)
             'pry_impact': ['↓', 'V', '@', '*', '.'],  # Unit falling back down with heavy impact
             'pry_debris': ['@', '#', '*', '+', '.'],  # Large chunks of debris falling straight down
@@ -159,7 +159,7 @@ class AssetManager:
             'mandible_foreman_attack': ['mandible_attack_1.png', 'mandible_attack_2.png', 'mandible_attack_3.png', 'mandible_attack_4.png'],
             'autoclave': ['autoclave_1.png', 'autoclave_2.png', 'autoclave_3.png', 'autoclave_4.png'],
             'pry_range1': ['pry_range1_1.png', 'pry_range1_2.png', 'pry_range1_3.png'],
-            'pry_range2': ['pry_range2_1.png', 'pry_range2_2.png', 'pry_range2_3.png', 'pry_range2_4.png'],
+            'pry_range2': ['pry_range2_1.png', 'pry_range2_2.png', 'pry_range2_3.png', 'pry_range2_4.png', 'pry_range2_5.png', 'pry_range2_6.png', 'pry_range2_7.png', 'pry_range2_8.png', 'pry_range2_9.png'],
             'pry_launch': ['pry_launch_1.png', 'pry_launch_2.png', 'pry_launch_3.png', 'pry_launch_4.png'],
             'pry_impact': ['pry_impact_1.png', 'pry_impact_2.png', 'pry_impact_3.png'],
             'pry_debris': ['pry_debris_1.png', 'pry_debris_2.png', 'pry_debris_3.png'],
