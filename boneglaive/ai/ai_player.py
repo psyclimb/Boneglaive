@@ -311,5 +311,12 @@ class AIPlayer:
         # Execute the turn to process all queued actions
         self.game.execute_turn()
         
-        # Switch to the next player
-        self.game.end_turn()
+        # The game does the player switching in execute_turn, 
+        # so we don't need to do anything else here
+        # Just trigger the multiplayer manager to update turns
+        if hasattr(self.game, 'ui') and hasattr(self.game.ui, 'multiplayer'):
+            self.game.ui.multiplayer.end_turn()
+        
+        # If no game UI, try a direct approach to toggle the AI interface
+        elif hasattr(self.game, 'multiplayer'):
+            self.game.multiplayer.end_turn()
