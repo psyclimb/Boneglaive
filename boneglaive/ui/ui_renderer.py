@@ -348,6 +348,37 @@ class UIRenderer:
                             self.renderer.draw_tile(y, x, tile, color_id, curses.A_BOLD)
                         continue
                 
+                # Check if this position is in an Expedite path indicator
+                for u in self.game_ui.game.units:
+                    if u.is_alive() and u.selected_skill and hasattr(u.selected_skill, 'name') and \
+                       u.selected_skill.name == "Expedite" and hasattr(u, 'expedite_path_indicator') and \
+                       u.expedite_path_indicator is not None and (y, x) in u.expedite_path_indicator:
+                        # This position is part of an Expedite path - draw direction indicator
+                        # Get index in path to determine how to visualize it
+                        path_index = u.expedite_path_indicator.index((y, x))
+                        path_length = len(u.expedite_path_indicator)
+                        
+                        # Different visualization for different parts of the path
+                        if path_index == path_length - 1:  # End position (destination)
+                            tile = "→"  # Arrow pointing forward for final position
+                        else:
+                            # For intermediate positions, show a subtle path indicator
+                            tile = "·"  # Dot for intermediate positions
+                        
+                        color_id = 3 if u.player == 1 else 4  # Color based on player
+                        
+                        # Check if cursor is here
+                        is_cursor_here = (pos == cursor_manager.cursor_pos and show_cursor)
+                        
+                        if is_cursor_here:
+                            # Draw with cursor color
+                            self.renderer.draw_tile(y, x, tile, 2, curses.A_BOLD)
+                        else:
+                            # Draw the expedite path indicator - only make the end bold
+                            attrs = curses.A_BOLD if path_index == path_length - 1 else 0
+                            self.renderer.draw_tile(y, x, tile, color_id, attrs)
+                        continue
+                
                 # Check if this position is a teleport target indicator
                 for u in self.game_ui.game.units:
                     if u.is_alive() and u.selected_skill and hasattr(u.selected_skill, 'name') and \
