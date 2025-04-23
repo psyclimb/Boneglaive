@@ -35,7 +35,7 @@ UNIT_STATS = {
     UnitType.ARCHER: (15, 5, 2, 2, 3),
     UnitType.MAGE: (12, 6, 1, 1, 2),
     UnitType.MANDIBLE_FOREMAN: (25, 6, 2, 2, 1),  # Increased attack from 5 to 6
-    UnitType.GRAYMAN: (18, 4, 0, 2, 5)  # Long-range, weaker attack, moderate HP, no defense
+    UnitType.GRAYMAN: (18, 2, 0, 2, 5)  # Reduced attack from 4 to 2, keeping long range
 }
 
 UNIT_SYMBOLS = {
