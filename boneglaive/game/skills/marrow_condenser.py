@@ -192,14 +192,14 @@ class MarrowDikeSkill(ActiveSkill):
         super().__init__(
             name="Marrow Dike",
             key="M",
-            description="Creates a wall of condensed bone marrow that blocks movement and attacks.",
+            description="Creates a wall of condensed bone marrow that blocks movement and attacks for 4 turns.",
             target_type=TargetType.SELF,
             cooldown=4,
             range_=0,
             area=2  # 5x5 area (center + 2 in each direction)
         )
         self.upgraded = False
-        self.duration = 3  # Duration in turns
+        self.duration = 4  # Increased duration to 4 turns
         self.healing_amount = 3  # Increased healing amount per turn when upgraded
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
