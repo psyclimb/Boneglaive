@@ -136,6 +136,16 @@ class UIRenderer:
                 if terrain == TerrainType.EMPTY:
                     tile = self.game_ui.asset_manager.get_terrain_tile("empty")
                     color_id = 1  # Default color
+                    
+                    # Check if this is inside a Marrow Dike interior
+                    pos_tuple = (y, x)
+                    if hasattr(self.game_ui.game, 'marrow_dike_interior') and pos_tuple in self.game_ui.game.marrow_dike_interior:
+                        dike_info = self.game_ui.game.marrow_dike_interior[pos_tuple]
+                        # If this is an upgraded Marrow Dike, show blood plasma
+                        if dike_info.get('upgraded', False):
+                            tile = "~"  # Blood plasma appearance
+                            color_id = 20  # Red color for blood
+                            
                 elif terrain == TerrainType.LIMESTONE:
                     tile = self.game_ui.asset_manager.get_terrain_tile("limestone")
                     color_id = 12  # White for limestone
