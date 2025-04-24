@@ -332,6 +332,18 @@ class MarrowDikeSkill(ActiveSkill):
                 new_y = tile_y + dy
                 new_x = tile_x + dx
                 
+                # Check if the target position is passable terrain
+                if not game.map.is_passable(new_y, new_x):
+                    # Cannot pull onto impassable terrain - log warning message
+                    message_log.add_message(
+                        f"{unit_at_tile.get_display_name()} cannot be pulled onto impassable terrain!",
+                        MessageType.WARNING,
+                        player=user.player,
+                        target_name=unit_at_tile.get_display_name()
+                    )
+                    # Skip this unit - it won't be moved
+                    continue
+                
                 # Store the movement info for animation
                 unit_movements.append({
                     'unit': unit_at_tile,
