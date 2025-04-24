@@ -1467,7 +1467,7 @@ class Game:
                     target.y, target.x,
                     wretched_animation,
                     1,  # Red color for death
-                    0.08  # Slightly faster for more dramatic effect
+                    1.0  # Slower animation for dramatic effect
                 )
                 
                 # Add a final flash effect at the end
@@ -1475,7 +1475,7 @@ class Game:
                     # Flash between red and white for dramatic finale
                     tile_ids = ['@', '#', '%', ' ']
                     color_ids = [1, 7, 1, 7]  # Alternate red and white
-                    durations = [0.1, 0.1, 0.1, 0.2]  # Last frame lingers
+                    durations = [1.0, 1.0, 1.0, 2.0]  # Last frame lingers
                     
                     # Use renderer's flash tile method for finale
                     ui.renderer.flash_tile(target.y, target.x, tile_ids, color_ids, durations)
