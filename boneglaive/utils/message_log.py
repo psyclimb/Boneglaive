@@ -206,6 +206,9 @@ class MessageLog:
                 color = 18  # Dark red for death messages
             elif " wretches!" in text:
                 color = 17  # Bright red for wretch messages
+            # Dominion upgrade messages should be very visible
+            elif "DOMINION:" in text or "absorbs power from the fallen" in text:
+                color = 19  # Special color for Dominion upgrades (bright magenta)
             # Check for debuff messages and forced displacement messages
             elif ("movement reduced" in text or "debuff" in text.lower() or "penalty" in text.lower() or 
                 "displaced from" in text or "collides with" in text):
