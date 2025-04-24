@@ -1492,6 +1492,29 @@ class GameModeManager(UIComponent):
             return False
             
         skill = unit.selected_skill
+        
+        # Special handling for Marrow Dike and Slough
+        # These are self-targeted area skills that were pre-confirmed in _select_skill
+        if skill.name in ["Marrow Dike", "Slough"] and unit.skill_target:
+            # Use the skill with the pre-set target
+            if skill.use(unit, unit.skill_target, self.game_ui.game):
+                # Clear selection
+                cursor_manager.highlighted_positions = []
+                
+                # Skill used successfully
+                return True
+            else:
+                # Use event system for message
+                self.publish_event(
+                    EventType.MESSAGE_DISPLAY_REQUESTED,
+                    MessageDisplayEventData(
+                        message=f"Failed to use {skill.name}",
+                        message_type=MessageType.WARNING
+                    )
+                )
+                return False
+                
+        # For normal skills, get the target position from cursor
         target_pos = (cursor_manager.cursor_pos.y, cursor_manager.cursor_pos.x)
         
         # Check if the target position is valid for this skill
@@ -2593,8 +2616,38 @@ class ActionMenuComponent(UIComponent):
                 # Set skill target to self (it's a self-targeted skill)
                 cursor_manager.selected_unit.skill_target = (from_y, from_x)
                 
+                # IMPORTANT: Use the skill now to properly set the cooldown
+                # This is a self-targeted skill, similar to Jawline
+                
+                # For Marrow Dike, just use normal can_use/use flow
+                if skill.name == "Marrow Dike":
+                    if skill.can_use(cursor_manager.selected_unit, (from_y, from_x), game):
+                        skill.use(cursor_manager.selected_unit, (from_y, from_x), game)
+                # For Slough, we need to directly set the cooldown since its can_use check
+                # may fail if there are no valid targets, but we still want to set cooldown
+                elif skill.name == "Slough":
+                    # Set skill target
+                    cursor_manager.selected_unit.skill_target = (from_y, from_x)
+                    cursor_manager.selected_unit.selected_skill = skill
+                    
+                    # Force set the cooldown directly
+                    skill.current_cooldown = skill.cooldown
+                    
+                    # Log the message (similar to what's in skill.use())
+                    message_log.add_message(
+                        f"{cursor_manager.selected_unit.get_display_name()} prepares to slough off bone matter!",
+                        MessageType.ABILITY,
+                        player=cursor_manager.selected_unit.player
+                    )
+                
                 # Draw the board to show the highlighted area
                 self.game_ui.draw_board()
+                
+                # Wait for user confirmation (handled by handle_select method)
+                # The input handler will call handle_select when Space is pressed,
+                # which will execute the skill
+                
+                # Return without requiring additional targeting
                 return
             
             # Different targeting logic based on skill target type
