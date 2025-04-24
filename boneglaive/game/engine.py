@@ -862,11 +862,23 @@ class Game:
                                         upgraded_skill = passive.get_next_upgrade()
                                         
                                         if upgraded_skill:
+                                            # Create a more distinctive message for the upgrade
+                                            upgrade_message = f"DOMINION: {owner.get_display_name()} absorbs power from the fallen, upgrading {upgraded_skill.capitalize()}!"
+                                            
+                                            # Add to message log with ABILITY type for correct player coloring
                                             message_log.add_message(
-                                                f"{owner.get_display_name()} absorbs power from the fallen, upgrading {upgraded_skill.capitalize()}!",
+                                                upgrade_message,
                                                 MessageType.ABILITY,
-                                                player=owner.player
+                                                player=owner.player,
+                                                # Include unit name explicitly to help with coloring
+                                                attacker_name=owner.get_display_name(),
+                                                # Add upgrade info to help with filtering/searching
+                                                upgrade=upgraded_skill,
+                                                is_upgrade=True
                                             )
+                                            
+                                            # Also log to the game's logger to ensure it's recorded
+                                            logger.info(upgrade_message)
                         
                         # If a MANDIBLE_FOREMAN dies, release any trapped unit
                         if target.type == UnitType.MANDIBLE_FOREMAN:
@@ -1054,11 +1066,23 @@ class Game:
                                         upgraded_skill = passive.get_next_upgrade()
                                         
                                         if upgraded_skill:
+                                            # Create a more distinctive message for the upgrade
+                                            upgrade_message = f"DOMINION: {owner.get_display_name()} absorbs power from the fallen, upgrading {upgraded_skill.capitalize()}!"
+                                            
+                                            # Add to message log with ABILITY type for correct player coloring
                                             message_log.add_message(
-                                                f"{owner.get_display_name()} absorbs power from the fallen, upgrading {upgraded_skill.capitalize()}!",
+                                                upgrade_message,
                                                 MessageType.ABILITY,
-                                                player=owner.player
+                                                player=owner.player,
+                                                # Include unit name explicitly to help with coloring
+                                                attacker_name=owner.get_display_name(),
+                                                # Add upgrade info to help with filtering/searching
+                                                upgrade=upgraded_skill,
+                                                is_upgrade=True
                                             )
+                                            
+                                            # Also log to the game's logger to ensure it's recorded
+                                            logger.info(upgrade_message)
                         
                         trapped_unit.trapped_by = None
                 
@@ -1672,9 +1696,14 @@ class Game:
                                 
                                 if upgraded_skill:
                                     message_log.add_message(
-                                        f"{owner.get_display_name()} absorbs power from the fallen, upgrading {upgraded_skill.capitalize()}!",
+                                        f"DOMINION: {owner.get_display_name()} absorbs power from the fallen, upgrading {upgraded_skill.capitalize()}!",
                                         MessageType.ABILITY,
-                                        player=owner.player
+                                        player=owner.player,
+                                        # Include unit name explicitly to help with coloring
+                                        attacker_name=owner.get_display_name(),
+                                        # Add upgrade info to help with filtering/searching
+                                        upgrade=upgraded_skill,
+                                        is_upgrade=True
                                     )
                 
                 # Check if this was a MANDIBLE_FOREMAN or another echo
