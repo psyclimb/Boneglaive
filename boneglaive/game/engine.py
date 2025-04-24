@@ -587,6 +587,85 @@ class Game:
         return 4  # Default defense bonus if we can't find the skill
     
     @measure_perf
+    def check_critical_health(self, unit, attacker=None, previous_hp=None, ui=None):
+        """
+        Check if a unit has reached critical health and trigger appropriate effects.
+        This is a centralized method to handle the "wretching" state for all units.
+        
+        Args:
+            unit: The unit to check for critical health
+            attacker: Optional unit that caused the damage
+            previous_hp: Optional previous HP for transition detection
+            ui: Optional UI reference for animations
+            
+        Returns:
+            bool: True if processing should continue, False if processing should stop
+        """
+        from boneglaive.utils.message_log import message_log, MessageType
+        from boneglaive.utils.constants import CRITICAL_HEALTH_PERCENT
+        
+        # Skip if unit is already dead
+        if not unit.is_alive():
+            return True
+            
+        # Skip if not in critical health
+        if not unit.is_at_critical_health():
+            return True
+            
+        # Get critical threshold for reference
+        critical_threshold = unit.get_critical_threshold()
+            
+        # Check if unit just entered critical health
+        if previous_hp is not None and previous_hp > critical_threshold:
+            # Unit just crossed into critical health - display the wretch message
+            message_log.add_message(
+                f"{unit.get_display_name()} wretches!",
+                MessageType.COMBAT,
+                player=attacker.player if attacker else None,
+                target=unit.player,
+                target_name=unit.get_display_name()
+            )
+            
+            # Add visual wretch animation if UI is available
+            if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+                # Get wretch animation from asset manager
+                wretch_animation = ui.asset_manager.get_skill_animation_sequence('wretch')
+                if not wretch_animation:
+                    # Fallback animation if not defined
+                    wretch_animation = ['!', '?', '#', '@', '&', '%', '$']
+                
+                # Flash unit with yellow/red to indicate critical status
+                ui.renderer.animate_attack_sequence(
+                    unit.y, unit.x,
+                    wretch_animation,
+                    6,  # Yellow color for critical
+                    0.08  # Quick animation
+                )
+            
+            # Check for Wretched Decension from FOWL_CONTRIVANCE
+            if attacker and attacker.type == UnitType.FOWL_CONTRIVANCE:
+                # Try to trigger Wretched Decension - if successful, stop processing
+                if self.try_trigger_wretched_decension(attacker, unit, ui):
+                    return False  # Stop processing
+            
+            # Try to trigger Autoclave for the target
+            self.try_trigger_autoclave(unit, ui)
+        
+        # Unit is already in critical health - check for ongoing effects
+        elif unit.hp <= critical_threshold:
+            # Check for Wretched Decension from FOWL_CONTRIVANCE
+            if attacker and attacker.type == UnitType.FOWL_CONTRIVANCE:
+                # Try to trigger Wretched Decension - if successful, stop processing
+                if self.try_trigger_wretched_decension(attacker, unit, ui):
+                    return False  # Stop processing
+            
+            # Try to trigger Autoclave for the target
+            self.try_trigger_autoclave(unit, ui)
+            
+        # Continue normal processing
+        return True
+    
+    @measure_perf
     def handle_unit_death(self, dying_unit, killer_unit=None, cause="combat", ui=None):
         """
         Centralized handling of unit death for consistent processing.
@@ -937,40 +1016,10 @@ class Game:
                     if target.hp <= 0:
                         # Use centralized death handling
                         self.handle_unit_death(target, unit, cause="combat", ui=ui)
-                        
-                        # MANDIBLE_FOREMAN and Echo death handling is done in handle_unit_death now
-                    # Check if target just entered critical health - trigger wretches message and possible passives
-                    elif previous_hp > critical_threshold and target.hp <= critical_threshold:
-                        message_log.add_message(
-                            f"{target.get_display_name()} wretches!",
-                            MessageType.COMBAT,
-                            player=unit.player,
-                            target=target.player,
-                            # Store unit names explicitly to help with coloring
-                            target_name=target.get_display_name()
-                        )
-                        
-                        # Check for Wretched Decension from FOWL_CONTRIVANCE
-                        if unit.type == UnitType.FOWL_CONTRIVANCE:
-                            # Try to trigger Wretched Decension - if successful, the unit is already dead
-                            # and we can skip the Autoclave check
-                            if self.try_trigger_wretched_decension(unit, target, ui):
-                                continue  # Skip to next unit if the target was killed
-                        
-                        # Directly try to trigger Autoclave for the target
-                        self.try_trigger_autoclave(target, ui)
-                        
-                    # Check if target is already in critical health and took more damage
-                    elif previous_hp <= critical_threshold and target.hp <= critical_threshold and target.hp > 0:
-                        # Check for Wretched Decension from FOWL_CONTRIVANCE
-                        if unit.type == UnitType.FOWL_CONTRIVANCE:
-                            # Try to trigger Wretched Decension - if successful, the unit is already dead
-                            # and we can skip the Autoclave check
-                            if self.try_trigger_wretched_decension(unit, target, ui):
-                                continue  # Skip to next unit if the target was killed
-                                
-                        # Directly try to trigger Autoclave for the target
-                        self.try_trigger_autoclave(target, ui)
+                    else:
+                        # Check for critical health (wretching) using centralized logic
+                        if not self.check_critical_health(target, unit, previous_hp, ui):
+                            continue  # Skip to next unit if processing should stop
                 else:
                     # Log invalid attack attempts for debugging
                     if not target:
@@ -1042,24 +1091,8 @@ class Game:
                         target_player=trapped_unit.player
                     )
                     
-                    # Check for Autoclave trigger - same logic as regular attacks
-                    critical_threshold = int(trapped_unit.max_hp * CRITICAL_HEALTH_PERCENT)
-                    # Check if target just entered critical health
-                    if previous_hp > critical_threshold and trapped_unit.hp <= critical_threshold:
-                        message_log.add_message(
-                            f"{trapped_unit.get_display_name()} wretches!",
-                            MessageType.COMBAT,
-                            player=unit.player,
-                            target=trapped_unit.player,
-                            target_name=trapped_unit.get_display_name()
-                        )
-                        
-                        # Directly try to trigger Autoclave for the trapped unit if it's a GLAIVEMAN
-                        self.try_trigger_autoclave(trapped_unit, ui)
-                    # Check if target is already in critical health and took more damage
-                    elif previous_hp <= critical_threshold and trapped_unit.hp <= critical_threshold and trapped_unit.hp > 0:
-                        # Directly try to trigger Autoclave for the trapped unit
-                        self.try_trigger_autoclave(trapped_unit, ui)
+                    # Check for critical health (wretching) using centralized logic
+                    self.check_critical_health(trapped_unit, unit, previous_hp, ui)
                     
                     # Show damage number if UI is available
                     if ui and hasattr(ui, 'renderer'):
@@ -1137,28 +1170,35 @@ class Game:
                     
                     # Handle Ossify duration (non-upgraded version only)
                     if hasattr(unit, 'ossify_duration') and unit.ossify_duration > 0:
-                        # Only decrement the duration if not permanently upgraded
+                        # Check if this is a permanently upgraded MARROW_CONDENSER
+                        is_permanent_ossify = False
                         if unit.type == UnitType.MARROW_CONDENSER and hasattr(unit, 'passive_skill'):
                             # Check if Ossify is permanently upgraded through Dominion
-                            if not (hasattr(unit.passive_skill, 'ossify_upgraded') and unit.passive_skill.ossify_upgraded):
-                                unit.ossify_duration -= 1
+                            if hasattr(unit.passive_skill, 'ossify_upgraded') and unit.passive_skill.ossify_upgraded:
+                                is_permanent_ossify = True
+                        
+                        # If not permanent, decrement duration (applies to all unit types)
+                        if not is_permanent_ossify:
+                            unit.ossify_duration -= 1
+                            
+                            # If duration expires, restore movement and remove defense bonus
+                            if unit.ossify_duration <= 0:
+                                # Only restore movement if not affected by other penalties
+                                if not hasattr(unit, 'was_pried') or not unit.was_pried:
+                                    if not hasattr(unit, 'jawline_affected') or not unit.jawline_affected:
+                                        if not hasattr(unit, 'trapped_by') or unit.trapped_by is None:
+                                            unit.move_range_bonus += 1  # Restore the movement penalty
                                 
-                                # If duration expires, restore movement and remove defense bonus
-                                if unit.ossify_duration <= 0:
-                                    # Only restore movement if not affected by other penalties
-                                    if not unit.was_pried and not unit.jawline_affected and unit.trapped_by is None:
-                                        unit.move_range_bonus += 1  # Restore the movement penalty
-                                    
-                                    # Remove defense bonus as well
-                                    unit.defense_bonus -= self.get_ossify_defense_bonus(unit)
-                                    
-                                    # Log the effect expiration
-                                    message_log.add_message(
-                                        f"{unit.get_display_name()}'s ossified bone structure returns to normal!",
-                                        MessageType.ABILITY,
-                                        player=unit.player,
-                                        target_name=unit.get_display_name()
-                                    )
+                                # Remove defense bonus as well
+                                unit.defense_bonus -= self.get_ossify_defense_bonus(unit)
+                                
+                                # Log the effect expiration
+                                message_log.add_message(
+                                    f"{unit.get_display_name()}'s ossified bone structure returns to normal!",
+                                    MessageType.ABILITY,
+                                    player=unit.player,
+                                    target_name=unit.get_display_name()
+                                )
                 
                 # Handle units that were affected by Pry during the turn that just ended
                 # They need to keep their was_pried status until after THEIR next turn
