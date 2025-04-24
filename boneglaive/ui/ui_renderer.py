@@ -133,18 +133,22 @@ class UIRenderer:
                 # Map terrain type to tile representation, color, and attribute
                 tile_attr = 0  # Default: no special attributes
                 
-                if terrain == TerrainType.EMPTY:
+                # Check if this position is inside a Marrow Dike interior first (priority rendering)
+                pos_tuple = (y, x)
+                if hasattr(self.game_ui.game, 'marrow_dike_interior') and pos_tuple in self.game_ui.game.marrow_dike_interior:
+                    dike_info = self.game_ui.game.marrow_dike_interior[pos_tuple]
+                    # If this is an upgraded Marrow Dike, show blood plasma
+                    if dike_info.get('upgraded', False):
+                        tile = "~"  # Blood plasma appearance
+                        color_id = 20  # Red color for blood
+                    else:
+                        # Non-upgraded interior still shows as regular floor
+                        tile = self.game_ui.asset_manager.get_terrain_tile("empty")
+                        color_id = 1  # Default color
+                # Handle regular terrain types
+                elif terrain == TerrainType.EMPTY:
                     tile = self.game_ui.asset_manager.get_terrain_tile("empty")
                     color_id = 1  # Default color
-                    
-                    # Check if this is inside a Marrow Dike interior
-                    pos_tuple = (y, x)
-                    if hasattr(self.game_ui.game, 'marrow_dike_interior') and pos_tuple in self.game_ui.game.marrow_dike_interior:
-                        dike_info = self.game_ui.game.marrow_dike_interior[pos_tuple]
-                        # If this is an upgraded Marrow Dike, show blood plasma
-                        if dike_info.get('upgraded', False):
-                            tile = "~"  # Blood plasma appearance
-                            color_id = 20  # Red color for blood
                             
                 elif terrain == TerrainType.LIMESTONE:
                     tile = self.game_ui.asset_manager.get_terrain_tile("limestone")
