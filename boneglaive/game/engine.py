@@ -1236,11 +1236,14 @@ class Game:
                         if unit.is_alive() and unit.player == owner.player and unit.hp < unit.max_hp:
                             unit_pos = (unit.y, unit.x)
                             
-                            # Check if unit is inside any of this owner's upgraded dike tiles
-                            # We specifically check the interior collection here
-                            if unit_pos in self.marrow_dike_interior and self.marrow_dike_interior[unit_pos]['owner'] == owner:
-                                if unit not in healed_units:
-                                    healed_units.append(unit)
+                            # Check if unit is inside any of this owner's upgraded dike interior
+                            for interior_pos in interior_tiles:
+                                if unit_pos == interior_pos:
+                                    if unit not in healed_units:
+                                        healed_units.append(unit)
+                                        # Debug log
+                                        logger.debug(f"Adding {unit.get_display_name()} to be healed inside dike at {unit_pos}")
+                                    break
                     
                     # Apply healing to all identified units
                     if healed_units:
@@ -1248,7 +1251,7 @@ class Game:
                         healing_amount = 2  # Default
                         
                         # Try to get healing amount from the skill if possible
-                        for skill in owner.skills:
+                        for skill in owner.active_skills:
                             if skill.name == "Marrow Dike" and hasattr(skill, 'healing_amount'):
                                 healing_amount = skill.healing_amount
                                 break
@@ -1264,11 +1267,14 @@ class Game:
                             # Only log if unit actually received healing
                             if unit.hp > previous_hp:
                                 actual_healing = unit.hp - previous_hp
+                                heal_message = f"{unit.get_display_name()} is healed for {actual_healing} HP by {owner.get_display_name()}'s blood plasma!"
                                 message_log.add_message(
-                                    f"{unit.get_display_name()} is healed for {actual_healing} HP by {owner.get_display_name()}'s blood plasma!",
+                                    heal_message,
                                     MessageType.ABILITY,
                                     player=owner.player
                                 )
+                                # Add debug log
+                                logger.info(heal_message)
         
         # Check if game is over
         self.check_game_over()
