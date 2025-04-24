@@ -58,6 +58,11 @@ class EventType(Enum):
     UNIT_PLACED = auto()
     SETUP_PHASE_COMPLETED = auto()
     
+    # Skill events
+    SKILL_PLANNED = auto()
+    SKILL_EXECUTED = auto()
+    SKILL_CANCELLED = auto()
+    
     # Skill effect events
     EFFECT_EXPIRED = auto()
 
@@ -147,8 +152,8 @@ class EventManager:
 
 class UnitSelectedEventData(EventData):
     """Data for UNIT_SELECTED events."""
-    def __init__(self, unit, position):
-        super().__init__(unit=unit, position=position)
+    def __init__(self, unit, is_ghost=False):
+        super().__init__(unit=unit, is_ghost=is_ghost)
 
 
 class UnitDeselectedEventData(EventData):
@@ -236,6 +241,17 @@ class EffectExpiredEventData(EventData):
     """Data for EFFECT_EXPIRED events."""
     def __init__(self, skill_name):
         super().__init__(skill_name=skill_name)
+
+
+class SkillEventData(EventData):
+    """Data for SKILL_PLANNED and related skill events."""
+    def __init__(self, unit, skill, target_position, target_unit=None):
+        super().__init__(
+            unit=unit,
+            skill=skill,
+            target_position=target_position,
+            target_unit=target_unit
+        )
 
 
 # Helper function to get event manager instance
