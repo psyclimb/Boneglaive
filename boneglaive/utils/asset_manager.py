@@ -103,7 +103,7 @@ class AssetManager:
             'viseroy_trap': ['[]', '><', '}{', 'Ξ', '}{', '><', '[]'],  # Animation for Viseroy trapping
             # MARROW_CONDENSER animations
             'marrow_condenser_attack': ['/', '|', '\\', '-', '8', '$', 'Ø', '#', '*'],  # Swinging and striking with bone chunks
-            'ossify': ['|', '#', '█', '▓', '▒'],  # Bone hardening animation
+            'ossify': ['#', '%', '@', '*', '+', '=', '&', '$', '#', '/', '\\', '|', '-', '.'],  # ASCII bone hardening animation
             'marrow_dike': ['╎', '╏', '┃', '┆', '┇', '┊', '┋', '#', '#'],  # Marrow wall forming - hash wall animation
             'slough': ['↑', '↗', '→', '↘', '↓'],  # Transfer animation
             'site_inspection': ['□', '■', '□', '■', '□'],  # Animation for Site Inspection
