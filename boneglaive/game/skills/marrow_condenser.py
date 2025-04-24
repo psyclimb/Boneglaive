@@ -235,21 +235,25 @@ class MarrowDikeSkill(ActiveSkill):
         if hasattr(user, 'passive_skill') and hasattr(user.passive_skill, 'marrow_dike_upgraded'):
             self.upgraded = user.passive_skill.marrow_dike_upgraded
         
-        # Generate the dike area (5x5 centered on user)
+        # Generate the dike area (perimeter of a 5x5 area centered on user)
         dike_tiles = []
         center_y, center_x = user.y, user.x
         
+        # Create only the perimeter tiles for a hollow fence
         for dy in range(-2, 3):  # -2, -1, 0, 1, 2
             for dx in range(-2, 3):  # -2, -1, 0, 1, 2
                 # Skip the center tile (user's position)
                 if dy == 0 and dx == 0:
                     continue
                     
-                tile_y, tile_x = center_y + dy, center_x + dx
-                
-                # Check if position is valid
-                if game.is_valid_position(tile_y, tile_x):
-                    dike_tiles.append((tile_y, tile_x))
+                # Only include tiles on the perimeter of the 5x5 area
+                # This creates a hollow square fence
+                if abs(dy) == 2 or abs(dx) == 2:  # Only edge positions
+                    tile_y, tile_x = center_y + dy, center_x + dx
+                    
+                    # Check if position is valid
+                    if game.is_valid_position(tile_y, tile_x):
+                        dike_tiles.append((tile_y, tile_x))
         
         # Add the marrow dike to the game state for tracking duration and owner
         if not hasattr(game, 'marrow_dike_tiles'):
@@ -273,8 +277,8 @@ class MarrowDikeSkill(ActiveSkill):
             original_terrain = game.map.get_terrain_at(tile_y, tile_x)
             game.previous_terrain[tile] = original_terrain
             
-            # Set the tile to PILLAR terrain (blocks movement and LOS)
-            game.map.set_terrain_at(tile_y, tile_x, TerrainType.PILLAR)
+            # Set the tile to MARROW_WALL terrain (special terrain for dike)
+            game.map.set_terrain_at(tile_y, tile_x, TerrainType.MARROW_WALL)
             
             # Associate this tile with the dike
             game.marrow_dike_tiles[tile] = {
@@ -300,8 +304,11 @@ class MarrowDikeSkill(ActiveSkill):
         
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer'):
-            # Create wall effect animation
-            wall_animation = ['░', '▒', '▓', '█']
+            # Get fence post animation from asset manager
+            wall_animation = ui.asset_manager.get_skill_animation_sequence('marrow_dike')
+            if not wall_animation:
+                # Fallback animation if not defined in asset manager
+                wall_animation = ['╎', '╏', '┃', '┆', '┇', '┊', '┋', '‡']
             
             # Draw animation for each tile in sequence
             for i, (tile_y, tile_x) in enumerate(dike_tiles):
@@ -309,23 +316,31 @@ class MarrowDikeSkill(ActiveSkill):
                 unit_at_tile = game.get_unit_at(tile_y, tile_x)
                 
                 if not unit_at_tile:
-                    # Animate the wall creation (no unit at this position)
+                    # Animate the wall creation with RED color (5) for Marrow regardless of player
                     ui.renderer.animate_attack_sequence(
                         tile_y, tile_x,
                         wall_animation,
-                        3 if user.player == 1 else 4,  # Player color
+                        5,  # Red color for Marrow walls
                         0.05  # Quick animation
                     )
                     
                     # If upgraded, add a plasma effect
                     if self.upgraded:
                         plasma_animation = ['~', '≈', '≋', '≈', '~']
+                        # Draw upgraded walls with yellow blood plasma flowing through them
                         ui.renderer.animate_attack_sequence(
                             tile_y, tile_x,
                             plasma_animation,
                             6,  # Yellowish color for plasma
                             0.05  # Quick animation
                         )
+                    
+                    # Draw final wall symbol in red to make it stand out
+                    ui.renderer.draw_tile(
+                        tile_y, tile_x,
+                        '‡',  # Double dagger for fence posts
+                        20  # Use specific color defined for marrow walls (red)
+                    )
                 
                 # If it's the 10th tile or last tile, pause briefly to avoid overwhelming rendering
                 if i % 10 == 9 or i == len(dike_tiles) - 1:

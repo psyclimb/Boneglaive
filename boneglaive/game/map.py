@@ -21,6 +21,7 @@ class TerrainType(Enum):
     OTTOMAN = 6    # Ottoman seating, blocks movement but not line of sight
     CONSOLE = 7    # Console table, blocks movement but not line of sight
     DEC_TABLE = 8  # Decorative table, blocks movement but not line of sight
+    MARROW_WALL = 9  # Marrow Dike wall, blocks movement and unit placement but not permanently
 
 
 class GameMap:
@@ -53,20 +54,20 @@ class GameMap:
     def is_passable(self, y: int, x: int) -> bool:
         """Check if a position is passable (can be moved through)."""
         terrain = self.get_terrain_at(y, x)
-        # All furniture types (including the new ones) are impassable, like pillars and limestone
+        # All furniture types, pillars, limestone, and marrow walls are impassable
         return terrain in [TerrainType.EMPTY, TerrainType.DUST]
     
     def can_place_unit(self, y: int, x: int) -> bool:
         """Check if a unit can be placed at this position."""
         terrain = self.get_terrain_at(y, x)
-        # Units can only be placed on empty or dusty tiles, not on any type of furniture
+        # Units can only be placed on empty or dusty tiles
         return terrain in [TerrainType.EMPTY, TerrainType.DUST]
         
     def blocks_line_of_sight(self, y: int, x: int) -> bool:
         """Check if a position blocks line of sight for ranged attacks."""
         terrain = self.get_terrain_at(y, x)
-        # Only limestone and pillars block line of sight - furniture doesn't
-        return terrain in [TerrainType.LIMESTONE, TerrainType.PILLAR]
+        # Limestone, pillars, and marrow walls block line of sight
+        return terrain in [TerrainType.LIMESTONE, TerrainType.PILLAR, TerrainType.MARROW_WALL]
 
 
 class LimeFoyerMap(GameMap):
