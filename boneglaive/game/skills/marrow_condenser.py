@@ -83,7 +83,7 @@ class OssifySkill(ActiveSkill):
             range_=0
         )
         self.upgraded = False
-        self.defense_bonus = 2
+        self.defense_bonus = 4  # Increased defense bonus to 4
         self.duration = 2  # Duration in turns
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
@@ -522,65 +522,52 @@ class MarrowDikeSkill(ActiveSkill):
 class SloughSkill(ActiveSkill):
     """
     Active skill for MARROW_CONDENSER.
-    Transfers any stat bonuses to an allied unit.
-    When upgraded, transfers the stat bonuses without losing them.
+    Sloughs off positive stat bonuses to all allies in a 5x5 area.
+    If no positive bonuses available, heals allies for a small amount.
+    
+    When upgraded:
+    - Maintains positive bonuses when sharing
+    - Transfers negative effects to enemies
+    - Deals damage if no negative effects to transfer
     """
     
     def __init__(self):
         super().__init__(
             name="Slough",
             key="S",
-            description="Transfers any stat bonuses to an allied unit.",
-            target_type=TargetType.ALLY,
-            cooldown=0,
-            range_=2
+            description="Sloughs off positive stat bonuses to allies in a 5x5 area. If no bonuses are available, heals allies instead.",
+            target_type=TargetType.SELF,  # Changed to self-targeted (area effect)
+            cooldown=3,  # Added cooldown
+            range_=0,
+            area=2  # 5x5 area (center + 2 in each direction)
         )
         self.upgraded = False
+        self.heal_amount = 2  # Small healing fallback amount
+        self.damage_amount = 3  # Damage for upgraded version with no debuffs
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
-        # Basic validation
+        # Basic validation (cooldown, etc.)
         if not super().can_use(user, target_pos, game):
             return False
         
-        # Need game and target position
-        if not game or not target_pos:
-            return False
-            
-        # Check if target is a valid ally
-        target = game.get_unit_at(target_pos[0], target_pos[1])
-        if not target or target.player != user.player or target is user:
-            return False
-            
-        # Check if user has any stat bonuses to transfer
-        has_bonuses = (
-            user.attack_bonus > 0 or 
-            user.defense_bonus > 0 or 
-            user.move_range_bonus > 0 or
-            user.attack_range_bonus > 0
-        )
-        
-        if not has_bonuses:
-            return False
-            
+        # Skill can always be used - either transferring effects or healing/damaging
         return True
             
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Queue the Slough skill for execution."""
+        # For self-targeting skills, set target to current position
+        target_pos = (user.y, user.x)
         if not self.can_use(user, target_pos, game):
             return False
             
         user.skill_target = target_pos
         user.selected_skill = self
         
-        # Get target unit for message
-        target = game.get_unit_at(target_pos[0], target_pos[1])
-        
         # Log that the skill has been queued
         message_log.add_message(
-            f"{user.get_display_name()} prepares to transfer bonuses to {target.get_display_name()}!",
+            f"{user.get_display_name()} prepares to slough off bone matter!",
             MessageType.ABILITY,
-            player=user.player,
-            target_name=target.get_display_name()
+            player=user.player
         )
         
         self.current_cooldown = self.cooldown
@@ -594,64 +581,181 @@ class SloughSkill(ActiveSkill):
         if hasattr(user, 'passive_skill') and hasattr(user.passive_skill, 'slough_upgraded'):
             self.upgraded = user.passive_skill.slough_upgraded
         
-        # Get target unit
-        target = game.get_unit_at(target_pos[0], target_pos[1])
-        if not target or target.player != user.player:
-            # Target is no longer valid
+        # Check if user has any positive stat bonuses to share
+        positive_bonuses = {
+            'attack': user.attack_bonus if user.attack_bonus > 0 else 0,
+            'defense': user.defense_bonus if user.defense_bonus > 0 else 0,
+            'move': user.move_range_bonus if user.move_range_bonus > 0 else 0,
+            'range': user.attack_range_bonus if user.attack_range_bonus > 0 else 0
+        }
+        
+        has_positive_bonuses = any(value > 0 for value in positive_bonuses.values())
+        
+        # Check if user has any negative stat changes (for upgraded version)
+        negative_effects = {
+            'attack': abs(user.attack_bonus) if user.attack_bonus < 0 else 0,
+            'defense': abs(user.defense_bonus) if user.defense_bonus < 0 else 0,
+            'move': abs(user.move_range_bonus) if user.move_range_bonus < 0 else 0,
+            'range': abs(user.attack_range_bonus) if user.attack_range_bonus < 0 else 0
+        }
+        
+        has_negative_effects = any(value > 0 for value in negative_effects.values())
+        
+        # Generate area of effect (5x5 area centered on user)
+        effect_area = []
+        center_y, center_x = user.y, user.x
+        
+        # Generate all positions in 5x5 area
+        for dy in range(-2, 3):  # -2, -1, 0, 1, 2
+            for dx in range(-2, 3):  # -2, -1, 0, 1, 2
+                # Skip the center position (user's position)
+                if dy == 0 and dx == 0:
+                    continue
+                    
+                tile_y, tile_x = center_y + dy, center_x + dx
+                
+                # Check if position is valid
+                if game.is_valid_position(tile_y, tile_x):
+                    effect_area.append((tile_y, tile_x))
+        
+        # Process effects
+        allies_affected = []
+        enemies_affected = []
+        
+        # Check for targets in the area
+        for tile_y, tile_x in effect_area:
+            target = game.get_unit_at(tile_y, tile_x)
+            
+            if not target or not target.is_alive():
+                continue
+                
+            # Group by ally or enemy
+            if target.player == user.player:
+                allies_affected.append(target)
+            elif self.upgraded:  # Only track enemies if upgraded
+                enemies_affected.append(target)
+        
+        # Apply effects
+        allies_buffed = 0
+        allies_healed = 0
+        enemies_debuffed = 0
+        enemies_damaged = 0
+        
+        # Process allies first
+        if allies_affected:
+            if has_positive_bonuses:
+                # Apply positive bonuses to all allies
+                for ally in allies_affected:
+                    # Apply each bonus
+                    ally.attack_bonus += positive_bonuses['attack']
+                    ally.defense_bonus += positive_bonuses['defense']
+                    ally.move_range_bonus += positive_bonuses['move']
+                    ally.attack_range_bonus += positive_bonuses['range']
+                    allies_buffed += 1
+                
+                # If not upgraded, remove bonuses from user
+                if not self.upgraded:
+                    # Remove positive bonuses from user
+                    if positive_bonuses['attack'] > 0:
+                        user.attack_bonus = 0
+                    if positive_bonuses['defense'] > 0:
+                        user.defense_bonus = 0
+                    if positive_bonuses['move'] > 0:
+                        user.move_range_bonus = 0
+                    if positive_bonuses['range'] > 0:
+                        user.attack_range_bonus = 0
+            
+            else:
+                # No bonuses to share, apply healing instead
+                for ally in allies_affected:
+                    # Only heal if not at full health
+                    if ally.hp < ally.max_hp:
+                        previous_hp = ally.hp
+                        ally.hp = min(ally.max_hp, ally.hp + self.heal_amount)
+                        if ally.hp > previous_hp:
+                            allies_healed += 1
+        
+        # Process enemies if upgraded
+        if self.upgraded and enemies_affected:
+            if has_negative_effects:
+                # Apply negative effects to enemies
+                for enemy in enemies_affected:
+                    enemy.attack_bonus -= negative_effects['attack']
+                    enemy.defense_bonus -= negative_effects['defense']
+                    enemy.move_range_bonus -= negative_effects['move']
+                    enemy.attack_range_bonus -= negative_effects['range']
+                    enemies_debuffed += 1
+                
+                # Clear negative effects from user
+                if negative_effects['attack'] > 0:
+                    user.attack_bonus = max(0, user.attack_bonus)
+                if negative_effects['defense'] > 0:
+                    user.defense_bonus = max(0, user.defense_bonus)
+                if negative_effects['move'] > 0:
+                    user.move_range_bonus = max(0, user.move_range_bonus)
+                if negative_effects['range'] > 0:
+                    user.attack_range_bonus = max(0, user.attack_range_bonus)
+            
+            else:
+                # No negative effects to share, apply damage instead
+                for enemy in enemies_affected:
+                    # Apply damage
+                    damage_dealt = game.calculate_direct_damage(self.damage_amount, user, enemy)
+                    game.damage_unit(enemy, damage_dealt, user, "ability")
+                    enemies_damaged += 1
+        
+        # Log what happened
+        if self.upgraded:
             message_log.add_message(
-                "Slough failed: target no longer valid.",
+                f"{user.get_display_name()} releases bone matter in all directions!",
                 MessageType.ABILITY,
                 player=user.player
             )
-            return False
-            
-        # Track bonuses being transferred
-        bonuses = {
-            'attack': user.attack_bonus,
-            'defense': user.defense_bonus,
-            'move': user.move_range_bonus,
-            'range': user.attack_range_bonus
-        }
-        
-        # Apply bonuses to target
-        target.attack_bonus += bonuses['attack']
-        target.defense_bonus += bonuses['defense']
-        target.move_range_bonus += bonuses['move']
-        target.attack_range_bonus += bonuses['range']
-        
-        # Remove bonuses from user if not upgraded
-        if not self.upgraded:
-            user.attack_bonus = 0
-            user.defense_bonus = 0
-            user.move_range_bonus = 0
-            user.attack_range_bonus = 0
-            
-            message_log.add_message(
-                f"{user.get_display_name()} transfers their stat bonuses to {target.get_display_name()}!",
-                MessageType.ABILITY,
-                player=user.player,
-                target_name=target.get_display_name()
-            )
         else:
             message_log.add_message(
-                f"{user.get_display_name()} shares their stat bonuses with {target.get_display_name()} without losing them!",
+                f"{user.get_display_name()} sloughs off bone matter!",
                 MessageType.ABILITY,
-                player=user.player,
-                target_name=target.get_display_name()
+                player=user.player
+            )
+        
+        # Additional messages based on effects
+        if allies_buffed > 0:
+            message_log.add_message(
+                f"Beneficial bone growth reinforces {allies_buffed} allies!",
+                MessageType.ABILITY,
+                player=user.player
+            )
+        
+        if allies_healed > 0:
+            message_log.add_message(
+                f"Marrow nutrients heal {allies_healed} allies for {self.heal_amount} HP!",
+                MessageType.ABILITY,
+                player=user.player
+            )
+        
+        if enemies_debuffed > 0:
+            message_log.add_message(
+                f"Calcified fragments weigh down {enemies_debuffed} enemies!",
+                MessageType.ABILITY,
+                player=user.player
+            )
+        
+        if enemies_damaged > 0:
+            message_log.add_message(
+                f"Bone shards tear into {enemies_damaged} enemies for {self.damage_amount} damage!",
+                MessageType.ABILITY,
+                player=user.player
             )
         
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Get transfer animation
-            transfer_animation = ui.asset_manager.get_skill_animation_sequence('slough')
-            if not transfer_animation:
-                transfer_animation = ['↑', '↗', '→', '↘', '↓']  # Fallback
-                
-            # Get the path from user to target
-            from boneglaive.utils.coordinates import get_line, Position
-            path = get_line(Position(user.y, user.x), Position(target.y, target.x))
+            # Get slough animation from asset manager
+            slough_animation = ui.asset_manager.get_skill_animation_sequence('slough')
+            if not slough_animation:
+                # TTY-friendly animation showing bone chunks sloughing off
+                slough_animation = ['#', '&', '$', '@', '*', '.']
             
-            # First flash the user to show bonuses being gathered
+            # First flash the user to show bonuses being gathered/sloughed
             if hasattr(ui, 'asset_manager'):
                 tile_ids = [ui.asset_manager.get_unit_tile(user.type)] * 4
                 color_ids = [6, 3 if user.player == 1 else 4] * 2  # Alternate yellow with player color
@@ -659,33 +763,81 @@ class SloughSkill(ActiveSkill):
                 
                 ui.renderer.flash_tile(user.y, user.x, tile_ids, color_ids, durations)
             
-            # Animate along the path
-            for pos in path[1:]:  # Skip the first position (user)
-                ui.renderer.draw_tile(pos.y, pos.x, transfer_animation[min(path.index(pos), len(transfer_animation)-1)], 6)
-                ui.renderer.refresh()
-                time.sleep(0.05)
-                
-            # Wait a moment before showing effect on target
-            time.sleep(0.1)
+            # Create animation paths from user to each affected unit
+            # Track which positions we've already animated to avoid duplication
+            animated_positions = set()
             
-            # Flash the target to show bonuses being received
-            if hasattr(ui, 'asset_manager'):
-                tile_ids = [ui.asset_manager.get_unit_tile(target.type)] * 4
-                color_ids = [6, 3 if target.player == 1 else 4] * 2  # Alternate yellow with player color
-                durations = [0.1] * 4
-                
-                ui.renderer.flash_tile(target.y, target.x, tile_ids, color_ids, durations)
+            # Define direction vectors for the 8 cardinal/ordinal directions
+            directions = [
+                (-1, 0),   # North
+                (-1, 1),   # Northeast
+                (0, 1),    # East
+                (1, 1),    # Southeast
+                (1, 0),    # South
+                (1, -1),   # Southwest
+                (0, -1),   # West
+                (-1, -1)   # Northwest
+            ]
             
-            # If upgraded, also flash the user again to show they kept bonuses
-            if self.upgraded:
+            # Show an expanding ring of bone/marrow matter
+            for distance in range(1, 3):  # Animate out to distance 2
+                # Find positions at this distance from user
+                positions_at_distance = []
+                for dy in range(-distance, distance+1):
+                    for dx in range(-distance, distance+1):
+                        # Only include positions at exactly the current distance
+                        if abs(dy) == distance or abs(dx) == distance:
+                            tile_y, tile_x = user.y + dy, user.x + dx
+                            if game.is_valid_position(tile_y, tile_x):
+                                positions_at_distance.append((tile_y, tile_x))
+                
+                # Animate all positions at this distance simultaneously
+                for pos_y, pos_x in positions_at_distance:
+                    # Choose animation frame based on direction
+                    # Check if any unit is at this position
+                    target = game.get_unit_at(pos_y, pos_x)
+                    
+                    # Use different colors based on ally/enemy/empty
+                    color_id = 5  # Default to red for bone matter
+                    
+                    if target:
+                        if target.player == user.player:
+                            color_id = 3 if user.player == 1 else 4  # Player color for allies
+                        else:
+                            color_id = 20  # Red for enemies
+                    
+                    # Animate the bone matter spreading
+                    for frame in slough_animation:
+                        ui.renderer.draw_tile(pos_y, pos_x, frame, color_id)
+                        ui.renderer.refresh()
+                        time.sleep(0.03)  # Quick animation
+                
+                # Pause briefly between rings
                 time.sleep(0.1)
-                tile_ids = [ui.asset_manager.get_unit_tile(user.type)] * 4
-                color_ids = [6, 3 if user.player == 1 else 4] * 2  # Alternate yellow with player color
-                durations = [0.1] * 4
-                
-                ui.renderer.flash_tile(user.y, user.x, tile_ids, color_ids, durations)
             
-            # Redraw board after animations
+            # Apply final effects to targets (flashing allies/enemies)
+            
+            # Flash allies who were buffed or healed
+            for ally in allies_affected:
+                if has_positive_bonuses or (not has_positive_bonuses and ally.hp < ally.max_hp):
+                    # Flash allies with appropriate color (green for positive)
+                    tile_ids = [ui.asset_manager.get_unit_tile(ally.type)] * 4
+                    color_ids = [3, 3, 3, 3]  # Green for allies
+                    durations = [0.08] * 4
+                    
+                    ui.renderer.flash_tile(ally.y, ally.x, tile_ids, color_ids, durations)
+            
+            # Flash enemies who were debuffed or damaged (if upgraded)
+            if self.upgraded:
+                for enemy in enemies_affected:
+                    # Flash enemies with red for negative
+                    tile_ids = [ui.asset_manager.get_unit_tile(enemy.type)] * 4
+                    color_ids = [20, 20, 20, 20]  # Red for enemies
+                    durations = [0.08] * 4
+                    
+                    ui.renderer.flash_tile(enemy.y, enemy.x, tile_ids, color_ids, durations)
+            
+            # Redraw the board after all animations
             if hasattr(ui, 'draw_board'):
                 ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
         
