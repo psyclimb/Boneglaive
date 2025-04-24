@@ -423,8 +423,8 @@ class Game:
             # Check if terrain at this position blocks line of sight
             terrain = self.map.get_terrain_at(pos.y, pos.x)
             
-            # Terrain types that block line of sight
-            if terrain in [TerrainType.PILLAR, TerrainType.LIMESTONE]:
+            # Check if terrain blocks line of sight (use map's function instead of hardcoding)
+            if self.map.blocks_line_of_sight(pos.y, pos.x):
                 logger.debug(f"Line of sight blocked by {terrain} at position ({pos.y}, {pos.x})")
                 return False
             
@@ -483,6 +483,10 @@ class Game:
                 # Check if there's ANY unit at this position
                 blocking_unit = self.get_unit_at(pos.y, pos.x)
                 if blocking_unit:
+                    return False
+                    
+                # Check if terrain along the path is passable
+                if not self.map.is_passable(pos.y, pos.x):
                     return False
         
         return True
@@ -1102,6 +1106,44 @@ class Game:
                     if dike_info['duration'] <= 0:
                         tiles_to_remove.append((tile_y, tile_x))
             
+            # Process healing for upgraded Marrow Dikes belonging to current player
+            upgraded_dikes = {}
+            for (tile_y, tile_x), dike_info in list(self.marrow_dike_tiles.items()):
+                # Only process upgraded dikes for the current player
+                if dike_info['owner'].player == self.current_player and dike_info['upgraded']:
+                    # Store tiles by owner to process healing once per owner
+                    owner = dike_info['owner']
+                    if owner not in upgraded_dikes:
+                        upgraded_dikes[owner] = []
+                    upgraded_dikes[owner].append((tile_y, tile_x))
+            
+            # Process healing for each owner's upgraded dikes
+            for owner, dike_positions in upgraded_dikes.items():
+                # Find allied units in these dike tiles
+                healed_units = []
+                for tile_y, tile_x in dike_positions:
+                    unit_at_tile = self.get_unit_at(tile_y, tile_x)
+                    if unit_at_tile and unit_at_tile.player == owner.player and unit_at_tile.hp < unit_at_tile.max_hp:
+                        # Only add each unit to the healing list once
+                        if unit_at_tile not in healed_units:
+                            healed_units.append(unit_at_tile)
+                
+                # Apply healing to allied units
+                healing_amount = 2  # Fixed healing amount for upgraded dikes
+                for unit in healed_units:
+                    old_hp = unit.hp
+                    unit.hp = min(unit.max_hp, unit.hp + healing_amount)
+                    actual_healing = unit.hp - old_hp
+                    
+                    # Log healing message
+                    if actual_healing > 0:
+                        message_log.add_message(
+                            f"{unit.get_display_name()} heals {actual_healing} HP from {owner.get_display_name()}'s blood plasma!",
+                            MessageType.ABILITY,
+                            player=owner.player,
+                            target_name=unit.get_display_name()
+                        )
+            
             # Process removals and restore original terrain
             for tile_y, tile_x in tiles_to_remove:
                 tile = (tile_y, tile_x)
@@ -1122,6 +1164,59 @@ class Game:
                         MessageType.ABILITY,
                         player=owner.player
                     )
+            
+            # Process healing for upgraded Marrow Dikes (blood plasma healing effect)
+            # Group all upgraded dikes by owner to process healing collectively
+            if hasattr(self, 'marrow_dike_tiles') and self.marrow_dike_tiles:
+                # Find all upgraded dike tiles belonging to the current player
+                upgraded_dikes_by_owner = {}
+                
+                for tile_pos, dike_info in self.marrow_dike_tiles.items():
+                    # Check if dike belongs to current player and is upgraded
+                    if dike_info['owner'].player == self.current_player and dike_info.get('upgraded', False):
+                        # Group by owner unit
+                        owner = dike_info['owner']
+                        if owner not in upgraded_dikes_by_owner:
+                            upgraded_dikes_by_owner[owner] = []
+                        upgraded_dikes_by_owner[owner].append(tile_pos)
+                
+                # Process healing for each owner's upgraded dikes
+                for owner, dike_tiles in upgraded_dikes_by_owner.items():
+                    # Find all allied units standing in the upgraded dike tiles
+                    healed_units = []
+                    
+                    for unit in self.units:
+                        # Only consider allied units that are not at full health
+                        if unit.is_alive() and unit.player == owner.player and unit.hp < unit.max_hp:
+                            unit_pos = (unit.y, unit.x)
+                            
+                            # Check if unit is inside any of this owner's upgraded dike tiles
+                            if unit_pos in dike_tiles:
+                                healed_units.append(unit)
+                    
+                    # Apply healing to all identified units
+                    if healed_units:
+                        # Get healing amount from the skill definition
+                        healing_amount = 2  # Default
+                        if hasattr(owner, 'selected_skill') and owner.selected_skill and hasattr(owner.selected_skill, 'healing_amount'):
+                            healing_amount = owner.selected_skill.healing_amount
+                        
+                        # Heal each unit and log the effect
+                        for unit in healed_units:
+                            # Store previous HP for comparison
+                            previous_hp = unit.hp
+                            
+                            # Apply healing (capped at max HP)
+                            unit.hp = min(unit.max_hp, unit.hp + healing_amount)
+                            
+                            # Only log if unit actually received healing
+                            if unit.hp > previous_hp:
+                                actual_healing = unit.hp - previous_hp
+                                message_log.add_message(
+                                    f"{unit.get_display_name()} is healed for {actual_healing} HP by {owner.get_display_name()}'s blood plasma!",
+                                    MessageType.ABILITY,
+                                    player=owner.player
+                                )
         
         # Check if game is over
         self.check_game_over()

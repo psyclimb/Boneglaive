@@ -58,7 +58,8 @@ class AssetManager:
             'coat_rack': 'ł',  # Coat rack uses slashed l
             'ottoman': '=',    # Ottoman uses equals sign
             'console': 'ε',    # Console table uses epsilon
-            'dec_table': 'Π'   # Decorative table uses Pi symbol
+            'dec_table': 'Π',  # Decorative table uses Pi symbol
+            'marrow_wall': '‡'  # Marrow Dike wall uses double dagger (looks like fence posts)
         }
         
         # UI symbols
@@ -103,7 +104,7 @@ class AssetManager:
             # MARROW_CONDENSER animations
             'marrow_condenser_attack': ['/', '|', '\\', '-', '8', '$', 'Ø', '#', '*'],  # Swinging and striking with bone chunks
             'ossify': ['|', '#', '█', '▓', '▒'],  # Bone hardening animation
-            'marrow_dike': ['░', '▒', '▓', '█'],  # Marrow wall forming
+            'marrow_dike': ['╎', '╏', '┃', '┆', '┇', '┊', '┋', '‡', '‡'],  # Marrow wall forming - fence post animation
             'slough': ['↑', '↗', '→', '↘', '↓'],  # Transfer animation
             'site_inspection': ['□', '■', '□', '■', '□'],  # Animation for Site Inspection
             'discharge_release': ['{⚡}', '<>>', '(  )', '    '],  # Animation for Discharge releasing unit
@@ -126,7 +127,8 @@ class AssetManager:
             UnitType.ARCHER: 'assets/sprites/archer.png',
             UnitType.MAGE: 'assets/sprites/mage.png',
             UnitType.MANDIBLE_FOREMAN: 'assets/sprites/mandible_foreman.png',
-            UnitType.GRAYMAN: 'assets/sprites/grayman.png'
+            UnitType.GRAYMAN: 'assets/sprites/grayman.png',
+            UnitType.MARROW_CONDENSER: 'assets/sprites/marrow_condenser.png'
         }
         
         self.terrain_tiles = {
@@ -137,7 +139,8 @@ class AssetManager:
             'limestone': 'assets/tiles/limestone.png',
             'dust': 'assets/tiles/dust.png',
             'pillar': 'assets/tiles/pillar.png',
-            'furniture': 'assets/tiles/furniture.png'
+            'furniture': 'assets/tiles/furniture.png',
+            'marrow_wall': 'assets/tiles/marrow_wall.png'
         }
         
         self.ui_tiles = {

@@ -167,6 +167,9 @@ class UIRenderer:
                     tile = self.game_ui.asset_manager.get_terrain_tile("dec_table")
                     color_id = 14  # White for furniture
                     tile_attr = curses.A_DIM  # Dim white/gray via dim attribute
+                elif terrain == TerrainType.MARROW_WALL:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("marrow_wall")
+                    color_id = 20  # Red color for Marrow Wall (color pair 20)
                 else:
                     # Fallback for any new terrain types
                     tile = self.game_ui.asset_manager.get_terrain_tile("empty")

@@ -181,6 +181,8 @@ class CursesRenderer(RenderInterface):
         curses.init_pair(13, curses.COLOR_WHITE, curses.COLOR_BLACK)    # Pillar (white, different symbol)
         # For dim white (gray), we'll use a lower intensity of white
         curses.init_pair(14, curses.COLOR_WHITE, curses.COLOR_BLACK)    # Furniture (will use dim white/gray)
+        # Marrow Wall color - red to stand out
+        curses.init_pair(20, curses.COLOR_RED, curses.COLOR_BLACK)      # Marrow Wall (red)
         
         # Skill target color - blue background to differentiate from attack targets (red)
         curses.init_pair(15, curses.COLOR_WHITE, curses.COLOR_BLUE)   # Skill target
