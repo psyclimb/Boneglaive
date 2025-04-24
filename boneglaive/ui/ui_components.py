@@ -2525,14 +2525,6 @@ class ActionMenuComponent(UIComponent):
             # Change to skill targeting mode
             mode_manager.set_mode("skill")
             
-            # Use event system for message
-            self.publish_event(
-                EventType.MESSAGE_DISPLAY_REQUESTED,
-                MessageDisplayEventData(
-                    message=f"Using skill: {skill.name}. Select target."
-                )
-            )
-            
             # Highlight valid targets for the skill based on target type
             game = self.game_ui.game
             targets = []
@@ -2545,6 +2537,65 @@ class ActionMenuComponent(UIComponent):
             # If unit has a planned move, use that position instead
             if cursor_manager.selected_unit.move_target:
                 from_y, from_x = cursor_manager.selected_unit.move_target
+            
+            # Special visualization for MARROW_CONDENSER area skills
+            if skill.name in ["Marrow Dike", "Slough"]:
+                # Special visual indicators for MARROW_CONDENSER's area skills
+                area_targets = []
+                
+                # Get area size from the skill
+                area_size = getattr(skill, 'area', 1)  # Default to 1 if not specified
+                
+                # For Marrow Dike, we want to show the perimeter of the area (the walls)
+                if skill.name == "Marrow Dike":
+                    # Marrow Dike creates walls in a 5x5 perimeter (area=2)
+                    for dy in range(-area_size, area_size+1):
+                        for dx in range(-area_size, area_size+1):
+                            # Only include perimeter tiles (not the interior)
+                            if abs(dy) == area_size or abs(dx) == area_size:
+                                tile_y, tile_x = from_y + dy, from_x + dx
+                                if game.is_valid_position(tile_y, tile_x):
+                                    area_targets.append(Position(tile_y, tile_x))
+                    
+                    # Also display a special message
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message=f"Marrow Dike will create walls around the perimeter. Press Space to confirm.",
+                            message_type=MessageType.ABILITY
+                        )
+                    )
+                # For Slough, we want to show all adjacent tiles
+                elif skill.name == "Slough":
+                    # Slough affects all tiles in a 3x3 area (area=1)
+                    for dy in range(-area_size, area_size+1):
+                        for dx in range(-area_size, area_size+1):
+                            # Skip the center (MARROW_CONDENSER's position)
+                            if dy == 0 and dx == 0:
+                                continue
+                            
+                            tile_y, tile_x = from_y + dy, from_x + dx
+                            if game.is_valid_position(tile_y, tile_x):
+                                area_targets.append(Position(tile_y, tile_x))
+                    
+                    # Also display a special message
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message=f"Slough will affect allies in highlighted area. Press Space to confirm.",
+                            message_type=MessageType.ABILITY
+                        )
+                    )
+                
+                # Set highlighted positions for visualization
+                cursor_manager.highlighted_positions = area_targets
+                
+                # Set skill target to self (it's a self-targeted skill)
+                cursor_manager.selected_unit.skill_target = (from_y, from_x)
+                
+                # Draw the board to show the highlighted area
+                self.game_ui.draw_board()
+                return
             
             # Different targeting logic based on skill target type
             if skill.target_type == TargetType.SELF:
