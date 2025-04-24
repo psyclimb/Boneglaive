@@ -1463,28 +1463,20 @@ class Game:
                         'WVW', '\\V/', '#V#', '@V@', '###', '@@@', '...', '.'
                     ]
                 
-                # Animate the descending flock with rainbow colors
-                # Create rainbow color sequence: red, yellow, green, cyan, blue, magenta, white
-                rainbow_colors = [1, 3, 2, 6, 4, 5, 7]
-                
-                # Play each frame with a different color from the rainbow sequence
-                for frame_idx, frame in enumerate(wretched_animation):
-                    # Cycle through rainbow colors
-                    color_idx = frame_idx % len(rainbow_colors)
-                    color = rainbow_colors[color_idx]
-                    
-                    # Draw the current frame with the current rainbow color
-                    ui.renderer.draw_tile(target.y, target.x, frame, color)
-                    ui.renderer.refresh()
-                    time.sleep(1.0)  # Slow animation for dramatic effect
+                # Animate the descending flock using built-in animation renderer
+                ui.renderer.animate_attack_sequence(
+                    target.y, target.x,
+                    wretched_animation,
+                    1,  # Red color for death
+                    0.1  # Duration
+                )
                 
                 # Add a final flash effect at the end
                 if hasattr(ui, 'asset_manager'):
-                    # Flash with rainbow colors for dramatic finale
-                    tile_ids = ['@', '#', '%', '@', '#', ' ']
-                    # Rainbow finale: red, yellow, green, blue, magenta, white
-                    color_ids = [1, 3, 2, 4, 5, 7]
-                    durations = [1.0, 1.0, 1.0, 1.0, 1.0, 2.0]  # Last frame lingers
+                    # Flash between red and white for dramatic finale
+                    tile_ids = ['@', '#', '%', ' ']
+                    color_ids = [1, 7, 1, 7]  # Alternate red and white
+                    durations = [0.1, 0.1, 0.1, 0.2]  # Last frame lingers
                     
                     # Use renderer's flash tile method for finale
                     ui.renderer.flash_tile(target.y, target.x, tile_ids, color_ids, durations)
