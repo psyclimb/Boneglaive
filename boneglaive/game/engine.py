@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import logging
 import curses
+import time
 from boneglaive.utils.constants import UnitType, HEIGHT, WIDTH, CRITICAL_HEALTH_PERCENT
 from boneglaive.game.units import Unit
 from boneglaive.game.map import GameMap, MapFactory, TerrainType
