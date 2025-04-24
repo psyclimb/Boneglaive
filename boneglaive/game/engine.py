@@ -1156,30 +1156,8 @@ class Game:
                         if dike_info['duration'] <= 0:
                             interior_to_remove.append((tile_y, tile_x))
             
-            # Process healing for upgraded Marrow Dikes belonging to current player
-            upgraded_dikes = {}
-            for (tile_y, tile_x), dike_info in list(self.marrow_dike_tiles.items()):
-                # Only process upgraded dikes for the current player
-                if dike_info['owner'].player == self.current_player and dike_info['upgraded']:
-                    # Store tiles by owner to process healing once per owner
-                    owner = dike_info['owner']
-                    if owner not in upgraded_dikes:
-                        upgraded_dikes[owner] = []
-                    upgraded_dikes[owner].append((tile_y, tile_x))
-            
-            # Process healing for each owner's upgraded dikes
-            for owner, dike_positions in upgraded_dikes.items():
-                # Find allied units in these dike tiles
-                healed_units = []
-                for tile_y, tile_x in dike_positions:
-                    unit_at_tile = self.get_unit_at(tile_y, tile_x)
-                    if unit_at_tile and unit_at_tile.player == owner.player and unit_at_tile.hp < unit_at_tile.max_hp:
-                        # Only add each unit to the healing list once
-                        if unit_at_tile not in healed_units:
-                            healed_units.append(unit_at_tile)
-                
-                # This section is now redundant as we'll handle all healing in the interior code
-                # Keeping the structure but not applying healing to avoid duplicate healing
+            # This section is no longer needed as healing is now handled through the interior tiles
+            # Interior processing now considers all dikes on every turn, not just the current player's dikes
             
             # Process removals and restore original terrain
             for tile_y, tile_x in tiles_to_remove:
@@ -1275,6 +1253,47 @@ class Game:
                                 )
                                 # Add debug log
                                 logger.info(heal_message)
+                                
+                                # Show healing animation and display healing numbers if UI is available
+                                if ui and hasattr(ui, 'renderer'):
+                                    # Flash the unit with healing colors
+                                    if hasattr(ui, 'asset_manager'):
+                                        # Flash unit with healing animation
+                                        tile_ids = [ui.asset_manager.get_unit_tile(unit.type)] * 4
+                                        color_ids = [6, 3 if unit.player == 1 else 4] * 2  # Alternate yellow with player color
+                                        durations = [0.1] * 4
+                                        
+                                        # Use renderer's flash tile method
+                                        ui.renderer.flash_tile(unit.y, unit.x, tile_ids, color_ids, durations)
+                                    
+                                    # Get healing animation sequence
+                                    healing_animation = ui.asset_manager.get_skill_animation_sequence('marrow_healing')
+                                    if healing_animation:
+                                        # Show healing animation
+                                        ui.renderer.animate_attack_sequence(
+                                            unit.y, unit.x,
+                                            healing_animation,
+                                            6,  # Yellow color for healing
+                                            0.05  # Quick animation
+                                        )
+                                    
+                                    # Show healing number above unit
+                                    healing_text = f"+{actual_healing}"
+                                    
+                                    # Make healing text stand out with green color
+                                    for i in range(3):
+                                        # First clear the area
+                                        ui.renderer.draw_text(unit.y-1, unit.x*2, " " * len(healing_text), 7)
+                                        # Draw with alternating bold/normal for a flashing effect
+                                        attrs = curses.A_BOLD if i % 2 == 0 else 0
+                                        ui.renderer.draw_text(unit.y-1, unit.x*2, healing_text, 3, attrs)  # Green color
+                                        ui.renderer.refresh()
+                                        time.sleep(0.1)
+                                    
+                                    # Final healing display (stays on screen slightly longer)
+                                    ui.renderer.draw_text(unit.y-1, unit.x*2, healing_text, 3, curses.A_BOLD)
+                                    ui.renderer.refresh()
+                                    time.sleep(0.3)
         
         # Check if game is over
         self.check_game_over()
