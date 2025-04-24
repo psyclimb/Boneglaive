@@ -1037,6 +1037,29 @@ class Game:
                             target=trapped_unit.player,
                             target_name=trapped_unit.get_display_name()
                         )
+                        
+                        # Check if unit died within a MARROW_CONDENSER's dike - if so, upgrade a skill
+                        if hasattr(self, 'marrow_dike_tiles'):
+                            target_pos = (trapped_unit.y, trapped_unit.x)
+                            if target_pos in self.marrow_dike_tiles:
+                                dike_info = self.marrow_dike_tiles[target_pos]
+                                owner = dike_info['owner']
+                                
+                                # Verify the owner is a MARROW_CONDENSER
+                                if owner.type == UnitType.MARROW_CONDENSER and hasattr(owner, 'passive_skill'):
+                                    passive = owner.passive_skill
+                                    
+                                    # Check if it's Dominion and can upgrade skills
+                                    if passive.name == "Dominion" and passive.can_upgrade():
+                                        upgraded_skill = passive.get_next_upgrade()
+                                        
+                                        if upgraded_skill:
+                                            message_log.add_message(
+                                                f"{owner.get_display_name()} absorbs power from the fallen, upgrading {upgraded_skill.capitalize()}!",
+                                                MessageType.ABILITY,
+                                                player=owner.player
+                                            )
+                        
                         trapped_unit.trapped_by = None
                 
                 # Clean up the special flag
@@ -1631,6 +1654,28 @@ class Game:
                     MessageType.COMBAT,
                     target_name=unit.get_display_name()
                 )
+                
+                # Check if unit died within a MARROW_CONDENSER's dike - if so, upgrade a skill
+                if hasattr(self, 'marrow_dike_tiles'):
+                    target_pos = (unit.y, unit.x)
+                    if target_pos in self.marrow_dike_tiles:
+                        dike_info = self.marrow_dike_tiles[target_pos]
+                        owner = dike_info['owner']
+                        
+                        # Verify the owner is a MARROW_CONDENSER
+                        if owner.type == UnitType.MARROW_CONDENSER and hasattr(owner, 'passive_skill'):
+                            passive = owner.passive_skill
+                            
+                            # Check if it's Dominion and can upgrade skills
+                            if passive.name == "Dominion" and passive.can_upgrade():
+                                upgraded_skill = passive.get_next_upgrade()
+                                
+                                if upgraded_skill:
+                                    message_log.add_message(
+                                        f"{owner.get_display_name()} absorbs power from the fallen, upgrading {upgraded_skill.capitalize()}!",
+                                        MessageType.ABILITY,
+                                        player=owner.player
+                                    )
                 
                 # Check if this was a MANDIBLE_FOREMAN or another echo
                 if unit.type == UnitType.MANDIBLE_FOREMAN:
