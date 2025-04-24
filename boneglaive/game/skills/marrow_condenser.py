@@ -200,7 +200,7 @@ class MarrowDikeSkill(ActiveSkill):
         )
         self.upgraded = False
         self.duration = 3  # Duration in turns
-        self.healing_amount = 2  # Amount healed per turn when upgraded
+        self.healing_amount = 3  # Increased healing amount per turn when upgraded
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         # Basic validation
