@@ -114,6 +114,11 @@ class DischargeSkill(ActiveSkill):
         user.skill_target = target_pos
         user.selected_skill = self
         
+        # Track action order
+        if game:
+            user.action_timestamp = game.action_counter
+            game.action_counter += 1
+        
         # Create a property on the unit to track the expedite path for UI
         # We'll store all the positions in the path for visualization
         from boneglaive.utils.coordinates import get_line, Position
@@ -370,6 +375,11 @@ class SiteInspectionSkill(ActiveSkill):
         user.skill_target = target_pos
         user.selected_skill = self
         
+        # Track action order
+        if game:
+            user.action_timestamp = game.action_counter
+            game.action_counter += 1
+        
         # Set site inspection target indicator for UI
         user.site_inspection_indicator = target_pos
         
@@ -552,6 +562,11 @@ class JawlineSkill(ActiveSkill):
             return False
         user.skill_target = target_pos
         user.selected_skill = self
+        
+        # Track action order
+        if game:
+            user.action_timestamp = game.action_counter
+            game.action_counter += 1
         
         # Set jawline indicator for UI
         user.jawline_indicator = target_pos

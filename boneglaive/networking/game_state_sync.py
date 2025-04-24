@@ -230,6 +230,9 @@ class GameStateSync:
             for unit in self.game.units:
                 if id(unit) == unit_id and unit.is_alive():
                     unit.move_target = target
+                    # Track action order
+                    unit.action_timestamp = self.game.action_counter
+                    self.game.action_counter += 1
                     break
         
         elif action_type == "attack":
@@ -240,6 +243,9 @@ class GameStateSync:
             for unit in self.game.units:
                 if id(unit) == unit_id and unit.is_alive():
                     unit.attack_target = target
+                    # Track action order
+                    unit.action_timestamp = self.game.action_counter
+                    self.game.action_counter += 1
                     break
         
         elif action_type == "end_turn":
