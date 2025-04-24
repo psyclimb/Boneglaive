@@ -263,14 +263,59 @@ class MarrowDikeSkill(ActiveSkill):
         if not hasattr(game, 'previous_terrain'):
             game.previous_terrain = {}
         
-        # Store the previous terrain and place the dike walls as actual terrain
+        # First, identify and move units on the perimeter
+        units_to_move = []
+        unit_movements = []  # Store original and new positions for animation
+        
+        for tile_y, tile_x in dike_tiles:
+            unit_at_tile = game.get_unit_at(tile_y, tile_x)
+            if unit_at_tile:
+                # Add to list of units to be moved inside
+                units_to_move.append(unit_at_tile)
+                
+                # Calculate direction toward center from unit
+                dy = 1 if tile_y < center_y else (-1 if tile_y > center_y else 0)
+                dx = 1 if tile_x < center_x else (-1 if tile_x > center_x else 0)
+                
+                # Calculate new position (just one step inward)
+                new_y = tile_y + dy
+                new_x = tile_x + dx
+                
+                # Store the movement info for animation
+                unit_movements.append({
+                    'unit': unit_at_tile,
+                    'from': (tile_y, tile_x),
+                    'to': (new_y, new_x),
+                    'dy': dy,
+                    'dx': dx
+                })
+        
+        # Move units to inside the dike (toward center)
+        for movement in unit_movements:
+            unit = movement['unit']
+            new_y, new_x = movement['to']
+            
+            # Make sure new position is not already occupied
+            if not game.get_unit_at(new_y, new_x):
+                # Log the movement
+                message_log.add_message(
+                    f"{unit.get_display_name()} is pulled inside the Marrow Dike!",
+                    MessageType.ABILITY,
+                    player=user.player,
+                    target_name=unit.get_display_name()
+                )
+                
+                # Move the unit
+                unit.y = new_y
+                unit.x = new_x
+        
+        # Now store the previous terrain and place the dike walls as actual terrain
         for tile_y, tile_x in dike_tiles:
             tile = (tile_y, tile_x)
             
-            # Check if there's a unit at this position
-            unit_at_tile = game.get_unit_at(tile_y, tile_x)
-            if unit_at_tile:
-                # Skip terrain modification for tiles with units (can't place barriers on units)
+            # Check if there's still a unit at this position after moves
+            if game.get_unit_at(tile_y, tile_x):
+                # This should be rare, but skip if still occupied
                 continue
                 
             # Store original terrain to restore later
@@ -304,6 +349,48 @@ class MarrowDikeSkill(ActiveSkill):
         
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer'):
+            # First visualize any unit movement animations
+            for movement in unit_movements:
+                if hasattr(ui, 'renderer'):
+                    unit = movement['unit']
+                    orig_y, orig_x = movement['from']
+                    new_y, new_x = movement['to']
+                    dy, dx = movement['dy'], movement['dx']
+                    
+                    # Show animation of unit being pulled in
+                    pull_animation = ['→', '↓', '←', '↑']  # Direction indicators
+                    
+                    # Choose the right direction indicator based on direction
+                    direction_idx = 0
+                    if dx > 0:
+                        direction_idx = 0  # →
+                    elif dy > 0:
+                        direction_idx = 1  # ↓
+                    elif dx < 0:
+                        direction_idx = 2  # ←
+                    elif dy < 0:
+                        direction_idx = 3  # ↑
+                        
+                    # Draw directional indicator
+                    ui.renderer.draw_tile(
+                        orig_y, orig_x,
+                        pull_animation[direction_idx],
+                        6  # Yellow color for movement
+                    )
+                    ui.renderer.refresh()
+                    time.sleep(0.2)
+                    
+                    # Show unit at new position
+                    unit_symbol = ui.asset_manager.get_unit_tile(unit.type)
+                    ui.renderer.draw_tile(
+                        new_y, new_x,
+                        unit_symbol,
+                        3 if unit.player == 1 else 4  # Player color
+                    )
+                    ui.renderer.refresh()
+                    time.sleep(0.2)
+            
+            # Now show the walls being created
             # Get wall animation from asset manager
             wall_animation = ui.asset_manager.get_skill_animation_sequence('marrow_dike')
             if not wall_animation:
@@ -312,7 +399,7 @@ class MarrowDikeSkill(ActiveSkill):
             
             # Draw animation for each tile in sequence
             for i, (tile_y, tile_x) in enumerate(dike_tiles):
-                # Check if there's a unit here
+                # Check if there's still a unit at this position after moves
                 unit_at_tile = game.get_unit_at(tile_y, tile_x)
                 
                 if not unit_at_tile:
