@@ -237,27 +237,33 @@ class MarrowDikeSkill(ActiveSkill):
         
         # Generate the dike area (perimeter of a 5x5 area centered on user)
         dike_tiles = []
+        dike_interior = []
         center_y, center_x = user.y, user.x
         
-        # Create only the perimeter tiles for a hollow fence
+        # First pass to identify all tiles in 5x5 area
         for dy in range(-2, 3):  # -2, -1, 0, 1, 2
             for dx in range(-2, 3):  # -2, -1, 0, 1, 2
                 # Skip the center tile (user's position)
                 if dy == 0 and dx == 0:
                     continue
                     
-                # Only include tiles on the perimeter of the 5x5 area
-                # This creates a hollow square fence
-                if abs(dy) == 2 or abs(dx) == 2:  # Only edge positions
-                    tile_y, tile_x = center_y + dy, center_x + dx
-                    
-                    # Check if position is valid
-                    if game.is_valid_position(tile_y, tile_x):
+                tile_y, tile_x = center_y + dy, center_x + dx
+                
+                # Check if position is valid
+                if game.is_valid_position(tile_y, tile_x):
+                    # If it's on the perimeter, add to dike_tiles (walls)
+                    if abs(dy) == 2 or abs(dx) == 2:  # Edge positions
                         dike_tiles.append((tile_y, tile_x))
+                    else:  # Interior positions
+                        dike_interior.append((tile_y, tile_x))
         
         # Add the marrow dike to the game state for tracking duration and owner
         if not hasattr(game, 'marrow_dike_tiles'):
             game.marrow_dike_tiles = {}
+            
+        # Add tracking for interior tiles as well
+        if not hasattr(game, 'marrow_dike_interior'):
+            game.marrow_dike_interior = {}
             
         # Create a dictionary to track tiles that need to be restored later
         if not hasattr(game, 'previous_terrain'):
@@ -343,6 +349,17 @@ class MarrowDikeSkill(ActiveSkill):
                 'duration': self.duration,
                 'upgraded': self.upgraded,
                 'original_terrain': original_terrain
+            }
+        
+        # Track interior tiles for Dominion passive detection
+        for tile_y, tile_x in dike_interior:
+            tile = (tile_y, tile_x)
+            
+            # Associate this interior tile with the dike (no terrain change needed)
+            game.marrow_dike_interior[tile] = {
+                'owner': user,
+                'duration': self.duration,
+                'upgraded': self.upgraded
             }
         
         # Log the skill activation

@@ -575,6 +575,92 @@ class Game:
         self.ui = ui
     
     @measure_perf
+    def handle_unit_death(self, dying_unit, killer_unit=None, cause="combat", ui=None):
+        """
+        Centralized handling of unit death for consistent processing.
+        Handles messages, special effects, and checks for Marrow Dike interactions.
+        
+        Args:
+            dying_unit: The unit that died
+            killer_unit: Optional unit that caused the death
+            cause: String describing cause of death ('combat', 'trap', 'explosion', etc.)
+            ui: Optional UI reference for visual effects
+        """
+        from boneglaive.utils.message_log import message_log, MessageType
+        from boneglaive.utils.debug import logger
+        
+        # Log the death with appropriate message
+        message_log.add_message(
+            f"{dying_unit.get_display_name()} perishes!",
+            MessageType.COMBAT,
+            player=killer_unit.player if killer_unit else None,
+            target_name=dying_unit.get_display_name()
+        )
+        
+        # Check if unit died within or on a MARROW_CONDENSER's dike
+        in_marrow_dike = False
+        dike_owner = None
+        
+        # Check both wall tiles and interior tiles
+        if hasattr(self, 'marrow_dike_tiles'):
+            target_pos = (dying_unit.y, dying_unit.x)
+            if target_pos in self.marrow_dike_tiles:
+                in_marrow_dike = True
+                dike_owner = self.marrow_dike_tiles[target_pos]['owner']
+        
+        # Also check interior tiles if tracked
+        if hasattr(self, 'marrow_dike_interior') and not in_marrow_dike:
+            target_pos = (dying_unit.y, dying_unit.x)
+            if target_pos in self.marrow_dike_interior:
+                in_marrow_dike = True
+                dike_owner = self.marrow_dike_interior[target_pos]['owner']
+        
+        # Process Dominion upgrades if died in a Marrow Dike
+        if in_marrow_dike and dike_owner:
+            # Verify the owner is a MARROW_CONDENSER
+            if dike_owner.type == UnitType.MARROW_CONDENSER and hasattr(dike_owner, 'passive_skill'):
+                passive = dike_owner.passive_skill
+                
+                # Check if it's Dominion and can upgrade skills
+                if passive.name == "Dominion" and passive.can_upgrade():
+                    upgraded_skill = passive.get_next_upgrade()
+                    
+                    if upgraded_skill:
+                        # Create a more distinctive message for the upgrade
+                        upgrade_message = f"DOMINION: {dike_owner.get_display_name()} absorbs power from the fallen, upgrading {upgraded_skill.capitalize()}!"
+                        
+                        # Add to message log with ABILITY type for correct player coloring
+                        message_log.add_message(
+                            upgrade_message,
+                            MessageType.ABILITY,
+                            player=dike_owner.player,
+                            # Include unit name explicitly to help with coloring
+                            attacker_name=dike_owner.get_display_name(),
+                            # Add upgrade info to help with filtering/searching
+                            upgrade=upgraded_skill,
+                            is_upgrade=True
+                        )
+                        
+                        # Also log to the game's logger to ensure it's recorded
+                        logger.info(upgrade_message)
+        
+        # Handle MANDIBLE_FOREMAN death - release trapped units
+        if dying_unit.type == UnitType.MANDIBLE_FOREMAN:
+            for unit in self.units:
+                if unit.is_alive() and unit.trapped_by == dying_unit:
+                    logger.debug(f"MANDIBLE_FOREMAN perished, releasing {unit.get_display_name()}")
+                    unit.trapped_by = None
+                    message_log.add_message(
+                        f"{unit.get_display_name()} is released from mechanical jaws!",
+                        MessageType.ABILITY,
+                        target_name=unit.get_display_name()
+                    )
+        
+        # Handle Echo death by triggering chain reactions
+        if dying_unit.is_echo:
+            self._trigger_echo_death_effect(dying_unit, ui)
+    
+    @measure_perf
     def execute_turn(self, ui=None):
         """Execute all unit actions for the current turn with animated sequence."""
         import time
@@ -837,65 +923,10 @@ class Game:
                     # No need to format with player info anymore - just use the unit's display name
                     # Check if target was defeated
                     if target.hp <= 0:
-                        message_log.add_message(
-                            f"{target.get_display_name()} perishes!",
-                            MessageType.COMBAT,
-                            player=unit.player,
-                            target=target.player,
-                            # Store unit names explicitly to help with coloring
-                            target_name=target.get_display_name()
-                        )
+                        # Use centralized death handling
+                        self.handle_unit_death(target, unit, cause="combat", ui=ui)
                         
-                        # Check if unit died within a MARROW_CONDENSER's dike - if so, upgrade a skill
-                        if hasattr(self, 'marrow_dike_tiles'):
-                            target_pos = (target.y, target.x)
-                            if target_pos in self.marrow_dike_tiles:
-                                dike_info = self.marrow_dike_tiles[target_pos]
-                                owner = dike_info['owner']
-                                
-                                # Verify the owner is a MARROW_CONDENSER
-                                if owner.type == UnitType.MARROW_CONDENSER and hasattr(owner, 'passive_skill'):
-                                    passive = owner.passive_skill
-                                    
-                                    # Check if it's Dominion and can upgrade skills
-                                    if passive.name == "Dominion" and passive.can_upgrade():
-                                        upgraded_skill = passive.get_next_upgrade()
-                                        
-                                        if upgraded_skill:
-                                            # Create a more distinctive message for the upgrade
-                                            upgrade_message = f"DOMINION: {owner.get_display_name()} absorbs power from the fallen, upgrading {upgraded_skill.capitalize()}!"
-                                            
-                                            # Add to message log with ABILITY type for correct player coloring
-                                            message_log.add_message(
-                                                upgrade_message,
-                                                MessageType.ABILITY,
-                                                player=owner.player,
-                                                # Include unit name explicitly to help with coloring
-                                                attacker_name=owner.get_display_name(),
-                                                # Add upgrade info to help with filtering/searching
-                                                upgrade=upgraded_skill,
-                                                is_upgrade=True
-                                            )
-                                            
-                                            # Also log to the game's logger to ensure it's recorded
-                                            logger.info(upgrade_message)
-                        
-                        # If a MANDIBLE_FOREMAN dies, release any trapped unit
-                        if target.type == UnitType.MANDIBLE_FOREMAN:
-                            # Find any units trapped by this FOREMAN
-                            for trapped_unit in self.units:
-                                if trapped_unit.is_alive() and trapped_unit.trapped_by == target:
-                                    logger.debug(f"MANDIBLE_FOREMAN perished, releasing {trapped_unit.get_display_name()}")
-                                    trapped_unit.trapped_by = None
-                                    message_log.add_message(
-                                        f"{trapped_unit.get_display_name()} is released from mechanical jaws!",
-                                        MessageType.ABILITY,
-                                        target_name=trapped_unit.get_display_name()
-                                    )
-                        
-                        # If an echo unit dies, trigger its death effect
-                        elif target.is_echo:
-                            self._trigger_echo_death_effect(target, ui)
+                        # MANDIBLE_FOREMAN and Echo death handling is done in handle_unit_death now
                     # Check if target just entered critical health - trigger wretches message and Autoclave
                     elif previous_hp > critical_threshold and target.hp <= critical_threshold:
                         message_log.add_message(
@@ -1042,48 +1073,8 @@ class Game:
                     
                     # Check if the trapped unit was defeated
                     if trapped_unit.hp <= 0:
-                        message_log.add_message(
-                            f"{trapped_unit.get_display_name()} perishes!",
-                            MessageType.COMBAT,
-                            player=unit.player,
-                            target=trapped_unit.player,
-                            target_name=trapped_unit.get_display_name()
-                        )
-                        
-                        # Check if unit died within a MARROW_CONDENSER's dike - if so, upgrade a skill
-                        if hasattr(self, 'marrow_dike_tiles'):
-                            target_pos = (trapped_unit.y, trapped_unit.x)
-                            if target_pos in self.marrow_dike_tiles:
-                                dike_info = self.marrow_dike_tiles[target_pos]
-                                owner = dike_info['owner']
-                                
-                                # Verify the owner is a MARROW_CONDENSER
-                                if owner.type == UnitType.MARROW_CONDENSER and hasattr(owner, 'passive_skill'):
-                                    passive = owner.passive_skill
-                                    
-                                    # Check if it's Dominion and can upgrade skills
-                                    if passive.name == "Dominion" and passive.can_upgrade():
-                                        upgraded_skill = passive.get_next_upgrade()
-                                        
-                                        if upgraded_skill:
-                                            # Create a more distinctive message for the upgrade
-                                            upgrade_message = f"DOMINION: {owner.get_display_name()} absorbs power from the fallen, upgrading {upgraded_skill.capitalize()}!"
-                                            
-                                            # Add to message log with ABILITY type for correct player coloring
-                                            message_log.add_message(
-                                                upgrade_message,
-                                                MessageType.ABILITY,
-                                                player=owner.player,
-                                                # Include unit name explicitly to help with coloring
-                                                attacker_name=owner.get_display_name(),
-                                                # Add upgrade info to help with filtering/searching
-                                                upgrade=upgraded_skill,
-                                                is_upgrade=True
-                                            )
-                                            
-                                            # Also log to the game's logger to ensure it's recorded
-                                            logger.info(upgrade_message)
-                        
+                        # Use centralized death handling
+                        self.handle_unit_death(trapped_unit, unit, cause="trap", ui=ui)
                         trapped_unit.trapped_by = None
                 
                 # Clean up the special flag
@@ -1142,6 +1133,7 @@ class Game:
         # Process MarrowDike wall durations
         if hasattr(self, 'marrow_dike_tiles'):
             tiles_to_remove = []
+            interior_to_remove = []
             
             # Process each MarrowDike tile
             for (tile_y, tile_x), dike_info in list(self.marrow_dike_tiles.items()):
@@ -1152,6 +1144,17 @@ class Game:
                     # If duration reached zero, mark for removal
                     if dike_info['duration'] <= 0:
                         tiles_to_remove.append((tile_y, tile_x))
+            
+            # Also process interior tiles
+            if hasattr(self, 'marrow_dike_interior'):
+                for (tile_y, tile_x), dike_info in list(self.marrow_dike_interior.items()):
+                    # Only decrement on the owner's turn
+                    if dike_info['owner'].player == self.current_player:
+                        dike_info['duration'] -= 1
+                        
+                        # If duration reached zero, mark for removal
+                        if dike_info['duration'] <= 0:
+                            interior_to_remove.append((tile_y, tile_x))
             
             # Process healing for upgraded Marrow Dikes belonging to current player
             upgraded_dikes = {}
@@ -1211,6 +1214,14 @@ class Game:
                         MessageType.ABILITY,
                         player=owner.player
                     )
+            
+            # Also remove expired interior tiles
+            if hasattr(self, 'marrow_dike_interior'):
+                for tile_y, tile_x in interior_to_remove:
+                    tile = (tile_y, tile_x)
+                    # Remove from marrow_dike_interior
+                    if tile in self.marrow_dike_interior:
+                        del self.marrow_dike_interior[tile]
             
             # Process healing for upgraded Marrow Dikes (blood plasma healing effect)
             # Group all upgraded dikes by owner to process healing collectively
@@ -1673,38 +1684,8 @@ class Game:
             
             # Check if unit was killed
             if unit.hp <= 0 and previous_hp > 0:
-                message_log.add_message(
-                    f"{unit.get_display_name()} perishes!",
-                    MessageType.COMBAT,
-                    target_name=unit.get_display_name()
-                )
-                
-                # Check if unit died within a MARROW_CONDENSER's dike - if so, upgrade a skill
-                if hasattr(self, 'marrow_dike_tiles'):
-                    target_pos = (unit.y, unit.x)
-                    if target_pos in self.marrow_dike_tiles:
-                        dike_info = self.marrow_dike_tiles[target_pos]
-                        owner = dike_info['owner']
-                        
-                        # Verify the owner is a MARROW_CONDENSER
-                        if owner.type == UnitType.MARROW_CONDENSER and hasattr(owner, 'passive_skill'):
-                            passive = owner.passive_skill
-                            
-                            # Check if it's Dominion and can upgrade skills
-                            if passive.name == "Dominion" and passive.can_upgrade():
-                                upgraded_skill = passive.get_next_upgrade()
-                                
-                                if upgraded_skill:
-                                    message_log.add_message(
-                                        f"DOMINION: {owner.get_display_name()} absorbs power from the fallen, upgrading {upgraded_skill.capitalize()}!",
-                                        MessageType.ABILITY,
-                                        player=owner.player,
-                                        # Include unit name explicitly to help with coloring
-                                        attacker_name=owner.get_display_name(),
-                                        # Add upgrade info to help with filtering/searching
-                                        upgrade=upgraded_skill,
-                                        is_upgrade=True
-                                    )
+                # Use centralized death handling
+                self.handle_unit_death(unit, echo_unit, cause="explosion", ui=ui)
                 
                 # Check if this was a MANDIBLE_FOREMAN or another echo
                 if unit.type == UnitType.MANDIBLE_FOREMAN:
