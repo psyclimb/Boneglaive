@@ -202,7 +202,7 @@ class MarrowDikeSkill(ActiveSkill):
             key="M",
             description="Creates a wall of condensed bone marrow that blocks movement and attacks for 4 turns. Cooldown is shared with all allied MARROW_CONDENSER units.",
             target_type=TargetType.SELF,
-            cooldown=4,
+            cooldown=8,  # Increased to 8 to account for the fact that cooldowns only decrease on owner's turn
             range_=0,
             area=2  # 5x5 area (center + 2 in each direction)
         )
@@ -220,6 +220,29 @@ class MarrowDikeSkill(ActiveSkill):
         # Check if any allied MARROW_CONDENSER has this skill on cooldown
         from boneglaive.utils.message_log import message_log, MessageType
         
+        # 1. Check if this MARROW_CONDENSER already has an active Marrow Dike
+        if hasattr(game, 'marrow_dike_tiles') and len(game.marrow_dike_tiles) > 0:
+            for tile_info in game.marrow_dike_tiles.values():
+                if tile_info.get('owner') and tile_info['owner'].player == user.player:
+                    message_log.add_message(
+                        f"Cannot use Marrow Dike - you already have an active dike!",
+                        MessageType.WARNING,
+                        player=user.player
+                    )
+                    return False
+        
+        # 2. Also check interior tiles
+        if hasattr(game, 'marrow_dike_interior') and len(game.marrow_dike_interior) > 0:
+            for tile_info in game.marrow_dike_interior.values():
+                if tile_info.get('owner') and tile_info['owner'].player == user.player:
+                    message_log.add_message(
+                        f"Cannot use Marrow Dike - you already have an active dike!",
+                        MessageType.WARNING,
+                        player=user.player
+                    )
+                    return False
+        
+        # 3. Also check for ongoing cooldown on allied MARROW_CONDENSER units
         for unit in game.units:
             # Only check allied MARROW_CONDENSER units that are alive and not this user
             if unit.is_alive() and unit != user and unit.player == user.player and unit.type == user.type:
@@ -245,6 +268,7 @@ class MarrowDikeSkill(ActiveSkill):
             
         user.skill_target = target_pos
         user.selected_skill = self
+        user.took_action = True  # Mark that this unit took an action
         
         # Log that the skill has been queued
         message_log.add_message(
@@ -257,6 +281,7 @@ class MarrowDikeSkill(ActiveSkill):
         self.current_cooldown = self.cooldown
         
         # Also set cooldown on all allied MARROW_CONDENSER units
+        # and mark them as having taken an action to prevent cooldown reset
         for unit in game.units:
             # Only affect allied MARROW_CONDENSER units that are alive and not this user
             if unit.is_alive() and unit != user and unit.player == user.player and unit.type == user.type:
@@ -264,6 +289,14 @@ class MarrowDikeSkill(ActiveSkill):
                 for skill in unit.active_skills:
                     if skill.name == "Marrow Dike":
                         skill.current_cooldown = self.cooldown
+                        
+                        # This is the key fix! Set took_action to True for allies
+                        # to prevent cooldown from being reset in reset_action_targets
+                        unit.took_action = True
+                        
+                        # Also set dummy skill_target to prevent reset_action_targets
+                        # from clearing the took_action flag
+                        unit.skill_target = target_pos
                         
         return True
         
