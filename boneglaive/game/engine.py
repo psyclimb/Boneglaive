@@ -1053,18 +1053,12 @@ class Game:
                             target_name=trapped_unit.get_display_name()
                         )
                         
-                        # Check if target is a GLAIVEMAN and has the Autoclave passive
-                        if trapped_unit.type == UnitType.GLAIVEMAN and trapped_unit.passive_skill and \
-                           trapped_unit.passive_skill.name == "Autoclave":
-                            # Mark Autoclave as ready to trigger during the apply_passive_skills phase
-                            trapped_unit.passive_skill.mark_ready_to_trigger()
+                        # Directly try to trigger Autoclave for the trapped unit if it's a GLAIVEMAN
+                        self.try_trigger_autoclave(trapped_unit, ui)
                     # Check if target is already in critical health and took more damage
                     elif previous_hp <= critical_threshold and trapped_unit.hp <= critical_threshold and trapped_unit.hp > 0:
-                        # Check if target is a GLAIVEMAN and has the Autoclave passive
-                        if trapped_unit.type == UnitType.GLAIVEMAN and trapped_unit.passive_skill and \
-                           trapped_unit.passive_skill.name == "Autoclave":
-                            # Mark Autoclave as ready to trigger during the apply_passive_skills phase
-                            trapped_unit.passive_skill.mark_ready_to_trigger()
+                        # Directly try to trigger Autoclave for the trapped unit
+                        self.try_trigger_autoclave(trapped_unit, ui)
                     
                     # Show damage number if UI is available
                     if ui and hasattr(ui, 'renderer'):
