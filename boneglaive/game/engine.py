@@ -842,6 +842,28 @@ class Game:
                             target_name=target.get_display_name()
                         )
                         
+                        # Check if unit died within a MARROW_CONDENSER's dike - if so, upgrade a skill
+                        if hasattr(self, 'marrow_dike_tiles'):
+                            target_pos = (target.y, target.x)
+                            if target_pos in self.marrow_dike_tiles:
+                                dike_info = self.marrow_dike_tiles[target_pos]
+                                owner = dike_info['owner']
+                                
+                                # Verify the owner is a MARROW_CONDENSER
+                                if owner.type == UnitType.MARROW_CONDENSER and hasattr(owner, 'passive_skill'):
+                                    passive = owner.passive_skill
+                                    
+                                    # Check if it's Dominion and can upgrade skills
+                                    if passive.name == "Dominion" and passive.can_upgrade():
+                                        upgraded_skill = passive.get_next_upgrade()
+                                        
+                                        if upgraded_skill:
+                                            message_log.add_message(
+                                                f"{owner.get_display_name()} absorbs power from the fallen, upgrading {upgraded_skill.capitalize()}!",
+                                                MessageType.ABILITY,
+                                                player=owner.player
+                                            )
+                        
                         # If a MANDIBLE_FOREMAN dies, release any trapped unit
                         if target.type == UnitType.MANDIBLE_FOREMAN:
                             # Find any units trapped by this FOREMAN
@@ -1065,6 +1087,41 @@ class Game:
                 # Apply passive skills (can be affected by game state)
                 # Pass ui reference for animations if available
                 unit.apply_passive_skills(self)
+        
+        # Process MarrowDike wall durations
+        if hasattr(self, 'marrow_dike_tiles'):
+            tiles_to_remove = []
+            
+            # Process each MarrowDike tile
+            for (tile_y, tile_x), dike_info in list(self.marrow_dike_tiles.items()):
+                # Only decrement on the owner's turn
+                if dike_info['owner'].player == self.current_player:
+                    dike_info['duration'] -= 1
+                    
+                    # If duration reached zero, mark for removal
+                    if dike_info['duration'] <= 0:
+                        tiles_to_remove.append((tile_y, tile_x))
+            
+            # Process removals and restore original terrain
+            for tile_y, tile_x in tiles_to_remove:
+                tile = (tile_y, tile_x)
+                # Restore original terrain
+                if tile in self.marrow_dike_tiles and 'original_terrain' in self.marrow_dike_tiles[tile]:
+                    original_terrain = self.marrow_dike_tiles[tile]['original_terrain']
+                    self.map.set_terrain_at(tile_y, tile_x, original_terrain)
+                
+                # Remove from marrow_dike_tiles
+                if tile in self.marrow_dike_tiles:
+                    dike_info = self.marrow_dike_tiles[tile]
+                    owner = dike_info['owner']
+                    del self.marrow_dike_tiles[tile]
+                    
+                    # Log the expiration
+                    message_log.add_message(
+                        f"A section of {owner.get_display_name()}'s Marrow Dike crumbles away...",
+                        MessageType.ABILITY,
+                        player=owner.player
+                    )
         
         # Check if game is over
         self.check_game_over()

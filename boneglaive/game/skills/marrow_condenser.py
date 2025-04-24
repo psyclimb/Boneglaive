@@ -251,18 +251,39 @@ class MarrowDikeSkill(ActiveSkill):
                 if game.is_valid_position(tile_y, tile_x):
                     dike_tiles.append((tile_y, tile_x))
         
-        # Add the marrow dike to the game state
+        # Add the marrow dike to the game state for tracking duration and owner
         if not hasattr(game, 'marrow_dike_tiles'):
             game.marrow_dike_tiles = {}
             
-        # Associate these tiles with this user's dike, with expiration timer
-        for tile in dike_tiles:
+        # Create a dictionary to track tiles that need to be restored later
+        if not hasattr(game, 'previous_terrain'):
+            game.previous_terrain = {}
+        
+        # Store the previous terrain and place the dike walls as actual terrain
+        for tile_y, tile_x in dike_tiles:
+            tile = (tile_y, tile_x)
+            
+            # Check if there's a unit at this position
+            unit_at_tile = game.get_unit_at(tile_y, tile_x)
+            if unit_at_tile:
+                # Skip terrain modification for tiles with units (can't place barriers on units)
+                continue
+                
+            # Store original terrain to restore later
+            original_terrain = game.map.get_terrain_at(tile_y, tile_x)
+            game.previous_terrain[tile] = original_terrain
+            
+            # Set the tile to PILLAR terrain (blocks movement and LOS)
+            game.map.set_terrain_at(tile_y, tile_x, TerrainType.PILLAR)
+            
+            # Associate this tile with the dike
             game.marrow_dike_tiles[tile] = {
                 'owner': user,
                 'duration': self.duration,
-                'upgraded': self.upgraded
+                'upgraded': self.upgraded,
+                'original_terrain': original_terrain
             }
-            
+        
         # Log the skill activation
         if self.upgraded:
             message_log.add_message(
