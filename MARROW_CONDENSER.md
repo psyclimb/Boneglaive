@@ -31,7 +31,7 @@ When a unit dies inside of the MARROW CONDENSER'S Marrow Dike, he gains permanen
 
 ### 3. Slough (Key: S)
 **Description**:
-- **Target**: Ally (Range 2)
-- **Effect**: Transfers any stat bonuses he has to an allied unit.
-- **Cooldown**: 0 turns
-- **UPGRADE**: Transfers the stat bonuses without losing them himself.
+- **Target**: Self (3x3 Area)
+- **Effect**: Heals allied units in range for 3 HP each, costing 2 HP per ally healed.
+- **Cooldown**: 3 turns
+- **UPGRADE**: No longer costs health and sloughs off positive stat bonuses to allies.
