@@ -42,7 +42,8 @@ class AssetManager:
             UnitType.MAGE: 'M',
             UnitType.MANDIBLE_FOREMAN: 'F',
             UnitType.GRAYMAN: 'Ψ',
-            UnitType.MARROW_CONDENSER: 'C'
+            UnitType.MARROW_CONDENSER: 'C',
+            UnitType.FOWL_CONTRIVANCE: '^'
         }
         
         # Terrain symbols
@@ -79,7 +80,8 @@ class AssetManager:
             'mage_attack': '*',           # Star for magic
             'mandible_foreman_attack': 'Ξ', # Mandible jaws (melee)
             'grayman_attack': '≈',        # Reality distortion (ranged)
-            'marrow_condenser_attack': 'Ø' # Bone symbol for melee
+            'marrow_condenser_attack': 'Ø', # Bone symbol for melee
+            'fowl_contrivance_attack': 'Λ'  # Bird dive attack symbol
         }
         
         # Add animation sequence tiles for each attack type (using simple ASCII)
@@ -114,7 +116,34 @@ class AssetManager:
             'teleport_in': [' ', '▓', '▒', '░', 'Ψ'],  # Teleport in animation
             'estrange': ['≡', '≢', '⋍', '≈', '~', '≈', '⋍', '≢', '≡'],  # Phasing effect
             'grae_exchange': ['|', '/', '_', '*', 'ψ', 'Ψ'],  # Cane tapping and echo creation effect
-            'marrow_healing': ['♥', '❤', '♡', '❤', '♥', '✚', '+', '*']  # Blood plasma healing animation
+            'marrow_healing': ['♥', '❤', '♡', '❤', '♥', '✚', '+', '*'],  # Blood plasma healing animation
+            
+            # FOWL_CONTRIVANCE animations - elaborate bird-themed animations
+            'fowl_contrivance_attack': ['.', '^', 'v', 'V', '>', '<', 'Λ', '^', 'V', '♦'],  # Basic attack - flock of diving birds
+            
+            # Murmuration Dusk animation - swirling bird patterns
+            'murmuration_dusk': [
+                '^', 'v', '~', '*', '≈', '⋋', '⋌', 'W', 'V', 'M', 'Λ', 
+                'Y', '>', '<', '≽', '≼', 'Y', 'v', '^', '⋏', '⋎'
+            ],
+            
+            # Flap animation - concentrated hawk diving
+            'flap': [
+                'V', '>', '<', 'Y', 'Λ', '⊥', '▼', '⌄', '▽', '∇', 
+                '♦', '✧', '★', '✦', '⚡', '※'
+            ],
+            
+            # Emetic Flange animation - explosive bird burst outwards
+            'emetic_flange': [
+                '*', '^', 'v', '^v', '><', '<>', '%', '@', '&', '#', 
+                '≪', '≫', '≺', '≻', '∀', '∃', '∄', '⊹', '✸', '✹'
+            ],
+            
+            # Wretched Decension effect - birds carrying away the fallen (for passive)
+            'wretched_decension': [
+                '▲', '△', '▴', '⋀', 'Λ', '∧', 'Ʌ', '∆', '˄',
+                'ˆ', '⊿', '⁁', '⋎', '⋏', '⍋', '⦞'
+            ]
         }
     
     def _initialize_graphical_assets(self) -> None:
@@ -129,7 +158,8 @@ class AssetManager:
             UnitType.MAGE: 'assets/sprites/mage.png',
             UnitType.MANDIBLE_FOREMAN: 'assets/sprites/mandible_foreman.png',
             UnitType.GRAYMAN: 'assets/sprites/grayman.png',
-            UnitType.MARROW_CONDENSER: 'assets/sprites/marrow_condenser.png'
+            UnitType.MARROW_CONDENSER: 'assets/sprites/marrow_condenser.png',
+            UnitType.FOWL_CONTRIVANCE: 'assets/sprites/fowl_contrivance.png'
         }
         
         self.terrain_tiles = {
@@ -159,7 +189,8 @@ class AssetManager:
             'mage_attack': 'assets/effects/magic.png',
             'mandible_foreman_attack': 'assets/effects/mandibles.png',
             'grayman_attack': 'assets/effects/distortion.png',
-            'marrow_condenser_attack': 'assets/effects/bone.png'
+            'marrow_condenser_attack': 'assets/effects/bone.png',
+            'fowl_contrivance_attack': 'assets/effects/fowl.png'
         }
         
         # Add animation sequences for graphical mode too
@@ -189,7 +220,13 @@ class AssetManager:
             'marrow_condenser_attack': ['marrow_attack_1.png', 'marrow_attack_2.png', 'marrow_attack_3.png'],
             'ossify': ['ossify_1.png', 'ossify_2.png', 'ossify_3.png'],
             'marrow_dike': ['marrow_dike_1.png', 'marrow_dike_2.png', 'marrow_dike_3.png'],
-            'slough': ['slough_1.png', 'slough_2.png', 'slough_3.png']
+            'slough': ['slough_1.png', 'slough_2.png', 'slough_3.png'],
+            # FOWL_CONTRIVANCE animations
+            'fowl_contrivance_attack': ['fowl_attack_1.png', 'fowl_attack_2.png', 'fowl_attack_3.png', 'fowl_attack_4.png'],
+            'murmuration_dusk': ['murmuration_1.png', 'murmuration_2.png', 'murmuration_3.png', 'murmuration_4.png', 'murmuration_5.png'],
+            'flap': ['flap_1.png', 'flap_2.png', 'flap_3.png', 'flap_4.png'],
+            'emetic_flange': ['emetic_1.png', 'emetic_2.png', 'emetic_3.png', 'emetic_4.png'],
+            'wretched_decension': ['wretched_1.png', 'wretched_2.png', 'wretched_3.png', 'wretched_4.png']
         }
     
     def get_unit_tile(self, unit_type: UnitType) -> str:
@@ -216,7 +253,8 @@ class AssetManager:
             UnitType.MAGE: 'mage_attack',
             UnitType.MANDIBLE_FOREMAN: 'mandible_foreman_attack',
             UnitType.GRAYMAN: 'grayman_attack',
-            UnitType.MARROW_CONDENSER: 'marrow_condenser_attack'
+            UnitType.MARROW_CONDENSER: 'marrow_condenser_attack',
+            UnitType.FOWL_CONTRIVANCE: 'fowl_contrivance_attack'
         }
         effect_type = effect_map.get(unit_type, 'glaiveman_attack')
         return self.get_effect_tile(effect_type)
@@ -229,7 +267,8 @@ class AssetManager:
             UnitType.MAGE: 'mage_attack',
             UnitType.MANDIBLE_FOREMAN: 'mandible_foreman_attack',
             UnitType.GRAYMAN: 'grayman_attack',
-            UnitType.MARROW_CONDENSER: 'marrow_condenser_attack'
+            UnitType.MARROW_CONDENSER: 'marrow_condenser_attack',
+            UnitType.FOWL_CONTRIVANCE: 'fowl_contrivance_attack'
         }
         effect_type = effect_map.get(unit_type, 'glaiveman_attack')
         return self.animation_sequences.get(effect_type, [])

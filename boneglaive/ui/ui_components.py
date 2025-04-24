@@ -1596,7 +1596,7 @@ class GameModeManager(UIComponent):
     def toggle_setup_unit_type(self):
         """
         Toggle between unit types during the setup phase.
-        Cycles between GLAIVEMAN, MANDIBLE FOREMAN, GRAYMAN, and MARROW_CONDENSER.
+        Cycles between GLAIVEMAN, MANDIBLE FOREMAN, GRAYMAN, MARROW_CONDENSER, and FOWL_CONTRIVANCE.
         """
         if self.setup_unit_type == UnitType.GLAIVEMAN:
             self.setup_unit_type = UnitType.MANDIBLE_FOREMAN
@@ -1607,6 +1607,9 @@ class GameModeManager(UIComponent):
         elif self.setup_unit_type == UnitType.GRAYMAN:
             self.setup_unit_type = UnitType.MARROW_CONDENSER
             self.game_ui.message = "Setup unit type: MARROW CONDENSER"
+        elif self.setup_unit_type == UnitType.MARROW_CONDENSER:
+            self.setup_unit_type = UnitType.FOWL_CONTRIVANCE
+            self.game_ui.message = "Setup unit type: FOWL CONTRIVANCE"
         else:
             self.setup_unit_type = UnitType.GLAIVEMAN
             self.game_ui.message = "Setup unit type: GLAIVEMAN"
@@ -1986,6 +1989,44 @@ class AnimationComponent(UIComponent):
                     7,  # color ID
                     0.5  # duration
                 )
+        # Special case for FOWL_CONTRIVANCE - more elaborate bird swarm animation
+        elif attacker.type == UnitType.FOWL_CONTRIVANCE:
+            # Get a more elaborate animation sequence for bird attacks
+            fowl_sequence = self.game_ui.asset_manager.animation_sequences.get('fowl_contrivance_attack', [])
+            if not fowl_sequence:
+                fowl_sequence = ['^', 'v', '>', '<', '^', 'v', 'Λ', 'V']  # Fallback bird animation
+            
+            # Use alternating colors for a more dynamic bird flock appearance
+            color_sequence = [1, 4, 1, 4, 6, 7, 6, 7]  # Red, blue, yellow, white alternating
+            
+            # Show initial gathering animation at attacker's position
+            for i in range(3):
+                frame = fowl_sequence[i % len(fowl_sequence)]
+                color = color_sequence[i % len(color_sequence)]
+                self.renderer.draw_tile(start_pos.y, start_pos.x, frame, color)
+                self.renderer.refresh()
+                time.sleep(0.08)
+            
+            # Create path points between attacker and target
+            from boneglaive.game.animations import get_line
+            path = get_line(start_pos.y, start_pos.x, end_pos.y, end_pos.x)
+            
+            # Animate along the path with varied bird symbols
+            for i, (y, x) in enumerate(path[1:-1]):  # Skip first (attacker) and last (target)
+                frame_idx = (i + 3) % len(fowl_sequence)  # Continue from where gathering left off
+                color_idx = (i + 3) % len(color_sequence)
+                self.renderer.draw_tile(y, x, fowl_sequence[frame_idx], color_sequence[color_idx])
+                self.renderer.refresh()
+                time.sleep(0.05)
+            
+            # Final impact animation directly at target
+            final_frames = ['^', 'V', 'Λ', 'v', '♦']
+            for i, frame in enumerate(final_frames):
+                color = 1 if i % 2 == 0 else 7  # Alternate between red and white
+                self.renderer.draw_tile(end_pos.y, end_pos.x, frame, color)
+                self.renderer.refresh()
+                time.sleep(0.1)
+        
         # For all other melee attacks, show standard animation
         else:
             # Show the attack animation at the attacker's position
@@ -2001,6 +2042,8 @@ class AnimationComponent(UIComponent):
             impact_animation = ['!', '*', '!']  # Magic impact
         elif attacker.type == UnitType.MANDIBLE_FOREMAN:
             impact_animation = ['>', '<', '}', '{', '≡']  # Mandible crushing impact
+        elif attacker.type == UnitType.FOWL_CONTRIVANCE:
+            impact_animation = ['^', 'v', '^', 'V', 'Λ']  # Bird dive impact
         else:
             impact_animation = ['+', 'x', '+']  # Standard melee/arrow impact
             
@@ -2278,6 +2321,39 @@ class ActionMenuComponent(UIComponent):
                 'action': 'slough_skill',
                 'enabled': slough_skill is not None,
                 'skill': slough_skill
+            })
+            
+        # FOWL_CONTRIVANCE skills
+        elif unit.type == self.UnitType.FOWL_CONTRIVANCE:
+            
+            # Add Murmuration Dusk skill
+            murmuration_skill = next((skill for skill in available_skills if skill.name == "Murmuration Dusk"), None)
+            self.actions.append({
+                'key': 'm',
+                'label': 'urmuration Dusk',  # Will be displayed as [M]urmuration Dusk
+                'action': 'murmuration_skill',
+                'enabled': murmuration_skill is not None,
+                'skill': murmuration_skill
+            })
+            
+            # Add Flap skill
+            flap_skill = next((skill for skill in available_skills if skill.name == "Flap"), None)
+            self.actions.append({
+                'key': 'f',
+                'label': 'lap',  # Will be displayed as [F]lap
+                'action': 'flap_skill',
+                'enabled': flap_skill is not None,
+                'skill': flap_skill
+            })
+            
+            # Add Emetic Flange skill
+            emetic_flange_skill = next((skill for skill in available_skills if skill.name == "Emetic Flange"), None)
+            self.actions.append({
+                'key': 'e',
+                'label': 'metic Flange',  # Will be displayed as [E]metic Flange
+                'action': 'emetic_flange_skill',
+                'enabled': emetic_flange_skill is not None,
+                'skill': emetic_flange_skill
             })
         
         # Reset selected index
