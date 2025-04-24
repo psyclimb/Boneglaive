@@ -270,6 +270,18 @@ class MarrowDikeSkill(ActiveSkill):
         for tile_y, tile_x in dike_tiles:
             unit_at_tile = game.get_unit_at(tile_y, tile_x)
             if unit_at_tile:
+                # Check if the unit is immune to effects (GRAYMAN with Stasiality)
+                if unit_at_tile.is_immune_to_effects():
+                    # Log message about immunity
+                    message_log.add_message(
+                        f"{unit_at_tile.get_display_name()} is immune to Marrow Dike's pull due to Stasiality!",
+                        MessageType.ABILITY,
+                        player=user.player,
+                        target_name=unit_at_tile.get_display_name()
+                    )
+                    # Skip this unit - it won't be moved and the wall won't be placed here
+                    continue
+                
                 # Add to list of units to be moved inside
                 units_to_move.append(unit_at_tile)
                 
