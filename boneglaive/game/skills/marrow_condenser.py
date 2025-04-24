@@ -6,6 +6,7 @@ This module contains all passive and active abilities for MARROW_CONDENSER units
 
 from typing import Optional, TYPE_CHECKING
 import random
+import curses
 
 from boneglaive.game.skills.core import PassiveSkill, ActiveSkill, TargetType
 from boneglaive.utils.message_log import message_log, MessageType
@@ -83,7 +84,7 @@ class OssifySkill(ActiveSkill):
         )
         self.upgraded = False
         self.defense_bonus = 2
-        self.duration = 1  # Duration in turns
+        self.duration = 2  # Duration in turns
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         # If upgraded and permanently applied, can't use again

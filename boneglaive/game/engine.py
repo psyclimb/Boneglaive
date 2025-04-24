@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import logging
+import curses
 from boneglaive.utils.constants import UnitType, HEIGHT, WIDTH, CRITICAL_HEALTH_PERCENT
 from boneglaive.game.units import Unit
 from boneglaive.game.map import GameMap, MapFactory, TerrainType
@@ -574,6 +575,16 @@ class Game:
         """Store a reference to the game UI for animations."""
         self.ui = ui
     
+    def get_ossify_defense_bonus(self, unit):
+        """
+        Helper method to get the defense bonus from Ossify skill.
+        """
+        if unit.type == UnitType.MARROW_CONDENSER:
+            for skill in unit.active_skills:
+                if skill.name == "Ossify" and hasattr(skill, 'defense_bonus'):
+                    return skill.defense_bonus
+        return 2  # Default defense bonus if we can't find the skill
+    
     @measure_perf
     def handle_unit_death(self, dying_unit, killer_unit=None, cause="combat", ui=None):
         """
@@ -1114,6 +1125,31 @@ class Game:
                                 MessageType.ABILITY,
                                 target_name=unit.get_display_name()
                             )
+                    
+                    # Handle Ossify duration (non-upgraded version only)
+                    if hasattr(unit, 'ossify_duration') and unit.ossify_duration > 0:
+                        # Only decrement the duration if not permanently upgraded
+                        if unit.type == UnitType.MARROW_CONDENSER and hasattr(unit, 'passive_skill'):
+                            # Check if Ossify is permanently upgraded through Dominion
+                            if not (hasattr(unit.passive_skill, 'ossify_upgraded') and unit.passive_skill.ossify_upgraded):
+                                unit.ossify_duration -= 1
+                                
+                                # If duration expires, restore movement and remove defense bonus
+                                if unit.ossify_duration <= 0:
+                                    # Only restore movement if not affected by other penalties
+                                    if not unit.was_pried and not unit.jawline_affected and unit.trapped_by is None:
+                                        unit.move_range_bonus += 1  # Restore the movement penalty
+                                    
+                                    # Remove defense bonus as well
+                                    unit.defense_bonus -= self.get_ossify_defense_bonus(unit)
+                                    
+                                    # Log the effect expiration
+                                    message_log.add_message(
+                                        f"{unit.get_display_name()}'s ossified bone structure returns to normal!",
+                                        MessageType.ABILITY,
+                                        player=unit.player,
+                                        target_name=unit.get_display_name()
+                                    )
                 
                 # Handle units that were affected by Pry during the turn that just ended
                 # They need to keep their was_pried status until after THEIR next turn
