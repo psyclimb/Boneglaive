@@ -724,6 +724,11 @@ class VaultSkill(ActiveSkill):
         user.skill_target = target_pos
         user.selected_skill = self
         
+        # Track action order
+        if game:
+            user.action_timestamp = game.action_counter
+            game.action_counter += 1
+        
         # Set vault target indicator for UI
         user.vault_target_indicator = target_pos
         
@@ -881,6 +886,11 @@ class JudgementThrowSkill(ActiveSkill):
             return False
         user.skill_target = target_pos
         user.selected_skill = self
+        
+        # Track action order
+        if game:
+            user.action_timestamp = game.action_counter
+            game.action_counter += 1
         
         # Get target unit
         target = game.get_unit_at(target_pos[0], target_pos[1])  
