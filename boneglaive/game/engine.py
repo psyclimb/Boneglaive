@@ -583,7 +583,7 @@ class Game:
             for skill in unit.active_skills:
                 if skill.name == "Ossify" and hasattr(skill, 'defense_bonus'):
                     return skill.defense_bonus
-        return 2  # Default defense bonus if we can't find the skill
+        return 4  # Default defense bonus if we can't find the skill
     
     @measure_perf
     def handle_unit_death(self, dying_unit, killer_unit=None, cause="combat", ui=None):
@@ -938,7 +938,7 @@ class Game:
                         self.handle_unit_death(target, unit, cause="combat", ui=ui)
                         
                         # MANDIBLE_FOREMAN and Echo death handling is done in handle_unit_death now
-                    # Check if target just entered critical health - trigger wretches message and Autoclave
+                    # Check if target just entered critical health - trigger wretches message and possible passives
                     elif previous_hp > critical_threshold and target.hp <= critical_threshold:
                         message_log.add_message(
                             f"{target.get_display_name()} wretches!",
@@ -949,11 +949,25 @@ class Game:
                             target_name=target.get_display_name()
                         )
                         
+                        # Check for Wretched Decension from FOWL_CONTRIVANCE
+                        if unit.type == UnitType.FOWL_CONTRIVANCE:
+                            # Try to trigger Wretched Decension - if successful, the unit is already dead
+                            # and we can skip the Autoclave check
+                            if self.try_trigger_wretched_decension(unit, target, ui):
+                                continue  # Skip to next unit if the target was killed
+                        
                         # Directly try to trigger Autoclave for the target
                         self.try_trigger_autoclave(target, ui)
                         
-                    # Check if target is already in critical health and took more damage - also trigger Autoclave
+                    # Check if target is already in critical health and took more damage
                     elif previous_hp <= critical_threshold and target.hp <= critical_threshold and target.hp > 0:
+                        # Check for Wretched Decension from FOWL_CONTRIVANCE
+                        if unit.type == UnitType.FOWL_CONTRIVANCE:
+                            # Try to trigger Wretched Decension - if successful, the unit is already dead
+                            # and we can skip the Autoclave check
+                            if self.try_trigger_wretched_decension(unit, target, ui):
+                                continue  # Skip to next unit if the target was killed
+                                
                         # Directly try to trigger Autoclave for the target
                         self.try_trigger_autoclave(target, ui)
                 else:
@@ -1355,6 +1369,127 @@ class Game:
             # Increment turn counter when player 1's turn comes around again
             if self.current_player == 1:
                 self.turn += 1
+    
+    def try_trigger_wretched_decension(self, attacker, target, ui=None):
+        """
+        Try to trigger Wretched Decension if attacker is a FOWL_CONTRIVANCE
+        and target is at critical health.
+        
+        Args:
+            attacker: The attacking unit
+            target: The unit that was damaged
+            ui: Optional UI reference for animations
+        
+        Returns:
+            bool: True if Wretched Decension triggered, False otherwise
+        """
+        import random
+        from boneglaive.utils.debug import logger
+        from boneglaive.utils.message_log import message_log, MessageType
+        from boneglaive.utils.constants import UnitType, CRITICAL_HEALTH_PERCENT
+        
+        logger.debug(f"Checking Wretched Decension trigger for attacker: {attacker.get_display_name()}, target: {target.get_display_name()}")
+        
+        # Check if attacker is FOWL_CONTRIVANCE
+        if attacker.type != UnitType.FOWL_CONTRIVANCE:
+            logger.debug("Not a FOWL_CONTRIVANCE, skipping Wretched Decension check")
+            return False
+        
+        # Check if attacker has the passive skill
+        if not hasattr(attacker, 'passive_skill') or not attacker.passive_skill or attacker.passive_skill.name != "Wretched Decension":
+            logger.debug("No Wretched Decension passive skill, skipping")
+            return False
+        
+        # Check if target is at critical health
+        critical_threshold = int(target.max_hp * CRITICAL_HEALTH_PERCENT)
+        if target.hp > critical_threshold:
+            logger.debug(f"Target not in critical health ({target.hp} > {critical_threshold}), skipping Wretched Decension")
+            return False
+            
+        # Check if target is already dead
+        if not target.is_alive():
+            logger.debug("Target already dead, skipping Wretched Decension")
+            return False
+        
+        logger.debug("Calculating Wretched Decension chance...")
+        
+        # Calculate chance based on number of allied FOWL_CONTRIVANCE units
+        try:
+            trigger_chance = attacker.passive_skill.check_wretched_decension_chance(self, attacker)
+            logger.debug(f"Calculated trigger chance: {trigger_chance}")
+        except Exception as e:
+            logger.debug(f"Error calculating trigger chance: {str(e)}, using fallback method")
+            # Fallback if method not available
+            allied_fowl_count = 0
+            for unit in self.units:
+                if unit.is_alive() and unit.player == attacker.player and unit.type == UnitType.FOWL_CONTRIVANCE:
+                    allied_fowl_count += 1
+            
+            logger.debug(f"Allied FOWL_CONTRIVANCE count: {allied_fowl_count}")
+            
+            # Calculate trigger chance
+            if allied_fowl_count == 1:
+                trigger_chance = 1.0  # 100% chance
+            elif allied_fowl_count == 2:
+                trigger_chance = 0.5  # 50% chance
+            elif allied_fowl_count >= 3:
+                trigger_chance = 0.25  # 25% chance
+            else:
+                # Should never happen, but fallback
+                trigger_chance = 1.0
+                
+            logger.debug(f"Fallback trigger chance: {trigger_chance}")
+        
+        # Roll for trigger
+        roll = random.random()
+        logger.debug(f"Random roll: {roll}, trigger threshold: {trigger_chance}")
+        
+        if roll <= trigger_chance:
+            # Success! Wretched Decension triggers
+            logger.debug("TRIGGERING WRETCHED DECENSION!")
+            
+            message_log.add_message(
+                f"The flocks descends to claim the wretched!",
+                MessageType.ABILITY,
+                player=attacker.player,
+                target_name=target.get_display_name()
+            )
+            
+            # Show animation if UI is available
+            if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+                logger.debug("Playing Wretched Decension animation")
+                
+                # Get animation from asset manager
+                wretched_animation = ui.asset_manager.get_skill_animation_sequence('wretched_decension')
+                if not wretched_animation:
+                    # Fallback animation if not defined
+                    wretched_animation = ['^', 'v', 'V', '∧', '∨', '♦', '@']
+                
+                # Animate the descending flock
+                ui.renderer.animate_attack_sequence(
+                    target.y, target.x,
+                    wretched_animation,
+                    1,  # Red color for death
+                    0.1  # Duration
+                )
+            
+            # Kill the target (set HP to 0)
+            target.hp = 0
+            
+            # Handle unit death
+            self.handle_unit_death(target, attacker, cause="wretched_decension", ui=ui)
+            return True
+        else:
+            # Failed to trigger
+            logger.debug("Wretched Decension failed to trigger")
+            
+            message_log.add_message(
+                f"The flocks fail to coordinate their descent.",
+                MessageType.ABILITY,
+                player=attacker.player,
+                target_name=target.get_display_name()
+            )
+            return False
     
     def try_trigger_autoclave(self, target_unit, ui=None):
         """Try to trigger Autoclave if conditions are met."""

@@ -21,6 +21,10 @@ from boneglaive.game.skills.marrow_condenser import (
     Dominion, OssifySkill, MarrowDikeSkill, SloughSkill
 )
 
+from boneglaive.game.skills.fowl_contrivance import (
+    WretchedDecension, MurmurationDuskSkill, FlapSkill, EmeticFlangeSkill
+)
+
 # Define the skills available for each unit type
 UNIT_SKILLS = {
     "GLAIVEMAN": {
@@ -38,5 +42,9 @@ UNIT_SKILLS = {
     "MARROW_CONDENSER": {
         "passive": Dominion(),
         "active": [OssifySkill(), MarrowDikeSkill(), SloughSkill()]
+    },
+    "FOWL_CONTRIVANCE": {
+        "passive": WretchedDecension(),
+        "active": [MurmurationDuskSkill(), FlapSkill(), EmeticFlangeSkill()]
     }
 }

@@ -29,6 +29,7 @@ class UnitType(Enum):
     MANDIBLE_FOREMAN = 3  # This stays as MANDIBLE_FOREMAN in the enum (no spaces allowed)
     GRAYMAN = 4  # The Immutable Anomaly
     MARROW_CONDENSER = 5  # The skeletal bone manipulator
+    FOWL_CONTRIVANCE = 6  # The synchronized bird flock formation
 
 # Unit stats: (hp, attack, defense, move_range, attack_range)
 UNIT_STATS = {
@@ -37,7 +38,8 @@ UNIT_STATS = {
     UnitType.MAGE: (12, 6, 1, 1, 2),
     UnitType.MANDIBLE_FOREMAN: (25, 6, 2, 2, 1),  # Increased attack from 5 to 6
     UnitType.GRAYMAN: (18, 2, 0, 2, 5),  # Reduced attack from 4 to 2, keeping long range
-    UnitType.MARROW_CONDENSER: (26, 4, 2, 3, 1)  # Tank unit with medium attack and high potential growth
+    UnitType.MARROW_CONDENSER: (26, 4, 2, 3, 1),  # Tank unit with medium attack and high potential growth
+    UnitType.FOWL_CONTRIVANCE: (14, 7, 0, 3, 3)  # Glass cannon - lowest HP, highest attack
 }
 
 UNIT_SYMBOLS = {
@@ -46,7 +48,8 @@ UNIT_SYMBOLS = {
     UnitType.MAGE: 'M',
     UnitType.MANDIBLE_FOREMAN: 'F',
     UnitType.GRAYMAN: 'Ψ',  # Greek psi symbol represents the anomalous nature
-    UnitType.MARROW_CONDENSER: 'C'  # C for Condenser
+    UnitType.MARROW_CONDENSER: 'C',  # C for Condenser
+    UnitType.FOWL_CONTRIVANCE: '^'  # Birds in flight
 }
 
 # Attack visual effects
@@ -56,7 +59,8 @@ ATTACK_EFFECTS = {
     UnitType.MAGE: "*",        # Magic star (ranged)
     UnitType.GRAYMAN: "≈",     # Reality distortion (ranged)
     UnitType.MANDIBLE_FOREMAN: "Ξ",  # Mandible jaws (melee)
-    UnitType.MARROW_CONDENSER: "Ø"   # Bone (melee)
+    UnitType.MARROW_CONDENSER: "Ø",  # Bone (melee)
+    UnitType.FOWL_CONTRIVANCE: "Λ"   # Bird dive attack (ranged)
 }
 
 # Greek alphabet for unit identification
