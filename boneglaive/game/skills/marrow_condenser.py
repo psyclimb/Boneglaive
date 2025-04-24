@@ -797,14 +797,19 @@ class SloughSkill(ActiveSkill):
                 # Check if any unit is at this position
                 target = game.get_unit_at(pos_y, pos_x)
                 
-                # Use different colors based on ally/enemy/empty
-                color_id = 5  # Default to red for bone matter
-                
-                if target:
+                # Use bone and marrow colors (white and red)
+                # For empty tiles, alternate white and red to represent bone and marrow
+                if not target:
+                    # Use white (7) for bone or red (20) for marrow depending on position
+                    # Use a pattern that creates an alternating effect
+                    is_even_position = (pos_y + pos_x) % 2 == 0
+                    color_id = 7 if is_even_position else 20  # White bone or red marrow
+                else:
+                    # For tiles with units, use different colors based on ally/enemy
                     if target.player == user.player:
-                        color_id = 3 if user.player == 1 else 4  # Player color for allies
+                        color_id = 7  # White/bone for allies 
                     else:
-                        color_id = 20  # Red for enemies
+                        color_id = 20  # Red/marrow for enemies
                 
                 # Animate the bone matter spreading
                 for frame in slough_animation:
@@ -817,22 +822,24 @@ class SloughSkill(ActiveSkill):
             
             # Apply final effects to targets (flashing allies/enemies)
             
-            # Flash allies who were buffed or healed
+            # Flash allies who were buffed or healed with bone reinforcement
             for ally in allies_affected:
                 if has_positive_bonuses or (not has_positive_bonuses and ally.hp < ally.max_hp):
-                    # Flash allies with appropriate color (green for positive)
+                    # Flash allies with white (bone) color to show reinforcement
                     tile_ids = [ui.asset_manager.get_unit_tile(ally.type)] * 4
-                    color_ids = [3, 3, 3, 3]  # Green for allies
+                    # Alternating white and normal colors for bone reinforcement effect
+                    color_ids = [7, 3 if ally.player == 1 else 4, 7, 3 if ally.player == 1 else 4]
                     durations = [0.08] * 4
                     
                     ui.renderer.flash_tile(ally.y, ally.x, tile_ids, color_ids, durations)
             
-            # Flash enemies who were debuffed or damaged (if upgraded)
+            # Flash enemies who were debuffed or damaged with red marrow (if upgraded)
             if self.upgraded:
                 for enemy in enemies_affected:
-                    # Flash enemies with red for negative
+                    # Flash enemies with red for marrow corruption
                     tile_ids = [ui.asset_manager.get_unit_tile(enemy.type)] * 4
-                    color_ids = [20, 20, 20, 20]  # Red for enemies
+                    # Intensifying red effect that shows marrow fragments
+                    color_ids = [20, 5, 20, 5]  # Red and darker red alternating
                     durations = [0.08] * 4
                     
                     ui.renderer.flash_tile(enemy.y, enemy.x, tile_ids, color_ids, durations)
