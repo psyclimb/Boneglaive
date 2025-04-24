@@ -66,7 +66,7 @@ class MurmurationDuskSkill(ActiveSkill):
         super().__init__(
             name="Murmuration Dusk",
             key="M",
-            description="Medium-range area attack where bird flocks dive-bomb in intricate patterns.",
+            description="Medium-range area attack where bird flocks dive-bomb enemy units in intricate patterns.",
             target_type=TargetType.AREA,
             cooldown=3,
             range_=3,  # Note: parameter is range_ but it gets stored as self.range
@@ -138,11 +138,12 @@ class MurmurationDuskSkill(ActiveSkill):
         units_hit = 0
         total_damage = 0
         
-        # Apply damage to all units in the area
+        # Apply damage to all enemy units in the area
         for pos_y, pos_x in affected_positions:
             unit = game.get_unit_at(pos_y, pos_x)
             
-            if unit and unit.is_alive() and unit != user:  # Don't damage self
+            # Only damage enemy units - not self or allies
+            if unit and unit.is_alive() and unit.player != user.player:
                 # Calculate damage based on unit's defense
                 effective_defense = unit.get_effective_stats()['defense']
                 damage = max(1, self.damage - effective_defense)
@@ -251,11 +252,11 @@ class MurmurationDuskSkill(ActiveSkill):
                 ui.renderer.refresh()
                 time.sleep(0.05)  # Quick animation
 
-            # Second pass: show impact animations on units that were hit
+            # Second pass: show impact animations on enemy units that were hit
             units_damaged = []
             for pos_y, pos_x in affected_positions:
                 unit = game.get_unit_at(pos_y, pos_x)
-                if unit and unit.is_alive() and unit != user:
+                if unit and unit.is_alive() and unit.player != user.player:
                     units_damaged.append((pos_y, pos_x))
             
             # Impact animation on units
@@ -549,7 +550,7 @@ class EmeticFlangeSkill(ActiveSkill):
         super().__init__(
             name="Emetic Flange",
             key="E",
-            description="Close-range explosion of birds bursting outward, pushing affected units back 1 tile.",
+            description="Close-range explosion of birds bursting outward, damaging and pushing enemy units back 1 tile.",
             target_type=TargetType.SELF,
             cooldown=4,
             range_=0,  # Note: parameter is range_ but it gets stored as self.range
@@ -609,11 +610,12 @@ class EmeticFlangeSkill(ActiveSkill):
         units_pushed = 0
         total_damage = 0
         
-        # Apply damage and push to adjacent units
+        # Apply damage and push to adjacent enemy units only
         for pos_y, pos_x, push_dy, push_dx in adjacent_positions:
             unit = game.get_unit_at(pos_y, pos_x)
             
-            if unit and unit.is_alive():
+            # Only affect enemy units, not allies
+            if unit and unit.is_alive() and unit.player != user.player:
                 # Calculate damage based on target's defense
                 effective_defense = unit.get_effective_stats()['defense']
                 damage = max(1, self.damage - effective_defense)
