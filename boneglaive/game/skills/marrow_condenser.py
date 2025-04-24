@@ -535,11 +535,11 @@ class SloughSkill(ActiveSkill):
         super().__init__(
             name="Slough",
             key="S",
-            description="Sloughs off positive stat bonuses to allies in a 5x5 area. If no bonuses are available, heals allies instead.",
+            description="Sloughs off positive stat bonuses to allies in a 3x3 area. If no bonuses are available, heals allies instead.",
             target_type=TargetType.SELF,  # Changed to self-targeted (area effect)
             cooldown=3,  # Added cooldown
             range_=0,
-            area=2  # 5x5 area (center + 2 in each direction)
+            area=1  # 3x3 area (center + 1 in each direction)
         )
         self.upgraded = False
         self.heal_amount = 2  # Small healing fallback amount
@@ -601,13 +601,13 @@ class SloughSkill(ActiveSkill):
         
         has_negative_effects = any(value > 0 for value in negative_effects.values())
         
-        # Generate area of effect (5x5 area centered on user)
+        # Generate area of effect (3x3 area centered on user)
         effect_area = []
         center_y, center_x = user.y, user.x
         
-        # Generate all positions in 5x5 area
-        for dy in range(-2, 3):  # -2, -1, 0, 1, 2
-            for dx in range(-2, 3):  # -2, -1, 0, 1, 2
+        # Generate all positions in 3x3 area
+        for dy in range(-1, 2):  # -1, 0, 1
+            for dx in range(-1, 2):  # -1, 0, 1
                 # Skip the center position (user's position)
                 if dy == 0 and dx == 0:
                     continue
@@ -779,41 +779,41 @@ class SloughSkill(ActiveSkill):
                 (-1, -1)   # Northwest
             ]
             
-            # Show an expanding ring of bone/marrow matter
-            for distance in range(1, 3):  # Animate out to distance 2
-                # Find positions at this distance from user
-                positions_at_distance = []
-                for dy in range(-distance, distance+1):
-                    for dx in range(-distance, distance+1):
-                        # Only include positions at exactly the current distance
-                        if abs(dy) == distance or abs(dx) == distance:
-                            tile_y, tile_x = user.y + dy, user.x + dx
-                            if game.is_valid_position(tile_y, tile_x):
-                                positions_at_distance.append((tile_y, tile_x))
+            # Show bone/marrow matter in a 3x3 area
+            # Find positions around user (3x3 area)
+            positions_in_area = []
+            for dy in range(-1, 2):
+                for dx in range(-1, 2):
+                    # Skip the center (user's position)
+                    if dy == 0 and dx == 0:
+                        continue
+                    
+                    tile_y, tile_x = user.y + dy, user.x + dx
+                    if game.is_valid_position(tile_y, tile_x):
+                        positions_in_area.append((tile_y, tile_x))
+            
+            # Animate all positions in the area simultaneously
+            for pos_y, pos_x in positions_in_area:
+                # Check if any unit is at this position
+                target = game.get_unit_at(pos_y, pos_x)
                 
-                # Animate all positions at this distance simultaneously
-                for pos_y, pos_x in positions_at_distance:
-                    # Choose animation frame based on direction
-                    # Check if any unit is at this position
-                    target = game.get_unit_at(pos_y, pos_x)
-                    
-                    # Use different colors based on ally/enemy/empty
-                    color_id = 5  # Default to red for bone matter
-                    
-                    if target:
-                        if target.player == user.player:
-                            color_id = 3 if user.player == 1 else 4  # Player color for allies
-                        else:
-                            color_id = 20  # Red for enemies
-                    
-                    # Animate the bone matter spreading
-                    for frame in slough_animation:
-                        ui.renderer.draw_tile(pos_y, pos_x, frame, color_id)
-                        ui.renderer.refresh()
-                        time.sleep(0.03)  # Quick animation
+                # Use different colors based on ally/enemy/empty
+                color_id = 5  # Default to red for bone matter
                 
-                # Pause briefly between rings
-                time.sleep(0.1)
+                if target:
+                    if target.player == user.player:
+                        color_id = 3 if user.player == 1 else 4  # Player color for allies
+                    else:
+                        color_id = 20  # Red for enemies
+                
+                # Animate the bone matter spreading
+                for frame in slough_animation:
+                    ui.renderer.draw_tile(pos_y, pos_x, frame, color_id)
+                    ui.renderer.refresh()
+                    time.sleep(0.03)  # Quick animation
+            
+            # Pause briefly after animation
+            time.sleep(0.1)
             
             # Apply final effects to targets (flashing allies/enemies)
             
