@@ -18,12 +18,16 @@ from boneglaive.utils.event_system import (
     MessageDisplayEventData
 )
 
-# Import component classes
-from boneglaive.ui.ui_components import (
-    MessageLogComponent, HelpComponent, ChatComponent, 
-    CursorManager, GameModeManager, DebugComponent,
-    AnimationComponent, InputManager, ActionMenuComponent
-)
+# Import component classes directly from their modules
+from boneglaive.ui.information.message_log import MessageLogComponent
+from boneglaive.ui.information.help import HelpComponent
+from boneglaive.ui.information.chat import ChatComponent
+from boneglaive.ui.components.cursor import CursorManager
+from boneglaive.ui.components.game_mode import GameModeManager
+from boneglaive.ui.debug.debug_component import DebugComponent
+from boneglaive.ui.animation import AnimationComponent
+from boneglaive.ui.components.input_manager import InputManager
+from boneglaive.ui.components.action_menu import ActionMenuComponent
 from boneglaive.ui.ui_renderer import UIRenderer
 
 class GameUI:

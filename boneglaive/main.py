@@ -42,6 +42,7 @@ def parse_args():
     debug_group.add_argument('--log-file', action='store_true', help='Enable logging to file')
     debug_group.add_argument('--perf', action='store_true', help='Enable performance tracking')
     debug_group.add_argument('--overlay', action='store_true', help='Show debug overlay')
+    debug_group.add_argument('--test-imports', action='store_true', help='Test imports only without running UI')
     
     return parser.parse_args()
 
@@ -160,5 +161,13 @@ def main(stdscr):
             logger.info("Quitting from menu")
 
 if __name__ == "__main__":
-    # Start the application
+    # Get arguments for early checks
+    args = parse_args()
+    
+    # Special mode to test imports only
+    if args.test_imports:
+        print("Import test successful - all modules loaded correctly.")
+        sys.exit(0)
+    
+    # Start the application with UI
     curses.wrapper(main)
