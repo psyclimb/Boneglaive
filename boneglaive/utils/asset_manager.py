@@ -59,7 +59,7 @@ class AssetManager:
             'ottoman': '=',    # Ottoman uses equals sign
             'console': 'ε',    # Console table uses epsilon
             'dec_table': 'Π',  # Decorative table uses Pi symbol
-            'marrow_wall': '‡'  # Marrow Dike wall uses double dagger (looks like fence posts)
+            'marrow_wall': '#'  # Marrow Dike wall uses hash character
         }
         
         # UI symbols
@@ -104,7 +104,7 @@ class AssetManager:
             # MARROW_CONDENSER animations
             'marrow_condenser_attack': ['/', '|', '\\', '-', '8', '$', 'Ø', '#', '*'],  # Swinging and striking with bone chunks
             'ossify': ['|', '#', '█', '▓', '▒'],  # Bone hardening animation
-            'marrow_dike': ['╎', '╏', '┃', '┆', '┇', '┊', '┋', '‡', '‡'],  # Marrow wall forming - fence post animation
+            'marrow_dike': ['╎', '╏', '┃', '┆', '┇', '┊', '┋', '#', '#'],  # Marrow wall forming - hash wall animation
             'slough': ['↑', '↗', '→', '↘', '↓'],  # Transfer animation
             'site_inspection': ['□', '■', '□', '■', '□'],  # Animation for Site Inspection
             'discharge_release': ['{⚡}', '<>>', '(  )', '    '],  # Animation for Discharge releasing unit

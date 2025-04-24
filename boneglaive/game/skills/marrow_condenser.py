@@ -304,11 +304,11 @@ class MarrowDikeSkill(ActiveSkill):
         
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer'):
-            # Get fence post animation from asset manager
+            # Get wall animation from asset manager
             wall_animation = ui.asset_manager.get_skill_animation_sequence('marrow_dike')
             if not wall_animation:
                 # Fallback animation if not defined in asset manager
-                wall_animation = ['╎', '╏', '┃', '┆', '┇', '┊', '┋', '‡']
+                wall_animation = ['╎', '╏', '┃', '┆', '┇', '┊', '┋', '#']
             
             # Draw animation for each tile in sequence
             for i, (tile_y, tile_x) in enumerate(dike_tiles):
@@ -338,7 +338,7 @@ class MarrowDikeSkill(ActiveSkill):
                     # Draw final wall symbol in red to make it stand out
                     ui.renderer.draw_tile(
                         tile_y, tile_x,
-                        '‡',  # Double dagger for fence posts
+                        '#',  # Hash symbol for walls
                         20  # Use specific color defined for marrow walls (red)
                     )
                 
