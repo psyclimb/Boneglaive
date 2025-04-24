@@ -42,12 +42,17 @@ class Dominion(PassiveSkill):
         return len(self.available_upgrades) > 0
     
     def get_next_upgrade(self) -> str:
-        """Get the next skill to upgrade (randomly selected)."""
+        """Get the next skill to upgrade (for testing, always choose Marrow Dike first)."""
         if not self.available_upgrades:
             return None
         
-        # Randomly select a skill to upgrade
-        upgrade = random.choice(self.available_upgrades)
+        # For testing purposes, always upgrade Marrow Dike first if available
+        if "marrow_dike" in self.available_upgrades:
+            upgrade = "marrow_dike"
+        else:
+            # Fall back to random selection for other skills
+            upgrade = random.choice(self.available_upgrades)
+            
         self.available_upgrades.remove(upgrade)
         
         if upgrade == "ossify":
