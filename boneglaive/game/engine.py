@@ -564,6 +564,32 @@ class Game:
                             attacks.append((y, x))
         
         return attacks
+        
+    def get_attackable_units(self, unit, from_position=None):
+        """
+        Get attackable units for the given unit.
+        
+        Args:
+            unit: The unit to check attacks for
+            from_position: Optional (y, x) position to calculate attacks from (for post-move attacks)
+        
+        Returns:
+            List of Unit objects that can be attacked
+        """
+        from boneglaive.utils.debug import logger
+        
+        # Get possible attack positions
+        attack_positions = self.get_possible_attacks(unit, from_position)
+        
+        # Convert positions to actual units
+        attackable_units = []
+        for y, x in attack_positions:
+            target = self.get_unit_at(y, x)
+            if target and target.player != unit.player:
+                attackable_units.append(target)
+        
+        logger.debug(f"Found {len(attackable_units)} attackable units for {unit.get_display_name()}")
+        return attackable_units
     
     # Store reference to the UI for animations
     def set_ui_reference(self, ui):
