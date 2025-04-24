@@ -700,16 +700,24 @@ class GameModeManager(UIComponent):
         
         # Import Position to use get_line
         from boneglaive.utils.coordinates import Position, get_line
+        from boneglaive.utils.debug import logger
+        
+        # Create a Position object for the current cursor position
+        cursor_position = Position(cursor_manager.cursor_pos.y, cursor_manager.cursor_pos.x)
+        
+        # Check if cursor position is in highlighted positions
+        # Using Position.__eq__ method for proper comparison
+        position_found = cursor_position in cursor_manager.highlighted_positions
         
         # Check if the position is a valid move target
-        if Position(cursor_manager.cursor_pos.y, cursor_manager.cursor_pos.x) in cursor_manager.highlighted_positions:
-            cursor_manager.selected_unit.move_target = (cursor_manager.cursor_pos.y, cursor_manager.cursor_pos.x)
+        if position_found:
+            cursor_manager.selected_unit.move_target = (cursor_position.y, cursor_position.x)
             
             # Use event system for message
             self.publish_event(
                 EventType.MESSAGE_DISPLAY_REQUESTED,
                 MessageDisplayEventData(
-                    message=f"Move set to ({cursor_manager.cursor_pos.y}, {cursor_manager.cursor_pos.x})",
+                    message=f"Move set to ({cursor_position.y}, {cursor_position.x})",
                     log_message=False
                 )
             )
@@ -721,7 +729,7 @@ class GameModeManager(UIComponent):
                 MoveEventData(
                     unit=cursor_manager.selected_unit,
                     from_position=Position(cursor_manager.selected_unit.y, cursor_manager.selected_unit.x),
-                    to_position=Position(cursor_manager.cursor_pos.y, cursor_manager.cursor_pos.x)
+                    to_position=cursor_position
                 )
             )
             
@@ -729,8 +737,11 @@ class GameModeManager(UIComponent):
             self.set_mode("select")
             cursor_manager.highlighted_positions = []
         else:
+            # Log debugging info
+            logger.debug(f"Move target check failed: cursor at {cursor_position}, highlighted positions: {cursor_manager.highlighted_positions}")
+            
             # Check why the position isn't valid
-            y, x = cursor_manager.cursor_pos.y, cursor_manager.cursor_pos.x
+            y, x = cursor_position.y, cursor_position.x
             
             # Check if the position is in range
             distance = self.game_ui.game.chess_distance(cursor_manager.selected_unit.y, cursor_manager.selected_unit.x, y, x)
@@ -827,32 +838,10 @@ class GameModeManager(UIComponent):
         """Handle selection action when in attack mode."""
         cursor_manager = self.game_ui.cursor_manager
         
-        # Import Position for position checking
-        from boneglaive.utils.coordinates import Position
-        
-        if Position(cursor_manager.cursor_pos.y, cursor_manager.cursor_pos.x) in cursor_manager.highlighted_positions:
-            cursor_manager.selected_unit.attack_target = (cursor_manager.cursor_pos.y, cursor_manager.cursor_pos.x)
-            target = self.game_ui.game.get_unit_at(cursor_manager.cursor_pos.y, cursor_manager.cursor_pos.x)
-            
-            # Use event system for message
-            self.publish_event(
-                EventType.MESSAGE_DISPLAY_REQUESTED,
-                MessageDisplayEventData(
-                    message=f"Attack set against {target.type.name}",
-                    log_message=False
-                )
-            )
-            
-            # Publish attack planned event
-            from boneglaive.utils.event_system import AttackEventData
-            self.publish_event(
-                EventType.ATTACK_PLANNED,
-                AttackEventData(
-                    attacker=cursor_manager.selected_unit,
-                    target=target
-                )
-            )
-            
+        # Let the cursor manager handle the attack target selection
+        # This uses proper Position object equality checking
+        if cursor_manager.select_attack_target():
+            # Attack target was set successfully
             # Change to select mode (will publish mode changed event)
             self.set_mode("select")
             cursor_manager.highlighted_positions = []
@@ -872,20 +861,28 @@ class GameModeManager(UIComponent):
         
         # Import Position for position checking
         from boneglaive.utils.coordinates import Position
+        from boneglaive.utils.debug import logger
+        
+        # Create a Position object for the current cursor position
+        cursor_position = Position(cursor_manager.cursor_pos.y, cursor_manager.cursor_pos.x)
+        
+        # Check if cursor position is in highlighted positions
+        # Using Position.__eq__ method for proper comparison
+        position_found = cursor_position in cursor_manager.highlighted_positions
         
         # Check if the selected position is in the highlighted positions (valid targets)
-        if Position(cursor_manager.cursor_pos.y, cursor_manager.cursor_pos.x) in cursor_manager.highlighted_positions:
+        if position_found:
             # Set the skill target on the unit
-            cursor_manager.selected_unit.skill_target = (cursor_manager.cursor_pos.y, cursor_manager.cursor_pos.x)
+            cursor_manager.selected_unit.skill_target = (cursor_position.y, cursor_position.x)
             
             # Try to get the target unit (may be None for ground-targeted skills)
-            target = self.game_ui.game.get_unit_at(cursor_manager.cursor_pos.y, cursor_manager.cursor_pos.x)
+            target = self.game_ui.game.get_unit_at(cursor_position.y, cursor_position.x)
             
             # Generate message based on whether there's a target unit or just a position
             if target:
                 target_desc = f"{target.type.name}"
             else:
-                target_desc = f"position ({cursor_manager.cursor_pos.y}, {cursor_manager.cursor_pos.x})"
+                target_desc = f"position ({cursor_position.y}, {cursor_position.x})"
                 
             # Use event system for message
             self.publish_event(
@@ -903,7 +900,7 @@ class GameModeManager(UIComponent):
                 SkillEventData(
                     unit=cursor_manager.selected_unit,
                     skill=cursor_manager.selected_unit.selected_skill,
-                    target_position=Position(cursor_manager.cursor_pos.y, cursor_manager.cursor_pos.x),
+                    target_position=cursor_position,
                     target_unit=target
                 )
             )
@@ -912,6 +909,9 @@ class GameModeManager(UIComponent):
             self.set_mode("select")
             cursor_manager.highlighted_positions = []
         else:
+            # Log debugging info
+            logger.debug(f"Skill target check failed: cursor at {cursor_position}, highlighted positions: {cursor_manager.highlighted_positions}")
+            
             # Use event system for message
             self.publish_event(
                 EventType.MESSAGE_DISPLAY_REQUESTED,

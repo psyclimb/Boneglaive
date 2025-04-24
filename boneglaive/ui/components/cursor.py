@@ -270,9 +270,12 @@ class CursorManager(UIComponent):
         """
         # Import Position for position checking
         from boneglaive.utils.coordinates import Position
+        from boneglaive.utils.debug import logger
         
         cursor_position = Position(self.cursor_pos.y, self.cursor_pos.x)
         
+        # Check if the cursor position is among the highlighted positions
+        # This will use the __eq__ method of Position for correct comparison
         if cursor_position in self.highlighted_positions:
             # Set the attack target
             self.selected_unit.attack_target = (self.cursor_pos.y, self.cursor_pos.x)
@@ -306,6 +309,8 @@ class CursorManager(UIComponent):
             self.highlighted_positions = []
             return True
         else:
+            # Log debugging info
+            logger.debug(f"Attack target check failed: cursor at {cursor_position}, highlighted positions: {self.highlighted_positions}")
             self.game_ui.message = "Invalid attack target"
             return False
     
