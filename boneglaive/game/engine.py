@@ -1178,21 +1178,8 @@ class Game:
                         if unit_at_tile not in healed_units:
                             healed_units.append(unit_at_tile)
                 
-                # Apply healing to allied units
-                healing_amount = 2  # Fixed healing amount for upgraded dikes
-                for unit in healed_units:
-                    old_hp = unit.hp
-                    unit.hp = min(unit.max_hp, unit.hp + healing_amount)
-                    actual_healing = unit.hp - old_hp
-                    
-                    # Log healing message
-                    if actual_healing > 0:
-                        message_log.add_message(
-                            f"{unit.get_display_name()} heals {actual_healing} HP from {owner.get_display_name()}'s blood plasma!",
-                            MessageType.ABILITY,
-                            player=owner.player,
-                            target_name=unit.get_display_name()
-                        )
+                # This section is now redundant as we'll handle all healing in the interior code
+                # Keeping the structure but not applying healing to avoid duplicate healing
             
             # Process removals and restore original terrain
             for tile_y, tile_x in tiles_to_remove:
@@ -1225,13 +1212,14 @@ class Game:
             
             # Process healing for upgraded Marrow Dikes (blood plasma healing effect)
             # Group all upgraded dikes by owner to process healing collectively
-            if hasattr(self, 'marrow_dike_tiles') and self.marrow_dike_tiles:
-                # Find all upgraded dike tiles belonging to the current player
+            if hasattr(self, 'marrow_dike_interior') and self.marrow_dike_interior:
+                # Find all upgraded dike interiors belonging to either player, not just current player
+                # This makes healing work on every turn for all players
                 upgraded_dikes_by_owner = {}
                 
-                for tile_pos, dike_info in self.marrow_dike_tiles.items():
-                    # Check if dike belongs to current player and is upgraded
-                    if dike_info['owner'].player == self.current_player and dike_info.get('upgraded', False):
+                for tile_pos, dike_info in self.marrow_dike_interior.items():
+                    # Check if the dike is upgraded (we're healing from ALL upgraded dikes, not just current player's)
+                    if dike_info.get('upgraded', False):
                         # Group by owner unit
                         owner = dike_info['owner']
                         if owner not in upgraded_dikes_by_owner:
@@ -1239,8 +1227,8 @@ class Game:
                         upgraded_dikes_by_owner[owner].append(tile_pos)
                 
                 # Process healing for each owner's upgraded dikes
-                for owner, dike_tiles in upgraded_dikes_by_owner.items():
-                    # Find all allied units standing in the upgraded dike tiles
+                for owner, interior_tiles in upgraded_dikes_by_owner.items():
+                    # Find all allied units standing in the upgraded dike interior
                     healed_units = []
                     
                     for unit in self.units:
@@ -1249,15 +1237,21 @@ class Game:
                             unit_pos = (unit.y, unit.x)
                             
                             # Check if unit is inside any of this owner's upgraded dike tiles
-                            if unit_pos in dike_tiles:
-                                healed_units.append(unit)
+                            # We specifically check the interior collection here
+                            if unit_pos in self.marrow_dike_interior and self.marrow_dike_interior[unit_pos]['owner'] == owner:
+                                if unit not in healed_units:
+                                    healed_units.append(unit)
                     
                     # Apply healing to all identified units
                     if healed_units:
-                        # Get healing amount from the skill definition
+                        # Get healing amount from the skill definition 
                         healing_amount = 2  # Default
-                        if hasattr(owner, 'selected_skill') and owner.selected_skill and hasattr(owner.selected_skill, 'healing_amount'):
-                            healing_amount = owner.selected_skill.healing_amount
+                        
+                        # Try to get healing amount from the skill if possible
+                        for skill in owner.skills:
+                            if skill.name == "Marrow Dike" and hasattr(skill, 'healing_amount'):
+                                healing_amount = skill.healing_amount
+                                break
                         
                         # Heal each unit and log the effect
                         for unit in healed_units:
