@@ -1456,16 +1456,29 @@ class Game:
                 # Get animation from asset manager
                 wretched_animation = ui.asset_manager.get_skill_animation_sequence('wretched_decension')
                 if not wretched_animation:
-                    # Fallback animation if not defined
-                    wretched_animation = ['^', 'v', 'V', '∧', '∨', '♦', '@']
+                    # Fallback animation if not defined - birds descending to claim the wretched
+                    wretched_animation = [
+                        '.', '..', '...', '^', '^^', '^^^', 'v^v', '>v<', 'vVv',
+                        'WVW', '\\V/', '#V#', '@V@', '###', '@@@', '...', '.'
+                    ]
                 
                 # Animate the descending flock
                 ui.renderer.animate_attack_sequence(
                     target.y, target.x,
                     wretched_animation,
                     1,  # Red color for death
-                    0.1  # Duration
+                    0.08  # Slightly faster for more dramatic effect
                 )
+                
+                # Add a final flash effect at the end
+                if hasattr(ui, 'asset_manager'):
+                    # Flash between red and white for dramatic finale
+                    tile_ids = ['@', '#', '%', ' ']
+                    color_ids = [1, 7, 1, 7]  # Alternate red and white
+                    durations = [0.1, 0.1, 0.1, 0.2]  # Last frame lingers
+                    
+                    # Use renderer's flash tile method for finale
+                    ui.renderer.flash_tile(target.y, target.x, tile_ids, color_ids, durations)
             
             # Kill the target (set HP to 0)
             target.hp = 0

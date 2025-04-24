@@ -139,10 +139,22 @@ class AssetManager:
                 '≪', '≫', '≺', '≻', '∀', '∃', '∄', '⊹', '✸', '✹'
             ],
             
-            # Wretched Decension effect - birds carrying away the fallen (for passive)
+            # Wretched Decension effect - birds descending to claim the wretched (for passive)
             'wretched_decension': [
-                '▲', '△', '▴', '⋀', 'Λ', '∧', 'Ʌ', '∆', '˄',
-                'ˆ', '⊿', '⁁', '⋎', '⋏', '⍋', '⦞'
+                '.',  '..',  '...',    # Initial distant swarm
+                '^', '^^', '^^^',      # First birds appear
+                '^ ^', '^v^', '^ ^',   # Starting to circle
+                'v^v', '^v^', 'v^v',   # More birds joining 
+                '>v<', '>^<', 'vAv',   # Forming attack pattern
+                'vVv', '>A<', 'WVW',   # Diving birds
+                'VWV', 'VvV', '>M<',   # Descending formation
+                '\\M/', '\\V/', 'AVA', # Closing in
+                '\\|/', '%M%', '#V#',  # Surrounding the target
+                '@M@', '@V@', '###',   # Engulfing the target
+                '###', '@@@', '%%%',   # Swarm intensifies
+                '%%%', '###', '@#@',   # Frenzied birds
+                '@%@', '#@#', '~~~',   # Final moments
+                '...', '..', '.'       # Carrying away, leaving nothing
             ]
         }
     
