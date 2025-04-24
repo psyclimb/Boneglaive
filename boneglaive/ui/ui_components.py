@@ -1596,7 +1596,7 @@ class GameModeManager(UIComponent):
     def toggle_setup_unit_type(self):
         """
         Toggle between unit types during the setup phase.
-        Cycles between GLAIVEMAN, MANDIBLE FOREMAN, and GRAYMAN.
+        Cycles between GLAIVEMAN, MANDIBLE FOREMAN, GRAYMAN, and MARROW_CONDENSER.
         """
         if self.setup_unit_type == UnitType.GLAIVEMAN:
             self.setup_unit_type = UnitType.MANDIBLE_FOREMAN
@@ -1604,6 +1604,9 @@ class GameModeManager(UIComponent):
         elif self.setup_unit_type == UnitType.MANDIBLE_FOREMAN:
             self.setup_unit_type = UnitType.GRAYMAN
             self.game_ui.message = "Setup unit type: GRAYMAN"
+        elif self.setup_unit_type == UnitType.GRAYMAN:
+            self.setup_unit_type = UnitType.MARROW_CONDENSER
+            self.game_ui.message = "Setup unit type: MARROW CONDENSER"
         else:
             self.setup_unit_type = UnitType.GLAIVEMAN
             self.game_ui.message = "Setup unit type: GLAIVEMAN"
@@ -2242,6 +2245,39 @@ class ActionMenuComponent(UIComponent):
                 'action': 'grae_exchange_skill',
                 'enabled': grae_exchange_skill is not None,
                 'skill': grae_exchange_skill
+            })
+            
+        # MARROW_CONDENSER skills
+        elif unit.type == self.UnitType.MARROW_CONDENSER:
+            
+            # Add Ossify skill
+            ossify_skill = next((skill for skill in available_skills if skill.name == "Ossify"), None)
+            self.actions.append({
+                'key': 'o',
+                'label': 'ssify',  # Will be displayed as [O]ssify
+                'action': 'ossify_skill',
+                'enabled': ossify_skill is not None,
+                'skill': ossify_skill
+            })
+            
+            # Add Marrow Dike skill
+            marrow_dike_skill = next((skill for skill in available_skills if skill.name == "Marrow Dike"), None)
+            self.actions.append({
+                'key': 'm',
+                'label': 'arrow Dike',  # Will be displayed as [M]arrow Dike
+                'action': 'marrow_dike_skill',
+                'enabled': marrow_dike_skill is not None,
+                'skill': marrow_dike_skill
+            })
+            
+            # Add Slough skill
+            slough_skill = next((skill for skill in available_skills if skill.name == "Slough"), None)
+            self.actions.append({
+                'key': 's',
+                'label': 'lough',  # Will be displayed as [S]lough
+                'action': 'slough_skill',
+                'enabled': slough_skill is not None,
+                'skill': slough_skill
             })
         
         # Reset selected index

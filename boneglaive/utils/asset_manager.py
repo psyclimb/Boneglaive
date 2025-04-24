@@ -41,7 +41,8 @@ class AssetManager:
             UnitType.ARCHER: 'A',
             UnitType.MAGE: 'M',
             UnitType.MANDIBLE_FOREMAN: 'F',
-            UnitType.GRAYMAN: 'Ψ'
+            UnitType.GRAYMAN: 'Ψ',
+            UnitType.MARROW_CONDENSER: 'C'
         }
         
         # Terrain symbols
@@ -76,7 +77,8 @@ class AssetManager:
             'archer_attack': '→',         # Arrow for ranged
             'mage_attack': '*',           # Star for magic
             'mandible_foreman_attack': 'Ξ', # Mandible jaws (melee)
-            'grayman_attack': '≈'         # Reality distortion (ranged)
+            'grayman_attack': '≈',        # Reality distortion (ranged)
+            'marrow_condenser_attack': 'Ø' # Bone symbol for melee
         }
         
         # Add animation sequence tiles for each attack type (using simple ASCII)
@@ -98,6 +100,11 @@ class AssetManager:
             'judgement_throw': ['*', '↺', '↻', '⚡', '⚓', '⊕'],  # Sacred glaive animation
             'judgement_critical': ['⚡', '⌁', '⌁', '⚡', '※'],  # Lightning strike critical effect
             'viseroy_trap': ['[]', '><', '}{', 'Ξ', '}{', '><', '[]'],  # Animation for Viseroy trapping
+            # MARROW_CONDENSER animations
+            'marrow_condenser_attack': ['/', '|', '\\', '-', '8', '$', 'Ø', '#', '*'],  # Swinging and striking with bone chunks
+            'ossify': ['|', '#', '█', '▓', '▒'],  # Bone hardening animation
+            'marrow_dike': ['░', '▒', '▓', '█'],  # Marrow wall forming
+            'slough': ['↑', '↗', '→', '↘', '↓'],  # Transfer animation
             'site_inspection': ['□', '■', '□', '■', '□'],  # Animation for Site Inspection
             'discharge_release': ['{⚡}', '<>>', '(  )', '    '],  # Animation for Discharge releasing unit
             'discharge_impact': ['!', '!', '#', 'X', '*', '.'],  # Animation for Discharge impact
@@ -147,7 +154,8 @@ class AssetManager:
             'archer_attack': 'assets/effects/arrow.png',
             'mage_attack': 'assets/effects/magic.png',
             'mandible_foreman_attack': 'assets/effects/mandibles.png',
-            'grayman_attack': 'assets/effects/distortion.png'
+            'grayman_attack': 'assets/effects/distortion.png',
+            'marrow_condenser_attack': 'assets/effects/bone.png'
         }
         
         # Add animation sequences for graphical mode too
@@ -172,7 +180,12 @@ class AssetManager:
             'grayman_attack': ['grayman_attack_1.png', 'grayman_attack_2.png', 'grayman_attack_3.png'],
             'delta_config': ['delta_config_1.png', 'delta_config_2.png', 'delta_config_3.png', 'delta_config_4.png'],
             'estrange': ['estrange_1.png', 'estrange_2.png', 'estrange_3.png'],
-            'grae_exchange': ['grae_exchange_1.png', 'grae_exchange_2.png', 'grae_exchange_3.png']
+            'grae_exchange': ['grae_exchange_1.png', 'grae_exchange_2.png', 'grae_exchange_3.png'],
+            # MARROW_CONDENSER animations
+            'marrow_condenser_attack': ['marrow_attack_1.png', 'marrow_attack_2.png', 'marrow_attack_3.png'],
+            'ossify': ['ossify_1.png', 'ossify_2.png', 'ossify_3.png'],
+            'marrow_dike': ['marrow_dike_1.png', 'marrow_dike_2.png', 'marrow_dike_3.png'],
+            'slough': ['slough_1.png', 'slough_2.png', 'slough_3.png']
         }
     
     def get_unit_tile(self, unit_type: UnitType) -> str:
@@ -198,7 +211,8 @@ class AssetManager:
             UnitType.ARCHER: 'archer_attack',
             UnitType.MAGE: 'mage_attack',
             UnitType.MANDIBLE_FOREMAN: 'mandible_foreman_attack',
-            UnitType.GRAYMAN: 'grayman_attack'
+            UnitType.GRAYMAN: 'grayman_attack',
+            UnitType.MARROW_CONDENSER: 'marrow_condenser_attack'
         }
         effect_type = effect_map.get(unit_type, 'glaiveman_attack')
         return self.get_effect_tile(effect_type)
@@ -210,7 +224,8 @@ class AssetManager:
             UnitType.ARCHER: 'archer_attack',
             UnitType.MAGE: 'mage_attack',
             UnitType.MANDIBLE_FOREMAN: 'mandible_foreman_attack',
-            UnitType.GRAYMAN: 'grayman_attack'
+            UnitType.GRAYMAN: 'grayman_attack',
+            UnitType.MARROW_CONDENSER: 'marrow_condenser_attack'
         }
         effect_type = effect_map.get(unit_type, 'glaiveman_attack')
         return self.animation_sequences.get(effect_type, [])

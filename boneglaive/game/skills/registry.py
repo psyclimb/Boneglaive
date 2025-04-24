@@ -17,6 +17,10 @@ from boneglaive.game.skills.grayman import (
     Stasiality, DeltaConfigSkill, EstrangeSkill, GraeExchangeSkill
 )
 
+from boneglaive.game.skills.marrow_condenser import (
+    Dominion, OssifySkill, MarrowDikeSkill, SloughSkill
+)
+
 # Define the skills available for each unit type
 UNIT_SKILLS = {
     "GLAIVEMAN": {
@@ -30,5 +34,9 @@ UNIT_SKILLS = {
     "GRAYMAN": {
         "passive": Stasiality(),
         "active": [DeltaConfigSkill(), EstrangeSkill(), GraeExchangeSkill()]
+    },
+    "MARROW_CONDENSER": {
+        "passive": Dominion(),
+        "active": [OssifySkill(), MarrowDikeSkill(), SloughSkill()]
     }
 }
