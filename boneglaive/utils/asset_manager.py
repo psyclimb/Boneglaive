@@ -113,7 +113,8 @@ class AssetManager:
             'teleport_out': ['Ψ', '░', '▒', '▓', ' '],  # Teleport out animation
             'teleport_in': [' ', '▓', '▒', '░', 'Ψ'],  # Teleport in animation
             'estrange': ['≡', '≢', '⋍', '≈', '~', '≈', '⋍', '≢', '≡'],  # Phasing effect
-            'grae_exchange': ['|', '/', '_', '*', 'ψ', 'Ψ']  # Cane tapping and echo creation effect
+            'grae_exchange': ['|', '/', '_', '*', 'ψ', 'Ψ'],  # Cane tapping and echo creation effect
+            'marrow_healing': ['♥', '❤', '♡', '❤', '♥', '✚', '+', '*']  # Blood plasma healing animation
         }
     
     def _initialize_graphical_assets(self) -> None:
