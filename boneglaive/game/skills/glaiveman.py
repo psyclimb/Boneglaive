@@ -828,12 +828,59 @@ class VaultSkill(ActiveSkill):
                 for i in range((len(mid_positions) + 1) // 2, len(mid_positions)):
                     arc_chars.append('↓')
                 
+                # Store original terrain information for restoration
+                terrain_info = []
+                for pos in mid_positions:
+                    terrain_type = game.map.get_terrain_at(pos.y, pos.x)
+                    terrain_name = terrain_type.name.lower() if hasattr(terrain_type, 'name') else 'empty'
+                    terrain_tile = ui.asset_manager.get_terrain_tile(terrain_name)
+                    
+                    # Determine appropriate terrain color based on terrain type
+                    if terrain_name == 'empty':
+                        terrain_color = 1  # Default (white on black)
+                    elif terrain_name == 'dust':
+                        terrain_color = 11  # Dust color
+                    elif terrain_name == 'limestone':
+                        terrain_color = 12  # Limestone color
+                    elif terrain_name == 'pillar':
+                        terrain_color = 13  # Pillar color
+                    elif terrain_name == 'furniture' or terrain_name.startswith('coat_rack') or terrain_name.startswith('ottoman'):
+                        terrain_color = 14  # Furniture color
+                    elif terrain_name == 'marrow_wall':
+                        terrain_color = 20  # Marrow Wall color
+                    else:
+                        terrain_color = 1  # Default for unknown types
+                    
+                    # Store unit if present for restoration
+                    other_unit = game.get_unit_at(pos.y, pos.x)
+                    
+                    terrain_info.append({
+                        'position': (pos.y, pos.x),
+                        'terrain_tile': terrain_tile,
+                        'terrain_color': terrain_color,
+                        'unit': other_unit
+                    })
+                
                 # Show arc animation along path midpoints
                 for i, pos in enumerate(mid_positions):
                     char = arc_chars[i] if i < len(arc_chars) else '⋅'
                     ui.renderer.draw_tile(pos.y, pos.x, char, 7)  # White color
                     ui.renderer.refresh()
                     time.sleep(0.08)
+                    
+                    # Restore proper terrain after animation frame
+                    if i < len(terrain_info):
+                        info = terrain_info[i]
+                        # Check if there's a unit at this position
+                        if info['unit'] and info['unit'] != user:
+                            # Draw the unit instead of terrain
+                            unit_tile = ui.asset_manager.get_unit_tile(info['unit'].type)
+                            unit_color = 3 if info['unit'].player == 1 else 4  # Player colors
+                            ui.renderer.draw_tile(info['position'][0], info['position'][1], unit_tile, unit_color)
+                        else:
+                            # Draw appropriate terrain with correct color
+                            ui.renderer.draw_tile(info['position'][0], info['position'][1], 
+                                                info['terrain_tile'], info['terrain_color'])
             
             # Temporarily hide the unit
             temp_y, temp_x = user.y, user.x
@@ -843,6 +890,27 @@ class VaultSkill(ActiveSkill):
             if hasattr(ui, 'draw_board'):
                 ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
                 
+            # Get landing terrain information for restoration after animation
+            landing_terrain_type = game.map.get_terrain_at(target_pos[0], target_pos[1])
+            landing_terrain_name = landing_terrain_type.name.lower() if hasattr(landing_terrain_type, 'name') else 'empty'
+            landing_terrain_tile = ui.asset_manager.get_terrain_tile(landing_terrain_name)
+            
+            # Determine appropriate terrain color for landing position
+            if landing_terrain_name == 'empty':
+                landing_terrain_color = 1  # Default (white on black)
+            elif landing_terrain_name == 'dust':
+                landing_terrain_color = 11  # Dust color
+            elif landing_terrain_name == 'limestone':
+                landing_terrain_color = 12  # Limestone color
+            elif landing_terrain_name == 'pillar':
+                landing_terrain_color = 13  # Pillar color
+            elif landing_terrain_name == 'furniture' or landing_terrain_name.startswith('coat_rack') or landing_terrain_name.startswith('ottoman'):
+                landing_terrain_color = 14  # Furniture color
+            elif landing_terrain_name == 'marrow_wall':
+                landing_terrain_color = 20  # Marrow Wall color
+            else:
+                landing_terrain_color = 1  # Default for unknown types
+                
             # Show landing animation at target position
             ui.renderer.animate_attack_sequence(
                 target_pos[0], target_pos[1],
@@ -850,6 +918,10 @@ class VaultSkill(ActiveSkill):
                 7,  # white color
                 0.12  # duration
             )
+            
+            # Restore proper terrain at landing position before placing unit
+            ui.renderer.draw_tile(target_pos[0], target_pos[1], 
+                                landing_terrain_tile, landing_terrain_color)
             
             # Move user to target position
             user.y, user.x = target_pos
