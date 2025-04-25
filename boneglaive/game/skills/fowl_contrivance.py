@@ -34,7 +34,11 @@ class WretchedDecension(PassiveSkill):
         )
     
     def apply_passive(self, user: 'Unit', game=None) -> None:
-        # Logic handled in the game engine's damage_unit method
+        """
+        Passive is handled in the game engine's check_critical_health method.
+        This passive does not directly modify the unit but triggers when 
+        other units reach critical health.
+        """
         pass
     
     def check_wretched_decension_chance(self, game: 'Game', user: 'Unit') -> float:
@@ -148,6 +152,9 @@ class MurmurationDuskSkill(ActiveSkill):
                 effective_defense = unit.get_effective_stats()['defense']
                 damage = max(1, self.damage - effective_defense)
                 
+                # Store previous HP for critical health check
+                previous_hp = unit.hp
+                
                 # Apply damage
                 unit.hp = max(0, unit.hp - damage)
                 units_hit += 1
@@ -166,6 +173,9 @@ class MurmurationDuskSkill(ActiveSkill):
                 # Handle death if unit was killed
                 if unit.hp <= 0:
                     game.handle_unit_death(unit, user, cause="ability", ui=ui)
+                else:
+                    # Check for critical health (wretching) using centralized logic
+                    game.check_critical_health(unit, user, previous_hp, ui)
         
         if units_hit > 0:
             message_log.add_message(
@@ -364,6 +374,9 @@ class FlapSkill(ActiveSkill):
         effective_defense = target_unit.get_effective_stats()['defense']
         damage = max(1, self.damage - effective_defense)
         
+        # Store previous HP for critical health check
+        previous_hp = target_unit.hp
+        
         # Apply damage
         target_unit.hp = max(0, target_unit.hp - damage)
         
@@ -380,6 +393,9 @@ class FlapSkill(ActiveSkill):
         # Handle death if unit was killed
         if target_unit.hp <= 0:
             game.handle_unit_death(target_unit, user, cause="ability", ui=ui)
+        else:
+            # Check for critical health (wretching) using centralized logic
+            game.check_critical_health(target_unit, user, previous_hp, ui)
         
         message_log.add_message(
             f"The concentrated hawk attack deals {damage} damage to {target_unit.get_display_name()}!",
@@ -552,7 +568,7 @@ class EmeticFlangeSkill(ActiveSkill):
             key="E",
             description="Close-range explosion of birds bursting outward, damaging and pushing enemy units back 1 tile.",
             target_type=TargetType.SELF,
-            cooldown=4,
+            cooldown=3,  # Reduced from 4 to 3
             range_=0,  # Note: parameter is range_ but it gets stored as self.range
             area=1  # All adjacent tiles (8 surrounding tiles)
         )
@@ -620,6 +636,9 @@ class EmeticFlangeSkill(ActiveSkill):
                 effective_defense = unit.get_effective_stats()['defense']
                 damage = max(1, self.damage - effective_defense)
                 
+                # Store previous HP for critical health check
+                previous_hp = unit.hp
+                
                 # Apply damage
                 unit.hp = max(0, unit.hp - damage)
                 units_hit += 1
@@ -638,20 +657,33 @@ class EmeticFlangeSkill(ActiveSkill):
                 # Handle death if unit was killed
                 if unit.hp <= 0:
                     game.handle_unit_death(unit, user, cause="ability", ui=ui)
+                else:
+                    # Check for critical health (wretching) using centralized logic
+                    game.check_critical_health(unit, user, previous_hp, ui)
                 
-                # Calculate push destination
-                push_dest_y = pos_y + push_dy
-                push_dest_x = pos_x + push_dx
-                
-                # Check if push destination is valid and unoccupied
-                if (game.is_valid_position(push_dest_y, push_dest_x) and 
-                    game.map.is_passable(push_dest_y, push_dest_x) and
-                    not game.get_unit_at(push_dest_y, push_dest_x)):
+                # Only attempt to push if unit is not immune to effects (e.g., GRAYMAN with Stasiality)
+                if not unit.is_immune_to_effects():
+                    # Calculate push destination
+                    push_dest_y = pos_y + push_dy
+                    push_dest_x = pos_x + push_dx
                     
-                    # Push the unit
-                    unit.y = push_dest_y
-                    unit.x = push_dest_x
-                    units_pushed += 1
+                    # Check if push destination is valid and unoccupied
+                    if (game.is_valid_position(push_dest_y, push_dest_x) and 
+                        game.map.is_passable(push_dest_y, push_dest_x) and
+                        not game.get_unit_at(push_dest_y, push_dest_x)):
+                        
+                        # Push the unit
+                        unit.y = push_dest_y
+                        unit.x = push_dest_x
+                        units_pushed += 1
+                else:
+                    # Log that the unit is immune to the push effect
+                    message_log.add_message(
+                        f"{unit.get_display_name()} is immune to Emetic Flange's push effect due to Stasiality!",
+                        MessageType.ABILITY,
+                        player=user.player,
+                        target_name=unit.get_display_name()
+                    )
         
         # Log results
         if units_hit > 0:
@@ -739,35 +771,50 @@ class EmeticFlangeSkill(ActiveSkill):
                 ui.renderer.refresh()
                 time.sleep(0.05)
             
-            # Show push animation for affected units
+            # Create a list of pushed units for animation
+            pushed_units_info = []
+            
+            # For each enemy unit, check if it was hit and was pushed
             for pos_y, pos_x, push_dy, push_dx in adjacent_positions:
-                unit = game.get_unit_at(push_dest_y, push_dest_x)
+                unit = game.get_unit_at(pos_y, pos_x)
                 
-                if unit:  # This unit was pushed
-                    orig_y, orig_x = pos_y - push_dy, pos_x - push_dx
-                    
-                    # Animation for unit being pushed
-                    push_animation = ['↖', '↗', '↘', '↙']
-                    
-                    # Choose direction indicator based on push direction
-                    direction_idx = 0
-                    if push_dy < 0 and push_dx < 0:  # Northwest
-                        direction_idx = 0  # ↖
-                    elif push_dy < 0 and push_dx > 0:  # Northeast
-                        direction_idx = 1  # ↗
-                    elif push_dy > 0 and push_dx > 0:  # Southeast
-                        direction_idx = 2  # ↘
-                    elif push_dy > 0 and push_dx < 0:  # Southwest
-                        direction_idx = 3  # ↙
-                    
-                    # Draw push direction indicator
-                    ui.renderer.draw_tile(
-                        orig_y, orig_x,
-                        push_animation[direction_idx],
-                        6  # Yellow for push animation
-                    )
-                    ui.renderer.refresh()
-                    time.sleep(0.1)
+                # Only check enemy units that were hit but not killed
+                if unit and unit.is_alive() and unit.player != user.player:
+                    # For units that were pushed (not immune to effects)
+                    if not unit.is_immune_to_effects():
+                        # Calculate push destination
+                        push_dest_y = pos_y + push_dy
+                        push_dest_x = pos_x + push_dx
+                        
+                        # If the unit is at the push destination, it was pushed
+                        if unit.y == push_dest_y and unit.x == push_dest_x:
+                            # Add to list for animation, tracking original and new positions
+                            pushed_units_info.append((unit, pos_y, pos_x, push_dy, push_dx))
+            
+            # Show push animation for units that were actually pushed
+            for unit, orig_y, orig_x, push_dy, push_dx in pushed_units_info:
+                # Animation for unit being pushed
+                push_animation = ['↖', '↗', '↘', '↙']
+                
+                # Choose direction indicator based on push direction
+                direction_idx = 0
+                if push_dy < 0 and push_dx < 0:  # Northwest
+                    direction_idx = 0  # ↖
+                elif push_dy < 0 and push_dx > 0:  # Northeast
+                    direction_idx = 1  # ↗
+                elif push_dy > 0 and push_dx > 0:  # Southeast
+                    direction_idx = 2  # ↘
+                elif push_dy > 0 and push_dx < 0:  # Southwest
+                    direction_idx = 3  # ↙
+                
+                # Draw push direction indicator
+                ui.renderer.draw_tile(
+                    orig_y, orig_x,
+                    push_animation[direction_idx],
+                    6  # Yellow for push animation
+                )
+                ui.renderer.refresh()
+                time.sleep(0.1)
             
             # Cleanup animation - birds flying away
             cleanup_animation = ['*', '.', ' ']
