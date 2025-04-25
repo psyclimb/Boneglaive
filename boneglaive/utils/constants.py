@@ -33,13 +33,13 @@ class UnitType(Enum):
 
 # Unit stats: (hp, attack, defense, move_range, attack_range)
 UNIT_STATS = {
-    UnitType.GLAIVEMAN: (22, 5, 1, 2, 2),  # Increased HP from 20 to 22
+    UnitType.GLAIVEMAN: (22, 6, 1, 2, 2),  # Increased HP from 20 to 22, attack from 5 to 6
     UnitType.ARCHER: (15, 5, 2, 2, 3),
     UnitType.MAGE: (12, 6, 1, 1, 2),
-    UnitType.MANDIBLE_FOREMAN: (25, 6, 2, 2, 1),  # Increased attack from 5 to 6
+    UnitType.MANDIBLE_FOREMAN: (25, 3, 2, 2, 1),  # Reduced attack from 6 to 3
     UnitType.GRAYMAN: (18, 2, 0, 2, 5),  # Reduced attack from 4 to 2, keeping long range
     UnitType.MARROW_CONDENSER: (26, 4, 2, 3, 1),  # Tank unit with medium attack and high potential growth
-    UnitType.FOWL_CONTRIVANCE: (14, 7, 0, 3, 3)  # Glass cannon - lowest HP, highest attack
+    UnitType.FOWL_CONTRIVANCE: (18, 7, 0, 3, 3)  # Increased HP from 14 to 18, kept high attack
 }
 
 UNIT_SYMBOLS = {

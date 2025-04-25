@@ -741,6 +741,7 @@ class Game:
                 if unit.is_alive() and unit.trapped_by == dying_unit:
                     logger.debug(f"MANDIBLE_FOREMAN perished, releasing {unit.get_display_name()}")
                     unit.trapped_by = None
+                    unit.trap_duration = 0  # Reset trap duration
                     message_log.add_message(
                         f"{unit.get_display_name()} is released from mechanical jaws!",
                         MessageType.ABILITY,
@@ -976,6 +977,7 @@ class Game:
                         else:
                             # Only trap if the target is still alive and not immune
                             target.trapped_by = unit
+                            target.trap_duration = 0  # Initialize trap duration for incremental damage
                             
                             # Log the trapping (using MessageType.COMBAT for yellow coloring)
                             message_log.add_message(
@@ -1072,63 +1074,28 @@ class Game:
                         )
                         time.sleep(0.2)
                     
-                    # Fixed trap damage (reduced from using attack value)
-                    trap_damage = 3  # Fixed damage for Viseroy trap
-                    effective_defense = trapped_unit.get_effective_stats()['defense']
-                    damage = max(1, trap_damage - effective_defense)
+                    # Play trap animation if UI is available but don't apply damage here
+                    # Actual damage is now handled centrally in _apply_trap_damage method
+                    if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+                        # Get animation sequence for Viseroy trap
+                        animation_sequence = ui.asset_manager.get_skill_animation_sequence('viseroy_trap')
+                        
+                        # Show jaw animation at trapped unit's position (visual only)
+                        ui.renderer.animate_attack_sequence(
+                            trapped_unit.y, trapped_unit.x,
+                            animation_sequence,
+                            5,  # color ID (reddish)
+                            0.2  # duration
+                        )
+                        time.sleep(0.2)
                     
-                    # Apply damage to the trapped unit
-                    previous_hp = trapped_unit.hp
-                    trapped_unit.hp = max(0, trapped_unit.hp - damage)
-                    
-                    # Log the damage
-                    message_log.add_combat_message(
-                        attacker_name=unit.get_display_name(),
-                        target_name=trapped_unit.get_display_name(),
-                        damage=damage,
-                        ability="Viseroy Trap",
-                        attacker_player=unit.player,
-                        target_player=trapped_unit.player
+                    # Show a message indicating the trap is active, but don't apply damage here
+                    message_log.add_message(
+                        f"{trapped_unit.get_display_name()} remains trapped in {unit.get_display_name()}'s mechanical jaws.",
+                        MessageType.ABILITY,
+                        player=unit.player,
+                        target_name=trapped_unit.get_display_name()
                     )
-                    
-                    # Check for critical health (wretching) using centralized logic
-                    self.check_critical_health(trapped_unit, unit, previous_hp, ui)
-                    
-                    # Show damage number if UI is available
-                    if ui and hasattr(ui, 'renderer'):
-                        # Flash the unit to show damage
-                        if hasattr(ui, 'asset_manager'):
-                            # Flash the unit with damage colors
-                            tile_ids = [ui.asset_manager.get_unit_tile(trapped_unit.type)] * 4
-                            color_ids = [5, 3 if trapped_unit.player == 1 else 4] * 2  # Alternate red with player color
-                            durations = [0.1] * 4
-                            
-                            # Use renderer's flash tile method
-                            ui.renderer.flash_tile(trapped_unit.y, trapped_unit.x, tile_ids, color_ids, durations)
-                        
-                        # Show damage number above target with same appearance as attack damage
-                        damage_text = f"-{damage}"
-                        
-                        # Make damage text more prominent
-                        for i in range(3):
-                            # First clear the area
-                            ui.renderer.draw_text(trapped_unit.y-1, trapped_unit.x*2, " " * len(damage_text), 7)
-                            # Draw with alternating bold/normal for a flashing effect
-                            attrs = curses.A_BOLD if i % 2 == 0 else 0
-                            ui.renderer.draw_text(trapped_unit.y-1, trapped_unit.x*2, damage_text, 7, attrs)  # White color
-                            ui.renderer.refresh()
-                            time.sleep(0.1)
-                        
-                        # Final damage display (stays on screen slightly longer)
-                        ui.renderer.draw_text(trapped_unit.y-1, trapped_unit.x*2, damage_text, 7, curses.A_BOLD)
-                        ui.renderer.refresh()
-                        time.sleep(0.3)
-                    
-                    # Check if the trapped unit was defeated
-                    if trapped_unit.hp <= 0:
-                        # Use centralized death handling
-                        self.handle_unit_death(trapped_unit, unit, cause="trap", ui=ui)
-                        trapped_unit.trapped_by = None
                 
                 # Clean up the special flag
                 unit.viseroy_trap_action = False
@@ -1137,7 +1104,8 @@ class Game:
             if ui:
                 time.sleep(0.5)
         
-        # Trap damage is now applied in sequence with other actions during unit processing loop
+        # Apply trap damage for all trapped units
+        self._apply_trap_damage()
             
         # Clear all actions and update skill cooldowns
         for unit in self.units:
@@ -1643,15 +1611,21 @@ class Game:
                     ui.renderer.animate_attack_sequence(
                         unit.y, unit.x,
                         animation_sequence,
-                        7,  # color ID (white, matching MANDIBLE_FOREMAN's attack animation)
+                        5,  # color ID (reddish)
                         0.2  # duration
                     )
                     time.sleep(0.2)
                 
-                # Fixed trap damage (reduced from using attack value)
-                trap_damage = 3  # Fixed damage for Viseroy trap
+                # Incremental trap damage - starts at 3 and increases by 1 each turn
+                # First turn trapped: trap_duration = 0, damage base = 3
+                # Second turn trapped: trap_duration = 1, damage base = 4
+                # Third turn trapped: trap_duration = 2, damage base = 5, etc.
+                base_trap_damage = 3 + unit.trap_duration
                 effective_defense = unit.get_effective_stats()['defense']
-                damage = max(1, trap_damage - effective_defense)
+                damage = max(1, base_trap_damage - effective_defense)
+                
+                # Increment trap duration for next turn's damage calculation
+                unit.trap_duration += 1
                 
                 # Apply damage to the trapped unit
                 previous_hp = unit.hp
@@ -1664,7 +1638,8 @@ class Game:
                     damage=damage,
                     ability="Viseroy Trap",
                     attacker_player=foreman.player,
-                    target_player=unit.player
+                    target_player=unit.player,
+                    trap_duration=unit.trap_duration  # Pass trap duration for message formatting
                 )
                 
                 # Check for Autoclave trigger - same logic as regular attacks
@@ -1759,6 +1734,7 @@ class Game:
                 # Release the trapped units
                 for trapped_unit in trapped_units:
                     trapped_unit.trapped_by = None
+                    trapped_unit.trap_duration = 0  # Reset trap duration
                     message_log.add_message(
                         f"{trapped_unit.get_display_name()} is released from mechanical jaws!",
                         MessageType.ABILITY,
@@ -1774,6 +1750,7 @@ class Game:
             
             # Release the unit
             unit.trapped_by = None
+            unit.trap_duration = 0  # Reset trap duration
             
             # Log the release
             message_log.add_message(

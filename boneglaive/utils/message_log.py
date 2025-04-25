@@ -76,7 +76,8 @@ class MessageLog:
     def add_combat_message(self, attacker_name: str, target_name: str, 
                           damage: int, ability: Optional[str] = None,
                           attacker_player: Optional[int] = None,
-                          target_player: Optional[int] = None) -> None:
+                          target_player: Optional[int] = None,
+                          **kwargs) -> None:
         """
         Add a combat-specific message with a consistent format.
         
@@ -91,7 +92,12 @@ class MessageLog:
         # Simple message format without player prefixes
         # The get_formatted_messages method will color the unit names appropriately
         if ability == "Viseroy Trap":
-            message = f"{attacker_name}'s jaws tighten around {target_name}, causing {damage} damage!"
+            # Check if this is the first application of trap damage
+            trap_duration = kwargs.get('trap_duration', 0)
+            if trap_duration == 0:  # First turn trapped
+                message = f"{attacker_name}'s jaws tighten around {target_name}, causing {damage} damage!"
+            else:
+                message = f"{attacker_name}'s jaws tighten further around {target_name}, causing {damage} damage!"
         elif ability:
             message = f"{attacker_name} hits {target_name} for {damage} damage with {ability}!"
         else:
@@ -107,7 +113,8 @@ class MessageLog:
             ability=ability,
             # Store unit names explicitly to help with coloring
             attacker_name=attacker_name,
-            target_name=target_name
+            target_name=target_name,
+            **kwargs  # Pass along any additional kwargs
         )
     
     def add_player_message(self, player: int, message: str) -> None:
