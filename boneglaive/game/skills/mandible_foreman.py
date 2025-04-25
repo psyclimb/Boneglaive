@@ -58,10 +58,18 @@ class DischargeSkill(ActiveSkill):
         if not game.is_valid_position(target_pos[0], target_pos[1]):
             return False
             
+        # Use the correct starting position (current position or planned move position)
+        from_y = user.y
+        from_x = user.x
+        
+        # If unit has a planned move, use that position instead
+        if user.move_target:
+            from_y, from_x = user.move_target
+            
         # Calculate vector components to ensure this is a straight line
         # Expedite only works in cardinal directions (horizontal, vertical, or diagonal)
-        delta_y = target_pos[0] - user.y
-        delta_x = target_pos[1] - user.x
+        delta_y = target_pos[0] - from_y
+        delta_x = target_pos[1] - from_x
         
         # Zero delta means targeting same position - disallow this
         if delta_y == 0 and delta_x == 0:
@@ -73,16 +81,16 @@ class DischargeSkill(ActiveSkill):
         if not is_straight_line:
             return False
             
-        # Calculate path from user to target
+        # Calculate path from user's position (or planned move position) to target
         from boneglaive.utils.coordinates import get_line, Position
-        path = get_line(Position(user.y, user.x), Position(target_pos[0], target_pos[1]))
+        path = get_line(Position(from_y, from_x), Position(target_pos[0], target_pos[1]))
         
         # Check if path is within range
         if len(path) > self.range + 1:  # +1 because path includes starting position
             return False
             
         # Check line of sight - cannot rush through impassable terrain
-        # Skip first position (user's current position)
+        # Skip first position (user's position or planned move position)
         for pos in path[1:]:
             # If we've reached the target, we're done checking
             if (pos.y, pos.x) == target_pos:
@@ -122,9 +130,16 @@ class DischargeSkill(ActiveSkill):
         # Create a property on the unit to track the expedite path for UI
         # We'll store all the positions in the path for visualization
         from boneglaive.utils.coordinates import get_line, Position
-        path = get_line(Position(user.y, user.x), Position(target_pos[0], target_pos[1]))
         
-        # Store path positions (excluding current position) with UI indicator
+        # Use planned move position if available, otherwise use current position
+        from_y = user.y
+        from_x = user.x
+        if user.move_target:
+            from_y, from_x = user.move_target
+            
+        path = get_line(Position(from_y, from_x), Position(target_pos[0], target_pos[1]))
+        
+        # Store path positions (excluding starting position) with UI indicator
         path_positions = [(pos.y, pos.x) for pos in path[1:]]
         user.expedite_path_indicator = path_positions
         
@@ -157,6 +172,8 @@ class DischargeSkill(ActiveSkill):
         path_positions = []
         
         # Calculate path from start to end
+        # Note: By this time, any planned move has already been executed,
+        # so we no longer need to check move_target - just use current position
         from boneglaive.utils.coordinates import get_line, Position
         path = get_line(Position(user.y, user.x), Position(target_pos[0], target_pos[1]))
         
@@ -330,11 +347,33 @@ class DischargeSkill(ActiveSkill):
                         target=enemy_hit.player,
                         target_name=enemy_hit.get_display_name()
                     )
-                # Otherwise check critical health and apply trap
+                # Otherwise check critical health
                 else:
                     # Check for critical health (wretching) using centralized logic
                     game.check_critical_health(enemy_hit, user, previous_hp, ui)
-                    
+                
+                # Move FOREMAN to final position BEFORE applying trap effect to prevent auto-release
+                # Stop before the enemy position
+                new_foreman_pos = None
+                if len(path_positions) > 1:
+                    # Find position just before enemy
+                    index = path_positions.index(enemy_pos)
+                    if index > 0:
+                        stop_pos = path_positions[index - 1]
+                        new_foreman_pos = stop_pos
+                        user.y, user.x = stop_pos
+                    else:
+                        # If there's no position before, keep original
+                        new_foreman_pos = original_pos
+                        user.y, user.x = original_pos
+                else:
+                    # No valid positions, keep original
+                    new_foreman_pos = original_pos
+                    user.y, user.x = original_pos
+                
+                # NOW apply trap AFTER the FOREMAN has moved to final position
+                # This prevents the trap from being auto-released due to position change
+                if enemy_hit.hp > 0:  # Only trap if target is still alive
                     # If not immune, trap the enemy
                     if not enemy_hit.is_immune_to_trap():  # Changed to is_immune_to_trap
                         # Set trapped_by to indicate this unit is trapped
@@ -366,20 +405,6 @@ class DischargeSkill(ActiveSkill):
                             target=enemy_hit.player,
                             target_name=enemy_hit.get_display_name()
                         )
-                
-                # Stop before the enemy position
-                if len(path_positions) > 1:
-                    # Find position just before enemy
-                    index = path_positions.index(enemy_pos)
-                    if index > 0:
-                        stop_pos = path_positions[index - 1]
-                        user.y, user.x = stop_pos
-                    else:
-                        # If there's no position before, keep original
-                        user.y, user.x = original_pos
-                else:
-                    # No valid positions, keep original
-                    user.y, user.x = original_pos
             else:
                 # No enemy hit, move to target position
                 user.y, user.x = target_pos
