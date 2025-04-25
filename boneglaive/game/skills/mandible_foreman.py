@@ -580,6 +580,7 @@ class SiteInspectionSkill(ActiveSkill):
             range_=3,
             area=1
         )
+        self.buff_duration = 3  # Duration of the buff in turns
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         # Basic validation
@@ -726,23 +727,52 @@ class SiteInspectionSkill(ActiveSkill):
                     # Check if there's an ally unit at this position
                     ally = game.get_unit_at(check_y, check_x)
                     if ally and ally.player == user.player:
-                        # Apply buff to ally
-                        # For now, just flash the ally with a buff color
-                        if hasattr(ui, 'asset_manager'):
-                            tile_ids = [ui.asset_manager.get_unit_tile(ally.type)] * 4
-                            color_ids = [2, 3 if ally.player == 1 else 4] * 2  # Green to indicate buff
-                            durations = [0.1] * 4
+                        # Check if ally already has the site inspection buff
+                        already_buffed = hasattr(ally, 'site_inspection_buff') and ally.site_inspection_buff
+                        
+                        # Apply buff to ally (only if not already buffed)
+                        if not already_buffed:
+                            # Add site inspection buff attributes to the ally
+                            ally.site_inspection_buff = True
+                            ally.site_inspection_duration = self.buff_duration
                             
-                            ui.renderer.flash_tile(ally.y, ally.x, tile_ids, color_ids, durations)
+                            # Apply stat bonuses
+                            ally.attack_bonus = getattr(ally, 'attack_bonus', 0) + 1
+                            ally.move_range_bonus = getattr(ally, 'move_range_bonus', 0) + 1
                             
-                            # Display buff symbol above ally
-                            ui.renderer.draw_text(ally.y-1, ally.x*2, "+1", 2)  # Green text
-                            ui.renderer.refresh()
-                            time.sleep(0.3)
+                            # Log the buff application
+                            message_log.add_message(
+                                f"{ally.get_display_name()} gains +1 attack and movement from Site Inspection!",
+                                MessageType.ABILITY,
+                                player=user.player
+                            )
                             
-                            # Clear buff symbol
-                            ui.renderer.draw_text(ally.y-1, ally.x*2, "  ", 7)
-                            ui.renderer.refresh()
+                            # Visual feedback for buff application
+                            if hasattr(ui, 'asset_manager'):
+                                tile_ids = [ui.asset_manager.get_unit_tile(ally.type)] * 4
+                                color_ids = [2, 3 if ally.player == 1 else 4] * 2  # Green to indicate buff
+                                durations = [0.1] * 4
+                                
+                                ui.renderer.flash_tile(ally.y, ally.x, tile_ids, color_ids, durations)
+                                
+                                # Display buff symbol above ally
+                                ui.renderer.draw_text(ally.y-1, ally.x*2, "+1", 2)  # Green text
+                                ui.renderer.refresh()
+                                time.sleep(0.3)
+                                
+                                # Clear buff symbol
+                                ui.renderer.draw_text(ally.y-1, ally.x*2, "  ", 7)
+                                ui.renderer.refresh()
+                        else:
+                            # If already buffed, refresh the duration but don't stack the effect
+                            ally.site_inspection_duration = self.buff_duration
+                            
+                            # Log the refresh
+                            message_log.add_message(
+                                f"{ally.get_display_name()}'s Site Inspection buff refreshed!",
+                                MessageType.ABILITY,
+                                player=user.player
+                            )
             
             # Redraw the board after animations
             if hasattr(ui, 'draw_board'):
