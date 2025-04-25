@@ -753,10 +753,10 @@ class Game:
         if dying_unit.is_echo:
             self._trigger_echo_death_effect(dying_unit, ui)
     
-    def process_buff_durations(self):
+    def process_status_effects(self):
         """
-        Process buff durations for all units of the current player.
-        Decrements durations and removes expired buffs.
+        Process status effect durations for all units of the current player.
+        Decrements durations and removes expired status effects.
         """
         from boneglaive.utils.message_log import message_log, MessageType
         
@@ -765,16 +765,16 @@ class Game:
             if not unit.is_alive() or unit.player != self.current_player:
                 continue
                 
-            # Process Site Inspection buff
-            if hasattr(unit, 'site_inspection_buff') and unit.site_inspection_buff:
+            # Process Site Inspection status effect
+            if hasattr(unit, 'status_site_inspection') and unit.status_site_inspection:
                 # Decrement the duration
-                unit.site_inspection_duration -= 1
-                logger.debug(f"{unit.get_display_name()}'s Site Inspection duration: {unit.site_inspection_duration}")
+                unit.status_site_inspection_duration -= 1
+                logger.debug(f"{unit.get_display_name()}'s Site Inspection duration: {unit.status_site_inspection_duration}")
                 
-                # Check if the buff has expired
-                if unit.site_inspection_duration <= 0:
-                    # Remove the buff
-                    unit.site_inspection_buff = False
+                # Check if the status effect has expired
+                if unit.status_site_inspection_duration <= 0:
+                    # Remove the status effect
+                    unit.status_site_inspection = False
                     # Remove the stat bonuses
                     unit.attack_bonus -= 1
                     unit.move_range_bonus -= 1
@@ -799,8 +799,8 @@ class Game:
             
         logger.info(f"Executing turn {self.turn} for player {self.current_player}")
         
-        # Process buff durations for the current player's units
-        self.process_buff_durations()
+        # Process status effects for the current player's units
+        self.process_status_effects()
         
         # Process echo units before executing actions
         # Update duration and handle expired echoes - ONLY for echoes belonging to the current player

@@ -316,11 +316,11 @@ class UIRenderer:
                                     trap_symbol = "Ξ"  # Mandible symbol
                                     jaw_color = 7  # Keep jaw symbol yellow
                                     self.renderer.draw_tile(trap_y, trap_x, trap_symbol, jaw_color, curses.A_BOLD)
-                            # Check if unit has Site Inspection buff
-                            elif hasattr(unit, 'site_inspection_buff') and unit.site_inspection_buff:
-                                # Add an eye symbol to show the unit has Site Inspection buff
+                            # Check if unit has Site Inspection status effect
+                            elif hasattr(unit, 'status_site_inspection') and unit.status_site_inspection:
+                                # Add an eye symbol to show the unit has Site Inspection status effect
                                 enhanced_tile = f"{tile}Θ"  # Combine unit symbol with the Greek theta eye
-                                # Use green color to indicate buff
+                                # Use green color to indicate positive status effect
                                 self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_BOLD)
                             else:
                                 # Normal unit draw
