@@ -644,7 +644,7 @@ class SiteInspectionSkill(ActiveSkill):
             # Get the animation sequence
             inspection_animation = ui.asset_manager.get_skill_animation_sequence('site_inspection')
             if not inspection_animation:
-                inspection_animation = ['□', '■', '□', '■', '□']  # Fallback
+                inspection_animation = ['Θ', 'Φ', 'Θ', 'Φ', 'Θ']  # Fallback with eye-like Greek letters
             
             # Calculate the area (3x3 around target position)
             y, x = target_pos
