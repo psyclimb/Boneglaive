@@ -574,7 +574,7 @@ class SiteInspectionSkill(ActiveSkill):
         super().__init__(
             name="Site Inspection",
             key="S",
-            description="Survey a 3x3 area. Grants movement and attack bonuses to allies.",
+            description="Survey a 3x3 area without obstacles. Grants movement and attack bonuses to allies when no impassable terrain is found.",
             target_type=TargetType.AREA,
             cooldown=3,
             range_=3,
@@ -648,15 +648,33 @@ class SiteInspectionSkill(ActiveSkill):
             player=user.player
         )
         
+        # Calculate the area (3x3 around target position)
+        y, x = target_pos
+        
+        # Check if there's impassable terrain in the inspection area
+        has_impassable_terrain = False
+        for dy in [-1, 0, 1]:
+            for dx in [-1, 0, 1]:
+                check_y = y + dy
+                check_x = x + dx
+                
+                # Skip out of bounds positions
+                if not game.is_valid_position(check_y, check_x):
+                    continue
+                
+                # Check if this position has impassable terrain
+                if not game.map.is_passable(check_y, check_x):
+                    has_impassable_terrain = True
+                    break
+            if has_impassable_terrain:
+                break
+        
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
             # Get the animation sequence
             inspection_animation = ui.asset_manager.get_skill_animation_sequence('site_inspection')
             if not inspection_animation:
                 inspection_animation = ['Θ', 'Φ', 'Θ', 'Φ', 'Θ']  # Fallback with eye-like Greek letters
-            
-            # Calculate the area (3x3 around target position)
-            y, x = target_pos
             
             # Show scanning effect over the area
             for dy in [-1, 0, 1]:
@@ -722,65 +740,74 @@ class SiteInspectionSkill(ActiveSkill):
                 ui.renderer.refresh()
                 time.sleep(0.1)
             
-            # Find allies in the area and apply the buff
-            for dy in [-1, 0, 1]:
-                for dx in [-1, 0, 1]:
-                    check_y = y + dy
-                    check_x = x + dx
-                    
-                    # Skip out of bounds positions
-                    if not game.is_valid_position(check_y, check_x):
-                        continue
+            # Only apply buffs if NO impassable terrain was found in the inspection area
+            if not has_impassable_terrain:
+                # Find allies in the area and apply the buff
+                for dy in [-1, 0, 1]:
+                    for dx in [-1, 0, 1]:
+                        check_y = y + dy
+                        check_x = x + dx
                         
-                    # Check if there's an ally unit at this position
-                    ally = game.get_unit_at(check_y, check_x)
-                    if ally and ally.player == user.player:
-                        # Check if ally already has the site inspection status effect
-                        has_effect = hasattr(ally, 'status_site_inspection') and ally.status_site_inspection
-                        
-                        # Apply status effect to ally (only if doesn't already have it)
-                        if not has_effect:
-                            # Add site inspection status effect attributes to the ally
-                            ally.status_site_inspection = True
-                            ally.status_site_inspection_duration = self.effect_duration
+                        # Skip out of bounds positions
+                        if not game.is_valid_position(check_y, check_x):
+                            continue
                             
-                            # Apply stat bonuses
-                            ally.attack_bonus = getattr(ally, 'attack_bonus', 0) + 1
-                            ally.move_range_bonus = getattr(ally, 'move_range_bonus', 0) + 1
+                        # Check if there's an ally unit at this position
+                        ally = game.get_unit_at(check_y, check_x)
+                        if ally and ally.player == user.player:
+                            # Check if ally already has the site inspection status effect
+                            has_effect = hasattr(ally, 'status_site_inspection') and ally.status_site_inspection
                             
-                            # Log the status effect application
-                            message_log.add_message(
-                                f"{ally.get_display_name()} gains +1 attack and movement from Site Inspection!",
-                                MessageType.ABILITY,
-                                player=user.player
-                            )
-                            
-                            # Visual feedback for status effect application
-                            if hasattr(ui, 'asset_manager'):
-                                tile_ids = [ui.asset_manager.get_unit_tile(ally.type)] * 4
-                                color_ids = [2, 3 if ally.player == 1 else 4] * 2  # Green to indicate positive effect
-                                durations = [0.1] * 4
+                            # Apply status effect to ally (only if doesn't already have it)
+                            if not has_effect:
+                                # Add site inspection status effect attributes to the ally
+                                ally.status_site_inspection = True
+                                ally.status_site_inspection_duration = self.effect_duration
                                 
-                                ui.renderer.flash_tile(ally.y, ally.x, tile_ids, color_ids, durations)
+                                # Apply stat bonuses
+                                ally.attack_bonus = getattr(ally, 'attack_bonus', 0) + 1
+                                ally.move_range_bonus = getattr(ally, 'move_range_bonus', 0) + 1
                                 
-                                # Display effect symbol above ally
-                                ui.renderer.draw_text(ally.y-1, ally.x*2, "+1", 2)  # Green text
-                                ui.renderer.refresh()
-                                time.sleep(0.3)
+                                # Log the status effect application
+                                message_log.add_message(
+                                    f"{ally.get_display_name()} gains +1 attack and movement from Site Inspection!",
+                                    MessageType.ABILITY,
+                                    player=user.player
+                                )
                                 
-                                # Clear effect symbol
-                                ui.renderer.draw_text(ally.y-1, ally.x*2, "  ", 7)
-                                ui.renderer.refresh()
-                        else:
-                            # If already has the effect, refresh the duration but don't stack
-                            ally.status_site_inspection_duration = self.effect_duration
-                            
-                            # Log the refresh
-                            message_log.add_message(
-                                f"{ally.get_display_name()}'s Site Inspection effect refreshed!",
-                                MessageType.ABILITY,
-                                player=user.player
-                            )
+                                # Visual feedback for status effect application
+                                if hasattr(ui, 'asset_manager'):
+                                    tile_ids = [ui.asset_manager.get_unit_tile(ally.type)] * 4
+                                    color_ids = [2, 3 if ally.player == 1 else 4] * 2  # Green to indicate positive effect
+                                    durations = [0.1] * 4
+                                    
+                                    ui.renderer.flash_tile(ally.y, ally.x, tile_ids, color_ids, durations)
+                                    
+                                    # Display effect symbol above ally
+                                    ui.renderer.draw_text(ally.y-1, ally.x*2, "+1", 2)  # Green text
+                                    ui.renderer.refresh()
+                                    time.sleep(0.3)
+                                    
+                                    # Clear effect symbol
+                                    ui.renderer.draw_text(ally.y-1, ally.x*2, "  ", 7)
+                                    ui.renderer.refresh()
+                            else:
+                                # If already has the effect, refresh the duration but don't stack
+                                ally.status_site_inspection_duration = self.effect_duration
+                                
+                                # Log the refresh
+                                message_log.add_message(
+                                    f"{ally.get_display_name()}'s Site Inspection effect refreshed!",
+                                    MessageType.ABILITY,
+                                    player=user.player
+                                )
+            else:
+                # Impassable terrain found - skill doesn't apply any buffs
+                message_log.add_message(
+                    f"Terrain features blocking free movement in the inspection area!",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
             
             # Redraw the board after animations
             if hasattr(ui, 'draw_board'):
