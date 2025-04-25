@@ -286,7 +286,7 @@ class PrySkill(ActiveSkill):
             cooldown=2,
             range_=2
         )
-        self.primary_damage = 6  # Primary target damage
+        self.primary_damage = 7  # Primary target damage
         self.splash_damage = 3   # Splash damage to adjacent units
         
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
