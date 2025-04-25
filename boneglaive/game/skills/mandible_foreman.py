@@ -755,6 +755,15 @@ class SiteInspectionSkill(ActiveSkill):
                         # Check if there's an ally unit at this position
                         ally = game.get_unit_at(check_y, check_x)
                         if ally and ally.player == user.player:
+                            # Check if ally is immune to status effects (GRAYMAN with Stasiality)
+                            if ally.is_immune_to_effects():
+                                message_log.add_message(
+                                    f"{ally.get_display_name()} is immune to Site Inspection due to Stasiality!",
+                                    MessageType.ABILITY,
+                                    player=user.player
+                                )
+                                continue
+                                
                             # Check if ally already has the site inspection status effect
                             has_effect = hasattr(ally, 'status_site_inspection') and ally.status_site_inspection
                             
