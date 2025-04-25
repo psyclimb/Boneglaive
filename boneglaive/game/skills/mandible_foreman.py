@@ -232,11 +232,28 @@ class DischargeSkill(ActiveSkill):
                 ui.renderer.draw_tile(current_y, current_x, jaw_frame, 7)  # white color
                 ui.renderer.refresh()
                 
-                # If not at the last position, clear the current position before moving
+                # If not at the last position, restore terrain at current position before moving
                 if anim_frame < len(animation_positions) - 1:
                     time.sleep(0.05)  # Control animation speed
-                    # Clear current position
-                    ui.renderer.draw_tile(current_y, current_x, ' ', 7)
+                    
+                    # Restore the proper terrain tile instead of showing a blank space
+                    terrain_type = game.map.get_terrain_at(current_y, current_x)
+                    # Convert the enum to string name for asset lookup
+                    terrain_name = terrain_type.name.lower() if hasattr(terrain_type, 'name') else 'empty'
+                    terrain_tile = ui.asset_manager.get_terrain_tile(terrain_name)
+                    terrain_color = 7  # Default white color for terrain
+                    
+                    # Check if there's a unit at this position that isn't the FOREMAN
+                    other_unit = game.get_unit_at(current_y, current_x)
+                    if other_unit and other_unit != user:
+                        # Draw the unit instead of terrain
+                        unit_tile = ui.asset_manager.get_unit_tile(other_unit.type)
+                        unit_color = 3 if other_unit.player == 1 else 4  # Player colors
+                        ui.renderer.draw_tile(current_y, current_x, unit_tile, unit_color)
+                    else:
+                        # Draw appropriate terrain
+                        ui.renderer.draw_tile(current_y, current_x, terrain_tile, terrain_color)
+                    
                     ui.renderer.refresh()
             
             # If we hit an enemy, play impact animation
