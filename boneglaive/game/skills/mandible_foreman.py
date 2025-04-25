@@ -54,8 +54,12 @@ class DischargeSkill(ActiveSkill):
         if not game or not target_pos:
             return False
             
-        # Check if position is valid
+        # Check if position is valid and passable
         if not game.is_valid_position(target_pos[0], target_pos[1]):
+            return False
+            
+        # Check if target position is passable
+        if not game.map.is_passable(target_pos[0], target_pos[1]):
             return False
             
         # Use the correct starting position (current position or planned move position)
@@ -140,7 +144,16 @@ class DischargeSkill(ActiveSkill):
         path = get_line(Position(from_y, from_x), Position(target_pos[0], target_pos[1]))
         
         # Store path positions (excluding starting position) with UI indicator
-        path_positions = [(pos.y, pos.x) for pos in path[1:]]
+        # Only include passable positions for the indicator to avoid highlighting impassable terrain
+        path_positions = []
+        for pos in path[1:]:
+            # Check if position is passable
+            if game.map.is_passable(pos.y, pos.x):
+                path_positions.append((pos.y, pos.x))
+            # Stop at first impassable position
+            else:
+                break
+                
         user.expedite_path_indicator = path_positions
         
         # Log that the skill has been readied
@@ -180,11 +193,18 @@ class DischargeSkill(ActiveSkill):
         # Find the first enemy in the path
         for pos in path[1:]:  # Skip the starting position
             y, x = pos.y, pos.x
-            path_positions.append((y, x))
             
             # Check if position is valid
             if not game.is_valid_position(y, x):
                 continue
+                
+            # Check if position is passable
+            if not game.map.is_passable(y, x):
+                # Stop at first impassable terrain
+                break
+                
+            # Add to path positions for movement
+            path_positions.append((y, x))
                 
             # Check if there's an enemy unit at this position
             unit = game.get_unit_at(y, x)
@@ -406,8 +426,14 @@ class DischargeSkill(ActiveSkill):
                             target_name=enemy_hit.get_display_name()
                         )
             else:
-                # No enemy hit, move to target position
-                user.y, user.x = target_pos
+                # No enemy hit, check if target position is valid and passable
+                if game.is_valid_position(target_pos[0], target_pos[1]) and game.map.is_passable(target_pos[0], target_pos[1]):
+                    # Move to target position if it's valid and passable
+                    user.y, user.x = target_pos
+                elif path_positions:
+                    # If target isn't valid but we have valid path positions, move to last valid position
+                    user.y, user.x = path_positions[-1]
+                # If no valid positions at all, don't move (stay at original position)
             
             # Redraw board after animations
             if hasattr(ui, 'draw_board'):
@@ -422,7 +448,14 @@ class DischargeSkill(ActiveSkill):
                 else:
                     user.y, user.x = original_pos
             else:
-                user.y, user.x = target_pos
+                # Check if target position is valid and passable
+                if game.is_valid_position(target_pos[0], target_pos[1]) and game.map.is_passable(target_pos[0], target_pos[1]):
+                    # Move to target position if it's valid and passable
+                    user.y, user.x = target_pos
+                elif path_positions:
+                    # If target isn't valid but we have valid path positions, move to last valid position
+                    user.y, user.x = path_positions[-1]
+                # If no valid positions at all, don't move (stay at original position)
         
         return True
 
