@@ -537,6 +537,10 @@ class PrySkill(ActiveSkill):
             attacker_player=user.player,
             target_player=target.player
         )
+        
+        # Check for critical health (wretching) using centralized logic if target still alive
+        if target.is_alive():
+            game.check_critical_health(target, user, previous_hp, ui)
             
         # Apply splash damage to adjacent enemy units (secondary debris damage)
         affected_adjacents = []
@@ -711,8 +715,16 @@ class VaultSkill(ActiveSkill):
         if game.get_unit_at(target_pos[0], target_pos[1]) is not None:
             return False
             
-        # Check if within range from the user's current position
-        distance = game.chess_distance(user.y, user.x, target_pos[0], target_pos[1])
+        # Check if target is within range from the correct position
+        # (either current position or planned move position)
+        from_y = user.y
+        from_x = user.x
+        
+        # If unit has a planned move, use that position instead
+        if user.move_target:
+            from_y, from_x = user.move_target
+            
+        distance = game.chess_distance(from_y, from_x, target_pos[0], target_pos[1])
         if distance > self.range:
             return False
             
@@ -753,13 +765,6 @@ class VaultSkill(ActiveSkill):
         
         # Store original position for animations
         original_pos = (user.y, user.x)
-        
-        # Log the skill activation
-        message_log.add_message(
-            f"{user.get_display_name()} prepares to vault!",
-            MessageType.ABILITY,
-            player=user.player
-        )
         
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
@@ -848,7 +853,7 @@ class VaultSkill(ActiveSkill):
         
         # Log the completion of vault
         message_log.add_message(
-            f"{user.get_display_name()} vaults to position ({target_pos[0]}, {target_pos[1]})!",
+            f"{user.get_display_name()} vaults from ({original_pos[0]}, {original_pos[1]}) to ({target_pos[0]}, {target_pos[1]})!",
             MessageType.ABILITY,
             player=user.player
         )

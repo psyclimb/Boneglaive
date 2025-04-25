@@ -206,6 +206,45 @@ boneglaive/
   - Include only essential context in commit analysis
   - Skip viewing unchanged files when staging
 
+## Large File Handling Strategy
+
+When working with large files that exceed context window limits:
+
+### Initial Project Analysis
+- Use BatchTool to scan project structure before diving into specific files
+- Analyze file sizes first to identify potentially problematic large files 
+- Maintain a mental map of where each large file fits in the system architecture
+
+### Structured Reading
+- Read documentation files (MD files) first to understand design intent
+- For skills: read base classes in core.py before specific implementations
+- For engine.py: analyze one game system at a time (movement, combat, etc.)
+- Follow inheritance chains when analyzing unit/skill relationships
+
+### Pattern Recognition
+- Skills follow a consistent pattern in their methods: `__init__`, `can_use`, `use`, `execute`
+- Units initialize skills through specific patterns that can be traced
+- Game state flows through predictable paths in the engine
+
+### File Relationship Mapping
+- When examining a large file, first map its relationships to other components
+- For skills: check registry.py to understand connections between skills and units
+- For engine: identify key integration points with UI, networking, and input subsystems
+- Use AgentTool to analyze relationships between components when needed
+
+### Critical Method Focus
+- Prioritize reading the following methods in large files:
+  - In skill files: `execute()` method contains core functionality
+  - In engine.py: `process_turn()`, `update()`, and state transition methods
+  - In unit files: `get_effective_stats()` and status effect handlers
+
+### Complete System Understanding
+- When asked to "read the codebase," use AgentTool to:
+  1. Map file sizes and identify large files
+  2. Analyze relationships between components
+  3. Create a mental model of system architecture
+  4. Prioritize key files based on the current task
+
 ## Important Notes for Claude
 
 - DO NOT attempt to run the game directly. Only the user can run and test the game.
