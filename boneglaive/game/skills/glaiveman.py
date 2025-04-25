@@ -861,20 +861,20 @@ class VaultSkill(ActiveSkill):
         return True
 
 
-class JudgementThrowSkill(ActiveSkill):
+class JudgementSkill(ActiveSkill):
     """
     Active skill for GLAIVEMAN.
-    Throws a sacred spinning glaive at an enemy unit, dealing piercing damage.
+    Delivers divine judgement via a sacred spinning glaive, dealing piercing damage.
     """
     
     def __init__(self):
         super().__init__(
-            name="Judgement Throw",
+            name="Judgement",
             key="J",
-            description="Throw a sacred glaive at an enemy (range 3). Deals pierce damage that ignores defense.",
+            description="Throw a sacred glaive at an enemy (range 5). Deals pierce damage that ignores defense.",
             target_type=TargetType.ENEMY,
             cooldown=2,
-            range_=3
+            range_=5
         )
         self.damage = 4
     
@@ -913,7 +913,7 @@ class JudgementThrowSkill(ActiveSkill):
         return True
         
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
-        """Execute the Judgement Throw skill to hurl a sacred spinning glaive."""
+        """Execute the Judgement skill to deliver divine judgment via a sacred spinning glaive."""
         from boneglaive.utils.message_log import message_log, MessageType
         import time
         import curses
@@ -934,7 +934,7 @@ class JudgementThrowSkill(ActiveSkill):
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
             # Get the animation sequence
-            throw_animation = ui.asset_manager.get_skill_animation_sequence('judgement_throw')
+            throw_animation = ui.asset_manager.get_skill_animation_sequence('judgement')
             if not throw_animation:
                 throw_animation = ['*', '↺', '↻', '⚡', '⚓', '⊕']  # Fallback
                 
@@ -1048,7 +1048,7 @@ class JudgementThrowSkill(ActiveSkill):
             damage = base_damage * 2  # Critical hit doubles damage
             # Log critical effect
             message_log.add_message(
-                f"CRITICAL! {user.get_display_name()}'s sacred glaive delivers a devastating blow to the weakened {target.get_display_name()}!",
+                f"The sacred glaive strikes with divine judgement!",
                 MessageType.ABILITY,
                 player=user.player,
                 target_name=target.get_display_name()
@@ -1067,7 +1067,7 @@ class JudgementThrowSkill(ActiveSkill):
             attacker_name=user.get_display_name(),
             target_name=target.get_display_name(),
             damage=damage,
-            ability="Judgement Throw",
+            ability="Judgement",
             attacker_player=user.player,
             target_player=target.player
         )

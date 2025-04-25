@@ -829,20 +829,20 @@ class VaultSkill(ActiveSkill):
         )
         return True
 
-class JudgementThrowSkill(ActiveSkill):
+class JudgementSkill(ActiveSkill):
     """
     Active skill for GLAIVEMAN.
-    Throws a sacred spinning glaive at an enemy unit, dealing piercing damage.
+    Delivers divine judgement via a sacred spinning glaive, dealing piercing damage.
     """
     
     def __init__(self):
         super().__init__(
-            name="Judgement Throw",
+            name="Judgement",
             key="J",
-            description="Throw a sacred glaive at an enemy (range 3). Deals pierce damage that ignores defense.",
+            description="Throw a sacred glaive at an enemy (range 5). Deals pierce damage that ignores defense.",
             target_type=TargetType.ENEMY,
             cooldown=2,
-            range_=3
+            range_=5
         )
         self.damage = 4
     
@@ -875,7 +875,7 @@ class JudgementThrowSkill(ActiveSkill):
             attacker_name=user.get_display_name(),
             target_name=target.get_display_name(),
             damage=self.damage,
-            ability="Judgement Throw",
+            ability="Judgement",
             attacker_player=user.player,
             target_player=target.player
         )
@@ -1449,7 +1449,7 @@ class JawlineSkill(ActiveSkill):
 UNIT_SKILLS = {
     "GLAIVEMAN": {
         "passive": Autoclave(),
-        "active": [PrySkill(), VaultSkill(), JudgementThrowSkill()]
+        "active": [PrySkill(), VaultSkill(), JudgementSkill()]
     },
     "MANDIBLE_FOREMAN": {
         "passive": Viseroy(),
