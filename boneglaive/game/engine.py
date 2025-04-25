@@ -753,6 +753,12 @@ class Game:
         if dying_unit.is_echo:
             self._trigger_echo_death_effect(dying_unit, ui)
     
+    def process_buff_durations(self):
+        """
+        Backward compatibility method - redirects to process_status_effects.
+        """
+        return self.process_status_effects()
+        
     def process_status_effects(self):
         """
         Process status effect durations for all units of the current player.
@@ -800,7 +806,7 @@ class Game:
         logger.info(f"Executing turn {self.turn} for player {self.current_player}")
         
         # Process status effects for the current player's units
-        self.process_status_effects()
+        self.process_buff_durations()
         
         # Process echo units before executing actions
         # Update duration and handle expired echoes - ONLY for echoes belonging to the current player
