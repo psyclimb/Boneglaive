@@ -2237,8 +2237,8 @@ class ActionMenuComponent(UIComponent):
                 'skill': vault_skill
             })
             
-            # Add Judgement Throw skill
-            judgement_skill = next((skill for skill in available_skills if skill.name == "Judgement Throw"), None)
+            # Add Judgement skill
+            judgement_skill = next((skill for skill in available_skills if skill.name == "Judgement"), None)
             self.actions.append({
                 'key': 'j',
                 'label': 'udgement',  # Will be displayed as [J]udgement
@@ -2415,11 +2415,11 @@ class ActionMenuComponent(UIComponent):
         # Draw menu header with unit player color
         player_color = 3 if unit.player == 1 else 4
         
-        # Set header text based on menu mode
+        # Set header text based on menu mode, using shortened name for menus
         if self.menu_mode == "standard":
-            header = f" {unit.get_display_name()} Actions "
+            header = f" {unit.get_display_name(shortened=True)} Actions "
         else:
-            header = f" {unit.get_display_name()} Skills "
+            header = f" {unit.get_display_name(shortened=True)} Skills "
         
         # Center the header
         header_x = menu_x + (menu_width - len(header)) // 2
