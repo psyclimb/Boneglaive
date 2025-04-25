@@ -241,8 +241,112 @@ class DischargeSkill(ActiveSkill):
                 if pos == end_pos:
                     break
             
-            # Skip animation if path is too short
+            # For very short paths, skip complex animation but still handle movement and collisions
             if len(animation_positions) <= 1:
+                # If we hit an enemy, still apply trap and damage
+                if enemy_hit:
+                    # Apply damage to the enemy
+                    damage = self.trap_damage - enemy_hit.defense
+                    damage = max(1, damage)  # Minimum damage of 1
+                    previous_hp = enemy_hit.hp
+                    enemy_hit.hp = max(0, enemy_hit.hp - damage)
+                    
+                    # Log the damage
+                    message_log.add_combat_message(
+                        attacker_name=user.get_display_name(),
+                        target_name=enemy_hit.get_display_name(),
+                        damage=damage,
+                        ability="Expedite",
+                        attacker_player=user.player,
+                        target_player=enemy_hit.player
+                    )
+                    
+                    # Show hit animation and damage numbers even for short paths
+                    if ui and hasattr(ui, 'renderer'):
+                        # Show impact animation at enemy position
+                        impact_animation = ui.asset_manager.get_skill_animation_sequence('expedite_impact')
+                        if not impact_animation:
+                            impact_animation = ['!', '!', '#', 'X', '*', '.']  # Fallback
+                        
+                        ui.renderer.animate_attack_sequence(
+                            enemy_pos[0], enemy_pos[1],
+                            impact_animation,
+                            5,  # reddish color for impact
+                            0.1  # duration
+                        )
+                        
+                        # Flash the enemy to show it was hit
+                        if hasattr(ui, 'asset_manager'):
+                            tile_ids = [ui.asset_manager.get_unit_tile(enemy_hit.type)] * 4
+                            color_ids = [5, 3 if enemy_hit.player == 1 else 4] * 2  # Alternate red with player color
+                            durations = [0.1] * 4
+                            
+                            ui.renderer.flash_tile(enemy_pos[0], enemy_pos[1], tile_ids, color_ids, durations)
+                        
+                        # Show damage number
+                        damage_text = f"-{damage}"
+                        
+                        for i in range(3):
+                            ui.renderer.draw_text(enemy_pos[0]-1, enemy_pos[1]*2, " " * len(damage_text), 7)
+                            attrs = curses.A_BOLD if i % 2 == 0 else 0
+                            ui.renderer.draw_text(enemy_pos[0]-1, enemy_pos[1]*2, damage_text, 7, attrs)
+                            ui.renderer.refresh()
+                            time.sleep(0.1)
+                    
+                    # Check if enemy was defeated
+                    if enemy_hit.hp <= 0:
+                        message_log.add_message(
+                            f"{enemy_hit.get_display_name()} perishes!",
+                            MessageType.COMBAT,
+                            player=user.player,
+                            target=enemy_hit.player,
+                            target_name=enemy_hit.get_display_name()
+                        )
+                    else:
+                        # Check for critical health (wretching) using centralized logic
+                        game.check_critical_health(enemy_hit, user, previous_hp, ui)
+                        
+                        # If not immune, trap the enemy
+                        if enemy_hit.hp > 0 and not enemy_hit.is_immune_to_trap():
+                            # Set trapped_by to indicate this unit is trapped
+                            enemy_hit.trapped_by = user
+                            enemy_hit.trap_duration = 0  # Initialize trap duration for incremental damage
+                            
+                            message_log.add_message(
+                                f"{enemy_hit.get_display_name()} is trapped in {user.get_display_name()}'s mechanical jaws!",
+                                MessageType.ABILITY,
+                                player=user.player,
+                                target=enemy_hit.player,
+                                target_name=enemy_hit.get_display_name()
+                            )
+                            
+                            # Show trapping animation
+                            if ui and hasattr(ui, 'asset_manager'):
+                                trap_animation = ui.asset_manager.get_skill_animation_sequence('viseroy_trap')
+                                if trap_animation:
+                                    ui.renderer.animate_attack_sequence(
+                                        enemy_pos[0], enemy_pos[1],
+                                        trap_animation,
+                                        7,  # white color, matching MANDIBLE_FOREMAN's animation
+                                        0.1  # duration
+                                    )
+                        elif enemy_hit.hp > 0:
+                            message_log.add_message(
+                                f"{enemy_hit.get_display_name()} is immune to being trapped!",
+                                MessageType.ABILITY,
+                                player=user.player,
+                                target=enemy_hit.player,
+                                target_name=enemy_hit.get_display_name()
+                            )
+                else:
+                    # No enemy hit - move to target position directly if valid
+                    if game.is_valid_position(target_pos[0], target_pos[1]) and game.map.is_passable(target_pos[0], target_pos[1]):
+                        user.y, user.x = target_pos
+                
+                # Redraw the board after movement
+                if hasattr(ui, 'draw_board'):
+                    ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+                
                 return True
                 
             # Initialize the board with FOREMAN removed from original position
