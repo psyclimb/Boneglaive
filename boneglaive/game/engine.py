@@ -1643,7 +1643,7 @@ class Game:
                     ui.renderer.animate_attack_sequence(
                         unit.y, unit.x,
                         animation_sequence,
-                        5,  # color ID (reddish)
+                        7,  # color ID (white, matching MANDIBLE_FOREMAN's attack animation)
                         0.2  # duration
                     )
                     time.sleep(0.2)

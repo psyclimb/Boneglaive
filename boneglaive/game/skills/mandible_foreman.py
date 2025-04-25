@@ -268,36 +268,41 @@ class DischargeSkill(ActiveSkill):
                         target=enemy_hit.player,
                         target_name=enemy_hit.get_display_name()
                     )
-                # Otherwise, trap the enemy
-                elif not enemy_hit.is_immune_to_effects():
-                    # Set trapped_by to indicate this unit is trapped
-                    enemy_hit.trapped_by = user
-                    
-                    message_log.add_message(
-                        f"{enemy_hit.get_display_name()} is trapped in {user.get_display_name()}'s mechanical jaws!",
-                        MessageType.ABILITY,
-                        player=user.player,
-                        target=enemy_hit.player,
-                        target_name=enemy_hit.get_display_name()
-                    )
-                    
-                    # Show trapping animation
-                    trap_animation = ui.asset_manager.get_skill_animation_sequence('viseroy_trap')
-                    if trap_animation:
-                        ui.renderer.animate_attack_sequence(
-                            enemy_pos[0], enemy_pos[1],
-                            trap_animation,
-                            5,  # reddish color
-                            0.1  # duration
-                        )
+                # Otherwise check critical health and apply trap
                 else:
-                    message_log.add_message(
-                        f"{enemy_hit.get_display_name()} is immune to being trapped due to Stasiality!",
-                        MessageType.ABILITY,
-                        player=user.player,
-                        target=enemy_hit.player,
-                        target_name=enemy_hit.get_display_name()
-                    )
+                    # Check for critical health (wretching) using centralized logic
+                    game.check_critical_health(enemy_hit, user, previous_hp, ui)
+                    
+                    # If not immune, trap the enemy
+                    if not enemy_hit.is_immune_to_effects():
+                        # Set trapped_by to indicate this unit is trapped
+                        enemy_hit.trapped_by = user
+                        
+                        message_log.add_message(
+                            f"{enemy_hit.get_display_name()} is trapped in {user.get_display_name()}'s mechanical jaws!",
+                            MessageType.ABILITY,
+                            player=user.player,
+                            target=enemy_hit.player,
+                            target_name=enemy_hit.get_display_name()
+                        )
+                        
+                        # Show trapping animation
+                        trap_animation = ui.asset_manager.get_skill_animation_sequence('viseroy_trap')
+                        if trap_animation:
+                            ui.renderer.animate_attack_sequence(
+                                enemy_pos[0], enemy_pos[1],
+                                trap_animation,
+                                7,  # white color, matching MANDIBLE_FOREMAN's attack animation
+                                0.1  # duration
+                            )
+                    else:
+                        message_log.add_message(
+                            f"{enemy_hit.get_display_name()} is immune to being trapped due to Stasiality!",
+                            MessageType.ABILITY,
+                            player=user.player,
+                            target=enemy_hit.player,
+                            target_name=enemy_hit.get_display_name()
+                        )
                 
                 # Stop before the enemy position
                 if len(path_positions) > 1:
@@ -625,7 +630,7 @@ class JawlineSkill(ActiveSkill):
             ui.renderer.animate_attack_sequence(
                 user.y, user.x,
                 trap_animation,
-                5,  # reddish color
+                7,  # white color, matching MANDIBLE_FOREMAN's attack animation
                 0.15  # duration
             )
             
@@ -647,7 +652,7 @@ class JawlineSkill(ActiveSkill):
                         
                     # Draw the ripple tile and refresh
                     ripple_char = ['░', '▒', '█'][ripple_size - 1]  # Different density for each ripple
-                    ui.renderer.draw_tile(y, x, ripple_char, 5)  # Reddish color
+                    ui.renderer.draw_tile(y, x, ripple_char, 7)  # White color, matching MANDIBLE_FOREMAN's attack animation
                     
                 ui.renderer.refresh()
                 time.sleep(0.1)
@@ -662,7 +667,7 @@ class JawlineSkill(ActiveSkill):
                 ui.renderer.animate_attack_sequence(
                     y, x,
                     trap_animation[-4:],  # Use last few frames of trap animation
-                    5,  # reddish color
+                    7,  # white color, matching MANDIBLE_FOREMAN's attack animation
                     0.1  # faster for multiple positions
                 )
                 
@@ -699,27 +704,32 @@ class JawlineSkill(ActiveSkill):
                             target=target.player,
                             target_name=target.get_display_name()
                         )
-                    # If not defeated and not immune, apply Jawline effect
-                    elif not target.is_immune_to_effects():
-                        target.jawline_affected = True
-                        target.jawline_duration = self.effect_duration
-                        target.move_range_bonus -= 1
-                        
-                        message_log.add_message(
-                            f"{target.get_display_name()}'s movement is reduced by the Jawline tether!",
-                            MessageType.ABILITY,
-                            player=user.player,
-                            target=target.player,
-                            target_name=target.get_display_name()
-                        )
+                    # If not defeated, check for critical health and apply Jawline effect if not immune
                     else:
-                        message_log.add_message(
-                            f"{target.get_display_name()} is immune to Jawline's movement penalty due to Stasiality!",
-                            MessageType.ABILITY,
-                            player=user.player,
-                            target=target.player,
-                            target_name=target.get_display_name()
-                        )
+                        # Check for critical health (wretching) using centralized logic
+                        game.check_critical_health(target, user, previous_hp, ui)
+                        
+                        # If not immune, apply Jawline effect
+                        if not target.is_immune_to_effects():
+                            target.jawline_affected = True
+                            target.jawline_duration = self.effect_duration
+                            target.move_range_bonus -= 1
+                            
+                            message_log.add_message(
+                                f"{target.get_display_name()}'s movement is reduced by the Jawline tether!",
+                                MessageType.ABILITY,
+                                player=user.player,
+                                target=target.player,
+                                target_name=target.get_display_name()
+                            )
+                        else:
+                            message_log.add_message(
+                                f"{target.get_display_name()} is immune to Jawline's movement penalty due to Stasiality!",
+                                MessageType.ABILITY,
+                                player=user.player,
+                                target=target.player,
+                                target_name=target.get_display_name()
+                            )
             
             # Show damage numbers for all affected enemies
             for target, damage in affected_enemies:
@@ -780,26 +790,31 @@ class JawlineSkill(ActiveSkill):
                             target=target.player,
                             target_name=target.get_display_name()
                         )
-                    # If not defeated and not immune, apply Jawline effect
-                    elif not target.is_immune_to_effects():
-                        target.jawline_affected = True
-                        target.jawline_duration = self.effect_duration
-                        target.move_range_bonus -= 1
-                        
-                        message_log.add_message(
-                            f"{target.get_display_name()}'s movement is reduced by the Jawline tether!",
-                            MessageType.ABILITY,
-                            player=user.player,
-                            target=target.player,
-                            target_name=target.get_display_name()
-                        )
+                    # If not defeated, check for critical health and apply Jawline effect if not immune
                     else:
-                        message_log.add_message(
-                            f"{target.get_display_name()} is immune to Jawline's movement penalty due to Stasiality!",
-                            MessageType.ABILITY,
-                            player=user.player,
-                            target=target.player,
-                            target_name=target.get_display_name()
-                        )
+                        # Check for critical health (wretching) using centralized logic
+                        game.check_critical_health(target, user, previous_hp, ui)
+                        
+                        # If not immune, apply Jawline effect
+                        if not target.is_immune_to_effects():
+                            target.jawline_affected = True
+                            target.jawline_duration = self.effect_duration
+                            target.move_range_bonus -= 1
+                            
+                            message_log.add_message(
+                                f"{target.get_display_name()}'s movement is reduced by the Jawline tether!",
+                                MessageType.ABILITY,
+                                player=user.player,
+                                target=target.player,
+                                target_name=target.get_display_name()
+                            )
+                        else:
+                            message_log.add_message(
+                                f"{target.get_display_name()} is immune to Jawline's movement penalty due to Stasiality!",
+                                MessageType.ABILITY,
+                                player=user.player,
+                                target=target.player,
+                                target_name=target.get_display_name()
+                            )
         
         return True
