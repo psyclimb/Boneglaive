@@ -753,6 +753,39 @@ class Game:
         if dying_unit.is_echo:
             self._trigger_echo_death_effect(dying_unit, ui)
     
+    def process_buff_durations(self):
+        """
+        Process buff durations for all units of the current player.
+        Decrements durations and removes expired buffs.
+        """
+        from boneglaive.utils.message_log import message_log, MessageType
+        
+        # Process all units for the current player
+        for unit in self.units:
+            if not unit.is_alive() or unit.player != self.current_player:
+                continue
+                
+            # Process Site Inspection buff
+            if hasattr(unit, 'site_inspection_buff') and unit.site_inspection_buff:
+                # Decrement the duration
+                unit.site_inspection_duration -= 1
+                logger.debug(f"{unit.get_display_name()}'s Site Inspection duration: {unit.site_inspection_duration}")
+                
+                # Check if the buff has expired
+                if unit.site_inspection_duration <= 0:
+                    # Remove the buff
+                    unit.site_inspection_buff = False
+                    # Remove the stat bonuses
+                    unit.attack_bonus -= 1
+                    unit.move_range_bonus -= 1
+                    
+                    # Log the expiration
+                    message_log.add_message(
+                        f"{unit.get_display_name()}'s Site Inspection effect has worn off.",
+                        MessageType.ABILITY,
+                        player=unit.player
+                    )
+    
     @measure_perf
     def execute_turn(self, ui=None):
         """Execute all unit actions for the current turn with animated sequence."""
@@ -765,6 +798,9 @@ class Game:
             self.ui = ui
             
         logger.info(f"Executing turn {self.turn} for player {self.current_player}")
+        
+        # Process buff durations for the current player's units
+        self.process_buff_durations()
         
         # Process echo units before executing actions
         # Update duration and handle expired echoes - ONLY for echoes belonging to the current player
