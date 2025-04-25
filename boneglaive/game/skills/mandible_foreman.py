@@ -580,7 +580,7 @@ class SiteInspectionSkill(ActiveSkill):
             range_=3,
             area=1
         )
-        self.buff_duration = 3  # Duration of the buff in turns
+        self.effect_duration = 3  # Duration of the status effect in turns
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         # Basic validation
@@ -727,49 +727,49 @@ class SiteInspectionSkill(ActiveSkill):
                     # Check if there's an ally unit at this position
                     ally = game.get_unit_at(check_y, check_x)
                     if ally and ally.player == user.player:
-                        # Check if ally already has the site inspection buff
-                        already_buffed = hasattr(ally, 'site_inspection_buff') and ally.site_inspection_buff
+                        # Check if ally already has the site inspection status effect
+                        has_effect = hasattr(ally, 'status_site_inspection') and ally.status_site_inspection
                         
-                        # Apply buff to ally (only if not already buffed)
-                        if not already_buffed:
-                            # Add site inspection buff attributes to the ally
-                            ally.site_inspection_buff = True
-                            ally.site_inspection_duration = self.buff_duration
+                        # Apply status effect to ally (only if doesn't already have it)
+                        if not has_effect:
+                            # Add site inspection status effect attributes to the ally
+                            ally.status_site_inspection = True
+                            ally.status_site_inspection_duration = self.effect_duration
                             
                             # Apply stat bonuses
                             ally.attack_bonus = getattr(ally, 'attack_bonus', 0) + 1
                             ally.move_range_bonus = getattr(ally, 'move_range_bonus', 0) + 1
                             
-                            # Log the buff application
+                            # Log the status effect application
                             message_log.add_message(
                                 f"{ally.get_display_name()} gains +1 attack and movement from Site Inspection!",
                                 MessageType.ABILITY,
                                 player=user.player
                             )
                             
-                            # Visual feedback for buff application
+                            # Visual feedback for status effect application
                             if hasattr(ui, 'asset_manager'):
                                 tile_ids = [ui.asset_manager.get_unit_tile(ally.type)] * 4
-                                color_ids = [2, 3 if ally.player == 1 else 4] * 2  # Green to indicate buff
+                                color_ids = [2, 3 if ally.player == 1 else 4] * 2  # Green to indicate positive effect
                                 durations = [0.1] * 4
                                 
                                 ui.renderer.flash_tile(ally.y, ally.x, tile_ids, color_ids, durations)
                                 
-                                # Display buff symbol above ally
+                                # Display effect symbol above ally
                                 ui.renderer.draw_text(ally.y-1, ally.x*2, "+1", 2)  # Green text
                                 ui.renderer.refresh()
                                 time.sleep(0.3)
                                 
-                                # Clear buff symbol
+                                # Clear effect symbol
                                 ui.renderer.draw_text(ally.y-1, ally.x*2, "  ", 7)
                                 ui.renderer.refresh()
                         else:
-                            # If already buffed, refresh the duration but don't stack the effect
-                            ally.site_inspection_duration = self.buff_duration
+                            # If already has the effect, refresh the duration but don't stack
+                            ally.status_site_inspection_duration = self.effect_duration
                             
                             # Log the refresh
                             message_log.add_message(
-                                f"{ally.get_display_name()}'s Site Inspection buff refreshed!",
+                                f"{ally.get_display_name()}'s Site Inspection effect refreshed!",
                                 MessageType.ABILITY,
                                 player=user.player
                             )
@@ -777,13 +777,6 @@ class SiteInspectionSkill(ActiveSkill):
             # Redraw the board after animations
             if hasattr(ui, 'draw_board'):
                 ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-        
-        # Log completion of inspection
-        message_log.add_message(
-            f"{user.get_display_name()} completes site inspection. All allies in the area gain +1 to attack and movement!",
-            MessageType.ABILITY,
-            player=user.player
-        )
         
         return True
 
