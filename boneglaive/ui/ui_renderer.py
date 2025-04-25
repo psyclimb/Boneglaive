@@ -322,13 +322,6 @@ class UIRenderer:
                                 enhanced_tile = f"{tile}Θ"  # Combine unit symbol with the Greek theta eye
                                 # Use green color to indicate buff
                                 self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_BOLD)
-                                
-                                # Add a small indicator above the unit to show the buff is active
-                                if y > 0 and not self.game_ui.game.get_unit_at(y-1, x):
-                                    # Draw a dot above the unit to show buff is active
-                                    buff_symbol = "+"  # Plus symbol for buff
-                                    buff_color = 2  # Green for buff
-                                    self.renderer.draw_tile(y-1, x, buff_symbol, buff_color, curses.A_DIM)
                             else:
                                 # Normal unit draw
                                 self.renderer.draw_tile(y, x, tile, color_id)
