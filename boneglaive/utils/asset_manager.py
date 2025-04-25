@@ -69,7 +69,7 @@ class AssetManager:
             'selected': '**',
             'health': 'HP',
             'vault_target': 'X',  # X marker for vault landing spot
-            'site_inspection': '□',  # Square outline for Site Inspection target
+            'site_inspection': 'Θ',  # Greek theta for Site Inspection target
             'teleport_target': 'Δ'  # Greek delta for teleport landing spot
         }
         
@@ -108,7 +108,7 @@ class AssetManager:
             'ossify': ['#', '%', '@', '*', '+', '=', '&', '$', '#', '/', '\\', '|', '-', '.'],  # ASCII bone hardening animation
             'marrow_dike': ['╎', '╏', '┃', '┆', '┇', '┊', '┋', '#', '#'],  # Marrow wall forming - hash wall animation
             'slough': ['#', '%', '&', '@', '$', '+', '*', '.'],  # Bone and marrow fragments sloughing off
-            'site_inspection': ['□', '■', '□', '■', '□'],  # Animation for Site Inspection
+            'site_inspection': ['Θ', 'Φ', 'Θ', 'Φ', 'Θ'],  # Animation for Site Inspection with eye-like Greek letters
             'expedite_rush': ['Ξ', '<', '[', '{'],  # Animation for Expedite rush movement
             'expedite_impact': ['!', '!', '#', 'X', '*', '.'],  # Animation for Expedite impact
             'delta_config': ['Ψ', '░', '▒', '▓', ' ', '▓', '▒', '░', 'Ψ'],  # Teleportation effect
