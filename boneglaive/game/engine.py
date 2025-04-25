@@ -851,7 +851,7 @@ class Game:
                         # Play release animation if UI is available
                         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
                             # Create a series of jaw opening characters for the release
-                            release_animation = ['{}', '[]', '  ']
+                            release_animation = ['<', '[', ' ']
                             
                             # Show animation at the trapped unit's position
                             ui.renderer.animate_attack_sequence(
@@ -1776,7 +1776,7 @@ class Game:
                     ui = getattr(self, 'ui', None)
                     if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
                         # Create a series of jaw opening characters for the release
-                        release_animation = ['{}', '[]', '  ']
+                        release_animation = ['<', '[', ' ']
                         
                         # Show animation at the trapped unit's position
                         ui.renderer.animate_attack_sequence(
