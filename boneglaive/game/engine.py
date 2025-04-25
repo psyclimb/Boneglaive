@@ -791,6 +791,26 @@ class Game:
                         MessageType.ABILITY,
                         player=unit.player
                     )
+                    
+            # Process Jawline status effect
+            if hasattr(unit, 'jawline_affected') and unit.jawline_affected:
+                # Decrement the duration
+                unit.jawline_duration -= 1
+                logger.debug(f"{unit.get_display_name()}'s Jawline tether duration: {unit.jawline_duration}")
+                
+                # Check if the status effect has expired
+                if unit.jawline_duration <= 0:
+                    # Remove the status effect
+                    unit.jawline_affected = False
+                    # Remove the move penalty
+                    unit.move_range_bonus += 1
+                    
+                    # Log the expiration
+                    message_log.add_message(
+                        f"{unit.get_display_name()} is freed from the Jawline tether.",
+                        MessageType.ABILITY,
+                        player=unit.player
+                    )
     
     @measure_perf
     def execute_turn(self, ui=None):
