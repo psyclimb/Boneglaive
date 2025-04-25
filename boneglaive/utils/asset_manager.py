@@ -109,8 +109,8 @@ class AssetManager:
             'marrow_dike': ['╎', '╏', '┃', '┆', '┇', '┊', '┋', '#', '#'],  # Marrow wall forming - hash wall animation
             'slough': ['#', '%', '&', '@', '$', '+', '*', '.'],  # Bone and marrow fragments sloughing off
             'site_inspection': ['□', '■', '□', '■', '□'],  # Animation for Site Inspection
-            'discharge_release': ['{⚡}', '<>>', '(  )', '    '],  # Animation for Discharge releasing unit
-            'discharge_impact': ['!', '!', '#', 'X', '*', '.'],  # Animation for Discharge impact
+            'expedite_rush': ['Ξ', '<', '[', '{'],  # Animation for Expedite rush movement
+            'expedite_impact': ['!', '!', '#', 'X', '*', '.'],  # Animation for Expedite impact
             'delta_config': ['Ψ', '░', '▒', '▓', ' ', '▓', '▒', '░', 'Ψ'],  # Teleportation effect
             'teleport_out': ['Ψ', '░', '▒', '▓', ' '],  # Teleport out animation
             'teleport_in': [' ', '▓', '▒', '░', 'Ψ'],  # Teleport in animation
@@ -228,8 +228,8 @@ class AssetManager:
             'vault_impact': ['vault_impact_1.png', 'vault_impact_2.png', 'vault_impact_3.png'],
             'judgement': ['judgement_1.png', 'judgement_2.png', 'judgement_3.png', 'judgement_4.png'],
             'judgement_critical': ['judgement_critical_1.png', 'judgement_critical_2.png', 'judgement_critical_3.png'],
-            'discharge_release': ['discharge_release_1.png', 'discharge_release_2.png', 'discharge_release_3.png'],
-            'discharge_impact': ['discharge_impact_1.png', 'discharge_impact_2.png', 'discharge_impact_3.png'],
+            'expedite_rush': ['expedite_rush_1.png', 'expedite_rush_2.png', 'expedite_rush_3.png'],
+            'expedite_impact': ['expedite_impact_1.png', 'expedite_impact_2.png', 'expedite_impact_3.png'],
             'grayman_attack': ['grayman_attack_1.png', 'grayman_attack_2.png', 'grayman_attack_3.png'],
             'delta_config': ['delta_config_1.png', 'delta_config_2.png', 'delta_config_3.png', 'delta_config_4.png'],
             'estrange': ['estrange_1.png', 'estrange_2.png', 'estrange_3.png'],

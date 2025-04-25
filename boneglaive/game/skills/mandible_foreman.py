@@ -131,7 +131,7 @@ class DischargeSkill(ActiveSkill):
         # Log that the skill has been readied
         from boneglaive.utils.message_log import message_log, MessageType
         message_log.add_message(
-            f"{user.get_display_name()} readies to expedite to position ({target_pos[0]}, {target_pos[1]})!",
+            f"{user.get_display_name()} expedites his M.O. to position ({target_pos[0]}, {target_pos[1]})!",
             MessageType.ABILITY,
             player=user.player
         )
@@ -187,31 +187,61 @@ class DischargeSkill(ActiveSkill):
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
             # Get animation sequence for rush animation
-            rush_animation = ui.asset_manager.get_skill_animation_sequence('discharge_release')
+            rush_animation = ui.asset_manager.get_skill_animation_sequence('expedite_rush')
             
             if not rush_animation:
-                rush_animation = ['{⚡}', '<>>', '(  )', '    ']  # Fallback
+                rush_animation = ['Ξ', '<', '[', '{']  # Fallback
             
-            # Animate each position in the path
-            for i, (y, x) in enumerate(path_positions):
-                # Stop if we hit an enemy
-                if enemy_hit and (y, x) == enemy_pos:
+            # Instead of animating every position, simulate FOREMAN flying through with jaws open
+            # First, determine start and end point for animation
+            start_pos = (user.y, user.x)
+            end_pos = enemy_pos if enemy_hit else path_positions[-1]
+            
+            # Get all positions between start and end for drawing FOREMAN
+            animation_positions = []
+            for pos in path_positions:
+                animation_positions.append(pos)
+                if pos == end_pos:
                     break
-                    
-                # Show rush animation at each position
-                ui.renderer.animate_attack_sequence(
-                    y, x,
-                    rush_animation,
-                    7,  # color ID (white)
-                    0.05  # fast animation for rush effect
-                )
+            
+            # Skip animation if path is too short
+            if len(animation_positions) <= 1:
+                return True
                 
-                # Pause briefly between positions
-                time.sleep(0.02)
+            # Initialize the board with FOREMAN removed from original position
+            if hasattr(ui, 'draw_board'):
+                # Temporarily "remove" FOREMAN from the board
+                orig_y, orig_x = user.y, user.x
+                user.y, user.x = -1, -1  # Move off-board for redraw
+                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+                user.y, user.x = orig_y, orig_x  # Restore position (but not drawn yet)
+            
+            # For each frame of the animation
+            # We'll move FOREMAN along the path with his jaws open
+            for anim_frame in range(len(animation_positions)):
+                # Calculate current position (how far along the path)
+                position_idx = min(anim_frame, len(animation_positions) - 1)
+                current_y, current_x = animation_positions[position_idx]
+                
+                # Choose jaw animation frame based on how far along we are
+                # The closer to the target, the more open the jaws
+                jaw_frame_idx = min(position_idx % len(rush_animation), len(rush_animation) - 1)
+                jaw_frame = rush_animation[jaw_frame_idx]
+                
+                # Draw FOREMAN as the jaw symbol at the current position
+                ui.renderer.draw_tile(current_y, current_x, jaw_frame, 7)  # white color
+                ui.renderer.refresh()
+                
+                # If not at the last position, clear the current position before moving
+                if anim_frame < len(animation_positions) - 1:
+                    time.sleep(0.05)  # Control animation speed
+                    # Clear current position
+                    ui.renderer.draw_tile(current_y, current_x, ' ', 7)
+                    ui.renderer.refresh()
             
             # If we hit an enemy, play impact animation
             if enemy_hit:
-                impact_animation = ui.asset_manager.get_skill_animation_sequence('discharge_impact')
+                impact_animation = ui.asset_manager.get_skill_animation_sequence('expedite_impact')
                 
                 if not impact_animation:
                     impact_animation = ['!', '!', '#', 'X', '*', '.']  # Fallback
