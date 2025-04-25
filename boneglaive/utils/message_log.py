@@ -90,7 +90,9 @@ class MessageLog:
         """
         # Simple message format without player prefixes
         # The get_formatted_messages method will color the unit names appropriately
-        if ability:
+        if ability == "Viseroy Trap":
+            message = f"{attacker_name}'s jaws tighten around {target_name}, causing {damage} damage!"
+        elif ability:
             message = f"{attacker_name} hits {target_name} for {damage} damage with {ability}!"
         else:
             message = f"{attacker_name} hits {target_name} for {damage} damage!"
