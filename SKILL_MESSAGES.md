@@ -29,13 +29,13 @@ This document lists all messages displayed in the message log related to skill u
   - Start: `"GLAIVEMAN Alpha prepares to vault!"`
   - Completion: `"GLAIVEMAN Alpha vaults to position (X, Y)!"`
 
-### Judgement Throw
+### Judgement
 - **When readied**: `"GLAIVEMAN Alpha readies a sacred glaive to throw at GRAYMAN Beta!"`
 - **When executed**: 
   - Start: `"GLAIVEMAN Alpha hurls a sacred glaive!"`
   - Effect: `"The sacred glaive pierces through GRAYMAN Beta's defenses!"`
-  - Critical effect: `"CRITICAL! GLAIVEMAN Alpha's sacred glaive delivers a devastating blow to the weakened GRAYMAN Beta!"`
-- **Combat message**: `"GLAIVEMAN Alpha's Judgement Throw deals X damage to GRAYMAN Beta!"`
+  - Critical effect: `"The sacred glaive strikes with divine judgement!"`
+- **Combat message**: `"GLAIVEMAN Alpha's Judgement deals X damage to GRAYMAN Beta!"`
 - **When target defeated**: `"GRAYMAN Beta perishes!"`
 
 ## GRAYMAN

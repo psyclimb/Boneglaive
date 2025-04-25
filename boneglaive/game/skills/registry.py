@@ -6,7 +6,7 @@ This module maps each unit type to its available skills.
 
 # Import all skill classes
 from boneglaive.game.skills.glaiveman import (
-    Autoclave, PrySkill, VaultSkill, JudgementThrowSkill
+    Autoclave, PrySkill, VaultSkill, JudgementSkill
 )
 
 from boneglaive.game.skills.mandible_foreman import (
@@ -29,7 +29,7 @@ from boneglaive.game.skills.fowl_contrivance import (
 UNIT_SKILLS = {
     "GLAIVEMAN": {
         "passive": Autoclave(),
-        "active": [PrySkill(), VaultSkill(), JudgementThrowSkill()]
+        "active": [PrySkill(), VaultSkill(), JudgementSkill()]
     },
     "MANDIBLE_FOREMAN": {
         "passive": Viseroy(),

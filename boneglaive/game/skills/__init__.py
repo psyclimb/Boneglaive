@@ -18,7 +18,7 @@ from boneglaive.game.skills.glaiveman import (
     Autoclave,
     PrySkill, 
     VaultSkill, 
-    JudgementThrowSkill
+    JudgementSkill
 )
 
 from boneglaive.game.skills.mandible_foreman import (

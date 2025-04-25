@@ -100,8 +100,8 @@ class AssetManager:
             'pry_debris': ['@', '#', '*', '+', '.'],  # Large chunks of debris falling straight down
             'vault': ['^', 'Λ', '↑', '↟', '↑'],  # Vault initiation animation - upward movement
             'vault_impact': ['↓', 'v', 'V', '*', '.'],  # Vault landing animation
-            'judgement_throw': ['*', '↺', '↻', '⚡', '⚓', '⊕'],  # Sacred glaive animation
-            'judgement_critical': ['⚡', '⌁', '⌁', '⚡', '※'],  # Lightning strike critical effect
+            'judgement': ['*', '+', 'x', 'X', '*', 'O', 'o', 'Θ', 'O', 'o', '*', '+'],  # Circular spinning Krull glaive animation
+            'judgement_critical': ['*', '|', '/', '\\', 'I', '#', '*', '+', 'X', 'Φ', 'Σ', 'Ω'],  # Lightning striking the glaive at moment of critical impact
             'viseroy_trap': ['[]', '><', '}{', 'Ξ', '}{', '><', '[]'],  # Animation for Viseroy trapping
             # MARROW_CONDENSER animations
             'marrow_condenser_attack': ['/', '|', '\\', '-', '8', '$', 'Ø', '#', '*'],  # Swinging and striking with bone chunks
@@ -226,7 +226,7 @@ class AssetManager:
             'pry_debris': ['pry_debris_1.png', 'pry_debris_2.png', 'pry_debris_3.png'],
             'vault': ['vault_1.png', 'vault_2.png', 'vault_3.png', 'vault_4.png'],
             'vault_impact': ['vault_impact_1.png', 'vault_impact_2.png', 'vault_impact_3.png'],
-            'judgement_throw': ['judgement_throw_1.png', 'judgement_throw_2.png', 'judgement_throw_3.png', 'judgement_throw_4.png'],
+            'judgement': ['judgement_1.png', 'judgement_2.png', 'judgement_3.png', 'judgement_4.png'],
             'judgement_critical': ['judgement_critical_1.png', 'judgement_critical_2.png', 'judgement_critical_3.png'],
             'discharge_release': ['discharge_release_1.png', 'discharge_release_2.png', 'discharge_release_3.png'],
             'discharge_impact': ['discharge_impact_1.png', 'discharge_impact_2.png', 'discharge_impact_3.png'],
