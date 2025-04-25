@@ -968,9 +968,9 @@ class Game:
                     if unit.type == UnitType.MANDIBLE_FOREMAN and unit.passive_skill and \
                        unit.passive_skill.name == "Viseroy" and target.hp > 0:
                         # Check if target is immune to being trapped
-                        if target.is_immune_to_effects():
+                        if target.is_immune_to_trap():  # Changed to is_immune_to_trap
                             message_log.add_message(
-                                f"{target.get_display_name()} is immune to Viseroy's trap due to Stasiality!",
+                                f"{target.get_display_name()} is immune to Viseroy's trap!",
                                 MessageType.ABILITY,
                                 player=unit.player,
                                 target_name=target.get_display_name()

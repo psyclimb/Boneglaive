@@ -179,8 +179,14 @@ class Unit:
             
     def is_immune_to_effects(self) -> bool:
         """Check if this unit has immunity to status effects and debuffs.
-        Currently only GRAYMAN with Stasiality passive has this immunity."""
+        Currently only GRAYMAN with Stasiality passive has this immunity.
+        Note: This does NOT grant immunity to physical traps like Viseroy."""
         return self.passive_skill and self.passive_skill.name == "Stasiality"
+        
+    def is_immune_to_trap(self) -> bool:
+        """Check if this unit is immune to being trapped.
+        By default, no units are immune to physical traps."""
+        return False
     
     def get_available_skills(self) -> List:
         """

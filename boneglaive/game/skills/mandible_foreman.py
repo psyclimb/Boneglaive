@@ -274,9 +274,10 @@ class DischargeSkill(ActiveSkill):
                     game.check_critical_health(enemy_hit, user, previous_hp, ui)
                     
                     # If not immune, trap the enemy
-                    if not enemy_hit.is_immune_to_effects():
+                    if not enemy_hit.is_immune_to_trap():  # Changed to is_immune_to_trap
                         # Set trapped_by to indicate this unit is trapped
                         enemy_hit.trapped_by = user
+                        enemy_hit.trap_duration = 0  # Initialize trap duration for incremental damage
                         
                         message_log.add_message(
                             f"{enemy_hit.get_display_name()} is trapped in {user.get_display_name()}'s mechanical jaws!",
@@ -297,7 +298,7 @@ class DischargeSkill(ActiveSkill):
                             )
                     else:
                         message_log.add_message(
-                            f"{enemy_hit.get_display_name()} is immune to being trapped due to Stasiality!",
+                            f"{enemy_hit.get_display_name()} is immune to being trapped!",
                             MessageType.ABILITY,
                             player=user.player,
                             target=enemy_hit.player,
