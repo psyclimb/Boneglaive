@@ -59,6 +59,7 @@ class Unit:
         # Status effects
         self.was_pried = False  # Track if this unit was affected by Pry skill
         self.trapped_by = None  # Reference to MANDIBLE_FOREMAN that trapped this unit, None if not trapped
+        self.trap_duration = 0  # Number of turns this unit has been trapped, for incremental damage
         self.took_action = False  # Track if this unit took an action this turn
         self.jawline_affected = False  # Track if unit is affected by Jawline skill
         self.jawline_duration = 0  # Duration remaining for Jawline effect
@@ -106,6 +107,17 @@ class Unit:
     def is_alive(self) -> bool:
         """Check if the unit is alive."""
         return self.hp > 0
+        
+    def is_at_critical_health(self) -> bool:
+        """Check if the unit is at critical health threshold."""
+        from boneglaive.utils.constants import CRITICAL_HEALTH_PERCENT
+        critical_threshold = int(self.max_hp * CRITICAL_HEALTH_PERCENT)
+        return self.hp > 0 and self.hp <= critical_threshold
+        
+    def get_critical_threshold(self) -> int:
+        """Get the HP threshold for critical health."""
+        from boneglaive.utils.constants import CRITICAL_HEALTH_PERCENT
+        return int(self.max_hp * CRITICAL_HEALTH_PERCENT)
     
     def get_effective_stats(self) -> Dict[str, int]:
         """Get the unit's effective stats including bonuses and penalties."""
