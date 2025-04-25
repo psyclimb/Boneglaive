@@ -241,7 +241,22 @@ class DischargeSkill(ActiveSkill):
                     # Convert the enum to string name for asset lookup
                     terrain_name = terrain_type.name.lower() if hasattr(terrain_type, 'name') else 'empty'
                     terrain_tile = ui.asset_manager.get_terrain_tile(terrain_name)
-                    terrain_color = 7  # Default white color for terrain
+                    
+                    # Use appropriate terrain color based on terrain type
+                    if terrain_name == 'empty':
+                        terrain_color = 1  # Default (white on black)
+                    elif terrain_name == 'dust':
+                        terrain_color = 11  # Dust color
+                    elif terrain_name == 'limestone':
+                        terrain_color = 12  # Limestone color
+                    elif terrain_name == 'pillar':
+                        terrain_color = 13  # Pillar color
+                    elif terrain_name == 'furniture' or terrain_name.startswith('coat_rack') or terrain_name.startswith('ottoman'):
+                        terrain_color = 14  # Furniture color
+                    elif terrain_name == 'marrow_wall':
+                        terrain_color = 20  # Marrow Wall color
+                    else:
+                        terrain_color = 1  # Default for unknown types
                     
                     # Check if there's a unit at this position that isn't the FOREMAN
                     other_unit = game.get_unit_at(current_y, current_x)
