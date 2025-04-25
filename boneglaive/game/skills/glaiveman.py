@@ -995,7 +995,7 @@ class JudgementSkill(ActiveSkill):
                 
             # Always show base effect message
             message_log.add_message(
-                f"The sacred glaive pierces through {target.get_display_name()}'s defenses!",
+                f"The sacred glaive bypasses {target.get_display_name()}'s defenses!",
                 MessageType.ABILITY,
                 player=user.player,
                 target_name=target.get_display_name()
