@@ -16,8 +16,13 @@ class Unit:
         # Basic unit properties
         self.type = unit_type
         self.player = player  # 1 or 2
-        self.y = y
-        self.x = x
+        
+        # Use private attributes for position to enable property setters
+        self._y = y
+        self._x = x
+        
+        # Game reference for trap checks (will be set by engine)
+        self._game = None
         
         # Greek letter identifier (assigned later when all units are spawned)
         self.greek_id = None
@@ -267,6 +272,43 @@ class Unit:
         self.action_timestamp = 0  # Reset the action timestamp
         # No Recalibrate tracking
         
+    # Position properties with trap release functionality
+    @property
+    def y(self):
+        return self._y
+        
+    @y.setter
+    def y(self, value):
+        # Store old position for trap checks
+        old_y = self._y
+        
+        # Update position
+        self._y = value
+        
+        # If this is a MANDIBLE_FOREMAN and the position has changed, check for trap release
+        if self.type == UnitType.MANDIBLE_FOREMAN and old_y != value and self._game:
+            self._game._check_position_change_trap_release(self, old_y, self._x)
+            
+    @property
+    def x(self):
+        return self._x
+        
+    @x.setter
+    def x(self, value):
+        # Store old position for trap checks
+        old_x = self._x
+        
+        # Update position
+        self._x = value
+        
+        # If this is a MANDIBLE_FOREMAN and the position has changed, check for trap release
+        if self.type == UnitType.MANDIBLE_FOREMAN and old_x != value and self._game:
+            self._game._check_position_change_trap_release(self, self._y, old_x)
+    
+    def set_game_reference(self, game):
+        """Set reference to the game for trap checks."""
+        self._game = game
+            
     def reset_movement_penalty(self) -> None:
         """Clear any movement penalties and reset relevant status flags."""
         # Do not reset move_range_bonus if affected by Jawline

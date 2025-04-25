@@ -326,6 +326,7 @@ class Game:
     def add_unit(self, unit_type, player, y, x):
         unit = Unit(unit_type, player, y, x)
         unit.initialize_skills()  # Initialize skills for the unit
+        unit.set_game_reference(self)  # Set game reference for trap checks
         self.units.append(unit)
     
     def get_unit_at(self, y, x):
