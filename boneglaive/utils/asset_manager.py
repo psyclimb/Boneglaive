@@ -102,7 +102,7 @@ class AssetManager:
             'vault_impact': ['↓', 'v', 'V', '*', '.'],  # Vault landing animation
             'judgement': ['*', '+', 'x', 'X', '*', 'O', 'o', 'Θ', 'O', 'o', '*', '+'],  # Circular spinning Krull glaive animation
             'judgement_critical': ['*', '|', '/', '\\', 'I', '#', '*', '+', 'X', 'Φ', 'Σ', 'Ω'],  # Lightning striking the glaive at moment of critical impact
-            'viseroy_trap': ['[]', '><', '}{', 'Ξ', '}{', '><', '[]'],  # Animation for Viseroy trapping
+            'viseroy_trap': ['O', '{', 'Ξ', '#', '%', '&', 'Ξ'],  # Animation for Viseroy trap crushing effect
             # MARROW_CONDENSER animations
             'marrow_condenser_attack': ['/', '|', '\\', '-', '8', '$', 'Ø', '#', '*'],  # Swinging and striking with bone chunks
             'ossify': ['#', '%', '@', '*', '+', '=', '&', '$', '#', '/', '\\', '|', '-', '.'],  # ASCII bone hardening animation
