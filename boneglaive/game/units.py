@@ -157,12 +157,20 @@ class Unit:
             
         return stats
         
-    def get_display_name(self) -> str:
-        """Get the unit's display name including the Greek identifier."""
+    def get_display_name(self, shortened=False) -> str:
+        """Get the unit's display name including the Greek identifier.
+        
+        Args:
+            shortened: If True, provides a shorter display name for UI menus
+        """
         # Format unit type name for display (replace underscores with spaces)
         display_type = self.type.name
         if display_type == "MANDIBLE_FOREMAN":
-            display_type = "MANDIBLE FOREMAN"
+            # Use a shorter name if requested (for UI menus)
+            if shortened:
+                display_type = "M.FOREMAN"
+            else:
+                display_type = "MANDIBLE FOREMAN"
         
         # For echo units, add "Echo" prefix
         prefix = "Echo " if self.is_echo else ""
