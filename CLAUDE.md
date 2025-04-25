@@ -253,6 +253,10 @@ When working with large files that exceed context window limits:
 
 ## Continuity Guidelines After /compact
 
+- When resuming work after a break or /compact, always check the most recent Git commit first:
+  ```
+  git log -n 1
+  ```
 - On resuming, start with a quick reference to CLAUDE.md to restore context
 - Include these elements in the first message after /compact:
   1. The specific feature or issue being worked on
