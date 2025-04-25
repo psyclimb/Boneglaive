@@ -113,6 +113,7 @@ class Autoclave(PassiveSkill):
         from boneglaive.utils.message_log import message_log, MessageType
         from boneglaive.utils.debug import logger
         import time
+        import curses
         
         logger.debug(f"EXECUTING AUTOCLAVE for {user.get_display_name()}")
         
@@ -194,6 +195,23 @@ class Autoclave(PassiveSkill):
                         attacker_player=user.player,
                         target_player=target.player
                     )
+                    
+                    # Show damage number if UI is available
+                    if ui and hasattr(ui, 'renderer'):
+                        damage_text = f"-{damage}"
+                        
+                        # Make damage text more prominent with flashing effect
+                        for i in range(3):
+                            ui.renderer.draw_text(target.y-1, target.x*2, " " * len(damage_text), 7)
+                            attrs = curses.A_BOLD if i % 2 == 0 else 0
+                            ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, attrs)
+                            ui.renderer.refresh()
+                            time.sleep(0.1)
+                        
+                        # Final damage display (stays visible a bit longer)
+                        ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, curses.A_BOLD)
+                        ui.renderer.refresh()
+                        time.sleep(0.2)
                     
                     # Check if target was defeated
                     if target.hp <= 0:
