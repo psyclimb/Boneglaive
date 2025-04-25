@@ -68,7 +68,7 @@ class AssetManager:
             'cursor': '[]',
             'selected': '**',
             'health': 'HP',
-            'vault_target': '◎',  # Circle target for vault landing spot
+            'vault_target': 'X',  # X marker for vault landing spot
             'site_inspection': '□',  # Square outline for Site Inspection target
             'teleport_target': 'Δ'  # Greek delta for teleport landing spot
         }
@@ -93,9 +93,9 @@ class AssetManager:
             'mandible_foreman_attack': ['<', '[', '{', 'Ξ', '}', ']', '>'],  # Jaws opening and closing animation
             'grayman_attack': ['·', ':', '≈', '≋', '≈', ':', '·'],  # Reality distortion wave
             'autoclave': ['*', '+', 'x', '#', 'X', '#', 'x', '+', '*'],  # Intense cross pattern for Autoclave
-            'pry_range1': ['┘', '┐', '┌', '└', '/'],  # Close-range prying motion - glaive used as lever
+            'pry_range1': ['/', '|', '\\', '_', '-', '↑'],  # Close-range prying motion with similar visual language to extended range
             'pry_range2': ['/', '―', '\\', '|', '─', '─', '═', '→', '↗'],  # Extended range prying motion - similar to extended attack
-            'pry_launch': ['↑', '↟', '⇑', ' '],  # Unit being launched straight up (single character symbols)
+            'pry_launch': ['-', '/', '|', 'I', 'i', '^', '.', ' '],  # Unit being pried from horizontal to vertical, then diminishing as it launches upward
             'pry_impact': ['↓', 'V', '@', '*', '.'],  # Unit falling back down with heavy impact
             'pry_debris': ['@', '#', '*', '+', '.'],  # Large chunks of debris falling straight down
             'vault': ['^', 'Λ', '↑', '↟', '↑'],  # Vault initiation animation - upward movement
@@ -155,6 +155,12 @@ class AssetManager:
                 '%%%', '###', '@#@',   # Frenzied birds
                 '@%@', '#@#', '~~~',   # Final moments
                 '...', '..', '.'       # Carrying away, leaving nothing
+            ],
+            
+            # Critical health "wretch" animation - displayed when units reach critical health
+            'wretch': [
+                '!', '?', '@', '#', '$', '%', '&', '*', 
+                '?', '!', '*', '~', '+', '-', 'x', '/'
             ]
         }
     
@@ -238,7 +244,8 @@ class AssetManager:
             'murmuration_dusk': ['murmuration_1.png', 'murmuration_2.png', 'murmuration_3.png', 'murmuration_4.png', 'murmuration_5.png'],
             'flap': ['flap_1.png', 'flap_2.png', 'flap_3.png', 'flap_4.png'],
             'emetic_flange': ['emetic_1.png', 'emetic_2.png', 'emetic_3.png', 'emetic_4.png'],
-            'wretched_decension': ['wretched_1.png', 'wretched_2.png', 'wretched_3.png', 'wretched_4.png']
+            'wretched_decension': ['wretched_1.png', 'wretched_2.png', 'wretched_3.png', 'wretched_4.png'],
+            'wretch': ['wretch_1.png', 'wretch_2.png', 'wretch_3.png', 'wretch_4.png', 'wretch_5.png', 'wretch_6.png']
         }
     
     def get_unit_tile(self, unit_type: UnitType) -> str:
