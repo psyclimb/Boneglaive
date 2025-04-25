@@ -593,8 +593,16 @@ class SiteInspectionSkill(ActiveSkill):
         if not game.is_valid_position(target_pos[0], target_pos[1]):
             return False
             
-        # Check if within range
-        distance = game.chess_distance(user.y, user.x, target_pos[0], target_pos[1])
+        # Use the correct starting position (current position or planned move position)
+        from_y = user.y
+        from_x = user.x
+        
+        # If unit has a planned move, use that position instead
+        if user.move_target:
+            from_y, from_x = user.move_target
+            
+        # Check if within range from the starting position (or planned move position)
+        distance = game.chess_distance(from_y, from_x, target_pos[0], target_pos[1])
         if distance > self.range:
             return False
             
