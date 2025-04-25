@@ -216,7 +216,7 @@ class DischargeSkill(ActiveSkill):
         
         # Log the skill activation
         message_log.add_message(
-            f"{user.get_display_name()} expedites forward!",
+            f"{user.get_display_name()} steams forward!",
             MessageType.ABILITY,
             player=user.player
         )
