@@ -271,7 +271,7 @@ class Autoclave(PassiveSkill):
 class PrySkill(ActiveSkill):
     """
     Active skill for GLAIVEMAN.
-    Pry launches an enemy unit straight up into the air where they slam into 
+    Pry forces an enemy unit straight up into the air where they slam into 
     the ceiling or skybox, breaking loose debris that crashes down with them.
     The primary target takes damage and has their movement reduced, while
     adjacent enemy units also take splash damage from falling debris.
@@ -281,7 +281,7 @@ class PrySkill(ActiveSkill):
         super().__init__(
             name="Pry",
             key="P",
-            description="Launches enemy up to range 2, damaging them and adjacent enemies with falling debris. Reduces target's movement by 1.",
+            description="Pries enemy up to range 2, damaging them and adjacent enemies with falling debris. Reduces target's movement by 1.",
             target_type=TargetType.ENEMY,
             cooldown=2,
             range_=2
@@ -352,7 +352,7 @@ class PrySkill(ActiveSkill):
         
         # Log that the skill has been queued (this was already correctly implemented)
         message_log.add_message(
-            f"{user.get_display_name()} readies to launch {target.get_display_name()} skyward!",
+            f"{user.get_display_name()} readies to pry {target.get_display_name()} skyward!",
             MessageType.ABILITY,
             player=user.player,
             attacker_name=user.get_display_name(),
@@ -385,7 +385,7 @@ class PrySkill(ActiveSkill):
         # Log the skill activation
         if game.chess_distance(user.y, user.x, target.y, target.x) == 1:
             message_log.add_message(
-                f"{user.get_display_name()} pries {target.get_display_name()} upward with their glaive!",
+                f"{user.get_display_name()} pries {target.get_display_name()} skyward with their glaive!",
                 MessageType.ABILITY,
                 player=user.player,
                 attacker_name=user.get_display_name(),
@@ -393,7 +393,7 @@ class PrySkill(ActiveSkill):
             )
         else:
             message_log.add_message(
-                f"{user.get_display_name()} launches {target.get_display_name()} skyward with their glaive!",
+                f"{user.get_display_name()} pries {target.get_display_name()} skyward with their glaive!",
                 MessageType.ABILITY,
                 player=user.player,
                 attacker_name=user.get_display_name(),
