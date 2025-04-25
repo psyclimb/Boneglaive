@@ -95,9 +95,9 @@ class MessageLog:
             # Check if this is the first application of trap damage
             trap_duration = kwargs.get('trap_duration', 0)
             if trap_duration == 0:  # First turn trapped
-                message = f"{attacker_name}'s jaws tighten around {target_name}, causing {damage} damage!"
+                message = f"{attacker_name}'s jaws tighten on {target_name}, causing {damage} damage!"
             else:
-                message = f"{attacker_name}'s jaws tighten further around {target_name}, causing {damage} damage!"
+                message = f"{attacker_name}'s jaws tighten on {target_name}, causing {damage} damage!"
         elif ability:
             message = f"{attacker_name} hits {target_name} for {damage} damage with {ability}!"
         else:

@@ -1089,13 +1089,7 @@ class Game:
                         )
                         time.sleep(0.2)
                     
-                    # Show a message indicating the trap is active, but don't apply damage here
-                    message_log.add_message(
-                        f"{trapped_unit.get_display_name()} remains trapped in {unit.get_display_name()}'s mechanical jaws.",
-                        MessageType.ABILITY,
-                        player=unit.player,
-                        target_name=trapped_unit.get_display_name()
-                    )
+                    # No need to show a message here, trap visuals are enough
                 
                 # Clean up the special flag
                 unit.viseroy_trap_action = False
