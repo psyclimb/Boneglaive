@@ -322,6 +322,12 @@ class UIRenderer:
                                 enhanced_tile = f"{tile}Θ"  # Combine unit symbol with the Greek theta eye
                                 # Use green color to indicate positive status effect
                                 self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_BOLD)
+                            # Check if unit is affected by Jawline status effect
+                            elif hasattr(unit, 'jawline_affected') and unit.jawline_affected:
+                                # Add triple bar symbol to show the unit has Jawline status effect
+                                enhanced_tile = f"{tile}≡"  # Combine unit symbol with triple bar (resembles cable jaws)
+                                # Use red color with dim attribute to indicate negative status effect
+                                self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_DIM)
                             else:
                                 # Normal unit draw
                                 self.renderer.draw_tile(y, x, tile, color_id)
