@@ -285,9 +285,15 @@ class Unit:
         # Update position
         self._y = value
         
-        # If this is a MANDIBLE_FOREMAN and the position has changed, check for trap release
-        if self.type == UnitType.MANDIBLE_FOREMAN and old_y != value and self._game:
-            self._game._check_position_change_trap_release(self, old_y, self._x)
+        # Only check if position actually changed and game reference exists
+        if old_y != value and self._game:
+            # Case 1: If this is a MANDIBLE_FOREMAN, check for trap release
+            if self.type == UnitType.MANDIBLE_FOREMAN:
+                self._game._check_position_change_trap_release(self, old_y, self._x)
+                
+            # Case 2: If this unit is trapped, check for trap release
+            if self.trapped_by is not None:
+                self._game._check_position_change_trap_release(self, old_y, self._x)
             
     @property
     def x(self):
@@ -301,9 +307,15 @@ class Unit:
         # Update position
         self._x = value
         
-        # If this is a MANDIBLE_FOREMAN and the position has changed, check for trap release
-        if self.type == UnitType.MANDIBLE_FOREMAN and old_x != value and self._game:
-            self._game._check_position_change_trap_release(self, self._y, old_x)
+        # Only check if position actually changed and game reference exists
+        if old_x != value and self._game:
+            # Case 1: If this is a MANDIBLE_FOREMAN, check for trap release
+            if self.type == UnitType.MANDIBLE_FOREMAN:
+                self._game._check_position_change_trap_release(self, self._y, old_x)
+                
+            # Case 2: If this unit is trapped, check for trap release
+            if self.trapped_by is not None:
+                self._game._check_position_change_trap_release(self, self._y, old_x)
     
     def set_game_reference(self, game):
         """Set reference to the game for trap checks."""
