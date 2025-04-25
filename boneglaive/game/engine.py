@@ -1570,22 +1570,27 @@ class Game:
         # Check for eligible targets
         if not target_unit.passive_skill._has_eligible_targets(target_unit, self):
             logger.debug("No eligible targets for Autoclave, aborting")
-            message_log.add_message(
-                f"{target_unit.get_display_name()}'s Autoclave fails to activate - no targets in range!",
-                MessageType.ABILITY,
-                player=target_unit.player
-            )
             
-            # Visual feedback if UI is available
-            if ui and hasattr(ui, 'renderer'):
-                # Show failed activation animation
-                failed_animation = ['!', '?', '!']
-                ui.renderer.animate_attack_sequence(
-                    target_unit.y, target_unit.x,
-                    failed_animation,
-                    6,  # yellowish color for warning
-                    0.2  # duration
+            # Check if we've already shown the failure message for this unit
+            # If not, show it and mark it as shown
+            if not hasattr(target_unit, 'autoclave_failure_shown'):
+                message_log.add_message(
+                    f"{target_unit.get_display_name()}'s Autoclave fails to activate - no targets in range!",
+                    MessageType.ABILITY,
+                    player=target_unit.player
                 )
+                target_unit.autoclave_failure_shown = True
+                
+                # Visual feedback if UI is available
+                if ui and hasattr(ui, 'renderer'):
+                    # Show failed activation animation
+                    failed_animation = ['!', '?', '!']
+                    ui.renderer.animate_attack_sequence(
+                        target_unit.y, target_unit.x,
+                        failed_animation,
+                        6,  # yellowish color for warning
+                        0.2  # duration
+                    )
             
             return False
         
