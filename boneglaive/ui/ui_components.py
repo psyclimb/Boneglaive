@@ -1911,6 +1911,11 @@ class AnimationComponent(UIComponent):
     @measure_perf
     def show_attack_animation(self, attacker, target):
         """Show a visual animation for attacks."""
+        # Import required modules
+        from boneglaive.utils.constants import UnitType
+        import time
+        import curses
+        
         # Get attack effect from asset manager
         effect_tile = self.game_ui.asset_manager.get_attack_effect(attacker.type)
         
@@ -2105,7 +2110,16 @@ class AnimationComponent(UIComponent):
         # Use effective stats for correct damage display
         effective_attack = attacker.get_effective_stats()['attack']
         effective_defense = target.get_effective_stats()['defense']
-        damage = max(1, effective_attack - effective_defense)
+        
+        # Account for GRAYMAN units that bypass defense
+        from boneglaive.utils.constants import UnitType
+        if attacker.type == UnitType.GRAYMAN or (hasattr(attacker, 'is_echo') and attacker.is_echo and attacker.type == UnitType.GRAYMAN):
+            # GRAYMAN units bypass defense completely
+            damage = effective_attack
+        else:
+            # Normal damage calculation
+            damage = max(1, effective_attack - effective_defense)
+            
         damage_text = f"-{damage}"
         
         # Make damage text more prominent
