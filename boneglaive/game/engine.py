@@ -522,6 +522,18 @@ class Game:
         Returns:
             List of (y, x) tuples representing valid move positions.
         """
+        # If unit is immobilized by Jawline effect, return empty list
+        if hasattr(unit, 'jawline_affected') and unit.jawline_affected:
+            return []
+            
+        # If unit is trapped, return empty list
+        if unit.trapped_by is not None:
+            return []
+            
+        # If unit is an echo, return empty list (echoes can't move)
+        if unit.is_echo:
+            return []
+        
         moves = []
         # Get effective move range that includes bonuses/penalties
         effective_stats = unit.get_effective_stats()
@@ -1181,29 +1193,26 @@ class Game:
                 if unit.player == self.current_player:
                     unit.tick_cooldowns()
                     
-                    # ONLY decrement durations for effects on the unit owner's turn
-                    # This handles Jawline duration specifically
-                    if unit.jawline_affected:
-                        unit.jawline_duration -= 1
+                    # NOTE: Jawline duration is already decremented in process_status_effects
+                    # We don't decrement it here to avoid double-counting and making the effect expire too quickly
+                    # However, we still need to check if it expired during this turn's execution
+                    if unit.jawline_affected and unit.jawline_duration <= 0:
+                        unit.jawline_affected = False
                         
-                        # If Jawline duration expires, clear the effect
-                        if unit.jawline_duration <= 0:
-                            unit.jawline_affected = False
+                        # Reset movement to original value if we have the stored original
+                        if hasattr(unit, 'jawline_original_move'):
+                            # Reset the bonus to 0 to restore original movement
+                            unit.move_range_bonus = 0
                             
-                            # Reset movement to original value if we have the stored original
-                            if hasattr(unit, 'jawline_original_move'):
-                                # Reset the bonus to 0 to restore original movement
-                                unit.move_range_bonus = 0
-                                
-                                # Clean up the stored value
-                                delattr(unit, 'jawline_original_move')
-                            
-                            # Log the effect expiration
-                            message_log.add_message(
-                                f"{unit.get_display_name()} breaks free from Jawline tether!",
-                                MessageType.ABILITY,
-                                target_name=unit.get_display_name()
-                            )
+                            # Clean up the stored value
+                            delattr(unit, 'jawline_original_move')
+                        
+                        # Log the effect expiration
+                        message_log.add_message(
+                            f"{unit.get_display_name()} breaks free from Jawline tether!",
+                            MessageType.ABILITY,
+                            target_name=unit.get_display_name()
+                        )
                     
                     # Handle Ossify duration (non-upgraded version only)
                     if hasattr(unit, 'ossify_duration') and unit.ossify_duration > 0:
