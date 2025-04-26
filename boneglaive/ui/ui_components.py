@@ -2182,13 +2182,16 @@ class ActionMenuComponent(UIComponent):
         self.menu_mode = "standard"
         
         # Add standard actions with consistent labeling
-        # Disable move for trapped units or echoes (echoes can't move)
-        unit_can_move = unit is not None and unit.trapped_by is None and not unit.is_echo
+        # Disable move for trapped units, Jawline-affected units, or echoes (echoes can't move)
+        unit_can_move = (unit is not None and
+                        unit.trapped_by is None and
+                        not unit.is_echo and
+                        not (hasattr(unit, 'jawline_affected') and unit.jawline_affected))
         self.actions.append({
             'key': 'm',
             'label': 'ove',  # Will be displayed as [M]ove without space
             'action': GameAction.MOVE_MODE,
-            'enabled': unit_can_move  # Enabled only if unit is not trapped and not an echo
+            'enabled': unit_can_move  # Enabled only if unit can move
         })
         
         self.actions.append({
@@ -2850,6 +2853,16 @@ class InputManager(UIComponent):
         # If log history is showing, only allow log navigation
         if self.game_ui.message_log_component.show_log_history:
             self.input_handler.set_context("log")
+            return
+        
+        # Create custom context when unit is affected by Jawline (immobilized)
+        cursor_manager = self.game_ui.cursor_manager
+        if (cursor_manager.selected_unit and 
+            hasattr(cursor_manager.selected_unit, 'jawline_affected') and 
+            cursor_manager.selected_unit.jawline_affected):
+            
+            # Create a custom context without move mode
+            self.input_handler.set_context("jawline_immobilized")
             return
             
         # If action menu is visible, we want all normal keys to work (menu handles direct key presses)
