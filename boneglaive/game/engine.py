@@ -1943,9 +1943,18 @@ class Game:
             if not unit.is_alive():
                 continue
                 
+            # Skip friendly units - no friendly fire
+            if unit.player == echo_unit.player:
+                continue
+                
             # Calculate distance to echo
             distance = self.chess_distance(echo_unit.y, echo_unit.x, unit.y, unit.x)
             if distance <= 1 and unit != echo_unit:  # Adjacent including diagonals, excluding the echo itself
+                # Verify GRAYMAN units are immune to explosion effect
+                if unit.type == UnitType.GRAYMAN and unit.is_immune_to_effects():
+                    # Skip GRAYMAN units with Stasiality
+                    continue
+                    
                 affected_units.append(unit)
         
         if not affected_units:
@@ -1989,12 +1998,14 @@ class Game:
             # Apply damage
             unit.hp = max(0, unit.hp - damage)
             
-            # Log the damage
-            message_log.add_message(
-                f"{unit.get_display_name()} takes {damage} damage from echo explosion!",
-                MessageType.COMBAT,
-                player=echo_unit.player,
-                target_name=unit.get_display_name()
+            # Log the damage using combat message format to ensure player color
+            message_log.add_combat_message(
+                attacker_name=echo_unit.get_display_name(),
+                target_name=unit.get_display_name(),
+                damage=damage,
+                ability="explosion",
+                attacker_player=echo_unit.player,
+                target_player=unit.player
             )
             
             # Check if unit was killed
