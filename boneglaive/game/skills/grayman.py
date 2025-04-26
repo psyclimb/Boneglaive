@@ -452,6 +452,7 @@ class GraeExchangeSkill(ActiveSkill):
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Græ Exchange skill - create an echo at current position and teleport away."""
         from boneglaive.utils.message_log import message_log, MessageType
+        from boneglaive.utils.debug import logger
         import time
         
         # Clear the teleport target indicator after execution
@@ -489,18 +490,32 @@ class GraeExchangeSkill(ActiveSkill):
                 durations = [0.1] * 6
                 
                 ui.renderer.flash_tile(user.y, user.x, tile_ids, color_ids, durations)
-            
-            # "Create" the echo - in a real implementation, this would spawn a new unit
-            # For now, we just show a visual effect
-            # Draw a faded version of the unit to represent the echo
-            ui.renderer.draw_tile(
-                original_pos[0], original_pos[1],
-                ui.asset_manager.get_unit_tile(user.type),
-                6  # yellowish color for the echo
-            )
-            ui.renderer.refresh()
-            
-            # Play teleport effect for the main unit
+        
+        # Create an echo unit at the original position - BEFORE moving the user
+        from boneglaive.game.units import Unit
+        echo_unit = Unit(user.type, user.player, original_pos[0], original_pos[1])
+        echo_unit.initialize_skills()
+        echo_unit.set_game_reference(game)
+        
+        # Set echo properties
+        echo_unit.is_echo = True
+        echo_unit.echo_duration = 2  # Echo lasts 2 turns
+        echo_unit.original_unit = user
+        echo_unit.hp = 5  # Echo has 5 HP and cannot be healed
+        
+        # Set reduced attack for echo unit (half damage)
+        echo_unit.attack = user.attack // 2
+        
+        # Add Greek letter identifier like other units - to make it more obvious in the UI
+        if hasattr(user, 'greek_id') and user.greek_id:
+            # Use the same letter but lowercase to indicate it's an echo
+            echo_unit.greek_id = user.greek_id.lower()
+        
+        # Log explicit debug message about echo creation
+        logger.info(f"ECHO UNIT CREATED: {echo_unit.type.name} at position ({original_pos[0]}, {original_pos[1]}) with {echo_unit.hp} HP")
+        
+        # Now teleport the user to the target position
+        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
             # Get teleport out animation sequence
             teleport_out = ui.asset_manager.get_skill_animation_sequence('teleport_out')
             if not teleport_out:
@@ -515,16 +530,12 @@ class GraeExchangeSkill(ActiveSkill):
             temp_y, temp_x = user.y, user.x
             user.y, user.x = -999, -999  # Move off-screen
             
-            # Redraw to show both the faded echo and the real unit gone
+            # Add the echo unit to the game AFTER hiding the original unit
+            game.units.append(echo_unit)
+            
+            # Redraw to show the echo in the original position and the real unit gone
             if hasattr(ui, 'draw_board'):
                 ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-                
-                # Make sure the echo stays visible (might be cleared by the board redraw)
-                ui.renderer.draw_tile(
-                    original_pos[0], original_pos[1],
-                    ui.asset_manager.get_unit_tile(user.type),
-                    6  # yellowish color for the echo
-                )
                 ui.renderer.refresh()
             
             # Pause for effect
@@ -544,13 +555,6 @@ class GraeExchangeSkill(ActiveSkill):
             # Redraw to show the final state
             if hasattr(ui, 'draw_board'):
                 ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-                
-                # Make sure the echo stays visible (might be cleared by the board redraw)
-                ui.renderer.draw_tile(
-                    original_pos[0], original_pos[1],
-                    ui.asset_manager.get_unit_tile(user.type),
-                    6  # yellowish color for the echo
-                )
                 ui.renderer.refresh()
                 
             # Flash the moved unit to emphasize completion
@@ -562,6 +566,9 @@ class GraeExchangeSkill(ActiveSkill):
                 ui.renderer.flash_tile(user.y, user.x, tile_ids, color_ids, durations)
         else:
             # No UI, just set position without animations
+            # Add the echo unit to the game 
+            game.units.append(echo_unit)
+            # Move the user to the target position
             user.y, user.x = target_pos
         
         # Log the completion
