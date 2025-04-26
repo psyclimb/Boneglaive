@@ -245,24 +245,9 @@ class UIRenderer:
                             attributes = curses.A_DIM
                         # Check for estranged units
                         elif hasattr(unit, 'estranged') and unit.estranged:
-                            # Save the original unit tile as the status indicator
-                            status_indicator = tile
-                            
-                            # Replace unit with ~ and add the original unit tile as status indicator
-                            enhanced_tile = f"~{status_indicator}"
-                            
-                            # Check if cursor is here
-                            is_cursor_here = (pos == cursor_manager.cursor_pos and show_cursor)
-                            
-                            if is_cursor_here:
-                                # When cursor is highlighting the estranged unit:
-                                # Use the cursor highlighting color for the unit character but maintain both 
-                                # the ~ status effect and the unit character in the display
-                                self.renderer.draw_tile(y, x, enhanced_tile, 2)
-                            else:
-                                # Use gray color for estranged units to indicate they're phased
-                                self.renderer.draw_tile(y, x, enhanced_tile, 19, curses.A_DIM)
-                            continue
+                            # Add a tilde character to show the unit has estranged status effect
+                            enhanced_tile = f"{tile}~"  # Combine unit symbol with tilde (represents phasing)
+                            # Save this for later use in the status effect checks
                         
                         # If this unit is being targeted for attack and attack targets should be shown
                         if attacking_unit and show_attack_targets:
@@ -338,6 +323,12 @@ class UIRenderer:
                                 # Add lowercase xi symbol to show the unit has Jawline status effect
                                 enhanced_tile = f"{tile}ξ"  # Combine unit symbol with lowercase xi (resembles mechanical jaws)
                                 # Use red color with dim attribute to indicate negative status effect
+                                self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_DIM)
+                            # Check if unit is affected by estranged status effect
+                            elif hasattr(unit, 'estranged') and unit.estranged:
+                                # Add tilde symbol to show the unit has estranged status effect
+                                enhanced_tile = f"{tile}~"  # Combine unit symbol with tilde (represents phasing)
+                                # Use dim attribute to indicate negative status effect
                                 self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_DIM)
                             else:
                                 # Normal unit draw

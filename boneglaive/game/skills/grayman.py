@@ -333,14 +333,15 @@ class EstrangeSkill(ActiveSkill):
                 
                 # Make the target appear "faded" by changing its color temporarily
                 if hasattr(ui, 'asset_manager'):
-                    # Get the original unit tile as the status indicator
-                    original_tile = ui.asset_manager.get_unit_tile(target.type)
+                    # Get the unit tile
+                    unit_tile = ui.asset_manager.get_unit_tile(target.type)
                     
-                    # Redraw the unit with a different appearance to indicate phased status
+                    # Redraw the unit with the status effect - consistent with other status effects
                     ui.renderer.draw_tile(
                         target.y, target.x,
-                        f"~{original_tile}",  # Use ~ for the unit and original tile as status
-                        19  # Gray color for estranged units (consistent with UI rendering)
+                        f"{unit_tile}~",  # Combine unit symbol with tilde (consistent with UI rendering)
+                        3 if target.player == 1 else 4,  # Use player's original color
+                        curses.A_DIM  # Dim attribute for negative status effect
                     )
                     ui.renderer.refresh()
                     time.sleep(0.3)
