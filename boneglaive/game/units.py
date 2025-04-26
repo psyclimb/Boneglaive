@@ -181,13 +181,17 @@ class Unit:
             else:
                 display_type = "MANDIBLE FOREMAN"
         
-        # For echo units, add "Echo" prefix
-        prefix = "Echo " if self.is_echo else ""
-            
-        if self.greek_id:
-            return f"{prefix}{display_type} {self.greek_id}"
+        # For echo units, change name to "ECHO {TYPE}"
+        if self.is_echo:
+            if self.greek_id:
+                return f"ECHO {display_type} {self.greek_id}"
+            else:
+                return f"ECHO {display_type}"
         else:
-            return f"{prefix}{display_type}"
+            if self.greek_id:
+                return f"{display_type} {self.greek_id}"
+            else:
+                return f"{display_type}"
     
     def apply_passive_skills(self, game=None) -> None:
         """Apply effects of passive skills."""
