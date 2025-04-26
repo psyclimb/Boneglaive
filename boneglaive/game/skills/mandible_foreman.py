@@ -835,7 +835,7 @@ class JawlineSkill(ActiveSkill):
         super().__init__(
             name="Jawline",
             key="J",
-            description="Deploy network of mechanical jaws in 3x3 area around yourself. Deals 4 damage and reduces enemy movement by 1 for 3 turns.",
+            description="Deploy network of mechanical jaws in 3x3 area around yourself. Deals 4 damage and completely immobilizes enemies for 3 turns.",
             target_type=TargetType.SELF,
             cooldown=5,
             range_=0,
@@ -1005,10 +1005,14 @@ class JawlineSkill(ActiveSkill):
                         if not target.is_immune_to_effects():
                             target.jawline_affected = True
                             target.jawline_duration = self.effect_duration
-                            target.move_range_bonus -= 1
+                            # Store original move range to restore later
+                            target.jawline_original_move = target.move_range
+                            # Set a large negative bonus to reduce movement to 0
+                            # This ensures movement is 0 regardless of other bonuses
+                            target.move_range_bonus = -target.move_range
                             
                             message_log.add_message(
-                                f"{target.get_display_name()}'s movement is reduced by the Jawline tether!",
+                                f"{target.get_display_name()} is immobilized by the Jawline tether!",
                                 MessageType.ABILITY,
                                 player=user.player,
                                 target=target.player,
@@ -1091,10 +1095,14 @@ class JawlineSkill(ActiveSkill):
                         if not target.is_immune_to_effects():
                             target.jawline_affected = True
                             target.jawline_duration = self.effect_duration
-                            target.move_range_bonus -= 1
+                            # Store original move range to restore later
+                            target.jawline_original_move = target.move_range
+                            # Set a large negative bonus to reduce movement to 0
+                            # This ensures movement is 0 regardless of other bonuses
+                            target.move_range_bonus = -target.move_range
                             
                             message_log.add_message(
-                                f"{target.get_display_name()}'s movement is reduced by the Jawline tether!",
+                                f"{target.get_display_name()} is immobilized by the Jawline tether!",
                                 MessageType.ABILITY,
                                 player=user.player,
                                 target=target.player,
