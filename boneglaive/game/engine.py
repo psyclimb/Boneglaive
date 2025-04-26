@@ -805,9 +805,9 @@ class Game:
                     
                     # Reset movement to original value
                     if hasattr(unit, 'jawline_original_move'):
-                        # Calculate the correct bonus to restore original movement
-                        unit.move_range_bonus = 0  # Reset bonus
-                        # We don't need to manually restore since we're just resetting the bonus to 0
+                        # Restore movement by removing the negative bonus that was applied
+                        # Reset the bonus without manually setting move_range since we stored the original
+                        unit.move_range_bonus = 0
                         
                         # Clean up the stored value
                         delattr(unit, 'jawline_original_move')
@@ -1189,9 +1189,14 @@ class Game:
                         # If Jawline duration expires, clear the effect
                         if unit.jawline_duration <= 0:
                             unit.jawline_affected = False
-                            # Only restore movement if not affected by other penalties
-                            if not unit.was_pried and unit.trapped_by is None:
-                                unit.move_range_bonus += 1  # Restore the movement penalty
+                            
+                            # Reset movement to original value if we have the stored original
+                            if hasattr(unit, 'jawline_original_move'):
+                                # Reset the bonus to 0 to restore original movement
+                                unit.move_range_bonus = 0
+                                
+                                # Clean up the stored value
+                                delattr(unit, 'jawline_original_move')
                             
                             # Log the effect expiration
                             message_log.add_message(

@@ -145,9 +145,18 @@ class Unit:
             'hp': self.max_hp + self.hp_bonus,
             'attack': max(1, self.attack + self.attack_bonus + estrange_penalty),
             'defense': max(0, self.defense + self.defense_bonus + estrange_penalty),
-            'move_range': max(1, self.move_range + self.move_range_bonus + estrange_penalty),
             'attack_range': max(1, self.attack_range + self.attack_range_bonus + estrange_penalty)
         }
+        
+        # Special handling for move_range - allow it to be 0 for Jawline effect
+        # This ensures full immobilization when affected by Jawline
+        if hasattr(self, 'jawline_affected') and self.jawline_affected:
+            # When Jawline is active, movement can be reduced to 0
+            stats['move_range'] = max(0, self.move_range + self.move_range_bonus + estrange_penalty)
+        else:
+            # Normal minimum of 1 for all other cases
+            stats['move_range'] = max(1, self.move_range + self.move_range_bonus + estrange_penalty)
+        
         
         # If unit is an echo (from Græ Exchange), halve its attack
         if self.is_echo:

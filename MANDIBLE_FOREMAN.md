@@ -12,7 +12,7 @@ A specialist unit that combines control mechanics with team support capabilities
 
 2. **Site Inspection** - FOREMAN surveys a 3x3 area, revealing hidden units and studying structure. Grants movement and attack bonuses to FOREMAN and all allies in the inspection area when adjacent to walls/structures. Cooldown: 4 turns.
 
-3. **Jawline** - Deploys a network of smaller mechanical jaws connected by cables in a 3×3 area around the FOREMAN. All enemy units in the area have their movement reduced by 1 and cannot use movement-based skills for 3 turns. Cooldown: 5 turns.
+3. **Jawline** - Deploys a network of smaller mechanical jaws connected by cables in a 3×3 area around the FOREMAN. All enemy units in the area are completely immobilized (movement reduced to 0) for 2 turns. Cooldown: 3 turns.
 
 ## Implementation Notes
 - Will need trap state tracking for targeted units
