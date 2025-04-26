@@ -132,14 +132,11 @@ class DeltaConfigSkill(ActiveSkill):
             # Brief pause for effect
             time.sleep(0.3)
             
-            # Add ripple effect at target position
-            ripple_animation = ['·', '∙', '○', '◌', '◦']
-            ui.renderer.animate_attack_sequence(
-                target_pos[0], target_pos[1],
-                ripple_animation,
-                6,  # yellowish color
-                0.1  # duration
-            )
+            # Brief pre-teleport effect at destination
+            # Just a single flash to indicate where teleport will occur
+            ui.renderer.draw_tile(target_pos[0], target_pos[1], '*', 6)  # yellowish color star
+            ui.renderer.refresh()
+            time.sleep(0.1)
             
             # Play teleport in animation at target position
             ui.renderer.animate_attack_sequence(
@@ -311,8 +308,10 @@ class EstrangeSkill(ActiveSkill):
         
         # Apply estranged effect if not immune
         if not target.is_immune_to_effects():
+            # Apply the estranged effect permanently (no duration)
             target.estranged = True
             
+            # Log the effect application
             message_log.add_message(
                 f"{target.get_display_name()} is phased out of normal spacetime!",
                 MessageType.ABILITY,
@@ -328,17 +327,20 @@ class EstrangeSkill(ActiveSkill):
                 ui.renderer.animate_attack_sequence(
                     target.y, target.x,
                     phase_animation,
-                    6,  # yellowish color
+                    19,  # Gray color (19 is the estrangement color)
                     0.1  # duration
                 )
                 
                 # Make the target appear "faded" by changing its color temporarily
                 if hasattr(ui, 'asset_manager'):
-                    # Redraw the unit with a different color to indicate phased status
+                    # Get the original unit tile as the status indicator
+                    original_tile = ui.asset_manager.get_unit_tile(target.type)
+                    
+                    # Redraw the unit with a different appearance to indicate phased status
                     ui.renderer.draw_tile(
                         target.y, target.x,
-                        ui.asset_manager.get_unit_tile(target.type),
-                        6  # yellowish color to indicate phased state
+                        f"~{original_tile}",  # Use ~ for the unit and original tile as status
+                        19  # Gray color for estranged units (consistent with UI rendering)
                     )
                     ui.renderer.refresh()
                     time.sleep(0.3)
