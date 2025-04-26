@@ -1031,9 +1031,19 @@ class Game:
                     effective_attack = effective_stats['attack']
                     effective_defense = target.get_effective_stats()['defense']
                     
-                    # GRAYMAN's attacks bypass defense
-                    if unit.type == UnitType.GRAYMAN:
+                    # GRAYMAN's attacks bypass defense (both original and echo)
+                    if unit.type == UnitType.GRAYMAN or (hasattr(unit, 'is_echo') and unit.is_echo and unit.type == UnitType.GRAYMAN):
                         damage = effective_attack  # Bypass defense completely
+                        
+                        # Log defense bypass for ECHO GRAYMAN
+                        if hasattr(unit, 'is_echo') and unit.is_echo:
+                            from boneglaive.utils.message_log import message_log, MessageType
+                            message_log.add_message(
+                                f"The echo's attack phase-shifts through {target.get_display_name()}'s defenses!",
+                                MessageType.ABILITY,
+                                player=unit.player,
+                                target_name=target.get_display_name()
+                            )
                     else:
                         damage = max(1, effective_attack - effective_defense)
                     
