@@ -328,8 +328,8 @@ class UIRenderer:
                             elif hasattr(unit, 'estranged') and unit.estranged:
                                 # Add tilde symbol to show the unit has estranged status effect
                                 enhanced_tile = f"{tile}~"  # Combine unit symbol with tilde (represents phasing)
-                                # Use dim attribute to indicate negative status effect
-                                self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_DIM)
+                                # Use gray color (19) to indicate phasing out of spacetime
+                                self.renderer.draw_tile(y, x, enhanced_tile, 19, curses.A_DIM)
                             else:
                                 # Normal unit draw
                                 self.renderer.draw_tile(y, x, tile, color_id)
