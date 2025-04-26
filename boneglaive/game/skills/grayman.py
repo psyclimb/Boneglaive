@@ -285,6 +285,14 @@ class EstrangeSkill(ActiveSkill):
         previous_hp = target.hp
         target.hp = max(0, target.hp - damage)
         
+        # Add message that estrangement bypasses defenses
+        message_log.add_message(
+            f"The estrangement beam bypasses {target.get_display_name()}'s defenses!",
+            MessageType.ABILITY,
+            player=user.player,
+            target_name=target.get_display_name()
+        )
+        
         # Log the damage
         message_log.add_combat_message(
             attacker_name=user.get_display_name(),
