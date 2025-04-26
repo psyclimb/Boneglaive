@@ -2663,23 +2663,9 @@ class ActionMenuComponent(UIComponent):
                     
                     # Special message for Jawline skill
                     if skill.name == "Jawline":
-                        # Only show the Jawline message once per unit (until skill is used)
-                        # Check if this unit already has the jawline_message_shown property set
-                        jawline_shown = hasattr(unit, 'jawline_message_shown') and unit.jawline_message_shown
-                        
-                        if not jawline_shown:
-                            message = f"{unit.get_display_name()} prepares to deploy JAWLINE network!"
-                            # Mark that we've shown this message
-                            unit.jawline_message_shown = True
-                            
-                            # Add the message directly to the message log with player information
-                            # This ensures it will be colored according to the player
-                            message_log.add_message(
-                                text=message,
-                                msg_type=MessageType.ABILITY,
-                                player=unit.player,
-                                attacker_name=unit.get_display_name()
-                            )
+                        # We no longer need to show a message here - it's shown in the skill's use() method
+                        # Mark that we've shown this message to prevent any legacy code from showing it again
+                        unit.jawline_message_shown = True
                     else:
                         message = f"{skill.name} will be used at end of turn"
                         

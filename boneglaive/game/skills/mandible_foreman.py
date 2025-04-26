@@ -835,14 +835,14 @@ class JawlineSkill(ActiveSkill):
         super().__init__(
             name="Jawline",
             key="J",
-            description="Deploy network of mechanical jaws in 3x3 area around yourself. Deals 4 damage and completely immobilizes enemies for 3 turns.",
+            description="Deploy network of mechanical jaws in 3x3 area around yourself. Deals 4 damage and completely immobilizes enemies for 2 turns.",
             target_type=TargetType.SELF,
-            cooldown=5,
+            cooldown=3,
             range_=0,
             area=1
         )
         self.damage = 4
-        self.effect_duration = 3
+        self.effect_duration = 2
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         # Basic validation
@@ -853,8 +853,14 @@ class JawlineSkill(ActiveSkill):
         return True
             
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
-        # For self-targeted skills, use the unit's position
-        target_pos = (user.y, user.x)
+        # For self-targeted skills, we need the final position after any moves
+        if user.move_target:
+            # Use planned move position if unit has a pending move
+            target_pos = user.move_target
+        else:
+            # Otherwise use current position
+            target_pos = (user.y, user.x)
+            
         if not self.can_use(user, target_pos, game):
             return False
         user.skill_target = target_pos
@@ -865,7 +871,7 @@ class JawlineSkill(ActiveSkill):
             user.action_timestamp = game.action_counter
             game.action_counter += 1
         
-        # Set jawline indicator for UI
+        # Set jawline indicator for UI - using the target position
         user.jawline_indicator = target_pos
         
         # Log that the skill has been readied
@@ -884,6 +890,10 @@ class JawlineSkill(ActiveSkill):
         from boneglaive.utils.message_log import message_log, MessageType
         import time
         import curses
+        
+        # Update target position if unit has moved (due to move being executed before skill)
+        # This ensures we deploy Jawline at the unit's final position after movement
+        target_pos = (user.y, user.x)
         
         # Clear the jawline indicator after execution
         user.jawline_indicator = None
