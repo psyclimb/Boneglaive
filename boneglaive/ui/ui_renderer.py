@@ -255,11 +255,10 @@ class UIRenderer:
                             is_cursor_here = (pos == cursor_manager.cursor_pos and show_cursor)
                             
                             if is_cursor_here:
-                                # Draw only the unit with cursor highlighting, then add status effect
-                                # First, highlight the unit with cursor color
-                                self.renderer.draw_tile(y, x, status_indicator, 2)
-                                # Then, draw only the status effect symbol with estranged color
-                                self.renderer.draw_text(y, x*2+1, "~", 19, curses.A_DIM)
+                                # When cursor is highlighting the estranged unit:
+                                # Use the cursor highlighting color for the unit character but maintain both 
+                                # the ~ status effect and the unit character in the display
+                                self.renderer.draw_tile(y, x, enhanced_tile, 2)
                             else:
                                 # Use gray color for estranged units to indicate they're phased
                                 self.renderer.draw_tile(y, x, enhanced_tile, 19, curses.A_DIM)
