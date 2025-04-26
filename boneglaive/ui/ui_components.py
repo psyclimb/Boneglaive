@@ -1223,6 +1223,18 @@ class GameModeManager(UIComponent):
                     )
                     return
                 
+                # Check if unit is affected by Jawline
+                if hasattr(cursor_manager.selected_unit, 'jawline_affected') and cursor_manager.selected_unit.jawline_affected:
+                    # Use event system for message
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message="Unit is immobilized by Jawline and cannot move",
+                            message_type=MessageType.WARNING
+                        )
+                    )
+                    return
+                
                 # Check if unit is an echo (cannot move)
                 if cursor_manager.selected_unit.is_echo:
                     # Don't show a message, just silently return
