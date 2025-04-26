@@ -235,9 +235,7 @@ class UIRenderer:
                             if unit.selected_skill and unit.selected_skill.name == "Græ Exchange":
                                 # Use a | symbol for Grae Exchange
                                 tile = f"{tile}|"
-                            elif unit.selected_skill and unit.selected_skill.name == "Delta Config":
-                                # Use a ∴ (therefore) symbol for Delta Config
-                                tile = f"{tile}∴"
+                            # No special symbol for Delta Config
                             
                         # Check for echo units (priority over estranged)
                         if hasattr(unit, 'is_echo') and unit.is_echo:
@@ -247,11 +245,25 @@ class UIRenderer:
                             attributes = curses.A_DIM
                         # Check for estranged units
                         elif hasattr(unit, 'estranged') and unit.estranged:
-                            # Use a wavey ~ symbol to show estranged effect
-                            tile = f"~{tile}~"
-                            # Use gray color (white with dim attribute) for estranged units to indicate they're phased
-                            color_id = 19
-                            attributes = curses.A_DIM
+                            # Save the original unit tile as the status indicator
+                            status_indicator = tile
+                            
+                            # Replace unit with ~ and add the original unit tile as status indicator
+                            enhanced_tile = f"~{status_indicator}"
+                            
+                            # Check if cursor is here
+                            is_cursor_here = (pos == cursor_manager.cursor_pos and show_cursor)
+                            
+                            if is_cursor_here:
+                                # Draw only the unit with cursor highlighting, then add status effect
+                                # First, highlight the unit with cursor color
+                                self.renderer.draw_tile(y, x, status_indicator, 2)
+                                # Then, draw only the status effect symbol with estranged color
+                                self.renderer.draw_text(y, x*2+1, "~", 19, curses.A_DIM)
+                            else:
+                                # Use gray color for estranged units to indicate they're phased
+                                self.renderer.draw_tile(y, x, enhanced_tile, 19, curses.A_DIM)
+                            continue
                         
                         # If this unit is being targeted for attack and attack targets should be shown
                         if attacking_unit and show_attack_targets:
@@ -619,8 +631,30 @@ class UIRenderer:
         # Draw simplified help reminder and controls
         help_line = HEIGHT+4
         self.renderer.draw_text(help_line, 0, " " * self.renderer.width, 1)  # Clear line
-        help_text = "Press ? for help | [M]ove | [A]ttack | [E]nd Turn"
-        self.renderer.draw_text(help_line, 2, help_text, 1)
+        
+        # Check if the selected unit is affected by Jawline
+        cursor_manager = self.game_ui.cursor_manager
+        unit_immobilized = (cursor_manager.selected_unit and 
+                          hasattr(cursor_manager.selected_unit, 'jawline_affected') and 
+                          cursor_manager.selected_unit.jawline_affected)
+        
+        # Different help text based on whether unit is immobilized
+        if unit_immobilized:
+            # Show move option as grayed out (disabled) with explanation
+            help_text = "Press ? for help | "
+            self.renderer.draw_text(help_line, 2, help_text, 1)
+            
+            # Draw [M]ove greyed out
+            move_text = "[M]ove"
+            self.renderer.draw_text(help_line, 2 + len(help_text), move_text, 1, curses.A_DIM)
+            
+            # Continue with other controls
+            remaining_text = " | [A]ttack | [E]nd Turn"
+            self.renderer.draw_text(help_line, 2 + len(help_text) + len(move_text), remaining_text, 1)
+        else:
+            # Normal controls display
+            help_text = "Press ? for help | [M]ove | [A]ttack | [E]nd Turn"
+            self.renderer.draw_text(help_line, 2, help_text, 1)
         
         # Draw winner info if game is over
         if self.game_ui.game.winner:
