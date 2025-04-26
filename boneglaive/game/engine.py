@@ -1035,11 +1035,18 @@ class Game:
                     if unit.type == UnitType.GRAYMAN or (hasattr(unit, 'is_echo') and unit.is_echo and unit.type == UnitType.GRAYMAN):
                         damage = effective_attack  # Bypass defense completely
                         
-                        # Log defense bypass for ECHO GRAYMAN
+                        from boneglaive.utils.message_log import message_log, MessageType
+                        # Different messages for original GRAYMAN vs echo
                         if hasattr(unit, 'is_echo') and unit.is_echo:
-                            from boneglaive.utils.message_log import message_log, MessageType
                             message_log.add_message(
-                                f"The echo's attack phase-shifts through {target.get_display_name()}'s defenses!",
+                                f"The echo's psychic attack bypasses {target.get_display_name()}'s defenses!",
+                                MessageType.ABILITY,
+                                player=unit.player,
+                                target_name=target.get_display_name()
+                            )
+                        else:
+                            message_log.add_message(
+                                f"{unit.get_display_name()}'s psychic attack bypasses {target.get_display_name()}'s defenses!",
                                 MessageType.ABILITY,
                                 player=unit.player,
                                 target_name=target.get_display_name()
