@@ -158,9 +158,11 @@ class Unit:
             stats['move_range'] = max(1, self.move_range + self.move_range_bonus + estrange_penalty)
         
         
-        # If unit is an echo (from Græ Exchange), halve its attack
+        # If unit is an echo (from Græ Exchange), set its attack to at least 2
         if self.is_echo:
-            stats['attack'] = max(1, stats['attack'] // 2)
+            # For GRAYMAN echoes, use half attack but with a minimum of 2
+            halved_attack = stats['attack'] // 2
+            stats['attack'] = max(2, halved_attack)
             # Echo cannot move
             stats['move_range'] = 0
             
