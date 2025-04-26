@@ -319,10 +319,10 @@ class EstrangeSkill(ActiveSkill):
             # Apply the estranged effect permanently (no duration)
             target.estranged = True
             
-            # Log the effect application
+            # Log the effect application - using WARNING type for yellow text
             message_log.add_message(
                 f"{target.get_display_name()} is phased out of normal spacetime!",
-                MessageType.ABILITY,
+                MessageType.WARNING,
                 player=user.player,
                 target_name=target.get_display_name()
             )
@@ -503,8 +503,8 @@ class GraeExchangeSkill(ActiveSkill):
         echo_unit.original_unit = user
         echo_unit.hp = 5  # Echo has 5 HP and cannot be healed
         
-        # Set reduced attack for echo unit (half damage)
-        echo_unit.attack = user.attack // 2
+        # Set attack value for echo unit to exactly 2 (regardless of original unit's attack)
+        echo_unit.attack = 2
         
         # Add Greek letter identifier like other units - to make it more obvious in the UI
         if hasattr(user, 'greek_id') and user.greek_id:
