@@ -340,7 +340,7 @@ class EstrangeSkill(ActiveSkill):
                     ui.renderer.draw_tile(
                         target.y, target.x,
                         f"{unit_tile}~",  # Combine unit symbol with tilde (consistent with UI rendering)
-                        3 if target.player == 1 else 4,  # Use player's original color
+                        19,  # Gray color for estranged units
                         curses.A_DIM  # Dim attribute for negative status effect
                     )
                     ui.renderer.refresh()
