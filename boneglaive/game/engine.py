@@ -802,12 +802,19 @@ class Game:
                 if unit.jawline_duration <= 0:
                     # Remove the status effect
                     unit.jawline_affected = False
-                    # Remove the move penalty
-                    unit.move_range_bonus += 1
+                    
+                    # Reset movement to original value
+                    if hasattr(unit, 'jawline_original_move'):
+                        # Calculate the correct bonus to restore original movement
+                        unit.move_range_bonus = 0  # Reset bonus
+                        # We don't need to manually restore since we're just resetting the bonus to 0
+                        
+                        # Clean up the stored value
+                        delattr(unit, 'jawline_original_move')
                     
                     # Log the expiration
                     message_log.add_message(
-                        f"{unit.get_display_name()} is freed from the Jawline tether.",
+                        f"{unit.get_display_name()} breaks free and can move again!",
                         MessageType.ABILITY,
                         player=unit.player
                     )
