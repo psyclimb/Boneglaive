@@ -2008,6 +2008,28 @@ class Game:
                 target_player=unit.player
             )
             
+            # Show damage number for explosion if UI is available
+            if ui and hasattr(ui, 'renderer'):
+                import curses
+                damage_text = f"-{damage}"
+                
+                # Make damage text more prominent with flashing effect
+                for i in range(3):
+                    # First clear the area
+                    ui.renderer.draw_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
+                    # Draw with alternating bold/normal for a flashing effect
+                    attrs = curses.A_BOLD if i % 2 == 0 else 0
+                    ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, attrs)
+                    ui.renderer.refresh()
+                    if hasattr(time, 'sleep'):
+                        time.sleep(0.1)
+                
+                # Final damage display (stays on screen slightly longer)
+                ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
+                ui.renderer.refresh()
+                if hasattr(time, 'sleep'):
+                    time.sleep(0.2)
+            
             # Check if unit was killed
             if unit.hp <= 0 and previous_hp > 0:
                 # Use centralized death handling
