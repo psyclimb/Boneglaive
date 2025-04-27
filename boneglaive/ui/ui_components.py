@@ -2365,14 +2365,14 @@ class ActionMenuComponent(UIComponent):
                 'skill': marrow_dike_skill
             })
             
-            # Add Slough skill
-            slough_skill = next((skill for skill in available_skills if skill.name == "Slough"), None)
+            # Add Bone Tithe skill
+            bone_tithe_skill = next((skill for skill in available_skills if skill.name == "Bone Tithe"), None)
             self.actions.append({
-                'key': 's',
-                'label': 'lough',  # Will be displayed as [S]lough
-                'action': 'slough_skill',
-                'enabled': slough_skill is not None,
-                'skill': slough_skill
+                'key': 'b',
+                'label': 'one Tithe',  # Will be displayed as [B]one Tithe
+                'action': 'bone_tithe_skill',
+                'enabled': bone_tithe_skill is not None,
+                'skill': bone_tithe_skill
             })
             
         # FOWL_CONTRIVANCE skills
