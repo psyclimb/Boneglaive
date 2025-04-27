@@ -196,7 +196,16 @@ class MarrowDikeSkill(ActiveSkill):
     """
     Active skill for MARROW CONDENSER.
     Creates a wall of condensed bone marrow that blocks movement and attacks.
-    When upgraded, the Marrow Dike is filled with blood plasma that heals allies.
+    
+    When upgraded (Osseous Prison):
+    - Enemies starting their turn inside take -1 movement penalty
+    - Enemies that die inside provide specific stat bonuses based on unit type:
+      * GLAIVEMAN → +1 attack (absorbs their offensive capability)
+      * MANDIBLE FOREMAN → +1 defense (absorbs their sturdy nature)
+      * GRAYMAN → +1 move range (absorbs their dimensional abilities)
+      * FOWL CONTRIVANCE → +1 max HP (absorbs their life essence)
+      * ECHO GRAYMAN → +1 to a random stat (unpredictable dimensional residue)
+    - Maximum of +3 total stat points can be gained from a single Marrow Dike
     """
     
     def __init__(self):
@@ -211,7 +220,7 @@ class MarrowDikeSkill(ActiveSkill):
         )
         self.upgraded = False
         self.duration = 4  # Duration of 4 turns
-        self.healing_amount = 3  # Healing amount per turn when upgraded
+        self.stat_points_gained = 0  # Track stat points gained (max 3)
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         # Basic validation
@@ -277,6 +286,10 @@ class MarrowDikeSkill(ActiveSkill):
         # Determine if this is upgraded version
         if hasattr(user, 'passive_skill') and hasattr(user.passive_skill, 'marrow_dike_upgraded'):
             self.upgraded = user.passive_skill.marrow_dike_upgraded
+            
+            # Update description for upgraded version
+            if self.upgraded:
+                self.description = "Creates an Osseous Prison that traps enemies (-1 move) and grants stat bonuses when they die inside."
         
         # Generate the dike area (perimeter of a 5x5 area centered on user)
         dike_tiles = []
@@ -420,7 +433,7 @@ class MarrowDikeSkill(ActiveSkill):
         # Log the skill activation
         if self.upgraded:
             message_log.add_message(
-                f"{user.get_display_name()} creates a Marrow Dike filled with healing blood plasma!",
+                f"{user.get_display_name()} creates an Osseous Prison to trap and extract power from enemies!",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -495,14 +508,14 @@ class MarrowDikeSkill(ActiveSkill):
                         0.05  # Quick animation
                     )
                     
-                    # If upgraded, add a plasma effect
+                    # If upgraded to Osseous Prison, add a bone cage effect
                     if self.upgraded:
-                        plasma_animation = ['~', '≈', '≋', '≈', '~']
-                        # Draw upgraded walls with yellow blood plasma flowing through them
+                        prison_animation = ['#', '≡', '■', '≡', '#']
+                        # Draw upgraded walls with bone prison elements
                         ui.renderer.animate_attack_sequence(
                             tile_y, tile_x,
-                            plasma_animation,
-                            6,  # Yellowish color for plasma
+                            prison_animation,
+                            7,  # White color for bone structures
                             0.05  # Quick animation
                         )
                     
@@ -542,7 +555,7 @@ class SloughSkill(ActiveSkill):
     def __init__(self):
         super().__init__(
             name="Bone Tithe",
-            key="T",
+            key="B",
             description="Extracts marrow from adjacent enemies for 1 (+1 per kill) damage and gains +1 HP for each hit.",
             target_type=TargetType.SELF,  # Self-targeted area effect
             cooldown=4,

@@ -24,14 +24,20 @@ When a unit dies inside of the MARROW CONDENSER'S Marrow Dike, he gains permanen
 
 ### 2. Marrow Dike (Key: M)
 **Description**: Creates a wall of condensed bone marrow that blocks movement and attacks.
-- **Target**: Adjacent empty tile
-- **Effect**: Creates a 5x5 marrow wall around himself that last 3 turns.
+- **Target**: Self
+- **Effect**: Creates a 5x5 perimeter of marrow walls around himself that lasts 4 turns.
 - **Cooldown**: 4 turns
-- **UPGRADE**: The Marrow Dike is filled with blood plasma that heals allies while they are standing in it.
+- **UPGRADE (Osseous Prison)**: Enemies inside get -1 movement and when they die, MARROW CONDENSER gains stats based on their type:
+  * GLAIVEMAN → +1 Attack (absorbs offensive capability)
+  * MANDIBLE FOREMAN → +1 Defense (absorbs sturdy nature)
+  * GRAYMAN → +1 Move Range (absorbs dimensional abilities)
+  * FOWL CONTRIVANCE → +1 Max HP (absorbs life essence)
+  * ECHO GRAYMAN → +1 to a random stat (unpredictable dimensional residue)
+  * Maximum +3 total stat points can be gained per Marrow Dike
 
-### 3. Slough (Key: S)
-**Description**:
+### 3. Bone Tithe (Key: B)
+**Description**: Extracts a tithe of bone marrow from nearby enemies, damaging them while strengthening the MARROW CONDENSER.
 - **Target**: Self (3x3 Area)
-- **Effect**: Heals allied units in range for 3 HP each, costing 2 HP per ally healed.
-- **Cooldown**: 3 turns
-- **UPGRADE**: No longer costs health and sloughs off positive stat bonuses to allies.
+- **Effect**: Damages nearby enemies for 1 + (kills) and gains +1 HP for each enemy hit.
+- **Cooldown**: 4 turns
+- **UPGRADE**: Also applies a protective marrow coating to allies in range, granting +1 defense for 2 turns.
