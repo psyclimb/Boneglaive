@@ -203,7 +203,8 @@ class MarrowDikeSkill(ActiveSkill):
       * GLAIVEMAN → +1 attack (absorbs their offensive capability)
       * MANDIBLE FOREMAN → +1 defense (absorbs their sturdy nature)
       * GRAYMAN → +1 move range (absorbs their dimensional abilities)
-      * FOWL CONTRIVANCE → +1 max HP (absorbs their life essence)
+      * FOWL CONTRIVANCE → +1 attack range (absorbs their avian maneuverability)
+      * MARROW CONDENSER → +1 max HP (absorbs their dense bone structure)
       * ECHO GRAYMAN → +1 to a random stat (unpredictable dimensional residue)
     - Maximum of +3 total stat points can be gained from a single Marrow Dike
     """

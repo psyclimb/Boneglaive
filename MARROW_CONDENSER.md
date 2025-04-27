@@ -31,7 +31,8 @@ When a unit dies inside of the MARROW CONDENSER'S Marrow Dike, he gains permanen
   * GLAIVEMAN → +1 Attack (absorbs offensive capability)
   * MANDIBLE FOREMAN → +1 Defense (absorbs sturdy nature)
   * GRAYMAN → +1 Move Range (absorbs dimensional abilities)
-  * FOWL CONTRIVANCE → +1 Max HP (absorbs life essence)
+  * FOWL CONTRIVANCE → +1 Attack Range (absorbs avian maneuverability)
+  * MARROW CONDENSER → +1 Max HP (absorbs dense bone structure)
   * ECHO GRAYMAN → +1 to a random stat (unpredictable dimensional residue)
   * Maximum +3 total stat points can be gained per Marrow Dike
 

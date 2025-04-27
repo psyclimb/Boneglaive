@@ -831,12 +831,18 @@ class Game:
                                 stat_bonus = "Move Range +1"
                                 bonus_message = f"absorbs dimensional abilities"
                                 
-                            # FOWL CONTRIVANCE --> max HP
+                            # FOWL CONTRIVANCE --> attack range
                             elif dying_unit.type == UnitType.FOWL_CONTRIVANCE:
+                                dike_owner.attack_range_bonus += 1
+                                stat_bonus = "Attack Range +1"
+                                bonus_message = f"absorbs avian maneuverability"
+                                
+                            # MARROW_CONDENSER --> max HP
+                            elif dying_unit.type == UnitType.MARROW_CONDENSER:
                                 dike_owner.max_hp += 1
                                 dike_owner.hp += 1
                                 stat_bonus = "Max HP +1"
-                                bonus_message = f"absorbs life essence"
+                                bonus_message = f"absorbs dense bone structure"
                                 
                             # ECHO GRAYMAN --> random stat
                             elif dying_unit.type == UnitType.ECHO_GRAYMAN:
