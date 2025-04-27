@@ -183,7 +183,11 @@ class Unit:
             else:
                 display_type = "MANDIBLE FOREMAN"
         elif display_type == "MARROW_CONDENSER":
-            display_type = "MARROW CONDENSER"
+            # Use a shorter name if requested (for UI menus)
+            if shortened:
+                display_type = "M.CONDENSER"
+            else:
+                display_type = "MARROW CONDENSER"
         
         # For echo units, change name to "ECHO {TYPE}"
         if self.is_echo:
