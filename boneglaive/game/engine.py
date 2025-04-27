@@ -860,6 +860,36 @@ class Game:
                         MessageType.ABILITY,
                         player=unit.player
                     )
+            
+            # Process Ossify status effect for MARROW CONDENSER
+            if hasattr(unit, 'ossify_active') and unit.ossify_active:
+                # Only process if not upgraded (upgraded version is permanent)
+                if hasattr(unit, 'ossify_duration'):
+                    # Decrement the duration
+                    unit.ossify_duration -= 1
+                    logger.debug(f"{unit.get_display_name()}'s Ossify duration: {unit.ossify_duration}")
+                    
+                    # Check if the status effect has expired
+                    if unit.ossify_duration <= 0:
+                        # Remove the status effect
+                        unit.ossify_active = False
+                        # Remove the defense bonus and movement penalty
+                        if unit.type == UnitType.MARROW_CONDENSER:
+                            # Get the defense bonus value from the skill
+                            for skill in unit.active_skills:
+                                if skill.name == "Ossify":
+                                    unit.defense_bonus -= skill.defense_bonus
+                                    break
+                            
+                            # Reset movement penalty
+                            unit.move_range_bonus = 0
+                        
+                        # Log the expiration
+                        message_log.add_message(
+                            f"{unit.get_display_name()}'s bones return to normal state.",
+                            MessageType.ABILITY,
+                            player=unit.player
+                        )
                     
             # Process Jawline status effect
             if hasattr(unit, 'jawline_affected') and unit.jawline_affected:
