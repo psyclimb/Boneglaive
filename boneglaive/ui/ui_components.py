@@ -2591,7 +2591,7 @@ class ActionMenuComponent(UIComponent):
                 from_y, from_x = cursor_manager.selected_unit.move_target
             
             # Special visualization for MARROW_CONDENSER area skills
-            if skill.name in ["Marrow Dike", "Slough"]:
+            if skill.name in ["Marrow Dike", "Bone Tithe"]:
                 # Special visual indicators for MARROW_CONDENSER's area skills
                 area_targets = []
                 
@@ -2613,13 +2613,13 @@ class ActionMenuComponent(UIComponent):
                     self.publish_event(
                         EventType.MESSAGE_DISPLAY_REQUESTED,
                         MessageDisplayEventData(
-                            message=f"Marrow Dike will create walls around the perimeter. Press Space to confirm.",
+                            message=f"Marrow Dike will create walls around the perimeter.",
                             message_type=MessageType.ABILITY
                         )
                     )
-                # For Slough, we want to show all adjacent tiles
-                elif skill.name == "Slough":
-                    # Slough affects all tiles in a 3x3 area (area=1)
+                # For Bone Tithe, we want to show all adjacent tiles
+                elif skill.name == "Bone Tithe":
+                    # Bone Tithe affects all tiles in a 3x3 area (area=1)
                     for dy in range(-area_size, area_size+1):
                         for dx in range(-area_size, area_size+1):
                             # Skip the center (MARROW_CONDENSER's position)
@@ -2629,15 +2629,6 @@ class ActionMenuComponent(UIComponent):
                             tile_y, tile_x = from_y + dy, from_x + dx
                             if game.is_valid_position(tile_y, tile_x):
                                 area_targets.append(Position(tile_y, tile_x))
-                    
-                    # Also display a special message
-                    self.publish_event(
-                        EventType.MESSAGE_DISPLAY_REQUESTED,
-                        MessageDisplayEventData(
-                            message=f"Slough will affect allies in highlighted area. Press Space to confirm.",
-                            message_type=MessageType.ABILITY
-                        )
-                    )
                 
                 # Set highlighted positions for visualization
                 cursor_manager.highlighted_positions = area_targets
@@ -2652,9 +2643,9 @@ class ActionMenuComponent(UIComponent):
                 if skill.name == "Marrow Dike":
                     if skill.can_use(cursor_manager.selected_unit, (from_y, from_x), game):
                         skill.use(cursor_manager.selected_unit, (from_y, from_x), game)
-                # For Slough, we need to directly set the cooldown since its can_use check
+                # For Bone Tithe, we need to directly set the cooldown since its can_use check
                 # may fail if there are no valid targets, but we still want to set cooldown
-                elif skill.name == "Slough":
+                elif skill.name == "Bone Tithe":
                     # Set skill target
                     cursor_manager.selected_unit.skill_target = (from_y, from_x)
                     cursor_manager.selected_unit.selected_skill = skill
@@ -2664,7 +2655,7 @@ class ActionMenuComponent(UIComponent):
                     
                     # Log the message (similar to what's in skill.use())
                     message_log.add_message(
-                        f"{cursor_manager.selected_unit.get_display_name()} prepares to slough off bone matter!",
+                        f"{cursor_manager.selected_unit.get_display_name()} prepares to collect the Bone Tithe!",
                         MessageType.ABILITY,
                         player=cursor_manager.selected_unit.player
                     )
