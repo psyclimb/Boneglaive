@@ -107,7 +107,7 @@ class AssetManager:
             'marrow_condenser_attack': ['/', '|', '\\', '-', '8', '$', 'Ø', '#', '*'],  # Swinging and striking with bone chunks
             'ossify': ['#', '%', '@', '*', '+', '=', '&', '$', '#', '/', '\\', '|', '-', '.'],  # ASCII bone hardening animation
             'marrow_dike': ['╎', '╏', '┃', '┆', '┇', '┊', '┋', '#', '#'],  # Marrow wall forming - hash wall animation
-            'slough': ['#', '%', '&', '@', '$', '+', '*', '.'],  # Bone and marrow fragments sloughing off
+            'slough': ['#', '*', '+', 'X', '*', '.'],  # Bone shards launching outward
             'site_inspection': ['Θ', 'Φ', 'Θ', 'Φ', 'Θ'],  # Animation for Site Inspection with eye-like Greek letters
             'expedite_rush': ['Ξ', '<', '[', '{'],  # Animation for Expedite rush movement
             'expedite_impact': ['!', '!', '#', 'X', '*', '.'],  # Animation for Expedite impact

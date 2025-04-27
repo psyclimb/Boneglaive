@@ -531,40 +531,36 @@ class MarrowDikeSkill(ActiveSkill):
 class SloughSkill(ActiveSkill):
     """
     Active skill for MARROW CONDENSER.
-    Heals allied units in a 3x3 area at the cost of the MARROW CONDENSER's own health.
+    Sheds layers of hardened bone, damaging nearby enemies and fueling further growth.
     
     When upgraded:
-    - No longer costs the MARROW CONDENSER's health
-    - Sloughs off positive stat bonuses to allies
+    - Also applies defensive bone shards to allies in range
+    - Allies gain a defensive bonus for 2 turns
     """
     
     def __init__(self):
         super().__init__(
             name="Slough",
             key="S",
-            description="Heals allied units in a 3x3 area for 3 HP each, costing 2 HP per ally healed.",
+            description="Sheds bone layers, damaging adjacent enemies for 1 (+1 per kill) and gaining +1 HP for each hit.",
             target_type=TargetType.SELF,  # Self-targeted area effect
-            cooldown=3,
+            cooldown=4,
             range_=0,
             area=1  # 3x3 area (center + 1 in each direction)
         )
         self.upgraded = False
-        self.heal_amount = 3  # Amount of healing per ally
-        self.self_damage = 2  # Health cost per ally healed (when not upgraded)
+        self.base_damage = 1  # Base damage (increases with kills)
+        self.hp_gain_per_hit = 1  # HP gain per enemy hit
+        self.ally_def_bonus = 1  # Defense bonus for allies when upgraded
+        self.ally_def_duration = 2  # Duration of ally defense bonus
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         # Basic validation (cooldown, etc.)
         if not super().can_use(user, target_pos, game):
             return False
-        
-        # Count potential targets
-        potential_allies_to_heal = 0
-        if game:
-            # Get all positions in 3x3 area
-            center_y, center_x = user.y, user.x
-            for dy in range(-1, 2):  # -1, 0, 1
-                for dx in range(-1, 2):  # -1, 0, 1
-                    if dy == 0 and dx == 0:  # Skip center
+            
+        # Always usable as long as basic validation passes
+        return True
                         continue
                     
                     tile_y, tile_x = center_y + dy, center_x + dx
@@ -618,18 +614,13 @@ class SloughSkill(ActiveSkill):
         if hasattr(user, 'passive_skill') and hasattr(user.passive_skill, 'slough_upgraded'):
             self.upgraded = user.passive_skill.slough_upgraded
         
-        # Check for positive bonuses if upgraded
-        positive_bonuses = {}
-        has_positive_bonuses = False
+        # Get number of kills for damage scaling
+        kill_count = 0
+        if hasattr(user, 'passive_skill') and hasattr(user.passive_skill, 'kills'):
+            kill_count = user.passive_skill.kills
         
-        if self.upgraded:
-            positive_bonuses = {
-                'attack': user.attack_bonus if user.attack_bonus > 0 else 0,
-                'defense': user.defense_bonus if user.defense_bonus > 0 else 0,
-                'move': user.move_range_bonus if user.move_range_bonus > 0 else 0,
-                'range': user.attack_range_bonus if user.attack_range_bonus > 0 else 0
-            }
-            has_positive_bonuses = any(value > 0 for value in positive_bonuses.values())
+        # Calculate damage based on kill count
+        damage = self.base_damage + kill_count
         
         # Generate area of effect (3x3 area centered on user)
         effect_area = []
@@ -648,8 +639,17 @@ class SloughSkill(ActiveSkill):
                 if game.is_valid_position(tile_y, tile_x):
                     effect_area.append((tile_y, tile_x))
         
-        # Process effects
-        allies_affected = []
+        # Track affected units for effects and animation
+        enemies_hit = []
+        allies_buffed = []
+        hp_gained = 0
+        
+        # Log the overall effect
+        message_log.add_message(
+            f"{user.get_display_name()} sloughs off bone shards in all directions!",
+            MessageType.ABILITY,
+            player=user.player
+        )
         
         # Check for targets in the area
         for tile_y, tile_x in effect_area:
@@ -658,85 +658,68 @@ class SloughSkill(ActiveSkill):
             if not target or not target.is_alive():
                 continue
                 
-            # Only affect allies
-            if target.player == user.player:
-                allies_affected.append(target)
-        
-        # Apply effects
-        allies_buffed = 0
-        allies_healed = 0
-        total_health_cost = 0
-        
-        # Log the overall effect
-        if self.upgraded:
-            message_log.add_message(
-                f"{user.get_display_name()} releases purified bone matter to allies!",
-                MessageType.ABILITY,
-                player=user.player
-            )
-        else:
-            message_log.add_message(
-                f"{user.get_display_name()} sacrifices bone matter to heal allies!",
-                MessageType.ABILITY,
-                player=user.player
-            )
-        
-        # Process allies
-        if allies_affected:
-            # Share positive bonuses if upgraded
-            if self.upgraded and has_positive_bonuses:
-                # Apply positive bonuses to all allies
-                for ally in allies_affected:
-                    # Apply each bonus
-                    ally.attack_bonus += positive_bonuses['attack']
-                    ally.defense_bonus += positive_bonuses['defense']
-                    ally.move_range_bonus += positive_bonuses['move']
-                    ally.attack_range_bonus += positive_bonuses['range']
-                    allies_buffed += 1
+            # Affect enemies with damage
+            if target.player != user.player:
+                # Record previous HP for death checks
+                previous_hp = target.hp
+                
+                # Apply damage (accounting for defense)
+                actual_damage = max(1, damage - target.get_effective_stats()['defense'])
+                target.hp = max(0, target.hp - actual_damage)
+                
+                # Add to list of affected enemies
+                enemies_hit.append({
+                    'unit': target,
+                    'damage': actual_damage,
+                    'position': (tile_y, tile_x)
+                })
+                
+                # Log damage
+                message_log.add_combat_message(
+                    attacker_name=user.get_display_name(),
+                    target_name=target.get_display_name(),
+                    damage=actual_damage,
+                    ability="Slough",
+                    attacker_player=user.player,
+                    target_player=target.player
+                )
+                
+                # Check if unit was killed
+                if target.hp <= 0 and previous_hp > 0:
+                    # Use centralized death handling
+                    game.handle_unit_death(target, user, cause="slough", ui=ui)
+                
+                # Gain HP for each enemy hit
+                hp_gained += self.hp_gain_per_hit
             
-            # Heal allies (core functionality)
-            for ally in allies_affected:
-                # Only heal if not at full health
-                if ally.hp < ally.max_hp:
-                    previous_hp = ally.hp
-                    ally.hp = min(ally.max_hp, ally.hp + self.heal_amount)
-                    
-                    # Only count if actually healed
-                    if ally.hp > previous_hp:
-                        allies_healed += 1
-                        
-                        # Add health cost if not upgraded
-                        if not self.upgraded:
-                            total_health_cost += self.self_damage
+            # Apply defensive buff to allies if upgraded
+            elif self.upgraded:
+                # Add defensive bonus to ally
+                target.defense_bonus += self.ally_def_bonus
+                
+                # Set status effect duration
+                if not hasattr(target, 'slough_def_duration'):
+                    target.slough_def_duration = 0
+                target.slough_def_duration = self.ally_def_duration
+                
+                # Add to list of affected allies
+                allies_buffed.append(target)
         
-        # Apply health cost to user if not upgraded and allies were healed
-        if not self.upgraded and total_health_cost > 0:
-            # Cap health cost to prevent killing the user (leave at least 1 HP)
-            max_health_cost = user.hp - 1
-            if total_health_cost >= max_health_cost and max_health_cost > 0:
-                total_health_cost = max_health_cost
-            
-            # Apply health loss
-            user.hp -= total_health_cost
+        # Apply HP gain to user based on number of enemies hit
+        if hp_gained > 0:
+            user.max_hp += hp_gained
+            user.hp += hp_gained
             
             message_log.add_message(
-                f"{user.get_display_name()} loses {total_health_cost} HP from bone donation!",
+                f"{user.get_display_name()} grows stronger from the slough, gaining {hp_gained} max HP!",
                 MessageType.ABILITY,
                 player=user.player
             )
         
-        # Log healing effect
-        if allies_healed > 0:
+        # Log buff effect for allies (upgraded version)
+        if allies_buffed:
             message_log.add_message(
-                f"Marrow nutrients heal {allies_healed} allies for {self.heal_amount} HP each!",
-                MessageType.ABILITY,
-                player=user.player
-            )
-        
-        # Log buff effect (for upgraded version)
-        if allies_buffed > 0:
-            message_log.add_message(
-                f"Beneficial bone structure reinforces {allies_buffed} allies!",
+                f"Defensive bone shards reinforce {len(allies_buffed)} allies with +{self.ally_def_bonus} defense!",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -746,10 +729,10 @@ class SloughSkill(ActiveSkill):
             # Get slough animation from asset manager
             slough_animation = ui.asset_manager.get_skill_animation_sequence('slough')
             if not slough_animation:
-                # TTY-friendly animation showing bone chunks sloughing off
-                slough_animation = ['#', '&', '$', '@', '*', '.']
+                # ASCII-only animation showing bone shards flying outward
+                slough_animation = ['#', '*', '+', 'X', '*', '.']
             
-            # First flash the user to show bonuses being gathered/sloughed
+            # First flash the user to show bone shards being expelled
             if hasattr(ui, 'asset_manager'):
                 tile_ids = [ui.asset_manager.get_unit_tile(user.type)] * 4
                 color_ids = [6, 3 if user.player == 1 else 4] * 2  # Alternate yellow with player color
@@ -757,11 +740,7 @@ class SloughSkill(ActiveSkill):
                 
                 ui.renderer.flash_tile(user.y, user.x, tile_ids, color_ids, durations)
             
-            # Create animation paths from user to each affected unit
-            # Track which positions we've already animated to avoid duplication
-            animated_positions = set()
-            
-            # Define direction vectors for the 8 cardinal/ordinal directions
+            # Animate bone shards flying outward in all 8 directions
             directions = [
                 (-1, 0),   # North
                 (-1, 1),   # Northeast
@@ -773,88 +752,75 @@ class SloughSkill(ActiveSkill):
                 (-1, -1)   # Northwest
             ]
             
-            # Check if we're sharing Ossify effect (for special animation)
-            sharing_ossify = hasattr(user, 'ossify_duration') and user.ossify_duration > 0
-            ossify_animation = None
-            
-            # Get Ossify animation if needed
-            if sharing_ossify and hasattr(ui, 'asset_manager'):
-                ossify_animation = ui.asset_manager.get_skill_animation_sequence('ossify')
-                if not ossify_animation:
-                    ossify_animation = ['|', '#', '█', '▓', '▒']  # Fallback animation
-            
-            # Show bone/marrow matter in a 3x3 area
-            # Find positions around user (3x3 area)
-            positions_in_area = []
-            for dy in range(-1, 2):
-                for dx in range(-1, 2):
-                    # Skip the center (user's position)
-                    if dy == 0 and dx == 0:
-                        continue
-                    
-                    tile_y, tile_x = user.y + dy, user.x + dx
-                    if game.is_valid_position(tile_y, tile_x):
-                        positions_in_area.append((tile_y, tile_x))
-            
-            # Animate all positions in the area simultaneously
-            for pos_y, pos_x in positions_in_area:
-                # Check if any unit is at this position
-                target = game.get_unit_at(pos_y, pos_x)
+            # For each direction, create an animation path
+            for dy, dx in directions:
+                # Start from user position
+                y, x = user.y, user.x
                 
-                # If sharing ossify and there's an ally at this position, use special ossify animation
-                if sharing_ossify and target and target.player == user.player:
-                    # Use ossify animation (white bone hardening patterns) for allies receiving ossify
-                    for frame in ossify_animation:
-                        ui.renderer.draw_tile(pos_y, pos_x, frame, 7)  # White color (7) for ossify
-                        ui.renderer.refresh()
-                        time.sleep(0.06)  # Slightly slower animation to show the effect clearly
-                else:
-                    # Use bone and marrow colors (white and red) for normal slough
-                    # For empty tiles, alternate white and red to represent bone and marrow
-                    if not target:
-                        # Use white (7) for bone or red (20) for marrow depending on position
-                        # Use a pattern that creates an alternating effect
-                        is_even_position = (pos_y + pos_x) % 2 == 0
-                        color_id = 7 if is_even_position else 20  # White bone or red marrow
-                    else:
-                        # For tiles with units, use different colors based on ally/enemy
-                        if target.player == user.player:
-                            color_id = 7  # White/bone for allies 
-                        else:
-                            color_id = 20  # Red/marrow for enemies
+                # Calculate up to two steps outward
+                for step in range(1, 3):
+                    next_y = y + dy
+                    next_x = x + dx
                     
-                    # Animate the bone matter spreading
+                    # Skip if position is invalid
+                    if not game.is_valid_position(next_y, next_x):
+                        break
+                        
+                    # Animate at this position
                     for frame in slough_animation:
-                        ui.renderer.draw_tile(pos_y, pos_x, frame, color_id)
+                        # Determine color based on what's at this position
+                        target = game.get_unit_at(next_y, next_x)
+                        if target:
+                            # Enemy hit (red)
+                            if target.player != user.player:
+                                color = 1  # Red for damage 
+                            # Ally buffed (green if upgraded)
+                            elif self.upgraded:
+                                color = 2  # Green for buff
+                            # Default
+                            else:
+                                color = 7  # White for neutral
+                        else:
+                            # No target, use white for bone fragments
+                            color = 7
+                        
+                        # Draw animation frame
+                        ui.renderer.draw_tile(next_y, next_x, frame, color)
                         ui.renderer.refresh()
                         time.sleep(0.03)  # Quick animation
+                    
+                    # Move to next position for next step
+                    y, x = next_y, next_x
             
             # Pause briefly after animation
             time.sleep(0.1)
             
-            # Apply final effects to targets (flashing allies/enemies)
+            # Show damage numbers and flash affected enemies
+            for enemy_data in enemies_hit:
+                enemy = enemy_data['unit']
+                damage = enemy_data['damage']
+                
+                # Show damage number
+                if hasattr(ui, 'renderer'):
+                    damage_text = f"-{damage}"
+                    ui.renderer.draw_text(enemy.y - 1, enemy.x * 2, damage_text, 1, curses.A_BOLD)
+                    ui.renderer.refresh()
+                    time.sleep(0.1)
+                
+                # Flash the enemy to show damage
+                tile_ids = [ui.asset_manager.get_unit_tile(enemy.type)] * 3
+                color_ids = [1, 7, 1]  # Red, white, red for damage effect
+                durations = [0.08] * 3
+                ui.renderer.flash_tile(enemy.y, enemy.x, tile_ids, color_ids, durations)
             
-            # Flash allies who were buffed or healed with bone reinforcement
-            for ally in allies_affected:
-                if has_positive_bonuses or (not has_positive_bonuses and ally.hp < ally.max_hp):
-                    # Flash allies with white (bone) color to show reinforcement
-                    tile_ids = [ui.asset_manager.get_unit_tile(ally.type)] * 4
-                    # Alternating white and normal colors for bone reinforcement effect
-                    color_ids = [7, 3 if ally.player == 1 else 4, 7, 3 if ally.player == 1 else 4]
-                    durations = [0.08] * 4
-                    
+            # Show buff effect on allies if upgraded
+            if self.upgraded and allies_buffed:
+                for ally in allies_buffed:
+                    # Flash allies with green to show defense buff
+                    tile_ids = [ui.asset_manager.get_unit_tile(ally.type)] * 3
+                    color_ids = [2, 7, 2]  # Green, white, green for buff
+                    durations = [0.08] * 3
                     ui.renderer.flash_tile(ally.y, ally.x, tile_ids, color_ids, durations)
-            
-            # Flash enemies who were debuffed or damaged with red marrow (if upgraded)
-            if self.upgraded:
-                for enemy in enemies_affected:
-                    # Flash enemies with red for marrow corruption
-                    tile_ids = [ui.asset_manager.get_unit_tile(enemy.type)] * 4
-                    # Intensifying red effect that shows marrow fragments
-                    color_ids = [20, 5, 20, 5]  # Red and darker red alternating
-                    durations = [0.08] * 4
-                    
-                    ui.renderer.flash_tile(enemy.y, enemy.x, tile_ids, color_ids, durations)
             
             # Redraw the board after all animations
             if hasattr(ui, 'draw_board'):
