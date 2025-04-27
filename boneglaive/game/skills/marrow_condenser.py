@@ -27,12 +27,13 @@ class Dominion(PassiveSkill):
         super().__init__(
             name="Dominion",
             key="D",
-            description="When a unit dies inside of the MARROW CONDENSER'S Marrow Dike, he gains permanent upgrades to his skills."
+            description="When a unit kills an enemy, gains massive stat bonuses. Enemies dying in Marrow Dike upgrade skills."
         )
         self.ossify_upgraded = False
         self.marrow_dike_upgraded = False
         self.slough_upgraded = False
-        self.available_upgrades = ["ossify", "marrow_dike", "slough"]
+        self.available_upgrades = ["marrow_dike", "ossify", "slough"]
+        self.kills = 0  # Track the number of kills to determine stat boosts
     
     def apply_passive(self, user: 'Unit', game=None) -> None:
         # Logic handled in game engine when units die

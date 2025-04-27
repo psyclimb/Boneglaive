@@ -38,7 +38,7 @@ UNIT_STATS = {
     UnitType.MAGE: (12, 6, 1, 1, 2),
     UnitType.MANDIBLE_FOREMAN: (25, 3, 2, 2, 1),  # Reduced attack from 6 to 3
     UnitType.GRAYMAN: (18, 2, 0, 2, 5),  # Reduced attack from 4 to 2, keeping long range
-    UnitType.MARROW_CONDENSER: (26, 4, 2, 3, 1),  # Tank unit with medium attack and high potential growth
+    UnitType.MARROW_CONDENSER: (20, 3, 1, 3, 1),  # Tank unit that gets stronger with kills
     UnitType.FOWL_CONTRIVANCE: (18, 7, 0, 3, 3)  # Increased HP from 14 to 18, kept high attack
 }
 
