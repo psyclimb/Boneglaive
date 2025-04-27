@@ -51,7 +51,7 @@ class Dominion(PassiveSkill):
         # Fixed upgrade order:
         # 1. Marrow Dike
         # 2. Ossify
-        # 3. Slough
+        # 3. Bone Tithe (formerly Slough)
         if "marrow_dike" in self.available_upgrades:
             upgrade = "marrow_dike"
         elif "ossify" in self.available_upgrades:
@@ -531,18 +531,19 @@ class MarrowDikeSkill(ActiveSkill):
 class SloughSkill(ActiveSkill):
     """
     Active skill for MARROW CONDENSER.
-    Sheds layers of hardened bone, damaging nearby enemies and fueling further growth.
+    Extracts a tithe of bone marrow from nearby enemies, damaging them while
+    strengthening the MARROW CONDENSER with their essence.
     
     When upgraded:
-    - Also applies defensive bone shards to allies in range
+    - Also applies protective marrow coating to allies in range
     - Allies gain a defensive bonus for 2 turns
     """
     
     def __init__(self):
         super().__init__(
-            name="Slough",
-            key="S",
-            description="Sheds bone layers, damaging adjacent enemies for 1 (+1 per kill) and gaining +1 HP for each hit.",
+            name="Bone Tithe",
+            key="T",
+            description="Extracts marrow from adjacent enemies for 1 (+1 per kill) damage and gains +1 HP for each hit.",
             target_type=TargetType.SELF,  # Self-targeted area effect
             cooldown=4,
             range_=0,
@@ -561,15 +562,6 @@ class SloughSkill(ActiveSkill):
             
         # Always usable as long as basic validation passes
         return True
-                        continue
-                    
-                    tile_y, tile_x = center_y + dy, center_x + dx
-                    
-                    # Check if position is valid and contains an injured ally
-                    if game.is_valid_position(tile_y, tile_x):
-                        target = game.get_unit_at(tile_y, tile_x)
-                        if target and target.is_alive() and target.player == user.player and target.hp < target.max_hp:
-                            potential_allies_to_heal += 1
         
         # If not upgraded, check if user has enough health to heal at least one ally
         if not self.upgraded:
@@ -598,7 +590,7 @@ class SloughSkill(ActiveSkill):
         
         # Log that the skill has been queued
         message_log.add_message(
-            f"{user.get_display_name()} prepares to slough off bone matter!",
+            f"{user.get_display_name()} prepares to collect the Bone Tithe!",
             MessageType.ABILITY,
             player=user.player
         )
@@ -607,7 +599,7 @@ class SloughSkill(ActiveSkill):
         return True
         
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
-        """Execute the Slough skill during turn resolution."""
+        """Execute the Bone Tithe skill during turn resolution."""
         import time
         
         # Determine if this is upgraded version
@@ -646,7 +638,7 @@ class SloughSkill(ActiveSkill):
         
         # Log the overall effect
         message_log.add_message(
-            f"{user.get_display_name()} sloughs off bone shards in all directions!",
+            f"{user.get_display_name()} extracts the Bone Tithe from nearby entities!",
             MessageType.ABILITY,
             player=user.player
         )
@@ -679,7 +671,7 @@ class SloughSkill(ActiveSkill):
                     attacker_name=user.get_display_name(),
                     target_name=target.get_display_name(),
                     damage=actual_damage,
-                    ability="Slough",
+                    ability="Bone Tithe",
                     attacker_player=user.player,
                     target_player=target.player
                 )
@@ -687,7 +679,7 @@ class SloughSkill(ActiveSkill):
                 # Check if unit was killed
                 if target.hp <= 0 and previous_hp > 0:
                     # Use centralized death handling
-                    game.handle_unit_death(target, user, cause="slough", ui=ui)
+                    game.handle_unit_death(target, user, cause="bone_tithe", ui=ui)
                 
                 # Gain HP for each enemy hit
                 hp_gained += self.hp_gain_per_hit
@@ -711,7 +703,7 @@ class SloughSkill(ActiveSkill):
             user.hp += hp_gained
             
             message_log.add_message(
-                f"{user.get_display_name()} grows stronger from the slough, gaining {hp_gained} max HP!",
+                f"{user.get_display_name()} absorbs the marrow tithe, gaining {hp_gained} max HP!",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -719,15 +711,15 @@ class SloughSkill(ActiveSkill):
         # Log buff effect for allies (upgraded version)
         if allies_buffed:
             message_log.add_message(
-                f"Defensive bone shards reinforce {len(allies_buffed)} allies with +{self.ally_def_bonus} defense!",
+                f"Protective marrow coating reinforces {len(allies_buffed)} allies with +{self.ally_def_bonus} defense!",
                 MessageType.ABILITY,
                 player=user.player
             )
         
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Get slough animation from asset manager
-            slough_animation = ui.asset_manager.get_skill_animation_sequence('slough')
+            # Get bone tithe animation from asset manager
+            slough_animation = ui.asset_manager.get_skill_animation_sequence('slough')  # Keep using 'slough' key for animation compatibility
             if not slough_animation:
                 # ASCII-only animation showing bone shards flying outward
                 slough_animation = ['#', '*', '+', 'X', '*', '.']
