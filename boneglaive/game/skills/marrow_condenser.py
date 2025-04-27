@@ -91,7 +91,7 @@ class OssifySkill(ActiveSkill):
             range_=0
         )
         self.upgraded = False
-        self.defense_bonus = 4  # Increased defense bonus to 4
+        self.defense_bonus = 2  # Defense bonus of 2
         self.duration = 2  # Duration in turns
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
@@ -134,6 +134,8 @@ class OssifySkill(ActiveSkill):
         # Apply movement penalty if not upgraded
         if not self.upgraded:
             user.move_range_bonus = -1
+            # Set the ossify status effect flag and duration for UI display
+            user.ossify_active = True
             user.ossify_duration = self.duration  # Track duration
             
             message_log.add_message(

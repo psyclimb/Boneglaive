@@ -313,6 +313,12 @@ class UIRenderer:
                                 enhanced_tile = f"{tile}Θ"  # Combine unit symbol with the Greek theta eye
                                 # Use green color to indicate positive status effect
                                 self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_BOLD)
+                            # Check if unit is affected by Ossify status effect
+                            elif hasattr(unit, 'ossify_active') and unit.ossify_active:
+                                # Add an O symbol to show the unit has Ossify status effect 
+                                enhanced_tile = f"{tile}O"  # Combine unit symbol with O for Ossify
+                                # Use green color to indicate positive status effect
+                                self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_BOLD)
                             # Check if unit is affected by Jawline status effect
                             elif hasattr(unit, 'jawline_affected') and unit.jawline_affected:
                                 # Add uppercase Xi symbol to show the unit has Jawline status effect
