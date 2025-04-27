@@ -567,13 +567,18 @@ class UIRenderer:
             if unit.defense_bonus != 0:
                 defense_display = f"{unit.defense}+{unit.defense_bonus}" if unit.defense_bonus > 0 else f"{unit.defense}{unit.defense_bonus}"
             
-            combat_info = f"ATK: {attack_display} | DEF: {defense_display}"
+            # Split combat stats for individual coloring
+            atk_text = f"ATK: {attack_display}"
+            def_text = f" | DEF: {defense_display}"
             
-            # Determine color based on bonuses
-            atk_color = 2 if unit.attack_bonus > 0 else (6 if unit.attack_bonus < 0 else 1)  # Green for bonus, red for penalty
+            # Determine colors based on bonuses and Estrange effect
+            atk_color = 2 if unit.attack_bonus > 0 else (6 if unit.attack_bonus < 0 or (hasattr(unit, 'estranged') and unit.estranged) else 1)  # Green for bonus, red for penalty or if estranged
+            def_color = 2 if unit.defense_bonus > 0 else (6 if unit.defense_bonus < 0 or (hasattr(unit, 'estranged') and unit.estranged) else 1)  # Green for bonus, red for penalty or if estranged
             
             # Draw with appropriate coloring
-            self.renderer.draw_text(info_line, len(type_info) + len(hp_info) + 6, combat_info, atk_color)
+            pos = len(type_info) + len(hp_info) + 6
+            self.renderer.draw_text(info_line, pos, atk_text, atk_color)
+            self.renderer.draw_text(info_line, pos + len(atk_text), def_text, def_color)
             
             # Draw movement stats
             effective_stats = unit.get_effective_stats()
@@ -584,17 +589,42 @@ class UIRenderer:
             move_part = f"MOVE: {effective_move}"
             range_part = f"RANGE: {effective_attack}"
             
-            # Calculate position for each part
-            move_pos = len(type_info) + len(hp_info) + len(combat_info) + 8
+            # Add a separator between DEF and MOVE stats
+            stats_separator = " | "
+            
+            # Calculate position for each part - use the combined length of atk_text and def_text + separator
+            move_pos = len(type_info) + len(hp_info) + len(atk_text) + len(def_text) + len(stats_separator) + 6
+            
+            # Draw the separator between DEF and MOVE
+            sep_pos = len(type_info) + len(hp_info) + len(atk_text) + len(def_text) + 6
+            self.renderer.draw_text(info_line, sep_pos, stats_separator, 1)
             range_pos = move_pos + len(move_part) + 3  # +3 for the " | " separator
             
-            # Determine if there's a movement penalty for display purposes
+            # Determine if there's a movement penalty or Estrange for display purposes
             move_color = 1  # Default color
             move_attr = 0   # Default attribute
-            if unit.move_range_bonus < 0:
+            if unit.move_range_bonus < 0 or (hasattr(unit, 'estranged') and unit.estranged):
                 # Show negative MOVE bonus in red to indicate penalty
                 move_color = 6  # Red for penalty
                 move_attr = curses.A_BOLD  # Make it bold for emphasis
+            elif unit.move_range_bonus > 0:
+                # Show positive MOVE bonus in green
+                move_color = 2  # Green for bonus
+            
+            # Determine range color based on estranged status
+            range_color = 1  # Default color
+            range_attr = 0   # Default attribute
+            if hasattr(unit, 'estranged') and unit.estranged:
+                # Show RANGE in red if affected by Estrange
+                range_color = 6  # Red for penalty
+                range_attr = curses.A_BOLD  # Make it bold for emphasis
+            elif unit.attack_range_bonus > 0:
+                # Show positive RANGE bonus in green
+                range_color = 2  # Green for bonus
+            elif unit.attack_range_bonus < 0:
+                # Show negative RANGE bonus in red
+                range_color = 6  # Red for penalty
+                range_attr = curses.A_BOLD  # Make it bold for emphasis
             
             # Draw MOVE part with appropriate color
             self.renderer.draw_text(info_line, move_pos, move_part, move_color, move_attr)
@@ -602,8 +632,8 @@ class UIRenderer:
             # Draw separator
             self.renderer.draw_text(info_line, move_pos + len(move_part), " | ", 1)
             
-            # Draw RANGE part with normal color (always)
-            self.renderer.draw_text(info_line, range_pos, range_part, 1)
+            # Draw RANGE part with appropriate color
+            self.renderer.draw_text(info_line, range_pos, range_part, range_color, range_attr)
         
         # Draw message with better visibility
         msg_line = HEIGHT+3

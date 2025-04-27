@@ -39,7 +39,7 @@ UNIT_SKILLS = {
         "passive": Stasiality(),
         "active": [DeltaConfigSkill(), EstrangeSkill(), GraeExchangeSkill()]
     },
-    "MARROW_CONDENSER": {
+    "MARROW_CONDENSER": {  # Displayed as "MARROW CONDENSER" in-game
         "passive": Dominion(),
         "active": [OssifySkill(), MarrowDikeSkill(), SloughSkill()]
     },

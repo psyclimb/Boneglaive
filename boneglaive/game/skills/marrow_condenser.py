@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Skills specific to the MARROW_CONDENSER unit type.
-This module contains all passive and active abilities for MARROW_CONDENSER units.
+Skills specific to the MARROW CONDENSER unit type.
+This module contains all passive and active abilities for MARROW CONDENSER units.
 """
 
 from typing import Optional, TYPE_CHECKING
@@ -18,8 +18,8 @@ if TYPE_CHECKING:
 
 class Dominion(PassiveSkill):
     """
-    Passive skill for MARROW_CONDENSER.
-    When a unit dies inside the MARROW_CONDENSER's Marrow Dike, he gains permanent
+    Passive skill for MARROW CONDENSER.
+    When a unit dies inside the MARROW CONDENSER's Marrow Dike, he gains permanent
     upgrades to his skills.
     """
     
@@ -27,7 +27,7 @@ class Dominion(PassiveSkill):
         super().__init__(
             name="Dominion",
             key="D",
-            description="When a unit dies inside of the MARROW_CONDENSER'S Marrow Dike, he gains permanent upgrades to his skills."
+            description="When a unit dies inside of the MARROW CONDENSER'S Marrow Dike, he gains permanent upgrades to his skills."
         )
         self.ossify_upgraded = False
         self.marrow_dike_upgraded = False
@@ -75,7 +75,7 @@ class Dominion(PassiveSkill):
 
 class OssifySkill(ActiveSkill):
     """
-    Active skill for MARROW_CONDENSER.
+    Active skill for MARROW CONDENSER.
     Temporarily compresses bone structure to become nearly impenetrable at the cost of mobility.
     When upgraded, the effect becomes permanent and movement is no longer reduced.
     """
@@ -191,7 +191,7 @@ class OssifySkill(ActiveSkill):
 
 class MarrowDikeSkill(ActiveSkill):
     """
-    Active skill for MARROW_CONDENSER.
+    Active skill for MARROW CONDENSER.
     Creates a wall of condensed bone marrow that blocks movement and attacks.
     When upgraded, the Marrow Dike is filled with blood plasma that heals allies.
     """
@@ -527,11 +527,11 @@ class MarrowDikeSkill(ActiveSkill):
 
 class SloughSkill(ActiveSkill):
     """
-    Active skill for MARROW_CONDENSER.
-    Heals allied units in a 3x3 area at the cost of the MARROW_CONDENSER's own health.
+    Active skill for MARROW CONDENSER.
+    Heals allied units in a 3x3 area at the cost of the MARROW CONDENSER's own health.
     
     When upgraded:
-    - No longer costs the MARROW_CONDENSER's health
+    - No longer costs the MARROW CONDENSER's health
     - Sloughs off positive stat bonuses to allies
     """
     

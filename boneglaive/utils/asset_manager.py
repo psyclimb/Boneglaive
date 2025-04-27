@@ -103,7 +103,7 @@ class AssetManager:
             'judgement': ['*', '+', 'x', 'X', '*', 'O', 'o', 'Θ', 'O', 'o', '*', '+'],  # Circular spinning Krull glaive animation
             'judgement_critical': ['*', '|', '/', '\\', 'I', '#', '*', '+', 'X', 'Φ', 'Σ', 'Ω'],  # Lightning striking the glaive at moment of critical impact
             'viseroy_trap': ['O', '{', 'Ξ', '#', '%', '&', 'Ξ'],  # Animation for Viseroy trap crushing effect
-            # MARROW_CONDENSER animations
+            # MARROW CONDENSER animations
             'marrow_condenser_attack': ['/', '|', '\\', '-', '8', '$', 'Ø', '#', '*'],  # Swinging and striking with bone chunks
             'ossify': ['#', '%', '@', '*', '+', '=', '&', '$', '#', '/', '\\', '|', '-', '.'],  # ASCII bone hardening animation
             'marrow_dike': ['╎', '╏', '┃', '┆', '┇', '┊', '┋', '#', '#'],  # Marrow wall forming - hash wall animation

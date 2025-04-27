@@ -28,7 +28,7 @@ class UnitType(Enum):
     MAGE = 2
     MANDIBLE_FOREMAN = 3  # This stays as MANDIBLE_FOREMAN in the enum (no spaces allowed)
     GRAYMAN = 4  # The Immutable Anomaly
-    MARROW_CONDENSER = 5  # The skeletal bone manipulator
+    MARROW_CONDENSER = 5  # The skeletal bone manipulator (displayed as MARROW CONDENSER)
     FOWL_CONTRIVANCE = 6  # The synchronized bird flock formation
 
 # Unit stats: (hp, attack, defense, move_range, attack_range)
