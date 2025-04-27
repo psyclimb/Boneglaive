@@ -473,7 +473,7 @@ class GraeExchangeSkill(ActiveSkill):
             # Get the animation sequence
             exchange_animation = ui.asset_manager.get_skill_animation_sequence('grae_exchange')
             if not exchange_animation:
-                exchange_animation = ['|', '/', '_', '*', 'ψ', 'Ψ']  # Fallback
+                exchange_animation = ['/', '_', '*', 'ψ', 'Ψ']  # Fallback
             
             # Play initial animation at user's position
             ui.renderer.animate_attack_sequence(

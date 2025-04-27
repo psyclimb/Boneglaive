@@ -115,7 +115,7 @@ class AssetManager:
             'teleport_out': ['Ψ', '░', '▒', '▓', ' '],  # Teleport out animation
             'teleport_in': [' ', '▓', '▒', '░', 'Ψ'],  # Teleport in animation
             'estrange': ['≡', '≢', '⋍', '≈', '~', '≈', '⋍', '≢', '≡'],  # Phasing effect
-            'grae_exchange': ['|', '/', '_', '*', 'ψ', 'Ψ'],  # Cane tapping and echo creation effect
+            'grae_exchange': ['/', '_', '*', 'ψ', 'Ψ'],  # Echo creation effect
             'marrow_healing': ['♥', '❤', '♡', '❤', '♥', '✚', '+', '*'],  # Blood plasma healing animation
             
             # FOWL_CONTRIVANCE animations - elaborate bird-themed animations
