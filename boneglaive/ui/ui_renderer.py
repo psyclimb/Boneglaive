@@ -319,6 +319,12 @@ class UIRenderer:
                                 enhanced_tile = f"{tile}O"  # Combine unit symbol with O for Ossify
                                 # Use green color to indicate positive status effect
                                 self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_BOLD)
+                            # Check if unit is affected by Bone Tithe defensive buff
+                            elif hasattr(unit, 'slough_def_duration') and unit.slough_def_duration > 0:
+                                # Add an asterisk symbol to show the unit has marrow coating from Bone Tithe
+                                enhanced_tile = f"{tile}*"  # Combine unit symbol with * for marrow coating
+                                # Use green color to indicate positive status effect
+                                self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_BOLD)
                             # Check if unit is affected by Jawline status effect
                             elif hasattr(unit, 'jawline_affected') and unit.jawline_affected:
                                 # Add uppercase Xi symbol to show the unit has Jawline status effect

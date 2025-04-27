@@ -911,7 +911,7 @@ class Game:
                     
                     # Log the expiration
                     message_log.add_message(
-                        f"Bone reinforcement protecting {unit.get_display_name()} has dissolved.",
+                        f"Protective marrow coating on {unit.get_display_name()} has dissolved.",
                         MessageType.ABILITY,
                         player=unit.player
                     )
