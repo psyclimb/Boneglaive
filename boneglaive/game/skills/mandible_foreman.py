@@ -1011,31 +1011,22 @@ class JawlineSkill(ActiveSkill):
                         # Check for critical health (wretching) using centralized logic
                         game.check_critical_health(target, user, previous_hp, ui)
                         
-                        # If not immune, apply Jawline effect
-                        if not target.is_immune_to_effects():
-                            target.jawline_affected = True
-                            target.jawline_duration = self.effect_duration
-                            # Store original move range to restore later
-                            target.jawline_original_move = target.move_range
-                            # Set a large negative bonus to reduce movement to 0
-                            # This ensures movement is 0 regardless of other bonuses
-                            target.move_range_bonus = -target.move_range
-                            
-                            message_log.add_message(
-                                f"{target.get_display_name()} is immobilized by the Jawline tether!",
-                                MessageType.ABILITY,
-                                player=user.player,
-                                target=target.player,
-                                target_name=target.get_display_name()
-                            )
-                        else:
-                            message_log.add_message(
-                                f"{target.get_display_name()} is immune to Jawline's movement penalty due to Stasiality!",
-                                MessageType.ABILITY,
-                                player=user.player,
-                                target=target.player,
-                                target_name=target.get_display_name()
-                            )
+                        # Always apply Jawline effect - treat as physical trap that affects all units
+                        target.jawline_affected = True
+                        target.jawline_duration = self.effect_duration
+                        # Store original move range to restore later
+                        target.jawline_original_move = target.move_range
+                        # Set a large negative bonus to reduce movement to 0
+                        # This ensures movement is 0 regardless of other bonuses
+                        target.move_range_bonus = -target.move_range
+                        
+                        message_log.add_message(
+                            f"{target.get_display_name()} is immobilized by the Jawline tether!",
+                            MessageType.ABILITY,
+                            player=user.player,
+                            target=target.player,
+                            target_name=target.get_display_name()
+                        )
             
             # Show damage numbers for all affected enemies
             for target, damage in affected_enemies:
@@ -1101,30 +1092,21 @@ class JawlineSkill(ActiveSkill):
                         # Check for critical health (wretching) using centralized logic
                         game.check_critical_health(target, user, previous_hp, ui)
                         
-                        # If not immune, apply Jawline effect
-                        if not target.is_immune_to_effects():
-                            target.jawline_affected = True
-                            target.jawline_duration = self.effect_duration
-                            # Store original move range to restore later
-                            target.jawline_original_move = target.move_range
-                            # Set a large negative bonus to reduce movement to 0
-                            # This ensures movement is 0 regardless of other bonuses
-                            target.move_range_bonus = -target.move_range
-                            
-                            message_log.add_message(
-                                f"{target.get_display_name()} is immobilized by the Jawline tether!",
-                                MessageType.ABILITY,
-                                player=user.player,
-                                target=target.player,
-                                target_name=target.get_display_name()
-                            )
-                        else:
-                            message_log.add_message(
-                                f"{target.get_display_name()} is immune to Jawline's movement penalty due to Stasiality!",
-                                MessageType.ABILITY,
-                                player=user.player,
-                                target=target.player,
-                                target_name=target.get_display_name()
-                            )
+                        # Always apply Jawline effect - treat as physical trap that affects all units
+                        target.jawline_affected = True
+                        target.jawline_duration = self.effect_duration
+                        # Store original move range to restore later
+                        target.jawline_original_move = target.move_range
+                        # Set a large negative bonus to reduce movement to 0
+                        # This ensures movement is 0 regardless of other bonuses
+                        target.move_range_bonus = -target.move_range
+                        
+                        message_log.add_message(
+                            f"{target.get_display_name()} is immobilized by the Jawline tether!",
+                            MessageType.ABILITY,
+                            player=user.player,
+                            target=target.player,
+                            target_name=target.get_display_name()
+                        )
         
         return True

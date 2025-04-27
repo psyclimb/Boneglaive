@@ -1961,28 +1961,64 @@ class Game:
             # No units affected
             return
             
-        # Log the explosion
+        # Log the explosion with a more dramatic message for the GRAYMAN echo
         message_log.add_message(
-            f"{echo_unit.get_display_name()} explodes, affecting {len(affected_units)} nearby unit(s)!",
-            MessageType.ABILITY,
+            f"{echo_unit.get_display_name()} collapses into a psychic void, tearing through spacetime!",
+            MessageType.WARNING,  # WARNING type for yellow text to match the explosion color
             player=echo_unit.player
         )
         
-        # Animation for explosion
+        # Follow up with the affected units information
+        if affected_units:
+            message_log.add_message(
+                f"The reality disruption affects {len(affected_units)} nearby unit(s)!",
+                MessageType.ABILITY,
+                player=echo_unit.player
+            )
+        
+        # Animation for echo explosion
         if ui and hasattr(ui, 'renderer'):
-            # Show explosion animation at echo position
-            explosion_animation = ['*', 'X', '#', '+', '.']
+            import time
+
+            # Center explosion animation at echo position
+            center_animation = ['Ψ', '*', 'O', '0', '~', 'Φ', '#', 'θ', '.']
             ui.renderer.animate_attack_sequence(
                 echo_unit.y, echo_unit.x,
-                explosion_animation,
-                7,  # Yellow/explosion color
-                0.1  # Duration
+                center_animation,
+                6,  # Yellow/explosion color
+                0.08  # Duration (slightly faster for more dramatic effect)
             )
             
-            # Redraw board after animation
+            # Get the 8 adjacent positions (cardinal and diagonal)
+            adjacent_positions = []
+            for dy in [-1, 0, 1]:
+                for dx in [-1, 0, 1]:
+                    if dy == 0 and dx == 0:  # Skip the center (already animated)
+                        continue
+                    
+                    new_y, new_x = echo_unit.y + dy, echo_unit.x + dx
+                    # Only include positions that are valid (on the board)
+                    if self.is_valid_position(new_y, new_x):
+                        adjacent_positions.append((new_y, new_x))
+            
+            # Secondary explosion animation for surrounding tiles
+            # Shorter animation sequence for surrounding tiles
+            ripple_animation = ['·', ':', '°']
+            
+            # Animate all adjacent tiles
+            for pos in adjacent_positions:
+                ui.renderer.animate_attack_sequence(
+                    pos[0], pos[1],
+                    ripple_animation,
+                    6,  # Same yellow/explosion color
+                    0.04  # Faster animation for ripple effect
+                )
+            
+            # Redraw board after all animations
             if hasattr(ui, 'draw_board'):
                 ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-                time.sleep(0.2)  # Short pause after explosion
+                if hasattr(time, 'sleep'):
+                    time.sleep(0.2)  # Short pause after explosion
             
         # Apply damage to affected units
         for unit in affected_units:
@@ -2008,9 +2044,25 @@ class Game:
                 target_player=unit.player
             )
             
-            # Show damage number for explosion if UI is available
+            # Show impact effects and damage number for explosion if UI is available
             if ui and hasattr(ui, 'renderer'):
                 import curses
+                
+                # First, show an impact effect on the unit before showing damage
+                if hasattr(ui, 'asset_manager'):
+                    # Get the unit tile
+                    unit_tile = ui.asset_manager.get_unit_tile(unit.type)
+                    
+                    # Flash the unit with alternating colors to show impact
+                    for i in range(2):
+                        # Use alternating colors (yellow and white) to show impact
+                        color = 6 if i % 2 == 0 else 7  # 6:yellow, 7:white
+                        ui.renderer.draw_tile(unit.y, unit.x, unit_tile, color, curses.A_BOLD)
+                        ui.renderer.refresh()
+                        if hasattr(time, 'sleep'):
+                            time.sleep(0.1)
+                
+                # Show the damage text with flashing effect
                 damage_text = f"-{damage}"
                 
                 # Make damage text more prominent with flashing effect

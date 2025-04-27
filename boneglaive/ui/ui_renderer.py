@@ -229,13 +229,8 @@ class UIRenderer:
                         tile = self.game_ui.asset_manager.get_unit_tile(unit.type)
                         color_id = 3 if unit.player == 1 else 4
                         
-                        # Check for GRAYMAN with teleport queued
-                        if unit.type == UnitType.GRAYMAN and hasattr(unit, 'teleport_target_indicator') and unit.teleport_target_indicator is not None:
-                            # Check if it's Delta Config or Grae Exchange
-                            if unit.selected_skill and unit.selected_skill.name == "Græ Exchange":
-                                # Use a | symbol for Grae Exchange
-                                tile = f"{tile}|"
-                            # No special symbol for Delta Config
+                        # No special symbol for GRAYMAN skills
+                        # (Previously showed | for Græ Exchange, but this was removed)
                             
                         # Check for echo units (priority over estranged)
                         if hasattr(unit, 'is_echo') and unit.is_echo:
@@ -320,8 +315,8 @@ class UIRenderer:
                                 self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_BOLD)
                             # Check if unit is affected by Jawline status effect
                             elif hasattr(unit, 'jawline_affected') and unit.jawline_affected:
-                                # Add lowercase xi symbol to show the unit has Jawline status effect
-                                enhanced_tile = f"{tile}ξ"  # Combine unit symbol with lowercase xi (resembles mechanical jaws)
+                                # Add uppercase Xi symbol to show the unit has Jawline status effect
+                                enhanced_tile = f"{tile}Ξ"  # Combine unit symbol with uppercase Xi (resembles mechanical jaws)
                                 # Use red color with dim attribute to indicate negative status effect
                                 self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_DIM)
                             # Check if unit is affected by estranged status effect
