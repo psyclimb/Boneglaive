@@ -110,6 +110,11 @@ class OssifySkill(ActiveSkill):
         user.skill_target = (user.y, user.x)
         user.selected_skill = self
         
+        # Increment action timestamp for proper skill order
+        if hasattr(user, 'action_timestamp') and user.action_timestamp == 0:
+            from boneglaive.utils.debug import logger
+            logger.debug(f"Setting action timestamp for {user.get_display_name()}'s Ossify skill")
+        
         # Log that the skill has been queued
         message_log.add_message(
             f"{user.get_display_name()} prepares to ossify their bones!",
@@ -268,6 +273,11 @@ class MarrowDikeSkill(ActiveSkill):
             
         user.skill_target = target_pos
         user.selected_skill = self
+        
+        # Increment action timestamp for proper skill order
+        if hasattr(user, 'action_timestamp') and user.action_timestamp == 0:
+            from boneglaive.utils.debug import logger
+            logger.debug(f"Setting action timestamp for {user.get_display_name()}'s Marrow Dike skill")
         
         # Log that the skill has been queued
         message_log.add_message(
@@ -605,6 +615,11 @@ class SloughSkill(ActiveSkill):
             
         user.skill_target = target_pos
         user.selected_skill = self
+        
+        # Increment action timestamp for proper skill order
+        if hasattr(user, 'action_timestamp') and user.action_timestamp == 0:
+            from boneglaive.utils.debug import logger
+            logger.debug(f"Setting action timestamp for {user.get_display_name()}'s Marrow Dike skill")
         
         # Log that the skill has been queued
         message_log.add_message(

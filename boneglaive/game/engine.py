@@ -1103,7 +1103,9 @@ class Game:
                 units_with_actions.append(unit)
         
         # Sort units by action timestamp (lower numbers = earlier actions)
-        units_with_actions.sort(key=lambda unit: unit.action_timestamp)
+        # If timestamps are equal, sort by random order to avoid MARROW_CONDENSER always going first
+        import random
+        units_with_actions.sort(key=lambda unit: (unit.action_timestamp, random.random()))
         
         logger.info(f"Executing {len(units_with_actions)} actions in timestamp order")
         
