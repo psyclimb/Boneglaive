@@ -171,6 +171,8 @@ class DischargeSkill(ActiveSkill):
         """Execute the Expedite skill."""
         from boneglaive.utils.message_log import message_log, MessageType
         import time
+        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+
         import curses
         
         # Clear the expedite path indicator
@@ -291,7 +293,7 @@ class DischargeSkill(ActiveSkill):
                             attrs = curses.A_BOLD if i % 2 == 0 else 0
                             ui.renderer.draw_text(enemy_pos[0]-1, enemy_pos[1]*2, damage_text, 7, attrs)
                             ui.renderer.refresh()
-                            time.sleep(0.1)
+                            sleep_with_animation_speed(0.1)
                     
                     # Check if enemy was defeated
                     if enemy_hit.hp <= 0:
@@ -375,7 +377,7 @@ class DischargeSkill(ActiveSkill):
                 
                 # If not at the last position, restore terrain at current position before moving
                 if anim_frame < len(animation_positions) - 1:
-                    time.sleep(0.05)  # Control animation speed
+                    sleep_with_animation_speed(0.05)  # Control animation speed
                     
                     # Restore the proper terrain tile instead of showing a blank space
                     terrain_type = game.map.get_terrain_at(current_y, current_x)
@@ -460,7 +462,7 @@ class DischargeSkill(ActiveSkill):
                         attrs = curses.A_BOLD if i % 2 == 0 else 0
                         ui.renderer.draw_text(enemy_pos[0]-1, enemy_pos[1]*2, damage_text, 7, attrs)
                         ui.renderer.refresh()
-                        time.sleep(0.1)
+                        sleep_with_animation_speed(0.1)
                 
                 # Check if enemy was defeated
                 if enemy_hit.hp <= 0:
@@ -637,6 +639,8 @@ class SiteInspectionSkill(ActiveSkill):
         """Execute the Site Inspection skill."""
         from boneglaive.utils.message_log import message_log, MessageType
         import time
+        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+
         
         # Clear the site inspection indicator after execution
         user.site_inspection_indicator = None
@@ -727,7 +731,7 @@ class SiteInspectionSkill(ActiveSkill):
                     ui.renderer.draw_tile(y + 1, x + 1, '┘', 3 if user.player == 1 else 4)
                     
                 ui.renderer.refresh()
-                time.sleep(0.2)
+                sleep_with_animation_speed(0.2)
                 
                 # Clear outline (replace with spaces)
                 for dy in [-1, 0, 1]:
@@ -738,7 +742,7 @@ class SiteInspectionSkill(ActiveSkill):
                             ui.renderer.draw_tile(y + dy, x + dx, ' ', 3 if user.player == 1 else 4)
                             
                 ui.renderer.refresh()
-                time.sleep(0.1)
+                sleep_with_animation_speed(0.1)
             
             # Only apply buffs if NO impassable terrain was found in the inspection area
             if not has_impassable_terrain:
@@ -795,7 +799,7 @@ class SiteInspectionSkill(ActiveSkill):
                                     # Display effect symbol above ally
                                     ui.renderer.draw_text(ally.y-1, ally.x*2, "+1", 2)  # Green text
                                     ui.renderer.refresh()
-                                    time.sleep(0.3)
+                                    sleep_with_animation_speed(0.3)
                                     
                                     # Clear effect symbol
                                     ui.renderer.draw_text(ally.y-1, ally.x*2, "  ", 7)
@@ -889,6 +893,8 @@ class JawlineSkill(ActiveSkill):
         """Execute the Jawline skill to deploy a network of mechanical jaws."""
         from boneglaive.utils.message_log import message_log, MessageType
         import time
+        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+
         import curses
         
         # Update target position if unit has moved (due to move being executed before skill)
@@ -957,7 +963,7 @@ class JawlineSkill(ActiveSkill):
                     ui.renderer.draw_tile(y, x, ripple_char, 7)  # White color, matching MANDIBLE_FOREMAN's attack animation
                     
                 ui.renderer.refresh()
-                time.sleep(0.1)
+                sleep_with_animation_speed(0.1)
             
             # Now activate each surrounding position with a trap animation
             affected_enemies = []
@@ -1047,7 +1053,7 @@ class JawlineSkill(ActiveSkill):
                     attrs = curses.A_BOLD if i % 2 == 0 else 0
                     ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, attrs)
                     ui.renderer.refresh()
-                    time.sleep(0.1)
+                    sleep_with_animation_speed(0.1)
             
             # Redraw board after all animations
             if hasattr(ui, 'draw_board'):

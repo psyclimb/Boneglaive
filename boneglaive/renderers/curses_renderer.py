@@ -5,6 +5,8 @@ Curses-based renderer implementation.
 
 import curses
 import time
+from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+
 import os
 from typing import Dict, List, Optional, Tuple
 
@@ -197,6 +199,12 @@ class CursesRenderer(RenderInterface):
         """Animate a projectile from start to end position."""
         from boneglaive.game.animations import get_line
         
+        # Apply the global animation speed multiplier from config
+        from boneglaive.utils.config import ConfigManager
+        config = ConfigManager()
+        animation_speed = config.get('animation_speed', 1.0)
+        adjusted_duration = duration / animation_speed if animation_speed > 0 else duration
+        
         # Get path from start to end
         start_y, start_x = start_pos
         end_y, end_x = end_pos
@@ -233,7 +241,7 @@ class CursesRenderer(RenderInterface):
                 # Draw the projectile
                 self.draw_tile(pos_y, pos_x, tile_id, color_id)
                 self.refresh()
-                time.sleep(duration / len(path))
+                sleep_with_animation_speed(adjusted_duration / len(path))
         
         # No need to restore tiles as the next full redraw will handle it
     
@@ -242,12 +250,20 @@ class CursesRenderer(RenderInterface):
         """Flash a tile with different characters and colors in sequence."""
         # Save the original tile to restore later (not actually implemented)
         
+        # Apply the global animation speed multiplier from config
+        from boneglaive.utils.config import ConfigManager
+        config = ConfigManager()
+        animation_speed = config.get('animation_speed', 1.0)
+        
         # Flash sequence
         for i in range(len(tile_ids)):
+            # Adjust duration using animation speed
+            adjusted_duration = durations[i] / animation_speed if animation_speed > 0 else durations[i]
+            
             # Each flash is a separate buffer update
             self.draw_tile(y, x, tile_ids[i], color_ids[i])
             self.refresh()
-            time.sleep(durations[i])
+            sleep_with_animation_speed(adjusted_duration)
             
         # No need to restore tile as the next full redraw will handle it
         
@@ -263,14 +279,20 @@ class CursesRenderer(RenderInterface):
         """
         if not sequence:
             return
+        
+        # Apply the global animation speed multiplier from config
+        from boneglaive.utils.config import ConfigManager
+        config = ConfigManager()
+        animation_speed = config.get('animation_speed', 1.0)
+        adjusted_duration = duration / animation_speed if animation_speed > 0 else duration
             
         # Calculate time per frame
-        frame_duration = duration / len(sequence)
+        frame_duration = adjusted_duration / len(sequence)
         
         # Show each frame in sequence
         for frame in sequence:
             self.draw_tile(y, x, frame, color_id)
             self.refresh()
-            time.sleep(frame_duration)
+            sleep_with_animation_speed(frame_duration)
             
         # No need to restore tile as the next full redraw will handle it
