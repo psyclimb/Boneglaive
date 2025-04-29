@@ -729,40 +729,13 @@ class Game:
                 # Increment kill counter
                 passive.kills += 1
                 
-                # Apply different stat bonuses based on kill count
-                if passive.kills == 1:
-                    # First kill: +6 HP, +1 ATK, +1 DEF - brings unit to par with other units
-                    killer_unit.max_hp += 6
-                    killer_unit.hp += 6  # Also heal up with the bonus
-                    killer_unit.attack_bonus += 1
-                    killer_unit.defense_bonus += 1
-                    
-                    upgrade_message = f"DOMINION: {killer_unit.get_display_name()} absorbs its first kill! HP+6, ATK+1, DEF+1"
-                    
-                elif passive.kills == 2:
-                    # Second kill: +4 HP, +1 ATK, +1 DEF - makes unit very strong
-                    killer_unit.max_hp += 4
-                    killer_unit.hp += 4
-                    killer_unit.attack_bonus += 1
-                    killer_unit.defense_bonus += 1
-                    
-                    upgrade_message = f"DOMINION: {killer_unit.get_display_name()} grows stronger with its second kill! HP+4, ATK+1, DEF+1"
-                    
-                elif passive.kills == 3:
-                    # Third kill: +5 HP, +2 ATK, +1 DEF - makes unit dominant
-                    killer_unit.max_hp += 5
-                    killer_unit.hp += 5
-                    killer_unit.attack_bonus += 2
-                    killer_unit.defense_bonus += 1
-                    
-                    upgrade_message = f"DOMINION: {killer_unit.get_display_name()} reaches its final form! HP+5, ATK+2, DEF+1"
+                # Apply flat stat bonuses for each kill
+                # Each kill gives +1 to attack, defense, and movement
+                killer_unit.attack_bonus += 1
+                killer_unit.defense_bonus += 1
+                killer_unit.move_range_bonus += 1
                 
-                else:
-                    # Beyond 3 kills: +2 HP
-                    killer_unit.max_hp += 2
-                    killer_unit.hp += 2
-                    
-                    upgrade_message = f"DOMINION: {killer_unit.get_display_name()} continues to grow! HP+2"
+                upgrade_message = f"DOMINION: {killer_unit.get_display_name()} absorbs power from kill #{passive.kills}! ATK+1, DEF+1, MOVE+1"
                 
                 # Add to message log
                 message_log.add_message(
@@ -776,11 +749,24 @@ class Game:
                 # Log to debug as well
                 logger.info(upgrade_message)
         
-        # Process skill upgrades if died in a Marrow Dike (independent of kills)
+        # Process skill upgrades and stat bonuses if died in a Marrow Dike (independent of kills)
         if in_marrow_dike and dike_owner:
             # Verify the owner is a MARROW_CONDENSER
             if dike_owner.type == UnitType.MARROW_CONDENSER and hasattr(dike_owner, 'passive_skill'):
                 passive = dike_owner.passive_skill
+                
+                # Apply the same flat stat bonuses as given for kills
+                dike_owner.attack_bonus += 1
+                dike_owner.defense_bonus += 1
+                dike_owner.move_range_bonus += 1
+                
+                # Add stat bonus message
+                message_log.add_message(
+                    f"DOMINION: {dike_owner.get_display_name()} absorbs power from death in Marrow Dike! ATK+1, DEF+1, MOVE+1",
+                    MessageType.ABILITY,
+                    player=dike_owner.player,
+                    attacker_name=dike_owner.get_display_name()
+                )
                 
                 # Check if it's Dominion and can upgrade skills
                 if passive.name == "Dominion" and passive.can_upgrade():
