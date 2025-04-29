@@ -916,6 +916,10 @@ class Game:
             if not unit.is_alive() or unit.player != self.current_player:
                 continue
                 
+            # Process Pry movement penalty effect
+            if hasattr(unit, 'pry_duration') and unit.pry_duration > 0:
+                logger.debug(f"Processing Pry effect for {unit.get_display_name()}, duration: {unit.pry_duration}")
+                
             # Check if unit is inside an upgraded Marrow Dike (Osseous Prison)
             if hasattr(self, 'marrow_dike_interior'):
                 unit_pos = (unit.y, unit.x)
