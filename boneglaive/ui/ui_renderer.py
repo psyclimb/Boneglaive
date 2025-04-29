@@ -331,6 +331,12 @@ class UIRenderer:
                                 enhanced_tile = f"{tile}Ξ"  # Combine unit symbol with uppercase Xi (resembles mechanical jaws)
                                 # Use red color with dim attribute to indicate negative status effect
                                 self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_DIM)
+                            # Check if unit is affected by Pry movement penalty
+                            elif (hasattr(unit, 'pry_duration') and unit.pry_duration > 0) or (hasattr(unit, 'pry_active') and unit.pry_active) or (unit.was_pried and unit.move_range_bonus < 0):
+                                # Add a slash to show movement reduction from Pry
+                                enhanced_tile = f"{tile}/"  # Combine unit symbol with slash (represents glaive that pried)
+                                # Retain the unit's original color instead of changing to red
+                                self.renderer.draw_tile(y, x, enhanced_tile, color_id, 0)  # Original color without special attributes
                             # Check if unit is affected by estranged status effect
                             elif hasattr(unit, 'estranged') and unit.estranged:
                                 # Add tilde symbol to show the unit has estranged status effect

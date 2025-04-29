@@ -12,6 +12,7 @@ from typing import Optional, TYPE_CHECKING
 
 from boneglaive.game.skills.core import PassiveSkill, ActiveSkill, TargetType
 from boneglaive.utils.message_log import message_log, MessageType
+from boneglaive.utils.debug import logger
 
 if TYPE_CHECKING:
     from boneglaive.game.units import Unit
@@ -679,6 +680,16 @@ class PrySkill(ActiveSkill):
             # Apply movement reduction effect to primary target
             target.move_range_bonus = -1
             target.was_pried = True  # Mark the unit as affected by Pry
+            
+            # Add a duration property for UI status display - use 2 for clearer visibility
+            # This will count down once at end of turn and still remain visible next turn
+            target.pry_duration = 2  # Will last until the end of next turn
+            
+            # Add a debug message
+            logger.info(f"Applied Pry effect to {target.get_display_name()} with duration {target.pry_duration}")
+            
+            # Ensure the unit has a boolean flag that's easier to check in the UI
+            target.pry_active = True
             
             # Log the movement reduction
             message_log.add_message(

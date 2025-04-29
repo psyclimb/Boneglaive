@@ -365,8 +365,28 @@ class Unit:
         # NOTE: Jawline duration is now decremented in Game.execute_turn
         # to ensure it only happens on the player's own turn
         
-        # Reset the was_pried flag
-        self.was_pried = False
+        # Reset the Pry status effect - with debug logging
+        if hasattr(self, 'pry_duration') and self.pry_duration > 0:
+            # Log the current state
+            from boneglaive.utils.debug import logger
+            logger.info(f"Pry status for {self.get_display_name()}: duration={self.pry_duration}, active={getattr(self, 'pry_active', False)}, was_pried={self.was_pried}")
+            
+            # Decrement the duration
+            self.pry_duration -= 1
+            
+            # If duration expired, clear the effect
+            if self.pry_duration <= 0:
+                logger.info(f"Clearing Pry effect for {self.get_display_name()}")
+                self.was_pried = False
+                self.pry_active = False
+                if hasattr(self, 'pry_duration'):
+                    delattr(self, 'pry_duration')
+            
+        # For backward compatibility - reset was_pried if no duration
+        elif self.was_pried:
+            self.was_pried = False
+            if hasattr(self, 'pry_active'):
+                self.pry_active = False
         
     def get_skill_by_key(self, key: str) -> Optional:
         """Get an active skill by its key (for UI selection)."""
