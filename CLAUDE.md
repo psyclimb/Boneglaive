@@ -2,15 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Commands
-
-- Run game: `python -m boneglaive.main`
-- Run with debug: `python -m boneglaive.main --debug --log-file --overlay`
-- Run tests: N/A (use test mode inside the game with 't' key)
-- Debug: 
-  - Basic: Use 'd' key inside game to show unit positions
-  - Advanced: Use 'D' key to toggle debug mode, 'O' for overlay, 'P' for performance tracking
-
 ## Code Style Guidelines
 
 - Indentation: 4 spaces
@@ -183,11 +174,10 @@ boneglaive/
 
 ## Versioning
 
-- Project is currently in conceptualization/POC stage
-- Use descriptive commit messages to track development phases
-- Consider semantic versioning (MAJOR.MINOR.PATCH) only after core gameplay is stable
-- Focus on experimental features and rapid iteration
-- Document significant design decisions in comments
+- The core of the game is now stable.  No more major refactors of the code.
+- Use descriptive commit messages to track development phases.
+- Implement semantic versioning (MAJOR.MINOR.PATCH).
+- Document significant design decisions in comments.
 
 ## Token Optimization
 
@@ -221,7 +211,7 @@ When working with large files that exceed context window limits:
 - For engine.py: analyze one game system at a time (movement, combat, etc.)
 - Follow inheritance chains when analyzing unit/skill relationships
 
-### Pattern Recognition
+### pattern Recognition
 - Skills follow a consistent pattern in their methods: `__init__`, `can_use`, `use`, `execute`
 - Units initialize skills through specific patterns that can be traced
 - Game state flows through predictable paths in the engine
@@ -257,16 +247,16 @@ When working with large files that exceed context window limits:
   ```
   git log -n 1
   ```
-- On resuming, start with a quick reference to CLAUDE.md to restore context
+- On resuming, start with a quick reference to CLAUDE.md to restore context.
 - Include these elements in the first message after /compact:
-  1. The specific feature or issue being worked on
-  2. Key files relevant to the current task (1-3 most important ones)
-  3. Any immediate next steps planned before the /compact
-- Avoid lengthy explanations of what was done before - stay focused on next steps
-- Use action-oriented language: "We need to implement X" rather than "We were working on X"
-- For complex topics, reference specific sections in CLAUDE.md rather than re-explaining
-- If picking up a refactoring task, mention only the specific files still needing attention
-- Keep task descriptions concise and targeted - prefer bullet points over paragraphs
-- Avoid full file exploration when a directed search can locate relevant code sections
-- Keep responses brief and to the point unless asked to elaborate
-- Prefer single-sentence answers when possible and appropriate
+  1. The specific feature or issue being worked on.
+  2. Key files relevant to the current task (1-3 most important ones).
+  3. Any immediate next steps planned before the /compact.
+- Avoid lengthy explanations of what was done before - stay focused on next steps.
+- Use action-oriented language: "We need to implement X" rather than "We were working on X".
+- For complex topics, reference specific sections in CLAUDE.md rather than re-explaining.
+- If picking up a refactoring task, mention only the specific files still needing attention.
+- Keep task descriptions concise and targeted - prefer bullet points over paragraphs.
+- Avoid full file exploration when a directed search can locate relevant code sections.
+- Keep responses brief and to the point unless asked to elaborate.
+- Prefer single-sentence answers when possible and appropriate.

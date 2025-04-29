@@ -1439,7 +1439,7 @@ class JawlineSkill(ActiveSkill):
         # Simple implementation for minimal functionality
         from boneglaive.utils.message_log import message_log, MessageType
         message_log.add_message(
-            f"{user.get_display_name()} deploys JAWLINE network!",
+            f"{user.get_display_name()} deploys a Jawline network!",
             MessageType.ABILITY,
             player=user.player
         )
