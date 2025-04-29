@@ -723,7 +723,7 @@ class SloughSkill(ActiveSkill):
             user.hp += hp_gained
             
             message_log.add_message(
-                f"{user.get_display_name()} absorbs the marrow tithe, gaining {hp_gained} max HP!",
+                f"{user.get_display_name()} compacts bone marrow into himself, gaining {hp_gained} max HP!",
                 MessageType.ABILITY,
                 player=user.player
             )
