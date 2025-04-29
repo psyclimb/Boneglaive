@@ -6,6 +6,8 @@ This module contains all passive and active abilities for GLAIVEMAN units.
 
 import curses
 import time
+from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+
 from typing import Optional, TYPE_CHECKING
 
 from boneglaive.game.skills.core import PassiveSkill, ActiveSkill, TargetType
@@ -114,6 +116,7 @@ class Autoclave(PassiveSkill):
         from boneglaive.utils.debug import logger
         import time
         import curses
+        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
         
         logger.debug(f"EXECUTING AUTOCLAVE for {user.get_display_name()}")
         
@@ -148,7 +151,7 @@ class Autoclave(PassiveSkill):
                 7,  # color ID
                 0.5  # longer duration for dramatic effect
             )
-            time.sleep(0.2)  # Small pause before the cross-attack
+            sleep_with_animation_speed(0.2)  # Small pause before the cross-attack
         
         # Check each direction up to range 3 and store valid target info
         targets_by_direction = {}
@@ -206,12 +209,12 @@ class Autoclave(PassiveSkill):
                             attrs = curses.A_BOLD if i % 2 == 0 else 0
                             ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, attrs)
                             ui.renderer.refresh()
-                            time.sleep(0.1)
+                            sleep_with_animation_speed(0.1)
                         
                         # Final damage display (stays visible a bit longer)
                         ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, curses.A_BOLD)
                         ui.renderer.refresh()
-                        time.sleep(0.2)
+                        sleep_with_animation_speed(0.2)
                     
                     # Check if target was defeated
                     if target.hp <= 0:
@@ -241,7 +244,7 @@ class Autoclave(PassiveSkill):
                         7,  # color ID (white)
                         0.1  # quick but visible
                     )
-                time.sleep(0.1)  # Small pause between directions
+                sleep_with_animation_speed(0.1)  # Small pause between directions
                 
             # Redraw board after animations
             if hasattr(ui, 'draw_board'):
@@ -283,7 +286,7 @@ class Autoclave(PassiveSkill):
                         attrs = curses.A_BOLD if i % 2 == 0 else 0
                         ui.renderer.draw_text(user.y-1, user.x*2, healing_text, 2, attrs)
                         ui.renderer.refresh()
-                        time.sleep(0.1)
+                        sleep_with_animation_speed(0.1)
 
 
 class PrySkill(ActiveSkill):
@@ -386,6 +389,8 @@ class PrySkill(ActiveSkill):
         """
         from boneglaive.utils.message_log import message_log, MessageType
         import time
+        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+
         import curses
         
         # Get target unit (might have moved)
@@ -467,7 +472,7 @@ class PrySkill(ActiveSkill):
                     for char in extension_chars:
                         ui.renderer.draw_tile(mid_y, mid_x, char, 7)
                         ui.renderer.refresh()
-                        time.sleep(0.1)
+                        sleep_with_animation_speed(0.1)
                 
                 # Finally show the impact at target position with the last part of the animation
                 ui.renderer.animate_attack_sequence(
@@ -477,7 +482,7 @@ class PrySkill(ActiveSkill):
                     0.2  # duration
                 )
             
-            time.sleep(0.1)  # Small pause before launch
+            sleep_with_animation_speed(0.1)  # Small pause before launch
             
             # Now animate the target being launched upward - ONLY on the target's position
             launch_sequence = ui.asset_manager.get_skill_animation_sequence('pry_launch')
@@ -500,7 +505,7 @@ class PrySkill(ActiveSkill):
             
             # Redraw to show target has "disappeared"
             ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-            time.sleep(0.3)  # Pause while target is "in the ceiling"
+            sleep_with_animation_speed(0.3)  # Pause while target is "in the ceiling"
             
             # Return target to original position for the impact
             target.y, target.x = temp_y, temp_x
@@ -634,7 +639,7 @@ class PrySkill(ActiveSkill):
                     attrs = curses.A_BOLD if i % 2 == 0 else 0
                     ui.renderer.draw_text(adjacent_unit.y-1, adjacent_unit.x*2, damage_text, 7, attrs)
                     ui.renderer.refresh()
-                    time.sleep(0.1)
+                    sleep_with_animation_speed(0.1)
                 
                 # Flash the adjacent unit to show it was hit with debris
                 if hasattr(ui, 'asset_manager'):
@@ -655,12 +660,12 @@ class PrySkill(ActiveSkill):
                 attrs = curses.A_BOLD if i % 2 == 0 else 0
                 ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, attrs)
                 ui.renderer.refresh()
-                time.sleep(0.1)
+                sleep_with_animation_speed(0.1)
             
             # Final damage display (stays on screen slightly longer)
             ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, curses.A_BOLD)
             ui.renderer.refresh()
-            time.sleep(0.2)
+            sleep_with_animation_speed(0.2)
         
         # Check if primary target is immune to the movement penalty effect
         if target.is_immune_to_effects():
@@ -777,6 +782,8 @@ class VaultSkill(ActiveSkill):
         """Execute the Vault skill to leap over obstacles to a target position."""
         from boneglaive.utils.message_log import message_log, MessageType
         import time
+        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+
         
         # Clear the vault target indicator after execution
         user.vault_target_indicator = None
@@ -866,7 +873,7 @@ class VaultSkill(ActiveSkill):
                     char = arc_chars[i] if i < len(arc_chars) else '⋅'
                     ui.renderer.draw_tile(pos.y, pos.x, char, 7)  # White color
                     ui.renderer.refresh()
-                    time.sleep(0.08)
+                    sleep_with_animation_speed(0.08)
                     
                     # Restore proper terrain after animation frame
                     if i < len(terrain_info):
@@ -1006,6 +1013,8 @@ class JudgementSkill(ActiveSkill):
         """Execute the Judgement skill to deliver divine judgment via a sacred spinning glaive."""
         from boneglaive.utils.message_log import message_log, MessageType
         import time
+        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+
         import curses
         
         # Get target unit
@@ -1040,14 +1049,14 @@ class JudgementSkill(ActiveSkill):
             # Show a wind-up animation at user position first (first frame)
             ui.renderer.draw_tile(user.y, user.x, throw_animation[0], 7)  # White color
             ui.renderer.refresh()
-            time.sleep(0.15)
+            sleep_with_animation_speed(0.15)
             
             # Show the throw motion (next two frames)
             for i in range(1, 3):
                 if i < len(throw_animation):
                     ui.renderer.draw_tile(user.y, user.x, throw_animation[i], 7)
                     ui.renderer.refresh()
-                    time.sleep(0.1)
+                    sleep_with_animation_speed(0.1)
             
             # Animate the glaive moving along the path
             # Skip first (user) position in the path
@@ -1068,7 +1077,7 @@ class JudgementSkill(ActiveSkill):
                     prev_pos = path[i]  # Get previous position
                     ui.renderer.draw_tile(prev_pos.y, prev_pos.x, ' ', 7)
                 
-                time.sleep(0.08)  # Fast travel for the glaive
+                sleep_with_animation_speed(0.08)  # Fast travel for the glaive
                 
                 # If we've reached the target, stop
                 if pos.y == target.y and pos.x == target.x:
@@ -1107,7 +1116,7 @@ class JudgementSkill(ActiveSkill):
                         6,  # Yellowish color for first pass
                         0.12  # duration
                     )
-                    time.sleep(0.05)  # Brief pause between iterations
+                    sleep_with_animation_speed(0.05)  # Brief pause between iterations
             else:
                 # Regular critical animation for normal targets
                 ui.renderer.animate_attack_sequence(
@@ -1171,7 +1180,7 @@ class JudgementSkill(ActiveSkill):
                 attrs = curses.A_BOLD if i % 2 == 0 else 0
                 ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, attrs)
                 ui.renderer.refresh()
-                time.sleep(0.1)
+                sleep_with_animation_speed(0.1)
         
         # Check if target was defeated
         if target.hp <= 0:

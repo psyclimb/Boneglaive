@@ -87,6 +87,8 @@ class DeltaConfigSkill(ActiveSkill):
         """Execute the Delta Config teleportation skill."""
         from boneglaive.utils.message_log import message_log, MessageType
         import time
+        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+
         
         # Clear the teleport target indicator after execution
         user.teleport_target_indicator = None
@@ -130,13 +132,13 @@ class DeltaConfigSkill(ActiveSkill):
                 ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
                 
             # Brief pause for effect
-            time.sleep(0.3)
+            sleep_with_animation_speed(0.3)
             
             # Brief pre-teleport effect at destination
             # Just a single flash to indicate where teleport will occur
             ui.renderer.draw_tile(target_pos[0], target_pos[1], '*', 6)  # yellowish color star
             ui.renderer.refresh()
-            time.sleep(0.1)
+            sleep_with_animation_speed(0.1)
             
             # Play teleport in animation at target position
             ui.renderer.animate_attack_sequence(
@@ -221,6 +223,8 @@ class EstrangeSkill(ActiveSkill):
         """Execute the Estrange skill to phase a target out of normal spacetime."""
         from boneglaive.utils.message_log import message_log, MessageType
         import time
+        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+
         import curses
         
         # Get target unit
@@ -262,7 +266,7 @@ class EstrangeSkill(ActiveSkill):
                 beam_frame = estrange_animation[3 % len(estrange_animation)]
                 ui.renderer.draw_tile(pos.y, pos.x, beam_frame, 6)
                 ui.renderer.refresh()
-                time.sleep(0.05)
+                sleep_with_animation_speed(0.05)
             
             # Show impact at target position
             ui.renderer.animate_attack_sequence(
@@ -312,7 +316,7 @@ class EstrangeSkill(ActiveSkill):
                 attrs = curses.A_BOLD if i % 2 == 0 else 0
                 ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, attrs)
                 ui.renderer.refresh()
-                time.sleep(0.1)
+                sleep_with_animation_speed(0.1)
         
         # Apply estranged effect if not immune
         if not target.is_immune_to_effects():
@@ -352,7 +356,7 @@ class EstrangeSkill(ActiveSkill):
                         curses.A_DIM  # Dim attribute for negative status effect
                     )
                     ui.renderer.refresh()
-                    time.sleep(0.3)
+                    sleep_with_animation_speed(0.3)
         else:
             message_log.add_message(
                 f"{target.get_display_name()} is immune to Estrange due to Stasiality!",
@@ -454,6 +458,8 @@ class GraeExchangeSkill(ActiveSkill):
         from boneglaive.utils.message_log import message_log, MessageType
         from boneglaive.utils.debug import logger
         import time
+        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+
         
         # Clear the teleport target indicator after execution
         user.teleport_target_indicator = None
@@ -539,7 +545,7 @@ class GraeExchangeSkill(ActiveSkill):
                 ui.renderer.refresh()
             
             # Pause for effect
-            time.sleep(0.3)
+            sleep_with_animation_speed(0.3)
             
             # Show the teleport to the new position
             ui.renderer.animate_attack_sequence(

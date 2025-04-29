@@ -123,6 +123,8 @@ class OssifySkill(ActiveSkill):
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Ossify skill during turn resolution."""
         import time
+        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+
         
         # Determine if this is upgraded version
         if hasattr(user, 'passive_skill') and hasattr(user.passive_skill, 'ossify_upgraded'):
@@ -183,7 +185,7 @@ class OssifySkill(ActiveSkill):
                     7  # White to indicate permanent hardening
                 )
                 ui.renderer.refresh()
-                time.sleep(0.3)
+                sleep_with_animation_speed(0.3)
                 
                 # Redraw board to reset colors
                 if hasattr(ui, 'draw_board'):
@@ -283,6 +285,8 @@ class MarrowDikeSkill(ActiveSkill):
         """Execute the Marrow Dike skill during turn resolution."""
         from boneglaive.game.map import TerrainType
         import time
+        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+
         
         # Determine if this is upgraded version
         if hasattr(user, 'passive_skill') and hasattr(user.passive_skill, 'marrow_dike_upgraded'):
@@ -476,7 +480,7 @@ class MarrowDikeSkill(ActiveSkill):
                         6  # Yellow color for movement
                     )
                     ui.renderer.refresh()
-                    time.sleep(0.2)
+                    sleep_with_animation_speed(0.2)
                     
                     # Show unit at new position
                     unit_symbol = ui.asset_manager.get_unit_tile(unit.type)
@@ -486,7 +490,7 @@ class MarrowDikeSkill(ActiveSkill):
                         3 if unit.player == 1 else 4  # Player color
                     )
                     ui.renderer.refresh()
-                    time.sleep(0.2)
+                    sleep_with_animation_speed(0.2)
             
             # Now show the walls being created
             # Get wall animation from asset manager
@@ -529,7 +533,7 @@ class MarrowDikeSkill(ActiveSkill):
                 
                 # If it's the 10th tile or last tile, pause briefly to avoid overwhelming rendering
                 if i % 10 == 9 or i == len(dike_tiles) - 1:
-                    time.sleep(0.1)
+                    sleep_with_animation_speed(0.1)
                     
                     # Redraw to show progress
                     if hasattr(ui, 'draw_board'):
@@ -615,6 +619,8 @@ class SloughSkill(ActiveSkill):
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Bone Tithe skill during turn resolution."""
         import time
+        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+
         
         # Determine if this is upgraded version
         if hasattr(user, 'passive_skill') and hasattr(user.passive_skill, 'slough_upgraded'):
@@ -793,13 +799,13 @@ class SloughSkill(ActiveSkill):
                         # Draw animation frame
                         ui.renderer.draw_tile(next_y, next_x, frame, color)
                         ui.renderer.refresh()
-                        time.sleep(0.03)  # Quick animation
+                        sleep_with_animation_speed(0.03)  # Quick animation
                     
                     # Move to next position for next step
                     y, x = next_y, next_x
             
             # Pause briefly after animation
-            time.sleep(0.1)
+            sleep_with_animation_speed(0.1)
             
             # Show damage numbers and flash affected enemies
             for enemy_data in enemies_hit:
@@ -811,7 +817,7 @@ class SloughSkill(ActiveSkill):
                     damage_text = f"-{damage}"
                     ui.renderer.draw_text(enemy.y - 1, enemy.x * 2, damage_text, 1, curses.A_BOLD)
                     ui.renderer.refresh()
-                    time.sleep(0.1)
+                    sleep_with_animation_speed(0.1)
                 
                 # Flash the enemy to show damage
                 tile_ids = [ui.asset_manager.get_unit_tile(enemy.type)] * 3

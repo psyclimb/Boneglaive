@@ -7,6 +7,8 @@ This module contains all passive and active abilities for FOWL_CONTRIVANCE units
 from typing import Optional, TYPE_CHECKING, List, Dict, Tuple, Set
 import random
 import time
+from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+
 import curses
 
 from boneglaive.game.skills.core import PassiveSkill, ActiveSkill, TargetType
@@ -205,7 +207,7 @@ class MurmurationDuskSkill(ActiveSkill):
             for frame in gathering_animation:
                 ui.renderer.draw_tile(user.y, user.x, frame, 4)  # Blue color for the gathering flock
                 ui.renderer.refresh()
-                time.sleep(0.05)
+                sleep_with_animation_speed(0.05)
             
             # Animate birds flying from user to target center
             points = []
@@ -232,7 +234,7 @@ class MurmurationDuskSkill(ActiveSkill):
                 
                 ui.renderer.draw_tile(y, x, symbol, color)
                 ui.renderer.refresh()
-                time.sleep(0.03)
+                sleep_with_animation_speed(0.03)
 
             # Now show the swirling pattern at each affected position
             
@@ -260,7 +262,7 @@ class MurmurationDuskSkill(ActiveSkill):
                     ui.renderer.draw_tile(pos_y, pos_x, bird_symbol, color)
                 
                 ui.renderer.refresh()
-                time.sleep(0.05)  # Quick animation
+                sleep_with_animation_speed(0.05)  # Quick animation
 
             # Second pass: show impact animations on enemy units that were hit
             units_damaged = []
@@ -276,7 +278,7 @@ class MurmurationDuskSkill(ActiveSkill):
                     for pos_y, pos_x in units_damaged:
                         ui.renderer.draw_tile(pos_y, pos_x, impact_frame, 1)  # Red color for impact
                     ui.renderer.refresh()
-                    time.sleep(0.05)
+                    sleep_with_animation_speed(0.05)
 
             # Final swirling animation before dissipating
             dissipate_animation = ['*', '.', ' ', ' ']
@@ -284,7 +286,7 @@ class MurmurationDuskSkill(ActiveSkill):
                 for pos_y, pos_x in affected_positions:
                     ui.renderer.draw_tile(pos_y, pos_x, frame, 7)  # White color for dissipation
                 ui.renderer.refresh()
-                time.sleep(0.05)
+                sleep_with_animation_speed(0.05)
             
             # Redraw the board after all animations
             if hasattr(ui, 'draw_board'):
@@ -418,7 +420,7 @@ class FlapSkill(ActiveSkill):
             for frame in gathering_animation:
                 ui.renderer.draw_tile(user.y, user.x, frame, 4)  # Blue color for gathering
                 ui.renderer.refresh()
-                time.sleep(0.05)
+                sleep_with_animation_speed(0.05)
 
             # Animation paths - create multiple paths from user to target
             try:
@@ -463,7 +465,7 @@ class FlapSkill(ActiveSkill):
                 # Red color for the main attack path
                 ui.renderer.draw_tile(y, x, symbol, 1)
                 ui.renderer.refresh()
-                time.sleep(0.03)
+                sleep_with_animation_speed(0.03)
                 
                 # For non-target positions, clear the path behind
                 if i < len(main_path) - 1:
@@ -491,7 +493,7 @@ class FlapSkill(ActiveSkill):
                             ui.renderer.draw_tile(y, x, symbol, color)
                     
                     ui.renderer.refresh()
-                    time.sleep(0.02)
+                    sleep_with_animation_speed(0.02)
                     
                     # Clear symbols from previous step
                     for path_idx, path in enumerate(alternate_paths):
@@ -524,7 +526,7 @@ class FlapSkill(ActiveSkill):
                 
                 ui.renderer.draw_tile(target_pos[0], target_pos[1], frame, color)
                 ui.renderer.refresh()
-                time.sleep(0.05)
+                sleep_with_animation_speed(0.05)
             
             # Final impact animation - show damage effect
             if hasattr(ui, 'asset_manager'):
@@ -728,7 +730,7 @@ class EmeticFlangeSkill(ActiveSkill):
             for frame in center_animation[:3]:  # First half of animation at center
                 ui.renderer.draw_tile(user.y, user.x, frame, 1)  # Red color for explosion
                 ui.renderer.refresh()
-                time.sleep(0.05)
+                sleep_with_animation_speed(0.05)
             
             # Create explosion animation that spreads outward
             # Initialize all positions with empty spaces
@@ -769,7 +771,7 @@ class EmeticFlangeSkill(ActiveSkill):
                 for (pos_y, pos_x), (symbol, color) in frame.items():
                     ui.renderer.draw_tile(pos_y, pos_x, symbol, color)
                 ui.renderer.refresh()
-                time.sleep(0.05)
+                sleep_with_animation_speed(0.05)
             
             # Create a list of pushed units for animation
             pushed_units_info = []
@@ -814,7 +816,7 @@ class EmeticFlangeSkill(ActiveSkill):
                     6  # Yellow for push animation
                 )
                 ui.renderer.refresh()
-                time.sleep(0.1)
+                sleep_with_animation_speed(0.1)
             
             # Cleanup animation - birds flying away
             cleanup_animation = ['*', '.', ' ']
@@ -822,7 +824,7 @@ class EmeticFlangeSkill(ActiveSkill):
                 for pos_y, pos_x, _, _ in adjacent_positions:
                     ui.renderer.draw_tile(pos_y, pos_x, frame, 7)  # White for cleanup
                 ui.renderer.refresh()
-                time.sleep(0.05)
+                sleep_with_animation_speed(0.05)
             
             # Redraw the board after all animations
             if hasattr(ui, 'draw_board'):
