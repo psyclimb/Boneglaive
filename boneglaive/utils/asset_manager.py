@@ -86,23 +86,23 @@ class AssetManager:
         
         # Add animation sequence tiles for each attack type (using simple ASCII)
         self.animation_sequences = {
-            'glaiveman_attack': ['\\', '|', '/', '-', '⚔', '-', '/', '|', '\\'],  # Melee range 1 attack
-            'glaiveman_extended_attack': ['/', '―', '\\', '|', '─', '─', '─', '═', '→', '⚔'],  # Extended range 2 attack
+            'glaiveman_attack': ['-', '\\', '|', '/', '\\', '-', '/', '|', '\\', '-'],  # Melee range 1 attack
+            'glaiveman_extended_attack': ['\\', '|', '/', '-', '-', '-', '=', '→', 'x'],  # Extended range 2 attack
             'archer_attack': ['.', '>', '-', '>', '->'],
             'mage_attack': ['.', '*', '*', '*', '*'],
-            'mandible_foreman_attack': ['<', '[', '{', 'Ξ', '}', ']', '>'],  # Jaws opening and closing animation
+            'mandible_foreman_attack': ['<', '[', '{', 'Ξ', '{', 'Ξ'],  # Jaws opening and closing animation
             'grayman_attack': ['·', ':', '≈', '≋', '≈', ':', '·'],  # Reality distortion wave
             'autoclave': ['*', '+', 'x', '#', 'X', '#', 'x', '+', '*'],  # Intense cross pattern for Autoclave
             'pry_range1': ['/', '|', '\\', '_', '-', '↑'],  # Close-range prying motion with similar visual language to extended range
-            'pry_range2': ['/', '―', '\\', '|', '─', '─', '═', '→', '↗'],  # Extended range prying motion - similar to extended attack
+            'pry_range2': ['-', '\\', '_', '_', '_', '/'],  # Extended range prying motion - similar to extended attack
             'pry_launch': ['-', '/', '|', 'I', 'i', '^', '.', ' '],  # Unit being pried from horizontal to vertical, then diminishing as it launches upward
             'pry_impact': ['↓', 'V', '@', '*', '.'],  # Unit falling back down with heavy impact
             'pry_debris': ['@', '#', '*', '+', '.'],  # Large chunks of debris falling straight down
             'vault': ['^', 'Λ', '↑', '↟', '↑'],  # Vault initiation animation - upward movement
             'vault_impact': ['↓', 'v', 'V', '*', '.'],  # Vault landing animation
-            'judgement': ['*', '+', 'x', 'X', '*', 'O', 'o', 'Θ', 'O', 'o', '*', '+'],  # Circular spinning Krull glaive animation
-            'judgement_critical': ['*', '|', '/', '\\', 'I', '#', '*', '+', 'X', 'Φ', 'Σ', 'Ω'],  # Lightning striking the glaive at moment of critical impact
-            'viseroy_trap': ['O', '{', 'Ξ', '#', '%', '&', 'Ξ'],  # Animation for Viseroy trap crushing effect
+            'judgement': ['*', 'Φ', 'Ø', 'Θ', 'O', 'Θ' 'Ø', 'Φ', '*'],  # Circular spinning Krull glaive animation
+            'judgement_critical': ['X', 'Φ', 'Z', 'Ø', 'Z', '#', 'Σ', '!', 'Z', '!', 'Σ', 'Ω'],  # Lightning striking the glaive at moment of critical impact
+            'viseroy_trap': ['Ξ', '{', 'Ξ', '#', '%', '&', 'Ξ'],  # Animation for Viseroy trap crushing effect
             # MARROW CONDENSER animations
             'marrow_condenser_attack': ['/', '|', '\\', '-', '8', '$', 'Ø', '#', '*'],  # Swinging and striking with bone chunks
             'ossify': ['#', '%', '@', '*', '+', '=', '&', '$', '#', '/', '\\', '|', '-', '.'],  # ASCII bone hardening animation
