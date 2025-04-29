@@ -881,16 +881,18 @@ class Game:
         
         # Handle MANDIBLE_FOREMAN death - release trapped units
         if dying_unit.type == UnitType.MANDIBLE_FOREMAN:
-            for unit in self.units:
-                if unit.is_alive() and unit.trapped_by == dying_unit:
-                    logger.debug(f"MANDIBLE_FOREMAN perished, releasing {unit.get_display_name()}")
-                    unit.trapped_by = None
-                    unit.trap_duration = 0  # Reset trap duration
-                    message_log.add_message(
-                        f"{unit.get_display_name()} is released from mechanical jaws!",
-                        MessageType.ABILITY,
-                        target_name=unit.get_display_name()
-                    )
+            logger.info(f"MANDIBLE_FOREMAN {dying_unit.get_display_name()} has perished, checking for trapped units to release")
+            # Critical: Make a list of trapped units first before modifying them
+            trapped_units = [unit for unit in self.units if unit.is_alive() and hasattr(unit, 'trapped_by') and unit.trapped_by == dying_unit]
+            for unit in trapped_units:
+                logger.info(f"MANDIBLE_FOREMAN perished, releasing {unit.get_display_name()}")
+                unit.trapped_by = None
+                unit.trap_duration = 0  # Reset trap duration
+                message_log.add_message(
+                    f"{unit.get_display_name()} is released from mechanical jaws!",
+                    MessageType.ABILITY,
+                    target_name=unit.get_display_name()
+                )
         
         # Handle Echo death by triggering chain reactions
         if dying_unit.is_echo:
