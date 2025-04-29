@@ -89,9 +89,15 @@ class MurmurationDuskSkill(ActiveSkill):
         if not target_pos or not game or not game.is_valid_position(target_pos[0], target_pos[1]):
             return False
         
-        # Check if target position is within range (Manhattan distance)
-        y_dist = abs(target_pos[0] - user.y)
-        x_dist = abs(target_pos[1] - user.x)
+        # If the unit has a move_target, use that position for range calculation
+        if user.move_target:
+            source_y, source_x = user.move_target
+        else:
+            source_y, source_x = user.y, user.x
+        
+        # Check if target position is within range (Manhattan distance) from current or planned position
+        y_dist = abs(target_pos[0] - source_y)
+        x_dist = abs(target_pos[1] - source_x)
         
         if y_dist > self.range or x_dist > self.range:
             return False
@@ -321,9 +327,15 @@ class FlapSkill(ActiveSkill):
         if not target_pos or not game or not game.is_valid_position(target_pos[0], target_pos[1]):
             return False
         
+        # If the unit has a move_target, use that position for range calculation
+        if user.move_target:
+            source_y, source_x = user.move_target
+        else:
+            source_y, source_x = user.y, user.x
+        
         # Check if target position is within range
-        y_dist = abs(target_pos[0] - user.y)
-        x_dist = abs(target_pos[1] - user.x)
+        y_dist = abs(target_pos[0] - source_y)
+        x_dist = abs(target_pos[1] - source_x)
         
         if max(y_dist, x_dist) > self.range:
             return False
