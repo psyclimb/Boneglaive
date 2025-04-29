@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+
+import time
+import random
+import curses
+import logging
+from typing import List, Optional, Tuple, Dict, Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from boneglaive.game.skills import Skill
+
+# Local imports
+from boneglaive.utils.message_log import message_log, MessageType
+from boneglaive.utils.constants import UnitType, GameMode, Status
+from boneglaive.utils.debug import logger, debug_assert, measure_perf, game_assert
+
+# Constants for game logic
+CRITICAL_HEALTH_PERCENT = 0.25   # Units below 25% HP are considered "critical"
+
+class Game:
+    """Main game class handling game state and logic."""
+    
+    def __init__(self, width, height, renderer=None, ui=None, game_id=None):
+        """Initialize a new game with given dimensions."""
+        self.width = width
+        self.height = height
+        self.renderer = renderer
+        self.ui = ui  # Reference to the UI for rendering (optional)
+        self.game_id = game_id  # Unique ID for this game session (useful for networking)
+        
+        # Game state
+        self.units = []  # List of all units in play
+        self.current_player = 1  # Player 1 goes first
+        self.turn_count = 1  # Start at turn 1
+        self.game_mode = GameMode.PLAYER_VS_PLAYER  # Default game mode
+        self.game_over = False
+        self.winner = None
+        
+        # Map data
+        self.terrain_map = None  # Will hold terrain data
+        self.custom_entities = []  # Custom entities like walls, etc.
+        
+        # Network-related fields
+        self.multiplayer_manager = None  # Reference to multiplayer manager if in networked mode
+        
+        # Game options
+        self.allow_extended_range = True  # Controls if range 2 attacks are allowed
+        self.skill_usage_enabled = True  # Controls if skills can be used
+        
+        # Debug-related
+        self._debug_mode = False
+        self._test_mode = False  # When enabled, allows controlling any unit regardless of player
+        
+        # Initialize map data with empty terrain (all walkable by default)
+        self.terrain_map = [[0 for _ in range(width)] for _ in range(height)]
+        
+        logger.info(f"Game initialized with dimensions {width}x{height}")
