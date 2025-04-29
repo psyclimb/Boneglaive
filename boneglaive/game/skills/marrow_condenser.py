@@ -27,13 +27,13 @@ class Dominion(PassiveSkill):
         super().__init__(
             name="Dominion",
             key="D",
-            description="When a unit kills an enemy, gains massive stat bonuses. Enemies dying in Marrow Dike upgrade skills."
+            description="When a unit kills an enemy, gains +1 to attack, defense, and movement. Any unit dying in Marrow Dike upgrades skills."
         )
         self.ossify_upgraded = False
         self.marrow_dike_upgraded = False
         self.slough_upgraded = False
         self.available_upgrades = ["marrow_dike", "ossify", "slough"]
-        self.kills = 0  # Track the number of kills to determine stat boosts
+        self.kills = 0  # Track the number of kills for flat stat bonuses
     
     def apply_passive(self, user: 'Unit', game=None) -> None:
         # Logic handled in game engine when units die
@@ -561,7 +561,7 @@ class SloughSkill(ActiveSkill):
         super().__init__(
             name="Bone Tithe",
             key="B",
-            description="Extracts marrow from adjacent enemies for 1 (+1 per kill) damage and gains +1 HP for each hit.",
+            description="Extracts marrow from adjacent enemies for 1 (+1 per kill) damage and gains +1 HP for each enemy hit.",
             target_type=TargetType.SELF,  # Self-targeted area effect
             cooldown=4,
             range_=0,
