@@ -2316,27 +2316,164 @@ class Game:
             # Fallback animation if not defined
             wall_attack_animation = ['*', '#', 'X', '=', '/', '\\', '|']
         
-        # Draw attack line from unit to wall
-        # Calculate positions along the path
+        # Get the unit's actual attack animation from the asset manager
+        from boneglaive.utils.constants import UnitType
+        
+        # Create start and end positions
         start_pos = Position(unit.y, unit.x)
         end_pos = Position(wall_y, wall_x)
-        path = get_line(start_pos, end_pos)
         
-        # Show projectile along the path (simple animation)
-        for pos in path[1:-1]:  # Skip start and end positions
-            ui.renderer.draw_tile(pos.y, pos.x, '•', 7)  # Projectile character
-        ui.renderer.refresh()
-        time.sleep(0.1)
+        # Get attack animation for this unit type
+        effect_tile = ui.asset_manager.get_attack_effect(unit.type)
+        animation_sequence = ui.asset_manager.get_attack_animation_sequence(unit.type)
         
-        # Clear the projectile path
-        for pos in path[1:-1]:
-            ui.renderer.draw_tile(pos.y, pos.x, ' ', 0)
-        ui.renderer.refresh()
+        # For ranged attacks (archer and mage), show animation at origin then projectile path
+        if unit.type in [UnitType.ARCHER, UnitType.MAGE]:
+            # First show attack preparation at attacker's position
+            prep_sequence = animation_sequence[:2]  # First few frames of animation sequence
+            ui.renderer.animate_attack_sequence(
+                start_pos.y, start_pos.x,
+                prep_sequence,
+                7,  # color ID
+                0.2  # quick preparation animation
+            )
+            
+            # Then animate projectile from attacker to target
+            ui.renderer.animate_projectile(
+                (start_pos.y, start_pos.x),
+                (end_pos.y, end_pos.x),
+                effect_tile,
+                7,  # color ID
+                0.3  # duration
+            )
+        # For MANDIBLE_FOREMAN, show a special animation sequence for mandible jaws
+        elif unit.type == UnitType.MANDIBLE_FOREMAN:
+            # Show the jaws animation at the attacker's position
+            ui.renderer.animate_attack_sequence(
+                start_pos.y, start_pos.x, 
+                animation_sequence[:3],  # First three frames - jaws opening
+                7,  # color ID
+                0.3  # slightly faster animation
+            )
+            
+            # Show a short connecting animation between attacker and target
+            ui.renderer.animate_projectile(
+                (start_pos.y, start_pos.x),
+                (end_pos.y, end_pos.x),
+                'Ξ',  # Mandible symbol
+                7,    # color ID
+                0.2   # quick connection
+            )
+        # For GLAIVEMAN attacks, check range and choose the right animation
+        elif unit.type == UnitType.GLAIVEMAN:
+            # Calculate distance to target
+            distance = self.chess_distance(start_pos.y, start_pos.x, end_pos.y, end_pos.x)
+            
+            # For range 2 attacks, use extended animation
+            if distance == 2:
+                # Get the extended animation sequence
+                extended_sequence = ui.asset_manager.animation_sequences.get('glaiveman_extended_attack', [])
+                if extended_sequence:
+                    # First show windup animation at attacker's position
+                    ui.renderer.animate_attack_sequence(
+                        start_pos.y, start_pos.x, 
+                        extended_sequence[:4],  # First few frames at attacker position
+                        7,  # color ID
+                        0.3  # duration
+                    )
+                    
+                    # Calculate path from attacker to target
+                    path = get_line(start_pos, end_pos)
+                    
+                    # Show glaive extending if path has at least 3 points
+                    if len(path) >= 3:
+                        mid_pos = path[1]  # Second point in the path
+                        
+                        # Show glaive extending through middle position
+                        extension_chars = extended_sequence[4:8]  # Middle frames show extension
+                        for i, char in enumerate(extension_chars):
+                            ui.renderer.draw_tile(mid_pos.y, mid_pos.x, char, 7)
+                            ui.renderer.refresh()
+                            time.sleep(0.1)
+                else:
+                    # Fallback to standard animation
+                    ui.renderer.animate_attack_sequence(
+                        start_pos.y, start_pos.x, 
+                        animation_sequence,
+                        7,  # color ID
+                        0.5  # duration
+                    )
+            else:
+                # For range 1 attacks, use standard animation
+                ui.renderer.animate_attack_sequence(
+                    start_pos.y, start_pos.x, 
+                    animation_sequence,
+                    7,  # color ID
+                    0.5  # duration
+                )
+        # Special case for FOWL_CONTRIVANCE - bird swarm animation
+        elif unit.type == UnitType.FOWL_CONTRIVANCE:
+            # Get animation sequence for bird attacks
+            fowl_sequence = ui.asset_manager.animation_sequences.get('fowl_contrivance_attack', [])
+            if not fowl_sequence:
+                fowl_sequence = ['^', 'v', '>', '<', '^', 'v', 'Λ', 'V']  # Fallback bird animation
+            
+            # Use alternating colors for a more dynamic bird flock appearance
+            color_sequence = [1, 4, 1, 4, 6, 7, 6, 7]  # Red, blue, yellow, white alternating
+            
+            # Show initial gathering animation at attacker's position
+            for i in range(3):
+                frame = fowl_sequence[i % len(fowl_sequence)]
+                color = color_sequence[i % len(color_sequence)]
+                ui.renderer.draw_tile(start_pos.y, start_pos.x, frame, color)
+                ui.renderer.refresh()
+                time.sleep(0.08)
+            
+            # Create path points between attacker and target
+            path = get_line(start_pos, end_pos)
+            
+            # Animate along the path with varied bird symbols
+            path_points = []
+            for i in range(1, len(path) - 1):  # Skip first (attacker) and last (target)
+                path_points.append(path[i])
+                
+            for i, pos in enumerate(path_points):
+                frame_idx = (i + 3) % len(fowl_sequence)  # Continue from where gathering left off
+                color_idx = (i + 3) % len(color_sequence)
+                ui.renderer.draw_tile(pos.y, pos.x, fowl_sequence[frame_idx], color_sequence[color_idx])
+                ui.renderer.refresh()
+                time.sleep(0.05)
+                
+                # Clear previous position (except the first one)
+                if i > 0 and i < len(path_points) - 1:
+                    prev_pos = path_points[i-1]
+                    ui.renderer.draw_tile(prev_pos.y, prev_pos.x, ' ', 0)
+                    ui.renderer.refresh()
+        # For all other melee attacks, show standard animation
+        else:
+            # Show the attack animation at the attacker's position
+            ui.renderer.animate_attack_sequence(
+                start_pos.y, start_pos.x, 
+                animation_sequence,
+                7,  # color ID
+                0.5  # duration
+            )
         
+        # Show wall impact animation based on unit type
+        if unit.type == UnitType.MAGE:
+            impact_animation = ['!', '*', '!']  # Magic impact
+        elif unit.type == UnitType.MANDIBLE_FOREMAN:
+            impact_animation = ['>', '<', '}', '{', '≡']  # Mandible crushing impact
+        elif unit.type == UnitType.FOWL_CONTRIVANCE:
+            impact_animation = ['^', 'v', '^', 'V', 'Λ']  # Bird dive impact
+        else:
+            # Use the wall cracking animation for other units
+            impact_animation = wall_attack_animation
+            
         # Show impact animation at the wall position
         ui.renderer.animate_attack_sequence(
             wall_y, wall_x,
-            wall_attack_animation,
+            impact_animation,
             6,  # Color code (red/orange)
             0.1  # Duration per frame
         )
