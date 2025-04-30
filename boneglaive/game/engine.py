@@ -1277,17 +1277,21 @@ class Game:
                     
                     # Handle damage calculation and application
                     if wall_target:
-                        # Wall tiles have 1 HP and no defense
+                        # Get the wall information
                         wall_y, wall_x = wall_target
-                        damage = 1  # Walls take full damage regardless of attack value
+                        wall_info = self.marrow_dike_tiles[wall_target]
+                        
+                        # Calculate damage based on unit's attack and wall's defense
+                        wall_defense = wall_info.get('defense', 0)
+                        unit_attack = unit.get_effective_stats()['attack']
+                        damage = max(1, unit_attack - wall_defense)
                         
                         # Apply damage to the wall
-                        wall_info = self.marrow_dike_tiles[wall_target]
                         wall_info['hp'] = max(0, wall_info['hp'] - damage)
                         
                         # Log the attack on the wall
                         message_log.add_message(
-                            f"{unit.get_display_name()} attacks a Marrow Dike wall!",
+                            f"{unit.get_display_name()} attacks a Marrow Dike wall for {damage} damage!",
                             MessageType.COMBAT,
                             player=unit.player
                         )
@@ -1304,7 +1308,7 @@ class Game:
                             
                             # Log the destruction
                             message_log.add_message(
-                                f"{unit.get_display_name()} destroys a section of {owner.get_display_name()}'s Marrow Dike!",
+                                f"{unit.get_display_name()} breaks through a section of {owner.get_display_name()}'s Marrow Dike!",
                                 MessageType.COMBAT,
                                 player=unit.player
                             )
