@@ -123,38 +123,38 @@ class AssetManager:
             
             # Murmuration Dusk animation - swirling bird patterns
             'murmuration_dusk': [
-                '^', 'v', '~', '*', '≈', '⋋', '⋌', 'W', 'V', 'M', 'Λ', 
-                'Y', '>', '<', '≽', '≼', 'Y', 'v', '^', '⋏', '⋎'
+                '^', '~', 'v', '~', '^', '*', '~', 'V', 'M', 'V', 'v', 
+                '~', '*', '^', '~', 'v', '~', '^', '*', '^', '~'
             ],
             
             # Flap animation - concentrated hawk diving
             'flap': [
-                'V', '>', '<', 'Y', 'Λ', '⊥', '▼', '⌄', '▽', '∇', 
-                '♦', '✧', '★', '✦', '⚡', '※'
+                'V', '~', '^', '~', 'V', '~', '^', '~', '*', 'v', 
+                '*', 'v', 'z', '*', 'z', '*'
             ],
             
             # Emetic Flange animation - explosive bird burst outwards
             'emetic_flange': [
-                '*', '^', 'v', '^v', '><', '<>', '%', '@', '&', '#', 
-                '≪', '≫', '≺', '≻', '∀', '∃', '∄', '⊹', '✸', '✹'
+                '*', '^', 'v', '^', '>', '<', '%', '@', '&', '#', 
+                '<', '>', '≺', '≻', 'V', '*', '^', '~', 'V', '*'
             ],
             
             # Wretched Decension effect - birds descending to claim the wretched (for passive)
             'wretched_decension': [
-                '.',  '..',  '...',    # Initial distant swarm
-                '^', '^^', '^^^',      # First birds appear
-                '^ ^', '^v^', '^ ^',   # Starting to circle
-                'v^v', '^v^', 'v^v',   # More birds joining 
-                '>v<', '>^<', 'vAv',   # Forming attack pattern
-                'vVv', '>A<', 'WVW',   # Diving birds
-                'VWV', 'VvV', '>M<',   # Descending formation
-                '\\M/', '\\V/', 'AVA', # Closing in
-                '\\|/', '%M%', '#V#',  # Surrounding the target
-                '@M@', '@V@', '###',   # Engulfing the target
-                '###', '@@@', '%%%',   # Swarm intensifies
-                '%%%', '###', '@#@',   # Frenzied birds
-                '@%@', '#@#', '~~~',   # Final moments
-                '...', '..', '.'       # Carrying away, leaving nothing
+                '.',  '.',  '.',    # Initial distant swarm
+                '^', '^', '',      # First birds appear
+                '^', 'v', '^',   # Starting to circle
+                '^', 'v', '^',   # More birds joining 
+                'v', '^', 'A',   # Forming attack pattern
+                'V', 'A', 'V',   # Diving birds
+                'W', 'v', 'M',   # Descending formation
+                'M', 'V', 'A', # Closing in
+                '|', '%', '#',  # Surrounding the target
+                '@', 'V', '#',   # Engulfing the target
+                '#', '@', '%',   # Swarm intensifies
+                '%', '#', '#',   # Frenzied birds
+                '%', '#', '~',   # Final moments
+                '^', '*', ' '       # Carrying away, leaving nothing
             ],
             
             # Critical health "wretch" animation - displayed when units reach critical health
