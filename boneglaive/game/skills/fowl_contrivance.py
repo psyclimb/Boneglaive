@@ -209,7 +209,7 @@ class MurmurationDuskSkill(ActiveSkill):
             # Create an elaborate bird swarm animation that covers the entire area
             
             # First animate birds gathering above the user
-            gathering_animation = ['^', '^^', '^^^', '^^^^', '^^^^', '^^^^^']
+            gathering_animation = ['`', '*', '^', '~', '^', '~']
             for frame in gathering_animation:
                 ui.renderer.draw_tile(user.y, user.x, frame, 4)  # Blue color for the gathering flock
                 ui.renderer.refresh()
@@ -225,7 +225,7 @@ class MurmurationDuskSkill(ActiveSkill):
                 points = [(user.y, user.x), (target_y, target_x)]
             
             # Flying animation
-            flock_symbols = ['^', 'v', '>', '<', '∧', '∨', '≺', '≻']
+            flock_symbols = ['^', 'v', '>', '<', '∧', '∨', '<', '>']
             for i, (y, x) in enumerate(points):
                 # Skip the first position (user's position)
                 if i == 0:
@@ -279,7 +279,7 @@ class MurmurationDuskSkill(ActiveSkill):
             
             # Impact animation on units
             if units_damaged:
-                impact_animation = ['V', '∇', '▼', '♦', '@', '*', '.']
+                impact_animation = ['^', '*', '~', '*', '~', '*', '^']
                 for impact_frame in impact_animation:
                     for pos_y, pos_x in units_damaged:
                         ui.renderer.draw_tile(pos_y, pos_x, impact_frame, 1)  # Red color for impact
@@ -423,12 +423,12 @@ class FlapSkill(ActiveSkill):
             flap_animation = ui.asset_manager.get_skill_animation_sequence('flap')
             if not flap_animation:
                 # Fallback animation if not defined in asset manager
-                flap_animation = ['V', '>', '<', 'Y', 'Λ', '▼']
+                flap_animation = ['^', 'V', '^', 'v', '^', '*']
             
             # Elaborate animation sequence
             
             # First, show the birds gathering above the user (similar to Murmuration Dusk)
-            gathering_animation = ['^', '^^', '^^^', '^^^^']
+            gathering_animation = ['`', '*', '~', '^']
             for frame in gathering_animation:
                 ui.renderer.draw_tile(user.y, user.x, frame, 4)  # Blue color for gathering
                 ui.renderer.refresh()
@@ -462,7 +462,7 @@ class FlapSkill(ActiveSkill):
                 alternate_paths = []
             
             # Animation symbols for the hawks
-            hawk_symbols = ['V', '>', '<', 'Y', 'Λ', '⊥', '▼']
+            hawk_symbols = ['Y', 'V', '~', '^', '~', 'V', 'Y']
             
             # Animate the main attack path
             for i, (y, x) in enumerate(main_path):
@@ -523,7 +523,7 @@ class FlapSkill(ActiveSkill):
                 convergence_animation.append(flap_animation[i])
             
             # Add impact symbols
-            impact_animation = ['♦', '✧', '★', '✦', '⚡', '※']
+            impact_animation = ['*', 'v', '*', '^', '*', 'v']
             convergence_animation.extend(impact_animation)
             
             # Show the convergence animation
@@ -726,7 +726,7 @@ class EmeticFlangeSkill(ActiveSkill):
             emetic_animation = ui.asset_manager.get_skill_animation_sequence('emetic_flange')
             if not emetic_animation:
                 # Fallback animation if not defined in asset manager
-                emetic_animation = ['*', '#', '@', '&', '%', '<>', '><']
+                emetic_animation = ['*', '#', '@', '&', '%', '>', '>']
             
             # First flash the user to show skill activation
             if hasattr(ui, 'asset_manager'):
