@@ -141,7 +141,7 @@ class MurmurationDuskSkill(ActiveSkill):
         
         # Log the skill activation
         message_log.add_message(
-            f"{user.get_display_name()} summons a murmuration of birds that swoop down in intricate patterns!",
+            f"{user.get_display_name()} summons a murmuration of birds that swoop down!",
             MessageType.ABILITY,
             player=user.player
         )
@@ -362,7 +362,7 @@ class FlapSkill(ActiveSkill):
         # Log that the skill has been queued
         target_unit = game.get_unit_at(target_pos[0], target_pos[1])
         message_log.add_message(
-            f"{user.get_display_name()} prepares to unleash a focused hawk formation against {target_unit.get_display_name()}!",
+            f"{user.get_display_name()} prepares and avian artillery strike on {target_unit.get_display_name()}!",
             MessageType.ABILITY,
             player=user.player
         )
@@ -379,7 +379,7 @@ class FlapSkill(ActiveSkill):
             
         # Log the skill activation
         message_log.add_message(
-            f"{user.get_display_name()} unleashes a concentrated hawk formation that strikes {target_unit.get_display_name()}!",
+            f"{user.get_display_name()} unleashes a concentrated barrage that strikes {target_unit.get_display_name()}!",
             MessageType.ABILITY,
             player=user.player
         )
@@ -412,7 +412,7 @@ class FlapSkill(ActiveSkill):
             game.check_critical_health(target_unit, user, previous_hp, ui)
         
         message_log.add_message(
-            f"The concentrated hawk attack deals {damage} damage to {target_unit.get_display_name()}!",
+            f"The concentrated barrage deals {damage} damage to {target_unit.get_display_name()}!",
             MessageType.ABILITY,
             player=user.player
         )
@@ -604,7 +604,7 @@ class EmeticFlangeSkill(ActiveSkill):
         
         # Log that the skill has been queued
         message_log.add_message(
-            f"{user.get_display_name()} prepares to unleash a bursting flock of birds!",
+            f"{user.get_display_name()} prepares to unleash a vomitous bursting flock of birds!",
             MessageType.ABILITY,
             player=user.player
         )
