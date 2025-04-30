@@ -304,7 +304,7 @@ class MarrowDikeSkill(ActiveSkill):
             
             # Update description for upgraded version
             if self.upgraded:
-                self.description = "Creates an Osseous Prison that traps enemies (-1 move) and grants stat bonuses when they die inside."
+                self.description = "Creates an Osseous Prison that immobilizes enemies (-1 move) and grants stat bonuses when they die inside."
         
         # Generate the dike area (perimeter of a 5x5 area centered on user)
         dike_tiles = []
