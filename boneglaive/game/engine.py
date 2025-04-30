@@ -495,25 +495,38 @@ class Game:
         return True
     
     def can_attack(self, unit, y, x):
+        # First check for unit targets
         target = self.get_unit_at(y, x)
-        if not target or target.player == unit.player:
-            return False
         
-        # Check if target is within effective attack range (using chess distance for diagonals)
+        # Calculate attack distance regardless of target type
         distance = self.chess_distance(unit.y, unit.x, y, x)
         effective_stats = unit.get_effective_stats()
         effective_attack_range = effective_stats['attack_range']
         
-        # Basic range check
+        # Basic range check for all target types
         if distance > effective_attack_range:
             return False
             
-        # GRAYMAN's attacks and Estrange are blocked by terrain, so check line of sight
+        # Line of sight check for GRAYMAN units
+        los_check = True
         if unit.type == UnitType.GRAYMAN:
-            return self.has_line_of_sight(unit.y, unit.x, y, x)
+            los_check = self.has_line_of_sight(unit.y, unit.x, y, x)
+            if not los_check:
+                return False
+                
+        # Check if it's a valid unit target
+        if target and target.player != unit.player:
+            return True
             
-        # All other units can attack without line of sight
-        return True
+        # If no valid unit target, check for Marrow Dike wall tiles
+        if hasattr(self, 'marrow_dike_tiles') and (y, x) in self.marrow_dike_tiles:
+            # Verify this is a wall tile that belongs to the enemy player
+            wall_info = self.marrow_dike_tiles[(y, x)]
+            if wall_info['owner'].player != unit.player:
+                return True
+                
+        # No valid target (unit or wall)
+        return False
     
     def get_possible_moves(self, unit):
         """
@@ -568,19 +581,30 @@ class Game:
         
         for y in range(max(0, y_pos - effective_attack_range), min(HEIGHT, y_pos + effective_attack_range + 1)):
             for x in range(max(0, x_pos - effective_attack_range), min(WIDTH, x_pos + effective_attack_range + 1)):
+                # Calculate chess distance (allows diagonals) from the attack position
+                distance = self.chess_distance(y_pos, x_pos, y, x)
+                if distance > effective_attack_range:
+                    continue  # Skip if out of range
+                    
+                # Check line of sight for GRAYMAN units
+                los_check = True
+                if unit.type == UnitType.GRAYMAN:
+                    los_check = self.has_line_of_sight(y_pos, x_pos, y, x)
+                    if not los_check:
+                        continue  # Skip if no line of sight
+                
                 # Check if there's an enemy unit at this position
                 target = self.get_unit_at(y, x)
                 if target and target.player != unit.player:
-                    # Calculate chess distance (allows diagonals) from the attack position
-                    distance = self.chess_distance(y_pos, x_pos, y, x)
-                    if distance <= effective_attack_range:
-                        # For GRAYMAN units, check line of sight
-                        if unit.type == UnitType.GRAYMAN:
-                            if self.has_line_of_sight(y_pos, x_pos, y, x):
-                                attacks.append((y, x))
-                        else:
-                            # All other units don't need line of sight
-                            attacks.append((y, x))
+                    attacks.append((y, x))
+                    continue  # Already added as attack target, skip wall check
+                
+                # Check for Marrow Dike wall tiles that can be attacked
+                if hasattr(self, 'marrow_dike_tiles') and (y, x) in self.marrow_dike_tiles:
+                    # Verify this is a wall tile that belongs to the enemy player
+                    wall_info = self.marrow_dike_tiles[(y, x)]
+                    if wall_info['owner'].player != unit.player:
+                        attacks.append((y, x))
         
         return attacks
     
@@ -1234,46 +1258,93 @@ class Game:
                             player=unit.player
                         )
                 
-                if target and target.player != unit.player and attack_distance <= unit.attack_range and los_check:  # Valid attack
+                # Check for Marrow Dike wall tiles that can be targeted
+                wall_target = None
+                if not target and (y, x) in self.marrow_dike_tiles:
+                    # Verify this is a wall tile that belongs to the enemy player
+                    wall_info = self.marrow_dike_tiles[(y, x)]
+                    if wall_info['owner'].player != unit.player and attack_distance <= unit.attack_range and los_check:
+                        wall_target = (y, x)  # Mark this as a valid wall target
+
+                if target and target.player != unit.player and attack_distance <= unit.attack_range and los_check or wall_target:  # Valid attack on unit or wall
                     # Show attack animation if UI is provided
                     if ui:
-                        ui.show_attack_animation(unit, target)
-                    
-                    # Calculate damage using effective stats (including bonuses)
-                    # Defense acts as flat damage reduction
-                    effective_stats = unit.get_effective_stats()
-                    effective_attack = effective_stats['attack']
-                    effective_defense = target.get_effective_stats()['defense']
-                    
-                    # GRAYMAN's attacks bypass defense (both original and echo)
-                    if unit.type == UnitType.GRAYMAN or (hasattr(unit, 'is_echo') and unit.is_echo and unit.type == UnitType.GRAYMAN):
-                        damage = effective_attack  # Bypass defense completely
-                        
-                        from boneglaive.utils.message_log import message_log, MessageType
-                        # Different messages for original GRAYMAN vs echo
-                        if hasattr(unit, 'is_echo') and unit.is_echo:
-                            message_log.add_message(
-                                f"The echo's psychic attack bypasses {target.get_display_name()}'s defenses!",
-                                MessageType.ABILITY,
-                                player=unit.player,
-                                target_name=target.get_display_name()
-                            )
+                        if wall_target:
+                            # For wall targets, show a special animation
+                            self._show_wall_attack_animation(ui, unit, wall_target)
                         else:
+                            ui.show_attack_animation(unit, target)
+                    
+                    # Handle damage calculation and application
+                    if wall_target:
+                        # Wall tiles have 1 HP and no defense
+                        wall_y, wall_x = wall_target
+                        damage = 1  # Walls take full damage regardless of attack value
+                        
+                        # Apply damage to the wall
+                        wall_info = self.marrow_dike_tiles[wall_target]
+                        wall_info['hp'] = max(0, wall_info['hp'] - damage)
+                        
+                        # Log the attack on the wall
+                        message_log.add_message(
+                            f"{unit.get_display_name()} attacks a Marrow Dike wall!",
+                            MessageType.COMBAT,
+                            player=unit.player
+                        )
+                        
+                        # Handle wall destruction
+                        if wall_info['hp'] <= 0:
+                            # Restore original terrain
+                            original_terrain = wall_info.get('original_terrain', TerrainType.EMPTY)
+                            self.map.set_terrain_at(wall_y, wall_x, original_terrain)
+                            
+                            # Remove from tracking
+                            owner = wall_info['owner']
+                            del self.marrow_dike_tiles[wall_target]
+                            
+                            # Log the destruction
                             message_log.add_message(
-                                f"{unit.get_display_name()}'s psychic attack bypasses {target.get_display_name()}'s defenses!",
-                                MessageType.ABILITY,
-                                player=unit.player,
-                                target_name=target.get_display_name()
+                                f"{unit.get_display_name()} destroys a section of {owner.get_display_name()}'s Marrow Dike!",
+                                MessageType.COMBAT,
+                                player=unit.player
                             )
                     else:
-                        damage = max(1, effective_attack - effective_defense)
-                    
-                    # Store previous HP to check for status changes
-                    previous_hp = target.hp
-                    critical_threshold = int(target.max_hp * CRITICAL_HEALTH_PERCENT)
-                    
-                    # Apply damage
-                    target.hp = max(0, target.hp - damage)
+                        # Normal unit-vs-unit combat
+                        # Calculate damage using effective stats (including bonuses)
+                        # Defense acts as flat damage reduction
+                        effective_stats = unit.get_effective_stats()
+                        effective_attack = effective_stats['attack']
+                        effective_defense = target.get_effective_stats()['defense']
+                        
+                        # GRAYMAN's attacks bypass defense (both original and echo)
+                        if unit.type == UnitType.GRAYMAN or (hasattr(unit, 'is_echo') and unit.is_echo and unit.type == UnitType.GRAYMAN):
+                            damage = effective_attack  # Bypass defense completely
+                            
+                            from boneglaive.utils.message_log import message_log, MessageType
+                            # Different messages for original GRAYMAN vs echo
+                            if hasattr(unit, 'is_echo') and unit.is_echo:
+                                message_log.add_message(
+                                    f"The echo's psychic attack bypasses {target.get_display_name()}'s defenses!",
+                                    MessageType.ABILITY,
+                                    player=unit.player,
+                                    target_name=target.get_display_name()
+                                )
+                            else:
+                                message_log.add_message(
+                                    f"{unit.get_display_name()}'s psychic attack bypasses {target.get_display_name()}'s defenses!",
+                                    MessageType.ABILITY,
+                                    player=unit.player,
+                                    target_name=target.get_display_name()
+                                )
+                        else:
+                            damage = max(1, effective_attack - effective_defense)
+                        
+                        # Store previous HP to check for status changes
+                        previous_hp = target.hp
+                        critical_threshold = int(target.max_hp * CRITICAL_HEALTH_PERCENT)
+                        
+                        # Apply damage
+                        target.hp = max(0, target.hp - damage)
                     
                     # Check if attacker is a MANDIBLE_FOREMAN with the Viseroy passive
                     # If so, trap the target unit
@@ -1304,8 +1375,8 @@ class Game:
                     from boneglaive.utils.constants import XP_DAMAGE_FACTOR, XP_KILL_REWARD
                     xp_gained = int(damage * XP_DAMAGE_FACTOR)
                     
-                    # Additional XP for killing the target
-                    if target.hp <= 0:
+                    # Additional XP for killing the target (only applicable when target is a unit, not a wall)
+                    if target and target.hp <= 0:
                         xp_gained += XP_KILL_REWARD
                     
                     # Add XP and check if unit leveled up
@@ -1317,24 +1388,26 @@ class Game:
                             player=unit.player
                         )
                     
-                    # Log combat message
-                    message_log.add_combat_message(
-                        attacker_name=unit.get_display_name(),
-                        target_name=target.get_display_name(),
-                        damage=damage,
-                        attacker_player=unit.player,
-                        target_player=target.player
-                    )
-                    
-                    # No need to format with player info anymore - just use the unit's display name
-                    # Check if target was defeated
-                    if target.hp <= 0:
-                        # Use centralized death handling
-                        self.handle_unit_death(target, unit, cause="combat", ui=ui)
-                    else:
-                        # Check for critical health (wretching) using centralized logic
-                        if not self.check_critical_health(target, unit, previous_hp, ui):
-                            continue  # Skip to next unit if processing should stop
+                    # Only log combat messages and handle unit death for unit targets (not walls)
+                    if target:
+                        # Log combat message
+                        message_log.add_combat_message(
+                            attacker_name=unit.get_display_name(),
+                            target_name=target.get_display_name(),
+                            damage=damage,
+                            attacker_player=unit.player,
+                            target_player=target.player
+                        )
+                        
+                        # No need to format with player info anymore - just use the unit's display name
+                        # Check if target was defeated
+                        if target.hp <= 0:
+                            # Use centralized death handling
+                            self.handle_unit_death(target, unit, cause="combat", ui=ui)
+                        else:
+                            # Check for critical health (wretching) using centralized logic
+                            if not self.check_critical_health(target, unit, previous_hp, ui):
+                                continue  # Skip to next unit if processing should stop
                 else:
                     # Log invalid attack attempts for debugging
                     if not target:
@@ -2211,6 +2284,65 @@ class Game:
                 elif unit.is_echo:
                     # Chain reaction - trigger this echo's death effect too
                     self._trigger_echo_death_effect(unit, ui)
+    
+    def _show_wall_attack_animation(self, ui, unit, wall_position):
+        """
+        Show animation for a wall attack when a unit attacks a Marrow Dike wall.
+        
+        Args:
+            ui: The UI reference for animations
+            unit: The attacking unit
+            wall_position: Tuple of (y, x) for the wall being attacked
+        """
+        import time
+        from boneglaive.utils.coordinates import Position, get_line
+        from boneglaive.utils.debug import logger
+        
+        # Skip animation if UI isn't available or doesn't have required methods
+        if not ui or not hasattr(ui, 'renderer') or not hasattr(ui, 'asset_manager'):
+            return
+            
+        # Unpack wall position
+        wall_y, wall_x = wall_position
+        
+        # Get attack animation sequence
+        # Use a special cracking/breaking sequence for wall attacks
+        wall_attack_animation = ui.asset_manager.get_skill_animation_sequence('wall_attack')
+        if not wall_attack_animation:
+            # Fallback animation if not defined
+            wall_attack_animation = ['*', '#', 'X', '=', '/', '\\', '|']
+        
+        # Draw attack line from unit to wall
+        # Calculate positions along the path
+        start_pos = Position(unit.y, unit.x)
+        end_pos = Position(wall_y, wall_x)
+        path = get_line(start_pos, end_pos)
+        
+        # Show projectile along the path (simple animation)
+        for pos in path[1:-1]:  # Skip start and end positions
+            ui.renderer.draw_tile(pos.y, pos.x, '•', 7)  # Projectile character
+        ui.renderer.refresh()
+        time.sleep(0.1)
+        
+        # Clear the projectile path
+        for pos in path[1:-1]:
+            ui.renderer.draw_tile(pos.y, pos.x, ' ', 0)
+        ui.renderer.refresh()
+        
+        # Show impact animation at the wall position
+        ui.renderer.animate_attack_sequence(
+            wall_y, wall_x,
+            wall_attack_animation,
+            6,  # Color code (red/orange)
+            0.1  # Duration per frame
+        )
+        
+        # Draw a cracking effect on the wall to show damage
+        ui.renderer.draw_tile(wall_y, wall_x, '#', 20)  # Use red color for damaged wall
+        ui.renderer.refresh()
+        time.sleep(0.2)
+        
+        logger.debug(f"Wall attack animation shown at ({wall_y}, {wall_x})")
     
     @measure_perf
     def _handle_effect_expired(self, event_type, event_data):
