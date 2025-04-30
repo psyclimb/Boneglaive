@@ -1267,34 +1267,28 @@ class Game:
                         wall_target = (y, x)  # Mark this as a valid wall target
 
                 if target and target.player != unit.player and attack_distance <= unit.attack_range and los_check or wall_target:  # Valid attack on unit or wall
-                    # Show attack animation if UI is provided
-                    if ui:
-                        if wall_target:
-                            # For wall targets, show a special animation
-                            self._show_wall_attack_animation(ui, unit, wall_target)
-                        else:
-                            ui.show_attack_animation(unit, target)
-                    
-                    # Handle damage calculation and application
+                    # Handle damage calculation first
                     if wall_target:
                         # Get the wall information
                         wall_y, wall_x = wall_target
                         wall_info = self.marrow_dike_tiles[wall_target]
                         
-                        # Calculate damage based on unit's attack and wall's defense
-                        wall_defense = wall_info.get('defense', 0)
-                        unit_attack = unit.get_effective_stats()['attack']
-                        damage = max(1, unit_attack - wall_defense)
+                        # Walls always take exactly 1 damage from any attack
+                        damage = 1
                         
                         # Apply damage to the wall
                         wall_info['hp'] = max(0, wall_info['hp'] - damage)
                         
                         # Log the attack on the wall
                         message_log.add_message(
-                            f"{unit.get_display_name()} attacks a Marrow Dike wall for {damage} damage!",
+                            f"{unit.get_display_name()} attacks a Marrow Dike wall!",
                             MessageType.COMBAT,
                             player=unit.player
                         )
+                        
+                        # Show attack animation with damage after calculation
+                        if ui:
+                            self._show_wall_attack_animation(ui, unit, wall_target, damage)
                         
                         # Handle wall destruction
                         if wall_info['hp'] <= 0:
@@ -1314,6 +1308,10 @@ class Game:
                             )
                     else:
                         # Normal unit-vs-unit combat
+                        # Show animation first
+                        if ui:
+                            ui.show_attack_animation(unit, target)
+                        
                         # Calculate damage using effective stats (including bonuses)
                         # Defense acts as flat damage reduction
                         effective_stats = unit.get_effective_stats()
@@ -2289,7 +2287,7 @@ class Game:
                     # Chain reaction - trigger this echo's death effect too
                     self._trigger_echo_death_effect(unit, ui)
     
-    def _show_wall_attack_animation(self, ui, unit, wall_position):
+    def _show_wall_attack_animation(self, ui, unit, wall_position, damage):
         """
         Show animation for a wall attack when a unit attacks a Marrow Dike wall.
         
@@ -2297,8 +2295,10 @@ class Game:
             ui: The UI reference for animations
             unit: The attacking unit
             wall_position: Tuple of (y, x) for the wall being attacked
+            damage: The amount of damage being dealt to the wall
         """
         import time
+        import curses
         from boneglaive.utils.coordinates import Position, get_line
         from boneglaive.utils.debug import logger
         
@@ -2340,6 +2340,27 @@ class Game:
             6,  # Color code (red/orange)
             0.1  # Duration per frame
         )
+        
+        # Show damage number above the wall
+        damage_text = f"-{damage}"
+        
+        # Make damage text more prominent with flashing effect
+        for i in range(3):
+            # First clear the area
+            ui.renderer.draw_text(wall_y-1, wall_x*2, " " * len(damage_text), 7)
+            # Draw with alternating bold/normal for a flashing effect
+            attrs = curses.A_BOLD if i % 2 == 0 else 0
+            ui.renderer.draw_text(wall_y-1, wall_x*2, damage_text, 1, attrs)  # Red color for wall damage
+            ui.renderer.refresh()
+            time.sleep(0.1)
+        
+        # Final damage display (stays on screen slightly longer)
+        ui.renderer.draw_text(wall_y-1, wall_x*2, damage_text, 1, curses.A_BOLD)
+        ui.renderer.refresh()
+        time.sleep(0.3)
+        
+        # Clear the damage text
+        ui.renderer.draw_text(wall_y-1, wall_x*2, " " * len(damage_text), 0)
         
         # Draw a cracking effect on the wall to show damage
         ui.renderer.draw_tile(wall_y, wall_x, '#', 20)  # Use red color for damaged wall

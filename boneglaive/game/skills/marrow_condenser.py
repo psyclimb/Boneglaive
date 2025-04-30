@@ -432,8 +432,7 @@ class MarrowDikeSkill(ActiveSkill):
                 'duration': self.duration,
                 'upgraded': self.upgraded,
                 'original_terrain': original_terrain,
-                'hp': 2,  # Give wall 2 HP to require multiple hits
-                'defense': 99  # High defense ensures consistent damage reduction
+                'hp': 2  # Give wall 2 HP to require exactly 2 hits to destroy
             }
         
         # Track interior tiles for Dominion passive detection
