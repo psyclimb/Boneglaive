@@ -99,8 +99,7 @@ This document lists all messages displayed in the message log related to skill u
 
 ### Ossify
 - **When readied**: `"MARROW_CONDENSER Alpha prepares to ossify their bones!"`
-- **When executed (normal)**: `"MARROW_CONDENSER Alpha's bones harden, increasing defense by X but reducing mobility!"`
-- **When executed (upgraded)**: `"MARROW_CONDENSER Alpha's bones permanently harden, increasing defense by X!"`
+- **When executed**: `"MARROW_CONDENSER Alpha's bones harden!"`
 
 ### Marrow Dike
 - **When readied**: `"MARROW_CONDENSER Alpha prepares to create a Marrow Dike!"`
@@ -109,11 +108,10 @@ This document lists all messages displayed in the message log related to skill u
 - **Enemy movement penalty**: `"GRAYMAN Beta slogs through the Marrow Dike!"`
 - **When walls expire**: `"A section of MARROW_CONDENSER Alpha's Marrow Dike crumbles away..."`
 
-### Slough
-- **When readied**: `"MARROW_CONDENSER Alpha prepares to transfer bonuses to GLAIVEMAN Beta!"`
-- **When executed (normal)**: `"MARROW_CONDENSER Alpha transfers their stat bonuses to GLAIVEMAN Beta!"`
-- **When executed (upgraded)**: `"MARROW_CONDENSER Alpha shares their stat bonuses with GLAIVEMAN Beta without losing them!"`
-- **When transfer fails**: `"Slough failed: target no longer valid."`
+### Bone Tithe (formerly Slough)
+- **When readied**: `"MARROW_CONDENSER Alpha prepares to collect the Bone Tithe!"`
+- **When executed**: `"MARROW_CONDENSER Alpha extracts the Bone Tithe from nearby entities!"`
+- **HP gain**: `"MARROW_CONDENSER Alpha compacts bone marrow into himself, gaining X max HP!"`
 
 ## General Message Format Patterns
 
