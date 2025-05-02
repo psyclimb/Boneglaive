@@ -105,9 +105,8 @@ This document lists all messages displayed in the message log related to skill u
 ### Marrow Dike
 - **When readied**: `"MARROW_CONDENSER Alpha prepares to create a Marrow Dike!"`
 - **When executed (normal)**: `"MARROW_CONDENSER Alpha creates a Marrow Dike!"`
-- **When executed (upgraded)**: `"MARROW_CONDENSER Alpha creates a Marrow Dike filled with healing blood plasma!"`
+- **When executed (upgraded)**: `"MARROW_CONDENSER Alpha creates a reinforced Marrow Dike with stronger walls!"`
 - **When walls expire**: `"A section of MARROW_CONDENSER Alpha's Marrow Dike crumbles away..."`
-- **Healing effect (upgraded)**: `"GLAIVEMAN Beta is healed for X HP by MARROW_CONDENSER Alpha's blood plasma!"`
 
 ### Slough
 - **When readied**: `"MARROW_CONDENSER Alpha prepares to transfer bonuses to GLAIVEMAN Beta!"`

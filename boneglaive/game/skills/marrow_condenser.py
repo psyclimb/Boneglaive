@@ -204,16 +204,9 @@ class MarrowDikeSkill(ActiveSkill):
     Active skill for MARROW CONDENSER.
     Creates a wall of condensed bone marrow that blocks movement and attacks.
     
-    When upgraded (Osseous Prison):
+    When upgraded:
     - Enemies starting their turn inside take -1 movement penalty
-    - Enemies that die inside provide specific stat bonuses based on unit type:
-      * GLAIVEMAN → +1 attack (absorbs their offensive capability)
-      * MANDIBLE FOREMAN → +1 defense (absorbs their sturdy nature)
-      * GRAYMAN → +1 move range (absorbs their dimensional abilities)
-      * FOWL CONTRIVANCE → +1 attack range (absorbs their avian maneuverability)
-      * MARROW CONDENSER → +1 max HP (absorbs their dense bone structure)
-      * ECHO GRAYMAN → +1 to a random stat (unpredictable dimensional residue)
-    - Maximum of +3 total stat points can be gained from a single Marrow Dike
+    - The walls are reinforced with additional HP
     """
     
     def __init__(self):
@@ -228,7 +221,6 @@ class MarrowDikeSkill(ActiveSkill):
         )
         self.upgraded = False
         self.duration = 4  # Duration of 4 turns
-        self.stat_points_gained = 0  # Track stat points gained (max 3)
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         # Basic validation
@@ -304,7 +296,7 @@ class MarrowDikeSkill(ActiveSkill):
             
             # Update description for upgraded version
             if self.upgraded:
-                self.description = "Creates an Osseous Prison that immobilizes enemies (-1 move) and grants stat bonuses when they die inside."
+                self.description = "Creates a reinforced Marrow Dike that immobilizes enemies (-1 move) with stronger walls."
         
         # Generate the dike area (perimeter of a 5x5 area centered on user)
         dike_tiles = []
@@ -432,7 +424,7 @@ class MarrowDikeSkill(ActiveSkill):
                 'duration': self.duration,
                 'upgraded': self.upgraded,
                 'original_terrain': original_terrain,
-                'hp': 2  # Give wall 2 HP to require exactly 2 hits to destroy
+                'hp': 3 if self.upgraded else 2  # 3 HP when upgraded, 2 HP otherwise
             }
         
         # Track interior tiles for Dominion passive detection
@@ -449,7 +441,7 @@ class MarrowDikeSkill(ActiveSkill):
         # Log the skill activation
         if self.upgraded:
             message_log.add_message(
-                f"{user.get_display_name()} creates an Osseous Prison to trap and extract power from enemies!",
+                f"{user.get_display_name()} creates a reinforced Marrow Dike with stronger walls!",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -524,10 +516,10 @@ class MarrowDikeSkill(ActiveSkill):
                         0.05  # Quick animation
                     )
                     
-                    # If upgraded to Osseous Prison, add a bone cage effect
+                    # If upgraded, add a reinforced wall effect
                     if self.upgraded:
                         prison_animation = ['#', '≡', '■', '≡', '#']
-                        # Draw upgraded walls with bone prison elements
+                        # Draw upgraded walls with reinforced elements
                         ui.renderer.animate_attack_sequence(
                             tile_y, tile_x,
                             prison_animation,

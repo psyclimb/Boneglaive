@@ -813,80 +813,6 @@ class Game:
                         )
                         
                         # Also log to the game's logger to ensure it's recorded
-                
-                # Check if Marrow Dike is upgraded (Osseous Prison) and has available stat points
-                for skill in dike_owner.active_skills:
-                    if skill.name == "Marrow Dike" and skill.upgraded and hasattr(skill, 'stat_points_gained'):
-                        # Only if we haven't hit the maximum bonus already
-                        if skill.stat_points_gained < 3:
-                            # Determine stat bonus based on dying unit's type
-                            stat_bonus = None
-                            bonus_message = None
-                            
-                            # GLAIVEMAN --> attack
-                            if dying_unit.type == UnitType.GLAIVEMAN:
-                                dike_owner.attack_bonus += 1
-                                stat_bonus = "Attack +1"
-                                bonus_message = f"absorbs offensive capability"
-                                
-                            # MANDIBLE FOREMAN --> defense
-                            elif dying_unit.type == UnitType.MANDIBLE_FOREMAN:
-                                dike_owner.defense_bonus += 1
-                                stat_bonus = "Defense +1"
-                                bonus_message = f"absorbs sturdy nature"
-                                
-                            # GRAYMAN --> move range
-                            elif dying_unit.type == UnitType.GRAYMAN:
-                                dike_owner.move_range_bonus += 1
-                                stat_bonus = "Move Range +1"
-                                bonus_message = f"absorbs dimensional abilities"
-                                
-                            # FOWL CONTRIVANCE --> attack range
-                            elif dying_unit.type == UnitType.FOWL_CONTRIVANCE:
-                                dike_owner.attack_range_bonus += 1
-                                stat_bonus = "Attack Range +1"
-                                bonus_message = f"absorbs avian maneuverability"
-                                
-                            # MARROW_CONDENSER --> max HP
-                            elif dying_unit.type == UnitType.MARROW_CONDENSER:
-                                dike_owner.max_hp += 1
-                                dike_owner.hp += 1
-                                stat_bonus = "Max HP +1"
-                                bonus_message = f"absorbs dense bone structure"
-                                
-                            # ECHO GRAYMAN --> random stat
-                            elif dying_unit.type == UnitType.ECHO_GRAYMAN:
-                                import random
-                                rand_stat = random.choice(["hp", "attack", "defense", "move"])
-                                if rand_stat == "hp":
-                                    dike_owner.max_hp += 1
-                                    dike_owner.hp += 1
-                                    stat_bonus = "Max HP +1"
-                                    bonus_message = f"absorbs unpredictable dimensional residue"
-                                elif rand_stat == "attack":
-                                    dike_owner.attack_bonus += 1
-                                    stat_bonus = "Attack +1"
-                                    bonus_message = f"absorbs unpredictable dimensional residue"
-                                elif rand_stat == "defense":
-                                    dike_owner.defense_bonus += 1
-                                    stat_bonus = "Defense +1"
-                                    bonus_message = f"absorbs unpredictable dimensional residue"
-                                elif rand_stat == "move":
-                                    dike_owner.move_range_bonus += 1
-                                    stat_bonus = "Move Range +1"
-                                    bonus_message = f"absorbs unpredictable dimensional residue"
-                            
-                            # Track stat points and show message if bonus was applied
-                            if stat_bonus:
-                                skill.stat_points_gained += 1
-                                message_log.add_message(
-                                    f"OSSEOUS PRISON: {dike_owner.get_display_name()} {bonus_message} from {dying_unit.get_display_name()} ({stat_bonus})!",
-                                    MessageType.ABILITY,
-                                    player=dike_owner.player,
-                                    attacker_name=dike_owner.get_display_name(),
-                                    target_name=dying_unit.get_display_name()
-                                )
-                        break
                         logger.info(upgrade_message)
         
         # Handle MANDIBLE_FOREMAN death - release trapped units
@@ -930,7 +856,7 @@ class Game:
             if hasattr(unit, 'pry_duration') and unit.pry_duration > 0:
                 logger.debug(f"Processing Pry effect for {unit.get_display_name()}, duration: {unit.pry_duration}")
                 
-            # Check if unit is inside an upgraded Marrow Dike (Osseous Prison)
+            # Check if unit is inside an upgraded Marrow Dike
             if hasattr(self, 'marrow_dike_interior'):
                 unit_pos = (unit.y, unit.x)
                 if unit_pos in self.marrow_dike_interior:
@@ -938,7 +864,7 @@ class Game:
                     dike_owner = dike_info.get('owner')
                     
                     # Only apply movement penalty if:
-                    # 1. The dike is upgraded (Osseous Prison)
+                    # 1. The dike is upgraded
                     # 2. The unit is an enemy of the dike owner
                     # 3. The dike owner is MARROW CONDENSER
                     if (dike_info.get('upgraded', False) and 
@@ -953,7 +879,7 @@ class Game:
                             
                             # Log the effect
                             message_log.add_message(
-                                f"{unit.get_display_name()} is trapped in {dike_owner.get_display_name()}'s Osseous Prison (-1 movement)!",
+                                f"{unit.get_display_name()} is trapped in {dike_owner.get_display_name()}'s reinforced Marrow Dike (-1 movement)!",
                                 MessageType.ABILITY,
                                 player=dike_owner.player,
                                 attacker_name=dike_owner.get_display_name(),
