@@ -844,17 +844,15 @@ class Game:
         """
         Process status effect durations for all units of the current player.
         Decrements durations and removes expired status effects.
+        Also applies movement penalties for units inside reinforced Marrow Dikes.
         """
         from boneglaive.utils.message_log import message_log, MessageType
         
-        # Process all units for the current player
+        # Process ALL units for effects that apply to any unit inside a reinforced Marrow Dike
+        # This affects both current player's units and enemy units
         for unit in self.units:
-            if not unit.is_alive() or unit.player != self.current_player:
+            if not unit.is_alive():
                 continue
-                
-            # Process Pry movement penalty effect
-            if hasattr(unit, 'pry_duration') and unit.pry_duration > 0:
-                logger.debug(f"Processing Pry effect for {unit.get_display_name()}, duration: {unit.pry_duration}")
                 
             # Check if unit is inside an upgraded Marrow Dike
             if hasattr(self, 'marrow_dike_interior'):
@@ -870,16 +868,16 @@ class Game:
                     if (dike_info.get('upgraded', False) and 
                         dike_owner and dike_owner.is_alive() and 
                         dike_owner.type == UnitType.MARROW_CONDENSER and 
-                        dike_owner.player != unit.player):
+                        dike_owner.player != unit.player):  # Only enemy units get the penalty
                         
                         # Apply movement penalty if not already applied
                         if not hasattr(unit, 'prison_move_penalty') or not unit.prison_move_penalty:
                             unit.move_range_bonus -= 1
                             unit.prison_move_penalty = True
                             
-                            # Log the effect
+                            # Shorter log message
                             message_log.add_message(
-                                f"{unit.get_display_name()} is trapped in {dike_owner.get_display_name()}'s reinforced Marrow Dike (-1 movement)!",
+                                f"{unit.get_display_name()} slogs through the Marrow Dike!",
                                 MessageType.ABILITY,
                                 player=dike_owner.player,
                                 attacker_name=dike_owner.get_display_name(),
@@ -889,6 +887,18 @@ class Game:
                 elif hasattr(unit, 'prison_move_penalty') and unit.prison_move_penalty:
                     unit.move_range_bonus += 1
                     unit.prison_move_penalty = False
+        
+        # Now process turn-based effects for current player's units only
+        for unit in self.units:
+            if not unit.is_alive() or unit.player != self.current_player:
+                continue
+                
+            # Skip Marrow Dike movement penalty check (already handled above)
+            # Process other status effects
+                
+            # Process Pry movement penalty effect
+            if hasattr(unit, 'pry_duration') and unit.pry_duration > 0:
+                logger.debug(f"Processing Pry effect for {unit.get_display_name()}, duration: {unit.pry_duration}")
                 
             # Process Site Inspection status effect
             if hasattr(unit, 'status_site_inspection') and unit.status_site_inspection:

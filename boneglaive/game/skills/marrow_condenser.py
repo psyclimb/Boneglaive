@@ -441,10 +441,28 @@ class MarrowDikeSkill(ActiveSkill):
         # Log the skill activation
         if self.upgraded:
             message_log.add_message(
-                f"{user.get_display_name()} creates a reinforced Marrow Dike with stronger walls!",
+                f"{user.get_display_name()} shores up a Marrow Dike and fills it with plasma!",
                 MessageType.ABILITY,
                 player=user.player
             )
+            
+            # Immediately apply movement penalties to enemies trapped inside the upgraded Marrow Dike
+            for tile_y, tile_x in dike_interior:
+                unit_at_pos = game.get_unit_at(tile_y, tile_x)
+                if unit_at_pos and unit_at_pos.is_alive() and unit_at_pos.player != user.player:
+                    # If the unit is an enemy, apply the movement penalty immediately
+                    if not hasattr(unit_at_pos, 'prison_move_penalty') or not unit_at_pos.prison_move_penalty:
+                        unit_at_pos.move_range_bonus -= 1
+                        unit_at_pos.prison_move_penalty = True
+                        
+                        # Shorter message for each enemy unit trapped inside
+                        message_log.add_message(
+                            f"{unit_at_pos.get_display_name()} slogs through the Marrow Dike!",
+                            MessageType.ABILITY,
+                            player=user.player,
+                            attacker_name=user.get_display_name(),
+                            target_name=unit_at_pos.get_display_name()
+                        )
         else:
             message_log.add_message(
                 f"{user.get_display_name()} creates a Marrow Dike!",
