@@ -107,10 +107,12 @@ class OssifySkill(ActiveSkill):
         user.skill_target = (user.y, user.x)
         user.selected_skill = self
         
-        # Increment action timestamp for proper skill order
-        if hasattr(user, 'action_timestamp') and user.action_timestamp == 0:
+        # Track action order exactly like other units
+        if game:
+            user.action_timestamp = game.action_counter
+            game.action_counter += 1
             from boneglaive.utils.debug import logger
-            logger.debug(f"Setting action timestamp for {user.get_display_name()}'s Ossify skill")
+            logger.debug(f"Setting action timestamp for {user.get_display_name()}'s Ossify skill to {user.action_timestamp}")
         
         # Log that the skill has been queued
         message_log.add_message(
@@ -259,10 +261,12 @@ class MarrowDikeSkill(ActiveSkill):
         user.skill_target = target_pos
         user.selected_skill = self
         
-        # Increment action timestamp for proper skill order
-        if hasattr(user, 'action_timestamp') and user.action_timestamp == 0:
+        # Track action order exactly like other units
+        if game:
+            user.action_timestamp = game.action_counter
+            game.action_counter += 1
             from boneglaive.utils.debug import logger
-            logger.debug(f"Setting action timestamp for {user.get_display_name()}'s Marrow Dike skill")
+            logger.debug(f"Setting action timestamp for {user.get_display_name()}'s Marrow Dike skill to {user.action_timestamp}")
         
         # Log that the skill has been queued
         message_log.add_message(
@@ -443,8 +447,18 @@ class MarrowDikeSkill(ActiveSkill):
             for tile_y, tile_x in dike_interior:
                 unit_at_pos = game.get_unit_at(tile_y, tile_x)
                 if unit_at_pos and unit_at_pos.is_alive() and unit_at_pos.player != user.player:
-                    # If the unit is an enemy, apply the movement penalty immediately
-                    if not hasattr(unit_at_pos, 'prison_move_penalty') or not unit_at_pos.prison_move_penalty:
+                    # Check if unit is immune to effects due to Stasiality
+                    if unit_at_pos.is_immune_to_effects():
+                        # Show message about immunity
+                        message_log.add_message(
+                            f"{unit_at_pos.get_display_name()} ignores the Marrow Dike's effect due to Stasiality!",
+                            MessageType.ABILITY,
+                            player=unit_at_pos.player,
+                            target_name=unit_at_pos.get_display_name()
+                        )
+                        unit_at_pos.marrow_dike_immunity_message_shown = True
+                    # For non-immune units, apply the movement penalty immediately
+                    elif not hasattr(unit_at_pos, 'prison_move_penalty') or not unit_at_pos.prison_move_penalty:
                         unit_at_pos.move_range_bonus -= 1
                         unit_at_pos.prison_move_penalty = True
                         
@@ -615,13 +629,22 @@ class BoneTitheSkill(ActiveSkill):
         if not self.can_use(user, target_pos, game):
             return False
             
+        # Always set both skill target and selected_skill
         user.skill_target = target_pos
         user.selected_skill = self
         
-        # Increment action timestamp for proper skill order
-        if hasattr(user, 'action_timestamp') and user.action_timestamp == 0:
+        # Clear any previous action timestamp
+        user.action_timestamp = 0
+        
+        # Always set a new action timestamp, matching exactly what other unit types do
+        if game:
+            # Set action timestamp directly from action counter (no conditions)
+            user.action_timestamp = game.action_counter
+            # Increment action counter for next action
+            game.action_counter += 1
+            # Log the timestamp assignment for debugging
             from boneglaive.utils.debug import logger
-            logger.debug(f"Setting action timestamp for {user.get_display_name()}'s Marrow Dike skill")
+            logger.debug(f"Setting action timestamp for {user.get_display_name()}'s Bone Tithe skill to {user.action_timestamp}")
         
         # Log that the skill has been queued
         message_log.add_message(
@@ -630,6 +653,7 @@ class BoneTitheSkill(ActiveSkill):
             player=user.player
         )
         
+        # Set cooldown immediately - this matches other skill implementations
         self.current_cooldown = self.cooldown
         return True
         
@@ -637,7 +661,14 @@ class BoneTitheSkill(ActiveSkill):
         """Execute the Bone Tithe skill during turn resolution."""
         import time
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-
+        from boneglaive.utils.debug import logger
+        
+        # Log that we're executing this skill
+        logger.debug(f"Executing Bone Tithe for {user.get_display_name()} with timestamp {user.action_timestamp}")
+        
+        # Reset skill target and selected skill to indicate we're executing it now
+        # This matches the pattern used in other successful skills
+        user.took_action = True
         
         # Determine if this is upgraded version
         if hasattr(user, 'passive_skill') and hasattr(user.passive_skill, 'bone_tithe_upgraded'):
@@ -836,5 +867,12 @@ class BoneTitheSkill(ActiveSkill):
             # Redraw the board after all animations
             if hasattr(ui, 'draw_board'):
                 ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+        
+        # Clean up skill state after execution
+        user.skill_target = None
+        user.selected_skill = None
+        
+        # Log that execution is complete
+        logger.debug(f"Bone Tithe execution complete for {user.get_display_name()}")
         
         return True
