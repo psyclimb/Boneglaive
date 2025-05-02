@@ -848,10 +848,12 @@ class Game:
                     # 1. The dike is upgraded
                     # 2. The unit is an enemy of the dike owner
                     # 3. The dike owner is MARROW CONDENSER
+                    # 4. The unit is not immune to effects (due to Stasiality)
                     if (dike_info.get('upgraded', False) and 
                         dike_owner and dike_owner.is_alive() and 
                         dike_owner.type == UnitType.MARROW_CONDENSER and 
-                        dike_owner.player != unit.player):  # Only enemy units get the penalty
+                        dike_owner.player != unit.player and
+                        not unit.is_immune_to_effects()):  # GRAYMAN with Stasiality is immune
                         
                         # Apply movement penalty if not already applied
                         if not hasattr(unit, 'prison_move_penalty') or not unit.prison_move_penalty:
@@ -866,6 +868,21 @@ class Game:
                                 attacker_name=dike_owner.get_display_name(),
                                 target_name=unit.get_display_name()
                             )
+                    # If unit is immune to effects, show a message about immunity 
+                    elif (dike_info.get('upgraded', False) and 
+                          dike_owner and dike_owner.is_alive() and 
+                          dike_owner.type == UnitType.MARROW_CONDENSER and 
+                          dike_owner.player != unit.player and
+                          unit.is_immune_to_effects()):
+                        # Only show the message once when first entering the dike
+                        if not hasattr(unit, 'marrow_dike_immunity_message_shown'):
+                            message_log.add_message(
+                                f"{unit.get_display_name()} ignores the Marrow Dike's effect due to Stasiality!",
+                                MessageType.ABILITY,
+                                player=unit.player,
+                                target_name=unit.get_display_name()
+                            )
+                            unit.marrow_dike_immunity_message_shown = True
                 # If unit is not in a dike but had the penalty, remove it
                 elif hasattr(unit, 'prison_move_penalty') and unit.prison_move_penalty:
                     unit.move_range_bonus += 1
