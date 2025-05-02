@@ -31,8 +31,8 @@ class Dominion(PassiveSkill):
         )
         self.ossify_upgraded = False
         self.marrow_dike_upgraded = False
-        self.slough_upgraded = False
-        self.available_upgrades = ["marrow_dike", "ossify", "slough"]
+        self.bone_tithe_upgraded = False
+        self.available_upgrades = ["marrow_dike", "ossify", "bone_tithe"]
         self.kills = 0  # Track the number of kills for flat stat bonuses
     
     def apply_passive(self, user: 'Unit', game=None) -> None:
@@ -44,20 +44,20 @@ class Dominion(PassiveSkill):
         return len(self.available_upgrades) > 0
     
     def get_next_upgrade(self) -> str:
-        """Get the next skill to upgrade in fixed order: Marrow Dike, Ossify, then Slough."""
+        """Get the next skill to upgrade in fixed order: Marrow Dike, Ossify, then Bone Tithe."""
         if not self.available_upgrades:
             return None
         
         # Fixed upgrade order:
         # 1. Marrow Dike
         # 2. Ossify
-        # 3. Bone Tithe (formerly Slough)
+        # 3. Bone Tithe
         if "marrow_dike" in self.available_upgrades:
             upgrade = "marrow_dike"
         elif "ossify" in self.available_upgrades:
             upgrade = "ossify"
-        elif "slough" in self.available_upgrades:
-            upgrade = "slough"
+        elif "bone_tithe" in self.available_upgrades:
+            upgrade = "bone_tithe"
         else:
             # Fallback (should never happen with current implementation)
             return None
@@ -68,8 +68,8 @@ class Dominion(PassiveSkill):
             self.ossify_upgraded = True
         elif upgrade == "marrow_dike":
             self.marrow_dike_upgraded = True
-        elif upgrade == "slough":
-            self.slough_upgraded = True
+        elif upgrade == "bone_tithe":
+            self.bone_tithe_upgraded = True
             
         return upgrade
 
@@ -208,7 +208,7 @@ class MarrowDikeSkill(ActiveSkill):
             key="M",
             description="Creates a wall of condensed bone marrow that blocks movement and attacks for 4 turns.",
             target_type=TargetType.SELF,
-            cooldown=4,  # Standard 4-turn cooldown
+            cooldown=2,  # 2-turn cooldown
             range_=0,
             area=2  # 5x5 area (center + 2 in each direction)
         )
@@ -560,7 +560,7 @@ class MarrowDikeSkill(ActiveSkill):
         return True
 
 
-class SloughSkill(ActiveSkill):
+class BoneTitheSkill(ActiveSkill):
     """
     Active skill for MARROW CONDENSER.
     Extracts a tithe of bone marrow from nearby enemies, damaging them while
@@ -577,7 +577,7 @@ class SloughSkill(ActiveSkill):
             key="B",
             description="Extracts marrow from adjacent enemies for 1 (+1 per kill) damage and gains +1 HP for each enemy hit.",
             target_type=TargetType.SELF,  # Self-targeted area effect
-            cooldown=4,
+            cooldown=2,
             range_=0,
             area=1  # 3x3 area (center + 1 in each direction)
         )
@@ -599,7 +599,7 @@ class SloughSkill(ActiveSkill):
             if potential_allies_to_heal > 0 and user.hp <= min_health_needed:
                 from boneglaive.utils.message_log import message_log, MessageType
                 message_log.add_message(
-                    f"{user.get_display_name()} needs at least {min_health_needed+1} HP to use Slough!",
+                    f"{user.get_display_name()} needs at least {min_health_needed+1} HP to use Bone Tithe!",
                     MessageType.WARNING,
                     player=user.player
                 )
@@ -609,7 +609,7 @@ class SloughSkill(ActiveSkill):
         return potential_allies_to_heal > 0 or self.upgraded
             
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
-        """Queue the Slough skill for execution."""
+        """Queue the Bone Tithe skill for execution."""
         # For self-targeting skills, set target to current position
         target_pos = (user.y, user.x)
         if not self.can_use(user, target_pos, game):
@@ -640,8 +640,8 @@ class SloughSkill(ActiveSkill):
 
         
         # Determine if this is upgraded version
-        if hasattr(user, 'passive_skill') and hasattr(user.passive_skill, 'slough_upgraded'):
-            self.upgraded = user.passive_skill.slough_upgraded
+        if hasattr(user, 'passive_skill') and hasattr(user.passive_skill, 'bone_tithe_upgraded'):
+            self.upgraded = user.passive_skill.bone_tithe_upgraded
         
         # Get number of kills for damage scaling
         kill_count = 0
@@ -738,10 +738,10 @@ class SloughSkill(ActiveSkill):
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
             # Get bone tithe animation from asset manager
-            slough_animation = ui.asset_manager.get_skill_animation_sequence('slough')  # Keep using 'slough' key for animation compatibility
-            if not slough_animation:
+            bone_tithe_animation = ui.asset_manager.get_skill_animation_sequence('slough')  # Still using 'slough' key for animation compatibility with existing assets
+            if not bone_tithe_animation:
                 # ASCII-only animation showing bone shards flying outward
-                slough_animation = ['#', '*', '+', 'X', '*', '.']
+                bone_tithe_animation = ['#', '*', '+', 'X', '*', '.']
             
             # First flash the user to show bone shards being expelled
             if hasattr(ui, 'asset_manager'):
@@ -778,7 +778,7 @@ class SloughSkill(ActiveSkill):
                         break
                         
                     # Animate at this position
-                    for frame in slough_animation:
+                    for frame in bone_tithe_animation:
                         # Determine color based on what's at this position
                         target = game.get_unit_at(next_y, next_x)
                         if target:

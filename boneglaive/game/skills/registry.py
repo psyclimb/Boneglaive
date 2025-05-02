@@ -18,7 +18,7 @@ from boneglaive.game.skills.grayman import (
 )
 
 from boneglaive.game.skills.marrow_condenser import (
-    Dominion, OssifySkill, MarrowDikeSkill, SloughSkill
+    Dominion, OssifySkill, MarrowDikeSkill, BoneTitheSkill
 )
 
 from boneglaive.game.skills.fowl_contrivance import (
@@ -41,7 +41,7 @@ UNIT_SKILLS = {
     },
     "MARROW_CONDENSER": {  # Displayed as "MARROW CONDENSER" in-game
         "passive": Dominion(),
-        "active": [OssifySkill(), MarrowDikeSkill(), SloughSkill()]
+        "active": [OssifySkill(), MarrowDikeSkill(), BoneTitheSkill()]
     },
     "FOWL_CONTRIVANCE": {
         "passive": WretchedDecension(),

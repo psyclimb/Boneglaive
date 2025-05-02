@@ -934,30 +934,7 @@ class Game:
                             player=unit.player
                         )
             
-            # Process Slough defensive bonus effect for allies
-            if hasattr(unit, 'slough_def_duration') and unit.slough_def_duration > 0:
-                # Decrement the duration
-                unit.slough_def_duration -= 1
-                logger.debug(f"{unit.get_display_name()}'s Slough defense bonus duration: {unit.slough_def_duration}")
-                
-                # Check if the effect has expired
-                if unit.slough_def_duration <= 0:
-                    # Remove the defense bonus
-                    # Find the MARROW CONDENSER that cast it to get bonus amount
-                    for other_unit in self.units:
-                        if other_unit.type == UnitType.MARROW_CONDENSER and other_unit.is_alive():
-                            for skill in other_unit.active_skills:
-                                if skill.name == "Slough":
-                                    unit.defense_bonus -= skill.ally_def_bonus
-                                    break
-                            break
-                    
-                    # Log the expiration
-                    message_log.add_message(
-                        f"Protective marrow coating on {unit.get_display_name()} has dissolved.",
-                        MessageType.ABILITY,
-                        player=unit.player
-                    )
+            # Bone Tithe no longer applies defensive buffs to allies
                     
             # Process Jawline status effect
             if hasattr(unit, 'jawline_affected') and unit.jawline_affected:
