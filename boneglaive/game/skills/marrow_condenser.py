@@ -78,7 +78,7 @@ class OssifySkill(ActiveSkill):
     """
     Active skill for MARROW CONDENSER.
     Temporarily compresses bone structure to become nearly impenetrable at the cost of mobility.
-    When upgraded, the effect becomes permanent and movement is no longer reduced.
+    When upgraded, the defense bonus increases from +2 to +3.
     """
     
     def __init__(self):
@@ -95,10 +95,7 @@ class OssifySkill(ActiveSkill):
         self.duration = 2  # Duration in turns
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
-        # If upgraded and permanently applied, can't use again
-        if self.upgraded and user.defense_bonus >= self.defense_bonus:
-            return False
-        
+        # Basic validation (cooldown, etc.)
         return super().can_use(user, target_pos, game)
             
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
@@ -135,28 +132,24 @@ class OssifySkill(ActiveSkill):
         if hasattr(user, 'passive_skill') and hasattr(user.passive_skill, 'ossify_upgraded'):
             self.upgraded = user.passive_skill.ossify_upgraded
         
-        # Apply defense bonus
-        user.defense_bonus += self.defense_bonus
+        # Calculate defense bonus based on upgrade status
+        defense_bonus = 3 if self.upgraded else 2
         
-        # Apply movement penalty if not upgraded
-        if not self.upgraded:
-            user.move_range_bonus = -1
-            # Set the ossify status effect flag and duration for UI display
-            user.ossify_active = True
-            user.ossify_duration = self.duration  # Track duration
-            
-            message_log.add_message(
-                f"{user.get_display_name()}'s bones harden, increasing defense by {self.defense_bonus} but reducing mobility!",
-                MessageType.ABILITY,
-                player=user.player
-            )
-        else:
-            # If upgraded, the effect is permanent with no drawbacks
-            message_log.add_message(
-                f"{user.get_display_name()}'s bones permanently harden, increasing defense by {self.defense_bonus}!",
-                MessageType.ABILITY,
-                player=user.player
-            )
+        # Apply defense bonus
+        user.defense_bonus += defense_bonus
+        
+        # Apply movement penalty (always)
+        user.move_range_bonus = -1
+        # Set the ossify status effect flag and duration for UI display
+        user.ossify_active = True
+        user.ossify_duration = self.duration  # Track duration
+        
+        # Use shorter message
+        message_log.add_message(
+            f"{user.get_display_name()}'s bones harden!",
+            MessageType.ABILITY,
+            player=user.player
+        )
         
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
@@ -574,8 +567,8 @@ class SloughSkill(ActiveSkill):
     strengthening the MARROW CONDENSER with their essence.
     
     When upgraded:
-    - Also applies protective marrow coating to allies in range
-    - Allies gain a defensive bonus for 2 turns
+    - Increases HP gain per enemy hit from +1 to +2
+    - Enhanced ability to absorb and condense enemy marrow
     """
     
     def __init__(self):
@@ -590,9 +583,7 @@ class SloughSkill(ActiveSkill):
         )
         self.upgraded = False
         self.base_damage = 1  # Base damage (increases with kills)
-        self.hp_gain_per_hit = 1  # HP gain per enemy hit
-        self.ally_def_bonus = 1  # Defense bonus for allies when upgraded
-        self.ally_def_duration = 2  # Duration of ally defense bonus
+        self.hp_gain_per_hit = 1  # Base HP gain per enemy hit (increases to 2 when upgraded)
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         # Basic validation (cooldown, etc.)
@@ -727,21 +718,9 @@ class SloughSkill(ActiveSkill):
                     # Use centralized death handling
                     game.handle_unit_death(target, user, cause="bone_tithe", ui=ui)
                 
-                # Gain HP for each enemy hit
-                hp_gained += self.hp_gain_per_hit
-            
-            # Apply defensive buff to allies if upgraded
-            elif self.upgraded:
-                # Add defensive bonus to ally
-                target.defense_bonus += self.ally_def_bonus
-                
-                # Set status effect duration
-                if not hasattr(target, 'slough_def_duration'):
-                    target.slough_def_duration = 0
-                target.slough_def_duration = self.ally_def_duration
-                
-                # Add to list of affected allies
-                allies_buffed.append(target)
+                # Gain HP for each enemy hit (doubled when upgraded)
+                hp_gain_amount = 2 if self.upgraded else 1
+                hp_gained += hp_gain_amount
         
         # Apply HP gain to user based on number of enemies hit
         if hp_gained > 0:
@@ -754,13 +733,7 @@ class SloughSkill(ActiveSkill):
                 player=user.player
             )
         
-        # Log buff effect for allies (upgraded version)
-        if allies_buffed:
-            message_log.add_message(
-                f"Protective marrow coating reinforces {len(allies_buffed)} allies with +{self.ally_def_bonus} defense!",
-                MessageType.ABILITY,
-                player=user.player
-            )
+        # No ally buff messaging needed with the new upgrade
         
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):

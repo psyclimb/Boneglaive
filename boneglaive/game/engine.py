@@ -743,43 +743,26 @@ class Game:
                 in_marrow_dike = True
                 dike_owner = self.marrow_dike_interior[target_pos]['owner']
         
-        # Process MARROW CONDENSER upgrades
-        # First check if a MARROW CONDENSER got a kill
+        # Process MARROW CONDENSER kill counter ONLY
+        # This is just for tracking the kill count used in Bone Tithe damage calculation
+        # No stat bonuses are granted for kills outside the Marrow Dike
         if killer_unit and killer_unit.type == UnitType.MARROW_CONDENSER and hasattr(killer_unit, 'passive_skill'):
             passive = killer_unit.passive_skill
             
             # Check if it's Dominion passive
             if passive.name == "Dominion":
-                # Increment kill counter
+                # Increment kill counter (used for bone tithe damage calculation)
+                # But do NOT grant any bonuses for kills outside the Marrow Dike
                 passive.kills += 1
-                
-                # Apply flat stat bonuses for each kill
-                # Each kill gives +1 to attack, defense, and movement
-                killer_unit.attack_bonus += 1
-                killer_unit.defense_bonus += 1
-                killer_unit.move_range_bonus += 1
-                
-                upgrade_message = f"DOMINION: {killer_unit.get_display_name()} absorbs power from kill #{passive.kills}! ATK+1, DEF+1, MOVE+1"
-                
-                # Add to message log
-                message_log.add_message(
-                    upgrade_message,
-                    MessageType.ABILITY,
-                    player=killer_unit.player,
-                    attacker_name=killer_unit.get_display_name(),
-                    is_upgrade=True
-                )
-                
-                # Log to debug as well
-                logger.info(upgrade_message)
         
-        # Process skill upgrades and stat bonuses if died in a Marrow Dike (independent of kills)
+        # Process skill upgrades and stat bonuses if died in a Marrow Dike
+        # This is the only place where skill upgrades are granted
         if in_marrow_dike and dike_owner:
             # Verify the owner is a MARROW_CONDENSER
             if dike_owner.type == UnitType.MARROW_CONDENSER and hasattr(dike_owner, 'passive_skill'):
                 passive = dike_owner.passive_skill
                 
-                # Apply the same flat stat bonuses as given for kills
+                # Apply the flat stat bonuses for all deaths inside the dike
                 dike_owner.attack_bonus += 1
                 dike_owner.defense_bonus += 1
                 dike_owner.move_range_bonus += 1
@@ -798,7 +781,7 @@ class Game:
                     
                     if upgraded_skill:
                         # Create a more distinctive message for the upgrade
-                        upgrade_message = f"DOMINION: {dike_owner.get_display_name()} absorbs power from the fallen, upgrading {upgraded_skill.capitalize()}!"
+                        upgrade_message = f"DOMINION: {dike_owner.get_display_name()} absorbs power from the fallen!"
                         
                         # Add to message log with ABILITY type for correct player coloring
                         message_log.add_message(
