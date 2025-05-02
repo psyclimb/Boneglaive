@@ -105,7 +105,8 @@ This document lists all messages displayed in the message log related to skill u
 ### Marrow Dike
 - **When readied**: `"MARROW_CONDENSER Alpha prepares to create a Marrow Dike!"`
 - **When executed (normal)**: `"MARROW_CONDENSER Alpha creates a Marrow Dike!"`
-- **When executed (upgraded)**: `"MARROW_CONDENSER Alpha creates a reinforced Marrow Dike with stronger walls!"`
+- **When executed (upgraded)**: `"MARROW_CONDENSER Alpha shores up a Marrow Dike!"`
+- **Enemy movement penalty**: `"GRAYMAN Beta slogs through the Marrow Dike!"`
 - **When walls expire**: `"A section of MARROW_CONDENSER Alpha's Marrow Dike crumbles away..."`
 
 ### Slough
