@@ -74,9 +74,17 @@ class Unit:
         self.is_echo = False  # Whether this unit is an echo created by Græ Exchange
         self.echo_duration = 0  # Number of OWNER'S turns the echo remains (decremented only on owner's turn)
         self.original_unit = None  # Reference to the original unit that created this echo
-        # Removed Recalibrate tracking
         
-        # Removed special cooldown trackers
+        # HEINOUS VAPOR properties (for GAS_MACHINIST)
+        self.vapor_type = None  # Type of vapor ("ENBROACHMENT", "SAFETY", "COOLANT", or "CUTTING")
+        self.vapor_symbol = None  # Symbol to display for this vapor (Φ, Θ, Σ, %)
+        self.vapor_duration = 0  # Number of turns the vapor remains
+        self.vapor_creator = None  # Reference to the GAS_MACHINIST that created this vapor
+        self.vapor_skill = None  # Reference to the skill that created this vapor
+        self.diverged_user = None  # Reference to the GAS_MACHINIST if this vapor is from a diverged user
+        
+        # GAS_MACHINIST properties
+        self.diverge_return_position = False  # Whether this unit is returning from a diverge
         
         # Experience and leveling
         self.level = 1
@@ -188,6 +196,34 @@ class Unit:
                 display_type = "M.CONDENSER"
             else:
                 display_type = "MARROW CONDENSER"
+        elif display_type == "HEINOUS_VAPOR":
+            # Special handling for HEINOUS_VAPOR units
+            if hasattr(self, 'vapor_type') and self.vapor_type:
+                if self.vapor_type == "BROACHING":
+                    vapor_name = "BROACHING GAS"
+                elif self.vapor_type == "SAFETY":
+                    vapor_name = "SAFT-E-GAS"
+                elif self.vapor_type == "COOLANT":
+                    vapor_name = "COOLANT GAS"
+                elif self.vapor_type == "CUTTING":
+                    vapor_name = "CUTTING GAS"
+                else:
+                    vapor_name = "HEINOUS VAPOR"
+                
+                # Include the symbol in the name
+                if hasattr(self, 'vapor_symbol') and self.vapor_symbol:
+                    if shortened:
+                        return f"{self.vapor_symbol}"
+                    else:
+                        return f"{vapor_name} {self.vapor_symbol}"
+                else:
+                    return vapor_name
+            else:
+                return "HEINOUS VAPOR"
+        elif display_type == "FOWL_CONTRIVANCE":
+            display_type = "FOWL CONTRIVANCE"
+        elif display_type == "GAS_MACHINIST":
+            display_type = "GAS MACHINIST"
         
         # For echo units, change name to "ECHO {TYPE}"
         if self.is_echo:
@@ -387,6 +423,287 @@ class Unit:
             self.was_pried = False
             if hasattr(self, 'pry_active'):
                 self.pry_active = False
+                
+    def apply_vapor_effects(self, game: 'Game', ui=None) -> None:
+        """
+        Apply area effects for HEINOUS_VAPOR units.
+        This is called during combat phase processing.
+        """
+        from boneglaive.utils.debug import logger
+        from boneglaive.utils.message_log import message_log, MessageType
+        import curses
+        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+        
+        # Only process if this is a HEINOUS_VAPOR
+        if self.type != UnitType.HEINOUS_VAPOR or not hasattr(self, 'vapor_type') or not self.vapor_type:
+            return
+            
+        # Define the 3x3 area around the vapor
+        affected_area = []
+        for dy in [-1, 0, 1]:
+            for dx in [-1, 0, 1]:
+                ny, nx = self.y + dy, self.x + dx
+                if game.is_valid_position(ny, nx):
+                    affected_area.append((ny, nx))
+                    
+        # Play visual effect if UI is available
+        if ui and hasattr(ui, 'renderer'):
+            # Get appropriate animation based on vapor type
+            animation_name = f"vapor_{self.vapor_type.lower()}"
+            vapor_animation = ui.asset_manager.get_skill_animation_sequence(animation_name)
+            if not vapor_animation:
+                # Fallback animations based on vapor type
+                if self.vapor_type == "BROACHING":
+                    vapor_animation = ['~', '*', '+']
+                elif self.vapor_type == "SAFETY":
+                    vapor_animation = ['~', 'o', 'O']
+                elif self.vapor_type == "COOLANT":
+                    vapor_animation = ['~', '*', '+']
+                elif self.vapor_type == "CUTTING":
+                    vapor_animation = ['~', '%', '#']
+                else:
+                    vapor_animation = ['~', 'o', 'O']
+            
+            # Show visual effect in the area
+            for pos in affected_area:
+                y, x = pos
+                
+                # Use a subset of the animation for surrounding tiles
+                if y == self.y and x == self.x:
+                    # Center tile gets full animation
+                    anim_sequence = vapor_animation
+                    color = 7  # White for center
+                else:
+                    # Surrounding tiles get shorter animation
+                    anim_sequence = vapor_animation[:2]
+                    
+                    # Choose color based on vapor type
+                    if self.vapor_type == "BROACHING":
+                        color = 5  # Purple
+                    elif self.vapor_type == "SAFETY":
+                        color = 3  # Yellow
+                    elif self.vapor_type == "COOLANT":
+                        color = 6  # Cyan/blue
+                    elif self.vapor_type == "CUTTING":
+                        color = 1  # Red
+                    else:
+                        color = 7  # White default
+                
+                # Animate this position
+                ui.renderer.animate_attack_sequence(
+                    y, x,
+                    anim_sequence,
+                    color,
+                    0.05  # Quick animation
+                )
+        
+        # Find units in the affected area
+        affected_units = []
+        for pos in affected_area:
+            y, x = pos
+            unit = game.get_unit_at(y, x)
+            if unit and unit.is_alive():
+                affected_units.append(unit)
+                
+        # Process effects based on vapor type
+        if self.vapor_type == "BROACHING":
+            # Broaching Gas: Damages enemies (2 damage) and cleanses allies of status effects
+            for unit in affected_units:
+                if unit.player != self.player:
+                    # Enemy unit - apply damage
+                    damage = 2
+                    previous_hp = unit.hp
+                    unit.hp = max(0, unit.hp - damage)
+                    
+                    # Log damage
+                    message_log.add_combat_message(
+                        attacker_name=self.get_display_name(),
+                        target_name=unit.get_display_name(),
+                        damage=damage,
+                        ability="Broaching Gas",
+                        attacker_player=self.player,
+                        target_player=unit.player
+                    )
+                    
+                    # Show damage number if UI is available
+                    if ui and hasattr(ui, 'renderer'):
+                        damage_text = f"-{damage}"
+                        
+                        ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 5, curses.A_BOLD)
+                        ui.renderer.refresh()
+                        sleep_with_animation_speed(0.1)
+                        
+                    # Check if unit was defeated
+                    if unit.hp <= 0:
+                        message_log.add_message(
+                            f"{unit.get_display_name()} perishes!",
+                            MessageType.COMBAT,
+                            player=self.player,
+                            target=unit.player,
+                            target_name=unit.get_display_name()
+                        )
+                        
+                elif unit.player == self.player and unit != self:
+                    # Ally unit - cleanse status effects
+                    effects_cleansed = []
+                    
+                    # Check for status effects to cleanse
+                    if unit.estranged:
+                        unit.estranged = False
+                        effects_cleansed.append("Estrangement")
+                        
+                    if unit.was_pried or (hasattr(unit, 'pry_active') and unit.pry_active):
+                        unit.was_pried = False
+                        if hasattr(unit, 'pry_active'):
+                            unit.pry_active = False
+                        if unit.move_range_bonus < 0:
+                            unit.move_range_bonus = 0
+                        effects_cleansed.append("Pry movement penalty")
+                        
+                    if unit.jawline_affected:
+                        unit.jawline_affected = False
+                        unit.jawline_duration = 0
+                        if unit.move_range_bonus < 0:
+                            unit.move_range_bonus = 0
+                        effects_cleansed.append("Jawline immobilization")
+                        
+                    # Log cleansed effects
+                    if effects_cleansed:
+                        message_log.add_message(
+                            f"{unit.get_display_name()} is cleansed of {', '.join(effects_cleansed)}!",
+                            MessageType.ABILITY,
+                            player=self.player
+                        )
+                        
+                        # Show cleansing effect if UI is available
+                        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+                            cleanse_animation = ui.asset_manager.get_skill_animation_sequence('cleanse')
+                            if not cleanse_animation:
+                                cleanse_animation = ['*', '+', 'o', '.']
+                                
+                            ui.renderer.animate_attack_sequence(
+                                unit.y, unit.x,
+                                cleanse_animation,
+                                6,  # Cyan/blue
+                                0.1
+                            )
+                            
+                            # Flash the unit to show cleansing
+                            if hasattr(ui, 'asset_manager'):
+                                tile_ids = [ui.asset_manager.get_unit_tile(unit.type)] * 4
+                                color_ids = [6, 3 if unit.player == 1 else 4] * 2  # Alternate cyan with player color
+                                durations = [0.1] * 4
+                                
+                                ui.renderer.flash_tile(unit.y, unit.x, tile_ids, color_ids, durations)
+                    
+        elif self.vapor_type == "SAFETY":
+            # Saft-E-Gas: Blocks enemy ranged attacks (handled elsewhere) and heals allies by 1
+            for unit in affected_units:
+                if unit.player == self.player and unit != self and unit.hp < unit.max_hp:
+                    # Heal ally unit
+                    healing = 1
+                    unit.hp = min(unit.max_hp, unit.hp + healing)
+                    
+                    # Log healing
+                    message_log.add_message(
+                        f"{self.get_display_name()} heals {unit.get_display_name()} for {healing} HP!",
+                        MessageType.ABILITY,
+                        player=self.player
+                    )
+                    
+                    # Show healing effect if UI is available
+                    if ui and hasattr(ui, 'renderer'):
+                        healing_text = f"+{healing}"
+                        
+                        ui.renderer.draw_text(unit.y-1, unit.x*2, healing_text, 3, curses.A_BOLD)
+                        ui.renderer.refresh()
+                        sleep_with_animation_speed(0.1)
+                        
+                        # Flash the unit to show healing
+                        if hasattr(ui, 'asset_manager'):
+                            tile_ids = [ui.asset_manager.get_unit_tile(unit.type)] * 4
+                            color_ids = [3, 3 if unit.player == 1 else 4] * 2  # Alternate green with player color
+                            durations = [0.1] * 4
+                            
+                            ui.renderer.flash_tile(unit.y, unit.x, tile_ids, color_ids, durations)
+                            
+        elif self.vapor_type == "COOLANT":
+            # Coolant Gas: Heals allies by 3 HP
+            for unit in affected_units:
+                if unit.player == self.player and unit != self and unit.hp < unit.max_hp:
+                    # Heal ally unit
+                    healing = 3
+                    unit.hp = min(unit.max_hp, unit.hp + healing)
+                    
+                    # Log healing
+                    message_log.add_message(
+                        f"{self.get_display_name()} heals {unit.get_display_name()} for {healing} HP!",
+                        MessageType.ABILITY,
+                        player=self.player
+                    )
+                    
+                    # Show healing effect if UI is available
+                    if ui and hasattr(ui, 'renderer'):
+                        healing_text = f"+{healing}"
+                        
+                        ui.renderer.draw_text(unit.y-1, unit.x*2, healing_text, 3, curses.A_BOLD)
+                        ui.renderer.refresh()
+                        sleep_with_animation_speed(0.1)
+                        
+                        # Flash the unit to show healing
+                        if hasattr(ui, 'asset_manager'):
+                            tile_ids = [ui.asset_manager.get_unit_tile(unit.type)] * 4
+                            color_ids = [3, 3 if unit.player == 1 else 4] * 2  # Alternate green with player color
+                            durations = [0.1] * 4
+                            
+                            ui.renderer.flash_tile(unit.y, unit.x, tile_ids, color_ids, durations)
+                            
+        elif self.vapor_type == "CUTTING":
+            # Cutting Gas: Deals 3 pierce damage to enemies (bypasses defense)
+            for unit in affected_units:
+                if unit.player != self.player:
+                    # Enemy unit - apply piercing damage
+                    damage = 3  # Pierce damage ignores defense
+                    previous_hp = unit.hp
+                    unit.hp = max(0, unit.hp - damage)
+                    
+                    # Log damage
+                    message_log.add_message(
+                        f"{self.get_display_name()} deals {damage} piercing damage to {unit.get_display_name()}!",
+                        MessageType.ABILITY,
+                        player=self.player
+                    )
+                    
+                    message_log.add_combat_message(
+                        attacker_name=self.get_display_name(),
+                        target_name=unit.get_display_name(),
+                        damage=damage,
+                        ability="Cutting Gas",
+                        attacker_player=self.player,
+                        target_player=unit.player
+                    )
+                    
+                    # Show damage number if UI is available
+                    if ui and hasattr(ui, 'renderer'):
+                        damage_text = f"-{damage}"
+                        
+                        ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 1, curses.A_BOLD)
+                        ui.renderer.refresh()
+                        sleep_with_animation_speed(0.1)
+                        
+                    # Check if unit was defeated
+                    if unit.hp <= 0:
+                        message_log.add_message(
+                            f"{unit.get_display_name()} perishes!",
+                            MessageType.COMBAT,
+                            player=self.player,
+                            target=unit.player,
+                            target_name=unit.get_display_name()
+                        )
+                        
+        # Redraw board after effects
+        if ui and hasattr(ui, 'draw_board'):
+            ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
         
     def get_skill_by_key(self, key: str) -> Optional:
         """Get an active skill by its key (for UI selection)."""

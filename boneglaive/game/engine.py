@@ -514,6 +514,38 @@ class Game:
             if not los_check:
                 return False
                 
+        # Check for SAFETY Gas vapor effect blocking ranged attacks
+        # Only applies for ranged attacks (range > 1) and to enemy units (not walls)
+        if distance > 1 and target and target.player != unit.player:
+            # Check if there's a SAFETY Gas vapor within range of target
+            safety_gas_in_range = False
+            for vapor_unit in self.units:
+                # Look for HEINOUS_VAPOR units of SAFETY type
+                if (vapor_unit.is_alive() and 
+                    vapor_unit.type == UnitType.HEINOUS_VAPOR and 
+                    vapor_unit.player == target.player and  # Same player as target (protecting their units)
+                    hasattr(vapor_unit, 'vapor_type') and 
+                    vapor_unit.vapor_type == "SAFETY"):
+                    
+                    # Check if target is within the vapor's 3x3 area
+                    vapor_distance = self.chess_distance(vapor_unit.y, vapor_unit.x, target.y, target.x)
+                    if vapor_distance <= 1:  # Within one tile (3x3 area)
+                        safety_gas_in_range = True
+                        break
+            
+            # If a SAFETY Gas is protecting the target, block the ranged attack
+            if safety_gas_in_range:
+                from boneglaive.utils.message_log import message_log, MessageType
+                
+                message_log.add_message(
+                    f"Saft-E-Gas blocks {unit.get_display_name()}'s ranged attack against {target.get_display_name()}!",
+                    MessageType.ABILITY,
+                    player=target.player,  # Message is from the defender's perspective
+                    attacker_name=unit.get_display_name(),
+                    target_name=target.get_display_name()
+                )
+                return False
+                
         # Check if it's a valid unit target
         if target and target.player != unit.player:
             return True
@@ -1401,6 +1433,78 @@ class Game:
         
         # Apply trap damage for all trapped units
         self._apply_trap_damage()
+        
+        # Process HEINOUS_VAPOR effects for all vapors
+        vapor_units = [unit for unit in self.units if unit.is_alive() and 
+                      unit.type == UnitType.HEINOUS_VAPOR and 
+                      hasattr(unit, 'vapor_type') and unit.vapor_type]
+        
+        # Process each vapor's area effects
+        for vapor_unit in vapor_units:
+            # Apply the vapor's area effects
+            vapor_unit.apply_vapor_effects(self, ui)
+            
+            # Decrement vapor duration for current player's vapors
+            if vapor_unit.player == self.current_player and hasattr(vapor_unit, 'vapor_duration'):
+                vapor_unit.vapor_duration -= 1
+                logger.debug(f"Vapor {vapor_unit.get_display_name()} duration decremented to {vapor_unit.vapor_duration}")
+                
+                # If duration reached zero, the vapor expires
+                if vapor_unit.vapor_duration <= 0:
+                    logger.debug(f"Vapor {vapor_unit.get_display_name()} expires")
+                    
+                    # Log the expiration
+                    message_log.add_message(
+                        f"{vapor_unit.get_display_name()} dissipates...",
+                        MessageType.ABILITY,
+                        player=vapor_unit.player
+                    )
+                    
+                    # Check if this vapor was from a diverged user
+                    if hasattr(vapor_unit, 'diverged_user') and vapor_unit.diverged_user:
+                        # Check if this is the last vapor to expire
+                        other_vapors = [u for u in self.units if u != vapor_unit and 
+                                      u.is_alive() and u.type == UnitType.HEINOUS_VAPOR and 
+                                      hasattr(u, 'diverged_user') and u.diverged_user == vapor_unit.diverged_user]
+                        
+                        # If no other vapors from this user, the user reforms
+                        if not other_vapors:
+                            gas_machinist = vapor_unit.diverged_user
+                            
+                            # Return the Gas Machinist to the vapor's position
+                            gas_machinist.y = vapor_unit.y
+                            gas_machinist.x = vapor_unit.x
+                            
+                            # Reset the diverge flags
+                            gas_machinist.diverge_return_position = False
+                            
+                            # Log the return
+                            message_log.add_message(
+                                f"{gas_machinist.get_display_name()} reforms at ({vapor_unit.y}, {vapor_unit.x})!",
+                                MessageType.ABILITY,
+                                player=gas_machinist.player
+                            )
+                            
+                            # Play reformation animation if UI is available
+                            if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+                                reform_animation = ui.asset_manager.get_skill_animation_sequence('reform')
+                                if not reform_animation:
+                                    reform_animation = [' ', '.', ':', 'o', 'O', 'M']
+                                
+                                ui.renderer.animate_attack_sequence(
+                                    vapor_unit.y, vapor_unit.x,
+                                    reform_animation,
+                                    7,  # White color
+                                    0.15  # Duration
+                                )
+                                
+                                # Redraw to show final state
+                                if hasattr(ui, 'draw_board'):
+                                    ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+                                    ui.renderer.refresh()
+                    
+                    # Kill the vapor (remove it on the next cleanup)
+                    vapor_unit.hp = 0
             
         # Clear all actions and update skill cooldowns
         for unit in self.units:

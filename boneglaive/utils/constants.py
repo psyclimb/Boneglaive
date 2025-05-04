@@ -30,6 +30,8 @@ class UnitType(Enum):
     GRAYMAN = 4  # The Immutable Anomaly
     MARROW_CONDENSER = 5  # The skeletal bone manipulator (displayed as MARROW CONDENSER)
     FOWL_CONTRIVANCE = 6  # The synchronized bird flock formation
+    GAS_MACHINIST = 7  # The vapor-controlling technician
+    HEINOUS_VAPOR = 8  # Vapor entity controlled by GAS_MACHINIST
 
 # Unit stats: (hp, attack, defense, move_range, attack_range)
 UNIT_STATS = {
@@ -39,7 +41,9 @@ UNIT_STATS = {
     UnitType.MANDIBLE_FOREMAN: (22, 3, 1, 2, 1),  # Reduced attack from 6 to 3
     UnitType.GRAYMAN: (18, 2, 0, 2, 5),  # Reduced attack from 4 to 2, keeping long range
     UnitType.MARROW_CONDENSER: (24, 4, 2, 3, 1),  # Tank unit that gets stronger with kills
-    UnitType.FOWL_CONTRIVANCE: (18, 4, 0, 3, 3)  # Increased HP from 14 to 18, kept high attack
+    UnitType.FOWL_CONTRIVANCE: (18, 4, 0, 3, 3),  # Increased HP from 14 to 18, kept high attack
+    UnitType.GAS_MACHINIST: (18, 4, 1, 3, 1),  # As specified in GAS_MACHINIST.md
+    UnitType.HEINOUS_VAPOR: (10, 2, 0, 3, 1)  # Vapor stats (HP is for internal tracking, vapors can't be damaged)
 }
 
 UNIT_SYMBOLS = {
@@ -49,7 +53,9 @@ UNIT_SYMBOLS = {
     UnitType.MANDIBLE_FOREMAN: 'F',
     UnitType.GRAYMAN: 'Ψ',  # Greek psi symbol represents the anomalous nature
     UnitType.MARROW_CONDENSER: 'C',  # C for Condenser
-    UnitType.FOWL_CONTRIVANCE: '^'  # Birds in flight
+    UnitType.FOWL_CONTRIVANCE: '^',  # Birds in flight
+    UnitType.GAS_MACHINIST: 'M',  # M for Machinist
+    UnitType.HEINOUS_VAPOR: 'V'   # Generic vapor symbol, actual symbols set in skills
 }
 
 # Attack visual effects
@@ -60,7 +66,9 @@ ATTACK_EFFECTS = {
     UnitType.GRAYMAN: "≈",     # Reality distortion (ranged)
     UnitType.MANDIBLE_FOREMAN: "Ξ",  # Mandible jaws (melee)
     UnitType.MARROW_CONDENSER: "Ø",  # Bone (melee)
-    UnitType.FOWL_CONTRIVANCE: "Λ"   # Bird dive attack (ranged)
+    UnitType.FOWL_CONTRIVANCE: "Λ",   # Bird dive attack (ranged)
+    UnitType.GAS_MACHINIST: "o",   # Gas bubble (melee)
+    UnitType.HEINOUS_VAPOR: "~"    # Vapor effect (area)
 }
 
 # Greek alphabet for unit identification

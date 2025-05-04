@@ -25,6 +25,10 @@ from boneglaive.game.skills.fowl_contrivance import (
     WretchedDecension, MurmurationDuskSkill, FlapSkill, EmeticFlangeSkill
 )
 
+from boneglaive.game.skills.gas_machinist import (
+    EffluviumLathe, EnbroachmentGasSkill, SaftEGasSkill, DivergeSkill
+)
+
 # Define the skills available for each unit type
 UNIT_SKILLS = {
     "GLAIVEMAN": {
@@ -46,5 +50,9 @@ UNIT_SKILLS = {
     "FOWL_CONTRIVANCE": {
         "passive": WretchedDecension(),
         "active": [MurmurationDuskSkill(), FlapSkill(), EmeticFlangeSkill()]
+    },
+    "GAS_MACHINIST": {
+        "passive": EffluviumLathe(),
+        "active": [EnbroachmentGasSkill(), SaftEGasSkill(), DivergeSkill()]
     }
 }
