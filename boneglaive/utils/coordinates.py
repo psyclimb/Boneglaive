@@ -104,3 +104,24 @@ def get_line(start: Position, end: Position) -> List[Position]:
             y0 += sy
     
     return positions
+
+def get_adjacent_positions(y: int, x: int) -> List[Tuple[int, int]]:
+    """
+    Get all positions adjacent to the given coordinates (including diagonals).
+    
+    Args:
+        y: The y coordinate
+        x: The x coordinate
+        
+    Returns:
+        A list of tuples (y, x) representing adjacent positions
+    """
+    # All 8 adjacent positions (including diagonals)
+    directions = [
+        (-1, -1), (-1, 0), (-1, 1),  # Top row
+        (0, -1),           (0, 1),   # Middle row (skip center)
+        (1, -1),  (1, 0),  (1, 1)    # Bottom row
+    ]
+    
+    # Calculate adjacent positions
+    return [(y + dy, x + dx) for dy, dx in directions]
