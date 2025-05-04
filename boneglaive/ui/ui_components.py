@@ -2452,6 +2452,39 @@ class ActionMenuComponent(UIComponent):
                 'enabled': emetic_flange_skill is not None,
                 'skill': emetic_flange_skill
             })
+            
+        # GAS_MACHINIST skills
+        elif unit.type == self.UnitType.GAS_MACHINIST:
+            
+            # Add Broaching Gas skill
+            broaching_gas_skill = next((skill for skill in available_skills if skill.name == "Broaching Gas"), None)
+            self.actions.append({
+                'key': 'b',
+                'label': 'roaching Gas',  # Will be displayed as [B]roaching Gas
+                'action': 'broaching_gas_skill',
+                'enabled': broaching_gas_skill is not None,
+                'skill': broaching_gas_skill
+            })
+            
+            # Add Saft-E-Gas skill
+            saft_e_gas_skill = next((skill for skill in available_skills if skill.name == "Saft-E-Gas"), None)
+            self.actions.append({
+                'key': 's',
+                'label': 'aft-E-Gas',  # Will be displayed as [S]aft-E-Gas
+                'action': 'saft_e_gas_skill',
+                'enabled': saft_e_gas_skill is not None,
+                'skill': saft_e_gas_skill
+            })
+            
+            # Add Diverge skill
+            diverge_skill = next((skill for skill in available_skills if skill.name == "Diverge"), None)
+            self.actions.append({
+                'key': 'd',
+                'label': 'iverge',  # Will be displayed as [D]iverge
+                'action': 'diverge_skill',
+                'enabled': diverge_skill is not None,
+                'skill': diverge_skill
+            })
         
         # Reset selected index
         self.selected_index = 0
