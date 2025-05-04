@@ -474,32 +474,94 @@ class DivergeSkill(ActiveSkill):
                 0.15  # Duration
             )
         
-        # Get available adjacent positions for placing the vapors
-        origin_y, origin_x = target_pos
-        adjacent_positions = get_adjacent_positions(origin_y, origin_x)
-        valid_positions = []
-        
-        # Filter for valid, empty positions
-        for pos in adjacent_positions:
-            y, x = pos
-            if (game.is_valid_position(y, x) and 
-                game.map.is_passable(y, x) and 
-                game.get_unit_at(y, x) is None):
-                valid_positions.append(pos)
-        
-        # If no valid positions, try to place on the target position
-        if not valid_positions:
+        # If targeting self, we need at least one valid position to place vapors
+        # For self-targeting, we'll handle the GAS_MACHINIST differently
+        if is_self_target:
+            # We need to find at least one valid position - either the GAS_MACHINIST's position or adjacent
+            origin_y, origin_x = target_pos
+            
+            # First, check if the current position is usable (after the GAS_MACHINIST is removed)
             if game.is_valid_position(origin_y, origin_x) and game.map.is_passable(origin_y, origin_x):
-                valid_positions.append((origin_y, origin_x))
+                # Current position is valid for one of the vapors
+                valid_positions = [(origin_y, origin_x)]
+            else:
+                valid_positions = []
+            
+            # Then try adjacent positions
+            adjacent_positions = get_adjacent_positions(origin_y, origin_x)
+            for pos in adjacent_positions:
+                y, x = pos
+                if (game.is_valid_position(y, x) and 
+                    game.map.is_passable(y, x) and 
+                    game.get_unit_at(y, x) is None):
+                    valid_positions.append(pos)
+                    if len(valid_positions) >= 2:  # We only need at most 2 positions
+                        break
+                        
+            # If we still don't have any valid positions, try a wider search
+            if not valid_positions:
+                # Try a wider radius around the original position
+                for dy in range(-2, 3):
+                    for dx in range(-2, 3):
+                        # Skip adjacent ones that we already checked
+                        if abs(dy) <= 1 and abs(dx) <= 1:
+                            continue
+                        
+                        y, x = origin_y + dy, origin_x + dx
+                        if (game.is_valid_position(y, x) and 
+                            game.map.is_passable(y, x) and 
+                            game.get_unit_at(y, x) is None):
+                            valid_positions.append((y, x))
+                            if len(valid_positions) >= 2:
+                                break
+                    if len(valid_positions) >= 2:
+                        break
+                        
+            # For self-targeting, we need at least ONE valid position
+            if not valid_positions:
+                message_log.add_message(
+                    "Diverge failed: no valid positions for vapor entities!",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
+                return False
+                
+            # If we have only one position, both vapors will go there
+            if len(valid_positions) == 1:
+                message_log.add_message(
+                    "Limited space - both vapors will be created at the same position!",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
         
-        # If still no valid positions, fail
-        if not valid_positions:
-            message_log.add_message(
-                "Diverge failed: no valid positions for vapor entities!",
-                MessageType.ABILITY,
-                player=user.player
-            )
-            return False
+        # For vapor targeting, handle positions differently
+        else:
+            # For targeting an existing vapor
+            origin_y, origin_x = target_pos
+            adjacent_positions = get_adjacent_positions(origin_y, origin_x)
+            valid_positions = []
+            
+            # Filter for valid, empty positions
+            for pos in adjacent_positions:
+                y, x = pos
+                if (game.is_valid_position(y, x) and 
+                    game.map.is_passable(y, x) and 
+                    game.get_unit_at(y, x) is None):
+                    valid_positions.append(pos)
+            
+            # If no valid positions, try to place on the target position itself (after the vapor is removed)
+            if not valid_positions:
+                if game.is_valid_position(origin_y, origin_x) and game.map.is_passable(origin_y, origin_x):
+                    valid_positions.append((origin_y, origin_x))
+            
+            # If still no valid positions, fail
+            if not valid_positions:
+                message_log.add_message(
+                    "Diverge failed: no valid positions for vapor entities!",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
+                return False
             
         # If targeting self, remove user temporarily
         if is_self_target:
@@ -515,6 +577,7 @@ class DivergeSkill(ActiveSkill):
             
         # Create the gases
         from boneglaive.game.units import Unit
+        import random
         
         # Randomly shuffle valid positions to avoid predictable placement
         random.shuffle(valid_positions)
@@ -530,6 +593,8 @@ class DivergeSkill(ActiveSkill):
         coolant_gas.vapor_duration = 2  # Fixed duration of 2 turns for diverged gases
         coolant_gas.vapor_creator = user
         coolant_gas.vapor_skill = self
+        
+        # For case where we only have one valid position, we've already logged a message if needed
         
         # Create Cutting Gas - use a second position if available, otherwise use the same position
         cutting_pos = valid_positions[1] if len(valid_positions) > 1 else valid_positions[0]
