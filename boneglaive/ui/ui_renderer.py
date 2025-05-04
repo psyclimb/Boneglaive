@@ -229,6 +229,11 @@ class UIRenderer:
                         tile = self.game_ui.asset_manager.get_unit_tile(unit.type)
                         color_id = 3 if unit.player == 1 else 4
                         
+                        # Check if this is a HEINOUS_VAPOR and use its specific symbol if available
+                        from boneglaive.utils.constants import UnitType
+                        if unit.type == UnitType.HEINOUS_VAPOR and hasattr(unit, 'vapor_symbol') and unit.vapor_symbol:
+                            tile = unit.vapor_symbol
+                        
                         # No special symbol for GRAYMAN skills
                         # (Previously showed | for Græ Exchange, but this was removed)
                             
