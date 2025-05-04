@@ -1661,7 +1661,7 @@ class GameModeManager(UIComponent):
     def toggle_setup_unit_type(self):
         """
         Toggle between unit types during the setup phase.
-        Cycles between GLAIVEMAN, MANDIBLE FOREMAN, GRAYMAN, MARROW_CONDENSER, and FOWL_CONTRIVANCE.
+        Cycles between GLAIVEMAN, MANDIBLE FOREMAN, GRAYMAN, MARROW_CONDENSER, FOWL_CONTRIVANCE, and GAS_MACHINIST.
         """
         if self.setup_unit_type == UnitType.GLAIVEMAN:
             self.setup_unit_type = UnitType.MANDIBLE_FOREMAN
@@ -1675,6 +1675,9 @@ class GameModeManager(UIComponent):
         elif self.setup_unit_type == UnitType.MARROW_CONDENSER:
             self.setup_unit_type = UnitType.FOWL_CONTRIVANCE
             self.game_ui.message = "Setup unit type: FOWL CONTRIVANCE"
+        elif self.setup_unit_type == UnitType.FOWL_CONTRIVANCE:
+            self.setup_unit_type = UnitType.GAS_MACHINIST
+            self.game_ui.message = "Setup unit type: GAS MACHINIST"
         else:
             self.setup_unit_type = UnitType.GLAIVEMAN
             self.game_ui.message = "Setup unit type: GLAIVEMAN"
@@ -1711,7 +1714,10 @@ class GameModeManager(UIComponent):
             unit_type_name = {
                 UnitType.GLAIVEMAN: "GLAIVEMAN",
                 UnitType.MANDIBLE_FOREMAN: "MANDIBLE FOREMAN",
-                UnitType.GRAYMAN: "GRAYMAN"
+                UnitType.GRAYMAN: "GRAYMAN",
+                UnitType.MARROW_CONDENSER: "MARROW CONDENSER",
+                UnitType.FOWL_CONTRIVANCE: "FOWL CONTRIVANCE",
+                UnitType.GAS_MACHINIST: "GAS MACHINIST"
             }.get(self.setup_unit_type, "UNKNOWN")
             
             self.game_ui.message = f"{unit_type_name} placed. {self.game_ui.game.setup_units_remaining[setup_player]} remaining."
@@ -1829,7 +1835,16 @@ class GameModeManager(UIComponent):
             setup_player = self.game_ui.game.setup_player
             player_color = self.game_ui.chat_component.player_colors.get(setup_player, 1)
             
-            current_unit_type = "GLAIVEMAN" if self.setup_unit_type == UnitType.GLAIVEMAN else "MANDIBLE FOREMAN"
+            # Map UnitType to display name
+            unit_type_display = {
+                UnitType.GLAIVEMAN: "GLAIVEMAN",
+                UnitType.MANDIBLE_FOREMAN: "MANDIBLE FOREMAN",
+                UnitType.GRAYMAN: "GRAYMAN",
+                UnitType.MARROW_CONDENSER: "MARROW CONDENSER",
+                UnitType.FOWL_CONTRIVANCE: "FOWL CONTRIVANCE",
+                UnitType.GAS_MACHINIST: "GAS MACHINIST"
+            }
+            current_unit_type = unit_type_display.get(self.setup_unit_type, "UNKNOWN")
             
             instructions = [
                 f"Player {setup_player}, place your units on the battlefield.",
