@@ -43,7 +43,9 @@ class AssetManager:
             UnitType.MANDIBLE_FOREMAN: 'F',
             UnitType.GRAYMAN: 'Ψ',
             UnitType.MARROW_CONDENSER: 'C',
-            UnitType.FOWL_CONTRIVANCE: '^'
+            UnitType.FOWL_CONTRIVANCE: '^',
+            UnitType.GAS_MACHINIST: 'M',
+            UnitType.HEINOUS_VAPOR: 'V'  # Base symbol, will be replaced by vapor_symbol in display code
         }
         
         # Terrain symbols
@@ -161,7 +163,22 @@ class AssetManager:
             'wretch': [
                 '!', '?', '@', '#', '$', '%', '&', '*', 
                 '?', '!', '*', '~', '+', '-', 'x', '/'
-            ]
+            ],
+            
+            # GAS_MACHINIST animations
+            'gas_machinist_attack': ['o', 'O', 'o'],  # Gas bubble attack
+            'summon_vapor': ['~', 'o', 'O', 'Φ'],  # Generic vapor formation
+            'broaching_gas': ['~', '*', 'Φ'],  # Broaching Gas animation
+            'saft_e_gas': ['~', 'o', 'Θ'],  # Saft-E-Gas animation
+            'diverge': ['*', '+', 'x', '#', '@'],  # Diverge animation
+            'vapor_broaching': ['~', '*', '+'],  # Broaching Gas effect
+            'vapor_safety': ['~', 'o', 'O'],  # Safety Gas effect
+            'vapor_coolant': ['~', '*', '+'],  # Coolant Gas effect
+            'vapor_cutting': ['~', '%', '#'],  # Cutting Gas effect
+            'coolant_gas': ['~', '*', 'Σ'],  # Coolant Gas formation from Diverge
+            'cutting_gas': ['~', '*', '%'],  # Cutting Gas formation from Diverge
+            'cleanse': ['*', '+', 'o', '.'],  # Status effect cleansing animation
+            'reform': [' ', '.', ':', 'o', 'O', 'M']  # Gas Machinist reformation
         }
     
     def _initialize_graphical_assets(self) -> None:
@@ -177,7 +194,9 @@ class AssetManager:
             UnitType.MANDIBLE_FOREMAN: 'assets/sprites/mandible_foreman.png',
             UnitType.GRAYMAN: 'assets/sprites/grayman.png',
             UnitType.MARROW_CONDENSER: 'assets/sprites/marrow_condenser.png',
-            UnitType.FOWL_CONTRIVANCE: 'assets/sprites/fowl_contrivance.png'
+            UnitType.FOWL_CONTRIVANCE: 'assets/sprites/fowl_contrivance.png',
+            UnitType.GAS_MACHINIST: 'assets/sprites/gas_machinist.png',
+            UnitType.HEINOUS_VAPOR: 'assets/sprites/heinous_vapor.png'
         }
         
         self.terrain_tiles = {
@@ -208,7 +227,9 @@ class AssetManager:
             'mandible_foreman_attack': 'assets/effects/mandibles.png',
             'grayman_attack': 'assets/effects/distortion.png',
             'marrow_condenser_attack': 'assets/effects/bone.png',
-            'fowl_contrivance_attack': 'assets/effects/fowl.png'
+            'fowl_contrivance_attack': 'assets/effects/fowl.png',
+            'gas_machinist_attack': 'assets/effects/gas.png',
+            'heinous_vapor_attack': 'assets/effects/vapor.png'
         }
         
         # Add animation sequences for graphical mode too
@@ -273,7 +294,9 @@ class AssetManager:
             UnitType.MANDIBLE_FOREMAN: 'mandible_foreman_attack',
             UnitType.GRAYMAN: 'grayman_attack',
             UnitType.MARROW_CONDENSER: 'marrow_condenser_attack',
-            UnitType.FOWL_CONTRIVANCE: 'fowl_contrivance_attack'
+            UnitType.FOWL_CONTRIVANCE: 'fowl_contrivance_attack',
+            UnitType.GAS_MACHINIST: 'gas_machinist_attack',
+            UnitType.HEINOUS_VAPOR: 'heinous_vapor_attack'
         }
         effect_type = effect_map.get(unit_type, 'glaiveman_attack')
         return self.get_effect_tile(effect_type)
@@ -287,7 +310,9 @@ class AssetManager:
             UnitType.MANDIBLE_FOREMAN: 'mandible_foreman_attack',
             UnitType.GRAYMAN: 'grayman_attack',
             UnitType.MARROW_CONDENSER: 'marrow_condenser_attack',
-            UnitType.FOWL_CONTRIVANCE: 'fowl_contrivance_attack'
+            UnitType.FOWL_CONTRIVANCE: 'fowl_contrivance_attack',
+            UnitType.GAS_MACHINIST: 'gas_machinist_attack',
+            UnitType.HEINOUS_VAPOR: 'heinous_vapor_attack'
         }
         effect_type = effect_map.get(unit_type, 'glaiveman_attack')
         return self.animation_sequences.get(effect_type, [])

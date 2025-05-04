@@ -16,19 +16,18 @@ GAS MACHINIST (Pet Class Version)
 
   - Automatically generates 1 Effluvium charge at the start of each turn
   (max 3)
-  - Can summon one HEINOUS VAPOR per charge
-  - Each VAPOR persists for 3 turns before dissipating
-  - Gas Machinist can control the movement of all summoned VAPORS
-  - Each VAPOR acts immediately after the Gas Machinist's turn
-  - Multiple VAPORS can exist simultaneously (limited by charges)
+  - Summoning a HEINOUS VAPOR uses up all charges an extends the duration of the summon by 1 turn per charge.
+  - Player can control the movement of their summoned HEINOUS VAPORS.
+  - Each HEINOUS VAPOR's effects "tick" during the combat round.
+  - Heinous vapor effects are 3x3 "clouds", but visually they are just one character, so the effects are applied adjacent.
 
   HEINOUS VAPOR Stats
 
   - HP: N/A (cannot be damaged directly)
-  - Attack: Special (see below)
+  - Attack: N/A
   - Defense: N/A
-  - Move Range: 2
-  - Duration: 3 turns
+  - Move Range: 3
+  - Duration: 1 turn base (extended by charges)
 
   Three Active Skills:
 
@@ -36,10 +35,8 @@ GAS MACHINIST (Pet Class Version)
 
   - Range: 3
   - Cooldown: 2 turns
-  - Effect: Summons a HEINOUS VAPOR that dissolves status effects
-  - VAPOR Movement: Gas Machinist controls its movement (2 spaces per turn)
-  - VAPOR Attack: Can engulf an enemy, dealing 2 damage and cleansing any
-  ally within 1 tile of all negative status effects
+  - Effect: Summons a HEINOUS VAPOR that dissolves status effects from allies.
+  - VAPOR effect: Deals 2 damage to enemies and cleanses any ally within 1 tile of all negative status effects.
   - Counter Role: Neutralizes Mandible Foreman traps and Jawline effects by
    cleansing affected allies
   - Vapor Appearance: 'Φ'
@@ -49,10 +46,8 @@ GAS MACHINIST (Pet Class Version)
   - Range: 3
   - Cooldown: 3 turns
   - Effect: Summons a HEINOUS VAPOR that disrupts ranged attacks
-  - VAPOR Movement: Glides 2 spaces per turn, can position itself between
-  allies and ranged attackers
-  - VAPOR Attack: Creates a 3×1 line of sight disruption that blocks enemy
-  ranged attacks and deals 1 damage to enemies that begin their turn inside
+  - VAPOR Attack: Creates a 3×3 cloud of sight disruption that blocks enemy
+  ranged attacks and heals allies by 1.
   - Counter Role: Counters Grayman's ranged attacks and provides cover
   against Fowl Contrivance
   - Vapor Appearance: 'Θ'
@@ -64,20 +59,18 @@ GAS MACHINIST (Pet Class Version)
   - Effect: Violently splits an existing HEINOUS VAPOR or self into two specialized
    entities
   - Target any existing VAPOR and split it into:
-    a. Coolant Mist: Heals allies inside for 3 HP and removes one
-  negative status effect
+    a. Coolant Mist: Heals allies inside for 3 HP.
   - Vapor Appearance: 'Σ'
-    b. Cutting Mist: Deals 3 damage to enemies and reduces their defense
-   by 1 for one turn
+    b. Cutting Mist: Deals 3 damage to enemies and bypasses def.
    -Vapor Apperance: '%'
   - Both new VAPORS have 2 turns of duration and can be controlled
-  independently
+  independently.
   - Each has movement value of 3.
   - Counter Role: Provides burst healing against area damage while creating
-   offensive pressure
+   offensive pressure.
    - When casting Diverge on himself (rather than on a vapor), the Gas
   Machinist is removed from play
-  - He's replaced by both  Coolant Mist (Σ) and a Cutting Mist (%) at his
+  - He's replaced by both Coolant Mist (Σ) and a Cutting Mist (%) at his
   position or adjacent tiles
   - After their duration expires, the Gas Machinist reforms at the location of either mist
 
