@@ -368,7 +368,7 @@ class DivergeSkill(ActiveSkill):
             name="Diverge",
             key="D",
             description="Splits an existing HEINOUS VAPOR or self into Coolant Gas (Σ, heals allies) and Cutting Gas (%, damages enemies).",
-            target_type=TargetType.AREA,
+            target_type=TargetType.SELF,  # Changed to SELF to enable self-targeting
             cooldown=4,
             range_=5
         )

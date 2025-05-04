@@ -211,6 +211,8 @@ class GameUI:
             self.mode_manager.handle_select_in_attack_mode()
         elif self.mode_manager.mode == "skill":
             self.mode_manager.handle_select_in_skill_mode()
+        elif self.mode_manager.mode == "target_vapor":
+            self.mode_manager.handle_select_in_vapor_targeting_mode()
     
     def draw_board(self, show_cursor=True, show_selection=True, show_attack_targets=True):
         """Delegate board drawing to the UI renderer component."""

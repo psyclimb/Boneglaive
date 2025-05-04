@@ -1018,9 +1018,10 @@ class GameModeManager(UIComponent):
     
     def __init__(self, renderer, game_ui):
         super().__init__(renderer, game_ui)
-        self.mode = "select"  # select, move, attack, setup
+        self.mode = "select"  # select, move, attack, setup, target_vapor
         self.show_setup_instructions = False  # Don't show setup instructions by default
         self.setup_unit_type = UnitType.GLAIVEMAN  # Default unit type for setup phase
+        self.targeting_vapor = False  # Flag for Diverge skill targeting mode
     
     def _setup_event_handlers(self):
         """Set up event handlers for game mode manager."""
@@ -1523,6 +1524,83 @@ class GameModeManager(UIComponent):
             # Return to select mode after successful skill use (publishes mode changed event)
             self.set_mode("select")
         return result
+        
+    def handle_select_in_vapor_targeting_mode(self):
+        """Handle selection when targeting with the Diverge skill."""
+        from boneglaive.utils.message_log import message_log, MessageType
+        from boneglaive.utils.constants import UnitType
+        
+        cursor_manager = self.game_ui.cursor_manager
+        game = self.game_ui.game
+        pos = cursor_manager.cursor_pos
+        
+        # Check if there's a unit selected with Diverge skill
+        if not cursor_manager.selected_unit or not cursor_manager.selected_unit.selected_skill:
+            # Return to select mode
+            self.set_mode("select")
+            self.targeting_vapor = False
+            return False
+            
+        # Get the selected skill
+        skill = cursor_manager.selected_unit.selected_skill
+        if skill.name != "Diverge":
+            # Return to select mode if not Diverge skill
+            self.set_mode("select")
+            self.targeting_vapor = False
+            return False
+            
+        # Check what's at the cursor position
+        unit_at_cursor = game.get_unit_at(pos.y, pos.x)
+        is_self_target = (unit_at_cursor and unit_at_cursor == cursor_manager.selected_unit)
+        is_valid_vapor = (unit_at_cursor and unit_at_cursor.type == UnitType.HEINOUS_VAPOR and 
+                         unit_at_cursor.player == cursor_manager.selected_unit.player)
+        
+        # Handle targeting self
+        if is_self_target:
+            # Use the skill on self
+            if skill.can_use(cursor_manager.selected_unit, (pos.y, pos.x), game):
+                skill.use(cursor_manager.selected_unit, (pos.y, pos.x), game)
+                # Return to select mode
+                self.set_mode("select")
+                self.targeting_vapor = False
+                return True
+            else:
+                self.publish_event(
+                    EventType.MESSAGE_DISPLAY_REQUESTED,
+                    MessageDisplayEventData(
+                        message=f"Cannot use {skill.name} on self here",
+                        message_type=MessageType.WARNING
+                    )
+                )
+                return False
+        # Handle targeting a vapor
+        elif is_valid_vapor:
+            # Use the skill on the vapor
+            if skill.can_use(cursor_manager.selected_unit, (pos.y, pos.x), game):
+                skill.use(cursor_manager.selected_unit, (pos.y, pos.x), game)
+                # Return to select mode
+                self.set_mode("select")
+                self.targeting_vapor = False
+                return True
+            else:
+                self.publish_event(
+                    EventType.MESSAGE_DISPLAY_REQUESTED,
+                    MessageDisplayEventData(
+                        message=f"Cannot use {skill.name} on this vapor",
+                        message_type=MessageType.WARNING
+                    )
+                )
+                return False
+        else:
+            # Invalid target
+            self.publish_event(
+                EventType.MESSAGE_DISPLAY_REQUESTED,
+                MessageDisplayEventData(
+                    message="Select yourself or a HEINOUS VAPOR to use Diverge",
+                    message_type=MessageType.WARNING
+                )
+            )
+            return False
         
     def select_skill_target(self):
         """Select a target for the currently selected skill."""
@@ -2750,7 +2828,24 @@ class ActionMenuComponent(UIComponent):
             
             # Different targeting logic based on skill target type
             if skill.target_type == TargetType.SELF:
-                # For self-targeted skills like Recalibrate or Jawline, use immediately without targeting
+                # Special case for Diverge skill which can target both self and vapors
+                if skill.name == "Diverge":
+                    # Temporarily change mode to allow targeting
+                    mode_manager.mode = "target_vapor"
+                    # Set a flag to identify we're in vapor targeting mode
+                    mode_manager.targeting_vapor = True
+                    # Display a message about targeting options
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message="Select self or a HEINOUS VAPOR to diverge",
+                            message_type=MessageType.ABILITY
+                        )
+                    )
+                    # Exit early to allow targeting
+                    return
+                
+                # For other self-targeted skills like Recalibrate or Jawline, use immediately without targeting
                 if skill.can_use(cursor_manager.selected_unit, (from_y, from_x), game):
                     # Set the skill target to self
                     cursor_manager.selected_unit.skill_target = (from_y, from_x)
