@@ -223,7 +223,11 @@ class Unit:
         elif display_type == "FOWL_CONTRIVANCE":
             display_type = "FOWL CONTRIVANCE"
         elif display_type == "GAS_MACHINIST":
-            display_type = "GAS MACHINIST"
+            # Use a shorter name if requested (for UI menus)
+            if shortened:
+                display_type = "G.MACHINIST"
+            else:
+                display_type = "GAS MACHINIST"
         
         # For echo units, change name to "ECHO {TYPE}"
         if self.is_echo:
