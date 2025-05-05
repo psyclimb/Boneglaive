@@ -45,10 +45,10 @@ GAS MACHINIST (Pet Class Version)
 
   - Range: 3
   - Cooldown: 3 turns
-  - Effect: Summons a HEINOUS VAPOR that disrupts ranged attacks
+  - Effect: Summons a HEINOUS VAPOR that disrupts ranged attacks and blocks line of sight
   - VAPOR Attack: Creates a 3×3 cloud of sight disruption that blocks enemy
-  ranged attacks and heals allies by 1.
-  - Counter Role: Counters Grayman's ranged attacks and provides cover
+  ranged attacks, blocks line of sight through the cloud, and heals allies by 1.
+  - Counter Role: Counters Grayman's ranged attacks and line of sight abilities, and provides cover
   against Fowl Contrivance
   - Vapor Appearance: 'Θ'
 
