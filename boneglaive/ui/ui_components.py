@@ -1613,6 +1613,25 @@ class GameModeManager(UIComponent):
             
         skill = unit.selected_skill
         
+        # Check if target is in highlighted positions - if not, may be due to protection
+        target_pos = (cursor_manager.cursor_pos.y, cursor_manager.cursor_pos.x)
+        if cursor_manager.cursor_pos not in cursor_manager.highlighted_positions:
+            # Check if there's an enemy unit at this position and within range
+            target = self.game_ui.game.get_unit_at(target_pos[0], target_pos[1])
+            if target and target.player != unit.player:
+                # Get the skill origination position (current or planned move)
+                from_y, from_x = unit.y, unit.x
+                if unit.move_target:
+                    from_y, from_x = unit.move_target
+                
+                # Check if the target is in range and protected
+                if (self.game_ui.game.chess_distance(from_y, from_x, target_pos[0], target_pos[1]) <= skill.range and
+                    hasattr(self.game_ui.game, 'is_protected_from') and 
+                    self.game_ui.game.is_protected_from(target, unit)):
+                    # Show "Invalid target" message like with attacks
+                    self.game_ui.message = "Invalid skill target"
+            return False
+        
         # Special handling for Marrow Dike and Slough
         # These are self-targeted area skills that were pre-confirmed in _select_skill
         if skill.name in ["Marrow Dike", "Slough"] and unit.skill_target:
@@ -2899,7 +2918,12 @@ class ActionMenuComponent(UIComponent):
                             if distance <= skill.range:
                                 # Check if skill can be used on this target
                                 if skill.can_use(cursor_manager.selected_unit, (y, x), game):
-                                    targets.append((y, x))
+                                    # Check if target is protected by Saft-E-Gas (same behavior as attacks)
+                                    if hasattr(game, 'is_protected_from') and game.is_protected_from(target, cursor_manager.selected_unit):
+                                        # Don't add to targets, protection prevents targeting
+                                        pass
+                                    else:
+                                        targets.append((y, x))
             
             elif skill.target_type == TargetType.AREA:
                 # For area-targeted skills like Vault, highlight all valid positions

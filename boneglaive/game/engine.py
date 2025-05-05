@@ -5,11 +5,12 @@ import time
 from boneglaive.utils.constants import UnitType, HEIGHT, WIDTH, CRITICAL_HEALTH_PERCENT
 from boneglaive.game.units import Unit
 from boneglaive.game.map import GameMap, MapFactory, TerrainType
-from boneglaive.utils.debug import debug_config, measure_perf, game_assert
+from boneglaive.utils.debug import debug_config, measure_perf, game_assert, logger
 from boneglaive.utils.message_log import message_log, MessageType
 
-# Set up module logger
-logger = debug_config.setup_logging('game.engine')
+# Set up module logger if not already set up
+if 'logger' not in locals():
+    logger = debug_config.setup_logging('game.engine')
 
 class Game:
     def __init__(self, skip_setup=False, map_name="lime_foyer"):
@@ -403,7 +404,9 @@ class Game:
         Line of sight is blocked by:
         - Solid terrain like pillars and limestone
         - Units in the line of sight
-        - Saft-E-Gas (SAFETY type HEINOUS_VAPOR) - any Saft-E-Gas 3x3 cloud blocks line of sight like terrain
+        
+        Note: Saft-E-Gas no longer blocks line of sight but instead prevents targeting
+        units inside its cloud (handled in can_attack)
         
         Args:
             from_y, from_x: Starting position coordinates
@@ -424,21 +427,6 @@ class Game:
         # Skip the source and target positions - we only care about positions between them
         path_between = path[1:-1] if len(path) > 2 else []
         
-        # Find all positions occupied by SAFETY type vapors (Saft-E-Gas)
-        safety_vapor_positions = []
-        for vapor_unit in self.units:
-            if (vapor_unit.is_alive() and
-                vapor_unit.type == UnitType.HEINOUS_VAPOR and
-                hasattr(vapor_unit, 'vapor_type') and 
-                vapor_unit.vapor_type == "SAFETY"):
-                
-                # Add all 3x3 positions centered on this vapor to the blocked list
-                for dy in [-1, 0, 1]:
-                    for dx in [-1, 0, 1]:
-                        cloud_y, cloud_x = vapor_unit.y + dy, vapor_unit.x + dx
-                        if self.is_valid_position(cloud_y, cloud_x):
-                            safety_vapor_positions.append((cloud_y, cloud_x, vapor_unit.player))
-        
         # Check each position along the path
         for pos in path_between:
             # Check if terrain at this position blocks line of sight
@@ -454,16 +442,6 @@ class Game:
             if blocking_unit:
                 logger.debug(f"Line of sight blocked by unit {blocking_unit.get_display_name()} at position ({pos.y}, {pos.x})")
                 return False
-            
-            # Check if this position is within any Saft-E-Gas cloud
-            for vapor_pos in safety_vapor_positions:
-                vapor_y, vapor_x, vapor_player = vapor_pos
-                
-                if pos.y == vapor_y and pos.x == vapor_x:
-                    # Always block LOS through the Saft-E-Gas cloud, treating it as terrain
-                    # This makes it act like a solid 3x3 block for vision purposes
-                    logger.debug(f"Line of sight blocked by Saft-E-Gas cloud at position ({pos.y}, {pos.x})")
-                    return False
         
         return True
     
@@ -522,6 +500,57 @@ class Game:
         
         return True
     
+    def is_protected_from(self, target_unit, attacker_unit):
+        """
+        Check if a target unit is protected from an attacker by Saft-E-Gas.
+        
+        Args:
+            target_unit: The unit being targeted
+            attacker_unit: The unit trying to target
+            
+        Returns:
+            bool: True if target is protected, False if not
+        """
+        
+        # Check if target is protected by any Saft-E-Gas cloud
+        if hasattr(target_unit, 'protected_by_safety_gas') and target_unit.protected_by_safety_gas:
+            # Target is protected by at least one Saft-E-Gas cloud
+            # Check if attacker is inside ANY of the protecting clouds
+            attacker_in_protecting_cloud = False
+            
+            # Clean up any dead vapors from the protection list
+            active_vapors = []
+            for vapor in target_unit.protected_by_safety_gas:
+                if vapor.is_alive():  # Only keep active vapors
+                    active_vapors.append(vapor)
+            
+            # Update the protection list with only live vapors
+            target_unit.protected_by_safety_gas = active_vapors
+            
+            # If all protecting vapors are gone, remove the protection
+            if not active_vapors:
+                logger.debug(f"{target_unit.get_display_name()} is no longer protected (all protecting vapors are gone)")
+                delattr(target_unit, 'protected_by_safety_gas')
+                return False
+            
+            # For each protecting cloud, check if attacker is also in it
+            for vapor in active_vapors:
+                # Calculate distance from attacker to this vapor
+                attacker_distance = self.chess_distance(vapor.y, vapor.x, attacker_unit.y, attacker_unit.x)
+                if attacker_distance <= 1:  # Attacker is inside this protecting cloud
+                    attacker_in_protecting_cloud = True
+                    logger.debug(f"Attacker {attacker_unit.get_display_name()} is inside a protecting cloud")
+                    break
+            
+            # If attacker isn't in any of the protecting clouds, target is protected
+            is_protected = not attacker_in_protecting_cloud
+            if is_protected:
+                logger.debug(f"{target_unit.get_display_name()} is protected from {attacker_unit.get_display_name()}")
+            return is_protected
+            
+        # Target is not protected by any cloud
+        return False
+    
     def can_attack(self, unit, y, x):
         # First check for unit targets
         target = self.get_unit_at(y, x)
@@ -542,35 +571,15 @@ class Game:
             if not los_check:
                 return False
                 
-        # Check for SAFETY Gas vapor effect blocking ranged attacks
-        # Only applies for ranged attacks (range > 1) and to enemy units (not walls)
-        if distance > 1 and target and target.player != unit.player:
-            # Check if there's a SAFETY Gas vapor within range of target
-            safety_gas_in_range = False
-            for vapor_unit in self.units:
-                # Look for HEINOUS_VAPOR units of SAFETY type
-                if (vapor_unit.is_alive() and 
-                    vapor_unit.type == UnitType.HEINOUS_VAPOR and 
-                    vapor_unit.player == target.player and  # Same player as target (protecting their units)
-                    hasattr(vapor_unit, 'vapor_type') and 
-                    vapor_unit.vapor_type == "SAFETY"):
-                    
-                    # Check if target is within the vapor's 3x3 area
-                    vapor_distance = self.chess_distance(vapor_unit.y, vapor_unit.x, target.y, target.x)
-                    if vapor_distance <= 1:  # Within one tile (3x3 area)
-                        safety_gas_in_range = True
-                        break
-            
-            # If a SAFETY Gas is protecting the target, block the ranged attack
-            if safety_gas_in_range:
+        # Protection Zone Mechanic: Units inside Saft-E-Gas clouds cannot be targeted by enemy units outside
+        # This protection is ALWAYS active, not tied to any "tick" effect
+        if target and target.player != unit.player:  # Only applies for enemy targets
+            # Use the is_protected_from method to check protection
+            if self.is_protected_from(target, unit):
                 from boneglaive.utils.message_log import message_log, MessageType
-                
                 message_log.add_message(
-                    f"Saft-E-Gas blocks {unit.get_display_name()}'s ranged attack against {target.get_display_name()}!",
-                    MessageType.ABILITY,
-                    player=target.player,  # Message is from the defender's perspective
-                    attacker_name=unit.get_display_name(),
-                    target_name=target.get_display_name()
+                    f"Cannot target {target.get_display_name()} - protected by safety gas!",
+                    MessageType.ABILITY
                 )
                 return False
                 
@@ -656,8 +665,28 @@ class Game:
                 # Check if there's an enemy unit at this position
                 target = self.get_unit_at(y, x)
                 if target and target.player != unit.player:
-                    attacks.append((y, x))
-                    continue  # Already added as attack target, skip wall check
+                    # Check if target is protected by any Saft-E-Gas
+                    if hasattr(target, 'protected_by_safety_gas') and target.protected_by_safety_gas:
+                        # Target is under protection - check if attacker would be in the same cloud
+                        attacker_in_protecting_cloud = False
+                        
+                        # Check each protecting vapor
+                        for vapor in target.protected_by_safety_gas:
+                            if vapor.is_alive():  # Only check active vapors
+                                # Calculate distance from the attack position to this vapor
+                                attacker_distance = self.chess_distance(vapor.y, vapor.x, y_pos, x_pos)
+                                if attacker_distance <= 1:  # Attacker would be in this cloud
+                                    attacker_in_protecting_cloud = True
+                                    break
+                        
+                        # Only add as valid target if attacker would be in a protecting cloud
+                        if attacker_in_protecting_cloud:
+                            attacks.append((y, x))
+                    else:
+                        # Target is not protected - add as valid target
+                        attacks.append((y, x))
+                    
+                    continue  # Skip wall check
                 
                 # Check for Marrow Dike wall tiles that can be attacked
                 if hasattr(self, 'marrow_dike_tiles') and (y, x) in self.marrow_dike_tiles:
@@ -1231,6 +1260,16 @@ class Game:
                             player=unit.player
                         )
                 
+                # Revalidate protection status - might have changed since attack was queued
+                if target and target.player != unit.player and self.is_protected_from(target, unit):
+                    logger.debug(f"Attack cancelled: {target.get_display_name()} is protected by Saft-E-Gas")
+                    message_log.add_message(
+                        f"{unit.get_display_name()}'s attack fails - target is protected by safety gas!",
+                        MessageType.COMBAT,
+                        player=unit.player
+                    )
+                    continue  # Skip this attack and go to next unit
+                
                 # Check for Marrow Dike wall tiles that can be targeted
                 wall_target = None
                 if not target and (y, x) in self.marrow_dike_tiles:
@@ -1239,7 +1278,14 @@ class Game:
                     if wall_info['owner'].player != unit.player and attack_distance <= unit.attack_range and los_check:
                         wall_target = (y, x)  # Mark this as a valid wall target
 
-                if target and target.player != unit.player and attack_distance <= unit.attack_range and los_check or wall_target:  # Valid attack on unit or wall
+                # Check if attack is valid (checks all conditions including protection)
+                valid_attack = (target and 
+                               target.player != unit.player and 
+                               attack_distance <= unit.attack_range and 
+                               los_check and 
+                               not self.is_protected_from(target, unit))
+                               
+                if valid_attack or wall_target:  # Valid attack on unit or wall
                     # Handle damage calculation first
                     if wall_target:
                         # Get the wall information
@@ -1404,6 +1450,19 @@ class Game:
                 skill = unit.selected_skill
                 target_pos = unit.skill_target
                 
+                # Revalidate skill target for protection - might have changed since skill was queued
+                from boneglaive.game.skills import TargetType
+                if hasattr(skill, 'target_type') and skill.target_type == TargetType.ENEMY:
+                    target_unit = self.get_unit_at(target_pos[0], target_pos[1])
+                    if target_unit and target_unit.player != unit.player and self.is_protected_from(target_unit, unit):
+                        logger.debug(f"Skill cancelled: {target_unit.get_display_name()} is protected by Saft-E-Gas")
+                        message_log.add_message(
+                            f"{unit.get_display_name()}'s skill fails - target is protected by safety gas!",
+                            MessageType.ABILITY,
+                            player=unit.player
+                        )
+                        continue  # Skip this skill and go to next unit
+                
                 # Execute the skill if it has an execute method
                 if hasattr(skill, 'execute'):
                     skill.execute(unit, target_pos, self, ui)
@@ -1481,6 +1540,20 @@ class Game:
                 # If duration reached zero, the vapor expires
                 if vapor_unit.vapor_duration <= 0:
                     logger.debug(f"Vapor {vapor_unit.get_display_name()} expires")
+                    
+                    # Clear protection from units if this is a SAFETY type vapor
+                    if hasattr(vapor_unit, 'vapor_type') and vapor_unit.vapor_type == "SAFETY":
+                        # Find all units that were being protected by this vapor
+                        for protected_unit in self.units:
+                            if (hasattr(protected_unit, 'protected_by_safety_gas') and 
+                                protected_unit.protected_by_safety_gas and  # Check if it's a non-empty list
+                                vapor_unit in protected_unit.protected_by_safety_gas):
+                                # Remove this vapor from the unit's protection list
+                                protected_unit.protected_by_safety_gas.remove(vapor_unit)
+                                # If there are no more protecting vapors, clean up the attribute
+                                if not protected_unit.protected_by_safety_gas:
+                                    logger.debug(f"{protected_unit.get_display_name()} is no longer protected by any safety gas")
+                                    delattr(protected_unit, 'protected_by_safety_gas')
                     
                     # Log the expiration
                     message_log.add_message(
