@@ -42,6 +42,11 @@ class Game:
         from boneglaive.utils.event_system import get_event_manager, EventType
         self.event_manager = get_event_manager()
         self.event_manager.subscribe(EventType.EFFECT_EXPIRED, self._handle_effect_expired)
+        
+        # Apply passive skills for current player's units
+        for unit in self.units:
+            if unit.is_alive() and unit.player == self.current_player:
+                unit.apply_passive_skills(self)
             
     def change_map(self, new_map_name):
         """
@@ -1682,9 +1687,8 @@ class Game:
                     # Time to clear the was_pried flag
                     unit.was_pried = False  # Keep the move_range_bonus until end of turn
                 
-                # Apply passive skills (can be affected by game state)
-                # Pass ui reference for animations if available
-                unit.apply_passive_skills(self)
+                # Passive skills are now applied at the start of each player's turn
+                # instead of at the end of the previous player's turn
         
         # Process MarrowDike wall durations
         if hasattr(self, 'marrow_dike_tiles'):
@@ -1770,6 +1774,11 @@ class Game:
             # Increment turn counter when player 1's turn comes around again
             if self.current_player == 1:
                 self.turn += 1
+                
+            # Apply passive skills for the next player's units at the start of their turn
+            for unit in self.units:
+                if unit.is_alive() and unit.player == self.current_player:
+                    unit.apply_passive_skills(self)
     
     def try_trigger_wretched_decension(self, attacker, target, ui=None):
         """
