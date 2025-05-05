@@ -18,7 +18,7 @@ GAS MACHINIST (Pet Class Version)
   (max 3)
   - Summoning a HEINOUS VAPOR uses up all charges an extends the duration of the summon by 1 turn per charge.
   - Player can control the movement of their summoned HEINOUS VAPORS.
-  - Each HEINOUS VAPOR's effects "tick" during the combat round.
+  - Each HEINOUS VAPOR's effects "tick" only during the owner's combat round.
   - Heinous vapor effects are 3x3 "clouds", but visually they are just one character, so the effects are applied adjacent.
 
   HEINOUS VAPOR Stats

@@ -1434,18 +1434,19 @@ class Game:
         # Apply trap damage for all trapped units
         self._apply_trap_damage()
         
-        # Process HEINOUS_VAPOR effects for all vapors
+        # Process HEINOUS_VAPOR effects for current player's vapors only
         vapor_units = [unit for unit in self.units if unit.is_alive() and 
                       unit.type == UnitType.HEINOUS_VAPOR and 
-                      hasattr(unit, 'vapor_type') and unit.vapor_type]
+                      hasattr(unit, 'vapor_type') and unit.vapor_type and
+                      unit.player == self.current_player]  # Only include current player's vapors
         
         # Process each vapor's area effects
         for vapor_unit in vapor_units:
-            # Apply the vapor's area effects
+            # Apply the vapor's area effects only on owner's turn
             vapor_unit.apply_vapor_effects(self, ui)
             
             # Decrement vapor duration for current player's vapors
-            if vapor_unit.player == self.current_player and hasattr(vapor_unit, 'vapor_duration'):
+            if hasattr(vapor_unit, 'vapor_duration'):
                 vapor_unit.vapor_duration -= 1
                 logger.debug(f"Vapor {vapor_unit.get_display_name()} duration decremented to {vapor_unit.vapor_duration}")
                 
