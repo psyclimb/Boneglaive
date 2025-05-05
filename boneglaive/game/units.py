@@ -432,6 +432,7 @@ class Unit:
         """
         Apply area effects for HEINOUS_VAPOR units.
         This is called during combat phase processing.
+        Note: The game engine only calls this method for vapors belonging to the current player.
         """
         from boneglaive.utils.debug import logger
         from boneglaive.utils.message_log import message_log, MessageType
