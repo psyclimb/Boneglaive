@@ -403,7 +403,7 @@ class Game:
         Line of sight is blocked by:
         - Solid terrain like pillars and limestone
         - Units in the line of sight
-        - Saft-E-Gas (SAFETY type HEINOUS_VAPOR)
+        - Saft-E-Gas (SAFETY type HEINOUS_VAPOR) - any Saft-E-Gas 3x3 cloud blocks line of sight like terrain
         
         Args:
             from_y, from_x: Starting position coordinates
@@ -424,8 +424,20 @@ class Game:
         # Skip the source and target positions - we only care about positions between them
         path_between = path[1:-1] if len(path) > 2 else []
         
-        # Get any unit at the target position to check for Saft-E-Gas protection
-        target_unit = self.get_unit_at(to_y, to_x)
+        # Find all positions occupied by SAFETY type vapors (Saft-E-Gas)
+        safety_vapor_positions = []
+        for vapor_unit in self.units:
+            if (vapor_unit.is_alive() and
+                vapor_unit.type == UnitType.HEINOUS_VAPOR and
+                hasattr(vapor_unit, 'vapor_type') and 
+                vapor_unit.vapor_type == "SAFETY"):
+                
+                # Add all 3x3 positions centered on this vapor to the blocked list
+                for dy in [-1, 0, 1]:
+                    for dx in [-1, 0, 1]:
+                        cloud_y, cloud_x = vapor_unit.y + dy, vapor_unit.x + dx
+                        if self.is_valid_position(cloud_y, cloud_x):
+                            safety_vapor_positions.append((cloud_y, cloud_x, vapor_unit.player))
         
         # Check each position along the path
         for pos in path_between:
@@ -443,23 +455,15 @@ class Game:
                 logger.debug(f"Line of sight blocked by unit {blocking_unit.get_display_name()} at position ({pos.y}, {pos.x})")
                 return False
             
-            # Check for Saft-E-Gas (SAFETY type HEINOUS_VAPOR) in this position that blocks line of sight
-            # Look for vapor units in a 3x3 area around this position
-            for vapor_unit in self.units:
-                # Only SAFETY type vapors block line of sight
-                if (vapor_unit.is_alive() and
-                    vapor_unit.type == UnitType.HEINOUS_VAPOR and
-                    hasattr(vapor_unit, 'vapor_type') and 
-                    vapor_unit.vapor_type == "SAFETY"):
-                    
-                    # Check if this position is within the vapor's 3x3 area
-                    vapor_distance = self.chess_distance(vapor_unit.y, vapor_unit.x, pos.y, pos.x)
-                    if vapor_distance <= 1:  # Within one tile (3x3 area)
-                        # If the target has a different owner than the vapor, the vapor blocks LOS
-                        # This prevents allies' vapor from blocking LOS to their own units
-                        if target_unit and vapor_unit.player != target_unit.player:
-                            logger.debug(f"Line of sight blocked by Saft-E-Gas at position ({pos.y}, {pos.x})")
-                            return False
+            # Check if this position is within any Saft-E-Gas cloud
+            for vapor_pos in safety_vapor_positions:
+                vapor_y, vapor_x, vapor_player = vapor_pos
+                
+                if pos.y == vapor_y and pos.x == vapor_x:
+                    # Always block LOS through the Saft-E-Gas cloud, treating it as terrain
+                    # This makes it act like a solid 3x3 block for vision purposes
+                    logger.debug(f"Line of sight blocked by Saft-E-Gas cloud at position ({pos.y}, {pos.x})")
+                    return False
         
         return True
     
