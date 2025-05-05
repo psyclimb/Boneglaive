@@ -68,6 +68,20 @@ class Skill:
             logger.debug(f"Skill cannot be used by echo unit: {user.get_display_name()}")
             return False
             
+        # Protection Zone check for enemy targeting skills - only if game and target_pos are provided
+        if (game and target_pos and 
+            self.target_type == TargetType.ENEMY and
+            hasattr(game, 'is_protected_from')):
+            # Check if there's a unit at the target position
+            target_unit = game.get_unit_at(target_pos[0], target_pos[1])
+            if target_unit and target_unit.player != user.player:
+                # Check if target is protected from this user by Saft-E-Gas
+                if game.is_protected_from(target_unit, user):
+                    from boneglaive.utils.debug import logger
+                    logger.debug(f"Skill cannot target {target_unit.get_display_name()} - protected by Saft-E-Gas")
+                    # Don't show message in message_log - UI will handle it like for attacks
+                    return False
+            
         # Additional checks can be implemented in subclasses
         return True
         

@@ -4,6 +4,7 @@ Unit classes and related functionality for Boneglaive.
 """
 from typing import List, Dict, Optional, Tuple, TYPE_CHECKING
 from boneglaive.utils.constants import UNIT_STATS, UnitType, MAX_LEVEL, XP_PER_LEVEL
+from boneglaive.utils.debug import logger
 
 if TYPE_CHECKING:
     from boneglaive.game.skills.core import Skill, PassiveSkill, ActiveSkill
@@ -602,7 +603,44 @@ class Unit:
                                 ui.renderer.flash_tile(unit.y, unit.x, tile_ids, color_ids, durations)
                     
         elif self.vapor_type == "SAFETY":
-            # Saft-E-Gas: Blocks enemy ranged attacks (handled elsewhere) and heals allies by 1
+            # Saft-E-Gas performs two functions:
+            # 1. Protection zone: Always active, prevents targeting of allied units inside
+            # 2. Healing: Heals allies by 1 HP per tick
+            
+            # Grab reference to game for debugging
+            game = self._game
+            
+            # First, find all units that were previously protected by this vapor but are no longer in range
+            # We need to clean up their protection lists
+            for game_unit in game.units:
+                if (game_unit.is_alive() and 
+                    hasattr(game_unit, 'protected_by_safety_gas') and 
+                    game_unit.protected_by_safety_gas and
+                    self in game_unit.protected_by_safety_gas and
+                    game_unit not in affected_units):
+                    
+                    # Unit is no longer affected by this vapor - remove protection
+                    game_unit.protected_by_safety_gas.remove(self)
+                    logger.debug(f"{game_unit.get_display_name()} is no longer protected by {self.get_display_name()} (moved out of range)")
+                    
+                    # If there are no more protecting vapors, clean up the attribute
+                    if not game_unit.protected_by_safety_gas:
+                        logger.debug(f"{game_unit.get_display_name()} is no longer protected by any safety gas")
+                        delattr(game_unit, 'protected_by_safety_gas')
+            
+            # PROTECTION EFFECT: Mark all allied units in the cloud as "protected by safety gas"
+            # This allows the targeting code to know which units are protected
+            for unit in affected_units:
+                if unit.player == self.player and unit != self:
+                    # Set a property on the unit to mark it as protected
+                    if not hasattr(unit, 'protected_by_safety_gas'):
+                        unit.protected_by_safety_gas = []
+                        logger.debug(f"{unit.get_display_name()} is now protected by first safety gas")
+                    if self not in unit.protected_by_safety_gas:
+                        unit.protected_by_safety_gas.append(self)
+                        logger.debug(f"{unit.get_display_name()} is now protected by safety gas from {self.get_display_name()}")
+            
+            # HEALING EFFECT: Heal allied units in the cloud
             for unit in affected_units:
                 if unit.player == self.player and unit != self and unit.hp < unit.max_hp:
                     # Heal ally unit
