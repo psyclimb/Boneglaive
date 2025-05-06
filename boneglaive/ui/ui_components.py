@@ -122,16 +122,15 @@ class MessageLogComponent(UIComponent):
             EventData(show_log=self.show_log)
         )
         
-        # Display message through event system
+        # Display message through event system, but don't add to log
         self.publish_event(
             EventType.MESSAGE_DISPLAY_REQUESTED,
             MessageDisplayEventData(
                 message=f"Message log {'shown' if self.show_log else 'hidden'}",
-                message_type=MessageType.SYSTEM
+                message_type=MessageType.SYSTEM,
+                log_message=False  # Prevent adding to message log
             )
         )
-        
-        message_log.add_system_message(f"Message log {'shown' if self.show_log else 'hidden'}")
         
     def toggle_log_history(self):
         """Toggle the full log history screen."""
@@ -394,7 +393,8 @@ class HelpComponent(UIComponent):
             UIRedrawEventData()
         )
         
-        message_log.add_system_message(f"Help screen {'shown' if self.show_help else 'hidden'}")
+        # Display message in UI only, don't add to message log
+        self.game_ui.message = f"Help screen {'shown' if self.show_help else 'hidden'}"
     
     def draw_help_screen(self):
         """Draw the help screen overlay."""
@@ -1757,14 +1757,14 @@ class GameModeManager(UIComponent):
                 self.game_ui.message = "Test mode ON - setup phase skipped, using test units"
                 
                 # Add welcome messages when skipping setup phase
-                message_log.add_system_message(f"Entering {self.game_ui.game.map.name}")
-                message_log.add_system_message("Test mode enabled, using predefined units")
+                # Use UI message only for test mode notifications
+                self.game_ui.message = f"Test mode enabled, using predefined units on {self.game_ui.game.map.name}"
             else:
                 self.game_ui.message = "Test mode ON - both players can control all units"
-                message_log.add_system_message("Test mode enabled")
+                # Display via UI message only
         else:
             self.game_ui.message = "Test mode OFF"
-            message_log.add_system_message("Test mode disabled")
+            # Display via UI message only
     
     def toggle_setup_unit_type(self):
         """
@@ -1868,19 +1868,13 @@ class GameModeManager(UIComponent):
                 self.publish_event(
                     EventType.MESSAGE_DISPLAY_REQUESTED,
                     MessageDisplayEventData(
-                        message="Game begins! Player 1's turn",
+                        message="Player 1 - Turn 1",
                         message_type=MessageType.SYSTEM
                         )
                     )
             else:
-                # Normal local multiplayer mode
-                self.publish_event(
-                    EventType.MESSAGE_DISPLAY_REQUESTED,
-                    MessageDisplayEventData(
-                        message="Setup confirmed. Player 2's turn to place units.",
-                        message_type=MessageType.SYSTEM
-                    )
-                )
+                # Normal local multiplayer mode - message shown in UI only, not in log
+                self.game_ui.message = "Player 2's turn to place units"
                 # Start player 2 with cursor in center
                 self.game_ui.cursor_manager.cursor_pos = Position(HEIGHT // 2, WIDTH // 2)
                 # Publish cursor moved event
@@ -1892,7 +1886,7 @@ class GameModeManager(UIComponent):
             self.publish_event(
                 EventType.MESSAGE_DISPLAY_REQUESTED,
                 MessageDisplayEventData(
-                    message="Game begins!",
+                    message="Player 1 - Turn 1",
                     message_type=MessageType.SYSTEM
                 )
             )
@@ -2025,7 +2019,7 @@ class DebugComponent(UIComponent):
         
         message_text = f"Debug mode {'enabled' if debug_enabled else 'disabled'}"
         logger.info(message_text)
-        message_log.add_message(message_text, MessageType.DEBUG)
+        # Don't add debug messages to the message log
     
     def handle_debug_overlay(self):
         """Toggle debug overlay."""

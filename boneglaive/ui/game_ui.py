@@ -183,12 +183,11 @@ class GameUI:
         
         if self.multiplayer.is_multiplayer():
             if self.multiplayer.is_current_player_turn():
-                message_log.add_system_message(f"Round {self.game.turn} — Player {current_player} (YOU) is now active")
+                message_log.add_system_message(f"Player {current_player} - Turn {self.game.turn}")
             else:
-                message_log.add_system_message(f"Round {self.game.turn} — Player {current_player} is now active (WAITING)")
+                message_log.add_system_message(f"Player {current_player} - Turn {self.game.turn}")
         else:
-            player_name = "Green" if self.game.current_player == 1 else "Blue"
-            message_log.add_system_message(f"Round {self.game.turn} — {player_name} (Player {self.game.current_player}) is now active")
+            message_log.add_system_message(f"Player {self.game.current_player} - Turn {self.game.turn}")
         
         # Keep the message display area clear
         self.message = ""
