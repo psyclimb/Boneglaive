@@ -39,7 +39,7 @@ class UIRenderer:
         self.renderer.draw_text(menu_y + menu_height - 1, menu_x, "└" + "─" * (menu_width - 2) + "┘", 1)
         
         # Draw header
-        header_text = " RESOLVING ACTIONS "
+        header_text = " RESOLVING "
         header_x = menu_x + (menu_width - len(header_text)) // 2
         self.renderer.draw_text(menu_y + 1, header_x, header_text, 3, curses.A_BOLD)
         
@@ -48,7 +48,7 @@ class UIRenderer:
         
         # Draw spinner
         spinner_char = self.game_ui.spinner_chars[self.game_ui.spinner_frame]
-        spinner_line = f"    {spinner_char} Processing...    "
+        spinner_line = f"       {spinner_char}       "
         spinner_x = menu_x + (menu_width - len(spinner_line)) // 2
         self.renderer.draw_text(menu_y + 4, spinner_x, spinner_line, 3, curses.A_BOLD)
     
