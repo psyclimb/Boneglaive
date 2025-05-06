@@ -303,10 +303,10 @@ class PrySkill(ActiveSkill):
         super().__init__(
             name="Pry",
             key="P",
-            description="Pries enemy up to range 2, damaging them and adjacent enemies with falling debris. Reduces target's movement by 1.",
+            description="Pries enemy up to range 1, damaging them and adjacent enemies with falling debris. Reduces target's movement by 1.",
             target_type=TargetType.ENEMY,
-            cooldown=2,
-            range_=2
+            cooldown=3,
+            range_=1
         )
         self.primary_damage = 7  # Primary target damage
         self.splash_damage = 3   # Splash damage to adjacent units
@@ -979,10 +979,10 @@ class JudgementSkill(ActiveSkill):
         super().__init__(
             name="Judgement",
             key="J",
-            description="Throw a sacred glaive at an enemy (range 5). Deals pierce damage that ignores defense.",
+            description="Throw a sacred glaive at an enemy (range 4). Deals pierce damage that ignores defense.",
             target_type=TargetType.ENEMY,
             cooldown=2,
-            range_=5
+            range_=4
         )
         self.damage = 4
     
