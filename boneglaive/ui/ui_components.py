@@ -142,9 +142,10 @@ class MessageLogComponent(UIComponent):
         # Toggle log history screen
         self.show_log_history = not self.show_log_history
         
-        # Reset scroll position when opening
+        # Set scroll position to bottom when opening
         if self.show_log_history:
-            self.log_history_scroll = 0
+            # Set to a high value - the actual max will be clamped in the draw method
+            self.log_history_scroll = 999999
         
         # Request UI redraw through event system
         self.publish_event(
@@ -251,7 +252,7 @@ class MessageLogComponent(UIComponent):
             # Draw navigation instructions in a bar
             nav_bar = "│ " + "─" * (term_width - 4) + " │"
             self.renderer.draw_text(1, 0, nav_bar, 1)
-            nav_text = "↑/↓: Scroll | ESC: Close | L: Toggle regular log"
+            nav_text = "↑/↓: Scroll | g/G: Start/End | ESC: Close | L: Toggle regular log"
             self.renderer.draw_text(1, 2, nav_text, 1, curses.A_BOLD)
             
             # Draw a separator below the navigation
@@ -334,6 +335,16 @@ class MessageLogComponent(UIComponent):
             elif key == ord('l'):
                 # Toggle regular log view while in history
                 self.toggle_message_log()
+                self.game_ui.draw_board()
+                return True
+            elif key == ord('G'):  # Shift+g - go to end
+                # Jump to bottom of log
+                self.log_history_scroll = 999999  # Value will be clamped in draw method
+                self.game_ui.draw_board()
+                return True
+            elif key == ord('g'):  # g - go to start
+                # Jump to top of log
+                self.log_history_scroll = 0
                 self.game_ui.draw_board()
                 return True
                 
