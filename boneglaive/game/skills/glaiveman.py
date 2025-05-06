@@ -673,7 +673,7 @@ class PrySkill(ActiveSkill):
             message_log.add_message(
                 f"{target.get_display_name()} is immune to Pry's movement penalty due to Stasiality!",
                 MessageType.ABILITY,
-                player=user.player,
+                player=target.player,  # Use the target's player for correct color coding
                 target_name=target.get_display_name()
             )
         else:

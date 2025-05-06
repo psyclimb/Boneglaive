@@ -1379,9 +1379,9 @@ class Game:
                         # Check if target is immune to being trapped
                         if target.is_immune_to_trap():  # Changed to is_immune_to_trap
                             message_log.add_message(
-                                f"{target.get_display_name()} is immune to Viseroy's trap!",
+                                f"{target.get_display_name()} is immune to Viseroy due to Stasiality!",
                                 MessageType.ABILITY,
-                                player=unit.player,
+                                player=target.player,  # Use target's player color
                                 target_name=target.get_display_name()
                             )
                         else:
@@ -2276,7 +2276,7 @@ class Game:
         # Log the explosion with a more dramatic message for the GRAYMAN echo
         message_log.add_message(
             f"{echo_unit.get_display_name()} collapses into a psychic void, tearing through spacetime!",
-            MessageType.WARNING,  # WARNING type for yellow text to match the explosion color
+            MessageType.ABILITY,  # Use ABILITY type to ensure player color is used
             player=echo_unit.player
         )
         

@@ -342,7 +342,7 @@ class MarrowDikeSkill(ActiveSkill):
                     message_log.add_message(
                         f"{unit_at_tile.get_display_name()} is immune to Marrow Dike's pull due to Stasiality!",
                         MessageType.ABILITY,
-                        player=user.player,
+                        player=unit_at_tile.player,  # Use target unit's player for correct color coding
                         target_name=unit_at_tile.get_display_name()
                     )
                     # Skip this unit - it won't be moved and the wall won't be placed here
