@@ -1310,13 +1310,8 @@ class GameModeManager(UIComponent):
                 )
         else:
             # Use event system for message
-            self.publish_event(
-                EventType.MESSAGE_DISPLAY_REQUESTED,
-                MessageDisplayEventData(
-                    message="No unit selected",
-                    message_type=MessageType.WARNING
-                )
-            )
+            # Show message in UI only, not in message log
+            self.game_ui.message = "No unit selected"
     
     def handle_skill_mode(self):
         """Enter skill mode to select from available skills."""
@@ -1417,13 +1412,8 @@ class GameModeManager(UIComponent):
                 )
         else:
             # Use event system for message
-            self.publish_event(
-                EventType.MESSAGE_DISPLAY_REQUESTED,
-                MessageDisplayEventData(
-                    message="No unit selected",
-                    message_type=MessageType.WARNING
-                )
-            )
+            # Show message in UI only, not in message log
+            self.game_ui.message = "No unit selected"
             
     def handle_attack_mode(self):
         """Enter attack mode."""
@@ -1500,13 +1490,8 @@ class GameModeManager(UIComponent):
                 )
         else:
             # Use event system for message
-            self.publish_event(
-                EventType.MESSAGE_DISPLAY_REQUESTED,
-                MessageDisplayEventData(
-                    message="No unit selected",
-                    message_type=MessageType.WARNING
-                )
-            )
+            # Show message in UI only, not in message log
+            self.game_ui.message = "No unit selected"
     
     def handle_select_in_select_mode(self):
         """Handle selection when in select mode."""

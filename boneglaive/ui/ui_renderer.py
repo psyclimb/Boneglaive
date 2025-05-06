@@ -16,6 +16,42 @@ class UIRenderer:
         self.game_ui = game_ui
     
     @measure_perf
+    def _draw_spinner_in_menu_area(self):
+        """Draw the spinner animation in the action menu area during action resolution."""
+        # Calculate menu position (same as in ActionMenuComponent)
+        menu_x = WIDTH * 2 + 2
+        menu_y = 2
+        
+        # Set dimensions for the spinner menu
+        menu_width = 25
+        menu_height = 6  # Smaller than regular menu
+        
+        # Draw menu border
+        # Top border
+        self.renderer.draw_text(menu_y, menu_x, "┌" + "─" * (menu_width - 2) + "┐", 1)
+        
+        # Side borders
+        for i in range(1, menu_height - 1):
+            self.renderer.draw_text(menu_y + i, menu_x, "│", 1)
+            self.renderer.draw_text(menu_y + i, menu_x + menu_width - 1, "│", 1)
+        
+        # Bottom border
+        self.renderer.draw_text(menu_y + menu_height - 1, menu_x, "└" + "─" * (menu_width - 2) + "┘", 1)
+        
+        # Draw header
+        header_text = " RESOLVING ACTIONS "
+        header_x = menu_x + (menu_width - len(header_text)) // 2
+        self.renderer.draw_text(menu_y + 1, header_x, header_text, 3, curses.A_BOLD)
+        
+        # Draw separator
+        self.renderer.draw_text(menu_y + 2, menu_x + 1, "─" * (menu_width - 2), 1)
+        
+        # Draw spinner
+        spinner_char = self.game_ui.spinner_chars[self.game_ui.spinner_frame]
+        spinner_line = f"    {spinner_char} Processing...    "
+        spinner_x = menu_x + (menu_width - len(spinner_line)) // 2
+        self.renderer.draw_text(menu_y + 4, spinner_x, spinner_line, 3, curses.A_BOLD)
+    
     def draw_board(self, show_cursor=True, show_selection=True, show_attack_targets=True):
         """Draw the game board and UI.
         
@@ -121,6 +157,8 @@ class UIRenderer:
                 chat_text = "CHAT MODE"
                 x_pos = self.renderer.width - len(chat_text) - len(debug_text) - 4
             self.renderer.draw_text(header_y, x_pos, debug_text, 1, curses.A_BOLD)
+            
+        # Spinner is now drawn in the action menu area instead of the header
         
         # Draw the battlefield
         for y in range(HEIGHT):
@@ -546,9 +584,13 @@ class UIRenderer:
         if chat_component.chat_mode:
             chat_component.draw_chat_input()
             
-        # Draw action menu if a unit is selected
+        # Draw action menu if a unit is selected and not in resolving phase
         if self.game_ui.action_menu_component.visible:
-            self.game_ui.action_menu_component.draw()
+            if self.game_ui.spinner_active:
+                # Draw the spinner in the action menu area instead
+                self._draw_spinner_in_menu_area()
+            else:
+                self.game_ui.action_menu_component.draw()
         
         # Draw unit info with improved formatting
         # Add +2 to ensure a blank line between map and info
