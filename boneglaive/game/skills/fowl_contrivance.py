@@ -695,7 +695,7 @@ class EmeticFlangeSkill(ActiveSkill):
                     message_log.add_message(
                         f"{unit.get_display_name()} is immune to Emetic Flange's push effect due to Stasiality!",
                         MessageType.ABILITY,
-                        player=user.player,
+                        player=unit.player,  # Use target unit's player for correct color coding
                         target_name=unit.get_display_name()
                     )
         

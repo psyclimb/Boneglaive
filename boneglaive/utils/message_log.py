@@ -30,7 +30,7 @@ class MessageLog:
     
     def __init__(self):
         self.messages: List[Dict[str, Any]] = []
-        self.filters: List[MessageType] = []  # Message types to filter out
+        self.filters: List[MessageType] = [MessageType.DEBUG]  # Always filter out DEBUG messages
         self.player_colors: Dict[int, int] = {1: 3, 2: 4}  # Player number to color mapping
         
     def add_message(self, text: str, msg_type: MessageType, 
@@ -219,8 +219,12 @@ class MessageLog:
             elif "DOMINION:" in text or "absorbs power from the fallen" in text:
                 color = 19  # Special color for Dominion upgrades (bright magenta)
             # Check for debuff messages and forced displacement messages
-            elif ("movement reduced" in text or "debuff" in text.lower() or "penalty" in text.lower() or 
-                "displaced from" in text or "collides with" in text):
+            # Skip Stasiality immunity messages - they should use player color instead of yellow
+            elif ("movement reduced" in text or "debuff" in text.lower() or 
+                 ("penalty" in text.lower() and "due to Stasiality" not in text) or 
+                 "displaced from" in text or "collides with" in text or
+                 ("immobilized" in text and "immune to" not in text) or
+                 ("trapped in" in text and "due to Stasiality" not in text)):
                 color = 7  # Yellow for debuffs/negative effects and displacements
             # Otherwise, use player color for messages with attacker/target info or ability messages
             elif ('attacker_name' in msg and msg['player'] is not None) or (msg['type'] == MessageType.ABILITY and msg['player'] is not None):
