@@ -77,7 +77,8 @@ class GameUI:
         
         # Only show welcome message when not in setup phase
         if not self.game.setup_phase:
-            message_log.add_system_message(f"Entering {self.game.map.name}")
+            # Display map info in UI message, not in log
+            self.message = f"Entering {self.game.map.name}"
             
             # Publish game initialized event
             self._publish_event(
@@ -87,10 +88,11 @@ class GameUI:
         
         # Only show game mode message when not in setup phase
         if not self.game.setup_phase:
+            # Show multiplayer mode information in UI message only
             if self.multiplayer.is_local_multiplayer():
-                message_log.add_system_message("Local multiplayer mode. Players will take turns on this computer.")
+                self.message = "Local multiplayer mode. Players will take turns on this computer."
             elif self.multiplayer.is_network_multiplayer():
-                message_log.add_system_message("LAN multiplayer mode. Connected to remote player.")
+                self.message = "LAN multiplayer mode. Connected to remote player."
                 
             # Publish turn started event for initial turn
             self._publish_event(
@@ -181,11 +183,12 @@ class GameUI:
         
         if self.multiplayer.is_multiplayer():
             if self.multiplayer.is_current_player_turn():
-                message_log.add_system_message(f"Turn {self.game.turn}, Player {current_player}'s turn (YOU)")
+                message_log.add_system_message(f"Round {self.game.turn} — Player {current_player} (YOU) is now active")
             else:
-                message_log.add_system_message(f"Turn {self.game.turn}, Player {current_player}'s turn (WAITING)")
+                message_log.add_system_message(f"Round {self.game.turn} — Player {current_player} is now active (WAITING)")
         else:
-            message_log.add_system_message(f"Turn {self.game.turn}, Player {self.game.current_player}'s turn")
+            player_name = "Green" if self.game.current_player == 1 else "Blue"
+            message_log.add_system_message(f"Round {self.game.turn} — {player_name} (Player {self.game.current_player}) is now active")
         
         # Keep the message display area clear
         self.message = ""
