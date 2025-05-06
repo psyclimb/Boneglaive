@@ -584,13 +584,13 @@ class UIRenderer:
         if chat_component.chat_mode:
             chat_component.draw_chat_input()
             
-        # Draw action menu if a unit is selected and not in resolving phase
-        if self.game_ui.action_menu_component.visible:
-            if self.game_ui.spinner_active:
-                # Draw the spinner in the action menu area instead
-                self._draw_spinner_in_menu_area()
-            else:
-                self.game_ui.action_menu_component.draw()
+        # Always show spinner during resolving phase, otherwise show action menu if visible
+        if self.game_ui.spinner_active:
+            # Always draw the spinner in the action menu area during resolving
+            self._draw_spinner_in_menu_area()
+        elif self.game_ui.action_menu_component.visible:
+            # Draw action menu if visible and not in resolving phase
+            self.game_ui.action_menu_component.draw()
         
         # Draw unit info with improved formatting
         # Add +2 to ensure a blank line between map and info
