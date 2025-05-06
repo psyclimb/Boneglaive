@@ -1140,11 +1140,12 @@ class Game:
         
         logger.info(f"Executing {len(units_with_actions)} actions in timestamp order")
         
-        # Display starting message if we have actions and UI
+        # Display actions visually with UI but don't add to message log
         if (units_with_actions or any(unit.trapped_by is not None for unit in self.units)) and ui:
-            message_log.add_system_message("Executing actions in order...")
+            # Start the spinner animation
+            ui.start_spinner()
             ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-            time.sleep(0.5)  # Short delay before actions start
+            time.sleep(0.3)  # Short delay before actions start
         
         # Process each unit's actions in timestamp order
         for unit in units_with_actions:
@@ -1445,9 +1446,10 @@ class Game:
                     else:
                         logger.warning(f"Attack failed: unknown reason")
                 
-                # Add a slight pause between actions for a unit
+                # Add a slight pause between actions for a unit and update spinner
                 if ui:
-                    time.sleep(0.3)
+                    ui.advance_spinner()
+                    time.sleep(0.15)
             
             # EXECUTE SKILL if unit has a skill target
             if unit.skill_target and unit.selected_skill:
@@ -1474,9 +1476,10 @@ class Game:
                 else:
                     logger.warning(f"Skill {skill.name} has no execute method")
                 
-                # Add a slight pause after the skill
+                # Add a slight pause after the skill and update spinner
                 if ui:
-                    time.sleep(0.3)
+                    ui.advance_spinner()
+                    time.sleep(0.15)
             
             # EXECUTE VISEROY TRAP DAMAGE if this is a MANDIBLE_FOREMAN with trapped units
             elif hasattr(unit, 'viseroy_trap_action') and unit.viseroy_trap_action:
@@ -1519,9 +1522,10 @@ class Game:
                 # Clean up the special flag
                 unit.viseroy_trap_action = False
             
-            # Add a slight pause between units' actions
+            # Add a slight pause between units' actions and update spinner
             if ui:
-                time.sleep(0.5)
+                ui.advance_spinner()
+                time.sleep(0.2)
         
         # Apply trap damage for all trapped units
         self._apply_trap_damage()
@@ -1755,8 +1759,11 @@ class Game:
         
         # If UI is provided, redraw with cursor, selection, and attack targets before finishing
         if ui:
+            # Stop the spinner
+            ui.stop_spinner()
+            
             # Slight delay before showing final state
-            time.sleep(0.5)
+            time.sleep(0.3)
             ui.draw_board(show_cursor=True, show_selection=True, show_attack_targets=True)  # Restore all UI elements
         
         # Before changing players, reset movement penalties for units of the player

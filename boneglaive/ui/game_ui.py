@@ -60,6 +60,11 @@ class GameUI:
         # Message buffer for UI feedback
         self.message = ""
         
+        # Spinner for showing action execution
+        self.spinner_active = False
+        self.spinner_frame = 0
+        self.spinner_chars = ['|', '/', '-', '\\', '|', '/', '-', '\\']
+        
         # Initialize components (order matters due to dependencies)
         self.cursor_manager = CursorManager(self.renderer, self)
         self.help_component = HelpComponent(self.renderer, self)
@@ -224,6 +229,24 @@ class GameUI:
         """Delegate animation to the animation component."""
         self.animation_component.show_attack_animation(attacker, target)
     
+    def start_spinner(self):
+        """Start the action execution spinner animation."""
+        self.spinner_active = True
+        self.spinner_frame = 0
+        
+    def stop_spinner(self):
+        """Stop the action execution spinner animation."""
+        self.spinner_active = False
+        
+    def advance_spinner(self):
+        """Advance the spinner to the next frame and redraw."""
+        if not self.spinner_active:
+            return
+            
+        self.spinner_frame = (self.spinner_frame + 1) % len(self.spinner_chars)
+        self.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+        self.renderer.refresh()
+        
     def handle_input(self, key: int) -> bool:
         """Handle user input using the input manager."""
         # Handle setup instructions screen
