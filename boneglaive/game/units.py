@@ -374,6 +374,11 @@ class Unit:
         else:
             # Normal HP setting for all other units
             self._hp = value
+            
+    def expire(self):
+        """Force unit expiration, bypassing invulnerability.
+        Used when HEINOUS_VAPOR duration runs out."""
+        self._hp = 0
     
     # Position properties with trap release functionality
     @property
