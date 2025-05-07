@@ -2349,6 +2349,7 @@ class ActionMenuComponent(UIComponent):
         
         # Add skill action
         unit_has_skills = unit is not None and hasattr(unit, 'active_skills') and len(unit.get_available_skills()) > 0
+        # Allow skills to be used even when a move is planned (the unit can cast from the new position)
         unit_can_use_skills = unit_has_skills and unit.trapped_by is None and not unit.is_echo
         self.actions.append({
             'key': 's',
@@ -2752,6 +2753,7 @@ class ActionMenuComponent(UIComponent):
             from_x = cursor_manager.selected_unit.x
             
             # If unit has a planned move, use that position instead
+            # This allows skills to be cast from the new position after a move
             if cursor_manager.selected_unit.move_target:
                 from_y, from_x = cursor_manager.selected_unit.move_target
             
