@@ -103,13 +103,42 @@ class MessageLog:
         else:
             message = f"{attacker_name} hits {target_name} for {damage} damage!"
             
+        # Check for invulnerable target by name (does not change damage sources)
+        # Only HEINOUS VAPOR units can have invulnerability
+        if "HEINOUS VAPOR" in target_name or "BROACHING GAS" in target_name or "SAFT-E-GAS" in target_name or \
+           "COOLANT GAS" in target_name or "CUTTING GAS" in target_name:
+            # We need to check if the unit is invulnerable
+            # Since message_log doesn't have direct access to the unit objects,
+            # we'll rely on the fact that invulnerable units always have damage=0
+            if damage == 0:
+                # Unit is invulnerable - show 0 damage
+                pass  # Keep damage as 0
+            else:
+                # If damage > 0 but this is an invulnerable unit,
+                # force the message to show 0 damage instead
+                from boneglaive.utils.debug import logger
+                
+                # Update the message to show 0 damage
+                if ability == "Viseroy Trap":
+                    message = f"{attacker_name}'s jaws tighten on {target_name} for 0 damage!"
+                elif ability:
+                    message = f"{attacker_name} hits {target_name} for 0 damage with {ability}!"
+                else:
+                    message = f"{attacker_name} hits {target_name} for 0 damage!"
+                    
+                # Log that we intercepted the damage
+                logger.debug(f"Intercepted damage to {target_name}: changed {damage} to 0 (invulnerable)")
+                
+                # Override the damage value to 0
+                damage = 0
+            
         # Add the message
         self.add_message(
             text=message,
             msg_type=MessageType.COMBAT,
             player=attacker_player,
             target=target_player,
-            damage=damage,
+            damage=damage,  # This will now be 0 for invulnerable units
             ability=ability,
             # Store unit names explicitly to help with coloring
             attacker_name=attacker_name,

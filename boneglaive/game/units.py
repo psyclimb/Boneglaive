@@ -362,10 +362,15 @@ class Unit:
             # Only allow HP to increase, not decrease
             if value > self._hp:
                 self._hp = value
-            # Otherwise, log and ignore damage
+            # Otherwise, log and ignore damage without adding a message
             else:
                 from boneglaive.utils.debug import logger
-                logger.debug(f"Invulnerable {self.get_display_name()} ignored damage")
+                
+                # Calculate attempted damage
+                attempted_damage = self._hp - value
+                if attempted_damage > 0:
+                    # Only log to debug, don't add a message to the log
+                    logger.debug(f"Invulnerable {self.get_display_name()} ignored {attempted_damage} damage")
         else:
             # Normal HP setting for all other units
             self._hp = value
@@ -790,6 +795,16 @@ class Unit:
         Returns:
             The actual amount of damage dealt
         """
+        # Check for invulnerability directly
+        if self.type == UnitType.HEINOUS_VAPOR and hasattr(self, 'is_invulnerable') and self.is_invulnerable and damage > 0:
+            from boneglaive.utils.debug import logger
+            
+            # Only log to debug, don't add a message to the game log
+            attacker_name = source_unit.get_display_name() if source_unit else (ability_name or "Attack")
+            logger.debug(f"Invulnerable {self.get_display_name()} ignored {damage} damage from {attacker_name}")
+            
+            return 0
+        
         # Store previous HP for damage calculation
         previous_hp = self.hp
         
