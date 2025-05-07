@@ -1618,8 +1618,8 @@ class Game:
                                     ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
                                     ui.renderer.refresh()
                     
-                    # Kill the vapor (remove it on the next cleanup)
-                    vapor_unit.hp = 0
+                    # Kill the vapor using expire() to bypass invulnerability
+                    vapor_unit.expire()
             
         # Clear all actions and update skill cooldowns
         for unit in self.units:
