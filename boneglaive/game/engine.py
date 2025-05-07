@@ -1085,6 +1085,10 @@ class Game:
         if ui:
             self.ui = ui
             
+        # Initialize marrow_dike_tiles attribute if not present
+        if not hasattr(self, 'marrow_dike_tiles'):
+            self.marrow_dike_tiles = {}
+            
         logger.info(f"Executing turn {self.turn} for player {self.current_player}")
         
         # Process status effects for the current player's units
