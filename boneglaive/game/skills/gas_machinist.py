@@ -33,8 +33,8 @@ class EffluviumLathe(PassiveSkill):
             key="L",
             description="Generates 1 Effluvium charge per turn (max 3). Charges extend HEINOUS VAPOR duration by 1 turn each."
         )
-        # Initialize charges to 0
-        self.charges = 0
+        # Initialize with 1 charge instead of 0
+        self.charges = 1
         self.max_charges = 3
         
     def apply_passive(self, user: 'Unit', game: Optional['Game'] = None) -> None:
