@@ -33,7 +33,7 @@ class Unit:
         
         # Current and maximum stats
         self.max_hp = base_hp
-        self.hp = self.max_hp
+        self._hp = self.max_hp  # Use private property with getters/setters
         self.attack = base_attack
         self.defense = base_defense
         self.move_range = base_move_range
@@ -83,6 +83,7 @@ class Unit:
         self.vapor_creator = None  # Reference to the GAS_MACHINIST that created this vapor
         self.vapor_skill = None  # Reference to the skill that created this vapor
         self.diverged_user = None  # Reference to the GAS_MACHINIST if this vapor is from a diverged user
+        self.is_invulnerable = False  # Flag to make Heinous Vapor units invulnerable
         
         # GAS_MACHINIST properties
         self.diverge_return_position = False  # Whether this unit is returning from a diverge
@@ -349,6 +350,26 @@ class Unit:
         self.action_timestamp = 0  # Reset the action timestamp
         # No Recalibrate tracking
         
+    # HP property with invulnerability check
+    @property
+    def hp(self):
+        return self._hp
+        
+    @hp.setter
+    def hp(self, value):
+        # For HEINOUS_VAPOR with invulnerability flag, prevent HP reduction
+        if self.type == UnitType.HEINOUS_VAPOR and hasattr(self, 'is_invulnerable') and self.is_invulnerable:
+            # Only allow HP to increase, not decrease
+            if value > self._hp:
+                self._hp = value
+            # Otherwise, log and ignore damage
+            else:
+                from boneglaive.utils.debug import logger
+                logger.debug(f"Invulnerable {self.get_display_name()} ignored damage")
+        else:
+            # Normal HP setting for all other units
+            self._hp = value
+    
     # Position properties with trap release functionality
     @property
     def y(self):
@@ -756,3 +777,27 @@ class Unit:
             if skill.key.upper() == key:
                 return skill
         return None
+        
+    def take_damage(self, damage: int, source_unit=None, ability_name=None) -> int:
+        """
+        Apply damage to the unit and return the actual damage dealt.
+        
+        Args:
+            damage: Amount of damage to apply
+            source_unit: Unit causing the damage (for logging)
+            ability_name: Name of the ability causing the damage (for logging)
+            
+        Returns:
+            The actual amount of damage dealt
+        """
+        # Store previous HP for damage calculation
+        previous_hp = self.hp
+        
+        # Apply damage (the hp property setter will handle invulnerability)
+        self.hp = max(0, self.hp - damage)
+        
+        # Calculate actual damage dealt
+        actual_damage = previous_hp - self.hp
+        
+        # Return actual damage dealt
+        return actual_damage

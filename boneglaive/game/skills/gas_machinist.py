@@ -199,6 +199,7 @@ class EnbroachmentGasSkill(ActiveSkill):
         vapor_unit.vapor_duration = total_duration
         vapor_unit.vapor_creator = user
         vapor_unit.vapor_skill = self
+        vapor_unit.is_invulnerable = True  # Set invulnerability flag
         
         # Add vapor to the game units
         game.units.append(vapor_unit)
@@ -343,6 +344,7 @@ class SaftEGasSkill(ActiveSkill):
         vapor_unit.vapor_duration = total_duration
         vapor_unit.vapor_creator = user
         vapor_unit.vapor_skill = self
+        vapor_unit.is_invulnerable = True  # Set invulnerability flag
         
         # Add vapor to the game units
         game.units.append(vapor_unit)
@@ -593,6 +595,7 @@ class DivergeSkill(ActiveSkill):
         coolant_gas.vapor_duration = 2  # Fixed duration of 2 turns for diverged gases
         coolant_gas.vapor_creator = user
         coolant_gas.vapor_skill = self
+        coolant_gas.is_invulnerable = True  # Set invulnerability flag
         
         # For case where we only have one valid position, we've already logged a message if needed
         
@@ -608,6 +611,7 @@ class DivergeSkill(ActiveSkill):
         cutting_gas.vapor_duration = 2  # Fixed duration of 2 turns for diverged gases
         cutting_gas.vapor_creator = user
         cutting_gas.vapor_skill = self
+        cutting_gas.is_invulnerable = True  # Set invulnerability flag
         
         # Add gases to the game
         game.units.append(coolant_gas)
