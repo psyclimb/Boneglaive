@@ -406,12 +406,18 @@ class DivergeSkill(ActiveSkill):
             return False
             
         # Check range
-        distance = game.chess_distance(user.y, user.x, target_pos[0], target_pos[1])
+        # If there's a planned move, use that position for range check
+        from_y, from_x = user.y, user.x
+        if hasattr(user, 'move_target') and user.move_target:
+            from_y, from_x = user.move_target
+            
+        distance = game.chess_distance(from_y, from_x, target_pos[0], target_pos[1])
         if distance > self.range:
             return False
             
-        # Target must be either self or a HEINOUS VAPOR owned by the player
-        is_self_target = (target_pos[0] == user.y and target_pos[1] == user.x)
+        # Target must be either self (current position OR planned position) or a HEINOUS VAPOR owned by the player
+        is_self_target = (target_pos[0] == user.y and target_pos[1] == user.x) or \
+                         (user.move_target and target_pos[0] == user.move_target[0] and target_pos[1] == user.move_target[1])
         
         if is_self_target:
             return True
@@ -436,8 +442,13 @@ class DivergeSkill(ActiveSkill):
             user.action_timestamp = game.action_counter
             game.action_counter += 1
         
+        # Get the user's current or planned position
+        from_y, from_x = user.y, user.x
+        if hasattr(user, 'move_target') and user.move_target:
+            from_y, from_x = user.move_target
+        
         # Log that the skill has been queued
-        is_self_target = (target_pos[0] == user.y and target_pos[1] == user.x)
+        is_self_target = (target_pos[0] == from_y and target_pos[1] == from_x)
         
         if is_self_target:
             message_log.add_message(
@@ -463,7 +474,11 @@ class DivergeSkill(ActiveSkill):
         import time
         from boneglaive.utils.coordinates import get_adjacent_positions
         
+        # Get the user's current position - by execution time any planned move will have been executed
+        from_y, from_x = user.y, user.x
+        
         # Determine if targeting self or a vapor
+        # Check if target matches current position or was a planned move position (which is now the current position)
         is_self_target = (target_pos[0] == user.y and target_pos[1] == user.x)
         target_unit = None if is_self_target else game.get_unit_at(target_pos[0], target_pos[1])
         
