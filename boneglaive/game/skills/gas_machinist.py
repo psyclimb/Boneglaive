@@ -415,9 +415,14 @@ class DivergeSkill(ActiveSkill):
         if distance > self.range:
             return False
             
-        # Target must be either self (current position OR planned position) or a HEINOUS VAPOR owned by the player
-        is_self_target = (target_pos[0] == user.y and target_pos[1] == user.x) or \
-                         (user.move_target and target_pos[0] == user.move_target[0] and target_pos[1] == user.move_target[1])
+        # Target must be either self or a HEINOUS VAPOR owned by the player
+        # If user has a planned move, only that position is valid for self-targeting, not the current position
+        if user.move_target:
+            # When there's a planned move, only the new position is valid
+            is_self_target = (target_pos[0] == user.move_target[0] and target_pos[1] == user.move_target[1])
+        else:
+            # Otherwise, current position is valid
+            is_self_target = (target_pos[0] == user.y and target_pos[1] == user.x)
         
         if is_self_target:
             return True
@@ -448,7 +453,11 @@ class DivergeSkill(ActiveSkill):
             from_y, from_x = user.move_target
         
         # Log that the skill has been queued
-        is_self_target = (target_pos[0] == from_y and target_pos[1] == from_x)
+        # If there's a planned move, only that position is considered "self"
+        if user.move_target:
+            is_self_target = (target_pos[0] == user.move_target[0] and target_pos[1] == user.move_target[1])
+        else:
+            is_self_target = (target_pos[0] == user.y and target_pos[1] == user.x)
         
         if is_self_target:
             message_log.add_message(
