@@ -31,7 +31,7 @@ class EffluviumLathe(PassiveSkill):
         super().__init__(
             name="Effluvium Lathe",
             key="L",
-            description="Generates 1 Effluvium charge per turn (max 4). Charges extend HEINOUS VAPOR duration by 1 turn each."
+            description="Generates 1 Effluvium charge per turn (max 4). Charges extend HEINOUS VAPOR duration by 1 turn each. Does not generate charges while diverged."
         )
         # Initialize with 1 charge instead of 0
         self.charges = 1
@@ -44,6 +44,14 @@ class EffluviumLathe(PassiveSkill):
         """
         # If this is a new turn for the unit's player, generate a charge
         if game and game.current_player == user.player:
+            # Check if the user is in the diverged state (not on the board)
+            # Gas Machinist is considered diverged when removed from the board (y, x set to -999, -999)
+            is_diverged = hasattr(user, 'diverge_return_position') and getattr(user, 'diverge_return_position', False)
+            
+            # Don't generate charges if the user is diverged
+            if is_diverged:
+                return
+                
             old_charges = self.charges
             
             # Generate a new charge if not at max
