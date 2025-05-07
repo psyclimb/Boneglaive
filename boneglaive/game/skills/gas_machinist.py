@@ -31,11 +31,11 @@ class EffluviumLathe(PassiveSkill):
         super().__init__(
             name="Effluvium Lathe",
             key="L",
-            description="Generates 1 Effluvium charge per turn (max 3). Charges extend HEINOUS VAPOR duration by 1 turn each."
+            description="Generates 1 Effluvium charge per turn (max 4). Charges extend HEINOUS VAPOR duration by 1 turn each."
         )
         # Initialize with 1 charge instead of 0
         self.charges = 1
-        self.max_charges = 3
+        self.max_charges = 4  # Increased from 3 to 4
         
     def apply_passive(self, user: 'Unit', game: Optional['Game'] = None) -> None:
         """
@@ -156,7 +156,13 @@ class EnbroachmentGasSkill(ActiveSkill):
         if passive:
             # Consume all available charges
             charges_consumed = passive.consume_charges(passive.charges)
-            total_duration = base_duration + charges_consumed
+            
+            # Special calculation: spending 1 charge gives 1 turn duration
+            # Additional charges beyond the first still add 1 turn each
+            if charges_consumed == 1:
+                total_duration = 1  # 1 charge = 1 turn duration
+            else:
+                total_duration = base_duration + charges_consumed - 1  # Adjust formula
             
         # Log the skill activation
         message_log.add_message(
@@ -301,7 +307,13 @@ class SaftEGasSkill(ActiveSkill):
         if passive:
             # Consume all available charges
             charges_consumed = passive.consume_charges(passive.charges)
-            total_duration = base_duration + charges_consumed
+            
+            # Special calculation: spending 1 charge gives 1 turn duration
+            # Additional charges beyond the first still add 1 turn each
+            if charges_consumed == 1:
+                total_duration = 1  # 1 charge = 1 turn duration
+            else:
+                total_duration = base_duration + charges_consumed - 1  # Adjust formula
             
         # Log the skill activation
         message_log.add_message(
@@ -592,7 +604,7 @@ class DivergeSkill(ActiveSkill):
         # Set Coolant Gas properties
         coolant_gas.vapor_type = "COOLANT"
         coolant_gas.vapor_symbol = self.coolant_symbol
-        coolant_gas.vapor_duration = 2  # Fixed duration of 2 turns for diverged gases
+        coolant_gas.vapor_duration = 1  # Fixed duration of 1 turn for diverged gases
         coolant_gas.vapor_creator = user
         coolant_gas.vapor_skill = self
         coolant_gas.is_invulnerable = True  # Set invulnerability flag
@@ -608,7 +620,7 @@ class DivergeSkill(ActiveSkill):
         # Set Cutting Gas properties
         cutting_gas.vapor_type = "CUTTING"
         cutting_gas.vapor_symbol = self.cutting_symbol
-        cutting_gas.vapor_duration = 2  # Fixed duration of 2 turns for diverged gases
+        cutting_gas.vapor_duration = 1  # Fixed duration of 1 turn for diverged gases
         cutting_gas.vapor_creator = user
         cutting_gas.vapor_skill = self
         cutting_gas.is_invulnerable = True  # Set invulnerability flag
