@@ -1549,10 +1549,14 @@ class GameModeManager(UIComponent):
         unit_at_cursor = game.get_unit_at(pos.y, pos.x)
         
         # Check if this is the current position or the planned move position (ghost)
-        is_self_target = (unit_at_cursor and unit_at_cursor == cursor_manager.selected_unit) or \
-                         (cursor_manager.selected_unit.move_target and 
-                          pos.y == cursor_manager.selected_unit.move_target[0] and 
-                          pos.x == cursor_manager.selected_unit.move_target[1])
+        # If a move order is issued, only the ghost position is a valid target, not the current position
+        if cursor_manager.selected_unit.move_target:
+            # If there's a move target, only the ghost position is valid for self-targeting
+            is_self_target = (pos.y == cursor_manager.selected_unit.move_target[0] and 
+                             pos.x == cursor_manager.selected_unit.move_target[1])
+        else:
+            # If no move target, the current position is valid
+            is_self_target = (unit_at_cursor and unit_at_cursor == cursor_manager.selected_unit)
                           
         is_valid_vapor = (unit_at_cursor and unit_at_cursor.type == UnitType.HEINOUS_VAPOR and 
                          unit_at_cursor.player == cursor_manager.selected_unit.player)
