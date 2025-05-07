@@ -1547,7 +1547,13 @@ class GameModeManager(UIComponent):
             
         # Check what's at the cursor position
         unit_at_cursor = game.get_unit_at(pos.y, pos.x)
-        is_self_target = (unit_at_cursor and unit_at_cursor == cursor_manager.selected_unit)
+        
+        # Check if this is the current position or the planned move position (ghost)
+        is_self_target = (unit_at_cursor and unit_at_cursor == cursor_manager.selected_unit) or \
+                         (cursor_manager.selected_unit.move_target and 
+                          pos.y == cursor_manager.selected_unit.move_target[0] and 
+                          pos.x == cursor_manager.selected_unit.move_target[1])
+                          
         is_valid_vapor = (unit_at_cursor and unit_at_cursor.type == UnitType.HEINOUS_VAPOR and 
                          unit_at_cursor.player == cursor_manager.selected_unit.player)
         
@@ -2845,6 +2851,22 @@ class ActionMenuComponent(UIComponent):
                     mode_manager.mode = "target_vapor"
                     # Set a flag to identify we're in vapor targeting mode
                     mode_manager.targeting_vapor = True
+                    
+                    # Check if there's a move target set - if so, update cursor to that location
+                    if cursor_manager.selected_unit.move_target:
+                        # Move cursor to the move target position for easy selection of the new position
+                        move_y, move_x = cursor_manager.selected_unit.move_target
+                        cursor_manager.cursor_pos = Position(move_y, move_x)
+                        
+                        # Publish cursor moved event
+                        self.publish_event(
+                            EventType.CURSOR_MOVED, 
+                            CursorMovedEventData(
+                                position=cursor_manager.cursor_pos, 
+                                previous_position=Position(cursor_manager.selected_unit.y, cursor_manager.selected_unit.x)
+                            )
+                        )
+                                    
                     # Display a message about targeting options
                     self.publish_event(
                         EventType.MESSAGE_DISPLAY_REQUESTED,
