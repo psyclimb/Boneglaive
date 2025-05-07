@@ -381,7 +381,7 @@ class DivergeSkill(ActiveSkill):
         super().__init__(
             name="Diverge",
             key="D",
-            description="Splits an existing HEINOUS VAPOR or self into Coolant Gas (Σ, heals allies) and Cutting Gas (%, damages enemies).",
+            description="Splits an existing HEINOUS VAPOR or self into Coolant Gas (Σ, heals allies) and Cutting Gas (%, damages enemies). Consumes all Effluvium charges to extend duration.",
             target_type=TargetType.SELF,  # Changed to SELF to enable self-targeting
             cooldown=4,
             range_=5
@@ -459,6 +459,27 @@ class DivergeSkill(ActiveSkill):
         is_self_target = (target_pos[0] == user.y and target_pos[1] == user.x)
         target_unit = None if is_self_target else game.get_unit_at(target_pos[0], target_pos[1])
         
+        # Get the passive skill to consume charges
+        passive = None
+        if user.passive_skill and user.passive_skill.name == "Effluvium Lathe":
+            passive = user.passive_skill
+            
+        # Determine duration based on charges
+        base_duration = 1
+        charges_consumed = 0
+        total_duration = base_duration
+        
+        if passive:
+            # Consume all available charges
+            charges_consumed = passive.consume_charges(passive.charges)
+            
+            # Special calculation: spending 1 charge gives 1 turn duration
+            # Additional charges beyond the first still add 1 turn each
+            if charges_consumed == 1:
+                total_duration = 1  # 1 charge = 1 turn duration
+            else:
+                total_duration = base_duration + charges_consumed - 1  # Adjust formula
+        
         # Log the skill activation
         if is_self_target:
             message_log.add_message(
@@ -469,6 +490,13 @@ class DivergeSkill(ActiveSkill):
         else:
             message_log.add_message(
                 f"{user.get_display_name()} causes the vapor to diverge into two specialized entities!",
+                MessageType.ABILITY,
+                player=user.player
+            )
+            
+        if charges_consumed > 0:
+            message_log.add_message(
+                f"Using {charges_consumed} Effluvium charges to extend duration to {total_duration} turns!",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -604,7 +632,7 @@ class DivergeSkill(ActiveSkill):
         # Set Coolant Gas properties
         coolant_gas.vapor_type = "COOLANT"
         coolant_gas.vapor_symbol = self.coolant_symbol
-        coolant_gas.vapor_duration = 1  # Fixed duration of 1 turn for diverged gases
+        coolant_gas.vapor_duration = total_duration  # Use duration based on charges
         coolant_gas.vapor_creator = user
         coolant_gas.vapor_skill = self
         coolant_gas.is_invulnerable = True  # Set invulnerability flag
@@ -620,7 +648,7 @@ class DivergeSkill(ActiveSkill):
         # Set Cutting Gas properties
         cutting_gas.vapor_type = "CUTTING"
         cutting_gas.vapor_symbol = self.cutting_symbol
-        cutting_gas.vapor_duration = 1  # Fixed duration of 1 turn for diverged gases
+        cutting_gas.vapor_duration = total_duration  # Use duration based on charges
         cutting_gas.vapor_creator = user
         cutting_gas.vapor_skill = self
         cutting_gas.is_invulnerable = True  # Set invulnerability flag
