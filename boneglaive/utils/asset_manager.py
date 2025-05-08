@@ -43,7 +43,7 @@ class AssetManager:
             UnitType.MANDIBLE_FOREMAN: 'F',
             UnitType.GRAYMAN: 'Ψ',
             UnitType.MARROW_CONDENSER: 'C',
-            UnitType.FOWL_CONTRIVANCE: '^',
+            UnitType.FOWL_CONTRIVANCE: 'T',
             UnitType.GAS_MACHINIST: 'M',
             UnitType.HEINOUS_VAPOR: 'V'  # Base symbol, will be replaced by vapor_symbol in display code
         }
