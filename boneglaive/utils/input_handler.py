@@ -74,21 +74,10 @@ class InputHandler:
             self.action_map[curses.KEY_LEFT] = GameAction.MOVE_LEFT
             self.action_map[curses.KEY_RIGHT] = GameAction.MOVE_RIGHT
             
-            # Create movement context for Vim-style keys
+            # Create an empty movement context (removed Vim-style keys)
             movement_context = {}
-            # Vim-style movement keys (hjkl for cardinal directions)
-            movement_context[ord('h')] = GameAction.MOVE_LEFT
-            movement_context[ord('j')] = GameAction.MOVE_DOWN
-            movement_context[ord('k')] = GameAction.MOVE_UP
-            movement_context[ord('l')] = GameAction.MOVE_RIGHT
             
-            # Diagonal movement keys (yubn)
-            movement_context[ord('y')] = GameAction.MOVE_UP_LEFT     # Up-left
-            movement_context[ord('u')] = GameAction.MOVE_UP_RIGHT    # Up-right
-            movement_context[ord('b')] = GameAction.MOVE_DOWN_LEFT   # Down-left
-            movement_context[ord('n')] = GameAction.MOVE_DOWN_RIGHT  # Down-right
-            
-            # Store context
+            # Store context (keeping the structure in place for potential future additions)
             self.context_sensitive_maps["movement"] = movement_context
             
             # Action keys (always available)
@@ -106,21 +95,12 @@ class InputHandler:
             action_context[ord('a')] = GameAction.ATTACK_MODE
             action_context[ord('s')] = GameAction.SKILL_MODE  # New key for skills
             action_context[ord('t')] = GameAction.END_TURN
-            action_context[ord('e')] = GameAction.TEST_MODE
+            # Removed test mode key ('e')
             
             # Store action context
             self.context_sensitive_maps["action"] = action_context
             
-            # Debug context
-            debug_context = {}
-            debug_context[ord('d')] = GameAction.DEBUG_INFO
-            debug_context[ord('D')] = GameAction.DEBUG_TOGGLE
-            debug_context[ord('O')] = GameAction.DEBUG_OVERLAY
-            debug_context[ord('P')] = GameAction.DEBUG_PERFORMANCE
-            debug_context[ord('S')] = GameAction.DEBUG_SAVE
-            
-            # Store debug context
-            self.context_sensitive_maps["debug"] = debug_context
+            # Removed debug context and keys
             
             # UI context for help, chat, etc.
             ui_context = {}
@@ -174,16 +154,16 @@ class InputHandler:
         """
         contexts = ["default"]
         
-        # If we're in the default context, add all available contexts
+        # If we're in the default context, add all available contexts (removed debug)
         if self.current_context == "default":
-            contexts.extend(["movement", "action", "debug", "ui"])
+            contexts.extend(["movement", "action", "ui"])
         # If we're in menu context, allow movement but not action keys
         elif self.current_context == "menu":
-            contexts.extend(["movement", "debug", "ui"])
+            contexts.extend(["movement", "ui"])
         # If we're in setup phase, include all contexts including movement
         # The 'y' conflict will be handled by checking for a confirmation dialog
         elif self.current_context == "setup_phase":
-            contexts.extend(["movement", "debug", "ui", "setup"])
+            contexts.extend(["movement", "ui", "setup"])
             # Keep movement consistent, we'll handle 'y' conflict at a higher level
         # If we're in help/log context, restrict to minimal controls
         elif self.current_context == "help" or self.current_context == "log":
