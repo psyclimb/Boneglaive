@@ -720,20 +720,12 @@ class UIRenderer:
         
         # Different help text based on whether unit is immobilized
         if unit_immobilized:
-            # Show move option as grayed out (disabled) with explanation
-            help_text = "Press ? for help | "
+            # Only show help text
+            help_text = "Press ? for help"
             self.renderer.draw_text(help_line, 2, help_text, 1)
-            
-            # Draw [M]ove greyed out
-            move_text = "[M]ove"
-            self.renderer.draw_text(help_line, 2 + len(help_text), move_text, 1, curses.A_DIM)
-            
-            # Continue with other controls
-            remaining_text = " | [A]ttack | [E]nd Turn"
-            self.renderer.draw_text(help_line, 2 + len(help_text) + len(move_text), remaining_text, 1)
         else:
-            # Normal controls display
-            help_text = "Press ? for help | [M]ove | [A]ttack | [E]nd Turn"
+            # Normal controls display - simplified to just help text
+            help_text = "Press ? for help"
             self.renderer.draw_text(help_line, 2, help_text, 1)
         
         # Draw winner info if game is over
