@@ -128,16 +128,51 @@ class MultiplayerManager:
         if not self.is_multiplayer():
             # In single player, no need to switch players
             return
-            
+
         if self.is_local_multiplayer():
             # In local multiplayer, switch players
             if isinstance(self.network_interface, LocalMultiplayerInterface):
+                # Check if we're switching to player 2
+                is_switching_to_player2 = self.current_player == 1
+
+                # Update current player
                 self.network_interface.switch_player()
                 self.current_player = self.network_interface.get_player_number()
+
                 # Ensure the player number in the game engine is also updated
                 # This is redundant with our engine.py change but ensures consistency
                 self.game.current_player = self.current_player
+
+                # When switching to player 2, check if it's the first turn
+                if is_switching_to_player2:
+                    # If this is player 2's first turn, apply move bonus to all their units
+                    if hasattr(self.game, 'is_player2_first_turn') and self.game.is_player2_first_turn:
+                        self._apply_player2_first_turn_buff()
+                        # Reset the flag for next time
+                        self.game.is_player2_first_turn = False
+
                 logger.info(f"Switched to player {self.current_player}")
+
+    def _apply_player2_first_turn_buff(self) -> None:
+        """Apply +1 move range buff to all player 2 units on their first turn."""
+        from boneglaive.utils.message_log import message_log, MessageType
+
+        # Find all player 2 units and apply the buff
+        player2_units = [unit for unit in self.game.units if unit.player == 2 and unit.is_alive()]
+
+        if player2_units:
+            # Apply the buff to each unit
+            for unit in player2_units:
+                # Add the move bonus
+                unit.move_range_bonus += 1
+                # Add a flag to show the status effect icon
+                unit.first_turn_move_bonus = True
+
+            # Show a message about the buff
+            message_log.add_message(
+                "Player 2 units gain +1 movement range on their first turn!",
+                MessageType.SYSTEM
+            )
     
     def get_current_player(self) -> int:
         """Get the current player number (1 or 2)."""
