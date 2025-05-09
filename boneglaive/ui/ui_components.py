@@ -1191,11 +1191,20 @@ class GameOverPrompt(UIComponent):
         # Get screen dimensions
         height, width = self.renderer.height, self.renderer.width
 
+        # Import game board constants
+        from boneglaive.utils.constants import HEIGHT as BOARD_HEIGHT
+
         # Calculate prompt dimensions and position
         prompt_width = 40
         prompt_height = 8
         prompt_x = (width - prompt_width) // 2
-        prompt_y = (height - prompt_height) // 2
+
+        # Position the prompt in the middle of the game board area, not the entire screen
+        # This ensures it's not cut off by bottom UI elements
+        prompt_y = BOARD_HEIGHT // 2 - prompt_height // 2
+
+        # Make sure the prompt doesn't go off the top of the screen
+        prompt_y = max(prompt_y, 1)
 
         # Draw border and background
         for y in range(prompt_y, prompt_y + prompt_height):
