@@ -859,15 +859,7 @@ class Game:
                 # Apply the flat stat bonuses for all deaths inside the dike
                 dike_owner.attack_bonus += 1
                 dike_owner.defense_bonus += 1
-                dike_owner.move_range_bonus += 1
-                
-                # Add stat bonus message
-                message_log.add_message(
-                    f"DOMINION: {dike_owner.get_display_name()} absorbs power from death in Marrow Dike! ATK+1, DEF+1, MOVE+1",
-                    MessageType.ABILITY,
-                    player=dike_owner.player,
-                    attacker_name=dike_owner.get_display_name()
-                )
+                # No movement bonus for MARROW_CONDENSER
                 
                 # Check if it's Dominion and can upgrade skills
                 if passive.name == "Dominion" and passive.can_upgrade():
