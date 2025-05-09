@@ -305,7 +305,7 @@ class DischargeSkill(ActiveSkill):
                             target_name=enemy_hit.get_display_name()
                         )
                     else:
-                        # Check for critical health (wretching) using centralized logic
+                        # Check for critical health (retching) using centralized logic
                         game.check_critical_health(enemy_hit, user, previous_hp, ui)
                         
                         # If not immune, trap the enemy
@@ -474,7 +474,7 @@ class DischargeSkill(ActiveSkill):
                     )
                 # Otherwise check critical health
                 else:
-                    # Check for critical health (wretching) using centralized logic
+                    # Check for critical health (retching) using centralized logic
                     game.check_critical_health(enemy_hit, user, previous_hp, ui)
                 
                 # Move FOREMAN to final position BEFORE applying trap effect to prevent auto-release
@@ -1013,7 +1013,7 @@ class JawlineSkill(ActiveSkill):
                         )
                     # If not defeated, check for critical health and apply Jawline effect if not immune
                     else:
-                        # Check for critical health (wretching) using centralized logic
+                        # Check for critical health (retching) using centralized logic
                         game.check_critical_health(target, user, previous_hp, ui)
                         
                         # Check if target is immune to status effects (GRAYMAN with Stasiality)
@@ -1103,7 +1103,7 @@ class JawlineSkill(ActiveSkill):
                         )
                     # If not defeated, check for critical health and apply Jawline effect if not immune
                     else:
-                        # Check for critical health (wretching) using centralized logic
+                        # Check for critical health (retching) using centralized logic
                         game.check_critical_health(target, user, previous_hp, ui)
                         
                         # Check if target is immune to status effects (GRAYMAN with Stasiality)

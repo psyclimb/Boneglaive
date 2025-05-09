@@ -242,8 +242,8 @@ class MessageLog:
             # Check for critical event messages
             if " perishes!" in text:
                 color = 18  # Dark red for death messages
-            elif " wretches!" in text:
-                color = 17  # Bright red for wretch messages
+            elif " retches!" in text:
+                color = 17  # Bright red for retching messages
             # Dominion upgrade messages should be very visible
             elif "DOMINION:" in text or "absorbs power from the fallen" in text:
                 color = 19  # Special color for Dominion upgrades (bright magenta)

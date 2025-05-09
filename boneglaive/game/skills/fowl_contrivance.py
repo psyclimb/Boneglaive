@@ -182,7 +182,7 @@ class MurmurationDuskSkill(ActiveSkill):
                 if unit.hp <= 0:
                     game.handle_unit_death(unit, user, cause="ability", ui=ui)
                 else:
-                    # Check for critical health (wretching) using centralized logic
+                    # Check for critical health (retching) using centralized logic
                     game.check_critical_health(unit, user, previous_hp, ui)
         
         if units_hit > 0:
@@ -408,7 +408,7 @@ class FlapSkill(ActiveSkill):
         if target_unit.hp <= 0:
             game.handle_unit_death(target_unit, user, cause="ability", ui=ui)
         else:
-            # Check for critical health (wretching) using centralized logic
+            # Check for critical health (retching) using centralized logic
             game.check_critical_health(target_unit, user, previous_hp, ui)
         
         message_log.add_message(
@@ -672,7 +672,7 @@ class EmeticFlangeSkill(ActiveSkill):
                 if unit.hp <= 0:
                     game.handle_unit_death(unit, user, cause="ability", ui=ui)
                 else:
-                    # Check for critical health (wretching) using centralized logic
+                    # Check for critical health (retching) using centralized logic
                     game.check_critical_health(unit, user, previous_hp, ui)
                 
                 # Only attempt to push if unit is not immune to effects (e.g., GRAYMAN with Stasiality)
