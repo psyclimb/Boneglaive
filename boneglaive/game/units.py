@@ -431,22 +431,34 @@ class Unit:
             
     def reset_movement_penalty(self) -> None:
         """Clear any movement penalties and reset relevant status flags."""
+        # First check for first-turn move bonus for player 2
+        if hasattr(self, 'first_turn_move_bonus') and self.first_turn_move_bonus:
+            # This buff only lasts for one turn
+            if self.player == 2:
+                # Remove the move bonus
+                self.move_range_bonus -= 1
+                # Clear the flag
+                self.first_turn_move_bonus = False
+                # Log the change
+                from boneglaive.utils.debug import logger
+                logger.info(f"Removing first turn move bonus for {self.get_display_name()}")
+
         # Do not reset move_range_bonus if affected by Jawline
         if not self.jawline_affected and self.move_range_bonus < 0:
             self.move_range_bonus = 0
-            
+
         # NOTE: Jawline duration is now decremented in Game.execute_turn
         # to ensure it only happens on the player's own turn
-        
+
         # Reset the Pry status effect - with debug logging
         if hasattr(self, 'pry_duration') and self.pry_duration > 0:
             # Log the current state
             from boneglaive.utils.debug import logger
             logger.info(f"Pry status for {self.get_display_name()}: duration={self.pry_duration}, active={getattr(self, 'pry_active', False)}, was_pried={self.was_pried}")
-            
+
             # Decrement the duration
             self.pry_duration -= 1
-            
+
             # If duration expired, clear the effect
             if self.pry_duration <= 0:
                 logger.info(f"Clearing Pry effect for {self.get_display_name()}")
@@ -454,7 +466,7 @@ class Unit:
                 self.pry_active = False
                 if hasattr(self, 'pry_duration'):
                     delattr(self, 'pry_duration')
-            
+
         # For backward compatibility - reset was_pried if no duration
         elif self.was_pried:
             self.was_pried = False

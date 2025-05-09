@@ -386,6 +386,12 @@ class UIRenderer:
                                 enhanced_tile = f"{tile}~"  # Combine unit symbol with tilde (represents phasing)
                                 # Use gray color (19) to indicate phasing out of spacetime
                                 self.renderer.draw_tile(y, x, enhanced_tile, 19, curses.A_DIM)
+                            # Check if unit has first-turn move bonus
+                            elif hasattr(unit, 'first_turn_move_bonus') and unit.first_turn_move_bonus:
+                                # Add plus symbol to show movement bonus
+                                enhanced_tile = f"{tile}+"  # Combine unit symbol with plus (represents extra movement)
+                                # Use bright green color to indicate positive status effect
+                                self.renderer.draw_tile(y, x, enhanced_tile, 3, curses.A_BOLD)
                             else:
                                 # Normal unit draw
                                 self.renderer.draw_tile(y, x, tile, color_id)
@@ -651,7 +657,17 @@ class UIRenderer:
             effective_attack = effective_stats['attack_range']
             
             # Split the movement and range display so we can color only MOVE red when penalized
-            move_part = f"MOVE: {effective_move}"
+            # Check for first turn movement bonus
+            if hasattr(unit, 'first_turn_move_bonus') and unit.first_turn_move_bonus:
+                move_part = f"MOVE: {effective_move}+"  # Add + to show boost
+                move_color = 3  # Green color for the boost
+            elif unit.move_range_bonus < 0:
+                move_part = f"MOVE: {effective_move}"
+                move_color = 1  # Red for penalty
+            else:
+                move_part = f"MOVE: {effective_move}"
+                move_color = 7  # Normal color
+
             range_part = f"RANGE: {effective_attack}"
             
             # Add a separator between DEF and MOVE stats
@@ -665,13 +681,22 @@ class UIRenderer:
             self.renderer.draw_text(info_line, sep_pos, stats_separator, 1)
             range_pos = move_pos + len(move_part) + 3  # +3 for the " | " separator
             
-            # Determine if there's a movement penalty or Estrange for display purposes
+            # Determine if there's a movement penalty, bonus, or Estrange for display purposes
             move_color = 1  # Default color
             move_attr = 0   # Default attribute
-            if unit.move_range_bonus < 0 or (hasattr(unit, 'estranged') and unit.estranged):
+
+            # Check for first turn movement bonus - highest priority
+            if hasattr(unit, 'first_turn_move_bonus') and unit.first_turn_move_bonus:
+                # Show the first turn bonus with a different color without the + symbol
+                move_part = f"MOVE: {effective_move}"  # No + symbol, just use color to show the boost
+                move_color = 3  # Green color for the boost
+                move_attr = curses.A_BOLD  # Make it bold for emphasis
+            # Regular penalties or Estrange effect
+            elif unit.move_range_bonus < 0 or (hasattr(unit, 'estranged') and unit.estranged):
                 # Show negative MOVE bonus in red to indicate penalty
                 move_color = 6  # Red for penalty
                 move_attr = curses.A_BOLD  # Make it bold for emphasis
+            # Other movement bonuses
             elif unit.move_range_bonus > 0:
                 # Show positive MOVE bonus in green
                 move_color = 2  # Green for bonus

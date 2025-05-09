@@ -20,7 +20,10 @@ class Game:
         self.winner = None
         self.test_mode = False  # For debugging
         self.local_multiplayer = False
-        
+
+        # Track whether this is player 2's first turn
+        self.is_player2_first_turn = True
+
         # Action ordering
         self.action_counter = 0  # Track order of unit actions
         
