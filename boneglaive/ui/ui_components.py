@@ -406,21 +406,19 @@ class HelpComponent(UIComponent):
             self.renderer.draw_text(2, 2, "=== BONEGLAIVE HELP ===", 1, curses.A_BOLD)
             
             # Draw control information section
-            self.renderer.draw_text(4, 2, "BASIC CONTROLS:", 1, curses.A_BOLD)
+            self.renderer.draw_text(4, 2, "GAME CONTROLS:", 1, curses.A_BOLD)
             controls = [
                 "Arrow keys: Move cursor",
-                "Enter: Select unit/confirm action",
+                "Enter/Space: Select unit/confirm action",
                 "Tab: Cycle forward through your units",
                 "Shift+Tab: Cycle backward through your units",
                 "m: Move selected unit",
                 "a: Attack with selected unit",
-                "e: End turn",
-                "Esc: Cancel current action/selection",
-                "c: Clear selection (same as Esc)",
+                "s: Use selected unit's skill",
+                "t: End turn",
+                "Esc/c: Cancel current action/clear selection",
                 "l: Toggle message log",
-                "Shift+L: View full game log history (scrollable)",
                 "r: Enter chat/message mode",
-                "t: Toggle test mode (allows controlling both players' units)",
                 "q: Quit game",
                 "?: Toggle this help screen"
             ]
@@ -428,21 +426,7 @@ class HelpComponent(UIComponent):
             for i, control in enumerate(controls):
                 self.renderer.draw_text(6 + i, 4, control)
             
-            # Draw debug controls section
-            self.renderer.draw_text(17, 2, "DEBUG CONTROLS:", 1, curses.A_BOLD)
-            debug_controls = [
-                "d: Show unit positions",
-                "D (Shift+D): Toggle debug mode",
-                "O (Shift+O): Toggle debug overlay",
-                "P (Shift+P): Toggle performance tracking",
-                "S (Shift+S): Save game state to file (debug mode only)"
-            ]
-            
-            for i, control in enumerate(debug_controls):
-                self.renderer.draw_text(19 + i, 4, control)
-            
-            # Footer
-            self.renderer.draw_text(HEIGHT - 2, 2, "Press ? again to return to game", 1, curses.A_BOLD)
+            # Removed footer
             
         except Exception as e:
             logger.error(f"Error displaying help screen: {str(e)}")
