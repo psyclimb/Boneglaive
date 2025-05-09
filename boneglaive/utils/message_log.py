@@ -259,6 +259,36 @@ class MessageLog:
             elif ('attacker_name' in msg and msg['player'] is not None) or (msg['type'] == MessageType.ABILITY and msg['player'] is not None):
                 player_num = msg['player']
                 color = self.player_colors.get(player_num, 8)  # Use player color (green/blue) instead of gray
+                
+            # Special handling for damage numbers - highlight them in magenta
+            # Look for combat messages containing damage info (typical format: "X hits Y for Z damage")
+            if msg['type'] == MessageType.COMBAT and 'damage' in msg:
+                # Find the damage number in the text
+                import re
+                # Pattern to match "for X damage" where X is a number
+                damage_match = re.search(r'for (\d+) damage', text)
+                if damage_match:
+                    damage_num = damage_match.group(1)
+                    # Replace the damage number with a placeholder
+                    text = text.replace(f"for {damage_num} damage", f"for #DAMAGE_{damage_num}# damage")
+                    # We'll process this special placeholder in the UI component
+
+            # Special handling for healing numbers - highlight them in white
+            # Look for healing messages (typical format: "X heals Y for Z HP" or "healing for Z HP")
+            import re
+            heal_match = re.search(r'heals .+ for (\d+) HP', text)
+            if heal_match:
+                heal_num = heal_match.group(1)
+                # Replace the healing number with a placeholder
+                text = text.replace(f"for {heal_num} HP", f"for #HEAL_{heal_num}# HP")
+            else:
+                # Also check for "healing for Z HP" format used by skills like Autoclave
+                heal_match = re.search(r'healing for (\d+) HP', text)
+                if heal_match:
+                    heal_num = heal_match.group(1)
+                    # Replace the healing number with a placeholder
+                    text = text.replace(f"for {heal_num} HP", f"for #HEAL_{heal_num}# HP")
+                # We'll process this special placeholder in the UI component
             
             # Add the formatted message
             formatted.append((text, color))
