@@ -1628,6 +1628,8 @@ class GameModeManager(UIComponent):
         if result:
             # Return to select mode after successful skill use (publishes mode changed event)
             self.set_mode("select")
+            # Clear the unit selection to prevent multiple actions
+            self.game_ui.cursor_manager.clear_selection()
         return result
         
     def handle_select_in_vapor_targeting_mode(self):
@@ -1678,6 +1680,8 @@ class GameModeManager(UIComponent):
                 # Return to select mode
                 self.set_mode("select")
                 self.targeting_vapor = False
+                # Clear the unit selection to prevent multiple actions
+                self.game_ui.cursor_manager.clear_selection()
                 return True
             else:
                 self.publish_event(
@@ -1696,6 +1700,8 @@ class GameModeManager(UIComponent):
                 # Return to select mode
                 self.set_mode("select")
                 self.targeting_vapor = False
+                # Clear the unit selection to prevent multiple actions
+                self.game_ui.cursor_manager.clear_selection()
                 return True
             else:
                 self.publish_event(
@@ -2928,23 +2934,33 @@ class ActionMenuComponent(UIComponent):
                 # For Marrow Dike, just use normal can_use/use flow
                 if skill.name == "Marrow Dike":
                     if skill.can_use(cursor_manager.selected_unit, (from_y, from_x), game):
-                        skill.use(cursor_manager.selected_unit, (from_y, from_x), game)
+                        # Store unit reference before clearing selection
+                        unit = cursor_manager.selected_unit
+                        skill.use(unit, (from_y, from_x), game)
+                        # Clear selection to prevent further actions
+                        cursor_manager.clear_selection()
                 # For Bone Tithe, we need to directly set the cooldown since its can_use check
                 # may fail if there are no valid targets, but we still want to set cooldown
                 elif skill.name == "Bone Tithe":
+                    # Store unit reference before clearing selection
+                    unit = cursor_manager.selected_unit
+
                     # Set skill target
-                    cursor_manager.selected_unit.skill_target = (from_y, from_x)
-                    cursor_manager.selected_unit.selected_skill = skill
-                    
+                    unit.skill_target = (from_y, from_x)
+                    unit.selected_skill = skill
+
                     # Force set the cooldown directly
                     skill.current_cooldown = skill.cooldown
-                    
+
                     # Log the message (similar to what's in skill.use())
                     message_log.add_message(
-                        f"{cursor_manager.selected_unit.get_display_name()} prepares to collect the Bone Tithe!",
+                        f"{unit.get_display_name()} prepares to collect the Bone Tithe!",
                         MessageType.ABILITY,
-                        player=cursor_manager.selected_unit.player
+                        player=unit.player
                     )
+
+                    # Clear selection to prevent further actions
+                    cursor_manager.clear_selection()
                 
                 # Draw the board to show the highlighted area
                 self.game_ui.draw_board()
@@ -2995,10 +3011,15 @@ class ActionMenuComponent(UIComponent):
                 if skill.can_use(cursor_manager.selected_unit, (from_y, from_x), game):
                     # Set the skill target to self
                     cursor_manager.selected_unit.skill_target = (from_y, from_x)
-                    # Actually use the skill now
-                    skill.use(cursor_manager.selected_unit, (from_y, from_x), game)
-                    # Show message
+
+                    # Store a reference to the unit before clearing selection
                     unit = cursor_manager.selected_unit
+
+                    # Actually use the skill now
+                    skill.use(unit, (from_y, from_x), game)
+
+                    # Clear the unit selection to prevent multiple actions
+                    cursor_manager.clear_selection()
                     
                     # Special message for Jawline skill
                     if skill.name == "Jawline":
