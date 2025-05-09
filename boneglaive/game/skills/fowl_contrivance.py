@@ -141,7 +141,7 @@ class MurmurationDuskSkill(ActiveSkill):
         
         # Log the skill activation
         message_log.add_message(
-            f"{user.get_display_name()} summons a murmuration of birds that swoop down!",
+            f"Shadows lengthen as {user.get_display_name()} summons the dusk birds!",
             MessageType.ABILITY,
             player=user.player
         )
@@ -187,13 +187,13 @@ class MurmurationDuskSkill(ActiveSkill):
         
         if units_hit > 0:
             message_log.add_message(
-                f"The flock strikes {units_hit} {'unit' if units_hit == 1 else 'units'} for a total of {total_damage} damage!",
+                f"The murmuration strikes with the finality of sunset, dealing {total_damage} damage!",
                 MessageType.ABILITY,
                 player=user.player
             )
         else:
             message_log.add_message(
-                "The birds swoop and dance, but find no prey!",
+                "The dusk birds yield no results!",
                 MessageType.ABILITY,
                 player=user.player
             )
