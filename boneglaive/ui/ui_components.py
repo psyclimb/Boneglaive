@@ -363,7 +363,27 @@ class MessageLogComponent(UIComponent):
                     attributes |= curses.A_BOLD  # Make wretch messages bold red
                 elif color_id == 18:  # Death messages (dark red)
                     attributes |= curses.A_DIM  # Make death messages dim red
-                self.renderer.draw_text(y_pos, 2, text, color_id, attributes)
+
+                # Draw the message, with special handling for damage numbers
+                if damage_num is not None:
+                    # Render with damage numbers in magenta
+                    parts = original_text.split(f"#DAMAGE_{damage_num}#")
+                    pos_x = 2
+
+                    # Draw the first part with the regular color
+                    self.renderer.draw_text(y_pos, pos_x, parts[0], color_id, attributes)
+                    pos_x += len(parts[0])
+
+                    # Draw the damage number in magenta
+                    self.renderer.draw_text(y_pos, pos_x, damage_num, 21, curses.A_BOLD)  # 21 is the magenta color pair
+                    pos_x += len(damage_num)
+
+                    # Draw any remaining part with the regular color
+                    if len(parts) > 1 and parts[1]:
+                        self.renderer.draw_text(y_pos, pos_x, parts[1], color_id, attributes)
+                else:
+                    # Regular message without damage numbers
+                    self.renderer.draw_text(y_pos, 2, text, color_id, attributes)
                 
         except Exception as e:
             # Never let log history crash the game
