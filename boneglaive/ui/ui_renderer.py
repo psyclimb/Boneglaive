@@ -736,6 +736,10 @@ class UIRenderer:
         # Draw simplified help reminder and controls
         help_line = HEIGHT+4
         self.renderer.draw_text(help_line, 0, " " * self.renderer.width, 1)  # Clear line
+
+        # Draw game over prompt if visible
+        if hasattr(self.game_ui, 'game_over_prompt') and self.game_ui.game_over_prompt.visible:
+            self.game_ui.game_over_prompt.draw()
         
         # Check if the selected unit is affected by Jawline
         cursor_manager = self.game_ui.cursor_manager

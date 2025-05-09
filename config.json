@@ -6,7 +6,7 @@
   "animation_speed": 1.4,
   "show_grid": true,
   "network_mode": "vs_ai",
-  "server_ip": "127.0.0.1",
+  "server_ip": "192.168.1.100",
   "server_port": 7777,
   "player_name": "Player",
   "ai_difficulty": "medium",
