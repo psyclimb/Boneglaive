@@ -721,7 +721,7 @@ class Game:
     def check_critical_health(self, unit, attacker=None, previous_hp=None, ui=None):
         """
         Check if a unit has reached critical health and trigger appropriate effects.
-        This is a centralized method to handle the "wretching" state for all units.
+        This is a centralized method to handle the "retching" state for all units.
         
         Args:
             unit: The unit to check for critical health
@@ -748,27 +748,27 @@ class Game:
             
         # Check if unit just entered critical health
         if previous_hp is not None and previous_hp > critical_threshold:
-            # Unit just crossed into critical health - display the wretch message
+            # Unit just crossed into critical health - display the retch message
             message_log.add_message(
-                f"{unit.get_display_name()} wretches!",
+                f"{unit.get_display_name()} retches!",
                 MessageType.COMBAT,
                 player=attacker.player if attacker else None,
                 target=unit.player,
                 target_name=unit.get_display_name()
             )
             
-            # Add visual wretch animation if UI is available
+            # Add visual retch animation if UI is available
             if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-                # Get wretch animation from asset manager
-                wretch_animation = ui.asset_manager.get_skill_animation_sequence('wretch')
-                if not wretch_animation:
+                # Get retch animation from asset manager
+                retch_animation = ui.asset_manager.get_skill_animation_sequence('wretch')
+                if not retch_animation:
                     # Fallback animation if not defined
-                    wretch_animation = ['!', '?', '#', '@', '&', '%', '$']
+                    retch_animation = ['!', '?', '#', '@', '&', '%', '$']
                 
                 # Flash unit with yellow/red to indicate critical status
                 ui.renderer.animate_attack_sequence(
                     unit.y, unit.x,
-                    wretch_animation,
+                    retch_animation,
                     6,  # Yellow color for critical
                     0.08  # Quick animation
                 )
@@ -1428,7 +1428,7 @@ class Game:
                             # Use centralized death handling
                             self.handle_unit_death(target, unit, cause="combat", ui=ui)
                         else:
-                            # Check for critical health (wretching) using centralized logic
+                            # Check for critical health (retching) using centralized logic
                             if not self.check_critical_health(target, unit, previous_hp, ui):
                                 continue  # Skip to next unit if processing should stop
                 else:
@@ -2057,7 +2057,7 @@ class Game:
                 # Check if target just entered critical health
                 if previous_hp > critical_threshold and unit.hp <= critical_threshold:
                     message_log.add_message(
-                        f"{unit.get_display_name()} wretches!",
+                        f"{unit.get_display_name()} retches!",
                         MessageType.COMBAT,
                         player=foreman.player,
                         target=unit.player,

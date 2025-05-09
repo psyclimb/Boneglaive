@@ -562,7 +562,7 @@ class PrySkill(ActiveSkill):
             target_player=target.player
         )
         
-        # Check for critical health (wretching) using centralized logic if target still alive
+        # Check for critical health (retching) using centralized logic if target still alive
         if target.is_alive():
             game.check_critical_health(target, user, previous_hp, ui)
             
