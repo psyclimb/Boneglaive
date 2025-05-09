@@ -1141,6 +1141,89 @@ class CursorManager(UIComponent):
         return None
 
 # Game mode manager component
+class GameOverPrompt(UIComponent):
+    """
+    Component responsible for showing a game over prompt when the game ends.
+    Allows player to start a new round or exit the game.
+    """
+
+    def __init__(self, renderer, game_ui):
+        """Initialize the component."""
+        super().__init__(renderer, game_ui)
+        self.visible = False
+        self.selected_option = 0
+        self.options = ["New Round", "Exit Game"]
+
+    def show(self, winner):
+        """Show the game over prompt."""
+        self.visible = True
+        self.selected_option = 0
+        self.winner = winner
+
+        # Force a board redraw to show the prompt
+        self.game_ui.draw_board()
+
+    def hide(self):
+        """Hide the game over prompt."""
+        self.visible = False
+
+    def move_selection(self, direction):
+        """Move the selection up or down."""
+        self.selected_option = (self.selected_option + direction) % len(self.options)
+        self.game_ui.draw_board()
+
+    def select_option(self):
+        """Select the currently highlighted option."""
+        if self.selected_option == 0:  # New Round
+            # Reset the game
+            self.game_ui.reset_game()
+            self.hide()
+        else:  # Exit Game
+            # We'll just return False from handle_input to exit
+            return False
+        return True
+
+    def draw(self):
+        """Draw the game over prompt."""
+        if not self.visible:
+            return
+
+        # Get screen dimensions
+        height, width = self.renderer.height, self.renderer.width
+
+        # Calculate prompt dimensions and position
+        prompt_width = 40
+        prompt_height = 8
+        prompt_x = (width - prompt_width) // 2
+        prompt_y = (height - prompt_height) // 2
+
+        # Draw border and background
+        for y in range(prompt_y, prompt_y + prompt_height):
+            for x in range(prompt_x, prompt_x + prompt_width):
+                if (y == prompt_y or y == prompt_y + prompt_height - 1 or
+                    x == prompt_x or x == prompt_x + prompt_width - 1):
+                    self.renderer.draw_text(y, x, "█", 1)  # Border
+                else:
+                    self.renderer.draw_text(y, x, " ", 1)  # Background
+
+        # Draw title
+        title = f"Player {self.winner} Wins!"
+        title_x = prompt_x + (prompt_width - len(title)) // 2
+        self.renderer.draw_text(prompt_y + 1, title_x, title, 1, curses.A_BOLD)
+
+        # Draw options
+        for i, option in enumerate(self.options):
+            option_x = prompt_x + (prompt_width - len(option)) // 2
+            color = 2 if i == self.selected_option else 1  # Highlight selected option
+            attr = curses.A_BOLD if i == self.selected_option else 0
+            self.renderer.draw_text(prompt_y + 3 + i, option_x, option, color, attr)
+
+        # Draw controls
+        controls = "↑↓: Navigate | Enter: Select"
+        controls_x = prompt_x + (prompt_width - len(controls)) // 2
+        self.renderer.draw_text(prompt_y + 6, controls_x, controls, 1)
+
+
 class GameModeManager(UIComponent):
     """Component for managing game modes and turn handling."""
     
@@ -3179,18 +3262,31 @@ class InputManager(UIComponent):
         
     def process_input(self, key: int) -> bool:
         """Process input and delegate to appropriate component."""
+        # Handle game over prompt if visible (highest priority)
+        if hasattr(self.game_ui, 'game_over_prompt') and self.game_ui.game_over_prompt.visible:
+            if key == curses.KEY_UP:
+                self.game_ui.game_over_prompt.move_selection(-1)
+                return True
+            elif key == curses.KEY_DOWN:
+                self.game_ui.game_over_prompt.move_selection(1)
+                return True
+            elif key in [curses.KEY_ENTER, 10, 13]:  # Enter key
+                return self.game_ui.game_over_prompt.select_option()
+            # No other keys have effect when game over prompt is visible
+            return True
+
         # Quick exit for 'q' key (except in chat mode)
         if key == ord('q') and not self.game_ui.chat_component.chat_mode and not self.game_ui.message_log_component.show_log_history:
             return False
-            
+
         # First check if any components want to handle this input
         if self.game_ui.message_log_component.handle_input(key):
             return True
-            
+
         # If in chat mode, handle chat input
         if self.game_ui.chat_component.chat_mode:
             return self.game_ui.chat_component.handle_chat_input(key)
-        
+
         # Update input context based on current state
         self._update_input_context()
         

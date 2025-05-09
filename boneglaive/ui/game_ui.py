@@ -20,9 +20,10 @@ from boneglaive.utils.event_system import (
 
 # Import component classes
 from boneglaive.ui.ui_components import (
-    MessageLogComponent, HelpComponent, ChatComponent, 
+    MessageLogComponent, HelpComponent, ChatComponent,
     CursorManager, GameModeManager, DebugComponent,
-    AnimationComponent, InputManager, ActionMenuComponent
+    AnimationComponent, InputManager, ActionMenuComponent,
+    GameOverPrompt
 )
 from boneglaive.ui.ui_renderer import UIRenderer
 
@@ -74,6 +75,7 @@ class GameUI:
         self.debug_component = DebugComponent(self.renderer, self)
         self.animation_component = AnimationComponent(self.renderer, self)
         self.action_menu_component = ActionMenuComponent(self.renderer, self)
+        self.game_over_prompt = GameOverPrompt(self.renderer, self)  # Add game over prompt
         self.input_manager = InputManager(self.renderer, self, self.input_handler)
         self.ui_renderer = UIRenderer(self.renderer, self)
         
@@ -157,6 +159,9 @@ class GameUI:
         winner = event_data.winner
         message_log.add_system_message(f"Game over! Player {winner} wins!")
         self.message = f"Player {winner} wins!"
+
+        # Show the game over prompt
+        self.game_over_prompt.show(winner)
         
     def _on_ui_redraw_requested(self, event_type, event_data):
         """Handle UI redraw requested events."""
@@ -224,6 +229,34 @@ class GameUI:
     def draw_board(self, show_cursor=True, show_selection=True, show_attack_targets=True):
         """Delegate board drawing to the UI renderer component."""
         self.ui_renderer.draw_board(show_cursor, show_selection, show_attack_targets)
+
+    def reset_game(self):
+        """Reset the game to start a new round."""
+        # Create a new game with setup phase
+        self.game = Game(skip_setup=False)
+
+        # Update multiplayer manager to use the new game
+        self.multiplayer.game = self.game
+
+        # Set UI reference in game engine for animations
+        self.game.set_ui_reference(self)
+
+        # Reset message
+        self.message = f"New game started! Entering {self.game.map.name}"
+
+        # Reset cursor position to center of board
+        from boneglaive.utils.constants import HEIGHT, WIDTH
+        from boneglaive.utils.coordinates import Position
+        self.cursor_manager.cursor_pos = Position(HEIGHT // 2, WIDTH // 2)
+
+        # Reset game mode
+        self.mode_manager.set_mode("select")
+
+        # Publish game initialized event
+        self._publish_event(
+            EventType.GAME_INITIALIZED,
+            EventData(game=self.game, map_name=self.game.map.name)
+        )
     
     def show_attack_animation(self, attacker, target):
         """Delegate animation to the animation component."""
