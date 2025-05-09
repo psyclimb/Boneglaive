@@ -1916,40 +1916,44 @@ class GameModeManager(UIComponent):
         # Get the current setup player
         setup_player = self.game_ui.game.setup_player
         cursor_pos = self.game_ui.cursor_manager.cursor_pos
-        
+
         # Check if cursor position is in bounds
         if not self.game_ui.game.is_valid_position(cursor_pos.y, cursor_pos.x):
             self.game_ui.message = f"Cannot place unit here: out of bounds"
             return
-            
+
         # Check if cursor position has blocking terrain
         if not self.game_ui.game.map.can_place_unit(cursor_pos.y, cursor_pos.x):
             self.game_ui.message = f"Cannot place unit here: blocked by limestone"
             return
-            
+
         # Check if there are units remaining to place
         if self.game_ui.game.setup_units_remaining[setup_player] <= 0:
             self.game_ui.message = f"All units placed. Press 'y' to confirm."
             return
-            
+
         # Try to place the unit with the current unit type
-        success = self.game_ui.game.place_setup_unit(cursor_pos.y, cursor_pos.x, self.setup_unit_type)
-        
-        if success:
-            # Unit was placed at the original position
-            unit_type_name = {
-                UnitType.GLAIVEMAN: "GLAIVEMAN",
-                UnitType.MANDIBLE_FOREMAN: "MANDIBLE FOREMAN",
-                UnitType.GRAYMAN: "GRAYMAN",
-                UnitType.MARROW_CONDENSER: "MARROW CONDENSER",
-                UnitType.FOWL_CONTRIVANCE: "FOWL CONTRIVANCE",
-                UnitType.GAS_MACHINIST: "GAS MACHINIST"
-            }.get(self.setup_unit_type, "UNKNOWN")
-            
+        result = self.game_ui.game.place_setup_unit(cursor_pos.y, cursor_pos.x, self.setup_unit_type)
+
+        # Map for unit type names with proper spacing/display
+        unit_type_name = {
+            UnitType.GLAIVEMAN: "GLAIVEMAN",
+            UnitType.MANDIBLE_FOREMAN: "MANDIBLE FOREMAN",
+            UnitType.GRAYMAN: "GRAYMAN",
+            UnitType.MARROW_CONDENSER: "MARROW CONDENSER",
+            UnitType.FOWL_CONTRIVANCE: "FOWL CONTRIVANCE",
+            UnitType.GAS_MACHINIST: "GAS MACHINIST"
+        }.get(self.setup_unit_type, "UNKNOWN")
+
+        # Check specific error cases based on return value
+        if result == "max_unit_type_limit":
+            self.game_ui.message = f"Cannot place more than 2 {unit_type_name} units"
+        elif result is True:
+            # Unit was placed successfully
             self.game_ui.message = f"{unit_type_name} placed. {self.game_ui.game.setup_units_remaining[setup_player]} remaining."
         else:
             self.game_ui.message = "Failed to place unit: unknown error"
-            
+
         # Redraw the board
         self.game_ui.draw_board()
     

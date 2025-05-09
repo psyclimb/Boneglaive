@@ -32,7 +32,8 @@ class Game:
         self.setup_phase = not skip_setup  # Whether we're in setup phase
         self.setup_player = 1    # Which player is placing units
         self.setup_confirmed = {1: False, 2: False}  # Whether players have confirmed setup
-        self.setup_units_remaining = {1: 3, 2: 3}    # How many units each player can still place (3 glaivemen)
+        self.setup_units_remaining = {1: 3, 2: 3}    # How many units each player can still place (3 total)
+        # During setup, players are limited to a maximum of 2 units of the same type
         
         # If skipping setup, add default units
         if skip_setup:
@@ -123,17 +124,41 @@ class Game:
         logger.info(f"Found {len(valid_positions)} valid positions for units")
         
         # Place units at valid positions
+        # Track unit counts to enforce 2-unit type limit
+        player_unit_counts = {
+            1: {},  # Player 1 unit counts by type
+            2: {}   # Player 2 unit counts by type
+        }
+
+        # Set up a variety of unit types to use
+        unit_types = [
+            UnitType.GLAIVEMAN,
+            UnitType.MANDIBLE_FOREMAN,
+            UnitType.GRAYMAN
+        ]
+
         for player, y, x in valid_positions:
-            # Determine unit type - in VS_AI mode, make player 2 have some variety
-            unit_type = UnitType.GLAIVEMAN
-            
-            # For variety, we could add different unit types for player 2 in the future
-            # Currently all units are GLAIVEMAN type
-            
+            # Choose a valid unit type (respecting the 2-unit limit)
+            valid_types = [t for t in unit_types
+                        if player_unit_counts.get(player, {}).get(t, 0) < 2]
+
+            # Default to GLAIVEMAN if no valid types (shouldn't happen)
+            if not valid_types:
+                logger.warning(f"No valid unit types available for player {player}. Using GLAIVEMAN.")
+                unit_type = UnitType.GLAIVEMAN
+            else:
+                # Rotate through valid types to ensure variety
+                unit_type = valid_types[0]
+
             # Add the unit with the selected type
             self.add_unit(unit_type, player, y, x)
+
+            # Update unit count for this player and type
+            player_unit_counts.setdefault(player, {})
+            player_unit_counts[player][unit_type] = player_unit_counts[player].get(unit_type, 0) + 1
+
             logger.info(f"Added {unit_type.name} for player {player} at ({y}, {x})")
-        
+
         # If we couldn't find enough valid positions, add some emergency units
         # at fixed positions (shouldn't happen with our current map)
         if len(self.units) < 6:
@@ -143,10 +168,26 @@ class Game:
                 (1, 1, 1), (1, 1, 2), (1, 1, 3),
                 (2, 8, 16), (2, 8, 17), (2, 8, 18)
             ]
-            
+
+            # For emergency units, still respect the 2-unit type limit
             for i in range(missing):
                 player, y, x = emergency_positions[i]
-                self.add_unit(UnitType.GLAIVEMAN, player, y, x)
+
+                # Choose a valid unit type (respecting the 2-unit limit)
+                valid_types = [t for t in unit_types
+                            if player_unit_counts.get(player, {}).get(t, 0) < 2]
+
+                # Default to GLAIVEMAN if no valid types
+                if not valid_types:
+                    unit_type = UnitType.GLAIVEMAN
+                else:
+                    unit_type = valid_types[0]
+
+                self.add_unit(unit_type, player, y, x)
+
+                # Update unit count
+                player_unit_counts.setdefault(player, {})
+                player_unit_counts[player][unit_type] = player_unit_counts[player].get(unit_type, 0) + 1
         
         # Count units for both players
         p1_units = sum(1 for unit in self.units if unit.player == 1)
@@ -163,36 +204,60 @@ class Game:
         self.setup_units_remaining = {1: 0, 2: 0}
         logger.info("Setup phase skipped, game ready to begin")
         
+    def count_player_units_by_type(self, player, unit_type):
+        """
+        Count how many units of a specific type a player has.
+
+        Args:
+            player: The player ID (1 or 2)
+            unit_type: The UnitType to count
+
+        Returns:
+            int: Number of units of that type belonging to the player
+        """
+        count = 0
+        for unit in self.units:
+            if unit.player == player and unit.type == unit_type:
+                count += 1
+        return count
+
     def place_setup_unit(self, y, x, unit_type=UnitType.GLAIVEMAN):
         """
         Place a unit during the setup phase.
-        
+
         Args:
             y, x: The position to place the unit
             unit_type: The type of unit to place (defaults to GLAIVEMAN)
-            
+
         Returns:
             True if unit was placed, False if invalid or no units remaining
+            Returns a string error message if limit exceeded
         """
         # Check if position is valid
         if not self.is_valid_position(y, x):
             return False
-            
+
         # Check if position has blocking terrain (like limestone)
         if not self.map.can_place_unit(y, x):
             return False
-            
+
         # Check if this player has units remaining to place
         if self.setup_units_remaining[self.setup_player] <= 0:
             return False
-        
+
+        # Check if player already has 2 units of this type
+        unit_count = self.count_player_units_by_type(self.setup_player, unit_type)
+        if unit_count >= 2:
+            # Return a specific error message for unit type limit
+            return "max_unit_type_limit"
+
         # Place the unit with the specified type
         # Allow placement even if position is occupied by another unit - we'll resolve conflicts later
         self.add_unit(unit_type, self.setup_player, y, x)
-        
+
         # Decrement remaining units
         self.setup_units_remaining[self.setup_player] -= 1
-        
+
         return True
             
         
