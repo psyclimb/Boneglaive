@@ -362,7 +362,7 @@ class FlapSkill(ActiveSkill):
         # Log that the skill has been queued
         target_unit = game.get_unit_at(target_pos[0], target_pos[1])
         message_log.add_message(
-            f"{user.get_display_name()} prepares and avian artillery strike on {target_unit.get_display_name()}!",
+            f"{user.get_display_name()} prepares an airstrike on {target_unit.get_display_name()}!",
             MessageType.ABILITY,
             player=user.player
         )
@@ -379,7 +379,7 @@ class FlapSkill(ActiveSkill):
             
         # Log the skill activation
         message_log.add_message(
-            f"{user.get_display_name()} unleashes a concentrated barrage that strikes {target_unit.get_display_name()}!",
+            f"Order dissolves as {user.get_display_name()} commands devastation on {target_unit.get_display_name()}!",
             MessageType.ABILITY,
             player=user.player
         )
@@ -411,11 +411,7 @@ class FlapSkill(ActiveSkill):
             # Check for critical health (retching) using centralized logic
             game.check_critical_health(target_unit, user, previous_hp, ui)
         
-        message_log.add_message(
-            f"The concentrated barrage deals {damage} damage to {target_unit.get_display_name()}!",
-            MessageType.ABILITY,
-            player=user.player
-        )
+        # Second message removed to streamline skill communication
         
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
