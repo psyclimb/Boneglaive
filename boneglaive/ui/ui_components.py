@@ -772,17 +772,25 @@ class CursorManager(UIComponent):
         """Check if the unit can be selected by the current player."""
         if not unit:
             return False
-            
+
         current_player = self.game_ui.multiplayer.get_current_player()
-        
+
         # Test mode can select any unit
         if self.game_ui.game.test_mode:
             return True
-            
+
+        # Check if unit has already issued an attack or skill
+        # These attributes are set when a unit uses a skill or plans an attack
+        if unit.attack_target or unit.skill_target or unit.selected_skill:
+            # Unit has already taken an action this turn, don't allow selection
+            # Set the message directly in the game UI to display it in the message area
+            self.game_ui.message = "Unit has already issued an attack or skill"
+            return False
+
         # Local multiplayer can select current player's units
         if self.game_ui.multiplayer.is_local_multiplayer():
             return unit.player == self.game_ui.game.current_player
-            
+
         # Otherwise, can only select own units
         return unit.player == current_player
     
