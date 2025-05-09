@@ -197,10 +197,12 @@ class MessageLogComponent(UIComponent):
                 if not text.startswith("[") and not text.startswith("»"):
                     text = "» " + text
 
-                # Process special #DAMAGE_ placeholders to highlight damage numbers in magenta
+                # Process special placeholders to highlight damage/heal numbers
                 import re
                 damage_pattern = re.compile(r'#DAMAGE_(\d+)#')
+                heal_pattern = re.compile(r'#HEAL_(\d+)#')
                 damage_num = None
+                heal_num = None
                 original_text = text
 
                 # Check if the message contains damage placeholder
@@ -212,6 +214,15 @@ class MessageLogComponent(UIComponent):
                         damage_num = match.group(1)
                         # Replace the placeholder with just the number (we'll draw it separately)
                         text = damage_pattern.sub(damage_num, text)
+
+                # Check if the message contains heal placeholder
+                elif '#HEAL_' in text:
+                    # Extract heal numbers to highlight in white
+                    match = heal_pattern.search(text)
+                    if match:
+                        heal_num = match.group(1)
+                        # Replace the placeholder with just the number (we'll draw it separately)
+                        text = heal_pattern.sub(heal_num, text)
 
                 # Truncate message if too long for display
                 max_text_width = term_width - 4  # Allow for borders
@@ -229,25 +240,41 @@ class MessageLogComponent(UIComponent):
                     attributes |= curses.A_BOLD  # Make wretch messages bold red
                 elif color_id == 18:  # Death messages (dark red)
                     attributes |= curses.A_DIM  # Make death messages dim red
-                # Draw the message, with special handling for damage numbers
+                # Draw the message, with special handling for damage or heal numbers
                 if damage_num is not None:
                     # Render with damage numbers in magenta
                     parts = original_text.split(f"#DAMAGE_{damage_num}#")
                     pos_x = 2
-                    
+
                     # Draw the first part with the regular color
                     self.renderer.draw_text(y_pos, pos_x, parts[0], color_id, attributes)
                     pos_x += len(parts[0])
-                    
+
                     # Draw the damage number in magenta
                     self.renderer.draw_text(y_pos, pos_x, damage_num, 21, curses.A_BOLD)  # 21 is the magenta color pair
                     pos_x += len(damage_num)
-                    
+
+                    # Draw any remaining part with the regular color
+                    if len(parts) > 1 and parts[1]:
+                        self.renderer.draw_text(y_pos, pos_x, parts[1], color_id, attributes)
+                elif heal_num is not None:
+                    # Render with heal numbers in white
+                    parts = original_text.split(f"#HEAL_{heal_num}#")
+                    pos_x = 2
+
+                    # Draw the first part with the regular color
+                    self.renderer.draw_text(y_pos, pos_x, parts[0], color_id, attributes)
+                    pos_x += len(parts[0])
+
+                    # Draw the heal number in bright white
+                    self.renderer.draw_text(y_pos, pos_x, heal_num, 22, curses.A_BOLD)  # 22 is the white color pair with bold
+                    pos_x += len(heal_num)
+
                     # Draw any remaining part with the regular color
                     if len(parts) > 1 and parts[1]:
                         self.renderer.draw_text(y_pos, pos_x, parts[1], color_id, attributes)
                 else:
-                    # Regular message without damage numbers
+                    # Regular message without colored numbers
                     self.renderer.draw_text(y_pos, 2, text, color_id, attributes)
                 
         except Exception as e:
@@ -331,10 +358,12 @@ class MessageLogComponent(UIComponent):
                 if not text.startswith("[") and not text.startswith("»"):
                     text = "» " + text
 
-                # Process special #DAMAGE_ placeholders to highlight damage numbers in magenta
+                # Process special placeholders to highlight damage/heal numbers
                 import re
                 damage_pattern = re.compile(r'#DAMAGE_(\d+)#')
+                heal_pattern = re.compile(r'#HEAL_(\d+)#')
                 damage_num = None
+                heal_num = None
                 original_text = text
 
                 # Check if the message contains damage placeholder
@@ -346,6 +375,15 @@ class MessageLogComponent(UIComponent):
                         damage_num = match.group(1)
                         # Replace the placeholder with just the number (we'll draw it separately)
                         text = damage_pattern.sub(damage_num, text)
+
+                # Check if the message contains heal placeholder
+                elif '#HEAL_' in text:
+                    # Extract heal numbers to highlight in white
+                    match = heal_pattern.search(text)
+                    if match:
+                        heal_num = match.group(1)
+                        # Replace the placeholder with just the number (we'll draw it separately)
+                        text = heal_pattern.sub(heal_num, text)
 
                 # Truncate messages that are too long for the screen
                 max_text_width = term_width - 4  # Leave margin for borders
@@ -364,7 +402,7 @@ class MessageLogComponent(UIComponent):
                 elif color_id == 18:  # Death messages (dark red)
                     attributes |= curses.A_DIM  # Make death messages dim red
 
-                # Draw the message, with special handling for damage numbers
+                # Draw the message, with special handling for damage or heal numbers
                 if damage_num is not None:
                     # Render with damage numbers in magenta
                     parts = original_text.split(f"#DAMAGE_{damage_num}#")
@@ -381,8 +419,24 @@ class MessageLogComponent(UIComponent):
                     # Draw any remaining part with the regular color
                     if len(parts) > 1 and parts[1]:
                         self.renderer.draw_text(y_pos, pos_x, parts[1], color_id, attributes)
+                elif heal_num is not None:
+                    # Render with heal numbers in white
+                    parts = original_text.split(f"#HEAL_{heal_num}#")
+                    pos_x = 2
+
+                    # Draw the first part with the regular color
+                    self.renderer.draw_text(y_pos, pos_x, parts[0], color_id, attributes)
+                    pos_x += len(parts[0])
+
+                    # Draw the heal number in bright white
+                    self.renderer.draw_text(y_pos, pos_x, heal_num, 22, curses.A_BOLD)  # 22 is the white color pair with bold
+                    pos_x += len(heal_num)
+
+                    # Draw any remaining part with the regular color
+                    if len(parts) > 1 and parts[1]:
+                        self.renderer.draw_text(y_pos, pos_x, parts[1], color_id, attributes)
                 else:
-                    # Regular message without damage numbers
+                    # Regular message without colored numbers
                     self.renderer.draw_text(y_pos, 2, text, color_id, attributes)
                 
         except Exception as e:

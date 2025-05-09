@@ -193,6 +193,8 @@ class CursesRenderer(RenderInterface):
         curses.init_pair(17, curses.COLOR_RED, curses.COLOR_BLACK)       # Wretch messages - bright red
         curses.init_pair(18, curses.COLOR_RED, curses.COLOR_BLACK)       # Death messages - dark red (will use dim attribute)
         curses.init_pair(19, curses.COLOR_WHITE, curses.COLOR_BLACK)     # Estranged unit effect - gray (white with dim attribute)
+        curses.init_pair(21, curses.COLOR_MAGENTA, curses.COLOR_BLACK)   # Damage numbers - magenta
+        curses.init_pair(22, curses.COLOR_WHITE, curses.COLOR_BLACK)     # Healing numbers - white (bright with A_BOLD)
     
     def animate_projectile(self, start_pos: Tuple[int, int], end_pos: Tuple[int, int], 
                           tile_id: str, color_id: int = 7, duration: float = 0.5) -> None:
