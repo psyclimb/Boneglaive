@@ -78,7 +78,7 @@ class MurmurationDuskSkill(ActiveSkill):
             range_=3,  # Note: parameter is range_ but it gets stored as self.range
             area=1  # 3x3 area (center + 1 in each direction)
         )
-        self.damage = 8
+        self.damage = 6
         
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         # Basic validation for cooldown
@@ -316,7 +316,7 @@ class FlapSkill(ActiveSkill):
             cooldown=2,
             range_=4  # Note: parameter is range_ but it gets stored as self.range
         )
-        self.damage = 12
+        self.damage = 9
         
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         # Basic validation
@@ -586,7 +586,7 @@ class EmeticFlangeSkill(ActiveSkill):
             range_=0,  # Note: parameter is range_ but it gets stored as self.range
             area=1  # All adjacent tiles (8 surrounding tiles)
         )
-        self.damage = 6
+        self.damage = 4
         
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         # Only cooldown validation needed, as it's self-targeted
