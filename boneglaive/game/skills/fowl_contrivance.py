@@ -600,7 +600,7 @@ class EmeticFlangeSkill(ActiveSkill):
         
         # Log that the skill has been queued
         message_log.add_message(
-            f"{user.get_display_name()} prepares to unleash a vomitous bursting flock of birds!",
+            f"{user.get_display_name()} prepares to flare out vomitously!",
             MessageType.ABILITY,
             player=user.player
         )
