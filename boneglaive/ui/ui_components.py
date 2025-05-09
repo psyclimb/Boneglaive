@@ -196,7 +196,23 @@ class MessageLogComponent(UIComponent):
                 # Format the message with timestamp prefix if not already formatted
                 if not text.startswith("[") and not text.startswith("»"):
                     text = "» " + text
-                    
+
+                # Process special #DAMAGE_ placeholders to highlight damage numbers in magenta
+                import re
+                damage_pattern = re.compile(r'#DAMAGE_(\d+)#')
+                damage_num = None
+                original_text = text
+
+                # Check if the message contains damage placeholder
+                if '#DAMAGE_' in text:
+                    # We need to handle this specially since we can't embed colors in a single message
+                    # Extract damage numbers to highlight in magenta
+                    match = damage_pattern.search(text)
+                    if match:
+                        damage_num = match.group(1)
+                        # Replace the placeholder with just the number (we'll draw it separately)
+                        text = damage_pattern.sub(damage_num, text)
+
                 # Truncate message if too long for display
                 max_text_width = term_width - 4  # Allow for borders
                 if len(text) > max_text_width:
@@ -213,7 +229,26 @@ class MessageLogComponent(UIComponent):
                     attributes |= curses.A_BOLD  # Make wretch messages bold red
                 elif color_id == 18:  # Death messages (dark red)
                     attributes |= curses.A_DIM  # Make death messages dim red
-                self.renderer.draw_text(y_pos, 2, text, color_id, attributes)
+                # Draw the message, with special handling for damage numbers
+                if damage_num is not None:
+                    # Render with damage numbers in magenta
+                    parts = original_text.split(f"#DAMAGE_{damage_num}#")
+                    pos_x = 2
+                    
+                    # Draw the first part with the regular color
+                    self.renderer.draw_text(y_pos, pos_x, parts[0], color_id, attributes)
+                    pos_x += len(parts[0])
+                    
+                    # Draw the damage number in magenta
+                    self.renderer.draw_text(y_pos, pos_x, damage_num, 21, curses.A_BOLD)  # 21 is the magenta color pair
+                    pos_x += len(damage_num)
+                    
+                    # Draw any remaining part with the regular color
+                    if len(parts) > 1 and parts[1]:
+                        self.renderer.draw_text(y_pos, pos_x, parts[1], color_id, attributes)
+                else:
+                    # Regular message without damage numbers
+                    self.renderer.draw_text(y_pos, 2, text, color_id, attributes)
                 
         except Exception as e:
             # Never let message log crash the game
@@ -295,7 +330,23 @@ class MessageLogComponent(UIComponent):
                 # Format the message with timestamp prefix if not already formatted
                 if not text.startswith("[") and not text.startswith("»"):
                     text = "» " + text
-                
+
+                # Process special #DAMAGE_ placeholders to highlight damage numbers in magenta
+                import re
+                damage_pattern = re.compile(r'#DAMAGE_(\d+)#')
+                damage_num = None
+                original_text = text
+
+                # Check if the message contains damage placeholder
+                if '#DAMAGE_' in text:
+                    # We need to handle this specially since we can't embed colors in a single message
+                    # Extract damage numbers to highlight in magenta
+                    match = damage_pattern.search(text)
+                    if match:
+                        damage_num = match.group(1)
+                        # Replace the placeholder with just the number (we'll draw it separately)
+                        text = damage_pattern.sub(damage_num, text)
+
                 # Truncate messages that are too long for the screen
                 max_text_width = term_width - 4  # Leave margin for borders
                 if len(text) > max_text_width:
