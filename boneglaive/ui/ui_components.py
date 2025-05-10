@@ -1302,6 +1302,10 @@ class GameModeManager(UIComponent):
         # If in attack, move or skill mode, cancel the mode but keep unit selected
         if self.mode in ["attack", "move", "skill"] and cursor_manager.selected_unit:
             cursor_manager.highlighted_positions = []
+            # Reset selected skill if it was being used
+            if self.mode == "skill" and cursor_manager.selected_unit.selected_skill:
+                cursor_manager.selected_unit.selected_skill = None
+                cursor_manager.selected_unit.skill_target = None
             # Change to select mode (will publish mode changed event)
             self.set_mode("select")
             self.game_ui.message = f"{self.mode.capitalize()} mode cancelled, unit still selected"
@@ -1310,6 +1314,10 @@ class GameModeManager(UIComponent):
             
         # If in skill_select mode, return to normal menu
         if self.mode == "skill_select" and cursor_manager.selected_unit:
+            # Reset any partially selected skill
+            if cursor_manager.selected_unit.selected_skill:
+                cursor_manager.selected_unit.selected_skill = None
+                cursor_manager.selected_unit.skill_target = None
             # Return to standard menu
             self.set_mode("select")
             # Reset action menu to standard mode
