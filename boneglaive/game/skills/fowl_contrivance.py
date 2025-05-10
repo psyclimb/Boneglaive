@@ -84,24 +84,32 @@ class MurmurationDuskSkill(ActiveSkill):
         # Basic validation for cooldown
         if not super().can_use(user, target_pos, game):
             return False
-        
+
         # Make sure there's a valid position to target
         if not target_pos or not game or not game.is_valid_position(target_pos[0], target_pos[1]):
             return False
-        
+
         # If the unit has a move_target, use that position for range calculation
         if user.move_target:
             source_y, source_x = user.move_target
         else:
             source_y, source_x = user.y, user.x
-        
+
         # Check if target position is within range (Manhattan distance) from current or planned position
         y_dist = abs(target_pos[0] - source_y)
         x_dist = abs(target_pos[1] - source_x)
-        
+
         if y_dist > self.range or x_dist > self.range:
             return False
-        
+
+        # Check if there's line of sight to the target position
+        if not game.has_line_of_sight(source_y, source_x, target_pos[0], target_pos[1]):
+            return False
+
+        # Check if target position has blocking terrain
+        if game.map.blocks_line_of_sight(target_pos[0], target_pos[1]):
+            return False
+
         return True
             
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
@@ -185,13 +193,8 @@ class MurmurationDuskSkill(ActiveSkill):
                     # Check for critical health (retching) using centralized logic
                     game.check_critical_health(unit, user, previous_hp, ui)
         
-        if units_hit > 0:
-            message_log.add_message(
-                f"The murmuration strikes with the finality of sunset, dealing {total_damage} damage!",
-                MessageType.ABILITY,
-                player=user.player
-            )
-        else:
+        # Only show a message if no units were hit
+        if units_hit == 0:
             message_log.add_message(
                 "The dusk birds yield no results!",
                 MessageType.ABILITY,

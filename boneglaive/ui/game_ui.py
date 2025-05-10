@@ -232,6 +232,10 @@ class GameUI:
 
     def reset_game(self):
         """Reset the game to start a new round."""
+        # Clear the message log for the new game
+        from boneglaive.utils.message_log import message_log
+        message_log.clear_log()
+
         # Create a new game with setup phase
         self.game = Game(skip_setup=False)
 
@@ -243,6 +247,10 @@ class GameUI:
 
         # Reset message
         self.message = f"New game started! Entering {self.game.map.name}"
+
+        # Add a welcome message to the cleared log
+        message_log.add_system_message(f"New game started. Entering {self.game.map.name}")
+        message_log.add_system_message(f"Player {self.game.current_player} - Setup Phase")
 
         # Reset cursor position to center of board
         from boneglaive.utils.constants import HEIGHT, WIDTH
