@@ -150,49 +150,49 @@ class EnbroachmentGasSkill(ActiveSkill):
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Broaching Gas skill to summon a HEINOUS VAPOR."""
         import time
-        
+
         # Get the passive skill to consume charges
         passive = None
         if user.passive_skill and user.passive_skill.name == "Effluvium Lathe":
             passive = user.passive_skill
-            
+
         # Determine duration based on charges
         base_duration = 1
         charges_consumed = 0
         total_duration = base_duration
-        
+
         if passive:
             # Consume all available charges
             charges_consumed = passive.consume_charges(passive.charges)
-            
+
             # Special calculation: spending 1 charge gives 1 turn duration
             # Additional charges beyond the first still add 1 turn each
             if charges_consumed == 1:
                 total_duration = 1  # 1 charge = 1 turn duration
             else:
                 total_duration = base_duration + charges_consumed - 1  # Adjust formula
-            
+
         # Log the skill activation
         message_log.add_message(
             f"{user.get_display_name()} summons a Broaching Gas vapor!",
             MessageType.ABILITY,
             player=user.player
         )
-        
+
         if charges_consumed > 0:
             message_log.add_message(
                 f"Using {charges_consumed} Effluvium charges to extend duration to {total_duration} turns!",
                 MessageType.ABILITY,
                 player=user.player
             )
-        
+
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
             # Get vapor summoning animation
             vapor_animation = ui.asset_manager.get_skill_animation_sequence('summon_vapor')
             if not vapor_animation:
                 vapor_animation = ['~', 'o', 'O', 'Φ']  # Fallback animation
-                
+
             # Show summoning animation at target position
             ui.renderer.animate_attack_sequence(
                 target_pos[0], target_pos[1],
@@ -200,13 +200,13 @@ class EnbroachmentGasSkill(ActiveSkill):
                 7,  # White color
                 0.15  # Duration
             )
-        
+
         # Create a HEINOUS_VAPOR unit at the target position
         from boneglaive.game.units import Unit
         vapor_unit = Unit(UnitType.HEINOUS_VAPOR, user.player, target_pos[0], target_pos[1])
         vapor_unit.initialize_skills()
         vapor_unit.set_game_reference(game)
-        
+
         # Set vapor properties
         vapor_unit.vapor_type = self.vapor_type
         vapor_unit.vapor_symbol = self.vapor_symbol
@@ -214,7 +214,8 @@ class EnbroachmentGasSkill(ActiveSkill):
         vapor_unit.vapor_creator = user
         vapor_unit.vapor_skill = self
         vapor_unit.is_invulnerable = True  # Set invulnerability flag
-        
+        # Note: HEINOUS_VAPOR units are automatically immune to status effects via is_immune_to_effects() method
+
         # Add vapor to the game units
         game.units.append(vapor_unit)
         
@@ -301,49 +302,49 @@ class SaftEGasSkill(ActiveSkill):
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Saft-E-Gas skill to summon a HEINOUS VAPOR."""
         import time
-        
+
         # Get the passive skill to consume charges
         passive = None
         if user.passive_skill and user.passive_skill.name == "Effluvium Lathe":
             passive = user.passive_skill
-            
+
         # Determine duration based on charges
         base_duration = 1
         charges_consumed = 0
         total_duration = base_duration
-        
+
         if passive:
             # Consume all available charges
             charges_consumed = passive.consume_charges(passive.charges)
-            
+
             # Special calculation: spending 1 charge gives 1 turn duration
             # Additional charges beyond the first still add 1 turn each
             if charges_consumed == 1:
                 total_duration = 1  # 1 charge = 1 turn duration
             else:
                 total_duration = base_duration + charges_consumed - 1  # Adjust formula
-            
+
         # Log the skill activation
         message_log.add_message(
             f"{user.get_display_name()} summons a Saft-E-Gas vapor!",
             MessageType.ABILITY,
             player=user.player
         )
-        
+
         if charges_consumed > 0:
             message_log.add_message(
                 f"Using {charges_consumed} Effluvium charges to extend duration to {total_duration} turns!",
                 MessageType.ABILITY,
                 player=user.player
             )
-        
+
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
             # Get vapor summoning animation
             vapor_animation = ui.asset_manager.get_skill_animation_sequence('summon_vapor')
             if not vapor_animation:
                 vapor_animation = ['~', 'o', 'O', 'Θ']  # Fallback animation
-                
+
             # Show summoning animation at target position
             ui.renderer.animate_attack_sequence(
                 target_pos[0], target_pos[1],
@@ -351,13 +352,13 @@ class SaftEGasSkill(ActiveSkill):
                 7,  # White color
                 0.15  # Duration
             )
-        
+
         # Create a HEINOUS_VAPOR unit at the target position
         from boneglaive.game.units import Unit
         vapor_unit = Unit(UnitType.HEINOUS_VAPOR, user.player, target_pos[0], target_pos[1])
         vapor_unit.initialize_skills()
         vapor_unit.set_game_reference(game)
-        
+
         # Set vapor properties
         vapor_unit.vapor_type = self.vapor_type
         vapor_unit.vapor_symbol = self.vapor_symbol
@@ -365,7 +366,8 @@ class SaftEGasSkill(ActiveSkill):
         vapor_unit.vapor_creator = user
         vapor_unit.vapor_skill = self
         vapor_unit.is_invulnerable = True  # Set invulnerability flag
-        
+        # Note: HEINOUS_VAPOR units are automatically immune to status effects via is_immune_to_effects() method
+
         # Add vapor to the game units
         game.units.append(vapor_unit)
         
@@ -660,7 +662,7 @@ class DivergeSkill(ActiveSkill):
         coolant_gas = Unit(UnitType.HEINOUS_VAPOR, user.player, valid_positions[0][0], valid_positions[0][1])
         coolant_gas.initialize_skills()
         coolant_gas.set_game_reference(game)
-        
+
         # Set Coolant Gas properties
         coolant_gas.vapor_type = "COOLANT"
         coolant_gas.vapor_symbol = self.coolant_symbol
@@ -668,6 +670,7 @@ class DivergeSkill(ActiveSkill):
         coolant_gas.vapor_creator = user
         coolant_gas.vapor_skill = self
         coolant_gas.is_invulnerable = True  # Set invulnerability flag
+        # Note: HEINOUS_VAPOR units are automatically immune to status effects via is_immune_to_effects() method
         
         # For case where we only have one valid position, we've already logged a message if needed
         
@@ -676,7 +679,7 @@ class DivergeSkill(ActiveSkill):
         cutting_gas = Unit(UnitType.HEINOUS_VAPOR, user.player, cutting_pos[0], cutting_pos[1])
         cutting_gas.initialize_skills()
         cutting_gas.set_game_reference(game)
-        
+
         # Set Cutting Gas properties
         cutting_gas.vapor_type = "CUTTING"
         cutting_gas.vapor_symbol = self.cutting_symbol
@@ -684,6 +687,7 @@ class DivergeSkill(ActiveSkill):
         cutting_gas.vapor_creator = user
         cutting_gas.vapor_skill = self
         cutting_gas.is_invulnerable = True  # Set invulnerability flag
+        # Note: HEINOUS_VAPOR units are automatically immune to status effects via is_immune_to_effects() method
         
         # Add gases to the game
         game.units.append(coolant_gas)
