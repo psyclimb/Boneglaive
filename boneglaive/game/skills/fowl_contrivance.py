@@ -114,19 +114,24 @@ class MurmurationDuskSkill(ActiveSkill):
             
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Queue the Murmuration Dusk skill for execution."""
+        # Ensure the skill is validated from the planned move position if there is one
+        # This is done in can_use() with the source_y and source_x calculations
         if not self.can_use(user, target_pos, game):
             return False
-            
+
         user.skill_target = target_pos
         user.selected_skill = self
-        
+
+        # Set the murmuration indicator to show the area of effect
+        user.murmuration_indicator = target_pos
+
         # Log that the skill has been queued
         message_log.add_message(
             f"{user.get_display_name()} prepares to summon a murmuration of birds!",
             MessageType.ABILITY,
             player=user.player
         )
-        
+
         self.current_cooldown = self.cooldown
         return True
         
@@ -136,6 +141,9 @@ class MurmurationDuskSkill(ActiveSkill):
         target_y, target_x = target_pos
         if not game.is_valid_position(target_y, target_x):
             return False
+
+        # Clear the murmuration indicator when skill is executed
+        user.murmuration_indicator = None
             
         # Generate the area of effect (3x3 area centered on target_pos)
         affected_positions = []
@@ -593,26 +601,38 @@ class EmeticFlangeSkill(ActiveSkill):
             
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Queue the Emetic Flange skill for execution."""
-        # For self-targeting skills, set target to current position
-        target_pos = (user.y, user.x)
+        # For self-targeting skills, set target to current position or planned move position
+        if user.move_target:
+            # Use the planned move position for the skill target
+            target_pos = user.move_target
+        else:
+            # Use the current position if no move is planned
+            target_pos = (user.y, user.x)
+
         if not self.can_use(user, target_pos, game):
             return False
-            
+
         user.skill_target = target_pos
         user.selected_skill = self
-        
+
+        # Set the emetic flange indicator to show the area of effect at the target position
+        user.emetic_flange_indicator = target_pos
+
         # Log that the skill has been queued
         message_log.add_message(
             f"{user.get_display_name()} prepares to flare out vomitously!",
             MessageType.ABILITY,
             player=user.player
         )
-        
+
         self.current_cooldown = self.cooldown
         return True
         
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Emetic Flange skill during turn resolution."""
+        # Clear the emetic flange indicator when skill is executed
+        user.emetic_flange_indicator = None
+
         # Log the skill activation
         message_log.add_message(
             f"{user.get_display_name()} explodes into a burst of birds in all directions!",
