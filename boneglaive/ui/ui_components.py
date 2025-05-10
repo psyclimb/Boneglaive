@@ -3138,9 +3138,12 @@ class ActionMenuComponent(UIComponent):
                         # We no longer need to show a message here - it's shown in the skill's use() method
                         # Mark that we've shown this message to prevent any legacy code from showing it again
                         unit.jawline_message_shown = True
+                    elif skill.name == "Emetic Flange":
+                        # No need for a message here, as the skill's use() method already adds a message
+                        pass
                     else:
                         message = f"{skill.name} will be used at end of turn"
-                        
+
                         # Add the message directly to the message log with player information
                         # This ensures it will be colored according to the player
                         message_log.add_message(

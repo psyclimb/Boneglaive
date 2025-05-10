@@ -58,6 +58,8 @@ class Unit:
         self.teleport_target_indicator = None  # Visual indicator for Delta Config destination
         self.expedite_path_indicator = None  # Visual indicator for Expedite path
         self.jawline_indicator = None  # Visual indicator for Jawline network area
+        self.murmuration_indicator = None  # Visual indicator for Murmuration Dusk AOE
+        self.emetic_flange_indicator = None  # Visual indicator for Emetic Flange AOE
         
         # Action order tracking (lower is earlier)
         self.action_timestamp = 0
