@@ -154,7 +154,7 @@ class MultiplayerManager:
                 logger.info(f"Switched to player {self.current_player}")
 
     def _apply_player2_first_turn_buff(self) -> None:
-        """Apply +1 move range buff to all player 2 units on their first turn."""
+        """Apply +2 move range buff to all player 2 units on their first turn."""
         from boneglaive.utils.message_log import message_log, MessageType
 
         # Find all player 2 units and apply the buff
@@ -163,14 +163,14 @@ class MultiplayerManager:
         if player2_units:
             # Apply the buff to each unit
             for unit in player2_units:
-                # Add the move bonus
-                unit.move_range_bonus += 1
+                # Add the move bonus (increased to +2)
+                unit.move_range_bonus += 2
                 # Add a flag to show the status effect icon
                 unit.first_turn_move_bonus = True
 
             # Show a message about the buff
             message_log.add_message(
-                "Player 2 units gain +1 movement range on their first turn!",
+                "Player 2 units gain +2 movement range on their first turn!",
                 MessageType.SYSTEM
             )
     

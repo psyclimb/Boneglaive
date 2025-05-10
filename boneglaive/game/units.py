@@ -223,7 +223,11 @@ class Unit:
             else:
                 return "HEINOUS VAPOR"
         elif display_type == "FOWL_CONTRIVANCE":
-            display_type = "FOWL CONTRIVANCE"
+            # Use a shorter name if requested (for UI menus)
+            if shortened:
+                display_type = "F.CONTRIVANCE"
+            else:
+                display_type = "FOWL CONTRIVANCE"
         elif display_type == "GAS_MACHINIST":
             # Use a shorter name if requested (for UI menus)
             if shortened:
