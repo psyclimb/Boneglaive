@@ -474,8 +474,8 @@ class AuctionCurseSkill(ActiveSkill):
                     # Get cosmic value (will be generated if it doesn't exist yet)
                     game.map.get_cosmic_value(y, x, player=user.player, game=game)
 
-        # Determine highest cosmic value of nearby furniture
-        highest_value = 0
+        # Calculate average cosmic value of nearby furniture
+        average_value = 0
         if nearby_furniture:
             # Get cosmic values for all nearby furniture
             cosmic_values = []
@@ -485,24 +485,29 @@ class AuctionCurseSkill(ActiveSkill):
                     cosmic_values.append(value)
 
             if cosmic_values:
-                highest_value = max(cosmic_values)
+                # Calculate the average, rounded up
+                import math
+                average_value = math.ceil(sum(cosmic_values) / len(cosmic_values))
 
-        # Determine stat reductions based on highest value
+                # Ensure average value is within valid range
+                average_value = max(1, min(9, average_value))
+
+        # Determine stat reductions based on average value
         attack_reduction = 0
         range_reduction = 0
         move_reduction = 0
 
         bid_tokens = 0
 
-        if highest_value >= 1:  # Low values (1-3)
+        if average_value >= 1:  # Low values (1-3)
             attack_reduction = 1
             bid_tokens += 1
 
-        if highest_value >= 4:  # Medium values (4-6)
+        if average_value >= 4:  # Medium values (4-6)
             range_reduction = 1
             bid_tokens += 1
 
-        if highest_value >= 7:  # High values (7-9)
+        if average_value >= 7:  # High values (7-9)
             move_reduction = 1
             bid_tokens += 1
 
@@ -528,8 +533,8 @@ class AuctionCurseSkill(ActiveSkill):
             player=user.player
         )
 
-        if highest_value > 0:
-            penalty_msg = f"Cosmic value {highest_value} reduces"
+        if average_value > 0:
+            penalty_msg = f"Average cosmic value {average_value} reduces"
             penalties = []
 
             if attack_reduction > 0:
@@ -559,11 +564,11 @@ class AuctionCurseSkill(ActiveSkill):
             )
             sleep_with_animation_speed(0.1)  # Pause between animation phases
 
-            # Step 2: Show cosmic value prominently displayed on the podium
+            # Step 2: Show average cosmic value prominently displayed on the podium
             # Create the value display animation at the target position
             value_display = []
-            if highest_value > 0:
-                value_display = ['=', str(highest_value), '=']
+            if average_value > 0:
+                value_display = ['=', str(average_value), '=']
             else:
                 value_display = ['=', '?', '=']
 
@@ -641,7 +646,29 @@ class AuctionCurseSkill(ActiveSkill):
                     0.1  # Duration
                 )
 
-        # Apply stat bonuses to the ally based on reductions applied
+        # Apply stat bonuses and healing to the ally based on reductions applied
+        # Calculate healing amount (2 HP per token)
+        healing_amount = bid_tokens * 2
+
+        # Apply healing first
+        if healing_amount > 0:
+            # Store old HP for message
+            old_hp = ally.hp
+
+            # Apply healing
+            ally.hp = min(ally.hp + healing_amount, ally.max_hp)
+
+            # Calculate actual healing (to account for max HP cap)
+            actual_healing = ally.hp - old_hp
+
+            # Log healing message
+            message_log.add_message(
+                f"{ally.get_display_name()} is healed for {actual_healing} HP by the bid tokens!",
+                MessageType.ABILITY,
+                player=user.player
+            )
+
+        # Apply stat bonuses
         if attack_reduction > 0:
             ally.attack_bonus += 1
             ally.bid_attack_duration = 2  # Duration of 2 turns
