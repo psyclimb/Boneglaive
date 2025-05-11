@@ -183,10 +183,10 @@ class MarketFuturesSkill(ActiveSkill):
         
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Get Market Futures animation
+            # Get Market Futures animation - elaborate temporal investment energy
             market_animation = ui.asset_manager.get_skill_animation_sequence('market_futures')
             if not market_animation:
-                market_animation = ['$', '£', '€', '¥']  # Fallback animation with currency symbols
+                market_animation = ['A', '¤', 'T', '¤', '$', '¤', '£', '¤', '€', '¤', '¥', '¤', 'Φ', '¤', 'Ψ', '¤', 'Ω', '¤']
                 
             # Show animation at target position
             ui.renderer.animate_attack_sequence(
@@ -258,10 +258,10 @@ class MarketFuturesSkill(ActiveSkill):
             
         # Play teleport animation
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Get teleport animation
+            # Get teleport animation - ally transforms into golden market arrows
             teleport_animation = ui.asset_manager.get_skill_animation_sequence('market_teleport')
             if not teleport_animation:
-                teleport_animation = ['↗', '→', '↘', '↓']  # Fallback with arrow symbols
+                teleport_animation = ['$', '¤', '↗', '¤', '→', '¤', '↘', '¤', '↓', '¤', '*', '¤', 'A']
                 
             # Show animation from old position to new position
             ui.renderer.animate_path(
@@ -453,10 +453,10 @@ class AuctionCurseSkill(ActiveSkill):
         
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Get auction animation
+            # Get auction animation - creates podium, spectral bidders, transferring stats
             auction_animation = ui.asset_manager.get_skill_animation_sequence('auction_curse')
             if not auction_animation:
-                auction_animation = ['A', '¢', '$', '&']  # Fallback animation
+                auction_animation = ['A', '¤', '=', '¤', 'π', '¤', 'Γ', '¤', '$', '¤', '¢', '¤', '£', '¤', '|', '¤', '+', '¤']
                 
             # Show animation at target position
             ui.renderer.animate_attack_sequence(
@@ -511,10 +511,10 @@ class AuctionCurseSkill(ActiveSkill):
         
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Get token award animation
+            # Get token award animation - glowing tokens transferring to ally
             token_animation = ui.asset_manager.get_skill_animation_sequence('bid_token')
             if not token_animation:
-                token_animation = ['*', '+', '¢', '$']  # Fallback animation
+                token_animation = ['$', '¤', '*', '¤', '+', '¤', '¢', '¤', '£', '¤', '€', '¤', 'A']
                 
             # Show animation from user to ally
             ui.renderer.animate_path(
@@ -675,10 +675,10 @@ class DivineDrepreciationSkill(ActiveSkill):
         
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Get divine depreciation animation
+            # Get divine depreciation animation - furniture value drops, floor warps and sinks
             depreciation_animation = ui.asset_manager.get_skill_animation_sequence('divine_depreciation')
             if not depreciation_animation:
-                depreciation_animation = ['!', '¤', '0', '∅']  # Fallback animation
+                depreciation_animation = ['A', '¤', '↓', '¤', '9', '¤', '6', '¤', '3', '¤', '0', '¤', '_', '¤', '.', '¤', ' ', '¤']
                 
             # Show animation at target position
             ui.renderer.animate_attack_sequence(
@@ -693,7 +693,7 @@ class DivineDrepreciationSkill(ActiveSkill):
                 if pos != target_pos:  # Skip center, we already animated it
                     ui.renderer.animate_attack_sequence(
                         pos[0], pos[1],
-                        ['∇', '∇', '▼', '▼'],  # Downward symbols for depression
+                        ['↓', '¤', '_', '¤', '.', '¤', ' ', '¤'],  # Downward symbols for depression
                         4,  # Purple color
                         0.1  # Duration
                     )
