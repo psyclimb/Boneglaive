@@ -742,18 +742,18 @@ class DivineDrepreciationSkill(ActiveSkill):
     Active skill for DELPHIC_APPRAISER.
     Reappraises a furniture piece as cosmically worthless, creating a reality distortion.
     """
-    
+
     def __init__(self):
         super().__init__(
             name="Divine Depreciation",
             key="D",
-            description="Dramatically reappraises a furniture piece as cosmically worthless, creating a 3×3 reality distortion. Damages enemies and alters attack/skill ranges.",
+            description="Dramatically reappraises a furniture piece as cosmically worthless, creating a 5×5 reality distortion. Sets target furniture to value 1, deals damage to enemies and heals allies based on average value difference, and rerolls all other furniture values.",
             target_type=TargetType.AREA,
-            cooldown=4,  # Cooldown of 4 turns as specified
+            cooldown=4,  # Cooldown of 4 turns
             range_=3,
-            area=1  # 3×3 area (radius 1)
+            area=2  # 5×5 area (radius 2)
         )
-        
+
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Check if Divine Depreciation can be used."""
         # Basic validation
@@ -761,101 +761,129 @@ class DivineDrepreciationSkill(ActiveSkill):
             return False
         if not game or not target_pos:
             return False
-            
+
         # Check if the target position is valid
         if not game.is_valid_position(target_pos[0], target_pos[1]):
             return False
-            
+
         # Target must be a furniture piece
         terrain = game.map.get_terrain_at(target_pos[0], target_pos[1])
-        if terrain not in [TerrainType.FURNITURE, TerrainType.COAT_RACK, 
+        if terrain not in [TerrainType.FURNITURE, TerrainType.COAT_RACK,
                          TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE]:
             return False
-            
+
         # Check if target is within range
         distance = game.chess_distance(user.y, user.x, target_pos[0], target_pos[1])
         if distance > self.range:
             return False
-            
+
         return True
-        
+
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Queue up the Divine Depreciation skill for execution."""
         if not self.can_use(user, target_pos, game):
             return False
-            
+
         user.skill_target = target_pos
         user.selected_skill = self
-        
+
         # Track action order
         if game:
             user.action_timestamp = game.action_counter
             game.action_counter += 1
-        
+
         # Log that the skill has been queued
         message_log.add_message(
             f"{user.get_display_name()} prepares to cast Divine Depreciation!",
             MessageType.ABILITY,
             player=user.player
         )
-        
+
         # Set cooldown
         self.current_cooldown = self.cooldown
-        
+
         return True
-        
+
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Divine Depreciation skill on a furniture piece."""
-        # Get the cosmic value (will be generated if it doesn't exist)
-        cosmic_value = game.map.get_cosmic_value(target_pos[0], target_pos[1], player=user.player, game=game)
-        if cosmic_value is None:
-            cosmic_value = random.randint(1, 9)  # Fallback
-        
+        # Get the cosmic value of the target (will be generated if it doesn't exist)
+        original_cosmic_value = game.map.get_cosmic_value(target_pos[0], target_pos[1], player=user.player, game=game)
+        if original_cosmic_value is None:
+            original_cosmic_value = random.randint(1, 9)  # Fallback
+
         # Create reality distortion zone
         if not hasattr(game, 'reality_distortions'):
             game.reality_distortions = {}
-            
-        # Define the affected area (3×3)
+
+        # Define the affected area (5×5)
         affected_area = []
         center_y, center_x = target_pos
-        for dy in range(-1, 2):
-            for dx in range(-1, 2):
+        for dy in range(-2, 3):  # -2, -1, 0, 1, 2
+            for dx in range(-2, 3):  # -2, -1, 0, 1, 2
                 y, x = center_y + dy, center_x + dx
                 if game.is_valid_position(y, x):
                     affected_area.append((y, x))
-                    
+
+        # Collect furniture in the area (excluding the target)
+        other_furniture = []
+        for pos in affected_area:
+            if pos != target_pos:  # Skip the target furniture
+                terrain = game.map.get_terrain_at(pos[0], pos[1])
+                if terrain in [TerrainType.FURNITURE, TerrainType.COAT_RACK,
+                             TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE]:
+                    other_furniture.append(pos)
+                    # Ensure cosmic value exists for all furniture
+                    game.map.get_cosmic_value(pos[0], pos[1], player=user.player, game=game)
+
+        # Calculate average cosmic value of other furniture (rounded up)
+        avg_cosmic_value = 1  # Default if no other furniture
+        if other_furniture:
+            total_value = 0
+            count = 0
+            for pos in other_furniture:
+                value = game.map.get_cosmic_value(pos[0], pos[1], player=user.player, game=game)
+                if value is not None:
+                    total_value += value
+                    count += 1
+
+            if count > 0:
+                import math
+                avg_cosmic_value = math.ceil(total_value / count)
+
+        # Set target furniture's cosmic value to 1
+        game.map.set_cosmic_value(target_pos[0], target_pos[1], 1)
+
+        # Calculate effect value based on the difference between average value and target value (now 1)
+        effect_value = max(1, avg_cosmic_value - 1)  # Ensure at least 1 damage/healing
+
         # Create the distortion
         distortion_id = f"divine_depreciation_{len(game.reality_distortions) + 1}"
         game.reality_distortions[distortion_id] = {
             'area': affected_area,
             'center': target_pos,
             'creator': user,
-            'cosmic_value': cosmic_value,
+            'cosmic_value': 1,  # Now fixed at 1
+            'avg_cosmic_value': avg_cosmic_value,  # Store for reference
             'duration': 2  # Effects last 2 turns
         }
-        
+
         # Apply effects to units in the area
         for pos in affected_area:
             unit = game.get_unit_at(pos[0], pos[1])
             if not unit:
                 continue
-                
+
             if unit.player != user.player:  # Enemy
-                # Deal damage
-                damage = 2 + cosmic_value
+                # Deal damage based on cosmic value difference
                 old_hp = unit.hp
-                unit.hp -= damage
-                
-                # Apply range penalty
-                unit.attack_range_bonus -= 1
-                unit.divine_depreciation_duration = 2  # Duration of 2 turns
-                
+                unit.hp -= effect_value
+
                 message_log.add_message(
-                    f"{unit.get_display_name()} takes {damage} damage and -1 to attack range from Divine Depreciation!",
+                    f"{unit.get_display_name()} takes {effect_value} damage from Divine Depreciation!",
                     MessageType.COMBAT,
                     player=user.player
                 )
-                
+
                 # Handle unit death
                 if unit.hp <= 0:
                     message_log.add_message(
@@ -865,24 +893,47 @@ class DivineDrepreciationSkill(ActiveSkill):
                     )
                     game.remove_unit(unit)
             else:  # Ally
-                # Apply range bonus
-                unit.attack_range_bonus += 1
-                unit.divine_depreciation_duration = 2  # Duration of 2 turns
-                
-                message_log.add_message(
-                    f"{unit.get_display_name()} gains +1 to attack range from Divine Depreciation!",
-                    MessageType.ABILITY,
-                    player=user.player
-                )
-                
-        # Log the skill activation
+                # Apply healing based on cosmic value difference
+                old_hp = unit.hp
+                unit.hp = min(unit.hp + effect_value, unit.max_hp)
+
+                # Calculate actual healing amount (may be capped by max_hp)
+                actual_healing = unit.hp - old_hp
+
+                if actual_healing > 0:
+                    message_log.add_message(
+                        f"{unit.get_display_name()} is healed for {actual_healing} HP by Divine Depreciation!",
+                        MessageType.ABILITY,
+                        player=user.player
+                    )
+
+        # Reroll cosmic values for all other furniture in the AOE
+        for pos in other_furniture:
+            # Generate a new random cosmic value (1-9)
+            new_value = random.randint(1, 9)
+            game.map.set_cosmic_value(pos[0], pos[1], new_value)
+
+        # Log the skill activation with details about the cosmic values
         message_log.add_message(
-            f"{user.get_display_name()} casts Divine Depreciation on furniture with cosmic value {cosmic_value}!",
+            f"{user.get_display_name()} casts Divine Depreciation! Target furniture value set to 1.",
             MessageType.ABILITY,
             player=user.player
         )
-        
-        # Play elaborate animation sequence as described in DELPHIC_APPRAISER.md
+
+        if other_furniture:
+            message_log.add_message(
+                f"Average cosmic value of other furniture: {avg_cosmic_value}. Effect value: {effect_value}!",
+                MessageType.ABILITY,
+                player=user.player
+            )
+
+            message_log.add_message(
+                f"All {len(other_furniture)} furniture pieces in the area have been revalued with new cosmic values!",
+                MessageType.ABILITY,
+                player=user.player
+            )
+
+        # Play elaborate animation sequence
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
             # Step 1: The APPRAISER makes a dramatic downward valuation gesture
             gesture_animation = ['A', '↓', '$', '↓']
@@ -894,13 +945,14 @@ class DivineDrepreciationSkill(ActiveSkill):
             )
             sleep_with_animation_speed(0.1)  # Pause between animation phases
 
-            # Step 2: The furniture's cosmic value rapidly drops to zero
+            # Step 2: The target furniture's cosmic value rapidly drops to 1
             value_drop_animation = []
-            # Start with the actual cosmic value
-            current_value = cosmic_value
-            while current_value >= 0:
+            # Start with the actual cosmic value and drop to 1
+            current_value = original_cosmic_value
+            while current_value > 1:
                 value_drop_animation.append(str(current_value))
                 current_value -= 1
+            value_drop_animation.append('1')  # Ensure it ends at 1
 
             ui.renderer.animate_attack_sequence(
                 target_pos[0], target_pos[1],
@@ -910,7 +962,7 @@ class DivineDrepreciationSkill(ActiveSkill):
             )
             sleep_with_animation_speed(0.1)  # Pause between animation phases
 
-            # Step 3: The furniture piece appears to age centuries in seconds
+            # Step 3: The furniture piece appears to age/depreciate
             aging_animation = ['Ω', '§', '@', '#', '_']
             ui.renderer.animate_attack_sequence(
                 target_pos[0], target_pos[1],
@@ -920,9 +972,9 @@ class DivineDrepreciationSkill(ActiveSkill):
             )
             sleep_with_animation_speed(0.1)  # Pause between animation phases
 
-            # Step 4: The floor around it warps and sinks
+            # Step 4: The floor around it warps and sinks - expanded to 5x5 area
             # First show a ripple effect from the center outward
-            for distance in range(1, 3):  # Range 1-2 to cover the 3x3 area
+            for distance in range(1, 3):  # Range 1-2 to cover inner parts of 5x5 area
                 for y in range(target_pos[0] - distance, target_pos[0] + distance + 1):
                     for x in range(target_pos[1] - distance, target_pos[1] + distance + 1):
                         # Only animate positions at exactly the current distance (edges)
@@ -935,17 +987,57 @@ class DivineDrepreciationSkill(ActiveSkill):
                                     4,  # Purple color
                                     0.05  # Quick duration for ripple
                                 )
-                sleep_with_animation_speed(0.1)  # Pause between ripples
+                sleep_with_animation_speed(0.05)  # Pause between ripples
 
-            # Step 5: Depression filled with failed investment certificates and devalued market assets
-            # Display market collapse symbols in all affected positions
+            # Continue ripple to the outer edge (distance 2)
+            for y in range(target_pos[0] - 2, target_pos[0] + 3):
+                for x in range(target_pos[1] - 2, target_pos[1] + 3):
+                    # Only animate positions at the outer edge
+                    if abs(y - target_pos[0]) == 2 or abs(x - target_pos[1]) == 2:
+                        # Check if position is valid and in affected area
+                        if game.is_valid_position(y, x) and (y, x) in affected_area:
+                            ui.renderer.animate_attack_sequence(
+                                y, x,
+                                ['~', '_', '.'],
+                                4,  # Purple color
+                                0.05  # Quick duration for ripple
+                            )
+            sleep_with_animation_speed(0.1)  # Pause after outer ripple
+
+            # Step 5: Effects on units - healing for allies, damage for enemies
             for pos in affected_area:
-                depressed_tile_animation = ['$', '0', '_', '.']
-                ui.renderer.animate_attack_sequence(
-                    pos[0], pos[1],
-                    depressed_tile_animation,
-                    4,  # Purple color
-                    0.1  # Duration
-                )
-                    
+                unit = game.get_unit_at(pos[0], pos[1])
+                if not unit:
+                    continue
+
+                if unit.player != user.player:  # Enemy - damage animation
+                    damage_animation = ['$', '!', '-', '×']
+                    ui.renderer.animate_attack_sequence(
+                        pos[0], pos[1],
+                        damage_animation,
+                        1,  # Red color for damage
+                        0.1  # Duration
+                    )
+                else:  # Ally - healing animation
+                    heal_animation = ['$', '+', '*', '♥']
+                    ui.renderer.animate_attack_sequence(
+                        pos[0], pos[1],
+                        heal_animation,
+                        2,  # Green color for healing
+                        0.1  # Duration
+                    )
+
+            # Step 6: Show revaluation of other furniture pieces
+            if other_furniture:
+                sleep_with_animation_speed(0.2)  # Pause before revaluation effect
+                for pos in other_furniture:
+                    # Revaluation animation
+                    revalue_animation = ['?', '!', '*', '$']
+                    ui.renderer.animate_attack_sequence(
+                        pos[0], pos[1],
+                        revalue_animation,
+                        3,  # Green/yellow color for revaluation
+                        0.1  # Duration
+                    )
+
         return True
