@@ -181,19 +181,69 @@ class MarketFuturesSkill(ActiveSkill):
             player=user.player
         )
         
-        # Play animation if UI is available
+        # Play elaborate Market Futures animation sequence as described in document
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Get Market Futures animation - elaborate temporal investment energy
-            market_animation = ui.asset_manager.get_skill_animation_sequence('market_futures')
-            if not market_animation:
-                market_animation = ['A', '¤', 'T', '¤', '$', '¤', '£', '¤', '€', '¤', '¥', '¤', 'Φ', '¤', 'Ψ', '¤', 'Ω', '¤']
-                
-            # Show animation at target position
+            # Step 1: The APPRAISER touches the furniture
+            # Show appraiser reaching toward furniture
+            from boneglaive.utils.coordinates import get_line, Position
+            path = get_line(Position(user.y, user.x), Position(target_pos[0], target_pos[1]))
+
+            # Show reaching animation
+            if len(path) > 1:
+                # Get the point between appraiser and furniture
+                mid_point = path[len(path) // 2]
+
+                # Draw reaching gesture
+                ui.renderer.animate_attack_sequence(
+                    mid_point.y, mid_point.x,
+                    ['A', 'T', '|'],
+                    7,  # White color
+                    0.15  # Duration
+                )
+
+            # Step 2: Temporal market projections spiral around the furniture
+            spiral_animation = ['$', '£', '€', '¥', '§']
             ui.renderer.animate_attack_sequence(
                 target_pos[0], target_pos[1],
-                market_animation,
+                spiral_animation,
                 6,  # Cyan/blue color
                 0.15  # Duration
+            )
+            sleep_with_animation_speed(0.1)  # Pause between animation phases
+
+            # Step 3: The furniture transforms into a more valuable future version
+            transform_animation = ['#', 'Φ', 'Ψ', 'Ω', '¥']
+            ui.renderer.animate_attack_sequence(
+                target_pos[0], target_pos[1],
+                transform_animation,
+                3,  # Green color for value enhancement
+                0.15  # Duration
+            )
+
+            # Step 4: Furniture glows with investment potential
+            # Add glowing effect radiating from the furniture to adjacent positions
+            for dy in [-1, 0, 1]:
+                for dx in [-1, 0, 1]:
+                    if dy == 0 and dx == 0:
+                        continue  # Skip the center itself
+
+                    y, x = target_pos[0] + dy, target_pos[1] + dx
+
+                    if game.is_valid_position(y, x):
+                        # Small glow animation in adjacent cells
+                        ui.renderer.animate_attack_sequence(
+                            y, x,
+                            ['*', '.'],
+                            6,  # Cyan/blue color
+                            0.05  # Quick duration
+                        )
+
+            # Final anchor marker on furniture
+            ui.renderer.animate_attack_sequence(
+                target_pos[0], target_pos[1],
+                ['$', 'T', '*'],
+                3,  # Green color for established anchor
+                0.2  # Duration for final state
             )
             
         return True
@@ -261,7 +311,7 @@ class MarketFuturesSkill(ActiveSkill):
             # Get teleport animation - ally transforms into golden market arrows
             teleport_animation = ui.asset_manager.get_skill_animation_sequence('market_teleport')
             if not teleport_animation:
-                teleport_animation = ['$', '¤', '↗', '¤', '→', '¤', '↘', '¤', '↓', '¤', '*', '¤', 'A']
+                teleport_animation = ['$', '↗', '→', '↘', '↓', '*', 'A']
                 
             # Show animation from old position to new position
             ui.renderer.animate_path(
@@ -451,20 +501,100 @@ class AuctionCurseSkill(ActiveSkill):
             player=user.player
         )
         
-        # Play animation if UI is available
+        # Play elaborate auction curse animation sequence as described in document
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Get auction animation - creates podium, spectral bidders, transferring stats
-            auction_animation = ui.asset_manager.get_skill_animation_sequence('auction_curse')
-            if not auction_animation:
-                auction_animation = ['A', '¤', '=', '¤', 'π', '¤', 'Γ', '¤', '$', '¤', '¢', '¤', '£', '¤', '|', '¤', '+', '¤']
-                
-            # Show animation at target position
+            # Step 1: The APPRAISER creates an auction podium with cosmic value displayed
+            # Start from the Appraiser's position
+            podium_animation = ['A', '=', '|', '=', '|']
+            ui.renderer.animate_attack_sequence(
+                user.y, user.x,  # First part is at the user's position
+                podium_animation,
+                7,  # White color for the appraiser
+                0.2  # Duration
+            )
+            sleep_with_animation_speed(0.1)  # Pause between animation phases
+
+            # Step 2: Show cosmic value prominently displayed on the podium
+            # Create the value display animation at the target position
+            value_display = []
+            if highest_value > 0:
+                value_display = ['=', str(highest_value), '=']
+            else:
+                value_display = ['=', '?', '=']
+
             ui.renderer.animate_attack_sequence(
                 target_pos[0], target_pos[1],
-                auction_animation,
-                1,  # Red color
-                0.15  # Duration
+                value_display,
+                6,  # Yellowish color for the value display
+                0.2  # Duration
             )
+            sleep_with_animation_speed(0.1)  # Pause between animation phases
+
+            # Step 3: Spectral furniture pieces appear as bidders raising paddles
+            # Animate spectral bidders around the target in nearby positions
+            if nearby_furniture:
+                # Show bidding animation from furniture positions
+                for i, pos in enumerate(nearby_furniture[:3]):  # Limit to 3 pieces of furniture for clarity
+                    bidder_animations = ['π', 'Γ', '|', '!']
+                    ui.renderer.animate_attack_sequence(
+                        pos[0], pos[1],
+                        bidder_animations,
+                        3,  # Green color for the bidders
+                        0.1  # Duration
+                    )
+                    # Slight delay between different bidders
+                    sleep_with_animation_speed(0.05)
+
+            # Step 4: With each successful bid, stat attributes visibly transfer from enemy
+            # Show attributes being stripped from the target
+            if attack_reduction > 0 or range_reduction > 0 or move_reduction > 0:
+                # Animate attributes being removed
+                stat_transfer = ['$', '¢', '%', '-', '.']
+                ui.renderer.animate_attack_sequence(
+                    target_pos[0], target_pos[1],
+                    stat_transfer,
+                    1,  # Red color for the target
+                    0.15  # Duration
+                )
+
+                # Step 5: Stats transfer to the APPRAISER as glowing tokens
+                # Show tokens moving from target to appraiser
+                token_path = []
+
+                # Get path from target to user
+                from boneglaive.utils.coordinates import get_line, Position
+                path = get_line(Position(target_pos[0], target_pos[1]), Position(user.y, user.x))
+
+                # Animate token movement along the path
+                token_symbol = '$'
+                for point in path:
+                    ui.renderer.draw_tile(point.y, point.x, token_symbol, 6)  # Yellow for tokens
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.07)
+
+                    # Clear previous position (except target and user positions)
+                    if (point.y != target_pos[0] or point.x != target_pos[1]) and (point.y != user.y or point.x != user.x):
+                        # Get the terrain to restore proper display
+                        terrain = game.map.get_terrain_at(point.y, point.x)
+                        terrain_char = ' '
+                        if terrain:
+                            terrain_name = terrain.name.lower().replace('_', ' ')
+                            if 'empty' in terrain_name:
+                                terrain_char = ' '
+                            elif 'furniture' in terrain_name:
+                                terrain_char = '#'
+                            else:
+                                terrain_char = '.'
+                        ui.renderer.draw_tile(point.y, point.x, terrain_char, 0)
+
+                # Final token collection animation at the appraiser
+                token_collection = ['$', '+', '*']
+                ui.renderer.animate_attack_sequence(
+                    user.y, user.x,
+                    token_collection,
+                    3,  # Green color for successfully collected tokens
+                    0.1  # Duration
+                )
             
         return True
         
@@ -514,7 +644,7 @@ class AuctionCurseSkill(ActiveSkill):
             # Get token award animation - glowing tokens transferring to ally
             token_animation = ui.asset_manager.get_skill_animation_sequence('bid_token')
             if not token_animation:
-                token_animation = ['$', '¤', '*', '¤', '+', '¤', '¢', '¤', '£', '¤', '€', '¤', 'A']
+                token_animation = ['$', '*', '+', '¢', '£', '€', 'A']
                 
             # Show animation from user to ally
             ui.renderer.animate_path(
@@ -673,29 +803,70 @@ class DivineDrepreciationSkill(ActiveSkill):
             player=user.player
         )
         
-        # Play animation if UI is available
+        # Play elaborate animation sequence as described in DELPHIC_APPRAISER.md
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Get divine depreciation animation - furniture value drops, floor warps and sinks
-            depreciation_animation = ui.asset_manager.get_skill_animation_sequence('divine_depreciation')
-            if not depreciation_animation:
-                depreciation_animation = ['A', '¤', '↓', '¤', '9', '¤', '6', '¤', '3', '¤', '0', '¤', '_', '¤', '.', '¤', ' ', '¤']
-                
-            # Show animation at target position
+            # Step 1: The APPRAISER makes a dramatic downward valuation gesture
+            gesture_animation = ['A', '↓', '$', '↓']
+            ui.renderer.animate_attack_sequence(
+                user.y, user.x,  # First part is at the user's position
+                gesture_animation,
+                7,  # White color for the appraiser
+                0.2  # Duration
+            )
+            sleep_with_animation_speed(0.1)  # Pause between animation phases
+
+            # Step 2: The furniture's cosmic value rapidly drops to zero
+            value_drop_animation = []
+            # Start with the actual cosmic value
+            current_value = cosmic_value
+            while current_value >= 0:
+                value_drop_animation.append(str(current_value))
+                current_value -= 1
+
             ui.renderer.animate_attack_sequence(
                 target_pos[0], target_pos[1],
-                depreciation_animation,
-                5,  # Magenta color
+                value_drop_animation,
+                5,  # Magenta color for value display
                 0.15  # Duration
             )
-            
-            # Show area effect
+            sleep_with_animation_speed(0.1)  # Pause between animation phases
+
+            # Step 3: The furniture piece appears to age centuries in seconds
+            aging_animation = ['Ω', '§', '@', '#', '_']
+            ui.renderer.animate_attack_sequence(
+                target_pos[0], target_pos[1],
+                aging_animation,
+                6,  # Yellowish color for aging
+                0.15  # Duration
+            )
+            sleep_with_animation_speed(0.1)  # Pause between animation phases
+
+            # Step 4: The floor around it warps and sinks
+            # First show a ripple effect from the center outward
+            for distance in range(1, 3):  # Range 1-2 to cover the 3x3 area
+                for y in range(target_pos[0] - distance, target_pos[0] + distance + 1):
+                    for x in range(target_pos[1] - distance, target_pos[1] + distance + 1):
+                        # Only animate positions at exactly the current distance (edges)
+                        if abs(y - target_pos[0]) == distance or abs(x - target_pos[1]) == distance:
+                            # Check if position is valid and in affected area
+                            if game.is_valid_position(y, x) and (y, x) in affected_area:
+                                ui.renderer.animate_attack_sequence(
+                                    y, x,
+                                    ['~', '_', '.'],
+                                    4,  # Purple color
+                                    0.05  # Quick duration for ripple
+                                )
+                sleep_with_animation_speed(0.1)  # Pause between ripples
+
+            # Step 5: Depression filled with failed investment certificates and devalued market assets
+            # Display market collapse symbols in all affected positions
             for pos in affected_area:
-                if pos != target_pos:  # Skip center, we already animated it
-                    ui.renderer.animate_attack_sequence(
-                        pos[0], pos[1],
-                        ['↓', '¤', '_', '¤', '.', '¤', ' ', '¤'],  # Downward symbols for depression
-                        4,  # Purple color
-                        0.1  # Duration
-                    )
+                depressed_tile_animation = ['$', '0', '_', '.']
+                ui.renderer.animate_attack_sequence(
+                    pos[0], pos[1],
+                    depressed_tile_animation,
+                    4,  # Purple color
+                    0.1  # Duration
+                )
                     
         return True
