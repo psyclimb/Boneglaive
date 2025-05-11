@@ -747,7 +747,7 @@ class DivineDrepreciationSkill(ActiveSkill):
         super().__init__(
             name="Divine Depreciation",
             key="D",
-            description="Dramatically reappraises a furniture piece as cosmically worthless, creating a 5×5 reality distortion. Sets target furniture to value 1, deals damage to enemies and heals allies based on average value difference, and rerolls all other furniture values.",
+            description="Dramatically reappraises a furniture piece as cosmically worthless, creating a 5×5 reality distortion. Sets target furniture to value 1, deals damage and pulls enemies toward the center based on move values. All other furniture has cosmic values rerolled.",
             target_type=TargetType.AREA,
             cooldown=4,  # Cooldown of 4 turns
             range_=3,
@@ -867,45 +867,116 @@ class DivineDrepreciationSkill(ActiveSkill):
             'duration': 2  # Effects last 2 turns
         }
 
-        # Apply effects to units in the area
+        # Collect all enemies in the area for implosion calculation
+        enemies_in_area = []
         for pos in affected_area:
             unit = game.get_unit_at(pos[0], pos[1])
             if not unit:
                 continue
 
             if unit.player != user.player:  # Enemy
-                # Deal damage based on cosmic value difference
-                old_hp = unit.hp
-                unit.hp -= effect_value
+                enemies_in_area.append(unit)
 
-                message_log.add_message(
-                    f"{unit.get_display_name()} takes {effect_value} damage from Divine Depreciation!",
-                    MessageType.COMBAT,
-                    player=user.player
-                )
+        # Calculate average move value of enemies (if any)
+        avg_move_value = 0
+        if enemies_in_area:
+            total_move = sum(enemy.get_effective_stats()['move_range'] for enemy in enemies_in_area)
+            import math
+            avg_move_value = math.ceil(total_move / len(enemies_in_area))
 
-                # Handle unit death
-                if unit.hp <= 0:
+        # Calculate pull distance based on difference between average move value and cosmic value (1)
+        pull_distance = max(1, avg_move_value - 1)  # Ensure at least 1 space pull
+
+        # Apply damage and pull effects to enemies
+        for unit in enemies_in_area:
+            # Deal damage based on cosmic value difference
+            old_hp = unit.hp
+            unit.hp -= effect_value
+
+            message_log.add_message(
+                f"{unit.get_display_name()} takes {effect_value} damage from Divine Depreciation!",
+                MessageType.COMBAT,
+                player=user.player
+            )
+
+            # Calculate pull effect (move toward center)
+            start_pos = (unit.y, unit.x)
+            target_center = target_pos
+
+            # Calculate direction vector from unit to center
+            dir_y = target_center[0] - unit.y
+            dir_x = target_center[1] - unit.x
+
+            # Normalize the direction
+            distance = max(1, abs(dir_y) + abs(dir_x))  # Manhattan distance
+
+            # Calculate how far to pull the unit (not exceeding distance to center)
+            actual_pull = min(pull_distance, distance)
+
+            if actual_pull > 0 and distance > 0:
+                # Calculate pull vector (respecting terrain and other units)
+                pull_y = int(dir_y * actual_pull / distance) if dir_y != 0 else 0
+                pull_x = int(dir_x * actual_pull / distance) if dir_x != 0 else 0
+
+                # Try to move the unit as close as possible to the target direction
+                new_y, new_x = unit.y, unit.x
+                steps_taken = 0
+
+                # Try to move the unit step by step
+                for step in range(actual_pull):
+                    # Calculate step direction (prioritize largest component)
+                    if abs(dir_y) > abs(dir_x):
+                        step_y = 1 if dir_y > 0 else -1 if dir_y < 0 else 0
+                        step_x = 0
+                    else:
+                        step_y = 0
+                        step_x = 1 if dir_x > 0 else -1 if dir_x < 0 else 0
+
+                    # Check if the next position is valid and empty
+                    next_y, next_x = new_y + step_y, new_x + step_x
+                    if (game.is_valid_position(next_y, next_x) and
+                        game.map.is_passable(next_y, next_x) and
+                        game.get_unit_at(next_y, next_x) is None):
+                        # Move to the next position
+                        new_y, new_x = next_y, next_x
+                        steps_taken += 1
+                    else:
+                        # Try the other direction component
+                        if step_y != 0:  # Was trying vertical, try horizontal
+                            step_y = 0
+                            step_x = 1 if dir_x > 0 else -1 if dir_x < 0 else 0
+                        else:  # Was trying horizontal, try vertical
+                            step_y = 1 if dir_y > 0 else -1 if dir_y < 0 else 0
+                            step_x = 0
+
+                        next_y, next_x = new_y + step_y, new_x + step_x
+                        if (game.is_valid_position(next_y, next_x) and
+                            game.map.is_passable(next_y, next_x) and
+                            game.get_unit_at(next_y, next_x) is None):
+                            # Move to the alternative position
+                            new_y, new_x = next_y, next_x
+                            steps_taken += 1
+                        else:
+                            # Can't move further in either direction
+                            break
+
+                # Update unit position if it moved
+                if steps_taken > 0:
+                    unit.y, unit.x = new_y, new_x
                     message_log.add_message(
-                        f"{unit.get_display_name()} is destroyed by Divine Depreciation!",
-                        MessageType.COMBAT,
-                        player=user.player
-                    )
-                    game.remove_unit(unit)
-            else:  # Ally
-                # Apply healing based on cosmic value difference
-                old_hp = unit.hp
-                unit.hp = min(unit.hp + effect_value, unit.max_hp)
-
-                # Calculate actual healing amount (may be capped by max_hp)
-                actual_healing = unit.hp - old_hp
-
-                if actual_healing > 0:
-                    message_log.add_message(
-                        f"{unit.get_display_name()} is healed for {actual_healing} HP by Divine Depreciation!",
+                        f"{unit.get_display_name()} is pulled {steps_taken} spaces toward the depreciation center!",
                         MessageType.ABILITY,
                         player=user.player
                     )
+
+            # Handle unit death
+            if unit.hp <= 0:
+                message_log.add_message(
+                    f"{unit.get_display_name()} is destroyed by Divine Depreciation!",
+                    MessageType.COMBAT,
+                    player=user.player
+                )
+                game.remove_unit(unit)
 
         # Reroll cosmic values for all other furniture in the AOE
         for pos in other_furniture:
@@ -1004,27 +1075,51 @@ class DivineDrepreciationSkill(ActiveSkill):
                             )
             sleep_with_animation_speed(0.1)  # Pause after outer ripple
 
-            # Step 5: Effects on units - healing for allies, damage for enemies
-            for pos in affected_area:
-                unit = game.get_unit_at(pos[0], pos[1])
-                if not unit:
-                    continue
+            # Step 5: Damage and implosion effects for enemies
+            for unit in enemies_in_area:
+                # Damage animation
+                damage_animation = ['$', '!', '-', '×']
+                ui.renderer.animate_attack_sequence(
+                    unit.y, unit.x,
+                    damage_animation,
+                    1,  # Red color for damage
+                    0.1  # Duration
+                )
 
-                if unit.player != user.player:  # Enemy - damage animation
-                    damage_animation = ['$', '!', '-', '×']
+                # Implosion/pull animation
+                if pull_distance > 0:
+                    # Create pull effect pointing toward center
+                    pull_animation = ['←', '↖', '↑', '↗', '→', '↘', '↓', '↙']
+
+                    # Determine direction from unit to center (8-way)
+                    dir_y = target_pos[0] - unit.y
+                    dir_x = target_pos[1] - unit.x
+
+                    # Select appropriate arrow based on direction
+                    arrow_index = 0
+                    if dir_y < 0 and dir_x == 0:  # Up
+                        arrow_index = 2
+                    elif dir_y < 0 and dir_x > 0:  # Up-Right
+                        arrow_index = 3
+                    elif dir_y == 0 and dir_x > 0:  # Right
+                        arrow_index = 4
+                    elif dir_y > 0 and dir_x > 0:  # Down-Right
+                        arrow_index = 5
+                    elif dir_y > 0 and dir_x == 0:  # Down
+                        arrow_index = 6
+                    elif dir_y > 0 and dir_x < 0:  # Down-Left
+                        arrow_index = 7
+                    elif dir_y == 0 and dir_x < 0:  # Left
+                        arrow_index = 0
+                    elif dir_y < 0 and dir_x < 0:  # Up-Left
+                        arrow_index = 1
+
+                    # Show pull animation
                     ui.renderer.animate_attack_sequence(
-                        pos[0], pos[1],
-                        damage_animation,
-                        1,  # Red color for damage
-                        0.1  # Duration
-                    )
-                else:  # Ally - healing animation
-                    heal_animation = ['$', '+', '*', '♥']
-                    ui.renderer.animate_attack_sequence(
-                        pos[0], pos[1],
-                        heal_animation,
-                        2,  # Green color for healing
-                        0.1  # Duration
+                        unit.y, unit.x,
+                        [pull_animation[arrow_index], 'o', '.'],
+                        5,  # Magenta color for pull
+                        0.15  # Duration
                     )
 
             # Step 6: Show revaluation of other furniture pieces
