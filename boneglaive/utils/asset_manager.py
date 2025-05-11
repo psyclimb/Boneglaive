@@ -45,7 +45,8 @@ class AssetManager:
             UnitType.MARROW_CONDENSER: 'C',
             UnitType.FOWL_CONTRIVANCE: 'T',
             UnitType.GAS_MACHINIST: 'M',
-            UnitType.HEINOUS_VAPOR: 'V'  # Base symbol, will be replaced by vapor_symbol in display code
+            UnitType.HEINOUS_VAPOR: 'V',  # Base symbol, will be replaced by vapor_symbol in display code
+            UnitType.DELPHIC_APPRAISER: 'A'  # A for Appraiser
         }
         
         # Terrain symbols
@@ -83,7 +84,8 @@ class AssetManager:
             'mandible_foreman_attack': 'Ξ', # Mandible jaws (melee)
             'grayman_attack': '≈',        # Reality distortion (ranged)
             'marrow_condenser_attack': 'Ø', # Bone symbol for melee
-            'fowl_contrivance_attack': 'Λ'  # Bird dive attack symbol
+            'fowl_contrivance_attack': 'Λ', # Bird dive attack symbol
+            'delphic_appraiser_attack': '$' # Currency symbol for evaluation
         }
         
         # Add animation sequence tiles for each attack type (using simple ASCII)
@@ -178,7 +180,16 @@ class AssetManager:
             'coolant_gas': ['~', '*', 'Σ'],  # Coolant Gas formation from Diverge
             'cutting_gas': ['~', '*', '%'],  # Cutting Gas formation from Diverge
             'cleanse': ['*', '+', 'o', '.'],  # Status effect cleansing animation
-            'reform': [' ', '.', ':', 'o', 'O', 'M']  # Gas Machinist reformation
+            'reform': [' ', '.', ':', 'o', 'O', 'M'],  # Gas Machinist reformation
+
+            # DELPHIC_APPRAISER animations
+            'delphic_appraiser_attack': ['$', '¢', '$'],  # Basic attack animation
+            'valuation_oracle': ['$', '¥', '£', '€', '$'],  # Passive activation animation
+            'market_futures': ['$', '£', '€', '¥'],  # Market Futures animation
+            'market_teleport': ['↗', '→', '↘', '↓'],  # Market Futures teleport animation
+            'auction_curse': ['A', '¢', '$', '&'],  # Auction Curse animation
+            'bid_token': ['*', '+', '¢', '$'],  # Bid token award animation
+            'divine_depreciation': ['!', '¤', '0', '∅']  # Divine Depreciation animation
         }
     
     def _initialize_graphical_assets(self) -> None:
@@ -196,7 +207,8 @@ class AssetManager:
             UnitType.MARROW_CONDENSER: 'assets/sprites/marrow_condenser.png',
             UnitType.FOWL_CONTRIVANCE: 'assets/sprites/fowl_contrivance.png',
             UnitType.GAS_MACHINIST: 'assets/sprites/gas_machinist.png',
-            UnitType.HEINOUS_VAPOR: 'assets/sprites/heinous_vapor.png'
+            UnitType.HEINOUS_VAPOR: 'assets/sprites/heinous_vapor.png',
+            UnitType.DELPHIC_APPRAISER: 'assets/sprites/delphic_appraiser.png'
         }
         
         self.terrain_tiles = {
@@ -229,7 +241,8 @@ class AssetManager:
             'marrow_condenser_attack': 'assets/effects/bone.png',
             'fowl_contrivance_attack': 'assets/effects/fowl.png',
             'gas_machinist_attack': 'assets/effects/gas.png',
-            'heinous_vapor_attack': 'assets/effects/vapor.png'
+            'heinous_vapor_attack': 'assets/effects/vapor.png',
+            'delphic_appraiser_attack': 'assets/effects/evaluation.png'
         }
         
         # Add animation sequences for graphical mode too
@@ -296,7 +309,8 @@ class AssetManager:
             UnitType.MARROW_CONDENSER: 'marrow_condenser_attack',
             UnitType.FOWL_CONTRIVANCE: 'fowl_contrivance_attack',
             UnitType.GAS_MACHINIST: 'gas_machinist_attack',
-            UnitType.HEINOUS_VAPOR: 'heinous_vapor_attack'
+            UnitType.HEINOUS_VAPOR: 'heinous_vapor_attack',
+            UnitType.DELPHIC_APPRAISER: 'delphic_appraiser_attack'
         }
         effect_type = effect_map.get(unit_type, 'glaiveman_attack')
         return self.get_effect_tile(effect_type)
@@ -312,7 +326,8 @@ class AssetManager:
             UnitType.MARROW_CONDENSER: 'marrow_condenser_attack',
             UnitType.FOWL_CONTRIVANCE: 'fowl_contrivance_attack',
             UnitType.GAS_MACHINIST: 'gas_machinist_attack',
-            UnitType.HEINOUS_VAPOR: 'heinous_vapor_attack'
+            UnitType.HEINOUS_VAPOR: 'heinous_vapor_attack',
+            UnitType.DELPHIC_APPRAISER: 'delphic_appraiser_attack'
         }
         effect_type = effect_map.get(unit_type, 'glaiveman_attack')
         return self.animation_sequences.get(effect_type, [])

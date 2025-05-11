@@ -788,6 +788,30 @@ class UIRenderer:
         # Draw message with better visibility
         msg_line = HEIGHT+3
         self.renderer.draw_text(msg_line, 0, " " * self.renderer.width, 1)  # Clear line
+
+        # Check if we should display cosmic value
+        cursor_pos = self.game_ui.cursor_manager.cursor_pos
+        current_player = self.game_ui.multiplayer.get_current_player()
+
+        # Check if cursor is on furniture
+        if self.game_ui.game.map.is_furniture(cursor_pos.y, cursor_pos.x):
+            # Get cosmic value if player has DELPHIC_APPRAISER
+            cosmic_value = self.game_ui.game.map.get_cosmic_value(
+                cursor_pos.y, cursor_pos.x,
+                player=current_player,
+                game=self.game_ui.game
+            )
+
+            # Display cosmic value if available
+            if cosmic_value is not None:
+                value_message = f"Furniture cosmic value: {cosmic_value}"
+                # Only show value message if there's no other message
+                if not self.game_ui.message:
+                    msg_indicator = ">> "
+                    self.renderer.draw_text(msg_line, 2, msg_indicator, 1, curses.A_BOLD)
+                    self.renderer.draw_text(msg_line, 2 + len(msg_indicator), value_message, 1)
+
+        # Display regular message if available
         if self.game_ui.message:
             msg_indicator = ">> "
             self.renderer.draw_text(msg_line, 2, msg_indicator, 1, curses.A_BOLD)
