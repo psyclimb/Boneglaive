@@ -50,6 +50,7 @@ class EventType(Enum):
     MOVE_MODE_REQUESTED = auto()
     ATTACK_MODE_REQUESTED = auto()
     SKILL_MODE_REQUESTED = auto()
+    TELEPORT_MODE_REQUESTED = auto()
     CANCEL_REQUESTED = auto()
     
     # Setup phase events

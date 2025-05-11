@@ -30,6 +30,7 @@ class GameAction(Enum):
     MOVE_MODE = auto()
     ATTACK_MODE = auto()
     SKILL_MODE = auto()  # New skill mode
+    TELEPORT_MODE = auto()  # Teleportation mode
     
     # Game control
     END_TURN = auto()
@@ -93,7 +94,8 @@ class InputHandler:
             action_context = {}
             action_context[ord('m')] = GameAction.MOVE_MODE
             action_context[ord('a')] = GameAction.ATTACK_MODE
-            action_context[ord('s')] = GameAction.SKILL_MODE  # New key for skills
+            action_context[ord('s')] = GameAction.SKILL_MODE  # Key for skills
+            action_context[ord('p')] = GameAction.TELEPORT_MODE  # Key for teleportation (p for portal)
             action_context[ord('t')] = GameAction.END_TURN
             # Removed test mode key ('e')
             

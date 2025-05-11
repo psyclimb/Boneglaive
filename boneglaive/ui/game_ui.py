@@ -207,13 +207,13 @@ class GameUI:
         # In setup phase, the select action places units
         if self.game.setup_phase:
             return self.mode_manager.handle_setup_select()
-        
+
         # Check if player can act on this turn
         if not self.cursor_manager.can_act_this_turn():
             self.message = "Not your turn!"
             message_log.add_message("Not your turn!", MessageType.WARNING)
             return
-        
+
         # Route to appropriate mode handler
         if self.mode_manager.mode == "select":
             self.mode_manager.handle_select_in_select_mode()
@@ -225,6 +225,8 @@ class GameUI:
             self.mode_manager.handle_select_in_skill_mode()
         elif self.mode_manager.mode == "target_vapor":
             self.mode_manager.handle_select_in_vapor_targeting_mode()
+        elif self.mode_manager.mode == "teleport":
+            self.mode_manager.handle_select_in_teleport_mode()
     
     def draw_board(self, show_cursor=True, show_selection=True, show_attack_targets=True):
         """Delegate board drawing to the UI renderer component."""

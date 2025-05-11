@@ -170,7 +170,18 @@ class UIRenderer:
                 
                 # Map terrain type to tile representation, color, and attribute
                 tile_attr = 0  # Default: no special attributes
-                
+
+                # Save the position for later use
+                pos_tuple = (y, x)
+
+                # Flag to track if we have a teleport anchor here (for later)
+                has_teleport_anchor = False
+                if hasattr(self.game_ui.game, 'teleport_anchors') and pos_tuple in self.game_ui.game.teleport_anchors:
+                    anchor = self.game_ui.game.teleport_anchors[pos_tuple]
+                    # Check if this anchor is active and marked as imbued
+                    if anchor.get('active', False) and anchor.get('imbued', False):
+                        has_teleport_anchor = True
+
                 # Check if this position is inside a Marrow Dike interior first (priority rendering)
                 pos_tuple = (y, x)
                 if hasattr(self.game_ui.game, 'marrow_dike_interior') and pos_tuple in self.game_ui.game.marrow_dike_interior:
@@ -203,22 +214,57 @@ class UIRenderer:
                     tile = self.game_ui.asset_manager.get_terrain_tile("furniture")
                     color_id = 14  # White for furniture
                     tile_attr = curses.A_DIM  # Dim white/gray via dim attribute
+
+                    # Override if this has a teleport anchor
+                    if has_teleport_anchor:
+                        tile = "¤"  # Replace with currency symbol
+                        color_id = 3  # Yellow color for imbued furniture
+                        tile_attr = curses.A_BOLD  # Make it bold
+
                 elif terrain == TerrainType.COAT_RACK:
                     tile = self.game_ui.asset_manager.get_terrain_tile("coat_rack")
                     color_id = 14  # White for furniture
                     tile_attr = curses.A_DIM  # Dim white/gray via dim attribute
+
+                    # Override if this has a teleport anchor
+                    if has_teleport_anchor:
+                        tile = "¤"  # Replace with currency symbol
+                        color_id = 3  # Yellow color for imbued furniture
+                        tile_attr = curses.A_BOLD  # Make it bold
+
                 elif terrain == TerrainType.OTTOMAN:
                     tile = self.game_ui.asset_manager.get_terrain_tile("ottoman")
                     color_id = 14  # White for furniture
                     tile_attr = curses.A_DIM  # Dim white/gray via dim attribute
+
+                    # Override if this has a teleport anchor
+                    if has_teleport_anchor:
+                        tile = "¤"  # Replace with currency symbol
+                        color_id = 3  # Yellow color for imbued furniture
+                        tile_attr = curses.A_BOLD  # Make it bold
+
                 elif terrain == TerrainType.CONSOLE:
                     tile = self.game_ui.asset_manager.get_terrain_tile("console")
                     color_id = 14  # White for furniture
                     tile_attr = curses.A_DIM  # Dim white/gray via dim attribute
+
+                    # Override if this has a teleport anchor
+                    if has_teleport_anchor:
+                        tile = "¤"  # Replace with currency symbol
+                        color_id = 3  # Yellow color for imbued furniture
+                        tile_attr = curses.A_BOLD  # Make it bold
+
                 elif terrain == TerrainType.DEC_TABLE:
                     tile = self.game_ui.asset_manager.get_terrain_tile("dec_table")
                     color_id = 14  # White for furniture
                     tile_attr = curses.A_DIM  # Dim white/gray via dim attribute
+
+                    # Override if this has a teleport anchor
+                    if has_teleport_anchor:
+                        tile = "¤"  # Replace with currency symbol
+                        color_id = 3  # Yellow color for imbued furniture
+                        tile_attr = curses.A_BOLD  # Make it bold
+
                 elif terrain == TerrainType.MARROW_WALL:
                     tile = self.game_ui.asset_manager.get_terrain_tile("marrow_wall")
                     color_id = 20  # Red color for Marrow Wall (color pair 20)

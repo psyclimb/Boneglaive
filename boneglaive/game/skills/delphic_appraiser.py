@@ -167,11 +167,12 @@ class MarketFuturesSkill(ActiveSkill):
         # Create teleportation anchor
         if not hasattr(game, 'teleport_anchors'):
             game.teleport_anchors = {}
-            
+
         game.teleport_anchors[target_pos] = {
             'creator': user,
             'cosmic_value': cosmic_value,
-            'active': True
+            'active': True,
+            'imbued': True  # Mark as imbued for special rendering
         }
         
         # Log the skill activation
@@ -241,7 +242,7 @@ class MarketFuturesSkill(ActiveSkill):
             # Final anchor marker on furniture
             ui.renderer.animate_attack_sequence(
                 target_pos[0], target_pos[1],
-                ['$', 'T', '*'],
+                ['¤', 'T', '*'],
                 3,  # Green color for established anchor
                 0.2  # Duration for final state
             )
@@ -253,21 +254,26 @@ class MarketFuturesSkill(ActiveSkill):
         # Verify the anchor exists and is active
         if not hasattr(game, 'teleport_anchors') or anchor_pos not in game.teleport_anchors:
             return False
-            
+
         anchor = game.teleport_anchors[anchor_pos]
         if not anchor['active']:
             return False
-            
+
         # Check if the destination is valid and empty
         if not game.is_valid_position(destination[0], destination[1]):
             return False
-            
+
         if not game.map.is_passable(destination[0], destination[1]):
             return False
-            
+
         if game.get_unit_at(destination[0], destination[1]) is not None:
             return False
-            
+
+        # Check if the ally is adjacent to the anchor
+        distance_to_anchor = game.chess_distance(ally.y, ally.x, anchor_pos[0], anchor_pos[1])
+        if distance_to_anchor > 1:  # Not adjacent
+            return False
+
         # Get cosmic value and check destination range
         cosmic_value = anchor['cosmic_value']
         distance = game.chess_distance(anchor_pos[0], anchor_pos[1], destination[0], destination[1])
@@ -333,6 +339,7 @@ class MarketFuturesSkill(ActiveSkill):
             
         # Deactivate the anchor after use
         game.teleport_anchors[anchor_pos]['active'] = False
+        game.teleport_anchors[anchor_pos]['imbued'] = False  # Remove imbued status for rendering
         
         return True
 
