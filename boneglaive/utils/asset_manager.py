@@ -183,13 +183,25 @@ class AssetManager:
             'reform': [' ', '.', ':', 'o', 'O', 'M'],  # Gas Machinist reformation
 
             # DELPHIC_APPRAISER animations
-            'delphic_appraiser_attack': ['$', '¢', '$'],  # Basic attack animation
-            'valuation_oracle': ['$', '¥', '£', '€', '$'],  # Passive activation animation
-            'market_futures': ['$', '£', '€', '¥'],  # Market Futures animation
-            'market_teleport': ['↗', '→', '↘', '↓'],  # Market Futures teleport animation
-            'auction_curse': ['A', '¢', '$', '&'],  # Auction Curse animation
-            'bid_token': ['*', '+', '¢', '$'],  # Bid token award animation
-            'divine_depreciation': ['!', '¤', '0', '∅']  # Divine Depreciation animation
+            'delphic_appraiser_attack': ['$', '¤', '¢', '¤', '$'],  # Basic attack with currency symbols
+
+            # Valuation Oracle: Ancient numerical glyphs materializing, furniture transforms showing ornate details
+            'valuation_oracle': ['?', '¤', '1', '¤', '3', '¤', '5', '¤', '7', '¤', '9', '¤', '$', '¤', '£', '¤', '€', '¤'],
+
+            # Market Futures: Appraiser touches furniture, temporal projections spiral, furniture transforms
+            'market_futures': ['A', '¤', 'T', '¤', '$', '¤', '£', '¤', '€', '¤', '¥', '¤', 'Φ', '¤', 'Ψ', '¤', 'Ω', '¤'],
+
+            # Market Teleport: Ally converted to golden arrows arcing through air
+            'market_teleport': ['$', '¤', '↗', '¤', '→', '¤', '↘', '¤', '↓', '¤', '*', '¤', 'A'],
+
+            # Auction Curse: Creates podium, bidders raising paddles, stats transfer as tokens
+            'auction_curse': ['A', '¤', '=', '¤', 'π', '¤', 'Γ', '¤', '$', '¤', '¢', '¤', '£', '¤', '|', '¤', '+', '¤'],
+
+            # Bid Token: Glowing tokens transferring from Appraiser to ally
+            'bid_token': ['$', '¤', '*', '¤', '+', '¤', '¢', '¤', '£', '¤', '€', '¤', 'A'],
+
+            # Divine Depreciation: Downward valuation, furniture value drops, floor sinks
+            'divine_depreciation': ['A', '¤', '↓', '¤', '9', '¤', '6', '¤', '3', '¤', '0', '¤', '_', '¤', '.', '¤', ' ', '¤']
         }
     
     def _initialize_graphical_assets(self) -> None:
