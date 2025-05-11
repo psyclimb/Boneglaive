@@ -26,22 +26,28 @@ class TerrainType(Enum):
 
 class GameMap:
     """Base class for game maps with terrain information."""
-    
+
     def __init__(self, height: int = HEIGHT, width: int = WIDTH):
         self.height = height
         self.width = width
         self.terrain: Dict[Tuple[int, int], TerrainType] = {}
         self.name = "Generic Map"
-        
+
+        # Dictionary to store cosmic values for furniture
+        self.cosmic_values: Dict[Tuple[int, int], int] = {}
+
         # Generate an empty map by default
         self.reset_to_empty()
-    
+
     def reset_to_empty(self) -> None:
         """Reset the map to all empty terrain."""
         self.terrain = {}
         for y in range(self.height):
             for x in range(self.width):
                 self.terrain[(y, x)] = TerrainType.EMPTY
+
+        # Reset cosmic values
+        self.cosmic_values = {}
     
     def get_terrain_at(self, y: int, x: int) -> TerrainType:
         """Get terrain type at the given coordinates."""
@@ -68,6 +74,63 @@ class GameMap:
         terrain = self.get_terrain_at(y, x)
         # Limestone, pillars, and marrow walls block line of sight
         return terrain in [TerrainType.LIMESTONE, TerrainType.PILLAR, TerrainType.MARROW_WALL]
+
+    def get_cosmic_value(self, y: int, x: int, player=None, game=None) -> Optional[int]:
+        """
+        Get cosmic value at the given coordinates.
+        Returns None if no value is set or if the terrain is not furniture.
+        The player parameter is used to check if the player can see the cosmic value.
+        Only players with DELPHIC_APPRAISER units can see the values.
+        """
+        # Check if the position has furniture
+        terrain = self.get_terrain_at(y, x)
+        if terrain not in [TerrainType.FURNITURE, TerrainType.COAT_RACK,
+                          TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE]:
+            return None
+
+        # Check if player has DELPHIC_APPRAISER
+        if player is None or game is None:
+            return None
+
+        # Check if the player has a DELPHIC_APPRAISER unit
+        from boneglaive.utils.constants import UnitType
+        has_appraiser = False
+        for unit in game.units:
+            if unit.player == player and unit.type == UnitType.DELPHIC_APPRAISER and unit.is_alive():
+                has_appraiser = True
+                break
+
+        if not has_appraiser:
+            return None
+
+        # Generate value if not already set
+        if (y, x) not in self.cosmic_values:
+            import random
+            self.cosmic_values[(y, x)] = random.randint(1, 9)
+
+        # Return the cosmic value
+        return self.cosmic_values.get((y, x))
+
+    def set_cosmic_value(self, y: int, x: int, value: int) -> bool:
+        """
+        Set cosmic value at the given coordinates.
+        Returns True if successful, False if the terrain is not furniture.
+        """
+        # Check if the position has furniture
+        terrain = self.get_terrain_at(y, x)
+        if terrain not in [TerrainType.FURNITURE, TerrainType.COAT_RACK,
+                          TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE]:
+            return False
+
+        # Set the cosmic value
+        self.cosmic_values[(y, x)] = value
+        return True
+
+    def is_furniture(self, y: int, x: int) -> bool:
+        """Check if a position has furniture."""
+        terrain = self.get_terrain_at(y, x)
+        return terrain in [TerrainType.FURNITURE, TerrainType.COAT_RACK,
+                          TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE]
 
 
 class LimeFoyerMap(GameMap):
@@ -173,6 +236,8 @@ class LimeFoyerMap(GameMap):
             # Only set dust if the tile is empty (not already a pillar, furniture, etc.)
             if self.get_terrain_at(y, x) == TerrainType.EMPTY:
                 self.set_terrain_at(y, x, TerrainType.DUST)
+
+        # Cosmic values will be assigned when needed during gameplay
 
 
 class MapFactory:

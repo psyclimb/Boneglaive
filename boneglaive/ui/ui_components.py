@@ -826,12 +826,25 @@ class CursorManager(UIComponent):
                 # Check terrain type - we don't need to check for units again since that's handled in the 'if unit:' case above
                 terrain = self.game_ui.game.map.get_terrain_at(y, x)
                 terrain_name = terrain.name.lower().replace('_', ' ')
-                
+
+                # Check if terrain is furniture and player has DELPHIC_APPRAISER
+                message = f"Tile: {terrain_name}"
+                if self.game_ui.game.map.is_furniture(y, x):
+                    # Get the current player
+                    current_player = self.game_ui.game.current_player
+
+                    # Get cosmic value if visible to current player
+                    cosmic_value = self.game_ui.game.map.get_cosmic_value(y, x, player=current_player, game=self.game_ui.game)
+
+                    # If cosmic value is available, add it to the message
+                    if cosmic_value is not None:
+                        message = f"Tile: {terrain_name} | Cosmic Value: {cosmic_value}"
+
                 # Send message through event system
                 self.publish_event(
                     EventType.MESSAGE_DISPLAY_REQUESTED,
                     MessageDisplayEventData(
-                        message=f"Tile: {terrain_name}",
+                        message=message,
                         message_type=MessageType.SYSTEM,
                         log_message=False  # Don't add to message log
                     )
@@ -1987,7 +2000,8 @@ class GameModeManager(UIComponent):
     def toggle_setup_unit_type(self):
         """
         Toggle between unit types during the setup phase.
-        Cycles between GLAIVEMAN, MANDIBLE FOREMAN, GRAYMAN, MARROW_CONDENSER, FOWL_CONTRIVANCE, and GAS_MACHINIST.
+        Cycles between GLAIVEMAN, MANDIBLE FOREMAN, GRAYMAN, MARROW_CONDENSER,
+        FOWL_CONTRIVANCE, GAS_MACHINIST, and DELPHIC_APPRAISER.
         """
         if self.setup_unit_type == UnitType.GLAIVEMAN:
             self.setup_unit_type = UnitType.MANDIBLE_FOREMAN
@@ -2004,6 +2018,9 @@ class GameModeManager(UIComponent):
         elif self.setup_unit_type == UnitType.FOWL_CONTRIVANCE:
             self.setup_unit_type = UnitType.GAS_MACHINIST
             self.game_ui.message = "Setup unit type: GAS MACHINIST"
+        elif self.setup_unit_type == UnitType.GAS_MACHINIST:
+            self.setup_unit_type = UnitType.DELPHIC_APPRAISER
+            self.game_ui.message = "Setup unit type: DELPHIC APPRAISER"
         else:
             self.setup_unit_type = UnitType.GLAIVEMAN
             self.game_ui.message = "Setup unit type: GLAIVEMAN"
@@ -2042,7 +2059,8 @@ class GameModeManager(UIComponent):
             UnitType.GRAYMAN: "GRAYMAN",
             UnitType.MARROW_CONDENSER: "MARROW CONDENSER",
             UnitType.FOWL_CONTRIVANCE: "FOWL CONTRIVANCE",
-            UnitType.GAS_MACHINIST: "GAS MACHINIST"
+            UnitType.GAS_MACHINIST: "GAS MACHINIST",
+            UnitType.DELPHIC_APPRAISER: "DELPHIC APPRAISER"
         }.get(self.setup_unit_type, "UNKNOWN")
 
         # Check specific error cases based on return value
@@ -2166,7 +2184,8 @@ class GameModeManager(UIComponent):
                 UnitType.GRAYMAN: "GRAYMAN",
                 UnitType.MARROW_CONDENSER: "MARROW CONDENSER",
                 UnitType.FOWL_CONTRIVANCE: "FOWL CONTRIVANCE",
-                UnitType.GAS_MACHINIST: "GAS MACHINIST"
+                UnitType.GAS_MACHINIST: "GAS MACHINIST",
+                UnitType.DELPHIC_APPRAISER: "DELPHIC APPRAISER"
             }
             current_unit_type = unit_type_display.get(self.setup_unit_type, "UNKNOWN")
             
@@ -2780,7 +2799,7 @@ class ActionMenuComponent(UIComponent):
             
         # GAS_MACHINIST skills
         elif unit.type == self.UnitType.GAS_MACHINIST:
-            
+
             # Add Broaching Gas skill
             broaching_gas_skill = next((skill for skill in available_skills if skill.name == "Broaching Gas"), None)
             self.actions.append({
@@ -2790,7 +2809,7 @@ class ActionMenuComponent(UIComponent):
                 'enabled': broaching_gas_skill is not None,
                 'skill': broaching_gas_skill
             })
-            
+
             # Add Saft-E-Gas skill
             saft_e_gas_skill = next((skill for skill in available_skills if skill.name == "Saft-E-Gas"), None)
             self.actions.append({
@@ -2800,7 +2819,7 @@ class ActionMenuComponent(UIComponent):
                 'enabled': saft_e_gas_skill is not None,
                 'skill': saft_e_gas_skill
             })
-            
+
             # Add Diverge skill
             diverge_skill = next((skill for skill in available_skills if skill.name == "Diverge"), None)
             self.actions.append({
@@ -2809,6 +2828,39 @@ class ActionMenuComponent(UIComponent):
                 'action': 'diverge_skill',
                 'enabled': diverge_skill is not None,
                 'skill': diverge_skill
+            })
+
+        # DELPHIC_APPRAISER skills
+        elif unit.type == self.UnitType.DELPHIC_APPRAISER:
+
+            # Add Market Futures skill
+            market_futures_skill = next((skill for skill in available_skills if skill.name == "Market Futures"), None)
+            self.actions.append({
+                'key': 'm',
+                'label': 'arket Futures',  # Will be displayed as [M]arket Futures
+                'action': 'market_futures_skill',
+                'enabled': market_futures_skill is not None,
+                'skill': market_futures_skill
+            })
+
+            # Add Auction Curse skill
+            auction_curse_skill = next((skill for skill in available_skills if skill.name == "Auction Curse"), None)
+            self.actions.append({
+                'key': 'a',
+                'label': 'uction Curse',  # Will be displayed as [A]uction Curse
+                'action': 'auction_curse_skill',
+                'enabled': auction_curse_skill is not None,
+                'skill': auction_curse_skill
+            })
+
+            # Add Divine Depreciation skill
+            divine_depreciation_skill = next((skill for skill in available_skills if skill.name == "Divine Depreciation"), None)
+            self.actions.append({
+                'key': 'd',
+                'label': 'ivine Depreciation',  # Will be displayed as [D]ivine Depreciation
+                'action': 'divine_depreciation_skill',
+                'enabled': divine_depreciation_skill is not None,
+                'skill': divine_depreciation_skill
             })
         
         # Reset selected index

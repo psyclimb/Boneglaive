@@ -29,6 +29,10 @@ from boneglaive.game.skills.gas_machinist import (
     EffluviumLathe, EnbroachmentGasSkill, SaftEGasSkill, DivergeSkill
 )
 
+from boneglaive.game.skills.delphic_appraiser import (
+    ValuationOracle, MarketFuturesSkill, AuctionCurseSkill, DivineDrepreciationSkill
+)
+
 # Define the skills available for each unit type
 UNIT_SKILLS = {
     "GLAIVEMAN": {
@@ -54,5 +58,9 @@ UNIT_SKILLS = {
     "GAS_MACHINIST": {
         "passive": EffluviumLathe(),
         "active": [EnbroachmentGasSkill(), SaftEGasSkill(), DivergeSkill()]
+    },
+    "DELPHIC_APPRAISER": {
+        "passive": ValuationOracle(),
+        "active": [MarketFuturesSkill(), AuctionCurseSkill(), DivineDrepreciationSkill()]
     }
 }

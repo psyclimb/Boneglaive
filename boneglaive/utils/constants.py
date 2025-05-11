@@ -32,6 +32,7 @@ class UnitType(Enum):
     FOWL_CONTRIVANCE = 6  # The synchronized bird flock formation
     GAS_MACHINIST = 7  # The vapor-controlling technician
     HEINOUS_VAPOR = 8  # Vapor entity controlled by GAS_MACHINIST
+    DELPHIC_APPRAISER = 9  # The furniture evaluator with cosmic value perception
 
 # Unit stats: (hp, attack, defense, move_range, attack_range)
 UNIT_STATS = {
@@ -43,7 +44,8 @@ UNIT_STATS = {
     UnitType.MARROW_CONDENSER: (24, 4, 2, 3, 1),  # Tank unit that gets stronger with kills
     UnitType.FOWL_CONTRIVANCE: (18, 4, 0, 3, 3),  # Increased HP from 14 to 18, kept high attack
     UnitType.GAS_MACHINIST: (18, 4, 1, 3, 1),  # As specified in GAS_MACHINIST.md
-    UnitType.HEINOUS_VAPOR: (10, 2, 0, 3, 1)  # Vapor stats (HP is for internal tracking, vapors can't be damaged)
+    UnitType.HEINOUS_VAPOR: (10, 2, 0, 3, 1),  # Vapor stats (HP is for internal tracking, vapors can't be damaged)
+    UnitType.DELPHIC_APPRAISER: (20, 3, 1, 3, 2)  # As specified in DELPHIC_APPRAISER.md
 }
 
 UNIT_SYMBOLS = {
@@ -55,7 +57,8 @@ UNIT_SYMBOLS = {
     UnitType.MARROW_CONDENSER: 'C',  # C for Condenser
     UnitType.FOWL_CONTRIVANCE: '^',  # Birds in flight
     UnitType.GAS_MACHINIST: 'M',  # M for Machinist
-    UnitType.HEINOUS_VAPOR: 'V'   # Generic vapor symbol, actual symbols set in skills
+    UnitType.HEINOUS_VAPOR: 'V',  # Generic vapor symbol, actual symbols set in skills
+    UnitType.DELPHIC_APPRAISER: 'A'  # A for Appraiser
 }
 
 # Attack visual effects
@@ -68,7 +71,8 @@ ATTACK_EFFECTS = {
     UnitType.MARROW_CONDENSER: "Ø",  # Bone (melee)
     UnitType.FOWL_CONTRIVANCE: "Λ",   # Bird dive attack (ranged)
     UnitType.GAS_MACHINIST: "o",   # Gas bubble (melee)
-    UnitType.HEINOUS_VAPOR: "~"    # Vapor effect (area)
+    UnitType.HEINOUS_VAPOR: "~",    # Vapor effect (area)
+    UnitType.DELPHIC_APPRAISER: "$"  # Currency symbol (evaluation)
 }
 
 # Greek alphabet for unit identification
