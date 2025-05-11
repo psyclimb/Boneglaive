@@ -314,13 +314,22 @@ class MarketFuturesSkill(ActiveSkill):
                 teleport_animation = ['$', '↗', '→', '↘', '↓', '*', 'A']
                 
             # Show animation from old position to new position
-            ui.renderer.animate_path(
-                old_pos[0], old_pos[1], 
-                destination[0], destination[1],
-                teleport_animation,
-                3,  # Yellow/gold color
-                0.1  # Duration
-            )
+            if hasattr(ui.renderer, 'animate_path'):
+                ui.renderer.animate_path(
+                    old_pos[0], old_pos[1],
+                    destination[0], destination[1],
+                    teleport_animation,
+                    3,  # Yellow/gold color
+                    0.1  # Duration
+                )
+            else:
+                # Fallback to basic animation if animate_path not available
+                ui.renderer.animate_attack_sequence(
+                    destination[0], destination[1],
+                    teleport_animation,
+                    3,  # Yellow/gold color
+                    0.2  # Duration
+                )
             
         # Deactivate the anchor after use
         game.teleport_anchors[anchor_pos]['active'] = False
@@ -331,19 +340,19 @@ class MarketFuturesSkill(ActiveSkill):
 class AuctionCurseSkill(ActiveSkill):
     """
     Active skill for DELPHIC_APPRAISER.
-    Subjects an enemy to a cosmic auction that reduces their stats.
+    Subjects an enemy to a cosmic auction that reduces their stats and awards tokens to an ally.
     """
-    
+
     def __init__(self):
         super().__init__(
             name="Auction Curse",
             key="A",
-            description="Subjects an enemy to a cosmic auction, reducing their stats based on nearby furniture values. Generates bid tokens to buff allies.",
+            description="Subjects an enemy to a cosmic auction, reducing their stats based on nearby furniture values and immediately awards buffs to a selected ally.",
             target_type=TargetType.ENEMY,
             cooldown=2,  # Cooldown of 2 turns as specified
             range_=3
         )
-        
+
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Check if Auction Curse can be used."""
         # Basic validation
@@ -351,67 +360,113 @@ class AuctionCurseSkill(ActiveSkill):
             return False
         if not game or not target_pos:
             return False
-            
+
         # Check if the target position is valid
         if not game.is_valid_position(target_pos[0], target_pos[1]):
             return False
-            
+
         # Target must be an enemy unit
         target_unit = game.get_unit_at(target_pos[0], target_pos[1])
         if not target_unit or target_unit.player == user.player:
             return False
-            
+
         # Check if target is within range
         distance = game.chess_distance(user.y, user.x, target_pos[0], target_pos[1])
         if distance > self.range:
             return False
-            
+
         return True
-        
+
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Queue up the Auction Curse skill for execution."""
         if not self.can_use(user, target_pos, game):
             return False
-            
-        user.skill_target = target_pos
-        user.selected_skill = self
-        
-        # Track action order
-        if game:
-            user.action_timestamp = game.action_counter
-            game.action_counter += 1
-        
-        # Log that the skill has been queued
+
+        # Store enemy target position
+        user.enemy_target = target_pos
+
+        # Set a flag indicating we need to select an ally next
+        user.awaiting_ally_target = True
+
+        # Log that the skill has been queued and needs an ally target
         message_log.add_message(
-            f"{user.get_display_name()} prepares to cast Auction Curse!",
+            f"{user.get_display_name()} prepares to cast Auction Curse! Select an ally to receive tokens.",
             MessageType.ABILITY,
             player=user.player
         )
-        
+
+        return True
+
+    def set_ally_target(self, user: 'Unit', ally_pos: tuple, game: 'Game') -> bool:
+        """Set the ally target for the auction curse."""
+        # Validate ally target
+        if not game.is_valid_position(ally_pos[0], ally_pos[1]):
+            return False
+
+        # Check if target is a valid ally
+        ally = game.get_unit_at(ally_pos[0], ally_pos[1])
+        if not ally or ally.player != user.player:
+            return False
+
+        # Check if ally is within range 3
+        distance = game.chess_distance(user.y, user.x, ally_pos[0], ally_pos[1])
+        if distance > 3:
+            return False
+
+        # Set the skill target to the enemy target we saved earlier
+        user.skill_target = user.enemy_target
+        user.selected_skill = self
+
+        # Store the ally target for use during execution
+        user.ally_target = ally_pos
+
+        # Reset the awaiting flag
+        user.awaiting_ally_target = False
+
+        # Track action order
+        user.action_timestamp = game.action_counter
+        game.action_counter += 1
+
         # Set cooldown
         self.current_cooldown = self.cooldown
-        
+
+        # Log that both targets have been selected
+        message_log.add_message(
+            f"{user.get_display_name()} will curse an enemy and empower {ally.get_display_name()}!",
+            MessageType.ABILITY,
+            player=user.player
+        )
+
         return True
-        
+
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
-        """Execute the Auction Curse skill on an enemy."""
-        # Get the target unit
+        """Execute the Auction Curse skill on an enemy and apply tokens to the selected ally."""
+        # Get the target unit (enemy)
         target_unit = game.get_unit_at(target_pos[0], target_pos[1])
         if not target_unit:
             return False
-            
+
+        # Get the ally unit
+        if not hasattr(user, 'ally_target'):
+            return False
+
+        ally_pos = user.ally_target
+        ally = game.get_unit_at(ally_pos[0], ally_pos[1])
+        if not ally or ally.player != user.player:
+            return False
+
         # Find nearby furniture and their cosmic values
         nearby_furniture = []
         for y in range(max(0, target_pos[0] - 2), min(game.map.height, target_pos[0] + 3)):
             for x in range(max(0, target_pos[1] - 2), min(game.map.width, target_pos[1] + 3)):
                 terrain = game.map.get_terrain_at(y, x)
-                if terrain in [TerrainType.FURNITURE, TerrainType.COAT_RACK, 
+                if terrain in [TerrainType.FURNITURE, TerrainType.COAT_RACK,
                              TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE]:
                     nearby_furniture.append((y, x))
-                    
+
                     # Get cosmic value (will be generated if it doesn't exist yet)
                     game.map.get_cosmic_value(y, x, player=user.player, game=game)
-                        
+
         # Determine highest cosmic value of nearby furniture
         highest_value = 0
         if nearby_furniture:
@@ -424,29 +479,29 @@ class AuctionCurseSkill(ActiveSkill):
 
             if cosmic_values:
                 highest_value = max(cosmic_values)
-            
+
         # Determine stat reductions based on highest value
         attack_reduction = 0
         range_reduction = 0
         move_reduction = 0
-        
+
         bid_tokens = 0
-        
+
         if highest_value >= 1:  # Low values (1-3)
             attack_reduction = 1
             bid_tokens += 1
-            
+
         if highest_value >= 4:  # Medium values (4-6)
             range_reduction = 1
             bid_tokens += 1
-            
+
         if highest_value >= 7:  # High values (7-9)
             move_reduction = 1
             bid_tokens += 1
-            
-        # Apply stat reductions to the target
+
+        # Apply stat reductions to the target enemy
         duration = 2  # Effect lasts for 2 turns
-        
+
         if attack_reduction > 0:
             target_unit.attack_bonus -= attack_reduction
             target_unit.auction_curse_attack_duration = duration
@@ -458,50 +513,33 @@ class AuctionCurseSkill(ActiveSkill):
         if move_reduction > 0:
             target_unit.move_range_bonus -= move_reduction
             target_unit.auction_curse_move_duration = duration
-            
-        # Store bid tokens for the user
-        if not hasattr(user, 'bid_tokens'):
-            user.bid_tokens = {'attack': 0, 'attack_range': 0, 'move_range': 0}
-            
-        if attack_reduction > 0:
-            user.bid_tokens['attack'] += 1
-        if range_reduction > 0:
-            user.bid_tokens['attack_range'] += 1
-        if move_reduction > 0:
-            user.bid_tokens['move_range'] += 1
-            
+
         # Log the skill activation
         message_log.add_message(
             f"{user.get_display_name()} casts Auction Curse on {target_unit.get_display_name()}!",
             MessageType.ABILITY,
             player=user.player
         )
-        
+
         if highest_value > 0:
             penalty_msg = f"Cosmic value {highest_value} reduces"
             penalties = []
-            
+
             if attack_reduction > 0:
                 penalties.append("attack")
             if range_reduction > 0:
                 penalties.append("range")
             if move_reduction > 0:
                 penalties.append("movement")
-                
+
             penalty_msg += f" {', '.join(penalties)} for {duration} turns!"
             message_log.add_message(
                 penalty_msg,
                 MessageType.ABILITY,
                 player=user.player
             )
-            
-        message_log.add_message(
-            f"{user.get_display_name()} gains {bid_tokens} bid tokens!",
-            MessageType.ABILITY,
-            player=user.player
-        )
-        
-        # Play elaborate auction curse animation sequence as described in document
+
+        # Play first part of auction curse animation
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
             # Step 1: The APPRAISER creates an auction podium with cosmic value displayed
             # Start from the Appraiser's position
@@ -595,66 +633,73 @@ class AuctionCurseSkill(ActiveSkill):
                     3,  # Green color for successfully collected tokens
                     0.1  # Duration
                 )
-            
-        return True
-        
-    def award_bid_token(self, user: 'Unit', target_pos: tuple, stat: str, game: 'Game', ui=None) -> bool:
-        """Award a bid token to an ally, granting them a stat bonus."""
-        # Check if the user has bid tokens
-        if not hasattr(user, 'bid_tokens'):
-            return False
-            
-        # Check if user has tokens of the requested type
-        if user.bid_tokens.get(stat, 0) <= 0:
-            return False
-            
-        # Check if target is a valid ally
-        ally = game.get_unit_at(target_pos[0], target_pos[1])
-        if not ally or ally.player != user.player:
-            return False
-            
-        # Check if target is within range 3
-        distance = game.chess_distance(user.y, user.x, target_pos[0], target_pos[1])
-        if distance > 3:
-            return False
-            
-        # Apply stat bonus to the ally based on the stat type
-        if stat == 'attack':
+
+        # Apply stat bonuses to the ally based on reductions applied
+        if attack_reduction > 0:
             ally.attack_bonus += 1
             ally.bid_attack_duration = 2  # Duration of 2 turns
-        elif stat == 'attack_range':
+            message_log.add_message(
+                f"{ally.get_display_name()} gains +1 attack for 2 turns!",
+                MessageType.ABILITY,
+                player=user.player
+            )
+
+        if range_reduction > 0:
             ally.attack_range_bonus += 1
             ally.bid_range_duration = 2
-        elif stat == 'move_range':
+            message_log.add_message(
+                f"{ally.get_display_name()} gains +1 range for 2 turns!",
+                MessageType.ABILITY,
+                player=user.player
+            )
+
+        if move_reduction > 0:
             ally.move_range_bonus += 1
             ally.bid_move_duration = 2
-        
-        # Consume the token
-        user.bid_tokens[stat] -= 1
-        
-        # Log the token award
-        message_log.add_message(
-            f"{user.get_display_name()} awards a {stat} bid token to {ally.get_display_name()}!",
-            MessageType.ABILITY,
-            player=user.player
-        )
-        
-        # Play animation if UI is available
-        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+            message_log.add_message(
+                f"{ally.get_display_name()} gains +1 movement for 2 turns!",
+                MessageType.ABILITY,
+                player=user.player
+            )
+
+        # Play token award animation from appraiser to ally
+        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager') and bid_tokens > 0:
+            # Tell the player what's happening
+            message_log.add_message(
+                f"{user.get_display_name()} awards {bid_tokens} bid tokens to {ally.get_display_name()}!",
+                MessageType.ABILITY,
+                player=user.player
+            )
+
             # Get token award animation - glowing tokens transferring to ally
             token_animation = ui.asset_manager.get_skill_animation_sequence('bid_token')
             if not token_animation:
                 token_animation = ['$', '*', '+', '¢', '£', '€', 'A']
-                
+
             # Show animation from user to ally
-            ui.renderer.animate_path(
-                user.y, user.x,
-                ally.y, ally.x,
-                token_animation,
-                2,  # Green color
-                0.1  # Duration
-            )
-            
+            if hasattr(ui.renderer, 'animate_path'):
+                ui.renderer.animate_path(
+                    user.y, user.x,
+                    ally.y, ally.x,
+                    token_animation,
+                    2,  # Green color
+                    0.1  # Duration
+                )
+            else:
+                # Fallback to basic animation if animate_path not available
+                ui.renderer.animate_attack_sequence(
+                    ally.y, ally.x,
+                    token_animation,
+                    2,  # Green color
+                    0.2  # Duration
+                )
+
+        # Clean up temp attributes
+        if hasattr(user, 'enemy_target'):
+            delattr(user, 'enemy_target')
+        if hasattr(user, 'ally_target'):
+            delattr(user, 'ally_target')
+
         return True
 
 
