@@ -1251,10 +1251,11 @@ class GameModeManager(UIComponent):
     
     def __init__(self, renderer, game_ui):
         super().__init__(renderer, game_ui)
-        self.mode = "select"  # select, move, attack, setup, target_vapor
+        self.mode = "select"  # select, move, attack, setup, target_vapor, teleport
         self.show_setup_instructions = False  # Don't show setup instructions by default
         self.setup_unit_type = UnitType.GLAIVEMAN  # Default unit type for setup phase
         self.targeting_vapor = False  # Flag for Diverge skill targeting mode
+        self.teleport_anchor = None  # Active teleport anchor
     
     def _setup_event_handlers(self):
         """Set up event handlers for game mode manager."""
@@ -1409,6 +1410,7 @@ class GameModeManager(UIComponent):
         self.subscribe_to_event(EventType.MOVE_MODE_REQUESTED, self._on_move_mode_requested)
         self.subscribe_to_event(EventType.ATTACK_MODE_REQUESTED, self._on_attack_mode_requested)
         self.subscribe_to_event(EventType.SKILL_MODE_REQUESTED, self._on_skill_mode_requested)
+        self.subscribe_to_event(EventType.TELEPORT_MODE_REQUESTED, self._on_teleport_mode_requested)
         self.subscribe_to_event(EventType.SELECT_MODE_REQUESTED, self._on_select_mode_requested)
         self.subscribe_to_event(EventType.CANCEL_REQUESTED, self._on_cancel_requested)
         
@@ -1426,7 +1428,12 @@ class GameModeManager(UIComponent):
         """Handle skill mode request events."""
         # Delegate to handle_skill_mode which we'll implement
         self.handle_skill_mode()
-        
+
+    def _on_teleport_mode_requested(self, event_type, event_data):
+        """Handle teleport mode request events."""
+        # Delegate to handle_teleport_mode
+        self.handle_teleport_mode()
+
     def _on_select_mode_requested(self, event_type, event_data):
         """Handle select mode request events."""
         # Simply change to select mode
@@ -1734,6 +1741,98 @@ class GameModeManager(UIComponent):
             # Return to select mode after successful move (publishes mode changed event)
             self.set_mode("select")
         return result
+
+    def handle_teleport_mode(self):
+        """Enter teleport mode to activate Market Futures teleportation anchors."""
+        cursor_manager = self.game_ui.cursor_manager
+        game = self.game_ui.game
+
+        # Check if player can act this turn
+        if not cursor_manager.can_act_this_turn():
+            # Use event system for message
+            self.publish_event(
+                EventType.MESSAGE_DISPLAY_REQUESTED,
+                MessageDisplayEventData(
+                    message="Not your turn!",
+                    message_type=MessageType.WARNING
+                )
+            )
+            return
+
+        if cursor_manager.selected_unit:
+            # Check if unit belongs to current player or test mode is on
+            if cursor_manager.can_select_unit(cursor_manager.selected_unit):
+                # Cannot use teleport if the unit has already planned an attack or used a skill
+                if cursor_manager.selected_unit.attack_target or cursor_manager.selected_unit.skill_target:
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message="Unit has already planned an action and cannot teleport",
+                            message_type=MessageType.WARNING
+                        )
+                    )
+                    return
+
+                # Check if there are any teleport anchors
+                if not hasattr(game, 'teleport_anchors') or len(game.teleport_anchors) == 0:
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message="No teleport anchors available",
+                            message_type=MessageType.WARNING
+                        )
+                    )
+                    return
+
+                # Find active teleport anchors that are adjacent to the unit
+                active_anchors = []
+                unit = cursor_manager.selected_unit
+
+                for pos, anchor in game.teleport_anchors.items():
+                    if anchor['active']:
+                        # Check if the anchor is adjacent to the unit
+                        distance = game.chess_distance(unit.y, unit.x, pos[0], pos[1])
+                        if distance <= 1:  # Adjacent (including diagonals)
+                            active_anchors.append(pos)
+
+                if not active_anchors:
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message="No adjacent teleport anchors available. Move next to a teleport anchor to use it.",
+                            message_type=MessageType.WARNING
+                        )
+                    )
+                    return
+
+                # Highlight teleport anchors
+                cursor_manager.highlighted_positions = [Position(y, x) for y, x in active_anchors]
+
+                # Set teleport mode
+                self.set_mode("teleport")
+                self.teleport_anchor = None
+
+                # Show user message
+                self.publish_event(
+                    EventType.MESSAGE_DISPLAY_REQUESTED,
+                    MessageDisplayEventData(
+                        message="Select a teleport anchor",
+                        message_type=MessageType.SYSTEM
+                    )
+                )
+            else:
+                # Use event system for message
+                self.publish_event(
+                    EventType.MESSAGE_DISPLAY_REQUESTED,
+                    MessageDisplayEventData(
+                        message="You can only teleport with your own units",
+                        message_type=MessageType.WARNING
+                    )
+                )
+        else:
+            # Use event system for message
+            # Show message in UI only, not in message log
+            self.game_ui.message = "No unit selected"
     
     def handle_select_in_attack_mode(self):
         """Handle selection when in attack mode."""
@@ -1757,18 +1856,18 @@ class GameModeManager(UIComponent):
         """Handle selection when targeting with the Diverge skill."""
         from boneglaive.utils.message_log import message_log, MessageType
         from boneglaive.utils.constants import UnitType
-        
+
         cursor_manager = self.game_ui.cursor_manager
         game = self.game_ui.game
         pos = cursor_manager.cursor_pos
-        
+
         # Check if there's a unit selected with Diverge skill
         if not cursor_manager.selected_unit or not cursor_manager.selected_unit.selected_skill:
             # Return to select mode
             self.set_mode("select")
             self.targeting_vapor = False
             return False
-            
+
         # Get the selected skill
         skill = cursor_manager.selected_unit.selected_skill
         if skill.name != "Diverge":
@@ -1776,23 +1875,23 @@ class GameModeManager(UIComponent):
             self.set_mode("select")
             self.targeting_vapor = False
             return False
-            
+
         # Check what's at the cursor position
         unit_at_cursor = game.get_unit_at(pos.y, pos.x)
-        
+
         # Check if this is the current position or the planned move position (ghost)
         # If a move order is issued, only the ghost position is a valid target, not the current position
         if cursor_manager.selected_unit.move_target:
             # If there's a move target, only the ghost position is valid for self-targeting
-            is_self_target = (pos.y == cursor_manager.selected_unit.move_target[0] and 
+            is_self_target = (pos.y == cursor_manager.selected_unit.move_target[0] and
                              pos.x == cursor_manager.selected_unit.move_target[1])
         else:
             # If no move target, the current position is valid
             is_self_target = (unit_at_cursor and unit_at_cursor == cursor_manager.selected_unit)
-                          
-        is_valid_vapor = (unit_at_cursor and unit_at_cursor.type == UnitType.HEINOUS_VAPOR and 
+
+        is_valid_vapor = (unit_at_cursor and unit_at_cursor.type == UnitType.HEINOUS_VAPOR and
                          unit_at_cursor.player == cursor_manager.selected_unit.player)
-        
+
         # Handle targeting self
         if is_self_target:
             # Use the skill on self
@@ -1843,6 +1942,152 @@ class GameModeManager(UIComponent):
                 )
             )
             return False
+
+    def handle_select_in_teleport_mode(self):
+        """Handle selection when in teleport mode."""
+        from boneglaive.utils.message_log import message_log, MessageType
+
+        cursor_manager = self.game_ui.cursor_manager
+        game = self.game_ui.game
+        pos = cursor_manager.cursor_pos
+
+        # Get the selected unit
+        unit = cursor_manager.selected_unit
+        if not unit:
+            self.set_mode("select")
+            return False
+
+        # Check if there's a teleport anchor at the cursor position
+        if not hasattr(game, 'teleport_anchors'):
+            self.publish_event(
+                EventType.MESSAGE_DISPLAY_REQUESTED,
+                MessageDisplayEventData(
+                    message="No teleport anchors available",
+                    message_type=MessageType.WARNING
+                )
+            )
+            self.set_mode("select")
+            return False
+
+        # If we're selecting an anchor
+        if self.teleport_anchor is None:
+            # Check if there's a teleport anchor at the cursor position
+            cursor_pos_tuple = (pos.y, pos.x)
+            if cursor_pos_tuple not in game.teleport_anchors or not game.teleport_anchors[cursor_pos_tuple]['active']:
+                self.publish_event(
+                    EventType.MESSAGE_DISPLAY_REQUESTED,
+                    MessageDisplayEventData(
+                        message="No teleport anchor at this location",
+                        message_type=MessageType.WARNING
+                    )
+                )
+                return False
+
+            # Store the selected anchor
+            self.teleport_anchor = cursor_pos_tuple
+
+            # Update highlighted positions to show valid teleport destinations
+            cursor_manager.highlighted_positions = []
+            cosmic_value = game.teleport_anchors[cursor_pos_tuple]['cosmic_value']
+
+            # Highlight all positions within the cosmic value range
+            for y in range(max(0, pos.y - cosmic_value), min(game.map.height, pos.y + cosmic_value + 1)):
+                for x in range(max(0, pos.x - cosmic_value), min(game.map.width, pos.x + cosmic_value + 1)):
+                    # Check if position is valid and within range
+                    if game.chess_distance(pos.y, pos.x, y, x) <= cosmic_value:
+                        # Check if position is passable and empty
+                        if game.map.is_passable(y, x) and not game.get_unit_at(y, x):
+                            cursor_manager.highlighted_positions.append(Position(y, x))
+
+            # Show message to select destination
+            self.publish_event(
+                EventType.MESSAGE_DISPLAY_REQUESTED,
+                MessageDisplayEventData(
+                    message=f"Select teleport destination (range {cosmic_value})",
+                    message_type=MessageType.SYSTEM
+                )
+            )
+
+            return True
+
+        else:
+            # We already have an anchor selected, now selecting the destination
+            anchor_pos = self.teleport_anchor
+            destination_pos = (pos.y, pos.x)
+
+            # Check if the destination is valid (in highlighted positions)
+            if cursor_manager.cursor_pos not in cursor_manager.highlighted_positions:
+                self.publish_event(
+                    EventType.MESSAGE_DISPLAY_REQUESTED,
+                    MessageDisplayEventData(
+                        message="Invalid teleport destination",
+                        message_type=MessageType.WARNING
+                    )
+                )
+                return False
+
+            # Get the Market Futures skill from the anchor's creator
+            if not game.teleport_anchors[anchor_pos]['creator']:
+                self.publish_event(
+                    EventType.MESSAGE_DISPLAY_REQUESTED,
+                    MessageDisplayEventData(
+                        message="Teleport anchor creator not found",
+                        message_type=MessageType.WARNING
+                    )
+                )
+                self.teleport_anchor = None
+                self.set_mode("select")
+                return False
+
+            creator = game.teleport_anchors[anchor_pos]['creator']
+            market_futures_skill = None
+
+            # Find the Market Futures skill on the creator's active skills
+            if hasattr(creator, 'active_skills'):
+                for skill in creator.active_skills:
+                    if hasattr(skill, 'name') and skill.name == "Market Futures":
+                        market_futures_skill = skill
+                        break
+
+            if not market_futures_skill:
+                self.publish_event(
+                    EventType.MESSAGE_DISPLAY_REQUESTED,
+                    MessageDisplayEventData(
+                        message="Market Futures skill not found",
+                        message_type=MessageType.WARNING
+                    )
+                )
+                self.teleport_anchor = None
+                self.set_mode("select")
+                return False
+
+            # Activate the teleport
+            if market_futures_skill.activate_teleport(unit, anchor_pos, destination_pos, game, self.game_ui):
+                # Teleport successful
+                message_log.add_message(
+                    f"{unit.get_display_name()} teleports via Market Futures!",
+                    MessageType.ABILITY,
+                    player=unit.player
+                )
+
+                # Clear teleport state and return to select mode
+                self.teleport_anchor = None
+                cursor_manager.highlighted_positions = []
+                self.set_mode("select")
+
+                # Clear selection
+                cursor_manager.clear_selection()
+
+                return True
+            else:
+                self.publish_event(
+                    EventType.MESSAGE_DISPLAY_REQUESTED,
+                    MessageDisplayEventData(
+                        message="Failed to activate teleport",
+                        message_type=MessageType.WARNING
+                    )
+                )
+                return False
         
     def select_skill_target(self):
         """Select a target for the currently selected skill."""
@@ -3351,13 +3596,16 @@ class InputManager(UIComponent):
         # Helper function to publish mode requests
         def publish_move_mode_request():
             event_manager.publish(EventType.MOVE_MODE_REQUESTED, EventData())
-            
+
         def publish_attack_mode_request():
             event_manager.publish(EventType.ATTACK_MODE_REQUESTED, EventData())
-            
+
         def publish_select_mode_request():
             event_manager.publish(EventType.SELECT_MODE_REQUESTED, EventData())
-            
+
+        def publish_teleport_mode_request():
+            event_manager.publish(EventType.TELEPORT_MODE_REQUESTED, EventData())
+
         def publish_cancel_request():
             event_manager.publish(EventType.CANCEL_REQUESTED, EventData())
         
@@ -3367,7 +3615,7 @@ class InputManager(UIComponent):
             GameAction.MOVE_DOWN: lambda: cursor_manager.move_cursor(1, 0),
             GameAction.MOVE_LEFT: lambda: cursor_manager.move_cursor(0, -1),
             GameAction.MOVE_RIGHT: lambda: cursor_manager.move_cursor(0, 1),
-            
+
             # Diagonal directions
             GameAction.MOVE_UP_LEFT: lambda: cursor_manager.move_cursor_diagonal("up-left"),
             GameAction.MOVE_UP_RIGHT: lambda: cursor_manager.move_cursor_diagonal("up-right"),
@@ -3377,6 +3625,7 @@ class InputManager(UIComponent):
             GameAction.CANCEL: publish_cancel_request,
             GameAction.MOVE_MODE: publish_move_mode_request,
             GameAction.ATTACK_MODE: publish_attack_mode_request,
+            GameAction.TELEPORT_MODE: publish_teleport_mode_request,
             GameAction.END_TURN: mode_manager.handle_end_turn,
             GameAction.TEST_MODE: mode_manager.handle_test_mode,
             GameAction.DEBUG_INFO: self.game_ui.debug_component.handle_debug_info,
