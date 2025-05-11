@@ -269,10 +269,10 @@ class CursesRenderer(RenderInterface):
             
         # No need to restore tile as the next full redraw will handle it
         
-    def animate_attack_sequence(self, y: int, x: int, sequence: List[str], 
+    def animate_attack_sequence(self, y: int, x: int, sequence: List[str],
                              color_id: int = 7, duration: float = 0.5) -> None:
         """Animate an attack sequence at the specified position.
-        
+
         Args:
             y, x: The position to show the animation
             sequence: List of characters to show in sequence
@@ -281,20 +281,71 @@ class CursesRenderer(RenderInterface):
         """
         if not sequence:
             return
-        
+
         # Apply the global animation speed multiplier from config
         from boneglaive.utils.config import ConfigManager
         config = ConfigManager()
         animation_speed = config.get('animation_speed', 1.0)
         adjusted_duration = duration / animation_speed if animation_speed > 0 else duration
-            
+
         # Calculate time per frame
         frame_duration = adjusted_duration / len(sequence)
-        
+
         # Show each frame in sequence
         for frame in sequence:
             self.draw_tile(y, x, frame, color_id)
             self.refresh()
             sleep_with_animation_speed(frame_duration)
-            
+
         # No need to restore tile as the next full redraw will handle it
+
+    def animate_path(self, start_y: int, start_x: int, end_y: int, end_x: int,
+                    sequence: List[str], color_id: int = 7, duration: float = 0.5) -> None:
+        """Animate an effect moving along a path from start to end position.
+
+        Args:
+            start_y, start_x: The starting position of the animation
+            end_y, end_x: The ending position of the animation
+            sequence: List of characters to show in sequence along the path
+            color_id: Color to use for the animation
+            duration: Total duration of the animation
+        """
+        if not sequence:
+            return
+
+        # Get the path from start to end using get_line function
+        # Need to import and call it directly since we changed parameter order
+        from boneglaive.game.animations import get_line
+        path = get_line(start_y, start_x, end_y, end_x)
+
+        if not path:
+            return
+
+        # Apply the global animation speed multiplier from config
+        from boneglaive.utils.config import ConfigManager
+        config = ConfigManager()
+        animation_speed = config.get('animation_speed', 1.0)
+        adjusted_duration = duration / animation_speed if animation_speed > 0 else duration
+
+        # Calculate time per step along the path
+        step_duration = adjusted_duration / len(path)
+
+        # Use a repeating sequence pattern if the path is longer than the sequence
+        sequence_length = len(sequence)
+
+        # Animate along the path
+        for i, (y, x) in enumerate(path):
+            # Get the appropriate frame from the sequence (loop if needed)
+            frame = sequence[i % sequence_length]
+
+            # Draw the current frame at the current position
+            self.draw_tile(y, x, frame, color_id)
+            self.refresh()
+            sleep_with_animation_speed(step_duration)
+
+            # Clear the previous position (except the start and end points)
+            if (y != start_y or x != start_x) and (y != end_y or x != end_x) and i < len(path) - 1:
+                # Just draw a space to clear it - the next redraw will restore the proper tile
+                self.draw_tile(y, x, ' ', 0)
+
+        # No need to restore tiles as the next full redraw will handle it

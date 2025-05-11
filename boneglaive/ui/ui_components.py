@@ -1847,14 +1847,58 @@ class GameModeManager(UIComponent):
     def select_skill_target(self):
         """Select a target for the currently selected skill."""
         cursor_manager = self.game_ui.cursor_manager
-        
+
         # Get the selected unit and skill
         unit = cursor_manager.selected_unit
         if not unit or not unit.selected_skill:
             return False
-            
+
         skill = unit.selected_skill
-        
+
+        # Special handling for Auction Curse with awaiting_ally_target flag
+        if skill.name == "Auction Curse" and hasattr(unit, 'awaiting_ally_target') and unit.awaiting_ally_target:
+            # In this case, we're selecting an ally to receive the tokens
+            target_pos = (cursor_manager.cursor_pos.y, cursor_manager.cursor_pos.x)
+            target = self.game_ui.game.get_unit_at(target_pos[0], target_pos[1])
+
+            # Check if the target is a valid ally
+            if not target or target.player != unit.player:
+                self.publish_event(
+                    EventType.MESSAGE_DISPLAY_REQUESTED,
+                    MessageDisplayEventData(
+                        message="Select an ally to receive the tokens",
+                        message_type=MessageType.WARNING
+                    )
+                )
+                return False
+
+            # Check if ally is within range 3
+            distance = self.game_ui.game.chess_distance(unit.y, unit.x, target_pos[0], target_pos[1])
+            if distance > 3:
+                self.publish_event(
+                    EventType.MESSAGE_DISPLAY_REQUESTED,
+                    MessageDisplayEventData(
+                        message="Ally must be within range 3",
+                        message_type=MessageType.WARNING
+                    )
+                )
+                return False
+
+            # Set the ally target via the set_ally_target method
+            if skill.set_ally_target(unit, target_pos, self.game_ui.game):
+                # Targets set successfully
+                cursor_manager.highlighted_positions = []
+                return True
+            else:
+                self.publish_event(
+                    EventType.MESSAGE_DISPLAY_REQUESTED,
+                    MessageDisplayEventData(
+                        message="Failed to set ally target",
+                        message_type=MessageType.WARNING
+                    )
+                )
+                return False
+
         # Check if target is in highlighted positions - if not, may be due to protection
         target_pos = (cursor_manager.cursor_pos.y, cursor_manager.cursor_pos.x)
         if cursor_manager.cursor_pos not in cursor_manager.highlighted_positions:
@@ -1865,15 +1909,15 @@ class GameModeManager(UIComponent):
                 from_y, from_x = unit.y, unit.x
                 if unit.move_target:
                     from_y, from_x = unit.move_target
-                
+
                 # Check if the target is in range and protected
                 if (self.game_ui.game.chess_distance(from_y, from_x, target_pos[0], target_pos[1]) <= skill.range and
-                    hasattr(self.game_ui.game, 'is_protected_from') and 
+                    hasattr(self.game_ui.game, 'is_protected_from') and
                     self.game_ui.game.is_protected_from(target, unit)):
                     # Show "Invalid target" message like with attacks
                     self.game_ui.message = "Invalid skill target"
             return False
-        
+
         # Special handling for Marrow Dike and Slough
         # These are self-targeted area skills that were pre-confirmed in _select_skill
         if skill.name in ["Marrow Dike", "Slough"] and unit.skill_target:
@@ -1881,7 +1925,7 @@ class GameModeManager(UIComponent):
             if skill.use(unit, unit.skill_target, self.game_ui.game):
                 # Clear selection
                 cursor_manager.highlighted_positions = []
-                
+
                 # Skill used successfully
                 return True
             else:
@@ -1894,22 +1938,41 @@ class GameModeManager(UIComponent):
                     )
                 )
                 return False
-                
+
         # For normal skills, get the target position from cursor
         target_pos = (cursor_manager.cursor_pos.y, cursor_manager.cursor_pos.x)
-        
+
         # Check if the target position is valid for this skill
         if cursor_manager.cursor_pos not in cursor_manager.highlighted_positions:
             # Simply return false without showing a message
             return False
-            
+
         # Use the skill
         if skill.use(unit, target_pos, self.game_ui.game):
-            # Clear selection
-            cursor_manager.highlighted_positions = []
-            
-            # Skill used successfully
-            return True
+            # For Auction Curse, if we now need to select an ally, don't clear the selection
+            if skill.name == "Auction Curse" and hasattr(unit, 'awaiting_ally_target') and unit.awaiting_ally_target:
+                # Update highlighted positions to show valid allies (all allies within range 3)
+                cursor_manager.highlighted_positions = []
+                for ally_unit in self.game_ui.game.units:
+                    if ally_unit.is_alive() and ally_unit.player == unit.player:
+                        distance = self.game_ui.game.chess_distance(unit.y, unit.x, ally_unit.y, ally_unit.x)
+                        if distance <= 3:
+                            cursor_manager.highlighted_positions.append(Position(ally_unit.y, ally_unit.x))
+
+                # Don't return True yet - we'll return to skill mode for ally selection
+                self.publish_event(
+                    EventType.MESSAGE_DISPLAY_REQUESTED,
+                    MessageDisplayEventData(
+                        message="Now select an ally to receive the tokens",
+                        message_type=MessageType.SYSTEM
+                    )
+                )
+                return False
+            else:
+                # Clear selection for all other skills
+                cursor_manager.highlighted_positions = []
+                # Skill used successfully
+                return True
         else:
             # Use event system for message
             self.publish_event(
