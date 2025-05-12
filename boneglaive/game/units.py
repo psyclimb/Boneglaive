@@ -60,6 +60,12 @@ class Unit:
         self.jawline_indicator = None  # Visual indicator for Jawline network area
         self.murmuration_indicator = None  # Visual indicator for Murmuration Dusk AOE
         self.emetic_flange_indicator = None  # Visual indicator for Emetic Flange AOE
+        self.broaching_gas_indicator = None  # Visual indicator for Broaching Gas target
+        self.saft_e_gas_indicator = None  # Visual indicator for Saft-E-Gas target
+        self.market_futures_indicator = None  # Visual indicator for Market Futures furniture target
+        self.divine_depreciation_indicator = None  # Visual indicator for Divine Depreciation furniture target
+        self.auction_curse_enemy_indicator = None  # Visual indicator for enemy target of Auction Curse
+        self.auction_curse_ally_indicator = None  # Visual indicator for ally target of Auction Curse
         
         # Action order tracking (lower is earlier)
         self.action_timestamp = 0
@@ -236,6 +242,12 @@ class Unit:
                 display_type = "G.MACHINIST"
             else:
                 display_type = "GAS MACHINIST"
+        elif display_type == "DELPHIC_APPRAISER":
+            # Use a shorter name if requested (for UI menus)
+            if shortened:
+                display_type = "D.APPRAISER"
+            else:
+                display_type = "DELPHIC APPRAISER"
         
         # For echo units, change name to "ECHO {TYPE}"
         if self.is_echo:

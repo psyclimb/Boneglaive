@@ -123,7 +123,7 @@ class AssetManager:
             'marrow_healing': ['♥', '❤', '♡', '❤', '♥', '✚', '+', '*'],  # Blood plasma healing animation
             
             # FOWL_CONTRIVANCE animations - elaborate bird-themed animations
-            'fowl_contrivance_attack': ['.', '^', 'v', 'V', '>', '<', 'Λ', '^', 'V', '♦'],  # Basic attack - flock of diving birds
+            'fowl_contrivance_attack': ['V', 'A', 'Y', 'Λ', '*', 'Y', 'V', 'X', '#', '%'],  # Improved basic attack - aggressive flock of diving birds
             
             # Murmuration Dusk animation - swirling bird patterns
             'murmuration_dusk': [
@@ -131,10 +131,10 @@ class AssetManager:
                 '~', '*', '^', '~', 'v', '~', '^', '*', '^', '~'
             ],
             
-            # Flap animation - concentrated hawk diving
+            # Flap animation - concentrated hawk diving with more predatory imagery
             'flap': [
-                'V', '~', '^', '~', 'V', '~', '^', '~', '*', 'v', 
-                '*', 'v', 'z', '*', 'z', '*'
+                'Λ', 'Y', 'Λ', 'V', 'A', 'Λ', 'V', 'Y', 'V',
+                '*', '×', '#', '*', '#', '%', '*', '@', 'X'
             ],
             
             # Emetic Flange animation - explosive bird burst outwards
@@ -286,9 +286,9 @@ class AssetManager:
             'marrow_dike': ['marrow_dike_1.png', 'marrow_dike_2.png', 'marrow_dike_3.png'],
             'slough': ['slough_1.png', 'slough_2.png', 'slough_3.png'],
             # FOWL_CONTRIVANCE animations
-            'fowl_contrivance_attack': ['fowl_attack_1.png', 'fowl_attack_2.png', 'fowl_attack_3.png', 'fowl_attack_4.png'],
+            'fowl_contrivance_attack': ['fowl_attack_1.png', 'fowl_attack_2.png', 'fowl_attack_3.png', 'fowl_attack_4.png', 'fowl_attack_5.png'],
             'murmuration_dusk': ['murmuration_1.png', 'murmuration_2.png', 'murmuration_3.png', 'murmuration_4.png', 'murmuration_5.png'],
-            'flap': ['flap_1.png', 'flap_2.png', 'flap_3.png', 'flap_4.png'],
+            'flap': ['flap_1.png', 'flap_2.png', 'flap_3.png', 'flap_4.png', 'flap_5.png', 'flap_6.png'],
             'emetic_flange': ['emetic_1.png', 'emetic_2.png', 'emetic_3.png', 'emetic_4.png'],
             'wretched_decension': ['wretched_1.png', 'wretched_2.png', 'wretched_3.png', 'wretched_4.png'],
             'wretch': ['wretch_1.png', 'wretch_2.png', 'wretch_3.png', 'wretch_4.png', 'wretch_5.png', 'wretch_6.png']

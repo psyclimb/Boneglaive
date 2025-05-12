@@ -668,6 +668,186 @@ class UIRenderer:
                                 self.renderer.draw_tile(y, x, tile, color_id, 0)
                             continue
 
+                # Check if this position is a Broaching Gas target
+                for u in self.game_ui.game.units:
+                    if u.is_alive() and u.selected_skill and hasattr(u.selected_skill, 'name') and \
+                       u.selected_skill.name == "Broaching Gas" and u.broaching_gas_indicator is not None:
+                        target_y, target_x = u.broaching_gas_indicator
+
+                        if (y, x) == (target_y, target_x):
+                            # Draw broaching gas indicator
+                            tile = "Φ"  # Phi symbol for Broaching Gas
+                            color_id = 3 if u.player == 1 else 4  # Color based on player
+
+                            # Check if cursor is here
+                            is_cursor_here = (pos == cursor_manager.cursor_pos and show_cursor)
+
+                            if is_cursor_here:
+                                # Draw with cursor color
+                                self.renderer.draw_tile(y, x, tile, 2, curses.A_BOLD)
+                            else:
+                                # Draw the broaching gas indicator
+                                self.renderer.draw_tile(y, x, tile, color_id, curses.A_BOLD)
+                            continue
+
+                # Check if this position is a Saft-E-Gas target
+                for u in self.game_ui.game.units:
+                    if u.is_alive() and u.selected_skill and hasattr(u.selected_skill, 'name') and \
+                       u.selected_skill.name == "Saft-E-Gas" and u.saft_e_gas_indicator is not None:
+                        target_y, target_x = u.saft_e_gas_indicator
+
+                        if (y, x) == (target_y, target_x):
+                            # Draw saft-e-gas indicator
+                            tile = "Θ"  # Theta symbol for Safety Gas
+                            color_id = 3 if u.player == 1 else 4  # Color based on player
+
+                            # Check if cursor is here
+                            is_cursor_here = (pos == cursor_manager.cursor_pos and show_cursor)
+
+                            if is_cursor_here:
+                                # Draw with cursor color
+                                self.renderer.draw_tile(y, x, tile, 2, curses.A_BOLD)
+                            else:
+                                # Draw the saft-e-gas indicator
+                                self.renderer.draw_tile(y, x, tile, color_id, curses.A_BOLD)
+                            continue
+
+                # Check if this position has a unit targeted by Diverge skill
+                # Since Diverge can target either a vapor or the GAS_MACHINIST itself,
+                # we need to check if any unit's skill_target matches this position
+                for u in self.game_ui.game.units:
+                    if u.is_alive() and u.selected_skill and hasattr(u.selected_skill, 'name') and \
+                       u.selected_skill.name == "Diverge" and u.skill_target is not None:
+                        # If there's a unit at this position and it's the target of Diverge
+                        if (y, x) == u.skill_target:
+                            # Get the unit at this position
+                            target_unit = self.game_ui.game.get_unit_at(y, x)
+
+                            # Only highlight if there's actually a unit here
+                            if target_unit:
+                                # Use the unit's existing tile, but add a highlight effect
+                                tile = self.game_ui.asset_manager.get_unit_tile(target_unit.type)
+
+                                # If it's a vapor, use its custom symbol
+                                if target_unit.type == UnitType.HEINOUS_VAPOR and hasattr(target_unit, 'vapor_symbol') and target_unit.vapor_symbol:
+                                    tile = target_unit.vapor_symbol
+
+                                # Draw the unit tile with a highlighted attribute
+                                unit_color = 3 if target_unit.player == 1 else 4  # Base color on unit's player
+
+                                # Cursor takes priority
+                                is_cursor_here = (pos == cursor_manager.cursor_pos and show_cursor)
+                                if is_cursor_here:
+                                    self.renderer.draw_tile(y, x, tile, 2, curses.A_BOLD)
+                                else:
+                                    # Use reverse video to create the highlight effect
+                                    self.renderer.draw_tile(y, x, tile, unit_color, curses.A_REVERSE)
+                                continue
+
+                # Check if this position is a Market Futures target
+                for u in self.game_ui.game.units:
+                    if u.is_alive() and u.selected_skill and hasattr(u.selected_skill, 'name') and \
+                       u.selected_skill.name == "Market Futures" and u.market_futures_indicator is not None:
+                        target_y, target_x = u.market_futures_indicator
+
+                        if (y, x) == (target_y, target_x):
+                            # Draw market futures indicator
+                            tile = "$"  # Dollar sign for furniture evaluation
+                            color_id = 3 if u.player == 1 else 4  # Color based on player
+
+                            # Check if cursor is here
+                            is_cursor_here = (pos == cursor_manager.cursor_pos and show_cursor)
+
+                            if is_cursor_here:
+                                # Draw with cursor color
+                                self.renderer.draw_tile(y, x, tile, 2, curses.A_BOLD)
+                            else:
+                                # Draw the market futures indicator
+                                self.renderer.draw_tile(y, x, tile, color_id, curses.A_BOLD)
+                            continue
+
+                # Check if this position is a Divine Depreciation target
+                for u in self.game_ui.game.units:
+                    if u.is_alive() and u.selected_skill and hasattr(u.selected_skill, 'name') and \
+                       u.selected_skill.name == "Divine Depreciation" and u.divine_depreciation_indicator is not None:
+                        target_y, target_x = u.divine_depreciation_indicator
+
+                        # Check if this position is within the 5x5 area of Divine Depreciation
+                        in_area = (abs(y - target_y) <= 2 and abs(x - target_x) <= 2)
+
+                        if in_area:
+                            # Draw divine depreciation indicator
+                            if (y, x) == (target_y, target_x):
+                                # Center of depreciation area - use down arrow symbol
+                                tile = "↓"  # Down arrow for value depreciation
+                            else:
+                                # Edge of depreciation area - use a dotted border
+                                tile = "·"  # Dots for surrounding area
+
+                            color_id = 3 if u.player == 1 else 4  # Color based on player
+
+                            # Check if cursor is here
+                            is_cursor_here = (pos == cursor_manager.cursor_pos and show_cursor)
+
+                            if is_cursor_here:
+                                # Draw with cursor color
+                                self.renderer.draw_tile(y, x, tile, 2, curses.A_BOLD)
+                            else:
+                                # Draw the divine depreciation indicator
+                                attr = curses.A_BOLD if (y, x) == (target_y, target_x) else 0
+                                self.renderer.draw_tile(y, x, tile, color_id, attr)
+                            continue
+
+                # Check if this position is an Auction Curse enemy target
+                for u in self.game_ui.game.units:
+                    if u.is_alive() and hasattr(u, 'auction_curse_enemy_indicator') and u.auction_curse_enemy_indicator is not None:
+                        target_y, target_x = u.auction_curse_enemy_indicator
+
+                        if (y, x) == (target_y, target_x):
+                            # Get the unit at this position
+                            target_unit = self.game_ui.game.get_unit_at(y, x)
+
+                            if target_unit:
+                                # Use the unit's existing tile, but add a highlight effect
+                                tile = self.game_ui.asset_manager.get_unit_tile(target_unit.type)
+
+                                # Draw the unit tile with a highlighted attribute
+                                unit_color = 3 if target_unit.player == 1 else 4  # Base color on unit's player
+
+                                # Cursor takes priority
+                                is_cursor_here = (pos == cursor_manager.cursor_pos and show_cursor)
+                                if is_cursor_here:
+                                    self.renderer.draw_tile(y, x, tile, 2, curses.A_BOLD)
+                                else:
+                                    # Use reverse video to show enemy target
+                                    self.renderer.draw_tile(y, x, tile, 1, curses.A_REVERSE)  # Red reverse for enemy
+                                continue
+
+                # Check if this position is an Auction Curse ally target
+                for u in self.game_ui.game.units:
+                    if u.is_alive() and hasattr(u, 'auction_curse_ally_indicator') and u.auction_curse_ally_indicator is not None:
+                        target_y, target_x = u.auction_curse_ally_indicator
+
+                        if (y, x) == (target_y, target_x):
+                            # Get the unit at this position
+                            target_unit = self.game_ui.game.get_unit_at(y, x)
+
+                            if target_unit:
+                                # Use the unit's existing tile, but add a highlight effect
+                                tile = self.game_ui.asset_manager.get_unit_tile(target_unit.type)
+
+                                # Draw the unit tile with a highlighted attribute
+                                unit_color = 3 if target_unit.player == 1 else 4  # Base color on unit's player
+
+                                # Cursor takes priority
+                                is_cursor_here = (pos == cursor_manager.cursor_pos and show_cursor)
+                                if is_cursor_here:
+                                    self.renderer.draw_tile(y, x, tile, 2, curses.A_BOLD)
+                                else:
+                                    # Use green for ally target
+                                    self.renderer.draw_tile(y, x, tile, 2, curses.A_BOLD)  # Green bold for ally
+                                continue
+
                 # Check if position is highlighted for movement, attack, or skill
                 if pos in cursor_manager.highlighted_positions:
                     if mode_manager.mode == "move":
