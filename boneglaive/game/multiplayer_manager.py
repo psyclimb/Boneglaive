@@ -163,14 +163,14 @@ class MultiplayerManager:
         if player2_units:
             # Apply the buff to each unit
             for unit in player2_units:
-                # Add the move bonus (increased to +2)
-                unit.move_range_bonus += 2
+                # Add the move bonus (+1)
+                unit.move_range_bonus += 1
                 # Add a flag to show the status effect icon
                 unit.first_turn_move_bonus = True
 
             # Show a message about the buff
             message_log.add_message(
-                "Player 2 units gain +2 movement range on their first turn!",
+                "Player 2 units gain +1 movement range on their first turn!",
                 MessageType.SYSTEM
             )
     
