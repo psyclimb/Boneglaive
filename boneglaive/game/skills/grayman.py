@@ -48,19 +48,45 @@ class DeltaConfigSkill(ActiveSkill):
             return False
         if not game or not target_pos:
             return False
-        
+
         # Target position must be valid and passable
         if not game.is_valid_position(target_pos[0], target_pos[1]):
             return False
-            
+
         # Target position must be passable terrain
         if not game.map.is_passable(target_pos[0], target_pos[1]):
             return False
-            
+
         # Target position must be empty (no unit)
         if game.get_unit_at(target_pos[0], target_pos[1]) is not None:
             return False
-            
+
+        # Check if any other unit is already planning to teleport to this position
+        # (via Vault, Delta Config, Grae Exchange, or any other teleport skill)
+        for other_unit in game.units:
+            if (other_unit.is_alive() and other_unit != user):
+                # Check for vault targets
+                if (hasattr(other_unit, 'vault_target_indicator') and
+                    other_unit.vault_target_indicator == target_pos):
+                    from boneglaive.utils.message_log import message_log, MessageType
+                    message_log.add_message(
+                        f"Cannot teleport to this position.",
+                        MessageType.WARNING,
+                        player=user.player
+                    )
+                    return False
+
+                # Check for teleport targets (Delta Config, Grae Exchange, etc.)
+                if (hasattr(other_unit, 'teleport_target_indicator') and
+                    other_unit.teleport_target_indicator == target_pos):
+                    from boneglaive.utils.message_log import message_log, MessageType
+                    message_log.add_message(
+                        f"Cannot teleport to this position.",
+                        MessageType.WARNING,
+                        player=user.player
+                    )
+                    return False
+
         return True
             
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
@@ -413,24 +439,50 @@ class GraeExchangeSkill(ActiveSkill):
             return False
         if not game or not target_pos:
             return False
-            
+
         # Target position must be valid and passable
         if not game.is_valid_position(target_pos[0], target_pos[1]):
             return False
-            
+
         # Target position must be passable terrain
         if not game.map.is_passable(target_pos[0], target_pos[1]):
             return False
-            
+
         # Target position must be empty (no unit)
         if game.get_unit_at(target_pos[0], target_pos[1]) is not None:
             return False
-            
+
+        # Check if any other unit is already planning to teleport to this position
+        # (via Vault, Delta Config, Grae Exchange, or any other teleport skill)
+        for other_unit in game.units:
+            if (other_unit.is_alive() and other_unit != user):
+                # Check for vault targets
+                if (hasattr(other_unit, 'vault_target_indicator') and
+                    other_unit.vault_target_indicator == target_pos):
+                    from boneglaive.utils.message_log import message_log, MessageType
+                    message_log.add_message(
+                        f"Cannot teleport to this position.",
+                        MessageType.WARNING,
+                        player=user.player
+                    )
+                    return False
+
+                # Check for teleport targets (Delta Config, Grae Exchange, etc.)
+                if (hasattr(other_unit, 'teleport_target_indicator') and
+                    other_unit.teleport_target_indicator == target_pos):
+                    from boneglaive.utils.message_log import message_log, MessageType
+                    message_log.add_message(
+                        f"Cannot teleport to this position.",
+                        MessageType.WARNING,
+                        player=user.player
+                    )
+                    return False
+
         # Check if within range from the user's current position
         distance = game.chess_distance(user.y, user.x, target_pos[0], target_pos[1])
         if distance > self.range:
             return False
-            
+
         return True
             
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
