@@ -36,16 +36,16 @@ class UnitType(Enum):
 
 # Unit stats: (hp, attack, defense, move_range, attack_range)
 UNIT_STATS = {
-    UnitType.GLAIVEMAN: (22, 6, 1, 2, 2),  # Increased HP from 20 to 22, attack from 5 to 6
+    UnitType.GLAIVEMAN: (22, 5, 1, 2, 2),
     UnitType.ARCHER: (15, 5, 2, 2, 3),
     UnitType.MAGE: (12, 6, 1, 1, 2),
-    UnitType.MANDIBLE_FOREMAN: (22, 3, 1, 2, 1),  # Reduced attack from 6 to 3
-    UnitType.GRAYMAN: (18, 2, 0, 2, 5),  # Reduced attack from 4 to 2, keeping long range
-    UnitType.MARROW_CONDENSER: (24, 4, 2, 3, 1),  # Tank unit that gets stronger with kills
-    UnitType.FOWL_CONTRIVANCE: (18, 4, 0, 3, 3),  # Increased HP from 14 to 18, kept high attack
-    UnitType.GAS_MACHINIST: (18, 4, 1, 3, 1),  # As specified in GAS_MACHINIST.md
-    UnitType.HEINOUS_VAPOR: (10, 2, 0, 3, 1),  # Vapor stats (HP is for internal tracking, vapors can't be damaged)
-    UnitType.DELPHIC_APPRAISER: (20, 3, 1, 3, 2)  # As specified in DELPHIC_APPRAISER.md
+    UnitType.MANDIBLE_FOREMAN: (22, 3, 1, 2, 1),
+    UnitType.GRAYMAN: (18, 3, 0, 2, 5),
+    UnitType.MARROW_CONDENSER: (24, 4, 2, 3, 1),
+    UnitType.FOWL_CONTRIVANCE: (18, 4, 0, 3, 3),
+    UnitType.GAS_MACHINIST: (18, 4, 1, 3, 1),
+    UnitType.HEINOUS_VAPOR: (10, 0, 0, 3, 1),
+    UnitType.DELPHIC_APPRAISER: (20, 4, 1, 3, 2)
 }
 
 UNIT_SYMBOLS = {
