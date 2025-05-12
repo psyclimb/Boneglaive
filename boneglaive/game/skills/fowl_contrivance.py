@@ -127,7 +127,7 @@ class MurmurationDuskSkill(ActiveSkill):
 
         # Log that the skill has been queued
         message_log.add_message(
-            f"{user.get_display_name()} prepares to summon a murmuration of birds!",
+            f"{user.get_display_name()} orchestrates a tactical murmuration!",
             MessageType.ABILITY,
             player=user.player
         )
@@ -157,7 +157,7 @@ class MurmurationDuskSkill(ActiveSkill):
         
         # Log the skill activation
         message_log.add_message(
-            f"Shadows lengthen as {user.get_display_name()} summons the dusk birds!",
+            f"The sky darkens as {user.get_display_name()}'s murmuration strikes!",
             MessageType.ABILITY,
             player=user.player
         )

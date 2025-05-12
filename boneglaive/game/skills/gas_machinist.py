@@ -102,54 +102,66 @@ class EnbroachmentGasSkill(ActiveSkill):
             return False
         if not game or not target_pos:
             return False
-            
+
         # Check if the target position is valid and passable
         if not game.is_valid_position(target_pos[0], target_pos[1]):
             return False
-            
+
         # Target position must be passable terrain
         if not game.map.is_passable(target_pos[0], target_pos[1]):
             return False
-            
+
         # Target position must be empty (no unit)
         if game.get_unit_at(target_pos[0], target_pos[1]) is not None:
             return False
-            
-        # Check if target is within range
-        distance = game.chess_distance(user.y, user.x, target_pos[0], target_pos[1])
+
+        # If the unit has a move_target, use that position for range calculation
+        if user.move_target:
+            source_y, source_x = user.move_target
+        else:
+            source_y, source_x = user.y, user.x
+
+        # Check if target is within range of current or planned position
+        distance = game.chess_distance(source_y, source_x, target_pos[0], target_pos[1])
         if distance > self.range:
             return False
-            
+
         return True
             
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Queue up the Broaching Gas skill for execution."""
         if not self.can_use(user, target_pos, game):
             return False
-            
+
         user.skill_target = target_pos
         user.selected_skill = self
-        
+
+        # Set the broaching gas indicator to show the target
+        user.broaching_gas_indicator = target_pos
+
         # Track action order
         if game:
             user.action_timestamp = game.action_counter
             game.action_counter += 1
-        
+
         # Log that the skill has been queued
         message_log.add_message(
             f"{user.get_display_name()} prepares to summon a Broaching Gas vapor!",
             MessageType.ABILITY,
             player=user.player
         )
-        
+
         # Set cooldown
         self.current_cooldown = self.cooldown
-        
+
         return True
         
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Broaching Gas skill to summon a HEINOUS VAPOR."""
         import time
+
+        # Clear the broaching gas indicator when skill is executed
+        user.broaching_gas_indicator = None
 
         # Get the passive skill to consume charges
         passive = None
@@ -254,54 +266,66 @@ class SaftEGasSkill(ActiveSkill):
             return False
         if not game or not target_pos:
             return False
-            
+
         # Check if the target position is valid and passable
         if not game.is_valid_position(target_pos[0], target_pos[1]):
             return False
-            
+
         # Target position must be passable terrain
         if not game.map.is_passable(target_pos[0], target_pos[1]):
             return False
-            
+
         # Target position must be empty (no unit)
         if game.get_unit_at(target_pos[0], target_pos[1]) is not None:
             return False
-            
-        # Check if target is within range
-        distance = game.chess_distance(user.y, user.x, target_pos[0], target_pos[1])
+
+        # If the unit has a move_target, use that position for range calculation
+        if user.move_target:
+            source_y, source_x = user.move_target
+        else:
+            source_y, source_x = user.y, user.x
+
+        # Check if target is within range of current or planned position
+        distance = game.chess_distance(source_y, source_x, target_pos[0], target_pos[1])
         if distance > self.range:
             return False
-            
+
         return True
             
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Queue up the Saft-E-Gas skill for execution."""
         if not self.can_use(user, target_pos, game):
             return False
-            
+
         user.skill_target = target_pos
         user.selected_skill = self
-        
+
+        # Set the saft-e-gas indicator to show the target
+        user.saft_e_gas_indicator = target_pos
+
         # Track action order
         if game:
             user.action_timestamp = game.action_counter
             game.action_counter += 1
-        
+
         # Log that the skill has been queued
         message_log.add_message(
             f"{user.get_display_name()} prepares to summon a Saft-E-Gas vapor!",
             MessageType.ABILITY,
             player=user.player
         )
-        
+
         # Set cooldown
         self.current_cooldown = self.cooldown
-        
+
         return True
         
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Saft-E-Gas skill to summon a HEINOUS VAPOR."""
         import time
+
+        # Clear the saft-e-gas indicator when skill is executed
+        user.saft_e_gas_indicator = None
 
         # Get the passive skill to consume charges
         passive = None
@@ -406,17 +430,18 @@ class DivergeSkill(ActiveSkill):
             return False
         if not game or not target_pos:
             return False
-            
-        # Check range
+
+        # Get current or planned position for range check and self-targeting
         # If there's a planned move, use that position for range check
-        from_y, from_x = user.y, user.x
-        if hasattr(user, 'move_target') and user.move_target:
-            from_y, from_x = user.move_target
-            
-        distance = game.chess_distance(from_y, from_x, target_pos[0], target_pos[1])
+        if user.move_target:
+            source_y, source_x = user.move_target
+        else:
+            source_y, source_x = user.y, user.x
+
+        distance = game.chess_distance(source_y, source_x, target_pos[0], target_pos[1])
         if distance > self.range:
             return False
-            
+
         # Target must be either self or a HEINOUS VAPOR owned by the player
         # If user has a planned move, only that position is valid for self-targeting, not the current position
         if user.move_target:
@@ -425,15 +450,15 @@ class DivergeSkill(ActiveSkill):
         else:
             # Otherwise, current position is valid
             is_self_target = (target_pos[0] == user.y and target_pos[1] == user.x)
-        
+
         if is_self_target:
             return True
-            
+
         # Otherwise, check if target is a HEINOUS VAPOR owned by the player
         target_unit = game.get_unit_at(target_pos[0], target_pos[1])
         if not target_unit or target_unit.type != UnitType.HEINOUS_VAPOR or target_unit.player != user.player:
             return False
-            
+
         return True
             
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:

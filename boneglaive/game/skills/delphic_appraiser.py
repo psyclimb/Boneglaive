@@ -113,51 +113,63 @@ class MarketFuturesSkill(ActiveSkill):
             return False
         if not game or not target_pos:
             return False
-            
+
         # Check if the target position is valid
         if not game.is_valid_position(target_pos[0], target_pos[1]):
             return False
-            
+
         # Target must be a furniture piece
         terrain = game.map.get_terrain_at(target_pos[0], target_pos[1])
-        if terrain not in [TerrainType.FURNITURE, TerrainType.COAT_RACK, 
+        if terrain not in [TerrainType.FURNITURE, TerrainType.COAT_RACK,
                          TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE]:
             return False
-            
-        # Check if target is within range
-        distance = game.chess_distance(user.y, user.x, target_pos[0], target_pos[1])
+
+        # If the unit has a move_target, use that position for range calculation
+        if user.move_target:
+            source_y, source_x = user.move_target
+        else:
+            source_y, source_x = user.y, user.x
+
+        # Check if target is within range of current or planned position
+        distance = game.chess_distance(source_y, source_x, target_pos[0], target_pos[1])
         if distance > self.range:
             return False
-            
+
         return True
         
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Queue up the Market Futures skill for execution."""
         if not self.can_use(user, target_pos, game):
             return False
-            
+
         user.skill_target = target_pos
         user.selected_skill = self
-        
+
+        # Set the market futures indicator to show the target
+        user.market_futures_indicator = target_pos
+
         # Track action order
         if game:
             user.action_timestamp = game.action_counter
             game.action_counter += 1
-        
+
         # Log that the skill has been queued
         message_log.add_message(
             f"{user.get_display_name()} prepares to infuse furniture with Market Futures!",
             MessageType.ABILITY,
             player=user.player
         )
-        
+
         # Set cooldown
         self.current_cooldown = self.cooldown
-        
+
         return True
         
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Market Futures skill on a furniture piece."""
+
+        # Clear the market futures indicator when skill is executed
+        user.market_futures_indicator = None
 
         # Get the cosmic value (will be generated if it doesn't exist)
         cosmic_value = game.map.get_cosmic_value(target_pos[0], target_pos[1], player=user.player, game=game)
@@ -377,8 +389,14 @@ class AuctionCurseSkill(ActiveSkill):
         if not target_unit or target_unit.player == user.player:
             return False
 
-        # Check if target is within range
-        distance = game.chess_distance(user.y, user.x, target_pos[0], target_pos[1])
+        # If the unit has a move_target, use that position for range calculation
+        if user.move_target:
+            source_y, source_x = user.move_target
+        else:
+            source_y, source_x = user.y, user.x
+
+        # Check if target is within range of current or planned position
+        distance = game.chess_distance(source_y, source_x, target_pos[0], target_pos[1])
         if distance > self.range:
             return False
 
@@ -391,6 +409,9 @@ class AuctionCurseSkill(ActiveSkill):
 
         # Store enemy target position
         user.enemy_target = target_pos
+
+        # Set the auction curse enemy indicator to show the target
+        user.auction_curse_enemy_indicator = target_pos
 
         # Set a flag indicating we need to select an ally next
         user.awaiting_ally_target = True
@@ -415,8 +436,14 @@ class AuctionCurseSkill(ActiveSkill):
         if not ally or ally.player != user.player:
             return False
 
-        # Check if ally is within range 3
-        distance = game.chess_distance(user.y, user.x, ally_pos[0], ally_pos[1])
+        # If the unit has a move_target, use that position for range calculation
+        if user.move_target:
+            source_y, source_x = user.move_target
+        else:
+            source_y, source_x = user.y, user.x
+
+        # Check if ally is within range 3 of current or planned position
+        distance = game.chess_distance(source_y, source_x, ally_pos[0], ally_pos[1])
         if distance > 3:
             return False
 
@@ -426,6 +453,9 @@ class AuctionCurseSkill(ActiveSkill):
 
         # Store the ally target for use during execution
         user.ally_target = ally_pos
+
+        # Set the auction curse ally indicator to show the target
+        user.auction_curse_ally_indicator = ally_pos
 
         # Reset the awaiting flag
         user.awaiting_ally_target = False
@@ -448,6 +478,10 @@ class AuctionCurseSkill(ActiveSkill):
 
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Auction Curse skill on an enemy and apply tokens to the selected ally."""
+        # Clear the auction curse indicators when skill is executed
+        user.auction_curse_enemy_indicator = None
+        user.auction_curse_ally_indicator = None
+
         # Get the target unit (enemy)
         target_unit = game.get_unit_at(target_pos[0], target_pos[1])
         if not target_unit:
@@ -791,8 +825,14 @@ class DivineDrepreciationSkill(ActiveSkill):
                          TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE]:
             return False
 
-        # Check if target is within range
-        distance = game.chess_distance(user.y, user.x, target_pos[0], target_pos[1])
+        # If the unit has a move_target, use that position for range calculation
+        if user.move_target:
+            source_y, source_x = user.move_target
+        else:
+            source_y, source_x = user.y, user.x
+
+        # Check if target is within range of current or planned position
+        distance = game.chess_distance(source_y, source_x, target_pos[0], target_pos[1])
         if distance > self.range:
             return False
 
@@ -805,6 +845,9 @@ class DivineDrepreciationSkill(ActiveSkill):
 
         user.skill_target = target_pos
         user.selected_skill = self
+
+        # Set the divine depreciation indicator to show the target
+        user.divine_depreciation_indicator = target_pos
 
         # Track action order
         if game:
@@ -825,6 +868,9 @@ class DivineDrepreciationSkill(ActiveSkill):
 
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Divine Depreciation skill on a furniture piece."""
+        # Clear the divine depreciation indicator when skill is executed
+        user.divine_depreciation_indicator = None
+
         # Get the cosmic value of the target (will be generated if it doesn't exist)
         original_cosmic_value = game.map.get_cosmic_value(target_pos[0], target_pos[1], player=user.player, game=game)
         if original_cosmic_value is None:
