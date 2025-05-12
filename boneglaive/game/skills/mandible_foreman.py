@@ -931,7 +931,7 @@ class JawlineSkill(ActiveSkill):
             # Get jaw activation animation
             trap_animation = ui.asset_manager.get_skill_animation_sequence('viseroy_trap')
             if not trap_animation:
-                trap_animation = ['[]', '><', '}{', 'Ξ', '}{', '><', '[]']  # Fallback
+                trap_animation = ['[', '<', '>', 'X', 'v', '|', ']']  # Fallback - ASCII only, single characters
                 
             # Show activation at user's position
             ui.renderer.animate_attack_sequence(

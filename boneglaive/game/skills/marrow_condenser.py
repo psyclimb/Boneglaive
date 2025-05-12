@@ -27,7 +27,7 @@ class Dominion(PassiveSkill):
         super().__init__(
             name="Dominion",
             key="D",
-            description="When a unit kills an enemy, gains +1 to attack, defense, and movement. Any unit dying in Marrow Dike upgrades skills."
+            description="When a unit dies inside Marrow Dike: first death adds +1 defense, second adds +1 attack, third adds +1 movement. Deaths also upgrade skills."
         )
         self.ossify_upgraded = False
         self.marrow_dike_upgraded = False
@@ -582,14 +582,14 @@ class BoneTitheSkill(ActiveSkill):
     
     When upgraded:
     - Increases HP gain per enemy hit from +1 to +2
-    - Enhanced ability to absorb and condense enemy marrow
+    - Damage scales with all kills (1 + kill count), including kills from before the upgrade
     """
     
     def __init__(self):
         super().__init__(
             name="Bone Tithe",
             key="B",
-            description="Extracts marrow from adjacent enemies for 1 (+1 per kill) damage and gains +1 HP for each enemy hit.",
+            description="Extracts marrow from adjacent enemies for 1 damage and gains +1 HP for each enemy hit.",
             target_type=TargetType.SELF,  # Self-targeted area effect
             cooldown=2,
             range_=0,
@@ -673,14 +673,19 @@ class BoneTitheSkill(ActiveSkill):
         # Determine if this is upgraded version
         if hasattr(user, 'passive_skill') and hasattr(user.passive_skill, 'bone_tithe_upgraded'):
             self.upgraded = user.passive_skill.bone_tithe_upgraded
-        
-        # Get number of kills for damage scaling
-        kill_count = 0
-        if hasattr(user, 'passive_skill') and hasattr(user.passive_skill, 'kills'):
-            kill_count = user.passive_skill.kills
-        
-        # Calculate damage based on kill count
-        damage = self.base_damage + kill_count
+
+        # Calculate damage based on upgrade status
+        if self.upgraded:
+            # Upgraded version: Base damage + kill count (retroactive)
+            kill_count = 0
+            if hasattr(user, 'passive_skill') and hasattr(user.passive_skill, 'kills'):
+                kill_count = user.passive_skill.kills
+
+            # Damage scales with kills when upgraded
+            damage = self.base_damage + kill_count
+        else:
+            # Base version: Flat damage with no kill count bonus
+            damage = self.base_damage
         
         # Generate area of effect (3x3 area centered on user)
         effect_area = []

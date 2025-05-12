@@ -214,7 +214,7 @@ class EstrangeSkill(ActiveSkill):
             cooldown=3,
             range_=5
         )
-        self.damage = 2
+        self.damage = 3  # Increased from 2 to 3
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         # Basic validation
@@ -478,8 +478,16 @@ class GraeExchangeSkill(ActiveSkill):
                     )
                     return False
 
-        # Check if within range from the user's current position
-        distance = game.chess_distance(user.y, user.x, target_pos[0], target_pos[1])
+        # Use the correct starting position (current position or planned move position)
+        from_y = user.y
+        from_x = user.x
+
+        # If unit has a planned move, use that position instead
+        if user.move_target:
+            from_y, from_x = user.move_target
+
+        # Check if target is within range from the correct position
+        distance = game.chess_distance(from_y, from_x, target_pos[0], target_pos[1])
         if distance > self.range:
             return False
 
@@ -561,8 +569,8 @@ class GraeExchangeSkill(ActiveSkill):
         echo_unit.original_unit = user
         echo_unit.hp = 5  # Echo has 5 HP and cannot be healed
         
-        # Set attack value for echo unit to exactly 2 (regardless of original unit's attack)
-        echo_unit.attack = 2
+        # Set attack value for echo unit to exactly 3 (regardless of original unit's attack)
+        echo_unit.attack = 3  # Increased from 2 to 3
         
         # Add Greek letter identifier like other units - to make it more obvious in the UI
         if hasattr(user, 'greek_id') and user.greek_id:
