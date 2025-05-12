@@ -1106,7 +1106,117 @@ class Game:
                         )
             
             # Bone Tithe no longer applies defensive buffs to allies
-                    
+
+            # Process DELPHIC_APPRAISER's Auction Curse status effects for enemies
+            # -- Attack reduction
+            if hasattr(unit, 'auction_curse_attack_duration') and unit.auction_curse_attack_duration > 0:
+                # Decrement the duration
+                unit.auction_curse_attack_duration -= 1
+                logger.debug(f"{unit.get_display_name()}'s Auction Curse attack penalty duration: {unit.auction_curse_attack_duration}")
+
+                # Check if the status effect has expired
+                if unit.auction_curse_attack_duration <= 0:
+                    # Remove the attack penalty
+                    unit.attack_bonus += 1  # Reverse the -1 penalty
+
+                    # Log the expiration
+                    message_log.add_message(
+                        f"{unit.get_display_name()} recovers attack strength as Auction Curse fades.",
+                        MessageType.ABILITY,
+                        player=unit.player
+                    )
+
+            # -- Range reduction
+            if hasattr(unit, 'auction_curse_range_duration') and unit.auction_curse_range_duration > 0:
+                # Decrement the duration
+                unit.auction_curse_range_duration -= 1
+                logger.debug(f"{unit.get_display_name()}'s Auction Curse range penalty duration: {unit.auction_curse_range_duration}")
+
+                # Check if the status effect has expired
+                if unit.auction_curse_range_duration <= 0:
+                    # Remove the range penalty
+                    unit.attack_range_bonus += 1  # Reverse the -1 penalty
+
+                    # Log the expiration
+                    message_log.add_message(
+                        f"{unit.get_display_name()} recovers attack range as Auction Curse fades.",
+                        MessageType.ABILITY,
+                        player=unit.player
+                    )
+
+            # -- Movement reduction
+            if hasattr(unit, 'auction_curse_move_duration') and unit.auction_curse_move_duration > 0:
+                # Decrement the duration
+                unit.auction_curse_move_duration -= 1
+                logger.debug(f"{unit.get_display_name()}'s Auction Curse movement penalty duration: {unit.auction_curse_move_duration}")
+
+                # Check if the status effect has expired
+                if unit.auction_curse_move_duration <= 0:
+                    # Remove the movement penalty
+                    unit.move_range_bonus += 1  # Reverse the -1 penalty
+
+                    # Log the expiration
+                    message_log.add_message(
+                        f"{unit.get_display_name()} recovers mobility as Auction Curse fades.",
+                        MessageType.ABILITY,
+                        player=unit.player
+                    )
+
+            # Process DELPHIC_APPRAISER's Auction Curse status effects for allies (bid tokens)
+            # -- Attack bonus
+            if hasattr(unit, 'bid_attack_duration') and unit.bid_attack_duration > 0:
+                # Decrement the duration
+                unit.bid_attack_duration -= 1
+                logger.debug(f"{unit.get_display_name()}'s bid token attack bonus duration: {unit.bid_attack_duration}")
+
+                # Check if the status effect has expired
+                if unit.bid_attack_duration <= 0:
+                    # Remove the attack bonus
+                    unit.attack_bonus -= 1
+
+                    # Log the expiration
+                    message_log.add_message(
+                        f"{unit.get_display_name()}'s attack bid token expires.",
+                        MessageType.ABILITY,
+                        player=unit.player
+                    )
+
+            # -- Range bonus
+            if hasattr(unit, 'bid_range_duration') and unit.bid_range_duration > 0:
+                # Decrement the duration
+                unit.bid_range_duration -= 1
+                logger.debug(f"{unit.get_display_name()}'s bid token range bonus duration: {unit.bid_range_duration}")
+
+                # Check if the status effect has expired
+                if unit.bid_range_duration <= 0:
+                    # Remove the range bonus
+                    unit.attack_range_bonus -= 1
+
+                    # Log the expiration
+                    message_log.add_message(
+                        f"{unit.get_display_name()}'s range bid token expires.",
+                        MessageType.ABILITY,
+                        player=unit.player
+                    )
+
+            # -- Movement bonus
+            if hasattr(unit, 'bid_move_duration') and unit.bid_move_duration > 0:
+                # Decrement the duration
+                unit.bid_move_duration -= 1
+                logger.debug(f"{unit.get_display_name()}'s bid token movement bonus duration: {unit.bid_move_duration}")
+
+                # Check if the status effect has expired
+                if unit.bid_move_duration <= 0:
+                    # Remove the movement bonus
+                    unit.move_range_bonus -= 1
+
+                    # Log the expiration
+                    message_log.add_message(
+                        f"{unit.get_display_name()}'s movement bid token expires.",
+                        MessageType.ABILITY,
+                        player=unit.player
+                    )
+
             # Process Jawline status effect
             if hasattr(unit, 'jawline_affected') and unit.jawline_affected:
                 # Decrement the duration
