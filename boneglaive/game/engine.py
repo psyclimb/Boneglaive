@@ -2172,14 +2172,8 @@ class Game:
                 
                 # Check if the trapped unit was defeated
                 if unit.hp <= 0:
-                    message_log.add_message(
-                        f"{unit.get_display_name()} perishes!",
-                        MessageType.COMBAT,
-                        player=foreman.player,
-                        target=unit.player,
-                        target_name=unit.get_display_name()
-                    )
-                    unit.trapped_by = None
+                    # Use centralized death handling
+                    self.handle_unit_death(unit, foreman, cause="trap", ui=ui)
     
     def _check_position_change_trap_release(self, unit, old_y, old_x):
         """
