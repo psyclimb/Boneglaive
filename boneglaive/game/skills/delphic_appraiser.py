@@ -511,20 +511,30 @@ class AuctionCurseSkill(ActiveSkill):
             move_reduction = 1
             bid_tokens += 1
 
-        # Apply stat reductions to the target enemy
+        # Apply stat reductions to the target enemy, if they're not immune
         duration = 2  # Effect lasts for 2 turns
 
-        if attack_reduction > 0:
-            target_unit.attack_bonus -= attack_reduction
-            target_unit.auction_curse_attack_duration = duration
+        # Check if the target is immune to status effects (GRAYMAN with Stasiality)
+        if target_unit.is_immune_to_effects():
+            # Skip applying effects but add a message about immunity
+            message_log.add_message(
+                f"{target_unit.get_display_name()} is immune to Auction Curse due to Stasiality!",
+                MessageType.ABILITY,
+                player=target_unit.player  # Use target's player color for correct display
+            )
+        else:
+            # Apply the stat reductions only if the target is not immune
+            if attack_reduction > 0:
+                target_unit.attack_bonus -= attack_reduction
+                target_unit.auction_curse_attack_duration = duration
 
-        if range_reduction > 0:
-            target_unit.attack_range_bonus -= range_reduction
-            target_unit.auction_curse_range_duration = duration
+            if range_reduction > 0:
+                target_unit.attack_range_bonus -= range_reduction
+                target_unit.auction_curse_range_duration = duration
 
-        if move_reduction > 0:
-            target_unit.move_range_bonus -= move_reduction
-            target_unit.auction_curse_move_duration = duration
+            if move_reduction > 0:
+                target_unit.move_range_bonus -= move_reduction
+                target_unit.auction_curse_move_duration = duration
 
         # Log the skill activation
         message_log.add_message(
@@ -650,7 +660,7 @@ class AuctionCurseSkill(ActiveSkill):
         # Calculate healing amount (2 HP per token)
         healing_amount = bid_tokens * 2
 
-        # Apply healing first
+        # Apply healing first (healing is not affected by Stasiality)
         if healing_amount > 0:
             # Store old HP for message
             old_hp = ally.hp
@@ -668,33 +678,42 @@ class AuctionCurseSkill(ActiveSkill):
                 player=user.player
             )
 
-        # Apply stat bonuses
-        if attack_reduction > 0:
-            ally.attack_bonus += 1
-            ally.bid_attack_duration = 2  # Duration of 2 turns
+        # Check if the ally is immune to status effects (GRAYMAN with Stasiality)
+        if ally.is_immune_to_effects():
+            # Skip applying stat bonuses but add a message about immunity
             message_log.add_message(
-                f"{ally.get_display_name()} gains +1 attack for 2 turns!",
+                f"{ally.get_display_name()} is immune to Auction Curse stat bonuses due to Stasiality!",
                 MessageType.ABILITY,
-                player=user.player
+                player=ally.player  # Use ally's player color for correct display
             )
+        else:
+            # Apply stat bonuses
+            if attack_reduction > 0:
+                ally.attack_bonus += 1
+                ally.bid_attack_duration = 2  # Duration of 2 turns
+                message_log.add_message(
+                    f"{ally.get_display_name()} gains +1 attack for 2 turns!",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
 
-        if range_reduction > 0:
-            ally.attack_range_bonus += 1
-            ally.bid_range_duration = 2
-            message_log.add_message(
-                f"{ally.get_display_name()} gains +1 range for 2 turns!",
-                MessageType.ABILITY,
-                player=user.player
-            )
+            if range_reduction > 0:
+                ally.attack_range_bonus += 1
+                ally.bid_range_duration = 2
+                message_log.add_message(
+                    f"{ally.get_display_name()} gains +1 range for 2 turns!",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
 
-        if move_reduction > 0:
-            ally.move_range_bonus += 1
-            ally.bid_move_duration = 2
-            message_log.add_message(
-                f"{ally.get_display_name()} gains +1 movement for 2 turns!",
-                MessageType.ABILITY,
-                player=user.player
-            )
+            if move_reduction > 0:
+                ally.move_range_bonus += 1
+                ally.bid_move_duration = 2
+                message_log.add_message(
+                    f"{ally.get_display_name()} gains +1 movement for 2 turns!",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
 
         # Play token award animation from appraiser to ally
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager') and bid_tokens > 0:
@@ -914,60 +933,68 @@ class DivineDrepreciationSkill(ActiveSkill):
             actual_pull = min(pull_distance, distance)
 
             if actual_pull > 0 and distance > 0:
-                # Calculate pull vector (respecting terrain and other units)
-                pull_y = int(dir_y * actual_pull / distance) if dir_y != 0 else 0
-                pull_x = int(dir_x * actual_pull / distance) if dir_x != 0 else 0
+                # Check if unit is immune to displacement effects (GRAYMAN with Stasiality)
+                if unit.is_immune_to_effects():
+                    message_log.add_message(
+                        f"{unit.get_display_name()} is immune to Divine Depreciation's pull effect due to Stasiality!",
+                        MessageType.ABILITY,
+                        player=unit.player  # Use unit's player color for correct display
+                    )
+                else:
+                    # Calculate pull vector (respecting terrain and other units)
+                    pull_y = int(dir_y * actual_pull / distance) if dir_y != 0 else 0
+                    pull_x = int(dir_x * actual_pull / distance) if dir_x != 0 else 0
 
-                # Try to move the unit as close as possible to the target direction
-                new_y, new_x = unit.y, unit.x
-                steps_taken = 0
+                    # Try to move the unit as close as possible to the target direction
+                    new_y, new_x = unit.y, unit.x
+                    steps_taken = 0
 
-                # Try to move the unit step by step
-                for step in range(actual_pull):
-                    # Calculate step direction (prioritize largest component)
-                    if abs(dir_y) > abs(dir_x):
-                        step_y = 1 if dir_y > 0 else -1 if dir_y < 0 else 0
-                        step_x = 0
-                    else:
-                        step_y = 0
-                        step_x = 1 if dir_x > 0 else -1 if dir_x < 0 else 0
-
-                    # Check if the next position is valid and empty
-                    next_y, next_x = new_y + step_y, new_x + step_x
-                    if (game.is_valid_position(next_y, next_x) and
-                        game.map.is_passable(next_y, next_x) and
-                        game.get_unit_at(next_y, next_x) is None):
-                        # Move to the next position
-                        new_y, new_x = next_y, next_x
-                        steps_taken += 1
-                    else:
-                        # Try the other direction component
-                        if step_y != 0:  # Was trying vertical, try horizontal
-                            step_y = 0
-                            step_x = 1 if dir_x > 0 else -1 if dir_x < 0 else 0
-                        else:  # Was trying horizontal, try vertical
+                    # Try to move the unit step by step
+                    for step in range(actual_pull):
+                        # Calculate step direction (prioritize largest component)
+                        if abs(dir_y) > abs(dir_x):
                             step_y = 1 if dir_y > 0 else -1 if dir_y < 0 else 0
                             step_x = 0
+                        else:
+                            step_y = 0
+                            step_x = 1 if dir_x > 0 else -1 if dir_x < 0 else 0
 
+                        # Check if the next position is valid and empty
                         next_y, next_x = new_y + step_y, new_x + step_x
                         if (game.is_valid_position(next_y, next_x) and
                             game.map.is_passable(next_y, next_x) and
                             game.get_unit_at(next_y, next_x) is None):
-                            # Move to the alternative position
+                            # Move to the next position
                             new_y, new_x = next_y, next_x
                             steps_taken += 1
                         else:
-                            # Can't move further in either direction
-                            break
+                            # Try the other direction component
+                            if step_y != 0:  # Was trying vertical, try horizontal
+                                step_y = 0
+                                step_x = 1 if dir_x > 0 else -1 if dir_x < 0 else 0
+                            else:  # Was trying horizontal, try vertical
+                                step_y = 1 if dir_y > 0 else -1 if dir_y < 0 else 0
+                                step_x = 0
 
-                # Update unit position if it moved
-                if steps_taken > 0:
-                    unit.y, unit.x = new_y, new_x
-                    message_log.add_message(
-                        f"{unit.get_display_name()} is pulled {steps_taken} spaces toward the depreciation center!",
-                        MessageType.ABILITY,
-                        player=user.player
-                    )
+                            next_y, next_x = new_y + step_y, new_x + step_x
+                            if (game.is_valid_position(next_y, next_x) and
+                                game.map.is_passable(next_y, next_x) and
+                                game.get_unit_at(next_y, next_x) is None):
+                                # Move to the alternative position
+                                new_y, new_x = next_y, next_x
+                                steps_taken += 1
+                            else:
+                                # Can't move further in either direction
+                                break
+
+                    # Update unit position if it moved
+                    if steps_taken > 0:
+                        unit.y, unit.x = new_y, new_x
+                        message_log.add_message(
+                            f"{unit.get_display_name()} is pulled {steps_taken} spaces toward the depreciation center!",
+                            MessageType.ABILITY,
+                            player=user.player
+                        )
 
             # Handle unit death
             if unit.hp <= 0:
