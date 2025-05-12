@@ -448,7 +448,7 @@ class PrySkill(ActiveSkill):
                 # Extended range prying animation (extending glaive as lever)
                 extended_animation = ui.asset_manager.get_skill_animation_sequence('pry_range2')
                 if not extended_animation:
-                    extended_animation = ['/', '―', '\\', '|', '─', '─', '═', '→', '↗']  # Fallback if animation not found
+                    extended_animation = ['/', '-', '\\', '|', '-', '-', '=', '>', '*']  # Fallback if animation not found - ASCII only
                 
                 # Show initial animation at user's position (first part of the sequence)
                 ui.renderer.animate_attack_sequence(
@@ -489,7 +489,7 @@ class PrySkill(ActiveSkill):
             # Now animate the target being launched upward - ONLY on the target's position
             launch_sequence = ui.asset_manager.get_skill_animation_sequence('pry_launch')
             if not launch_sequence:
-                launch_sequence = ['↑', '↟', '⇑', ' ']  # Fallback (single character symbols)
+                launch_sequence = ['^', '*', '|', ' ']  # Fallback - ASCII only
             
             # Store original position to ensure proper placement later
             temp_y, temp_x = target.y, target.x
@@ -515,7 +515,7 @@ class PrySkill(ActiveSkill):
             # Show impact animation - unit falling straight down on SAME tile
             impact_animation = ui.asset_manager.get_skill_animation_sequence('pry_impact')
             if not impact_animation:
-                impact_animation = ['↓', 'V', '@', '*', '.']  # Fallback
+                impact_animation = ['v', 'V', '@', '*', '.']  # Fallback - ASCII only
             
             ui.renderer.animate_attack_sequence(
                 target.y, target.x,
@@ -681,17 +681,28 @@ class PrySkill(ActiveSkill):
             # Apply movement reduction effect to primary target
             target.move_range_bonus = -1
             target.was_pried = True  # Mark the unit as affected by Pry
-            
+
             # Add a duration property for UI status display - use 2 for clearer visibility
             # This will count down once at end of turn and still remain visible next turn
             target.pry_duration = 2  # Will last until the end of next turn
-            
+
             # Add a debug message
             logger.info(f"Applied Pry effect to {target.get_display_name()} with duration {target.pry_duration}")
-            
+
             # Ensure the unit has a boolean flag that's easier to check in the UI
             target.pry_active = True
-            
+
+            # CASE 1: Check if the target is trapped by a Viceroy trap and free them
+            if hasattr(target, 'trapped_by') and target.trapped_by is not None:
+                # Clear the trap - messaging is handled elsewhere
+                target.trapped_by = None
+
+            # CASE 2: Check if the target has trapped other units with Viceroy trap and release them
+            for unit in game.units:
+                if hasattr(unit, 'trapped_by') and unit.trapped_by == target:
+                    # Clear the trap - messaging is handled elsewhere
+                    unit.trapped_by = None
+
             # Log the movement reduction
             message_log.add_message(
                 f"{target.get_display_name()}'s movement reduced by 1 for next turn!",
@@ -757,23 +768,13 @@ class VaultSkill(ActiveSkill):
                 # Check for vault targets
                 if (hasattr(other_unit, 'vault_target_indicator') and
                     other_unit.vault_target_indicator == target_pos):
-                    from boneglaive.utils.message_log import message_log, MessageType
-                    message_log.add_message(
-                        f"Cannot vault to this position.",
-                        MessageType.WARNING,
-                        player=user.player
-                    )
+                    # Position is already targeted by another unit's vault
                     return False
 
                 # Check for teleport targets (Delta Config, Grae Exchange, etc.)
                 if (hasattr(other_unit, 'teleport_target_indicator') and
                     other_unit.teleport_target_indicator == target_pos):
-                    from boneglaive.utils.message_log import message_log, MessageType
-                    message_log.add_message(
-                        f"Cannot vault to this position.",
-                        MessageType.WARNING,
-                        player=user.player
-                    )
+                    # Position is already targeted by another unit's teleport
                     return False
 
         # Check if target is within range from the correct position
@@ -834,12 +835,12 @@ class VaultSkill(ActiveSkill):
             # Get vault animation sequence
             vault_animation = ui.asset_manager.get_skill_animation_sequence('vault')
             if not vault_animation:
-                vault_animation = ['^', 'Λ', '↑', '↟', '↑']  # Fallback
+                vault_animation = ['^', 'A', '|', '*', '|']  # Fallback - ASCII only
                 
             # Get landing animation sequence
             landing_animation = ui.asset_manager.get_skill_animation_sequence('vault_impact')
             if not landing_animation:
-                landing_animation = ['↓', 'v', 'V', '*', '.']  # Fallback
+                landing_animation = ['v', 'V', '@', '*', '.']  # Fallback - ASCII only
                 
             # Show preparation animation at original position
             ui.renderer.animate_attack_sequence(
@@ -863,15 +864,15 @@ class VaultSkill(ActiveSkill):
                 
                 # First half ascending
                 for i in range(len(mid_positions) // 2):
-                    arc_chars.append('↑')
+                    arc_chars.append('^')
                 
                 # Apex
                 if len(mid_positions) % 2 == 1:  # If odd number of midpoints
-                    arc_chars.append('↟')
+                    arc_chars.append('*')
                     
                 # Second half descending
                 for i in range((len(mid_positions) + 1) // 2, len(mid_positions)):
-                    arc_chars.append('↓')
+                    arc_chars.append('v')
                 
                 # Store original terrain information for restoration
                 terrain_info = []
@@ -1073,12 +1074,12 @@ class JudgementSkill(ActiveSkill):
             # Get the animation sequence
             throw_animation = ui.asset_manager.get_skill_animation_sequence('judgement')
             if not throw_animation:
-                throw_animation = ['*', '↺', '↻', '⚡', '⚓', '⊕']  # Fallback
-                
+                throw_animation = ['*', '+', 'x', '#', 'O', '@']  # Fallback - ASCII characters only
+
             # Get critical animation
             critical_animation = ui.asset_manager.get_skill_animation_sequence('judgement_critical')
             if not critical_animation:
-                critical_animation = ['⚡', '⌁', '⌁', '⚡', '※']  # Fallback
+                critical_animation = ['!', '*', '+', '%', '@']  # Fallback - ASCII characters only
                 
             # Get the path from user to target
             from boneglaive.utils.coordinates import get_line, Position
