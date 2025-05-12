@@ -13,6 +13,7 @@ from typing import Optional, TYPE_CHECKING
 from boneglaive.game.skills.core import PassiveSkill, ActiveSkill, TargetType
 from boneglaive.utils.message_log import message_log, MessageType
 from boneglaive.utils.debug import logger
+from boneglaive.utils.constants import UnitType
 
 if TYPE_CHECKING:
     from boneglaive.game.units import Unit
@@ -736,32 +737,58 @@ class VaultSkill(ActiveSkill):
             return False
         if not game or not target_pos:
             return False
-            
+
         # Check if the target position is valid and passable
         if not game.is_valid_position(target_pos[0], target_pos[1]):
             return False
-            
+
         # Target position must be passable terrain
         if not game.map.is_passable(target_pos[0], target_pos[1]):
             return False
-            
+
         # Target position must be empty (no unit)
         if game.get_unit_at(target_pos[0], target_pos[1]) is not None:
             return False
-            
+
+        # Check if any other unit is already planning to teleport to this position
+        # (via Vault, Delta Config, Grae Exchange, or any other teleport skill)
+        for other_unit in game.units:
+            if (other_unit.is_alive() and other_unit != user):
+                # Check for vault targets
+                if (hasattr(other_unit, 'vault_target_indicator') and
+                    other_unit.vault_target_indicator == target_pos):
+                    from boneglaive.utils.message_log import message_log, MessageType
+                    message_log.add_message(
+                        f"Cannot vault to this position.",
+                        MessageType.WARNING,
+                        player=user.player
+                    )
+                    return False
+
+                # Check for teleport targets (Delta Config, Grae Exchange, etc.)
+                if (hasattr(other_unit, 'teleport_target_indicator') and
+                    other_unit.teleport_target_indicator == target_pos):
+                    from boneglaive.utils.message_log import message_log, MessageType
+                    message_log.add_message(
+                        f"Cannot vault to this position.",
+                        MessageType.WARNING,
+                        player=user.player
+                    )
+                    return False
+
         # Check if target is within range from the correct position
         # (either current position or planned move position)
         from_y = user.y
         from_x = user.x
-        
+
         # If unit has a planned move, use that position instead
         if user.move_target:
             from_y, from_x = user.move_target
-            
+
         distance = game.chess_distance(from_y, from_x, target_pos[0], target_pos[1])
         if distance > self.range:
             return False
-            
+
         return True
             
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
