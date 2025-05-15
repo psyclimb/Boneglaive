@@ -100,7 +100,7 @@ class MarketFuturesSkill(ActiveSkill):
         super().__init__(
             name="Market Futures",
             key="M",
-            description="Infuses a furniture piece with temporal investment energy. Creates a teleportation anchor that allies can activate when near the furniture.",
+            description="Infuses a furniture piece with temporal investment energy. Creates a teleportation anchor that allies can activate. Grants maturing investment: +1 ATK (turn 1), +2 ATK (turn 2), +3 ATK (turn 3) with +1 Range for all 3 turns. Maturation occurs right before attacking.",
             target_type=TargetType.AREA,
             cooldown=3,  # Cooldown of 3 turns as specified
             range_=4
@@ -303,26 +303,30 @@ class MarketFuturesSkill(ActiveSkill):
             player=ally.player
         )
         
-        # Apply stat bonuses for high cosmic values (7-9)
-        if cosmic_value >= 7:
-            message_log.add_message(
-                f"High-value teleport grants {ally.get_display_name()} +1 to all stats for 1 turn!",
-                MessageType.ABILITY,
-                player=ally.player
-            )
-            
-            # Apply temporary stat bonuses
-            ally.hp_bonus += 1
-            ally.attack_bonus += 1
-            ally.defense_bonus += 1
-            ally.move_range_bonus += 1
-            ally.attack_range_bonus += 1
-
-            # Set a flag to track that these bonuses need to be removed
-            ally.market_futures_bonus_applied = True
-
-            # Set duration of the bonus (we'll handle this in the game update loop)
-            ally.market_futures_duration = 1
+        # Always apply the investment effect regardless of cosmic value
+        message_log.add_message(
+            f"Market Futures grants {ally.get_display_name()} a maturing investment effect!",
+            MessageType.ABILITY,
+            player=ally.player
+        )
+        
+        # Apply initial investment bonuses
+        ally.attack_bonus += 1      # Will mature over time
+        ally.attack_range_bonus += 1  # Flat bonus, doesn't mature
+        
+        # Set up investment maturation tracking
+        ally.market_futures_bonus_applied = True
+        ally.market_futures_duration = 3  # 3 turns duration
+        ally.market_futures_maturity = 1  # Starts at maturity level 1
+        
+        # Add currency status icon indicator
+        ally.has_investment_effect = True
+        
+        message_log.add_message(
+            f"The investment starts at +1 ATK and will mature over three turns.",
+            MessageType.ABILITY,
+            player=ally.player
+        )
             
         # Play teleport animation
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
@@ -800,7 +804,7 @@ class DivineDrepreciationSkill(ActiveSkill):
         super().__init__(
             name="Divine Depreciation",
             key="D",
-            description="Dramatically reappraises a furniture piece as cosmically worthless, creating a 5×5 reality distortion. Sets target furniture to value 1, deals damage and pulls enemies toward the center based on move values. All other furniture has cosmic values rerolled.",
+            description="Dramatically reappraises a furniture piece as cosmically worthless, creating a 5×5 reality distortion. Sets target furniture to value 1, deals damage that bypasses defense and pulls enemies toward the center based on move values. All other furniture has cosmic values rerolled.",
             target_type=TargetType.AREA,
             cooldown=4,  # Cooldown of 4 turns
             range_=3,
@@ -954,14 +958,19 @@ class DivineDrepreciationSkill(ActiveSkill):
 
         # Apply damage and pull effects to enemies
         for unit in enemies_in_area:
-            # Deal damage based on cosmic value difference
+            # Deal damage based on cosmic value difference, bypassing defense
             old_hp = unit.hp
-            unit.hp -= effect_value
+            
+            # Use take_damage to apply damage directly (bypassing defense)
+            actual_damage = unit.take_damage(effect_value, user, "Divine Depreciation")
 
-            message_log.add_message(
-                f"{unit.get_display_name()} takes {effect_value} damage from Divine Depreciation!",
-                MessageType.COMBAT,
-                player=user.player
+            message_log.add_combat_message(
+                attacker_name=user.get_display_name(),
+                target_name=unit.get_display_name(),
+                damage=actual_damage,
+                ability="Divine Depreciation",
+                attacker_player=user.player,
+                target_player=unit.player
             )
 
             # Calculate pull effect (move toward center)
@@ -1037,7 +1046,7 @@ class DivineDrepreciationSkill(ActiveSkill):
                     if steps_taken > 0:
                         unit.y, unit.x = new_y, new_x
                         message_log.add_message(
-                            f"{unit.get_display_name()} is pulled {steps_taken} spaces toward the depreciation center!",
+                            f"{unit.get_display_name()} is pulled {steps_taken} spaces by the reality distortion!",
                             MessageType.ABILITY,
                             player=user.player
                         )
@@ -1045,7 +1054,7 @@ class DivineDrepreciationSkill(ActiveSkill):
             # Handle unit death
             if unit.hp <= 0:
                 message_log.add_message(
-                    f"{unit.get_display_name()} is destroyed by Divine Depreciation!",
+                    f"{unit.get_display_name()} perishes!",
                     MessageType.COMBAT,
                     player=user.player
                 )
@@ -1059,20 +1068,14 @@ class DivineDrepreciationSkill(ActiveSkill):
 
         # Log the skill activation with details about the cosmic values
         message_log.add_message(
-            f"{user.get_display_name()} casts Divine Depreciation! Target furniture value set to 1.",
+            f"{user.get_display_name()} casts Divine Depreciation on the furniture!",
             MessageType.ABILITY,
             player=user.player
         )
 
         if other_furniture:
             message_log.add_message(
-                f"Average cosmic value of other furniture: {avg_cosmic_value}. Effect value: {effect_value}!",
-                MessageType.ABILITY,
-                player=user.player
-            )
-
-            message_log.add_message(
-                f"All {len(other_furniture)} furniture pieces in the area have been revalued with new cosmic values!",
+                f"The furniture's value drops to 1, creating a reality distortion!",
                 MessageType.ABILITY,
                 player=user.player
             )
