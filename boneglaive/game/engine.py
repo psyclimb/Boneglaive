@@ -989,6 +989,7 @@ class Game:
         Process status effect durations for all units of the current player.
         Decrements durations and removes expired status effects.
         Also applies movement penalties for units inside reinforced Marrow Dikes.
+        Also handles Market Futures investment maturation.
         """
         from boneglaive.utils.message_log import message_log, MessageType
         
@@ -1223,6 +1224,67 @@ class Game:
                         MessageType.ABILITY,
                         player=unit.player
                     )
+                    
+            # Process Market Futures investment maturation
+            if hasattr(unit, 'market_futures_bonus_applied') and unit.market_futures_bonus_applied:
+                if hasattr(unit, 'market_futures_duration') and unit.market_futures_duration > 0:
+                    # Market Futures works uniquely:
+                    # - Turn 1: +1 ATK, +1 Range (applied immediately)
+                    # - Turn 2: +2 ATK, +1 Range (matures right before attack)
+                    # - Turn 3: +3 ATK, +1 Range (matures right before attack, then expires)
+                    
+                    # We need to handle both expiration and maturation here carefully
+                    
+                    # First, handle maturation flag setup
+                    # We'll check this flag during attack execution
+                    if hasattr(unit, 'market_futures_maturity'):
+                        # For turn 3 (duration = 1), we want it to mature BEFORE expiring
+                        # For turn 2 (duration = 2), we want normal maturation
+                        if unit.market_futures_duration == 2 or unit.market_futures_duration == 1:
+                            # Mark that maturation should happen this turn but hasn't yet
+                            unit.market_futures_needs_maturation = True
+                            
+                            # For the final turn, mark that it's the last maturation before expiry
+                            if unit.market_futures_duration == 1:
+                                unit.market_futures_final_maturation = True
+                    
+                    # Always ensure range bonus is maintained throughout effect duration
+                    if unit.market_futures_duration >= 1:
+                        # Only add range bonus if it hasn't been added already
+                        if not hasattr(unit, 'market_futures_range_bonus_active'):
+                            unit.market_futures_range_bonus_active = True
+                        
+                        # Ensure attack range bonus is at least 1
+                        if unit.attack_range_bonus < 1:
+                            unit.attack_range_bonus = 1
+                    
+                    # Decrement the duration AFTER handling setup
+                    unit.market_futures_duration -= 1
+                    logger.debug(f"{unit.get_display_name()}'s Market Futures duration decremented to: {unit.market_futures_duration}")
+                    
+                    # For expiration, we skip it if it's the final maturation turn
+                    # Instead, we'll handle expiration during attack processing
+                    if unit.market_futures_duration == 0 and not hasattr(unit, 'market_futures_final_maturation'):
+                        # Remove the attack bonus based on current maturity level
+                        if hasattr(unit, 'market_futures_maturity'):
+                            unit.attack_bonus -= unit.market_futures_maturity
+                        
+                        # Remove range bonus at expiration
+                        unit.attack_range_bonus -= 1
+                        
+                        # Reset all flags
+                        unit.market_futures_bonus_applied = False
+                        if hasattr(unit, 'has_investment_effect'):
+                            unit.has_investment_effect = False
+                        if hasattr(unit, 'market_futures_range_bonus_active'):
+                            unit.market_futures_range_bonus_active = False
+                        
+                        # Log the expiration
+                        message_log.add_message(
+                            f"{unit.get_display_name()}'s investment effect expires after 3 turns.",
+                            MessageType.ABILITY,
+                            player=unit.player
+                        )
 
             # Process Jawline status effect
             if hasattr(unit, 'jawline_affected') and unit.jawline_affected:
@@ -1436,6 +1498,10 @@ class Game:
                 # Verify attack is within range from the attacking position
                 attack_distance = self.chess_distance(attacking_pos[0], attacking_pos[1], y, x)
                 
+                # Get the unit's effective attack range from their stats
+                effective_stats = unit.get_effective_stats()
+                effective_attack_range = effective_stats['attack_range']
+                
                 # Additional line of sight check for GRAYMAN units
                 los_check = True
                 if unit.type == UnitType.GRAYMAN:
@@ -1462,13 +1528,13 @@ class Game:
                 if not target and (y, x) in self.marrow_dike_tiles:
                     # Verify this is a wall tile that belongs to the enemy player
                     wall_info = self.marrow_dike_tiles[(y, x)]
-                    if wall_info['owner'].player != unit.player and attack_distance <= unit.attack_range and los_check:
+                    if wall_info['owner'].player != unit.player and attack_distance <= effective_attack_range and los_check:
                         wall_target = (y, x)  # Mark this as a valid wall target
 
                 # Check if attack is valid (checks all conditions including protection)
                 valid_attack = (target and 
                                target.player != unit.player and 
-                               attack_distance <= unit.attack_range and 
+                               attack_distance <= effective_attack_range and 
                                los_check and 
                                not self.is_protected_from(target, unit))
                                
@@ -1514,7 +1580,43 @@ class Game:
                             )
                     else:
                         # Normal unit-vs-unit combat
-                        # Show animation first
+                        
+                        # Check for Market Futures maturation - do this RIGHT before the attack
+                        # This ensures the maturation message appears before the attack message
+                        if hasattr(unit, 'market_futures_needs_maturation') and unit.market_futures_needs_maturation:
+                            # Apply Market Futures maturation right before attack
+                            old_maturity = unit.market_futures_maturity
+                            unit.market_futures_maturity += 1
+                            
+                            # Update the attack bonus (remove old bonus and add new one)
+                            unit.attack_bonus = unit.attack_bonus - old_maturity + unit.market_futures_maturity
+                            
+                            # Log the investment maturation before attack
+                            message_log.add_message(
+                                f"{unit.get_display_name()}'s investment matures to +{unit.market_futures_maturity} ATK!",
+                                MessageType.ABILITY,
+                                player=unit.player
+                            )
+                            
+                            # Clear the flag
+                            unit.market_futures_needs_maturation = False
+                            
+                            # Check if this is the final maturation before expiry
+                            if hasattr(unit, 'market_futures_final_maturation'):
+                                # Show expiration message AFTER maturation
+                                message_log.add_message(
+                                    f"{unit.get_display_name()}'s investment effect expires after 3 turns.",
+                                    MessageType.ABILITY,
+                                    player=unit.player
+                                )
+                                
+                                # Remove the attack bonus after this attack
+                                unit.market_futures_will_expire_after_attack = True
+                                
+                                # Clear the flag
+                                delattr(unit, 'market_futures_final_maturation')
+                            
+                        # Show attack animation
                         if ui:
                             ui.show_attack_animation(unit, target)
                         
@@ -1606,6 +1708,23 @@ class Game:
                             attacker_player=unit.player,
                             target_player=target.player
                         )
+                        
+                        # Handle removal of Market Futures effect after attack if it's expiring
+                        if hasattr(unit, 'market_futures_will_expire_after_attack') and unit.market_futures_will_expire_after_attack:
+                            # Remove the attack bonus based on current maturity level
+                            if hasattr(unit, 'market_futures_maturity'):
+                                unit.attack_bonus -= unit.market_futures_maturity
+                            
+                            # Remove range bonus
+                            unit.attack_range_bonus -= 1
+                            
+                            # Reset all flags
+                            unit.market_futures_bonus_applied = False
+                            unit.market_futures_will_expire_after_attack = False
+                            if hasattr(unit, 'has_investment_effect'):
+                                unit.has_investment_effect = False
+                            if hasattr(unit, 'market_futures_range_bonus_active'):
+                                unit.market_futures_range_bonus_active = False
                         
                         # No need to format with player info anymore - just use the unit's display name
                         # Check if target was defeated
