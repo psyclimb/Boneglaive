@@ -432,6 +432,18 @@ class UIRenderer:
                                 enhanced_tile = f"{tile}~"  # Combine unit symbol with tilde (represents phasing)
                                 # Use gray color (19) to indicate phasing out of spacetime
                                 self.renderer.draw_tile(y, x, enhanced_tile, 19, curses.A_DIM)
+                            # Check if unit has Market Futures investment effect
+                            elif hasattr(unit, 'has_investment_effect') and unit.has_investment_effect:
+                                # Add pound sign symbol to show investment status
+                                enhanced_tile = f"{tile}£"  # Combine unit symbol with pound sign (represents investment)
+                                # Use bright gold/yellow color (3) to indicate investment
+                                self.renderer.draw_tile(y, x, enhanced_tile, 3, curses.A_BOLD)
+                            # Check if unit is affected by Auction Curse DOT
+                            elif hasattr(unit, 'auction_curse_dot') and unit.auction_curse_dot:
+                                # Add cent sign symbol to show auction curse status
+                                enhanced_tile = f"{tile}¢"  # Combine unit symbol with cent sign (representing cursed money)
+                                # Use red color to indicate negative status effect
+                                self.renderer.draw_tile(y, x, enhanced_tile, 6, curses.A_BOLD)
                             # Check if unit has first-turn move bonus
                             elif hasattr(unit, 'first_turn_move_bonus') and unit.first_turn_move_bonus:
                                 # Add plus symbol to show movement bonus
