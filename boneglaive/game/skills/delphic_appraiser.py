@@ -370,7 +370,7 @@ class AuctionCurseSkill(ActiveSkill):
         super().__init__(
             name="Auction Curse",
             key="A",
-            description="Subjects an enemy to a cosmic auction, reducing their stats based on nearby furniture values and immediately awards buffs to a selected ally.",
+            description="Subjects an enemy to a cosmic auction that applies a damage-over-time effect (1 damage per turn). Duration equals the average cosmic value of nearby furniture. Awards 1 bid token per piece of furniture to a selected ally.",
             target_type=TargetType.ENEMY,
             cooldown=2,  # Cooldown of 2 turns as specified
             range_=3
@@ -530,27 +530,18 @@ class AuctionCurseSkill(ActiveSkill):
                 # Ensure average value is within valid range
                 average_value = max(1, min(9, average_value))
 
-        # Determine stat reductions based on average value
-        attack_reduction = 0
-        range_reduction = 0
-        move_reduction = 0
+        # Calculate bid tokens - 1 token per piece of furniture
+        bid_tokens = len(nearby_furniture)
 
-        bid_tokens = 0
+        # Apply DOT effect to the target enemy, if they're not immune
+        dot_duration = average_value  # Duration equals the average value
 
-        if average_value >= 1:  # Low values (1-3)
-            attack_reduction = 1
-            bid_tokens += 1
-
-        if average_value >= 4:  # Medium values (4-6)
-            range_reduction = 1
-            bid_tokens += 1
-
-        if average_value >= 7:  # High values (7-9)
-            move_reduction = 1
-            bid_tokens += 1
-
-        # Apply stat reductions to the target enemy, if they're not immune
-        duration = 2  # Effect lasts for 2 turns
+        # Log the skill activation
+        message_log.add_message(
+            f"{user.get_display_name()} casts Auction Curse on {target_unit.get_display_name()}!",
+            MessageType.ABILITY,
+            player=user.player
+        )
 
         # Check if the target is immune to status effects (GRAYMAN with Stasiality)
         if target_unit.is_immune_to_effects():
@@ -561,43 +552,18 @@ class AuctionCurseSkill(ActiveSkill):
                 player=target_unit.player  # Use target's player color for correct display
             )
         else:
-            # Apply the stat reductions only if the target is not immune
-            if attack_reduction > 0:
-                target_unit.attack_bonus -= attack_reduction
-                target_unit.auction_curse_attack_duration = duration
-
-            if range_reduction > 0:
-                target_unit.attack_range_bonus -= range_reduction
-                target_unit.auction_curse_range_duration = duration
-
-            if move_reduction > 0:
-                target_unit.move_range_bonus -= move_reduction
-                target_unit.auction_curse_move_duration = duration
-
-        # Log the skill activation
-        message_log.add_message(
-            f"{user.get_display_name()} casts Auction Curse on {target_unit.get_display_name()}!",
-            MessageType.ABILITY,
-            player=user.player
-        )
-
-        if average_value > 0:
-            penalty_msg = f"Average cosmic value {average_value} reduces"
-            penalties = []
-
-            if attack_reduction > 0:
-                penalties.append("attack")
-            if range_reduction > 0:
-                penalties.append("range")
-            if move_reduction > 0:
-                penalties.append("movement")
-
-            penalty_msg += f" {', '.join(penalties)} for {duration} turns!"
-            message_log.add_message(
-                penalty_msg,
-                MessageType.ABILITY,
-                player=user.player
-            )
+            # Apply the DOT effect if the target is not immune
+            if average_value > 0:
+                # Set up the DOT effect
+                target_unit.auction_curse_dot = True
+                target_unit.auction_curse_dot_duration = dot_duration
+                
+                # Log the DOT application
+                message_log.add_message(
+                    f"Average cosmic value {average_value} applies a curse dealing 1 damage per turn for {dot_duration} turns!",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
 
         # Play first part of auction curse animation
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
@@ -643,14 +609,13 @@ class AuctionCurseSkill(ActiveSkill):
                     # Slight delay between different bidders
                     sleep_with_animation_speed(0.05)
 
-            # Step 4: With each successful bid, stat attributes visibly transfer from enemy
-            # Show attributes being stripped from the target
-            if attack_reduction > 0 or range_reduction > 0 or move_reduction > 0:
-                # Animate attributes being removed
-                stat_transfer = ['$', '¢', '%', '-', '.']
+            # Step 4: Show target being afflicted with the DOT effect
+            if average_value > 0:
+                # Animate curse application
+                curse_symbols = ['$', '¢', '%', '-', '.']
                 ui.renderer.animate_attack_sequence(
                     target_pos[0], target_pos[1],
-                    stat_transfer,
+                    curse_symbols,
                     1,  # Red color for the target
                     0.15  # Duration
                 )
@@ -694,11 +659,11 @@ class AuctionCurseSkill(ActiveSkill):
                     0.1  # Duration
                 )
 
-        # Apply stat bonuses and healing to the ally based on reductions applied
+        # Apply healing to the ally based on bid tokens
         # Calculate healing amount (2 HP per token)
         healing_amount = bid_tokens * 2
 
-        # Apply healing first (healing is not affected by Stasiality)
+        # Apply healing (healing is not affected by Stasiality)
         if healing_amount > 0:
             # Store old HP for message
             old_hp = ally.hp
@@ -709,58 +674,21 @@ class AuctionCurseSkill(ActiveSkill):
             # Calculate actual healing (to account for max HP cap)
             actual_healing = ally.hp - old_hp
 
-            # Log healing message
+            # Log healing and tokens message
+            message_log.add_message(
+                f"{user.get_display_name()} awards {bid_tokens} bid tokens to {ally.get_display_name()}!",
+                MessageType.ABILITY,
+                player=user.player
+            )
+            
             message_log.add_message(
                 f"{ally.get_display_name()} is healed for {actual_healing} HP by the bid tokens!",
                 MessageType.ABILITY,
                 player=user.player
             )
 
-        # Check if the ally is immune to status effects (GRAYMAN with Stasiality)
-        if ally.is_immune_to_effects():
-            # Skip applying stat bonuses but add a message about immunity
-            message_log.add_message(
-                f"{ally.get_display_name()} is immune to Auction Curse stat bonuses due to Stasiality!",
-                MessageType.ABILITY,
-                player=ally.player  # Use ally's player color for correct display
-            )
-        else:
-            # Apply stat bonuses
-            if attack_reduction > 0:
-                ally.attack_bonus += 1
-                ally.bid_attack_duration = 2  # Duration of 2 turns
-                message_log.add_message(
-                    f"{ally.get_display_name()} gains +1 attack for 2 turns!",
-                    MessageType.ABILITY,
-                    player=user.player
-                )
-
-            if range_reduction > 0:
-                ally.attack_range_bonus += 1
-                ally.bid_range_duration = 2
-                message_log.add_message(
-                    f"{ally.get_display_name()} gains +1 range for 2 turns!",
-                    MessageType.ABILITY,
-                    player=user.player
-                )
-
-            if move_reduction > 0:
-                ally.move_range_bonus += 1
-                ally.bid_move_duration = 2
-                message_log.add_message(
-                    f"{ally.get_display_name()} gains +1 movement for 2 turns!",
-                    MessageType.ABILITY,
-                    player=user.player
-                )
-
         # Play token award animation from appraiser to ally
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager') and bid_tokens > 0:
-            # Tell the player what's happening
-            message_log.add_message(
-                f"{user.get_display_name()} awards {bid_tokens} bid tokens to {ally.get_display_name()}!",
-                MessageType.ABILITY,
-                player=user.player
-            )
 
             # Get token award animation - glowing tokens transferring to ally
             token_animation = ui.asset_manager.get_skill_animation_sequence('bid_token')

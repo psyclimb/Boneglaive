@@ -1114,116 +1114,10 @@ class Game:
                         )
             
             # Bone Tithe no longer applies defensive buffs to allies
-
-            # Process DELPHIC_APPRAISER's Auction Curse status effects for enemies
-            # -- Attack reduction
-            if hasattr(unit, 'auction_curse_attack_duration') and unit.auction_curse_attack_duration > 0:
-                # Decrement the duration
-                unit.auction_curse_attack_duration -= 1
-                logger.debug(f"{unit.get_display_name()}'s Auction Curse attack penalty duration: {unit.auction_curse_attack_duration}")
-
-                # Check if the status effect has expired
-                if unit.auction_curse_attack_duration <= 0:
-                    # Remove the attack penalty
-                    unit.attack_bonus += 1  # Reverse the -1 penalty
-
-                    # Log the expiration
-                    message_log.add_message(
-                        f"{unit.get_display_name()} recovers attack strength as Auction Curse fades.",
-                        MessageType.ABILITY,
-                        player=unit.player
-                    )
-
-            # -- Range reduction
-            if hasattr(unit, 'auction_curse_range_duration') and unit.auction_curse_range_duration > 0:
-                # Decrement the duration
-                unit.auction_curse_range_duration -= 1
-                logger.debug(f"{unit.get_display_name()}'s Auction Curse range penalty duration: {unit.auction_curse_range_duration}")
-
-                # Check if the status effect has expired
-                if unit.auction_curse_range_duration <= 0:
-                    # Remove the range penalty
-                    unit.attack_range_bonus += 1  # Reverse the -1 penalty
-
-                    # Log the expiration
-                    message_log.add_message(
-                        f"{unit.get_display_name()} recovers attack range as Auction Curse fades.",
-                        MessageType.ABILITY,
-                        player=unit.player
-                    )
-
-            # -- Movement reduction
-            if hasattr(unit, 'auction_curse_move_duration') and unit.auction_curse_move_duration > 0:
-                # Decrement the duration
-                unit.auction_curse_move_duration -= 1
-                logger.debug(f"{unit.get_display_name()}'s Auction Curse movement penalty duration: {unit.auction_curse_move_duration}")
-
-                # Check if the status effect has expired
-                if unit.auction_curse_move_duration <= 0:
-                    # Remove the movement penalty
-                    unit.move_range_bonus += 1  # Reverse the -1 penalty
-
-                    # Log the expiration
-                    message_log.add_message(
-                        f"{unit.get_display_name()} recovers mobility as Auction Curse fades.",
-                        MessageType.ABILITY,
-                        player=unit.player
-                    )
-
-            # Process DELPHIC_APPRAISER's Auction Curse status effects for allies (bid tokens)
-            # -- Attack bonus
-            if hasattr(unit, 'bid_attack_duration') and unit.bid_attack_duration > 0:
-                # Decrement the duration
-                unit.bid_attack_duration -= 1
-                logger.debug(f"{unit.get_display_name()}'s bid token attack bonus duration: {unit.bid_attack_duration}")
-
-                # Check if the status effect has expired
-                if unit.bid_attack_duration <= 0:
-                    # Remove the attack bonus
-                    unit.attack_bonus -= 1
-
-                    # Log the expiration
-                    message_log.add_message(
-                        f"{unit.get_display_name()}'s attack bid token expires.",
-                        MessageType.ABILITY,
-                        player=unit.player
-                    )
-
-            # -- Range bonus
-            if hasattr(unit, 'bid_range_duration') and unit.bid_range_duration > 0:
-                # Decrement the duration
-                unit.bid_range_duration -= 1
-                logger.debug(f"{unit.get_display_name()}'s bid token range bonus duration: {unit.bid_range_duration}")
-
-                # Check if the status effect has expired
-                if unit.bid_range_duration <= 0:
-                    # Remove the range bonus
-                    unit.attack_range_bonus -= 1
-
-                    # Log the expiration
-                    message_log.add_message(
-                        f"{unit.get_display_name()}'s range bid token expires.",
-                        MessageType.ABILITY,
-                        player=unit.player
-                    )
-
-            # -- Movement bonus
-            if hasattr(unit, 'bid_move_duration') and unit.bid_move_duration > 0:
-                # Decrement the duration
-                unit.bid_move_duration -= 1
-                logger.debug(f"{unit.get_display_name()}'s bid token movement bonus duration: {unit.bid_move_duration}")
-
-                # Check if the status effect has expired
-                if unit.bid_move_duration <= 0:
-                    # Remove the movement bonus
-                    unit.move_range_bonus -= 1
-
-                    # Log the expiration
-                    message_log.add_message(
-                        f"{unit.get_display_name()}'s movement bid token expires.",
-                        MessageType.ABILITY,
-                        player=unit.player
-                    )
+            
+            # Auction Curse DOT effect now processed at the end of turn
+            
+            # Auction Curse no longer applies stat bonuses to allies via bid tokens
                     
             # Process Market Futures investment maturation
             if hasattr(unit, 'market_futures_bonus_applied') and unit.market_futures_bonus_applied:
@@ -1374,6 +1268,14 @@ class Game:
                   any(u.is_alive() and u.trapped_by == unit for u in self.units)):
                 # Set a special flag to identify this as a trap damage action
                 unit.viseroy_trap_action = True
+                units_with_actions.append(unit)
+            
+            # Add units with Auction Curse DOT effect (these are processed during attack resolution)
+            # Important: DOT should only tick on the opponent's turn (when the caster's turn is active)
+            elif (hasattr(unit, 'auction_curse_dot') and unit.auction_curse_dot and 
+                  unit.auction_curse_dot_duration > 0 and unit.player != self.current_player):
+                # Set a special flag to identify this as a DOT action
+                unit.auction_curse_dot_action = True
                 units_with_actions.append(unit)
         
         # Sort units by action timestamp (lower numbers = earlier actions)
@@ -1782,6 +1684,80 @@ class Game:
                     time.sleep(0.15)
             
             # EXECUTE VISEROY TRAP DAMAGE if this is a MANDIBLE_FOREMAN with trapped units
+            elif hasattr(unit, 'auction_curse_dot_action') and unit.auction_curse_dot_action:
+                # Process Auction Curse DOT effect
+                from boneglaive.utils.message_log import message_log, MessageType
+                
+                # Show DOT animation if UI is available
+                if ui and hasattr(ui, 'renderer'):
+                    # Create curse damage animation
+                    curse_animation = ['¢', '$', '%', '*', '!']
+                    
+                    # Show animation at the affected unit's position
+                    ui.renderer.animate_attack_sequence(
+                        unit.y, unit.x,
+                        curse_animation,
+                        6,  # Red color for damage
+                        0.15  # Duration
+                    )
+                
+                # Apply the damage
+                damage = 1
+                unit.hp = max(0, unit.hp - damage)
+                
+                # Get the opposing player (caster of the Auction Curse)
+                caster_player = 3 - unit.player  # If unit.player is 1, this gives 2; if 2, gives 1
+                
+                # Find a DELPHIC_APPRAISER unit from the caster's player to attribute the damage to
+                appraiser_unit = None
+                for u in self.units:
+                    if u.is_alive() and u.player == caster_player and u.type == UnitType.DELPHIC_APPRAISER:
+                        appraiser_unit = u
+                        break
+                
+                # Use the found DELPHIC_APPRAISER or a generic name if none found
+                attacker_name = appraiser_unit.get_display_name() if appraiser_unit else f"DELPHIC APPRAISER Player {caster_player}"
+                
+                # Log the damage using standard combat message format - this ensures proper color formatting
+                message_log.add_combat_message(
+                    attacker_name=attacker_name,
+                    target_name=unit.get_display_name(),
+                    damage=damage,
+                    ability="Auction Curse",
+                    attacker_player=caster_player,
+                    target_player=unit.player
+                )
+                
+                # Decrement the duration
+                unit.auction_curse_dot_duration -= 1
+                logger.debug(f"{unit.get_display_name()}'s Auction Curse DOT duration: {unit.auction_curse_dot_duration}")
+                
+                # Check if unit died from the DOT
+                if unit.hp <= 0:
+                    # Use consistent format for death messages
+                    message_log.add_message(
+                        f"{unit.get_display_name()} perishes!",
+                        MessageType.COMBAT,
+                        player=unit.player
+                    )
+                
+                # Check if the DOT effect has expired
+                if unit.auction_curse_dot_duration <= 0:
+                    # Remove the DOT effect
+                    unit.auction_curse_dot = False
+                    
+                    # Log the expiration - use attacker_name for consistent display
+                    message_log.add_message(
+                        f"Auction Curse fades from {unit.get_display_name()}.",
+                        MessageType.ABILITY,
+                        player=caster_player,
+                        attacker_name=attacker_name,
+                        target_name=unit.get_display_name()
+                    )
+                
+                # Clear the DOT action flag
+                unit.auction_curse_dot_action = False
+                
             elif hasattr(unit, 'viseroy_trap_action') and unit.viseroy_trap_action:
                 # Find all units trapped by this foreman
                 trapped_units = [u for u in self.units if u.is_alive() and u.trapped_by == unit]
@@ -2086,6 +2062,7 @@ class Game:
             for unit in self.units:
                 if unit.is_alive() and unit.player == self.current_player:
                     unit.apply_passive_skills(self)
+    
     
     def try_trigger_wretched_decension(self, attacker, target, ui=None):
         """
