@@ -429,7 +429,7 @@ class GraeExchangeSkill(ActiveSkill):
             key="G",
             description="Create an echo at current position and teleport away. Echo can attack but not move.",
             target_type=TargetType.AREA,
-            cooldown=3,
+            cooldown=4,
             range_=3
         )
     
