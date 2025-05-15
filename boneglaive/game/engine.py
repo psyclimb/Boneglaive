@@ -13,7 +13,7 @@ if 'logger' not in locals():
     logger = debug_config.setup_logging('game.engine')
 
 class Game:
-    def __init__(self, skip_setup=False, map_name="lime_foyer"):
+    def __init__(self, skip_setup=False, map_name="lime_foyer_arena"):
         self.units = []
         self.current_player = 1
         self.turn = 1

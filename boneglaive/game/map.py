@@ -240,6 +240,105 @@ class LimeFoyerMap(GameMap):
         # Cosmic values will be assigned when needed during gameplay
 
 
+class NewLimeFoyerMap(GameMap):
+    """The New Lime Foyer map featuring a central circular pit arena with strategic furniture placement."""
+    
+    def __init__(self):
+        super().__init__()
+        self.name = "The Lime Foyer Arena"
+        self.generate_map()
+    
+    def generate_map(self) -> None:
+        """Generate the New Lime Foyer map with central arena pit."""
+        # Reset to empty first
+        self.reset_to_empty()
+        
+        # Central circular pit (7x7 with rounded corners)
+        pit_wall = [
+            # Top row
+            (1, 8), (1, 9), (1, 10), (1, 11),
+            # Left side
+            (2, 7), (3, 6), (4, 6), (5, 6), (6, 7),
+            # Right side
+            (2, 12), (3, 13), (4, 13), (5, 13), (6, 12),
+            # Bottom row
+            (7, 8), (7, 9), (7, 10), (7, 11)
+        ]
+        
+        for y, x in pit_wall:
+            self.set_terrain_at(y, x, TerrainType.LIMESTONE)
+        
+        # --- Strategic furniture placement ---
+        
+        # Pattern 1: Symmetrical furniture in the four corners (good for Divine Depreciation)
+        # Top-left corner
+        self.set_terrain_at(0, 0, TerrainType.COAT_RACK)
+        self.set_terrain_at(0, 3, TerrainType.CONSOLE)
+        self.set_terrain_at(2, 0, TerrainType.DEC_TABLE)
+        
+        # Top-right corner
+        self.set_terrain_at(0, 19, TerrainType.COAT_RACK)
+        self.set_terrain_at(0, 16, TerrainType.CONSOLE)
+        self.set_terrain_at(2, 19, TerrainType.DEC_TABLE)
+        
+        # Bottom-left corner
+        self.set_terrain_at(9, 0, TerrainType.OTTOMAN)
+        self.set_terrain_at(9, 3, TerrainType.CONSOLE)
+        self.set_terrain_at(7, 0, TerrainType.DEC_TABLE)
+        
+        # Bottom-right corner
+        self.set_terrain_at(9, 19, TerrainType.OTTOMAN)
+        self.set_terrain_at(9, 16, TerrainType.CONSOLE)
+        self.set_terrain_at(7, 19, TerrainType.DEC_TABLE)
+        
+        # Pattern 2: Furniture clusters around the pit (optimal for Market Futures teleportation)
+        # North cluster
+        self.set_terrain_at(0, 9, TerrainType.OTTOMAN)
+        self.set_terrain_at(0, 10, TerrainType.CONSOLE)
+        
+        # East cluster
+        self.set_terrain_at(4, 17, TerrainType.OTTOMAN)
+        self.set_terrain_at(5, 17, TerrainType.DEC_TABLE)
+        
+        # West cluster
+        self.set_terrain_at(4, 2, TerrainType.OTTOMAN)
+        self.set_terrain_at(5, 2, TerrainType.DEC_TABLE)
+        
+        # South cluster
+        self.set_terrain_at(9, 9, TerrainType.OTTOMAN)
+        self.set_terrain_at(9, 10, TerrainType.CONSOLE)
+        
+        # Pattern 3: Inner ring furniture just outside the pit (for Auction Curse positioning)
+        self.set_terrain_at(3, 4, TerrainType.FURNITURE)
+        self.set_terrain_at(3, 15, TerrainType.FURNITURE)
+        self.set_terrain_at(6, 4, TerrainType.FURNITURE)
+        self.set_terrain_at(6, 15, TerrainType.FURNITURE)
+        
+        # Pattern 4: Central pit furniture pieces (few but valuable tactical positions)
+        self.set_terrain_at(4, 8, TerrainType.OTTOMAN)
+        self.set_terrain_at(4, 11, TerrainType.OTTOMAN)
+        
+        # Light limestone dustings (windswept patterns)
+        dust_patterns = [
+            # Top half dust pattern (roughly 40% coverage)
+            (0, 1), (0, 2), (0, 4), (0, 6), (0, 7), (0, 8), (0, 11), (0, 12), (0, 13), (0, 15), (0, 17), (0, 18),
+            (1, 0), (1, 1), (1, 3), (1, 5), (1, 6), (1, 7), (1, 12), (1, 13), (1, 14), (1, 16), (1, 18), (1, 19),
+            (2, 1), (2, 3), (2, 4), (2, 5), (2, 6), (2, 8), (2, 9), (2, 10), (2, 11), (2, 13), (2, 14), (2, 15), (2, 17), (2, 18),
+            (3, 0), (3, 2), (3, 3), (3, 5), (3, 7), (3, 8), (3, 9), (3, 10), (3, 11), (3, 12), (3, 14), (3, 16), (3, 17), (3, 19),
+            
+            # Bottom half dust pattern (matching pattern to top, rotated)
+            (6, 0), (6, 2), (6, 3), (6, 5), (6, 8), (6, 9), (6, 10), (6, 11), (6, 13), (6, 14), (6, 16), (6, 17), (6, 19),
+            (7, 1), (7, 2), (7, 4), (7, 5), (7, 6), (7, 7), (7, 12), (7, 13), (7, 14), (7, 15), (7, 16), (7, 18),
+            (8, 0), (8, 1), (8, 3), (8, 4), (8, 6), (8, 7), (8, 12), (8, 13), (8, 15), (8, 16), (8, 18), (8, 19),
+            (9, 1), (9, 2), (9, 4), (9, 5), (9, 6), (9, 7), (9, 8), (9, 11), (9, 12), (9, 13), (9, 15), (9, 17), (9, 18)
+        ]
+        
+        for y, x in dust_patterns:
+            # Only set dust if the tile is empty
+            if self.get_terrain_at(y, x) == TerrainType.EMPTY:
+                self.set_terrain_at(y, x, TerrainType.DUST)
+
+
 class MapFactory:
     """Factory class for creating different maps."""
     
@@ -248,6 +347,8 @@ class MapFactory:
         """Create a map based on the given name."""
         if map_name.lower() == "lime_foyer":
             return LimeFoyerMap()
+        elif map_name.lower() == "lime_foyer_arena":
+            return NewLimeFoyerMap()
         else:
             # Default to empty map
             return GameMap()
