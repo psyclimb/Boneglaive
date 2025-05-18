@@ -103,22 +103,30 @@ def configure_settings(args):
 
 def run_menu(stdscr) -> Optional[Tuple[str, None]]:
     """Run the menu system."""
+    # Create the menu UI (the constructor will handle initial drawing)
     menu_ui = MenuUI(stdscr)
+    
+    # Run the menu loop
     return menu_ui.run()
 
 def run_game(stdscr) -> None:
     """Run the game."""
     game_ui = GameUI(stdscr)
     
+    # Draw initial board
+    game_ui.draw_board()
+    
     running = True
     while running:
-        game_ui.draw_board()
+        # Get user input
         key = stdscr.getch()
+        
+        # Handle input - this will update the game state and redraw
         running = game_ui.handle_input(key)
 
 def main(stdscr):
     """Main function that coordinates menu and game."""
-    # Setup
+    # Initial setup for the curses screen
     curses.curs_set(0)  # Hide cursor
     stdscr.timeout(-1)  # No timeout for getch
     

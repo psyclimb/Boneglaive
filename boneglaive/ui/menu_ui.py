@@ -62,6 +62,9 @@ class MenuUI:
         self.renderer.initialize()
         self.current_menu = self._create_main_menu()
         self.running = True
+        
+        # Draw the menu immediately to avoid black screen
+        self.draw()
     
     def _create_main_menu(self) -> Menu:
         """Create the main menu."""
@@ -198,18 +201,24 @@ class MenuUI:
         self.renderer.clear_screen()
         
         # Draw title
-        self.renderer.draw_text(1, 2, menu.title, 1, curses.A_BOLD)
+        title_text = f"{menu.title}"
+        self.renderer.draw_text(1, 2, title_text, 1, curses.A_BOLD)
         
         # Draw menu items
         for i, item in enumerate(menu.items):
-            color = 2 if i == menu.selected_index else 1
-            attr = curses.A_BOLD if i == menu.selected_index else 0
-            self.renderer.draw_text(3 + i, 4, item.label, color, attr)
+            # Create more visually distinct selection indicator
+            if i == menu.selected_index:
+                # Draw selection indicator for selected item
+                self.renderer.draw_text(3 + i, 2, "> ", 2, curses.A_BOLD)
+                self.renderer.draw_text(3 + i, 4, item.label, 2, curses.A_BOLD)
+            else:
+                self.renderer.draw_text(3 + i, 4, item.label, 1, 0)
         
         # Draw navigation help
         self.renderer.draw_text(3 + len(menu.items) + 2, 2, 
                               "↑↓: Navigate | Enter: Select | Esc/Backspace: Back", 1)
         
+        # Refresh the display
         self.renderer.refresh()
     
     def handle_input(self, key: int):
@@ -223,12 +232,16 @@ class MenuUI:
         # Selection
         elif key in [curses.KEY_ENTER, 10, 13]:  # Enter key
             result = self.current_menu.activate_selection()
-            self._handle_menu_result(result)
+            menu_result = self._handle_menu_result(result)
+            if menu_result:
+                return menu_result
         
         # Back
         elif key in [27, curses.KEY_BACKSPACE, 8, 127]:  # Esc, Backspace
             result = self.current_menu.go_back()
-            self._handle_menu_result(result)
+            menu_result = self._handle_menu_result(result)
+            if menu_result:
+                return menu_result
         
         # Quit
         elif key == ord('q'):
@@ -250,6 +263,7 @@ class MenuUI:
         
         elif action == "start_game":
             self.running = False
+            # This ensures the result is passed up to the caller
             return ("start_game", None)
         
         elif action == "quit":

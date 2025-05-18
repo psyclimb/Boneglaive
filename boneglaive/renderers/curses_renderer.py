@@ -34,6 +34,9 @@ class CursesRenderer(RenderInterface):
         # Set timeout
         self.stdscr.timeout(-1)
         
+        # Clear the screen once (no need for both clear and erase)
+        self.stdscr.clear()
+        
         # Set up colors
         self.setup_colors()
         
@@ -43,6 +46,9 @@ class CursesRenderer(RenderInterface):
         # Initialize buffer for double buffering - make it slightly larger than screen
         # to avoid issues with terminal boundaries
         self.buffer = curses.newpad(self.height + 5, self.width + 5)
+        
+        # Clear the buffer
+        self.buffer.clear()
         
         # Enable non-blocking mode
         self.stdscr.nodelay(1)
@@ -55,6 +61,9 @@ class CursesRenderer(RenderInterface):
         
         # Tell curses not to delay ESC sequences
         os.environ.setdefault('ESCDELAY', '25')
+        
+        # Do one refresh to make sure the screen is ready
+        self.stdscr.refresh()
         
         logger.debug(f"Initialized curses renderer with dimensions {self.height}x{self.width}")
     
@@ -76,10 +85,17 @@ class CursesRenderer(RenderInterface):
             # Copy the buffer to the screen
             # Params: buffer_minrow, buffer_mincol, screen_minrow, screen_mincol, screen_maxrow, screen_maxcol
             try:
+                # Refresh the buffer to the screen
                 self.buffer.refresh(0, 0, 0, 0, self.height - 1, self.width - 1)
-            except curses.error:
-                # Handle any curses errors gracefully
-                pass
+            except curses.error as e:
+                # Log the error but continue
+                logger.error(f"Error refreshing screen: {e}")
+                
+                # Try a direct refresh as a fallback
+                try:
+                    self.stdscr.refresh()
+                except:
+                    pass
     
     def draw_text(self, y: int, x: int, text: str, color_id: int = 1, attributes: int = 0) -> None:
         """Draw text at the specified position with optional formatting."""
