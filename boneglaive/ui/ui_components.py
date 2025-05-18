@@ -2400,6 +2400,9 @@ class GameModeManager(UIComponent):
                 )
             )
             return
+        
+        # Check if we're in single player mode
+        is_single_player = not self.game_ui.multiplayer.is_multiplayer()
             
         # Confirm the current player's setup
         game_start = self.game_ui.game.confirm_setup()
@@ -2409,15 +2412,33 @@ class GameModeManager(UIComponent):
         
         # Add appropriate status message through event system
         if setup_player == 1:
-            # No special setup for AI mode yet (would be implemented here)
-            
             # Show game start message if game is started
             if game_start:
-                self.publish_event(
-                    EventType.MESSAGE_DISPLAY_REQUESTED,
-                    MessageDisplayEventData(
-                        message="Player 1 - Turn 1",
-                        message_type=MessageType.SYSTEM
+                # In single player mode, we automatically placed units for player 2
+                if is_single_player:
+                    # Publish turn started event to properly initialize the game
+                    self.publish_event(
+                        EventType.TURN_STARTED,
+                        TurnEventData(
+                            player=1,
+                            turn_number=1
+                        )
+                    )
+                    
+                    # Notify the player about single player mode
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message="Game starting in single player mode. Player 1 - Turn 1",
+                            message_type=MessageType.SYSTEM
+                        )
+                    )
+                else:
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message="Player 1 - Turn 1",
+                            message_type=MessageType.SYSTEM
                         )
                     )
             else:

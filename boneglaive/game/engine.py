@@ -85,6 +85,94 @@ class Game:
             logger.error(f"Failed to change map: {e}")
             return False
     
+    def _place_default_units_for_player(self, player):
+        """
+        Place default units for the specified player.
+        Used in single player mode to automatically place opponent units.
+        
+        Args:
+            player: The player number (typically 2 for single player mode)
+        """
+        from boneglaive.utils.debug import logger
+        logger.info(f"Setting up default units for player {player}")
+        
+        # Find valid positions for units that aren't on limestone
+        valid_positions = []
+        
+        # For player 2, place units on the right side of the map
+        if player == 2:
+            for y in range(3, 7):
+                for x in range(11, 15):
+                    if self.map.can_place_unit(y, x):
+                        valid_positions.append((y, x))
+                        if len(valid_positions) >= 3:
+                            break
+                if len(valid_positions) >= 3:
+                    break
+        
+        # Track unit counts to enforce 2-unit type limit
+        unit_counts = {}
+        
+        # Set up a variety of unit types to use
+        unit_types = [
+            UnitType.GLAIVEMAN,
+            UnitType.MANDIBLE_FOREMAN,
+            UnitType.GRAYMAN
+        ]
+        
+        for y, x in valid_positions:
+            # Choose a valid unit type (respecting the 2-unit limit)
+            valid_types = [t for t in unit_types
+                        if unit_counts.get(t, 0) < 2]
+            
+            # Default to GLAIVEMAN if no valid types (shouldn't happen)
+            if not valid_types:
+                logger.warning(f"No valid unit types available for player {player}. Using GLAIVEMAN.")
+                unit_type = UnitType.GLAIVEMAN
+            else:
+                # Rotate through valid types to ensure variety
+                unit_type = valid_types[0]
+            
+            # Add the unit with the selected type
+            self.add_unit(unit_type, player, y, x)
+            
+            # Update unit count for this type
+            unit_counts[unit_type] = unit_counts.get(unit_type, 0) + 1
+            
+            logger.info(f"Added {unit_type.name} for player {player} at ({y}, {x})")
+        
+        # If we couldn't find enough valid positions, add some emergency units
+        if len(valid_positions) < 3:
+            missing = 3 - len(valid_positions)
+            logger.warning(f"Not enough valid positions found. Adding {missing} emergency units for player {player}.")
+            
+            # Emergency positions depend on player
+            emergency_positions = [
+                (8, 16), (8, 17), (8, 18)  # Player 2 emergency positions
+            ]
+            
+            # Place units at emergency positions
+            for i in range(missing):
+                y, x = emergency_positions[i]
+                
+                # Choose a valid unit type (respecting the 2-unit limit)
+                valid_types = [t for t in unit_types
+                            if unit_counts.get(t, 0) < 2]
+                
+                # Default to GLAIVEMAN if no valid types
+                if not valid_types:
+                    unit_type = UnitType.GLAIVEMAN
+                else:
+                    unit_type = valid_types[0]
+                
+                # Add the unit with the selected type
+                self.add_unit(unit_type, player, y, x)
+                
+                # Update unit count for this type
+                unit_counts[unit_type] = unit_counts.get(unit_type, 0) + 1
+                
+                logger.info(f"Added emergency {unit_type.name} for player {player} at ({y}, {x})")
+    
     def setup_initial_units(self):
         """
         Add predefined units for a new game.
@@ -278,11 +366,31 @@ class Game:
         # Mark this player's setup as confirmed
         self.setup_confirmed[self.setup_player] = True
         
-        # If player 1 is done, switch to player 2
+        # Check if we're in single player mode
+        is_single_player = not self.local_multiplayer
+        
+        # If player 1 is done, handle based on mode
         if self.setup_player == 1:
-            self.setup_player = 2
-            # Here, game still in setup phase
-            return False
+            if is_single_player:
+                # In single player, auto-confirm player 2 and start the game
+                self.setup_confirmed[2] = True
+                # Skip player 2 setup
+                self.setup_units_remaining[2] = 0
+                # Place default units for player 2
+                self._place_default_units_for_player(2)
+                # End setup phase
+                self.setup_phase = False
+                # Assign Greek identification letters to units
+                self._assign_greek_identifiers()
+                # Add welcome message now that game is starting
+                message_log.add_system_message(f"Entering {self.map.name}")
+                # Skip to game start
+                return True
+            else:
+                # In multiplayer, switch to player 2 for manual setup
+                self.setup_player = 2
+                # Here, game still in setup phase
+                return False
             
         # If player 2 is done, start the game
         if self.setup_player == 2:
