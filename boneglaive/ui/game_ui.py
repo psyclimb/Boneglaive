@@ -112,6 +112,9 @@ class GameUI:
         
         # Update message with current player
         self.update_player_message()
+        
+        # Draw the board immediately to avoid black screen
+        self.draw_board()
     
     def _setup_event_handlers(self):
         """Set up event handlers for the main UI."""
@@ -304,6 +307,7 @@ class GameUI:
             # If all units are placed, interpret 'y' as confirm
             if self.mode_manager.check_confirmation_needed():
                 self.mode_manager.handle_confirm()
+                self.draw_board()  # Always draw after handling input
                 return True
             # Otherwise, let it pass through as movement
             
@@ -312,16 +316,22 @@ class GameUI:
         if self.action_menu_component.visible:
             handled = self.action_menu_component.handle_input(key)
             if handled:
+                self.draw_board()  # Always draw after handling input
                 return True
             # If not handled, continue with normal input processing
         
         # Check if message log component wants to handle the input
         if self.message_log_component.handle_input(key):
+            self.draw_board()  # Always draw after handling input
             return True
             
         # Check if chat component is in chat mode
         if self.chat_component.chat_mode:
-            return self.chat_component.handle_chat_input(key)
+            result = self.chat_component.handle_chat_input(key)
+            self.draw_board()  # Always draw after handling input
+            return result
         
         # Delegate input handling to the input manager
-        return self.input_manager.process_input(key)
+        result = self.input_manager.process_input(key)
+        self.draw_board()  # Always draw after handling input
+        return result

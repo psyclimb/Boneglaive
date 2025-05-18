@@ -52,6 +52,7 @@ class UIRenderer:
         spinner_x = menu_x + (menu_width - len(spinner_line)) // 2
         self.renderer.draw_text(menu_y + 4, spinner_x, spinner_line, 3, curses.A_BOLD)
     
+    @measure_perf
     def draw_board(self, show_cursor=True, show_selection=True, show_attack_targets=True):
         """Draw the game board and UI.
         
