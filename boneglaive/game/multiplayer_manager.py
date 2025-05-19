@@ -179,6 +179,10 @@ class MultiplayerManager:
                     message_log.add_system_message("AI is thinking...")
                     self.network_interface.process_turn()
                     
+                    # Execute the AI's turn
+                    logger.info("Executing AI's turn")
+                    self.game.execute_turn(ui)
+                    
                     # Switch back to player 1 after AI turn
                     self.current_player = 1
                     self.game.current_player = 1
