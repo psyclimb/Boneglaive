@@ -311,6 +311,9 @@ class SimpleAI:
         # Get all valid positions the unit can move to
         reachable_positions = []
         
+        # Import necessary path checking utilities
+        from boneglaive.utils.coordinates import Position, get_line
+        
         for y in range(max(0, unit.y - move_range), min(self.game.map.height, unit.y + move_range + 1)):
             for x in range(max(0, unit.x - move_range), min(self.game.map.width, unit.x + move_range + 1)):
                 # Check if position is valid and within move range
@@ -328,7 +331,33 @@ class SimpleAI:
                 distance = self.game.chess_distance(unit.y, unit.x, y, x)
                 if distance > move_range:
                     continue
+                
+                # For non-adjacent moves, validate path to ensure no units or impassable terrain blocks the way
+                if distance > 1:
+                    # Get path positions
+                    start_pos = Position(unit.y, unit.x)
+                    end_pos = Position(y, x)
+                    path = get_line(start_pos, end_pos)
                     
+                    # Check if path is clear (excluding start and end positions)
+                    path_is_clear = True
+                    for pos in path[1:-1]:  # Skip start and end positions
+                        # Check for blocking units
+                        blocking_unit = self.game.get_unit_at(pos.y, pos.x)
+                        if blocking_unit:
+                            path_is_clear = False
+                            break
+                            
+                        # Check for impassable terrain
+                        if not self.game.map.is_passable(pos.y, pos.x):
+                            path_is_clear = False
+                            break
+                    
+                    # Skip this position if path is not clear
+                    if not path_is_clear:
+                        continue
+                    
+                # Position is valid, add to reachable positions
                 reachable_positions.append((y, x))
                 
         if not reachable_positions:
