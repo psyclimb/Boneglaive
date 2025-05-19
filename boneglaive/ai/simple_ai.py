@@ -45,16 +45,24 @@ class SimpleAI:
         """
         logger.info("AI processing turn")
         
-        if self.enable_thinking_messages:
-            message_log.add_system_message("AI is thinking...")
+        # "AI is thinking..." message moved to multiplayer_manager.py
+        # to avoid duplication
             
         # Get all units belonging to the AI player
         ai_units = [unit for unit in self.game.units 
                    if unit.player == self.player_number and unit.is_alive()]
         
+        # Log all AI units for debugging
+        logger.info(f"Found {len(ai_units)} AI units:")
+        for i, unit in enumerate(ai_units):
+            logger.info(f"AI unit {i+1}: {unit.get_display_name()} at ({unit.y}, {unit.x})")
+        
         if not ai_units:
             logger.warning("AI has no units to control")
             return False
+            
+        # Ensure each unit has a target
+        self._ensure_all_units_have_targets(ai_units)
             
         # Process units one at a time
         for unit in ai_units:
@@ -68,6 +76,25 @@ class SimpleAI:
         # End the turn
         logger.info("AI ending turn")
         return True
+        
+    def _ensure_all_units_have_targets(self, ai_units: List['Unit']) -> None:
+        """
+        Make sure all AI units have an enemy target to pursue.
+        
+        Args:
+            ai_units: List of all AI units
+        """
+        # Get all player units for targeting
+        player_units = [unit for unit in self.game.units 
+                      if unit.player == 1 and unit.is_alive()]
+                      
+        if not player_units:
+            return
+            
+        # Every AI unit must have at least one player unit to target
+        for ai_unit in ai_units:
+            # The unit will find its own nearest enemy when processed
+            logger.info(f"AI ensuring unit {ai_unit.get_display_name()} has a target")
     
     def _process_unit(self, unit: 'Unit') -> None:
         """
@@ -87,11 +114,15 @@ class SimpleAI:
     def _process_glaiveman(self, unit: 'Unit') -> None:
         """
         Process actions for a Glaiveman unit.
-        For now, just implements simple movement and attack.
+        Implements aggressive movement and attack behavior.
         
         Args:
             unit: The Glaiveman unit to process
         """
+        # Always reset move and attack targets at the start of processing
+        unit.move_target = None
+        unit.attack_target = None
+        
         # 1. Find the nearest enemy
         nearest_enemy = self._find_nearest_enemy(unit)
         
@@ -107,7 +138,7 @@ class SimpleAI:
         # 3. If we can attack, do it
         if can_attack:
             logger.info(f"Glaiveman attacking enemy at ({nearest_enemy.y}, {nearest_enemy.x})")
-            self.game.attack(unit.y, unit.x, nearest_enemy.y, nearest_enemy.x, ui=self.ui)
+            unit.attack_target = (nearest_enemy.y, nearest_enemy.x)
         # 4. If we can't attack, try to move closer
         else:
             logger.info(f"Glaiveman moving towards enemy at ({nearest_enemy.y}, {nearest_enemy.x})")
@@ -117,16 +148,20 @@ class SimpleAI:
             can_attack_after_move = self._can_attack_after_move(unit, nearest_enemy)
             if can_attack_after_move:
                 logger.info(f"Glaiveman attacking enemy after movement")
-                # The attack will be processed during the turn resolution phase
+                # The attack_target is set in _can_attack_after_move
     
     def _process_default_unit(self, unit: 'Unit') -> None:
         """
         Default processing for units without specific AI logic.
-        Simply moves towards the nearest enemy and attacks if possible.
+        Aggressively moves towards the nearest enemy and attacks if possible.
         
         Args:
             unit: The unit to process
         """
+        # Always reset move and attack targets at the start of processing
+        unit.move_target = None
+        unit.attack_target = None
+        
         # 1. Find the nearest enemy
         nearest_enemy = self._find_nearest_enemy(unit)
         
@@ -142,7 +177,7 @@ class SimpleAI:
         # 3. If we can attack, do it
         if can_attack:
             logger.info(f"Unit attacking enemy at ({nearest_enemy.y}, {nearest_enemy.x})")
-            self.game.attack(unit.y, unit.x, nearest_enemy.y, nearest_enemy.x, ui=self.ui)
+            unit.attack_target = (nearest_enemy.y, nearest_enemy.x)
         # 4. If we can't attack, try to move closer
         else:
             logger.info(f"Unit moving towards enemy at ({nearest_enemy.y}, {nearest_enemy.x})")
@@ -152,7 +187,7 @@ class SimpleAI:
             can_attack_after_move = self._can_attack_after_move(unit, nearest_enemy)
             if can_attack_after_move:
                 logger.info(f"Unit attacking enemy after movement")
-                # The attack will be processed during the turn resolution phase
+                # The attack_target is set in _can_attack_after_move
     
     def _find_nearest_enemy(self, unit: 'Unit') -> Optional['Unit']:
         """
@@ -236,7 +271,7 @@ class SimpleAI:
     
     def _move_towards_enemy(self, unit: 'Unit', target: 'Unit') -> None:
         """
-        Move a unit towards an enemy.
+        Move a unit towards an enemy - always ensure a move happens if possible.
         
         Args:
             unit: The unit to move
@@ -248,6 +283,7 @@ class SimpleAI:
         
         # No movement possible
         if move_range <= 0:
+            logger.info(f"Unit {unit.get_display_name()} cannot move (move_range = {move_range})")
             return
             
         # Find the best move position
@@ -257,6 +293,8 @@ class SimpleAI:
             # Set the move target
             unit.move_target = best_pos
             logger.info(f"Setting move target to ({best_pos[0]}, {best_pos[1]})")
+        else:
+            logger.warning(f"Could not find valid move for {unit.get_display_name()} towards {target.get_display_name()}")
     
     def _find_best_move_position(self, unit: 'Unit', target: 'Unit', move_range: int) -> Optional[Tuple[int, int]]:
         """
