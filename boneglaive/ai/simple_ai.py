@@ -46,6 +46,10 @@ class SimpleAI:
         self.difficulty = self._get_difficulty_level()
         logger.info(f"AI initialized with difficulty: {self.difficulty.value}")
         
+        # Coordination tracking
+        self.target_assignments = {}  # Maps unit_id -> target_id
+        self.planned_positions = {}   # Maps (y, x) coordinates -> unit_id
+        
         # Messaging
         self.enable_thinking_messages = True
     
@@ -83,10 +87,18 @@ class SimpleAI:
             logger.warning("AI has no units to control")
             return False
         
+        # Reset coordination tracking for the new turn
+        self.target_assignments = {}
+        self.planned_positions = {}
+        
         # Coordinate units based on difficulty
         if self.difficulty == AIDifficulty.MEDIUM or self.difficulty == AIDifficulty.HARD:
-            # Ensure each unit has a target
-            self._ensure_all_units_have_targets(ai_units)
+            # On HARD difficulty, perform group coordination
+            if self.difficulty == AIDifficulty.HARD:
+                self._coordinate_group_tactics(ai_units)
+            else:
+                # On MEDIUM, just ensure each unit has a target
+                self._ensure_all_units_have_targets(ai_units)
         
         # On HARD difficulty, sort units to process the most tactical ones first
         if self.difficulty == AIDifficulty.HARD:
@@ -106,9 +118,195 @@ class SimpleAI:
         logger.info("AI ending turn")
         return True
         
+    def _coordinate_group_tactics(self, ai_units: List['Unit']) -> None:
+        """
+        Coordinate AI units for group tactics (HARD difficulty).
+        Assigns targets and positions strategically for group advantage.
+        
+        Args:
+            ai_units: List of all AI units
+        """
+        # Get all player units for targeting
+        player_units = [unit for unit in self.game.units 
+                      if unit.player == 1 and unit.is_alive()]
+                      
+        if not player_units:
+            return
+            
+        logger.info("Coordinating AI group tactics")
+        
+        # 1. GROUP SURROUNDING: Try to surround isolated player units
+        isolated_targets = self._find_isolated_player_units(player_units)
+        
+        if isolated_targets and len(ai_units) >= 2:
+            # Pick the most isolated player unit to surround
+            target_unit = isolated_targets[0]
+            logger.info(f"Group tactic: Surrounding isolated unit {target_unit.get_display_name()}")
+            
+            # Find AI units that are close enough to participate
+            nearby_ai_units = []
+            for unit in ai_units:
+                distance = self.game.chess_distance(unit.y, unit.x, target_unit.y, target_unit.x)
+                # Consider units that are close or have good move range
+                move_range = unit.get_effective_stats()['move_range']
+                if distance <= move_range + 3:  # Within reach in 1-2 turns
+                    nearby_ai_units.append(unit)
+            
+            # Try to assign positions around the target
+            if len(nearby_ai_units) >= 2:
+                # Get surrounding positions
+                surround_positions = self._get_surrounding_positions(target_unit)
+                
+                # Assign AI units to surrounding positions
+                for i, pos in enumerate(surround_positions):
+                    if i < len(nearby_ai_units):
+                        unit = nearby_ai_units[i]
+                        # Set this as a planned position
+                        self.planned_positions[pos] = unit.id
+                        # Set the target assignment
+                        self.target_assignments[unit.id] = target_unit.id
+                        
+                        logger.info(f"Assigned {unit.get_display_name()} to surround position {pos} targeting {target_unit.get_display_name()}")
+        
+        # 2. Assign remaining units to appropriate targets
+        assigned_units = set(unit.id for unit in ai_units if unit.id in self.target_assignments)
+        unassigned_units = [unit for unit in ai_units if unit.id not in assigned_units]
+        
+        if unassigned_units:
+            self._assign_targets_to_units(unassigned_units, player_units)
+    
+    def _find_isolated_player_units(self, player_units: List['Unit']) -> List['Unit']:
+        """
+        Find player units that are isolated from other player units.
+        These are good targets for surrounding.
+        
+        Args:
+            player_units: List of player units to check
+            
+        Returns:
+            List of isolated player units, sorted by isolation factor
+        """
+        if len(player_units) <= 1:
+            return player_units
+            
+        # Calculate isolation score for each player unit
+        isolation_scores = []
+        
+        for unit in player_units:
+            # Calculate average distance to other player units
+            other_units = [u for u in player_units if u.id != unit.id]
+            total_distance = sum(self.game.chess_distance(unit.y, unit.x, u.y, u.x) for u in other_units)
+            avg_distance = total_distance / len(other_units) if other_units else 0
+            
+            # Higher score means more isolated
+            isolation_scores.append((unit, avg_distance))
+        
+        # Sort by isolation score (highest first)
+        isolation_scores.sort(key=lambda x: x[1], reverse=True)
+        
+        # Return units that are relatively isolated (more than 3 spaces from others on average)
+        return [unit for unit, score in isolation_scores if score > 3]
+    
+    def _get_surrounding_positions(self, unit: 'Unit') -> List[Tuple[int, int]]:
+        """
+        Get valid positions surrounding a unit for coordinated attacks.
+        
+        Args:
+            unit: The unit to surround
+            
+        Returns:
+            List of valid (y, x) positions around the unit
+        """
+        from boneglaive.utils.coordinates import get_adjacent_positions
+        
+        # Get all adjacent positions
+        adjacent_positions = get_adjacent_positions(unit.y, unit.x)
+        
+        # Filter for valid positions
+        valid_positions = []
+        for y, x in adjacent_positions:
+            # Check if position is valid and passable
+            if (self.game.is_valid_position(y, x) and 
+                self.game.map.is_passable(y, x) and 
+                not self.game.get_unit_at(y, x)):
+                valid_positions.append((y, x))
+        
+        return valid_positions
+    
+    def _assign_targets_to_units(self, ai_units: List['Unit'], player_units: List['Unit']) -> None:
+        """
+        Assign appropriate targets to AI units based on tactical priorities.
+        
+        Args:
+            ai_units: AI units that need target assignments
+            player_units: Available player units to target
+        """
+        # Track which player units are being targeted by how many AI units
+        target_count = {unit.id: 0 for unit in player_units}
+        
+        for unit in ai_units:
+            # Find best target considering group coordination
+            best_target = self._find_coordinated_target(unit, player_units, target_count)
+            
+            if best_target:
+                # Update target assignment
+                self.target_assignments[unit.id] = best_target.id
+                # Increment target count
+                target_count[best_target.id] += 1
+                
+                logger.info(f"Assigned {unit.get_display_name()} to target {best_target.get_display_name()}")
+    
+    def _find_coordinated_target(self, unit: 'Unit', player_units: List['Unit'], 
+                               target_count: Dict[str, int]) -> Optional['Unit']:
+        """
+        Find the best target for a unit considering group coordination.
+        Ensures we don't have too many units attacking the same target.
+        
+        Args:
+            unit: The AI unit needing a target
+            player_units: Available player units to target
+            target_count: Dictionary tracking how many AI units are targeting each player unit
+            
+        Returns:
+            The best target unit, or None if no targets available
+        """
+        # Calculate scores for each potential target
+        target_scores = []
+        
+        for target in player_units:
+            score = 0
+            
+            # Distance factor (closer is better)
+            distance = self.game.chess_distance(unit.y, unit.x, target.y, target.x)
+            distance_score = max(20 - distance, 0)  # Higher score for closer targets
+            score += distance_score
+            
+            # Target health factor (lower health is better)
+            health_factor = 100 - target.current_hp
+            score += health_factor * 0.5
+            
+            # Coordination factor (prefer targets with fewer units assigned)
+            current_attackers = target_count[target.id]
+            if current_attackers == 0:
+                # Bonus for unassigned targets
+                score += 15
+            elif current_attackers >= 2:
+                # Penalty for overassigned targets
+                score -= 20 * (current_attackers - 1)
+            
+            target_scores.append((target, score))
+        
+        # Sort by score (highest first)
+        target_scores.sort(key=lambda x: x[1], reverse=True)
+        
+        if target_scores:
+            return target_scores[0][0]
+        return None
+            
     def _ensure_all_units_have_targets(self, ai_units: List['Unit']) -> None:
         """
         Make sure all AI units have an enemy target to pursue.
+        Basic version for MEDIUM difficulty.
         
         Args:
             ai_units: List of all AI units
@@ -172,31 +370,47 @@ class SimpleAI:
         """
         # For now, we'll only implement Glaiveman logic
         if unit.type == UnitType.GLAIVEMAN:
-            self._process_glaiveman(unit)
+            self._process_glaiveman(unit, use_coordination=self.difficulty == AIDifficulty.HARD)
         else:
             # Default behavior for other unit types
             logger.info(f"No specific AI logic for {unit.type.name}, using default behavior")
-            self._process_default_unit(unit)
+            self._process_default_unit(unit, use_coordination=self.difficulty == AIDifficulty.HARD)
     
-    def _process_glaiveman(self, unit: 'Unit') -> None:
+    def _process_glaiveman(self, unit: 'Unit', use_coordination: bool = False) -> None:
         """
         Process actions for a Glaiveman unit.
         Implements aggressive movement and attack behavior.
         
         Args:
             unit: The Glaiveman unit to process
+            use_coordination: Whether to use group coordination tactics
         """
         # Always reset move and attack targets at the start of processing
         unit.move_target = None
         unit.attack_target = None
         
-        # Get a target based on the difficulty level
-        if self.difficulty == AIDifficulty.EASY:
-            target = self._find_random_enemy(unit)
-        elif self.difficulty == AIDifficulty.MEDIUM:
-            target = self._find_nearest_enemy(unit)
-        else:  # HARD difficulty
-            target = self._find_best_target(unit)
+        # Get a target based on the difficulty level or coordination
+        target = None
+        
+        # If using coordination and this unit has an assigned target, use it
+        if use_coordination and unit.id in self.target_assignments:
+            # Get the assigned target from coordination
+            target_id = self.target_assignments[unit.id]
+            # Find the target unit by ID
+            for player_unit in self.game.units:
+                if player_unit.id == target_id and player_unit.is_alive():
+                    target = player_unit
+                    logger.info(f"Using coordinated target for {unit.get_display_name()}: {target.get_display_name()}")
+                    break
+        
+        # If no coordinated target was found, fall back to normal targeting
+        if not target:
+            if self.difficulty == AIDifficulty.EASY:
+                target = self._find_random_enemy(unit)
+            elif self.difficulty == AIDifficulty.MEDIUM:
+                target = self._find_nearest_enemy(unit)
+            else:  # HARD difficulty
+                target = self._find_best_target(unit)
             
         if not target:
             logger.info("No enemies found for Glaiveman to target")
@@ -219,7 +433,12 @@ class SimpleAI:
                 return
                 
             logger.info(f"Glaiveman moving towards enemy at ({target.y}, {target.x})")
-            self._move_towards_enemy(unit, target)
+            
+            # If using coordination, consider planned positions
+            if use_coordination:
+                self._move_with_coordination(unit, target)
+            else:
+                self._move_towards_enemy(unit, target)
             
             # Check if we can attack after moving
             can_attack_after_move = self._can_attack_after_move(unit, target)
@@ -227,25 +446,41 @@ class SimpleAI:
                 logger.info(f"Glaiveman attacking enemy after movement")
                 # The attack_target is set in _can_attack_after_move
     
-    def _process_default_unit(self, unit: 'Unit') -> None:
+    def _process_default_unit(self, unit: 'Unit', use_coordination: bool = False) -> None:
         """
         Default processing for units without specific AI logic.
         Aggressively moves towards the nearest enemy and attacks if possible.
         
         Args:
             unit: The unit to process
+            use_coordination: Whether to use group coordination tactics
         """
         # Always reset move and attack targets at the start of processing
         unit.move_target = None
         unit.attack_target = None
         
-        # Get a target based on the difficulty level (similar to Glaiveman)
-        if self.difficulty == AIDifficulty.EASY:
-            target = self._find_random_enemy(unit)
-        elif self.difficulty == AIDifficulty.MEDIUM:
-            target = self._find_nearest_enemy(unit)
-        else:  # HARD difficulty
-            target = self._find_best_target(unit)
+        # Get a target based on the difficulty level or coordination
+        target = None
+        
+        # If using coordination and this unit has an assigned target, use it
+        if use_coordination and unit.id in self.target_assignments:
+            # Get the assigned target from coordination
+            target_id = self.target_assignments[unit.id]
+            # Find the target unit by ID
+            for player_unit in self.game.units:
+                if player_unit.id == target_id and player_unit.is_alive():
+                    target = player_unit
+                    logger.info(f"Using coordinated target for {unit.get_display_name()}: {target.get_display_name()}")
+                    break
+        
+        # If no coordinated target was found, fall back to normal targeting
+        if not target:
+            if self.difficulty == AIDifficulty.EASY:
+                target = self._find_random_enemy(unit)
+            elif self.difficulty == AIDifficulty.MEDIUM:
+                target = self._find_nearest_enemy(unit)
+            else:  # HARD difficulty
+                target = self._find_best_target(unit)
         
         if not target:
             logger.info("No enemies found for unit to target")
@@ -268,7 +503,12 @@ class SimpleAI:
                 return
                 
             logger.info(f"Unit moving towards enemy at ({target.y}, {target.x})")
-            self._move_towards_enemy(unit, target)
+            
+            # If using coordination, consider planned positions
+            if use_coordination:
+                self._move_with_coordination(unit, target)
+            else:
+                self._move_towards_enemy(unit, target)
             
             # Check if we can attack after moving
             can_attack_after_move = self._can_attack_after_move(unit, target)
@@ -455,6 +695,61 @@ class SimpleAI:
             
         return False
     
+    def _move_with_coordination(self, unit: 'Unit', target: 'Unit') -> None:
+        """
+        Move a unit towards an enemy using group coordination information.
+        Considers planned positions from group tactics.
+        
+        Args:
+            unit: The unit to move
+            target: The enemy to move towards
+        """
+        # Get effective stats
+        stats = unit.get_effective_stats()
+        move_range = stats['move_range']
+        
+        # No movement possible
+        if move_range <= 0:
+            logger.info(f"Unit {unit.get_display_name()} cannot move (move_range = {move_range})")
+            return
+        
+        # Check if this unit has a planned position from coordination
+        planned_position = None
+        for pos, unit_id in self.planned_positions.items():
+            if unit_id == unit.id:
+                planned_position = pos
+                break
+                
+        # If we have a planned position and it's valid, use it
+        if planned_position:
+            y, x = planned_position
+            # Verify the position is still valid
+            if (self.game.is_valid_position(y, x) and 
+                self.game.map.is_passable(y, x) and 
+                not self.game.get_unit_at(y, x)):
+                
+                # Verify it's within move range or find a path towards it
+                distance = self.game.chess_distance(unit.y, unit.x, y, x)
+                if distance <= move_range:
+                    # Direct move to planned position
+                    unit.move_target = (y, x)
+                    logger.info(f"Moving to coordinated position at ({y}, {x})")
+                    return
+                else:
+                    # Can't reach planned position yet, move towards it
+                    logger.info(f"Moving towards coordinated position at ({y}, {x})")
+                    # Create a temporary target at the position
+                    from boneglaive.game.units import Unit
+                    # Create a minimal fake unit at the position as a target
+                    fake_target = Unit(player=1, type=UnitType.GLAIVEMAN, y=y, x=x)
+                    fake_target.current_hp = 10  # Arbitrary value
+                    # Move towards the position
+                    self._move_towards_enemy(unit, fake_target)
+                    return
+        
+        # If no valid planned position, use normal movement
+        self._move_towards_enemy(unit, target)
+        
     def _move_towards_enemy(self, unit: 'Unit', target: 'Unit') -> None:
         """
         Move a unit towards an enemy - always ensure a move happens if possible.
