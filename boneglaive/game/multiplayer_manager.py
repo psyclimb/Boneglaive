@@ -10,10 +10,10 @@ from boneglaive.game.engine import Game
 from boneglaive.networking.network_interface import NetworkInterface
 from boneglaive.networking.local_multiplayer import LocalMultiplayerInterface
 from boneglaive.networking.lan_multiplayer import LANMultiplayerInterface
-# AI interface is not available yet
-# from boneglaive.ai.ai_interface import AIInterface
+from boneglaive.ai.ai_interface import AIInterface
 from boneglaive.utils.config import ConfigManager, NetworkMode
 from boneglaive.utils.debug import logger
+from boneglaive.utils.message_log import message_log, MessageType
 
 class MultiplayerManager:
     """
@@ -76,17 +76,18 @@ class MultiplayerManager:
             return result
             
         elif network_mode == NetworkMode.VS_AI.value:
-            # VS AI mode not implemented yet
-            logger.warning("AI mode is not implemented yet. Falling back to local multiplayer.")
-            # Switch to local multiplayer instead
-            self.network_interface = LocalMultiplayerInterface()
-            result = self.network_interface.initialize()
+            # VS AI mode using AIInterface
+            logger.info("Initializing VS AI mode")
+            self.network_interface = AIInterface()
+            result = self.network_interface.initialize(self.game, ui=getattr(self.game, 'ui', None))
             self.initialized = result
             
-            # Mark the game as being in local multiplayer mode
+            # Mark the game as being in single player mode (not local multiplayer)
             if result:
-                self.game.local_multiplayer = True
-                logger.info("Fallback to local multiplayer successful")
+                self.game.local_multiplayer = False
+                logger.info("VS AI mode initialized successfully")
+            else:
+                logger.error("Failed to initialize VS AI mode")
             
             return result
             
@@ -123,10 +124,14 @@ class MultiplayerManager:
         return (self.network_interface is not None and 
                 self.network_interface.is_network_multiplayer())
     
+    def is_vs_ai(self) -> bool:
+        """Check if the game is in vs. AI mode."""
+        return isinstance(self.network_interface, AIInterface)
+    
     def end_turn(self) -> None:
         """End the current player's turn and switch to the next player."""
-        if not self.is_multiplayer():
-            # In single player, no need to switch players
+        if not self.is_multiplayer() and not self.is_vs_ai():
+            # In single player (not vs. AI), no need to switch players
             return
 
         if self.is_local_multiplayer():
@@ -140,7 +145,6 @@ class MultiplayerManager:
                 self.current_player = self.network_interface.get_player_number()
 
                 # Ensure the player number in the game engine is also updated
-                # This is redundant with our engine.py change but ensures consistency
                 self.game.current_player = self.current_player
 
                 # When switching to player 2, check if it's the first turn
@@ -152,6 +156,41 @@ class MultiplayerManager:
                         self.game.is_player2_first_turn = False
 
                 logger.info(f"Switched to player {self.current_player}")
+        
+        elif self.is_vs_ai():
+            # In VS AI mode, switch between player 1 and AI (player 2)
+            if self.current_player == 1:
+                # Player 1 ended turn, switch to AI (player 2)
+                self.current_player = 2
+                self.game.current_player = 2
+                
+                # If this is player 2's first turn, apply move bonus to their units
+                if hasattr(self.game, 'is_player2_first_turn') and self.game.is_player2_first_turn:
+                    self._apply_player2_first_turn_buff()
+                    self.game.is_player2_first_turn = False
+                
+                # Process AI turn immediately
+                logger.info("Processing AI turn")
+                if isinstance(self.network_interface, AIInterface):
+                    # Get UI reference from game if available
+                    ui = getattr(self.game, 'ui', None)
+                    
+                    # Process AI turn
+                    message_log.add_system_message("AI is thinking...")
+                    self.network_interface.process_turn()
+                    
+                    # Switch back to player 1 after AI turn
+                    self.current_player = 1
+                    self.game.current_player = 1
+                    message_log.add_system_message("Player 1's turn")
+                    
+                    # Force UI refresh if UI is available
+                    if ui and hasattr(ui, 'draw_board'):
+                        ui.draw_board()
+            else:
+                # This shouldn't happen in VS AI mode, but handle it anyway
+                self.current_player = 1
+                self.game.current_player = 1
 
     def _apply_player2_first_turn_buff(self) -> None:
         """Apply +2 move range buff to all player 2 units on their first turn."""

@@ -71,6 +71,7 @@ class MenuUI:
         # Create submenus first
         play_menu = Menu("Play Game", [
             MenuItem("Single Player", self._start_single_player),
+            MenuItem("VS AI (Glaiveman)", self._start_vs_ai),
             MenuItem("Local Multiplayer", self._start_local_multiplayer),
             MenuItem("Host LAN Game", self._start_lan_host),
             MenuItem("Join LAN Game", self._start_lan_client),
@@ -161,6 +162,13 @@ class MenuUI:
         self.config.set('network_mode', NetworkMode.LAN_CLIENT.value)
         self.config.save_config()
         logger.info("Starting LAN game client")
+        return ("start_game", None)
+        
+    def _start_vs_ai(self):
+        """Start a game against the AI."""
+        self.config.set('network_mode', NetworkMode.VS_AI.value)
+        self.config.save_config()
+        logger.info("Starting VS AI game")
         return ("start_game", None)
     
     def _set_display_mode(self, mode: str):
