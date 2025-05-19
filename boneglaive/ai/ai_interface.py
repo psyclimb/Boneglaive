@@ -6,6 +6,7 @@ Provides a clean interface between the game and AI controllers.
 
 from typing import Any, Dict, Optional, TYPE_CHECKING
 from boneglaive.utils.debug import logger
+from boneglaive.utils.config import ConfigManager
 from boneglaive.networking.network_interface import NetworkInterface, MessageType, GameMode
 
 if TYPE_CHECKING:
@@ -25,6 +26,7 @@ class AIInterface(NetworkInterface):
         self.ui = None
         self.initialized = False
         self.ai_controller = None
+        self.config = ConfigManager()
     
     def initialize(self, game: 'Game', ui: Optional['GameUI'] = None) -> bool:
         """
