@@ -1,0 +1,309 @@
+#!/usr/bin/env python3
+"""
+Simple AI controller for Boneglaive.
+This module contains a basic AI implementation focusing on the Glaiveman unit.
+"""
+
+import random
+from typing import List, Tuple, Dict, Optional, TYPE_CHECKING
+from boneglaive.utils.debug import logger
+from boneglaive.utils.constants import UnitType
+from boneglaive.utils.message_log import message_log, MessageType
+
+if TYPE_CHECKING:
+    from boneglaive.game.engine import Game
+    from boneglaive.game.units import Unit
+    from boneglaive.ui.game_ui import GameUI
+
+class SimpleAI:
+    """
+    Simple AI controller for Boneglaive.
+    Handles decision making for AI-controlled units.
+    """
+    
+    def __init__(self, game: 'Game', ui: Optional['GameUI'] = None):
+        """
+        Initialize the AI controller.
+        
+        Args:
+            game: Reference to the Game instance
+            ui: Optional reference to the GameUI instance
+        """
+        self.game = game
+        self.ui = ui
+        self.player_number = 2  # AI is always player 2
+        
+        # Messaging
+        self.enable_thinking_messages = True
+    
+    def process_turn(self) -> bool:
+        """
+        Process a full AI turn.
+        
+        Returns:
+            True if the turn was processed successfully, False otherwise
+        """
+        logger.info("AI processing turn")
+        
+        if self.enable_thinking_messages:
+            message_log.add_system_message("AI is thinking...")
+            
+        # Get all units belonging to the AI player
+        ai_units = [unit for unit in self.game.units 
+                   if unit.player == self.player_number and unit.is_alive()]
+        
+        if not ai_units:
+            logger.warning("AI has no units to control")
+            return False
+            
+        # Process units one at a time
+        for unit in ai_units:
+            logger.info(f"AI processing unit: {unit.get_display_name()}")
+            self._process_unit(unit)
+            
+            # Update the UI after each unit action
+            if self.ui:
+                self.ui.draw_board()
+                
+        # End the turn
+        logger.info("AI ending turn")
+        return True
+    
+    def _process_unit(self, unit: 'Unit') -> None:
+        """
+        Process actions for a single unit.
+        
+        Args:
+            unit: The unit to process
+        """
+        # For now, we'll only implement Glaiveman logic
+        if unit.type == UnitType.GLAIVEMAN:
+            self._process_glaiveman(unit)
+        else:
+            # Default behavior for other unit types
+            logger.info(f"No specific AI logic for {unit.type.name}, using default behavior")
+            self._process_default_unit(unit)
+    
+    def _process_glaiveman(self, unit: 'Unit') -> None:
+        """
+        Process actions for a Glaiveman unit.
+        For now, just implements simple movement and attack.
+        
+        Args:
+            unit: The Glaiveman unit to process
+        """
+        # 1. Find the nearest enemy
+        nearest_enemy = self._find_nearest_enemy(unit)
+        
+        if not nearest_enemy:
+            logger.info("No enemies found for Glaiveman to target")
+            return
+            
+        logger.info(f"Glaiveman targeting enemy: {nearest_enemy.get_display_name()} at position ({nearest_enemy.y}, {nearest_enemy.x})")
+        
+        # 2. Check if we can attack the enemy from our current position
+        can_attack = self._can_attack(unit, nearest_enemy)
+        
+        # 3. If we can attack, do it
+        if can_attack:
+            logger.info(f"Glaiveman attacking enemy at ({nearest_enemy.y}, {nearest_enemy.x})")
+            self.game.attack(unit.y, unit.x, nearest_enemy.y, nearest_enemy.x, ui=self.ui)
+        # 4. If we can't attack, try to move closer
+        else:
+            logger.info(f"Glaiveman moving towards enemy at ({nearest_enemy.y}, {nearest_enemy.x})")
+            self._move_towards_enemy(unit, nearest_enemy)
+            
+            # Check if we can attack after moving
+            can_attack_after_move = self._can_attack_after_move(unit, nearest_enemy)
+            if can_attack_after_move:
+                logger.info(f"Glaiveman attacking enemy after movement")
+                # The attack will be processed during the turn resolution phase
+    
+    def _process_default_unit(self, unit: 'Unit') -> None:
+        """
+        Default processing for units without specific AI logic.
+        Simply moves towards the nearest enemy and attacks if possible.
+        
+        Args:
+            unit: The unit to process
+        """
+        # 1. Find the nearest enemy
+        nearest_enemy = self._find_nearest_enemy(unit)
+        
+        if not nearest_enemy:
+            logger.info("No enemies found for unit to target")
+            return
+            
+        logger.info(f"Unit targeting enemy: {nearest_enemy.get_display_name()} at position ({nearest_enemy.y}, {nearest_enemy.x})")
+        
+        # 2. Check if we can attack the enemy from our current position
+        can_attack = self._can_attack(unit, nearest_enemy)
+        
+        # 3. If we can attack, do it
+        if can_attack:
+            logger.info(f"Unit attacking enemy at ({nearest_enemy.y}, {nearest_enemy.x})")
+            self.game.attack(unit.y, unit.x, nearest_enemy.y, nearest_enemy.x, ui=self.ui)
+        # 4. If we can't attack, try to move closer
+        else:
+            logger.info(f"Unit moving towards enemy at ({nearest_enemy.y}, {nearest_enemy.x})")
+            self._move_towards_enemy(unit, nearest_enemy)
+            
+            # Check if we can attack after moving
+            can_attack_after_move = self._can_attack_after_move(unit, nearest_enemy)
+            if can_attack_after_move:
+                logger.info(f"Unit attacking enemy after movement")
+                # The attack will be processed during the turn resolution phase
+    
+    def _find_nearest_enemy(self, unit: 'Unit') -> Optional['Unit']:
+        """
+        Find the nearest enemy unit.
+        
+        Args:
+            unit: The unit to find an enemy for
+            
+        Returns:
+            The nearest enemy unit, or None if no enemies are found
+        """
+        enemy_units = [enemy for enemy in self.game.units 
+                      if enemy.player != unit.player and enemy.is_alive()]
+        
+        if not enemy_units:
+            return None
+            
+        # Find the enemy with the shortest distance
+        nearest_enemy = None
+        shortest_distance = float('inf')
+        
+        for enemy in enemy_units:
+            distance = self.game.chess_distance(unit.y, unit.x, enemy.y, enemy.x)
+            if distance < shortest_distance:
+                shortest_distance = distance
+                nearest_enemy = enemy
+                
+        return nearest_enemy
+    
+    def _can_attack(self, unit: 'Unit', target: 'Unit') -> bool:
+        """
+        Check if a unit can attack a target from its current position.
+        
+        Args:
+            unit: The attacking unit
+            target: The target unit
+            
+        Returns:
+            True if the attack is possible, False otherwise
+        """
+        # Get effective stats
+        stats = unit.get_effective_stats()
+        attack_range = stats['attack_range']
+        
+        # Calculate distance
+        distance = self.game.chess_distance(unit.y, unit.x, target.y, target.x)
+        
+        # Check if target is within attack range
+        return distance <= attack_range
+    
+    def _can_attack_after_move(self, unit: 'Unit', target: 'Unit') -> bool:
+        """
+        Check if a unit can attack after moving to its current move target.
+        
+        Args:
+            unit: The attacking unit
+            target: The target unit
+            
+        Returns:
+            True if the attack is possible after moving, False otherwise
+        """
+        # If no move target set, unit can't attack after moving
+        if not unit.move_target:
+            return False
+            
+        # Get effective stats
+        stats = unit.get_effective_stats()
+        attack_range = stats['attack_range']
+        
+        # Calculate distance from move target to target unit
+        move_y, move_x = unit.move_target
+        distance = self.game.chess_distance(move_y, move_x, target.y, target.x)
+        
+        # Check if target is within attack range after moving
+        if distance <= attack_range:
+            # Set attack target for end of turn processing
+            unit.attack_target = (target.y, target.x)
+            return True
+            
+        return False
+    
+    def _move_towards_enemy(self, unit: 'Unit', target: 'Unit') -> None:
+        """
+        Move a unit towards an enemy.
+        
+        Args:
+            unit: The unit to move
+            target: The enemy to move towards
+        """
+        # Get effective stats
+        stats = unit.get_effective_stats()
+        move_range = stats['move_range']
+        
+        # No movement possible
+        if move_range <= 0:
+            return
+            
+        # Find the best move position
+        best_pos = self._find_best_move_position(unit, target, move_range)
+        
+        if best_pos:
+            # Set the move target
+            unit.move_target = best_pos
+            logger.info(f"Setting move target to ({best_pos[0]}, {best_pos[1]})")
+    
+    def _find_best_move_position(self, unit: 'Unit', target: 'Unit', move_range: int) -> Optional[Tuple[int, int]]:
+        """
+        Find the best position to move towards an enemy.
+        
+        Args:
+            unit: The unit to move
+            target: The enemy to move towards
+            move_range: The unit's movement range
+            
+        Returns:
+            The best position to move to, or None if no valid move found
+        """
+        # Get all valid positions the unit can move to
+        reachable_positions = []
+        
+        for y in range(max(0, unit.y - move_range), min(self.game.map.height, unit.y + move_range + 1)):
+            for x in range(max(0, unit.x - move_range), min(self.game.map.width, unit.x + move_range + 1)):
+                # Check if position is valid and within move range
+                if not self.game.is_valid_position(y, x):
+                    continue
+                    
+                if not self.game.map.is_passable(y, x):
+                    continue
+                    
+                # Check if position is occupied
+                if self.game.get_unit_at(y, x) is not None:
+                    continue
+                    
+                # Check if within move range (chess distance)
+                distance = self.game.chess_distance(unit.y, unit.x, y, x)
+                if distance > move_range:
+                    continue
+                    
+                reachable_positions.append((y, x))
+                
+        if not reachable_positions:
+            return None
+            
+        # Get the position closest to the target
+        best_pos = None
+        shortest_distance = float('inf')
+        
+        for y, x in reachable_positions:
+            distance = self.game.chess_distance(y, x, target.y, target.x)
+            if distance < shortest_distance:
+                shortest_distance = distance
+                best_pos = (y, x)
+                
+        return best_pos
