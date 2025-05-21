@@ -1038,6 +1038,10 @@ class JudgementSkill(ActiveSkill):
         if distance > self.range:
             return False
             
+        # Check if there's line of sight to the target
+        if not game.has_line_of_sight(from_y, from_x, target_pos[0], target_pos[1]):
+            return False
+            
         return True
             
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
