@@ -396,6 +396,8 @@ class SimpleAI:
             self._process_glaiveman(unit, use_coordination=self.difficulty == AIDifficulty.HARD)
         elif unit.type == UnitType.MANDIBLE_FOREMAN:
             self._process_mandible_foreman(unit, use_coordination=self.difficulty == AIDifficulty.HARD)
+        elif unit.type == UnitType.GRAYMAN:
+            self._process_grayman(unit, use_coordination=self.difficulty == AIDifficulty.HARD)
         else:
             # Default behavior for other unit types
             logger.info(f"No specific AI logic for {unit.type.name}, using default behavior")
@@ -1501,6 +1503,675 @@ class SimpleAI:
             score -= 10
             
         return score
+    
+    def _process_grayman(self, unit: 'Unit', use_coordination: bool = False) -> None:
+        """
+        Process actions for a Grayman unit.
+        Implements intelligent skill usage focusing on teleportation, phasing, and echo creation.
+        
+        Args:
+            unit: The Grayman unit to process
+            use_coordination: Whether to use group coordination tactics
+        """
+        # Always reset move and attack targets at the start of processing
+        unit.move_target = None
+        unit.attack_target = None
+        unit.skill_target = None
+        unit.selected_skill = None
+        
+        # Get a target based on the difficulty level or coordination
+        target = None
+        
+        # If using coordination and this unit has an assigned target, use it
+        if use_coordination and unit.id in self.target_assignments:
+            # Get the assigned target from coordination
+            target_id = self.target_assignments[unit.id]
+            # Find the target unit by ID
+            for player_unit in self.game.units:
+                if player_unit.id == target_id and player_unit.is_alive():
+                    target = player_unit
+                    logger.info(f"Using coordinated target for {unit.get_display_name()}: {target.get_display_name()}")
+                    break
+        
+        # If no coordinated target was found, fall back to normal targeting
+        if not target:
+            if self.difficulty == AIDifficulty.EASY:
+                target = self._find_random_enemy(unit)
+            elif self.difficulty == AIDifficulty.MEDIUM:
+                target = self._find_nearest_enemy(unit)
+            else:  # HARD difficulty
+                target = self._find_best_target_for_grayman(unit)
+            
+        if not target:
+            logger.info("No enemies found for Grayman to target")
+            return
+            
+        logger.info(f"Grayman targeting enemy: {target.get_display_name()} at position ({target.y}, {target.x})")
+        
+        # Get available skills 
+        available_skills = []
+        try:
+            available_skills = unit.get_available_skills()
+            logger.info(f"Grayman has {len(available_skills)} skills available: {[skill.name for skill in available_skills]}")
+        except Exception as e:
+            logger.error(f"Error getting available skills: {e}")
+            
+        # Flag to track if we used a skill
+        used_skill = None
+        
+        # Skip skill usage on EASY difficulty most of the time
+        if self.difficulty == AIDifficulty.EASY and random.random() < 0.7:
+            logger.info("EASY difficulty: Skipping skill usage")
+        else:
+            # On MEDIUM or HARD, intelligently use skills
+            try:
+                used_skill = self._use_grayman_skills(unit, target, available_skills)
+                if used_skill:
+                    logger.info(f"Grayman used {used_skill.name} skill")
+                    # Don't return - we'll let the method complete even if a skill was used
+                    # This ensures that units always take some action
+            except Exception as e:
+                logger.error(f"Error using Grayman skills: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
+                used_skill = None
+        
+        # Only proceed with move/attack if no skill was used
+        if not used_skill:
+            # If we didn't use a skill, proceed with normal attack or movement
+            
+            # Check if we can attack the enemy from our current position
+            can_attack = self._can_attack(unit, target)
+            
+            # If we can attack, do it
+            if can_attack:
+                logger.info(f"Grayman attacking enemy at ({target.y}, {target.x})")
+                unit.attack_target = (target.y, target.x)
+            # If we can't attack, try to move closer
+            else:
+                # EASY difficulty has a chance to skip movement
+                if self.difficulty == AIDifficulty.EASY and random.random() < 0.3:
+                    logger.info("EASY difficulty: Grayman decided not to move this turn")
+                    return
+                    
+                logger.info(f"Grayman moving towards enemy at ({target.y}, {target.x})")
+                
+                # If using coordination, consider planned positions
+                if use_coordination:
+                    self._move_with_coordination(unit, target)
+                else:
+                    self._move_towards_enemy(unit, target)
+                
+                # Check if we can attack after moving
+                can_attack_after_move = self._can_attack_after_move(unit, target)
+                if can_attack_after_move:
+                    logger.info(f"Grayman attacking enemy after movement")
+                    # The attack_target is set in _can_attack_after_move
+    
+    def _use_grayman_skills(self, unit: 'Unit', target: 'Unit', available_skills: list) -> Optional['ActiveSkill']:
+        """
+        Intelligently use Grayman skills based on the current situation.
+        
+        Args:
+            unit: The Grayman unit
+            target: The enemy target
+            available_skills: List of available active skills
+            
+        Returns:
+            The skill that was used, or None if no skill was used
+        """
+        try:
+            if not available_skills:
+                logger.info("No skills available for this Grayman")
+                return None
+                
+            # Debug available skills
+            logger.info(f"Evaluating skills: {[skill.name for skill in available_skills]}")
+            
+            # Evaluate each skill's potential value
+            skill_scores = []
+            
+            for skill in available_skills:
+                # Use different evaluation based on skill type
+                try:
+                    if skill.name == "Delta Config":
+                        best_pos, score = self._evaluate_delta_config_skill(unit, target, skill)
+                        if best_pos and score > 0:
+                            skill_scores.append((skill, score, best_pos))
+                    elif skill.name == "Estrange":
+                        score = self._evaluate_estrange_skill(unit, target, skill)
+                        if score > 0 and skill.can_use(unit, (target.y, target.x), self.game):
+                            skill_scores.append((skill, score, (target.y, target.x)))
+                    elif skill.name == "Græ Exchange":
+                        best_pos, score = self._evaluate_grae_exchange_skill(unit, target, skill)
+                        if best_pos and score > 0:
+                            skill_scores.append((skill, score, best_pos))
+                except Exception as e:
+                    logger.error(f"Error evaluating skill {skill.name}: {e}")
+                    continue
+            
+            # Debug skill scores
+            logger.info(f"Skill scores: {[(s[0].name, s[1]) for s in skill_scores]}")
+            
+            # Sort by score (highest first)
+            skill_scores.sort(key=lambda x: x[1], reverse=True)
+            
+            # Use the highest scoring skill if score is above threshold
+            if skill_scores and skill_scores[0][1] >= 25:  # Set threshold for skill usage
+                skill, score, target_pos = skill_scores[0]
+                
+                logger.info(f"Using skill {skill.name} with score {score}")
+                
+                # Use the skill
+                success = skill.use(unit, target_pos, self.game)
+                logger.info(f"Skill use result: {success}")
+                
+                if success:
+                    return skill
+                    
+            logger.info("No suitable skill used")
+            return None
+        except Exception as e:
+            import traceback
+            logger.error(f"Error in _use_grayman_skills: {e}")
+            logger.error(traceback.format_exc())
+            return None
+            
+    def _evaluate_delta_config_skill(self, unit: 'Unit', target: 'Unit', skill) -> Tuple[Optional[Tuple[int, int]], float]:
+        """
+        Evaluate the value of using Delta Config skill to teleport to a strategic position.
+        Finds the best position to teleport to and returns its score.
+        
+        Args:
+            unit: The Grayman unit
+            target: The enemy target
+            skill: The Delta Config skill
+            
+        Returns:
+            Tuple of (best_position, score) where position is (y, x) or (None, -1) if no valid position
+        """
+        # If skill is not ready yet, return no valid position
+        if not skill.can_use(unit, None, self.game):
+            return None, -1
+            
+        # Get effective stats including attack range
+        stats = unit.get_effective_stats()
+        attack_range = stats['attack_range']
+        
+        # Check all positions on the map (since Delta Config can teleport anywhere)
+        best_position = None
+        best_score = 0
+        
+        # Get current health percentage
+        health_percent = unit.hp / unit.max_hp
+        
+        # Define search range - limit search area to be more efficient 
+        search_distance = 10  # Reasonable distance around target and unit
+        
+        # Get positions to check around both unit and target
+        positions_to_check = set()
+        
+        # Add positions around the target to check
+        for y in range(max(0, target.y - search_distance), min(self.game.map.height, target.y + search_distance + 1)):
+            for x in range(max(0, target.x - search_distance), min(self.game.map.width, target.x + search_distance + 1)):
+                positions_to_check.add((y, x))
+        
+        # Add positions around current unit position to check
+        for y in range(max(0, unit.y - search_distance), min(self.game.map.height, unit.y + search_distance + 1)):
+            for x in range(max(0, unit.x - search_distance), min(self.game.map.width, unit.x + search_distance + 1)):
+                positions_to_check.add((y, x))
+        
+        # Also look at other player units as potential targets
+        for other_unit in self.game.units:
+            if other_unit.player != unit.player and other_unit.is_alive() and other_unit != target:
+                # Add positions around other potential targets
+                for y in range(max(0, other_unit.y - 3), min(self.game.map.height, other_unit.y + 4)):
+                    for x in range(max(0, other_unit.x - 3), min(self.game.map.width, other_unit.x + 4)):
+                        positions_to_check.add((y, x))
+        
+        # Check all the potential positions for teleportation
+        for pos in positions_to_check:
+            y, x = pos
+            
+            # Skip if not a valid teleport target
+            if not skill.can_use(unit, (y, x), self.game):
+                continue
+                
+            # Calculate score for this position
+            score = 0
+            
+            # Avoid current position (no benefit to teleporting to where we already are)
+            if (y, x) == (unit.y, unit.x):
+                continue
+                
+            # Base score for a valid position
+            score += 10
+            
+            # Score based on health - prioritize escape if low health
+            if health_percent <= 0.3:  # Below 30% health
+                # For low health, prioritize positions far from any enemies
+                safe_position = True
+                closest_enemy_distance = float('inf')
+                
+                for enemy in self.game.units:
+                    if enemy.player != unit.player and enemy.is_alive():
+                        distance = self.game.chess_distance(y, x, enemy.y, enemy.x)
+                        closest_enemy_distance = min(closest_enemy_distance, distance)
+                        
+                        # If we're within enemy attack range, less safe
+                        enemy_stats = enemy.get_effective_stats()
+                        enemy_reach = enemy_stats['move_range'] + enemy_stats['attack_range']
+                        if distance <= enemy_reach:
+                            safe_position = False
+                            break
+                
+                if safe_position:
+                    # Huge bonus for finding a safe position when at low health
+                    score += 50
+                    
+                    # Extra bonus for being far from any enemies
+                    score += min(closest_enemy_distance * 3, 30)
+            else:
+                # If not at low health, evaluate strategic positions
+                
+                # Calculate distance to primary target from this position
+                distance_to_target = self.game.chess_distance(y, x, target.y, target.x)
+                
+                # Check if we can attack the target from this position
+                can_attack_target = distance_to_target <= attack_range
+                
+                if can_attack_target:
+                    # Big bonus for positions that let us attack the target immediately
+                    score += 40
+                    
+                    # Optimal attack position is at exactly attack range
+                    if distance_to_target == attack_range:
+                        score += 10  # Extra bonus for optimal distance
+                else:
+                    # For non-attack positions, prefer to be somewhat close to target
+                    # but not so close that we're vulnerable
+                    ideal_distance = attack_range + 1  # Just outside attack range
+                    distance_score = 20 - abs(distance_to_target - ideal_distance) * 3
+                    score += max(0, distance_score)
+                
+                # Consider positions that give tactical advantage
+                
+                # 1. Check if position is near cover (next to impassable terrain)
+                cover_nearby = False
+                for dy in [-1, 0, 1]:
+                    for dx in [-1, 0, 1]:
+                        if dy == 0 and dx == 0:
+                            continue  # Skip center
+                        
+                        check_y, check_x = y + dy, x + dx
+                        if (self.game.is_valid_position(check_y, check_x) and 
+                            not self.game.map.is_passable(check_y, check_x)):
+                            cover_nearby = True
+                            break
+                
+                if cover_nearby:
+                    score += 15  # Bonus for being near cover
+                
+                # 2. Check for multiple targets in attack range
+                attackable_targets = 0
+                for enemy in self.game.units:
+                    if enemy.player != unit.player and enemy.is_alive() and enemy != target:
+                        # If this position lets us attack another enemy
+                        if self.game.chess_distance(y, x, enemy.y, enemy.x) <= attack_range:
+                            attackable_targets += 1
+                
+                # Bonus for each additional target we can attack
+                score += attackable_targets * 20
+                
+                # 3. Check if this position helps us surround a target
+                for enemy in self.game.units:
+                    if enemy.player != unit.player and enemy.is_alive():
+                        # Get positions adjacent to this enemy
+                        from boneglaive.utils.coordinates import get_adjacent_positions
+                        adjacent_positions = get_adjacent_positions(enemy.y, enemy.x)
+                        
+                        # Check if our allies are near the enemy
+                        ally_count = 0
+                        for ally in self.game.units:
+                            if ally.player == unit.player and ally.is_alive() and ally != unit:
+                                if (ally.y, ally.x) in adjacent_positions:
+                                    ally_count += 1
+                        
+                        # If we have allies adjacent and this position completes the surround
+                        if ally_count > 0 and (y, x) in adjacent_positions:
+                            score += 15  # Bonus for surrounding tactics
+            
+            # Update best position if this scores higher
+            if score > best_score:
+                best_score = score
+                best_position = (y, x)
+        
+        return best_position, best_score
+            
+    def _evaluate_estrange_skill(self, unit: 'Unit', target: 'Unit', skill) -> float:
+        """
+        Evaluate the value of using Estrange skill on the target.
+        
+        Args:
+            unit: The Grayman unit
+            target: The enemy target
+            skill: The Estrange skill
+            
+        Returns:
+            A score indicating the value of using this skill (higher is better)
+        """
+        # Check if we can use the skill
+        if not skill.can_use(unit, (target.y, target.x), self.game):
+            return -1  # Can't use
+            
+        # Start with a base score
+        score = 0
+            
+        # Base score for being able to use the skill
+        score += 20
+        
+        # Check if target is already estranged
+        is_estranged = hasattr(target, 'estranged') and target.estranged
+        
+        if is_estranged:
+            # Lower value if already estranged, but still has damage value
+            score -= 15
+            
+        # Check if target is immune to status effects (GRAYMAN with Stasiality)
+        is_immune = hasattr(target, 'is_immune_to_effects') and target.is_immune_to_effects()
+        
+        if is_immune:
+            # Much less valuable if target is immune to the status effect
+            score -= 20
+            
+        # Estrange deals damage ignoring defense - useful against high-defense targets
+        # Calculate expected damage
+        expected_damage = skill.damage
+        
+        # Check if we can kill the target with Estrange
+        if target.hp <= expected_damage:
+            # High bonus for securing a kill
+            score += 40
+            
+        # More valuable against high-defense targets (since Estrange ignores defense)
+        if target.defense >= 3:
+            score += 15
+            
+        # More valuable against high-value/dangerous enemies
+        target_stats = target.get_effective_stats()
+        target_attack = target_stats['attack']
+        target_move = target_stats['move_range']
+        
+        # High attack power enemies are high priority for Estrange
+        if target_attack >= 4:
+            score += 15
+            
+        # High movement enemies are also good to Estrange if not immune (reduces their mobility)
+        if target_move >= 3 and not is_immune:
+            score += 15
+            
+        # More valuable if target is at critical health (finish them off)
+        if target.is_at_critical_health():
+            score += 10
+            
+        # Distance consideration
+        distance = self.game.chess_distance(unit.y, unit.x, target.y, target.x)
+        if distance <= skill.range:  # Within Estrange range (typically 5)
+            # Higher score for targets that are at distance (harder to reach with normal attacks)
+            attack_range = unit.get_effective_stats()['attack_range']
+            if distance > attack_range:
+                score += 10
+        
+        return score
+            
+    def _evaluate_grae_exchange_skill(self, unit: 'Unit', target: 'Unit', skill) -> Tuple[Optional[Tuple[int, int]], float]:
+        """
+        Evaluate the value of using Græ Exchange skill to create an echo and teleport.
+        Finds the best position to teleport to and returns its score.
+        
+        Args:
+            unit: The Grayman unit
+            target: The enemy target
+            skill: The Græ Exchange skill
+            
+        Returns:
+            Tuple of (best_position, score) where position is (y, x) or (None, -1) if no valid position
+        """
+        # If skill is not ready yet, return no valid position
+        if not skill.can_use(unit, None, self.game):
+            return None, -1
+            
+        # Get effective stats
+        stats = unit.get_effective_stats()
+        attack_range = stats['attack_range']
+        
+        # Track best teleport position
+        best_position = None
+        best_score = 0
+        
+        # Get current health percentage
+        health_percent = unit.hp / unit.max_hp
+        
+        # Current position value - how useful is it to leave an echo here?
+        current_pos_value = 0
+        
+        # Check if there are enemies in attack range from current position
+        enemies_in_range = 0
+        for enemy in self.game.units:
+            if enemy.player != unit.player and enemy.is_alive():
+                distance = self.game.chess_distance(unit.y, unit.x, enemy.y, enemy.x)
+                if distance <= attack_range:
+                    enemies_in_range += 1
+                    
+                    # Extra value for specific enemy types that are dangerous
+                    if enemy.type == UnitType.GLAIVEMAN or enemy.type == UnitType.FOWL_CONTRIVANCE:
+                        current_pos_value += 10
+                    else:
+                        current_pos_value += 5
+        
+        # If no enemies in range, the echo would be useless
+        if enemies_in_range == 0:
+            current_pos_value = 0
+        
+        # Check potential teleport positions within skill range
+        for y in range(max(0, unit.y - skill.range), min(self.game.map.height, unit.y + skill.range + 1)):
+            for x in range(max(0, unit.x - skill.range), min(self.game.map.width, unit.x + skill.range + 1)):
+                # Skip if not a valid teleport target
+                if not skill.can_use(unit, (y, x), self.game):
+                    continue
+                    
+                # Skip current position (no benefit to teleporting to where we already are)
+                if (y, x) == (unit.y, unit.x):
+                    continue
+                    
+                # Calculate score for this position
+                score = 0
+                
+                # Base score for a valid position
+                score += 10
+                
+                # Echo value at current position
+                score += current_pos_value
+                
+                # Prioritize defensive teleport at low health
+                if health_percent <= 0.4:  # Below 40% health
+                    # Check if target position is safer than current
+                    current_danger = 0
+                    new_danger = 0
+                    
+                    # Calculate danger at current and new positions
+                    for enemy in self.game.units:
+                        if enemy.player != unit.player and enemy.is_alive():
+                            enemy_stats = enemy.get_effective_stats()
+                            enemy_reach = enemy_stats['move_range'] + enemy_stats['attack_range']
+                            
+                            # Danger at current position
+                            distance_current = self.game.chess_distance(unit.y, unit.x, enemy.y, enemy.x) 
+                            if distance_current <= enemy_reach:
+                                current_danger += 1
+                                
+                            # Danger at new position
+                            distance_new = self.game.chess_distance(y, x, enemy.y, enemy.x)
+                            if distance_new <= enemy_reach:
+                                new_danger += 1
+                    
+                    # Bonus for reducing danger
+                    if new_danger < current_danger:
+                        score += 20 + (current_danger - new_danger) * 10
+                else:
+                    # At good health, prioritize strategic positions
+                    
+                    # Calculate distance to primary target from this position
+                    distance_to_target = self.game.chess_distance(y, x, target.y, target.x)
+                    
+                    # Check if we can attack the target from this position
+                    can_attack_target = distance_to_target <= attack_range
+                    
+                    if can_attack_target:
+                        # Bonus for positions that let us attack the target immediately
+                        score += 20
+                    else:
+                        # For non-attack positions, prefer to be somewhat close to target
+                        # but not too close
+                        ideal_distance = attack_range + 1  # Just outside attack range
+                        distance_score = 15 - abs(distance_to_target - ideal_distance) * 2
+                        score += max(0, distance_score)
+                    
+                    # Check for multiple targets in attack range at new position
+                    attackable_targets = 0
+                    for enemy in self.game.units:
+                        if enemy.player != unit.player and enemy.is_alive():
+                            # If this position lets us attack an enemy
+                            if self.game.chess_distance(y, x, enemy.y, enemy.x) <= attack_range:
+                                attackable_targets += 1
+                    
+                    # Bonus for targets we can attack at new position
+                    score += attackable_targets * 10
+                
+                # Bonus if the new position has good strategic value (near cover, etc.)
+                cover_nearby = False
+                for dy in [-1, 0, 1]:
+                    for dx in [-1, 0, 1]:
+                        if dy == 0 and dx == 0:
+                            continue  # Skip center
+                        
+                        check_y, check_x = y + dy, x + dx
+                        if (self.game.is_valid_position(check_y, check_x) and 
+                            not self.game.map.is_passable(check_y, check_x)):
+                            cover_nearby = True
+                            break
+                
+                if cover_nearby:
+                    score += 10  # Bonus for being near cover at new position
+                
+                # Update best position if this scores higher
+                if score > best_score:
+                    best_score = score
+                    best_position = (y, x)
+        
+        return best_position, best_score
+    
+    def _find_best_target_for_grayman(self, unit: 'Unit') -> Optional['Unit']:
+        """
+        Find the best target for a Grayman.
+        Prioritizes high-value targets within range of skills, especially Estrange.
+        
+        Args:
+            unit: The Grayman unit
+            
+        Returns:
+            The best target unit, or None if no enemies are found
+        """
+        enemy_units = [enemy for enemy in self.game.units 
+                      if enemy.player != unit.player and enemy.is_alive()]
+        
+        if not enemy_units:
+            return None
+            
+        # Calculate scores for each enemy
+        scored_enemies = []
+        
+        # Get attacker's effective stats
+        attacker_stats = unit.get_effective_stats()
+        attacker_move = attacker_stats['move_range']
+        attacker_attack = attacker_stats['attack_range']
+        
+        # Find estrange skill and its range if available
+        estrange_range = 0
+        for skill in unit.skills:
+            if skill.name == "Estrange":
+                estrange_range = skill.range
+                break
+        
+        for enemy in enemy_units:
+            score = 0
+            
+            # Calculate base distance
+            distance = self.game.chess_distance(unit.y, unit.x, enemy.y, enemy.x)
+            
+            # Calculate if the enemy is reachable (either now or after moving)
+            can_attack_now = distance <= attacker_attack
+            can_reach_for_attack = distance <= (attacker_move + attacker_attack)
+            
+            # Within Estrange range gets high priority
+            if estrange_range > 0 and distance <= estrange_range:
+                score += 30
+                
+                # Immune targets get a score penalty
+                if hasattr(enemy, 'is_immune_to_effects') and enemy.is_immune_to_effects():
+                    score -= 15
+                
+                # Already estranged targets get lower priority
+                if hasattr(enemy, 'estranged') and enemy.estranged:
+                    score -= 10
+            
+            # Immediate attack opportunities get priority too
+            if can_attack_now:
+                score += 25
+            # Targets that can be reached this turn get medium priority
+            elif can_reach_for_attack:
+                score += 15
+                
+            # Prioritize high value/dangerous targets
+            enemy_stats = enemy.get_effective_stats()
+            
+            # High attack units are priority targets
+            if enemy_stats['attack'] >= 4:
+                score += 20
+                
+            # High movement units good to Estrange when possible
+            if enemy_stats['move_range'] >= 3:
+                score += 15
+                
+            # High defense units good to target with defense-ignoring Estrange
+            if enemy_stats['defense'] >= 3:
+                score += 15
+                
+            # Prioritize low health enemies (but not if they're too far)
+            if can_reach_for_attack or distance <= estrange_range:
+                # Invert HP to give higher scores to lower-HP enemies
+                hp_factor = 100 - enemy.hp
+                score += hp_factor * 0.3
+                
+            # Distance penalty (further targets get lower scores)
+            score -= distance * 1.5
+            
+            scored_enemies.append((enemy, score))
+        
+        # Get the enemy with the highest score
+        if scored_enemies:
+            # Log the top three targets for debugging
+            scored_enemies.sort(key=lambda x: x[1], reverse=True)
+            for i, (enemy, score) in enumerate(scored_enemies[:3]):
+                if i == 0:
+                    logger.debug(f"Best target for {unit.get_display_name()}: {enemy.get_display_name()} (score: {score})")
+                else:
+                    logger.debug(f"Alternative target #{i+1}: {enemy.get_display_name()} (score: {score})")
+            
+            return scored_enemies[0][0]
+            
+        # Fallback to nearest enemy if scoring fails
+        return self._find_nearest_enemy(unit)
     
     def _find_best_target_for_foreman(self, unit: 'Unit') -> Optional['Unit']:
         """
