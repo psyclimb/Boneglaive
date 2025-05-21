@@ -99,16 +99,76 @@ class Game:
         # Find valid positions for units that aren't on limestone
         valid_positions = []
         
-        # For player 2, place units on the right side of the map
+        # For player 2, place units on the right side of the map with randomness
         if player == 2:
-            for y in range(3, 7):
-                for x in range(11, 15):
+            import random
+            
+            # Define a larger area to place units
+            min_y, max_y = 2, 8  # Expanded Y range for more variety
+            min_x, max_x = 10, 16  # Expanded X range for more variety
+            
+            # Generate a list of all valid positions in this area
+            all_possible_positions = []
+            for y in range(min_y, max_y):
+                for x in range(min_x, max_x):
                     if self.map.can_place_unit(y, x):
-                        valid_positions.append((y, x))
-                        if len(valid_positions) >= 3:
-                            break
-                if len(valid_positions) >= 3:
-                    break
+                        all_possible_positions.append((y, x))
+            
+            # If we found enough potential positions
+            if len(all_possible_positions) >= 3:
+                # Shuffle to add randomness
+                random.shuffle(all_possible_positions)
+                
+                # Start with first random position
+                first_pos = all_possible_positions[0]
+                valid_positions.append(first_pos)
+                first_y, first_x = first_pos
+                
+                # Remove first position from available positions
+                remaining = all_possible_positions[1:]
+                
+                # Sort by distance to first point (closest first)
+                remaining.sort(key=lambda pos: self.chess_distance(first_y, first_x, pos[0], pos[1]))
+                
+                # Take a random position from the closest 5 (or fewer if not available)
+                selection_pool = remaining[:min(5, len(remaining))]
+                if selection_pool:
+                    second_pos = random.choice(selection_pool)
+                    valid_positions.append(second_pos)
+                    second_y, second_x = second_pos
+                    
+                    # Remove second position
+                    remaining.remove(second_pos)
+                    
+                    # For third unit, prefer positions that maintain group cohesion
+                    remaining.sort(key=lambda pos: 
+                        self.chess_distance(first_y, first_x, pos[0], pos[1]) + 
+                        self.chess_distance(second_y, second_x, pos[0], pos[1]))
+                    
+                    # Again add randomness - select from closest 5 positions
+                    selection_pool = remaining[:min(5, len(remaining))]
+                    if selection_pool:
+                        third_pos = random.choice(selection_pool)
+                        valid_positions.append(third_pos)
+                
+                # Log the positions for debugging
+                logger.info(f"Randomized positions for Player {player}: {valid_positions}")
+                for i, pos in enumerate(valid_positions):
+                    y, x = pos
+                    logger.info(f"AI Unit {i+1} will spawn at position ({y}, {x})")
+            
+            # If we couldn't find enough valid positions with randomization, fall back to the old method
+            if len(valid_positions) < 3:
+                logger.warning("Failed to find enough randomized positions, falling back to fixed positions")
+                valid_positions = []
+                for y in range(3, 7):
+                    for x in range(11, 15):
+                        if self.map.can_place_unit(y, x):
+                            valid_positions.append((y, x))
+                            if len(valid_positions) >= 3:
+                                break
+                    if len(valid_positions) >= 3:
+                        break
         
         # Track unit counts to enforce 2-unit type limit
         unit_counts = {}
@@ -199,17 +259,76 @@ class Game:
             if len(valid_positions) >= 3:
                 break
                 
-        # Check right side for player 2
-        logger.info("Finding positions for player 2 units")
+        # Check right side for player 2 - with randomness
+        import random
+        logger.info("Finding positions for player 2 units with randomness")
         p2_positions = []
-        for y in range(3, 7):
-            for x in range(11, 15):
+        
+        # Define a larger area to place units
+        min_y, max_y = 2, 8  # Expanded Y range for more variety
+        min_x, max_x = 10, 16  # Expanded X range for more variety
+        
+        # Generate a list of all valid positions in this area
+        all_valid_positions = []
+        for y in range(min_y, max_y):
+            for x in range(min_x, max_x):
                 if self.map.can_place_unit(y, x):
-                    p2_positions.append((2, y, x))
-                    if len(p2_positions) >= 3:
-                        break
-            if len(p2_positions) >= 3:
-                break
+                    all_valid_positions.append((2, y, x))
+        
+        # Shuffle the positions to add randomness
+        random.shuffle(all_valid_positions)
+        
+        # Pick positions that maintain group cohesion by ensuring they're not too far apart
+        if len(all_valid_positions) >= 3:
+            # Start with a random valid position
+            first_pos = all_valid_positions[0]
+            p2_positions.append(first_pos)
+            
+            # For remaining units, prefer positions closer to the first unit
+            remaining_positions = all_valid_positions[1:]
+            
+            # Sort remaining positions by distance to first unit (closest first)
+            player, first_y, first_x = first_pos
+            remaining_positions.sort(key=lambda pos: self.chess_distance(first_y, first_x, pos[1], pos[2]))
+            
+            # Add some randomness to the selection - don't just pick the closest
+            # Take the closest 5 positions and randomly select from them
+            selection_pool = remaining_positions[:min(5, len(remaining_positions))]
+            if selection_pool:
+                second_pos = random.choice(selection_pool)
+                p2_positions.append(second_pos)
+                
+                # Remove the selected position from remaining positions
+                remaining_positions.remove(second_pos)
+                
+                # For the third unit, prefer positions closer to both existing units
+                if remaining_positions:
+                    player, second_y, second_x = second_pos
+                    # Calculate combined distance score to both existing units
+                    remaining_positions.sort(key=lambda pos: 
+                        self.chess_distance(first_y, first_x, pos[1], pos[2]) + 
+                        self.chess_distance(second_y, second_x, pos[1], pos[2]))
+                    
+                    # Again add randomness - select from closest 5 positions
+                    selection_pool = remaining_positions[:min(5, len(remaining_positions))]
+                    if selection_pool:
+                        third_pos = random.choice(selection_pool)
+                        p2_positions.append(third_pos)
+        
+        # If we couldn't find enough valid positions, fall back to conventional method
+        if len(p2_positions) < 3:
+            logger.warning("Failed to find randomized positions, falling back to fixed positions")
+            p2_positions = []
+            for y in range(3, 7):
+                for x in range(11, 15):
+                    if self.map.can_place_unit(y, x):
+                        p2_positions.append((2, y, x))
+                        if len(p2_positions) >= 3:
+                            break
+                if len(p2_positions) >= 3:
+                    break
+        
+        logger.info(f"Selected {len(p2_positions)} randomized positions for player 2")
                 
         valid_positions.extend(p2_positions)
         logger.info(f"Found {len(valid_positions)} valid positions for units")
