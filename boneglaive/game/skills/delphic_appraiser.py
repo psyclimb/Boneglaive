@@ -986,7 +986,8 @@ class DivineDrepreciationSkill(ActiveSkill):
                     MessageType.COMBAT,
                     player=user.player
                 )
-                game.remove_unit(unit)
+                # Units are not removed from the game, just marked as dead by setting hp to 0
+                unit.hp = 0
 
         # Reroll cosmic values for all other furniture in the AOE
         for pos in other_furniture:

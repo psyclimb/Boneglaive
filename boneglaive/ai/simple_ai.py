@@ -391,9 +391,11 @@ class SimpleAI:
         Args:
             unit: The unit to process
         """
-        # For now, we'll only implement Glaiveman logic
+        # Process units based on their type
         if unit.type == UnitType.GLAIVEMAN:
             self._process_glaiveman(unit, use_coordination=self.difficulty == AIDifficulty.HARD)
+        elif unit.type == UnitType.MANDIBLE_FOREMAN:
+            self._process_mandible_foreman(unit, use_coordination=self.difficulty == AIDifficulty.HARD)
         else:
             # Default behavior for other unit types
             logger.info(f"No specific AI logic for {unit.type.name}, using default behavior")
@@ -827,6 +829,779 @@ class SimpleAI:
                     best_position = (y, x)
         
         return best_position, best_score
+    
+    def _process_mandible_foreman(self, unit: 'Unit', use_coordination: bool = False) -> None:
+        """
+        Process actions for a Mandible Foreman unit.
+        Focuses on trapping enemies with attacks and managing its trap-related skills.
+        
+        Args:
+            unit: The Mandible Foreman unit to process
+            use_coordination: Whether to use group coordination tactics
+        """
+        # Always reset move and attack targets at the start of processing
+        unit.move_target = None
+        unit.attack_target = None
+        unit.skill_target = None
+        unit.selected_skill = None
+        
+        # Get a target based on the difficulty level or coordination
+        target = None
+        
+        # If using coordination and this unit has an assigned target, use it
+        if use_coordination and unit.id in self.target_assignments:
+            # Get the assigned target from coordination
+            target_id = self.target_assignments[unit.id]
+            # Find the target unit by ID
+            for player_unit in self.game.units:
+                if player_unit.id == target_id and player_unit.is_alive():
+                    target = player_unit
+                    logger.info(f"Using coordinated target for {unit.get_display_name()}: {target.get_display_name()}")
+                    break
+        
+        # If no coordinated target was found, fall back to normal targeting
+        if not target:
+            if self.difficulty == AIDifficulty.EASY:
+                target = self._find_random_enemy(unit)
+            elif self.difficulty == AIDifficulty.MEDIUM:
+                target = self._find_nearest_enemy(unit)
+            else:  # HARD difficulty
+                target = self._find_best_target_for_foreman(unit)
+            
+        if not target:
+            logger.info("No enemies found for Mandible Foreman to target")
+            return
+            
+        logger.info(f"Mandible Foreman targeting enemy: {target.get_display_name()} at position ({target.y}, {target.x})")
+        
+        # Get available skills 
+        available_skills = []
+        try:
+            available_skills = unit.get_available_skills()
+            logger.info(f"Mandible Foreman has {len(available_skills)} skills available: {[skill.name for skill in available_skills]}")
+        except Exception as e:
+            logger.error(f"Error getting available skills: {e}")
+            
+        # Flag to track if we used a skill
+        used_skill = None
+        
+        # Skip skill usage on EASY difficulty most of the time
+        if self.difficulty == AIDifficulty.EASY and random.random() < 0.7:
+            logger.info("EASY difficulty: Skipping skill usage")
+        else:
+            # On MEDIUM or HARD, intelligently use skills
+            try:
+                used_skill = self._use_mandible_foreman_skills(unit, target, available_skills)
+                if used_skill:
+                    logger.info(f"Mandible Foreman used {used_skill.name} skill")
+                    # Don't return - we'll let the method complete even if a skill was used
+                    # This ensures that units always take some action
+            except Exception as e:
+                logger.error(f"Error using Mandible Foreman skills: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
+                used_skill = None
+        
+        # Only proceed with move/attack if no skill was used
+        if not used_skill:
+            # If we didn't use a skill, proceed with normal attack or movement
+            
+            # Check if we can attack the enemy from our current position
+            can_attack = self._can_attack(unit, target)
+            
+            # If we can attack, do it
+            if can_attack:
+                logger.info(f"Mandible Foreman attacking enemy at ({target.y}, {target.x})")
+                unit.attack_target = (target.y, target.x)
+            # If we can't attack, try to move closer
+            else:
+                # EASY difficulty has a chance to skip movement
+                if self.difficulty == AIDifficulty.EASY and random.random() < 0.3:
+                    logger.info("EASY difficulty: Mandible Foreman decided not to move this turn")
+                    return
+                    
+                logger.info(f"Mandible Foreman moving towards enemy at ({target.y}, {target.x})")
+                
+                # If using coordination, consider planned positions
+                if use_coordination:
+                    self._move_with_coordination(unit, target)
+                else:
+                    self._move_towards_enemy(unit, target)
+                
+                # Check if we can attack after moving
+                can_attack_after_move = self._can_attack_after_move(unit, target)
+                if can_attack_after_move:
+                    logger.info(f"Mandible Foreman attacking enemy after movement")
+                    # The attack_target is set in _can_attack_after_move
+    
+    def _use_mandible_foreman_skills(self, unit: 'Unit', target: 'Unit', available_skills: list) -> Optional['ActiveSkill']:
+        """
+        Intelligently use Mandible Foreman skills based on the current situation.
+        
+        Args:
+            unit: The Mandible Foreman unit
+            target: The enemy target
+            available_skills: List of available active skills
+            
+        Returns:
+            The skill that was used, or None if no skill was used
+        """
+        try:
+            if not available_skills:
+                logger.info("No skills available for this Mandible Foreman")
+                return None
+                
+            # Debug available skills
+            logger.info(f"Evaluating skills: {[skill.name for skill in available_skills]}")
+            
+            # Evaluate each skill's potential value
+            skill_scores = []
+            
+            for skill in available_skills:
+                # Use different evaluation based on skill type
+                try:
+                    if skill.name == "Expedite":
+                        best_pos, score = self._evaluate_expedite_skill(unit, target, skill)
+                        if best_pos and score > 0:
+                            skill_scores.append((skill, score, best_pos))
+                    elif skill.name == "Jawline":
+                        score = self._evaluate_jawline_skill(unit, target, skill)
+                        if score > 0:
+                            skill_scores.append((skill, score, (unit.y, unit.x)))  # Jawline targets self-position
+                    elif skill.name == "Site Inspection":
+                        best_pos, score = self._evaluate_site_inspection_skill(unit, target, skill)
+                        if best_pos and score > 0:
+                            skill_scores.append((skill, score, best_pos))
+                except Exception as e:
+                    logger.error(f"Error evaluating skill {skill.name}: {e}")
+                    continue
+            
+            # Debug skill scores
+            logger.info(f"Skill scores: {[(s[0].name, s[1]) for s in skill_scores]}")
+            
+            # Sort by score (highest first)
+            skill_scores.sort(key=lambda x: x[1], reverse=True)
+            
+            # Use the highest scoring skill if score is above threshold
+            if skill_scores and skill_scores[0][1] >= 30:  # Set threshold for skill usage
+                skill, score, target_pos = skill_scores[0]
+                
+                logger.info(f"Using skill {skill.name} with score {score}")
+                
+                # Use the skill
+                success = skill.use(unit, target_pos, self.game)
+                logger.info(f"Skill use result: {success}")
+                
+                if success:
+                    return skill
+                    
+            logger.info("No suitable skill used")
+            return None
+        except Exception as e:
+            import traceback
+            logger.error(f"Error in _use_mandible_foreman_skills: {e}")
+            logger.error(traceback.format_exc())
+            return None
+            
+    def _evaluate_expedite_skill(self, unit: 'Unit', target: 'Unit', skill) -> Tuple[Optional[Tuple[int, int]], float]:
+        """
+        Evaluate the value of using Expedite skill to rush towards a position.
+        Finds the best position to rush to and returns its score.
+        
+        Args:
+            unit: The Mandible Foreman unit
+            target: The enemy target
+            skill: The Expedite skill
+            
+        Returns:
+            Tuple of (best_position, score) where position is (y, x) or (None, -1) if no valid position
+        """
+        # If skill is not ready yet, return no valid position
+        if not skill.can_use(unit, None, self.game):
+            return None, -1
+            
+        # Get effective stats including attack range
+        stats = unit.get_effective_stats()
+        attack_range = stats['attack_range']  # Usually 1 for Mandible Foreman
+        
+        # Find positions in direction of target
+        best_position = None
+        best_score = 0
+        
+        # Get the vector from unit to target
+        dy = target.y - unit.y
+        dx = target.x - unit.x
+        
+        # Normalize the direction for cardinal/diagonal movement
+        # Expedite can only move in straight lines (cardinal or diagonal)
+        if dy != 0:
+            dy = dy // abs(dy)
+        if dx != 0:
+            dx = dx // abs(dx)
+            
+        # Calculate maximum distance for skill range
+        max_distance = min(skill.range, self.game.chess_distance(unit.y, unit.x, target.y, target.x))
+        
+        # Check positions along the line toward target
+        for distance in range(1, max_distance + 1):
+            check_y = unit.y + dy * distance
+            check_x = unit.x + dx * distance
+            
+            # Skip invalid positions
+            if not self.game.is_valid_position(check_y, check_x):
+                continue
+                
+            # Check if the position is valid for Expedite
+            if skill.can_use(unit, (check_y, check_x), self.game):
+                # Calculate score for this position
+                pos_score = self._score_expedite_position(unit, (check_y, check_x), target, skill)
+                
+                # Update best position if this is better
+                if pos_score > best_score:
+                    best_score = pos_score
+                    best_position = (check_y, check_x)
+                    
+                # Check for enemy units along the path
+                # If we hit an enemy, we should consider the enemy position
+                check_unit = self.game.get_unit_at(check_y, check_x)
+                if check_unit and check_unit.player != unit.player:
+                    # Enemy unit found - this is a higher-priority target for Expedite
+                    enemy_score = self._score_expedite_enemy_hit(unit, check_unit, skill)
+                    
+                    # If this enemy gives a higher score than our current best, use it
+                    if enemy_score > best_score:
+                        best_score = enemy_score
+                        # For enemy hits, use their position as the target (Expedite will stop before it)
+                        best_position = (check_y, check_x)
+                    
+                    # We need to stop the path check here because Expedite stops at the first enemy hit
+                    break
+        
+        return best_position, best_score
+        
+    def _score_expedite_position(self, unit: 'Unit', position: Tuple[int, int], original_target: 'Unit', skill) -> float:
+        """
+        Score a potential Expedite position based on tactical considerations.
+        
+        Args:
+            unit: The Mandible Foreman unit
+            position: The position to evaluate
+            original_target: The original enemy target
+            skill: The Expedite skill
+            
+        Returns:
+            Score value for this position
+        """
+        score = 0
+        target_y, target_x = position
+        
+        # Base score for a valid position
+        score += 20
+        
+        # Check if this position gets us closer to the original target
+        current_distance = self.game.chess_distance(unit.y, unit.x, original_target.y, original_target.x)
+        new_distance = self.game.chess_distance(target_y, target_x, original_target.y, original_target.x)
+        
+        if new_distance < current_distance:
+            # Bonus for getting closer to target - proportional to distance reduction
+            score += (current_distance - new_distance) * 5
+        else:
+            # Penalty for moving away from target
+            score -= 10
+        
+        # Check if we can attack the original target after moving
+        attack_range = unit.get_effective_stats()['attack_range']
+        if new_distance <= attack_range:
+            # Bonus for being able to attack after Expedite
+            score += 25
+            
+        # Check for potential trap victims after Expedite
+        for dy in [-1, 0, 1]:
+            for dx in [-1, 0, 1]:
+                # Skip positions outside attack range
+                if abs(dy) + abs(dx) > attack_range:
+                    continue
+                    
+                # Skip the center position itself
+                if dy == 0 and dx == 0:
+                    continue
+                    
+                check_y = target_y + dy
+                check_x = target_x + dx
+                
+                # Check if position is valid
+                if not self.game.is_valid_position(check_y, check_x):
+                    continue
+                    
+                # Check if there's a trappable enemy at this position
+                check_unit = self.game.get_unit_at(check_y, check_x)
+                if check_unit and check_unit.player != unit.player:
+                    # Check if the enemy is already trapped
+                    is_trapped = hasattr(check_unit, 'trapped_by') and check_unit.trapped_by is not None
+                    
+                    if not is_trapped:
+                        # Bonus for finding an untrapped enemy nearby
+                        score += 15
+        
+        return score
+        
+    def _score_expedite_enemy_hit(self, unit: 'Unit', enemy: 'Unit', skill) -> float:
+        """
+        Score hitting an enemy directly with Expedite.
+        
+        Args:
+            unit: The Mandible Foreman unit
+            enemy: The enemy unit that would be hit
+            skill: The Expedite skill
+            
+        Returns:
+            Score value for hitting this enemy
+        """
+        score = 0
+        
+        # Base score for a direct hit
+        score += 50
+        
+        # Calculate expected damage
+        expected_damage = max(1, skill.trap_damage - enemy.defense)
+        
+        # Check if the enemy is already trapped
+        is_trapped = hasattr(enemy, 'trapped_by') and enemy.trapped_by is not None
+        
+        if not is_trapped:
+            # Big bonus for trapping an untrapped enemy
+            score += 30
+        else:
+            # Penalty for hitting an already trapped enemy
+            score -= 20
+            
+        # Check if we can kill the enemy
+        if enemy.hp <= expected_damage:
+            # Huge bonus for securing a kill
+            score += 50
+            
+        # Bonus for higher-HP targets (more value from trap damage over time)
+        if enemy.hp > expected_damage:
+            score += min(20, enemy.hp - expected_damage)
+            
+        # Check enemy's attack to prioritize dangerous enemies
+        enemy_attack = enemy.get_effective_stats()['attack']
+        score += enemy_attack * 3
+        
+        return score
+    
+    def _evaluate_jawline_skill(self, unit: 'Unit', target: 'Unit', skill) -> float:
+        """
+        Evaluate the value of using Jawline skill around the Mandible Foreman.
+        This skill deploys mechanical jaws in a 3x3 area around the unit,
+        dealing damage and immobilizing enemies.
+        
+        Args:
+            unit: The Mandible Foreman unit
+            target: The primary enemy target (for context, not necessarily affected)
+            skill: The Jawline skill
+            
+        Returns:
+            A score indicating the value of using this skill (higher is better)
+        """
+        # Check if the skill can be used
+        if not skill.can_use(unit, None, self.game):
+            return -1  # Can't use
+            
+        # Start with a base score
+        score = 0
+            
+        # Count potentially affected enemies in the 3x3 area
+        affected_enemies = 0
+        # track whether the main target would be hit
+        target_affected = False
+        
+        # Get base damage from skill
+        jawline_damage = skill.damage  # 4 damage by default
+            
+        # Check all 8 surrounding positions (3x3 area around unit)
+        for dy in [-1, 0, 1]:
+            for dx in [-1, 0, 1]:
+                # Skip the center position (unit's position)
+                if dy == 0 and dx == 0:
+                    continue
+                    
+                # Calculate position
+                check_y = unit.y + dy
+                check_x = unit.x + dx
+                
+                # Skip if position is invalid
+                if not self.game.is_valid_position(check_y, check_x):
+                    continue
+                
+                # Check for enemy at this position
+                enemy = self.game.get_unit_at(check_y, check_x)
+                if enemy and enemy.player != unit.player and enemy.is_alive():
+                    affected_enemies += 1
+                    
+                    # Check if this is our main target
+                    if enemy == target:
+                        target_affected = True
+                    
+                    # Calculate damage to this enemy (factoring defense)
+                    expected_damage = max(1, jawline_damage - enemy.defense)
+                    
+                    # Bonus if we can kill an enemy with Jawline
+                    if enemy.hp <= expected_damage:
+                        score += 30  # High value for securing a kill
+                    
+                    # Check if enemy is already immobilized (from Jawline or trapped)
+                    already_immobilized = (hasattr(enemy, 'jawline_affected') and enemy.jawline_affected) or \
+                                         (hasattr(enemy, 'trapped_by') and enemy.trapped_by is not None)
+                    
+                    if already_immobilized:
+                        # Less valuable to re-immobilize, but still worth damage
+                        score += 5
+                    else:
+                        # High value for immobilizing a new enemy
+                        score += 20
+                        
+                        # Extra bonus for immobilizing high-movement enemies
+                        enemy_move = enemy.get_effective_stats()['move_range']
+                        if enemy_move >= 3:
+                            score += 15  # More valuable to immobilize fast enemies
+                            
+                    # Prioritize dangerous enemies
+                    enemy_attack = enemy.get_effective_stats()['attack']
+                    score += enemy_attack * 2
+        
+        # Base score based on the number of affected enemies
+        if affected_enemies == 0:
+            return 0  # Not worth using if no enemies affected
+        elif affected_enemies == 1:
+            score += 15  # Base value for hitting one enemy
+        elif affected_enemies == 2:
+            score += 35  # Higher value for hitting two enemies
+        else:  # 3 or more enemies
+            score += 60 + (affected_enemies - 3) * 15  # Excellent value for 3+ enemies
+            
+        # Bonus if our primary target would be affected
+        if target_affected:
+            score += 15
+            
+        # Consider unit's health - more valuable when surrounded and in danger
+        health_ratio = unit.hp / unit.max_hp
+        if health_ratio <= 0.5 and affected_enemies >= 2:
+            # When surrounded and at low health, Jawline is a good defensive move
+            score += 20
+            
+        # Check if unit is already surrounded by enemies (higher priority to use Jawline)
+        adjacent_enemy_count = sum(1 for dy in [-1, 0, 1] for dx in [-1, 0, 1] 
+                                 if dy != 0 or dx != 0  # Skip center
+                                 if self.game.is_valid_position(unit.y + dy, unit.x + dx)
+                                 if self.game.get_unit_at(unit.y + dy, unit.x + dx) is not None
+                                 and self.game.get_unit_at(unit.y + dy, unit.x + dx).player != unit.player)
+        
+        if adjacent_enemy_count >= 3:
+            # Higher priority when already surrounded
+            score += 30
+            
+        logger.info(f"Jawline would affect {affected_enemies} enemies with score {score}")
+        return score
+        
+    def _evaluate_site_inspection_skill(self, unit: 'Unit', target: 'Unit', skill) -> Tuple[Optional[Tuple[int, int]], float]:
+        """
+        Evaluate the value of using Site Inspection skill to buff allies.
+        This skill surveys a 3x3 area without obstacles, granting
+        movement and attack bonuses to allies when no impassable terrain is found.
+        
+        Args:
+            unit: The Mandible Foreman unit
+            target: The primary enemy target (for context, not directly used)
+            skill: The Site Inspection skill
+            
+        Returns:
+            Tuple of (best_position, score) where position is (y, x) or (None, -1) if no valid position
+        """
+        # If skill is not ready yet, return no valid position
+        if not skill.can_use(unit, None, self.game):
+            return None, -1
+            
+        # Check positions in a square area around the unit (within skill range)
+        best_position = None
+        best_score = 0
+        
+        # Get ally units for targeting
+        ally_units = [ally for ally in self.game.units 
+                    if ally.player == unit.player and ally.is_alive() and ally != unit]
+                    
+        if not ally_units:
+            logger.info("No ally units found for Site Inspection")
+            return None, 0  # No allies to buff, not worth using
+            
+        # Check positions within the skill range (default range is 3)
+        move_range = unit.get_effective_stats()['move_range']
+        max_search_range = min(skill.range + move_range, 8)  # Limit search to reasonable area
+        
+        # Track best target position
+        for y in range(max(0, unit.y - max_search_range), min(self.game.map.height, unit.y + max_search_range + 1)):
+            for x in range(max(0, unit.x - max_search_range), min(self.game.map.width, unit.x + max_search_range + 1)):
+                # Skip invalid positions
+                if not self.game.is_valid_position(y, x):
+                    continue
+                    
+                # Check if this is a position we can use Site Inspection from
+                # First verify if we can move here (either we're already here or can move here)
+                can_move_here = (y == unit.y and x == unit.x) or \
+                               (self.game.is_valid_position(y, x) and 
+                                self.game.map.is_passable(y, x) and 
+                                not self.game.get_unit_at(y, x) and
+                                self.game.chess_distance(unit.y, unit.x, y, x) <= move_range)
+                
+                if not can_move_here:
+                    continue
+                
+                # Now check if we can use the skill from this position to a valid target
+                # Site Inspection has an area of 3x3 to scan
+                # We'll calculate a score for each potential target position
+                
+                # Search all positions within skill range from this position
+                for target_y in range(max(0, y - skill.range), min(self.game.map.height, y + skill.range + 1)):
+                    for target_x in range(max(0, x - skill.range), min(self.game.map.width, x + skill.range + 1)):
+                        # Skip if not in range
+                        if self.game.chess_distance(y, x, target_y, target_x) > skill.range:
+                            continue
+                            
+                        # Check if skill can be used at this target position
+                        if not skill.can_use(unit, (target_y, target_x), self.game):
+                            continue
+                            
+                        # Check the 3x3 area around the target position
+                        # Site Inspection only applies buffs if there's no impassable terrain
+                        has_impassable = False
+                        for dy in [-1, 0, 1]:
+                            for dx in [-1, 0, 1]:
+                                check_y, check_x = target_y + dy, target_x + dx
+                                
+                                # Skip out of bounds positions
+                                if not self.game.is_valid_position(check_y, check_x):
+                                    continue
+                                
+                                # Check if this position has impassable terrain
+                                if not self.game.map.is_passable(check_y, check_x):
+                                    has_impassable = True
+                                    break
+                            if has_impassable:
+                                break
+                                
+                        # Skip positions with impassable terrain - the skill has no effect
+                        if has_impassable:
+                            continue
+                            
+                        # Calculate score for this potential inspection area
+                        score = self._score_site_inspection_position(unit, (target_y, target_x), ally_units)
+                        
+                        # If this position is better than our current best, update
+                        if score > best_score:
+                            best_score = score
+                            # If this is our current position, target directly
+                            if y == unit.y and x == unit.x:
+                                best_position = (target_y, target_x)
+                            else:
+                                # We'll need to move first, so remember the move position
+                                # For simplicity, we'll do the move separately and target after
+                                # The skill will be reconsidered after the move
+                                best_position = (y, x)  # The position to move to
+        
+        logger.info(f"Site Inspection best position: {best_position} with score {best_score}")
+        return best_position, best_score
+    
+    def _score_site_inspection_position(self, unit: 'Unit', position: Tuple[int, int], ally_units: List['Unit']) -> float:
+        """
+        Score a potential Site Inspection position based on tactical considerations.
+        
+        Args:
+            unit: The Mandible Foreman unit
+            position: The position to evaluate for Site Inspection
+            ally_units: List of ally units that could potentially be buffed
+            
+        Returns:
+            Score value for this position
+        """
+        score = 0
+        inspect_y, inspect_x = position
+        
+        # Base score for a valid position
+        score += 10
+        
+        # Count buffable allies in the 3x3 area
+        buffable_allies = 0
+        
+        # Check the 3x3 area around the inspection position
+        for dy in [-1, 0, 1]:
+            for dx in [-1, 0, 1]:
+                check_y, check_x = inspect_y + dy, inspect_x + dx
+                
+                # Skip invalid positions
+                if not self.game.is_valid_position(check_y, check_x):
+                    continue
+                
+                # Check for an ally at this position
+                ally = self.game.get_unit_at(check_y, check_x)
+                if ally and ally.player == unit.player and ally.is_alive():
+                    # Check if ally already has the buff (avoid redundancy)
+                    already_buffed = hasattr(ally, 'status_site_inspection') and ally.status_site_inspection
+                    
+                    # Skip allies that are immune to status effects (like Grayman with Stasiality)
+                    if hasattr(ally, 'is_immune_to_effects') and ally.is_immune_to_effects():
+                        continue
+                        
+                    if not already_buffed:
+                        buffable_allies += 1
+                        
+                        # Extra value for specific unit types
+                        if ally.type == UnitType.GLAIVEMAN:
+                            # Glaivemen benefit greatly from both attack and movement
+                            score += 15
+                        elif hasattr(ally, 'get_effective_stats'):
+                            # Check ally's base stats to see who benefits most
+                            ally_stats = ally.get_effective_stats()
+                            # Units with high base attack benefit more from attack boost
+                            if ally_stats['attack'] >= 4:
+                                score += 10
+                            # Units with high base movement benefit more from movement boost
+                            if ally_stats['move_range'] >= 3:
+                                score += 10
+                    else:
+                        # Small bonus for refreshing duration on already buffed allies
+                        score += 5
+        
+        # Base score based on number of buffable allies
+        if buffable_allies == 0:
+            return 0  # Not worth using if no allies to buff
+        elif buffable_allies == 1:
+            score += 10  # Base value for buffing one ally
+        elif buffable_allies == 2:
+            score += 25  # Higher value for buffing two allies
+        else:  # 3 or more allies
+            score += 45 + (buffable_allies - 3) * 15  # Excellent value for 3+ allies
+            
+        # Strategic considerations - is there a nearby enemy to attack?
+        enemies_nearby = False
+        
+        # Check for enemies within attack range of the buffed area
+        search_range = 5  # Reasonable attack distance 
+        for enemy in self.game.units:
+            if enemy.player != unit.player and enemy.is_alive():
+                # Check if enemy is close to the inspection area
+                distance = self.game.chess_distance(inspect_y, inspect_x, enemy.y, enemy.x)
+                if distance <= search_range:
+                    enemies_nearby = True
+                    # Bonus for having enemies nearby (buffs are more useful)
+                    score += 15
+                    break
+                    
+        # If no enemies nearby, reduce the value slightly
+        if not enemies_nearby:
+            score -= 10
+            
+        return score
+    
+    def _find_best_target_for_foreman(self, unit: 'Unit') -> Optional['Unit']:
+        """
+        Find the best target for a Mandible Foreman.
+        Prioritizes enemies that are not trapped and are near other enemies.
+        
+        Args:
+            unit: The Mandible Foreman unit
+            
+        Returns:
+            The best target unit, or None if no enemies are found
+        """
+        enemy_units = [enemy for enemy in self.game.units 
+                      if enemy.player != unit.player and enemy.is_alive()]
+        
+        if not enemy_units:
+            return None
+            
+        # Calculate scores for each enemy
+        scored_enemies = []
+        
+        # Get attacker's effective stats
+        attacker_stats = unit.get_effective_stats()
+        attacker_move = attacker_stats['move_range']
+        attacker_attack = attacker_stats['attack_range']
+        
+        for enemy in enemy_units:
+            score = 0
+            
+            # Calculate base distance
+            distance = self.game.chess_distance(unit.y, unit.x, enemy.y, enemy.x)
+            
+            # Calculate if the enemy is reachable for attack (either now or after moving)
+            can_attack_now = distance <= attacker_attack
+            can_reach_for_attack = distance <= (attacker_move + attacker_attack)
+            
+            # Immediate attack opportunities get high priority
+            if can_attack_now:
+                score += 40
+            # Targets that can be reached this turn get medium priority
+            elif can_reach_for_attack:
+                score += 30
+                
+            # Check if the enemy is already trapped by this unit
+            is_trapped_by_us = False
+            if hasattr(enemy, 'trapped_by') and enemy.trapped_by == unit:
+                is_trapped_by_us = True
+                
+            # Prioritize untrapped enemies
+            if not is_trapped_by_us:
+                score += 50
+            else:
+                # Lower priority for enemies we've already trapped
+                score -= 20
+                
+            # Give priority to enemies with adjacent allies (better for Jawline skill later)
+            adjacent_allies_count = 0
+            for dy in [-1, 0, 1]:
+                for dx in [-1, 0, 1]:
+                    if dy == 0 and dx == 0:
+                        continue  # Skip center
+                        
+                    adj_y, adj_x = enemy.y + dy, enemy.x + dx
+                    if self.game.is_valid_position(adj_y, adj_x):
+                        adj_unit = self.game.get_unit_at(adj_y, adj_x)
+                        if adj_unit and adj_unit.player == enemy.player and adj_unit != enemy:
+                            adjacent_allies_count += 1
+            
+            # Bonus for each adjacent ally
+            score += adjacent_allies_count * 10
+                
+            # Prioritize lower health enemies (but not if they're too far)
+            if can_reach_for_attack or distance < 10:
+                # Invert HP to give higher scores to lower-HP enemies
+                hp_factor = 100 - enemy.hp
+                score += hp_factor * 0.3
+                
+            # Prioritize dangerous enemies (high attack power)
+            enemy_stats = enemy.get_effective_stats()
+            enemy_attack = enemy_stats['attack']
+            score += enemy_attack * 0.3
+            
+            # Distance penalty (further targets get lower scores)
+            score -= distance * 1.5
+            
+            scored_enemies.append((enemy, score))
+        
+        # Get the enemy with the highest score
+        if scored_enemies:
+            # Log the top three targets for debugging
+            scored_enemies.sort(key=lambda x: x[1], reverse=True)
+            for i, (enemy, score) in enumerate(scored_enemies[:3]):
+                if i == 0:
+                    logger.debug(f"Best target for {unit.get_display_name()}: {enemy.get_display_name()} (score: {score})")
+                else:
+                    logger.debug(f"Alternative target #{i+1}: {enemy.get_display_name()} (score: {score})")
+            
+            return scored_enemies[0][0]
+            
+        # Fallback to nearest enemy if scoring fails
+        return self._find_nearest_enemy(unit)
     
     def _process_default_unit(self, unit: 'Unit', use_coordination: bool = False) -> None:
         """
