@@ -309,7 +309,7 @@ class PrySkill(ActiveSkill):
             cooldown=3,
             range_=1
         )
-        self.primary_damage = 7  # Primary target damage
+        self.primary_damage = 6  # Primary target damage
         self.splash_damage = 3   # Splash damage to adjacent units
         
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
@@ -738,7 +738,7 @@ class VaultSkill(ActiveSkill):
             description="Leap over obstacles to any empty position within range, ignoring pathing restrictions.",
             target_type=TargetType.AREA,
             cooldown=4,
-            range_=3
+            range_=2
         )
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
@@ -1009,7 +1009,7 @@ class JudgementSkill(ActiveSkill):
             key="J",
             description="Throw a sacred glaive at an enemy (range 4). Deals pierce damage that ignores defense.",
             target_type=TargetType.ENEMY,
-            cooldown=3,
+            cooldown=4,
             range_=4
         )
         self.damage = 4
