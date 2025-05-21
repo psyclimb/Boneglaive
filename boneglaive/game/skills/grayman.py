@@ -222,6 +222,44 @@ class EstrangeSkill(ActiveSkill):
             return False
         if not game or not target_pos:
             return False
+            
+        # Get target unit
+        target_unit = game.get_unit_at(target_pos[0], target_pos[1])
+        if not target_unit:
+            return False
+            
+        # Check if target is an enemy (not same player)
+        if target_unit.player == user.player:
+            return False
+            
+        # Use the correct starting position (current position or planned move position)
+        from_y = user.y
+        from_x = user.x
+            
+        # If unit has a planned move, use that position instead
+        if user.move_target:
+            from_y, from_x = user.move_target
+                
+        # Check if target is within range from the correct position
+        distance = game.chess_distance(from_y, from_x, target_pos[0], target_pos[1])
+        if distance > self.range:
+            return False
+            
+        # Check line of sight
+        from boneglaive.utils.coordinates import get_line, Position
+        path = get_line(Position(from_y, from_x), Position(target_pos[0], target_pos[1]))
+            
+        # Check for obstacles along the path (excluding the start and end points)
+        for pos in path[1:-1]:
+            # Check if the position is blocked by terrain
+            if not game.map.is_passable(pos.y, pos.x):
+                return False
+                
+            # Check if position is blocked by another unit
+            blocking_unit = game.get_unit_at(pos.y, pos.x)
+            if blocking_unit:
+                return False
+            
         return True
             
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:

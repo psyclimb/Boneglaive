@@ -1639,14 +1639,17 @@ class GameModeManager(UIComponent):
                     )
                 
             else:
-                # Use event system for message
-                self.publish_event(
-                    EventType.MESSAGE_DISPLAY_REQUESTED,
-                    MessageDisplayEventData(
-                        message="You can only use skills with your own units!",
-                        message_type=MessageType.WARNING
+                # Only show the warning message for human players, not AI
+                # Check if the current player is a human player
+                if self.game_ui.multiplayer.get_current_player() == 1:
+                    # Use event system for message
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message="You can only use skills with your own units!",
+                            message_type=MessageType.WARNING
+                        )
                     )
-                )
         else:
             # Use event system for message
             # Show message in UI only, not in message log
@@ -1717,14 +1720,16 @@ class GameModeManager(UIComponent):
                     # No message when there are no valid targets
                     pass
             else:
-                # Use event system for message
-                self.publish_event(
-                    EventType.MESSAGE_DISPLAY_REQUESTED,
-                    MessageDisplayEventData(
-                        message="You can only attack with your own units!",
-                        message_type=MessageType.WARNING
+                # Only show the warning message for human players, not AI
+                if self.game_ui.multiplayer.get_current_player() == 1:
+                    # Use event system for message
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message="You can only attack with your own units!",
+                            message_type=MessageType.WARNING
+                        )
                     )
-                )
         else:
             # Use event system for message
             # Show message in UI only, not in message log

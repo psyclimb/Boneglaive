@@ -94,28 +94,41 @@ class SimpleAI:
             
             # Coordinate units based on difficulty
             if self.difficulty == AIDifficulty.MEDIUM or self.difficulty == AIDifficulty.HARD:
-                # On HARD difficulty, perform group coordination
-                if self.difficulty == AIDifficulty.HARD:
-                    self._coordinate_group_tactics(ai_units)
-                else:
-                    # On MEDIUM, just ensure each unit has a target
+                try:
+                    # On HARD difficulty, temporarily use the medium difficulty targeting
+                    # This bypasses group coordination that may be causing issues
+                    logger.info("Using simplified targeting for HARD mode (temporary fix)")
                     self._ensure_all_units_have_targets(ai_units)
+                except Exception as e:
+                    logger.error(f"Error in targeting: {e}")
+                    # If there's an error in targeting, just continue without coordination
             
             # On HARD difficulty, sort units to process the most tactical ones first
             if self.difficulty == AIDifficulty.HARD:
-                # Sort units by their tactical advantage (units with attack opportunities go first)
-                ai_units = self._sort_units_by_tactical_priority(ai_units)
+                try:
+                    # Sort units by their tactical advantage (units with attack opportunities go first)
+                    logger.info("Sorting AI units by tactical priority")
+                    ai_units = self._sort_units_by_tactical_priority(ai_units)
+                except Exception as e:
+                    logger.error(f"Error sorting units: {e}")
+                    # Continue with unsorted units if there's an error
                 
             # Process units one at a time
             units_processed = 0
             for unit in ai_units:
-                logger.info(f"AI processing unit: {unit.get_display_name()}")
-                self._process_unit(unit)
-                units_processed += 1
-                
-                # Update the UI after each unit action
-                if self.ui:
-                    self.ui.draw_board()
+                try:
+                    logger.info(f"AI processing unit: {unit.get_display_name()}")
+                    self._process_unit(unit)
+                    units_processed += 1
+                    
+                    # Update the UI after each unit action
+                    if self.ui:
+                        self.ui.draw_board()
+                except Exception as e:
+                    import traceback
+                    logger.error(f"Error processing unit {unit.get_display_name()}: {e}")
+                    logger.error(traceback.format_exc())
+                    # Continue with next unit if there's an error
                     
             logger.info(f"AI processed {units_processed} units")
                     
@@ -236,9 +249,10 @@ class SimpleAI:
         # Filter for valid positions
         valid_positions = []
         for y, x in adjacent_positions:
-            # Check if position is valid and passable
-            if (self.game.is_valid_position(y, x) and 
-                self.game.map.is_passable(y, x) and 
+            # Check if position is in bounds and not blocked
+            if (0 <= y < self.game.map.height and 
+                0 <= x < self.game.map.width and 
+                self.game.map.can_place_unit(y, x) and
                 not self.game.get_unit_at(y, x)):
                 valid_positions.append((y, x))
         
