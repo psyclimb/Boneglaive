@@ -69,54 +69,65 @@ class SimpleAI:
         Returns:
             True if the turn was processed successfully, False otherwise
         """
-        logger.info(f"AI processing turn with {self.difficulty.value} difficulty")
-        
-        # "AI is thinking..." message moved to multiplayer_manager.py
-        # to avoid duplication
+        try:
+            logger.info(f"AI processing turn with {self.difficulty.value} difficulty")
             
-        # Get all units belonging to the AI player
-        ai_units = [unit for unit in self.game.units 
-                   if unit.player == self.player_number and unit.is_alive()]
-        
-        # Log all AI units for debugging
-        logger.info(f"Found {len(ai_units)} AI units:")
-        for i, unit in enumerate(ai_units):
-            logger.info(f"AI unit {i+1}: {unit.get_display_name()} at ({unit.y}, {unit.x})")
-        
-        if not ai_units:
-            logger.warning("AI has no units to control")
-            return False
-        
-        # Reset coordination tracking for the new turn
-        self.target_assignments = {}
-        self.planned_positions = {}
-        
-        # Coordinate units based on difficulty
-        if self.difficulty == AIDifficulty.MEDIUM or self.difficulty == AIDifficulty.HARD:
-            # On HARD difficulty, perform group coordination
-            if self.difficulty == AIDifficulty.HARD:
-                self._coordinate_group_tactics(ai_units)
-            else:
-                # On MEDIUM, just ensure each unit has a target
-                self._ensure_all_units_have_targets(ai_units)
-        
-        # On HARD difficulty, sort units to process the most tactical ones first
-        if self.difficulty == AIDifficulty.HARD:
-            # Sort units by their tactical advantage (units with attack opportunities go first)
-            ai_units = self._sort_units_by_tactical_priority(ai_units)
-            
-        # Process units one at a time
-        for unit in ai_units:
-            logger.info(f"AI processing unit: {unit.get_display_name()}")
-            self._process_unit(unit)
-            
-            # Update the UI after each unit action
-            if self.ui:
-                self.ui.draw_board()
+            # "AI is thinking..." message moved to multiplayer_manager.py
+            # to avoid duplication
                 
-        # End the turn
-        logger.info("AI ending turn")
-        return True
+            # Get all units belonging to the AI player
+            ai_units = [unit for unit in self.game.units 
+                      if unit.player == self.player_number and unit.is_alive()]
+            
+            # Log all AI units for debugging
+            logger.info(f"Found {len(ai_units)} AI units:")
+            for i, unit in enumerate(ai_units):
+                logger.info(f"AI unit {i+1}: {unit.get_display_name()} at ({unit.y}, {unit.x})")
+            
+            if not ai_units:
+                logger.warning("AI has no units to control")
+                return False
+            
+            # Reset coordination tracking for the new turn
+            self.target_assignments = {}
+            self.planned_positions = {}
+            
+            # Coordinate units based on difficulty
+            if self.difficulty == AIDifficulty.MEDIUM or self.difficulty == AIDifficulty.HARD:
+                # On HARD difficulty, perform group coordination
+                if self.difficulty == AIDifficulty.HARD:
+                    self._coordinate_group_tactics(ai_units)
+                else:
+                    # On MEDIUM, just ensure each unit has a target
+                    self._ensure_all_units_have_targets(ai_units)
+            
+            # On HARD difficulty, sort units to process the most tactical ones first
+            if self.difficulty == AIDifficulty.HARD:
+                # Sort units by their tactical advantage (units with attack opportunities go first)
+                ai_units = self._sort_units_by_tactical_priority(ai_units)
+                
+            # Process units one at a time
+            units_processed = 0
+            for unit in ai_units:
+                logger.info(f"AI processing unit: {unit.get_display_name()}")
+                self._process_unit(unit)
+                units_processed += 1
+                
+                # Update the UI after each unit action
+                if self.ui:
+                    self.ui.draw_board()
+                    
+            logger.info(f"AI processed {units_processed} units")
+                    
+            # End the turn
+            logger.info("AI ending turn")
+            return True
+        except Exception as e:
+            import traceback
+            logger.error(f"Error in AI processing turn: {e}")
+            logger.error(traceback.format_exc())
+            # Even if there's an error, we should let the turn complete
+            return True
         
     def _coordinate_group_tactics(self, ai_units: List['Unit']) -> None:
         """
@@ -282,7 +293,7 @@ class SimpleAI:
             score += distance_score
             
             # Target health factor (lower health is better)
-            health_factor = 100 - target.current_hp
+            health_factor = 100 - target.hp
             score += health_factor * 0.5
             
             # Coordination factor (prefer targets with fewer units assigned)
@@ -298,6 +309,12 @@ class SimpleAI:
         
         # Sort by score (highest first)
         target_scores.sort(key=lambda x: x[1], reverse=True)
+        
+        # Log the top target choices
+        if target_scores:
+            # Debug log top three if available
+            for i, (target, score) in enumerate(target_scores[:min(3, len(target_scores))]):
+                logger.debug(f"Coordinated target option {i+1} for {unit.get_display_name()}: {target.get_display_name()} (score: {score})")
         
         if target_scores:
             return target_scores[0][0]
@@ -346,19 +363,25 @@ class SimpleAI:
                     # Units that can attack immediately get highest priority
                     if self._can_attack(unit, target):
                         score += 10
-                        
+                    
                     # Units close to enemies get medium priority
                     distance = self.game.chess_distance(unit.y, unit.x, target.y, target.x)
                     if distance <= unit.get_effective_stats()['move_range'] + 1:
                         score += 5
             
             # Add current HP as a small factor (prioritize healthy units slightly)
-            score += unit.current_hp / 10
+            score += unit.hp / 10
             
             scored_units.append((unit, score))
             
         # Sort by score in descending order
         sorted_units = [u for u, s in sorted(scored_units, key=lambda x: x[1], reverse=True)]
+        
+        # Log sorted order for debugging
+        logger.debug("AI unit processing order:")
+        for i, unit in enumerate(sorted_units):
+            logger.debug(f"{i+1}. {unit.get_display_name()}")
+        
         return sorted_units
     
     def _process_unit(self, unit: 'Unit') -> None:
@@ -379,7 +402,7 @@ class SimpleAI:
     def _process_glaiveman(self, unit: 'Unit', use_coordination: bool = False) -> None:
         """
         Process actions for a Glaiveman unit.
-        Implements aggressive movement and attack behavior.
+        Implements intelligent skill usage and aggressive movement/attack behavior.
         
         Args:
             unit: The Glaiveman unit to process
@@ -388,6 +411,8 @@ class SimpleAI:
         # Always reset move and attack targets at the start of processing
         unit.move_target = None
         unit.attack_target = None
+        unit.skill_target = None
+        unit.selected_skill = None
         
         # Get a target based on the difficulty level or coordination
         target = None
@@ -418,33 +443,390 @@ class SimpleAI:
             
         logger.info(f"Glaiveman targeting enemy: {target.get_display_name()} at position ({target.y}, {target.x})")
         
-        # Check if we can attack the enemy from our current position
-        can_attack = self._can_attack(unit, target)
+        # Get available skills 
+        available_skills = []
+        try:
+            available_skills = unit.get_available_skills()
+            logger.info(f"Glaiveman has {len(available_skills)} skills available: {[skill.name for skill in available_skills]}")
+        except Exception as e:
+            logger.error(f"Error getting available skills: {e}")
+            
+        # Flag to track if we used a skill
+        used_skill = None
         
-        # If we can attack, do it
-        if can_attack:
-            logger.info(f"Glaiveman attacking enemy at ({target.y}, {target.x})")
-            unit.attack_target = (target.y, target.x)
-        # If we can't attack, try to move closer
+        # Skip skill usage on EASY difficulty most of the time
+        if self.difficulty == AIDifficulty.EASY and random.random() < 0.7:
+            logger.info("EASY difficulty: Skipping skill usage")
         else:
-            # EASY difficulty has a chance to skip movement
-            if self.difficulty == AIDifficulty.EASY and random.random() < 0.3:
-                logger.info("EASY difficulty: Glaiveman decided not to move this turn")
-                return
-                
-            logger.info(f"Glaiveman moving towards enemy at ({target.y}, {target.x})")
+            # On MEDIUM or HARD, intelligently use skills
+            try:
+                used_skill = self._use_glaiveman_skills(unit, target, available_skills)
+                if used_skill:
+                    logger.info(f"Glaiveman used {used_skill.name} skill")
+                    # Don't return - we'll let the method complete even if a skill was used
+                    # This ensures that units always take some action
+            except Exception as e:
+                logger.error(f"Error using Glaiveman skills: {e}")
+                used_skill = None
+        
+        # Only proceed with move/attack if no skill was used
+        if not used_skill:
+            # If we didn't use a skill, proceed with normal attack or movement
             
-            # If using coordination, consider planned positions
-            if use_coordination:
-                self._move_with_coordination(unit, target)
+            # Check if we can attack the enemy from our current position
+            can_attack = self._can_attack(unit, target)
+            
+            # If we can attack, do it
+            if can_attack:
+                logger.info(f"Glaiveman attacking enemy at ({target.y}, {target.x})")
+                unit.attack_target = (target.y, target.x)
+            # If we can't attack, try to move closer
             else:
-                self._move_towards_enemy(unit, target)
+                # EASY difficulty has a chance to skip movement
+                if self.difficulty == AIDifficulty.EASY and random.random() < 0.3:
+                    logger.info("EASY difficulty: Glaiveman decided not to move this turn")
+                    return
+                    
+                logger.info(f"Glaiveman moving towards enemy at ({target.y}, {target.x})")
+                
+                # If using coordination, consider planned positions
+                if use_coordination:
+                    self._move_with_coordination(unit, target)
+                else:
+                    self._move_towards_enemy(unit, target)
+                
+                # Check if we can attack after moving
+                can_attack_after_move = self._can_attack_after_move(unit, target)
+                if can_attack_after_move:
+                    logger.info(f"Glaiveman attacking enemy after movement")
+                    # The attack_target is set in _can_attack_after_move
+    
+    def _use_glaiveman_skills(self, unit: 'Unit', target: 'Unit', available_skills: list) -> Optional['ActiveSkill']:
+        """
+        Intelligently use Glaiveman skills based on current situation.
+        
+        Args:
+            unit: The Glaiveman unit
+            target: The enemy target
+            available_skills: List of available active skills
             
-            # Check if we can attack after moving
-            can_attack_after_move = self._can_attack_after_move(unit, target)
-            if can_attack_after_move:
-                logger.info(f"Glaiveman attacking enemy after movement")
-                # The attack_target is set in _can_attack_after_move
+        Returns:
+            The skill that was used, or None if no skill was used
+        """
+        try:
+            if not available_skills:
+                logger.info("No skills available for this Glaiveman")
+                return None
+                
+            # Debug available skills
+            logger.info(f"Evaluating skills: {[skill.name for skill in available_skills]}")
+            
+            # Evaluate each skill's potential value
+            skill_scores = []
+            
+            for skill in available_skills:
+                # Use different evaluation based on skill type
+                try:
+                    if skill.name == "Judgement":
+                        score = self._evaluate_judgement_skill(unit, target, skill)
+                        if score > 0:
+                            skill_scores.append((skill, score, target))
+                        
+                    elif skill.name == "Pry":
+                        # For Pry, check if we can use it directly on the target
+                        if skill.can_use(unit, (target.y, target.x), self.game):
+                            score = self._evaluate_pry_skill(unit, target, skill)
+                            if score > 0:
+                                skill_scores.append((skill, score, target))
+                        # If not, check nearby enemies for Pry
+                        else:
+                            for nearby_enemy in self.game.units:
+                                if (nearby_enemy.player != unit.player and nearby_enemy.is_alive() and 
+                                    nearby_enemy != target and 
+                                    skill.can_use(unit, (nearby_enemy.y, nearby_enemy.x), self.game)):
+                                    score = self._evaluate_pry_skill(unit, nearby_enemy, skill)
+                                    if score > 0:
+                                        skill_scores.append((skill, score, nearby_enemy))
+                                    
+                    elif skill.name == "Vault":
+                        # For Vault, find the best destination position
+                        best_pos, score = self._evaluate_vault_skill(unit, target, skill)
+                        if best_pos and score > 0:
+                            skill_scores.append((skill, score, best_pos))
+                except Exception as e:
+                    logger.error(f"Error evaluating skill {skill.name}: {e}")
+                    continue
+            
+            # Debug skill scores
+            logger.info(f"Skill scores: {[(s[0].name, s[1]) for s in skill_scores]}")
+            
+            # Sort by score (highest first)
+            skill_scores.sort(key=lambda x: x[1], reverse=True)
+            
+            # Use the highest scoring skill if score is above threshold
+            if skill_scores:  # Only use skill if there are scored skills
+                skill, score, target_or_pos = skill_scores[0]
+                
+                logger.info(f"Using skill {skill.name} with score {score}")
+                
+                # Use the skill based on its type
+                success = False
+                if skill.name == "Judgement" or skill.name == "Pry":
+                    # These skills target enemy units
+                    target_unit = target_or_pos
+                    success = skill.use(unit, (target_unit.y, target_unit.x), self.game)
+                    logger.info(f"Skill use result: {success}")
+                    
+                elif skill.name == "Vault":
+                    # Vault targets a position
+                    vault_pos = target_or_pos
+                    success = skill.use(unit, vault_pos, self.game)
+                    logger.info(f"Skill use result: {success}")
+                
+                if success:
+                    return skill
+                    
+            logger.info("No suitable skill used")
+            return None
+        except Exception as e:
+            import traceback
+            logger.error(f"Error in _use_glaiveman_skills: {e}")
+            logger.error(traceback.format_exc())
+            return None
+        
+    def _evaluate_judgement_skill(self, unit: 'Unit', target: 'Unit', skill) -> float:
+        """
+        Evaluate the value of using Judgement skill on the target.
+        
+        Args:
+            unit: The Glaiveman unit
+            target: The enemy target
+            skill: The Judgement skill
+            
+        Returns:
+            A score indicating the value of using this skill (higher is better)
+        """
+        # Check if we can use the skill
+        if not skill.can_use(unit, (target.y, target.x), self.game):
+            return -1  # Can't use
+            
+        score = 0
+        
+        # Base score for being able to use the skill
+        score += 20
+        
+        # Judgement deals defensive-ignoring damage, which is useful against high-defense targets
+        # Also deals double damage to targets at critical health
+        is_target_critical = target.is_at_critical_health()
+        
+        # Calculate expected damage (double for critical, ignores defense)
+        expected_damage = skill.damage
+        if is_target_critical:
+            expected_damage *= 2
+            
+        # Can we kill the target?
+        if target.hp <= expected_damage:
+            score += 40  # High priority to kill
+        
+        # More valuable against high-defense targets
+        if target.defense >= 2:
+            score += 15
+            
+        # More valuable against critical targets (due to double damage)
+        if is_target_critical:
+            score += 25
+            
+        # Distance consideration - more valuable for targets outside normal attack range
+        distance = self.game.chess_distance(unit.y, unit.x, target.y, target.x)
+        attack_range = unit.get_effective_stats()['attack_range']
+        
+        if distance > attack_range:  # Can't reach with normal attack
+            score += 10
+            
+            if distance <= skill.range:  # Within Judgement range
+                score += 10
+            
+        return score
+    
+    def _evaluate_pry_skill(self, unit: 'Unit', target: 'Unit', skill) -> float:
+        """
+        Evaluate the value of using Pry skill on the target.
+        
+        Args:
+            unit: The Glaiveman unit
+            target: The enemy target
+            skill: The Pry skill
+            
+        Returns:
+            A score indicating the value of using this skill (higher is better)
+        """
+        # Check if we can use the skill
+        if not skill.can_use(unit, (target.y, target.x), self.game):
+            return -1  # Can't use
+            
+        score = 0
+        
+        # Base score for being able to use the skill
+        score += 15
+        
+        # Calculate expected primary damage
+        defense_reduced_damage = max(3, skill.primary_damage - target.defense)  # 3 damage minimum
+        
+        # Can we kill the target?
+        if target.hp <= defense_reduced_damage:
+            score += 30  # Priority to kill
+            
+        # How many adjacent enemies would be affected by splash damage?
+        splash_targets = 0
+        for dy in [-1, 0, 1]:
+            for dx in [-1, 0, 1]:
+                # Skip the center (primary target)
+                if dy == 0 and dx == 0:
+                    continue
+                
+                # Check adjacent position
+                adj_y = target.y + dy
+                adj_x = target.x + dx
+                
+                # Validate position
+                if not self.game.is_valid_position(adj_y, adj_x):
+                    continue
+                
+                # Check if there's an enemy unit at this position
+                adjacent_unit = self.game.get_unit_at(adj_y, adj_x)
+                if adjacent_unit and adjacent_unit.is_alive() and adjacent_unit.player != unit.player:
+                    splash_targets += 1
+        
+        # Bonus for splash targets
+        if splash_targets > 0:
+            score += splash_targets * 10  # 10 points per splash target
+            
+        # More valuable for slowing high-movement enemies
+        target_move = target.get_effective_stats()['move_range']
+        if target_move >= 3:
+            score += 10
+            
+        # More valuable if target is trapped by a MANDIBLE_FOREMAN (since Pry will free them)
+        if hasattr(target, 'trapped_by') and target.trapped_by is not None:
+            score += 5
+            
+        # More valuable if target has trapped other units (since Pry will free those units)
+        for other_unit in self.game.units:
+            if (hasattr(other_unit, 'trapped_by') and other_unit.trapped_by == target and 
+                other_unit.player == unit.player):  # Only care about freeing our own units
+                score += 15  # High priority to free our trapped allies
+                break
+                
+        return score
+        
+    def _evaluate_vault_skill(self, unit: 'Unit', target: 'Unit', skill) -> Tuple[Optional[Tuple[int, int]], float]:
+        """
+        Evaluate the value of using Vault skill to a position.
+        Finds the best position to vault to and returns its score.
+        
+        Args:
+            unit: The Glaiveman unit
+            target: The enemy target
+            skill: The Vault skill
+            
+        Returns:
+            Tuple of (best_position, score) where position is (y, x) or None
+        """
+        # Get effective stats including attack range
+        stats = unit.get_effective_stats()
+        attack_range = stats['attack_range']
+        
+        # Check all potential vault positions within skill range
+        best_position = None
+        best_score = -1
+        
+        # Check positions in a square area around the unit
+        for y in range(max(0, unit.y - skill.range), min(self.game.map.height, unit.y + skill.range + 1)):
+            for x in range(max(0, unit.x - skill.range), min(self.game.map.width, unit.x + skill.range + 1)):
+                # Check if position is valid for vault
+                if not skill.can_use(unit, (y, x), self.game):
+                    continue
+                    
+                # Calculate distance to target from this position
+                target_distance = self.game.chess_distance(y, x, target.y, target.x)
+                
+                # Calculate score based on tactical value of position
+                score = 0
+                
+                # Base score for a valid position
+                score += 5
+                
+                # Bonus if we can attack target after vaulting
+                if target_distance <= attack_range:
+                    score += 20
+                    
+                    # Additional bonus if this is the only way to attack the target
+                    current_distance = self.game.chess_distance(unit.y, unit.x, target.y, target.x)
+                    if current_distance > stats['move_range'] + attack_range:  # Can't reach normally
+                        score += 15
+                        
+                    # Position right next to target is often not ideal unless we need it to attack
+                    if target_distance == 1:
+                        score -= 5  # Small penalty for being adjacent (vulnerable)
+                    
+                    # Extra bonus for optimal attack distance
+                    if target_distance == attack_range:
+                        score += 5  # Optimal attack position
+                        
+                # Vault to escape when at low health
+                if unit.hp < unit.max_hp * 0.4:  # Below 40% health
+                    # Score inversely proportional to number of nearby enemies
+                    enemies_nearby = 0
+                    for enemy in self.game.units:
+                        if enemy.player != unit.player and enemy.is_alive():
+                            enemy_distance = self.game.chess_distance(y, x, enemy.y, enemy.x)
+                            if enemy_distance <= enemy.get_effective_stats()['attack_range'] + 1:
+                                enemies_nearby += 1
+                    
+                    # Bonus for positions with fewer nearby enemies
+                    if enemies_nearby == 0:
+                        score += 25  # Great escape position with no enemies nearby
+                    else:
+                        score -= enemies_nearby * 5  # Penalty for each nearby enemy
+                
+                # Vault to reach key strategic positions
+                
+                # 1. Vault over obstacles that block normal movement
+                blocked_path = False
+                # Check if normal movement path is blocked
+                from boneglaive.utils.coordinates import Position, get_line
+                path = get_line(Position(unit.y, unit.x), Position(target.y, target.x))
+                for i, pos in enumerate(path[1:-1]):  # Skip start and end positions
+                    # Check for blocking units or terrain
+                    if (not self.game.is_valid_position(pos.y, pos.x) or
+                        not self.game.map.is_passable(pos.y, pos.x) or
+                        self.game.get_unit_at(pos.y, pos.x) is not None):
+                        blocked_path = True
+                        break
+                
+                if blocked_path:
+                    score += 10  # Bonus for bypassing obstacles
+                    
+                # 2. Vault to flank target (get on opposite side from our other units)
+                for ally in self.game.units:
+                    if ally.is_alive() and ally.player == unit.player and ally.id != unit.id:
+                        # Check if this position puts us on opposite side of target from ally
+                        from math import atan2
+                        # Calculate vectors from target to ally and from target to vault position
+                        ally_angle = atan2(ally.y - target.y, ally.x - target.x)
+                        vault_angle = atan2(y - target.y, x - target.x)
+                        # Calculate angle difference (in radians)
+                        angle_diff = abs(ally_angle - vault_angle)
+                        if angle_diff > 2.5:  # Approximately 140+ degrees
+                            score += 10  # Good flanking position
+                            break
+                
+                # Update best position if this is better
+                if score > best_score:
+                    best_score = score
+                    best_position = (y, x)
+        
+        return best_position, best_score
     
     def _process_default_unit(self, unit: 'Unit', use_coordination: bool = False) -> None:
         """
@@ -622,7 +1004,7 @@ class SimpleAI:
             # Prioritize lower health enemies (but not if they're too far)
             if can_reach_for_attack or distance < 10:
                 # Invert HP to give higher scores to lower-HP enemies
-                hp_factor = 100 - enemy.current_hp
+                hp_factor = 100 - enemy.hp
                 score += hp_factor * 0.5
                 
             # Prioritize dangerous enemies (high attack power)
@@ -637,7 +1019,14 @@ class SimpleAI:
         
         # Get the enemy with the highest score
         if scored_enemies:
+            # Log the top three targets for debugging
             scored_enemies.sort(key=lambda x: x[1], reverse=True)
+            for i, (enemy, score) in enumerate(scored_enemies[:3]):
+                if i == 0:
+                    logger.debug(f"Best target for {unit.get_display_name()}: {enemy.get_display_name()} (score: {score})")
+                else:
+                    logger.debug(f"Alternative target #{i+1}: {enemy.get_display_name()} (score: {score})")
+            
             return scored_enemies[0][0]
             
         # Fallback to nearest enemy if scoring fails
@@ -767,7 +1156,7 @@ class SimpleAI:
             logger.info(f"Unit {unit.get_display_name()} cannot move (move_range = {move_range})")
             return
             
-        # Find the best move position
+        # Find the best position to move to
         best_pos = self._find_best_move_position(unit, target, move_range)
         
         if best_pos:
@@ -776,7 +1165,7 @@ class SimpleAI:
             logger.info(f"Setting move target to ({best_pos[0]}, {best_pos[1]})")
         else:
             logger.warning(f"Could not find valid move for {unit.get_display_name()} towards {target.get_display_name()}")
-    
+            
     def _find_best_move_position(self, unit: 'Unit', target: 'Unit', move_range: int) -> Optional[Tuple[int, int]]:
         """
         Find the best position to move towards an enemy.
