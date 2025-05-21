@@ -170,6 +170,34 @@ class Game:
                     if len(valid_positions) >= 3:
                         break
         
+        # Check if we're in VS_AI mode
+        from boneglaive.utils.config import ConfigManager, NetworkMode
+        config = ConfigManager()
+        is_vs_ai_mode = config.get('network_mode') == NetworkMode.VS_AI.value
+        
+        if is_vs_ai_mode and player == 2:
+            # In VS_AI mode, use exactly one of each unit type for player 2
+            logger.info("VS_AI mode detected - using exactly one of each unit type for player 2")
+            
+            # Make sure we have the expected number of positions
+            if len(valid_positions) >= 3:
+                # Fixed unit types for VS_AI player 2
+                vs_ai_types = [
+                    UnitType.GLAIVEMAN,
+                    UnitType.MANDIBLE_FOREMAN,
+                    UnitType.GRAYMAN
+                ]
+                
+                # Add each unit at a valid position
+                for i, (y, x) in enumerate(valid_positions[:3]):
+                    unit_type = vs_ai_types[i]
+                    self.add_unit(unit_type, player, y, x)
+                    logger.info(f"Added VS_AI mode {unit_type.name} for player {player} at ({y}, {x})")
+                
+                # Return early since we've added all units
+                return
+        
+        # Standard unit placement for non-VS_AI modes
         # Track unit counts to enforce 2-unit type limit
         unit_counts = {}
         
@@ -244,6 +272,21 @@ class Game:
         
         # Clear any existing units
         self.units = []
+        
+        # Check if we're in VS_AI mode - we need to handle this specifically
+        from boneglaive.utils.config import ConfigManager, NetworkMode
+        config = ConfigManager()
+        is_vs_ai_mode = config.get('network_mode') == NetworkMode.VS_AI.value
+        
+        # Print debug info
+        logger.info(f"Game Mode: {config.get('network_mode')}, VS_AI Mode: {is_vs_ai_mode}")
+        
+        # Define specific unit types to use for Player 2 in VS_AI mode
+        vs_ai_p2_unit_types = [
+            UnitType.GLAIVEMAN,
+            UnitType.MANDIBLE_FOREMAN,
+            UnitType.GRAYMAN
+        ]
         
         # Find valid positions for units that aren't on limestone
         valid_positions = []
@@ -333,69 +376,197 @@ class Game:
         valid_positions.extend(p2_positions)
         logger.info(f"Found {len(valid_positions)} valid positions for units")
         
-        # Place units at valid positions
-        # Track unit counts to enforce 2-unit type limit
-        player_unit_counts = {
-            1: {},  # Player 1 unit counts by type
-            2: {}   # Player 2 unit counts by type
-        }
-
-        # Set up a variety of unit types to use
-        unit_types = [
+        # Unit type setup
+        player1_unit_types = [
             UnitType.GLAIVEMAN,
             UnitType.MANDIBLE_FOREMAN,
             UnitType.GRAYMAN
         ]
-
-        for player, y, x in valid_positions:
-            # Choose a valid unit type (respecting the 2-unit limit)
-            valid_types = [t for t in unit_types
-                        if player_unit_counts.get(player, {}).get(t, 0) < 2]
-
-            # Default to GLAIVEMAN if no valid types (shouldn't happen)
-            if not valid_types:
-                logger.warning(f"No valid unit types available for player {player}. Using GLAIVEMAN.")
-                unit_type = UnitType.GLAIVEMAN
+        
+        # Track unit counts for each player and type
+        player_unit_counts = {
+            1: {},  # Player 1 unit counts by type
+            2: {}   # Player 2 unit counts by type
+        }
+        
+        # SPECIAL HANDLING FOR VS_AI MODE
+        if is_vs_ai_mode:
+            logger.info("VS_AI mode detected, using exactly one of each unit type for player 2")
+            
+            # First create units for player 2 (AI) to ensure we get exactly one of each type
+            if len(p2_positions) >= 3:
+                # Add exactly one of each unit type for player 2
+                types_to_add = [UnitType.GLAIVEMAN, UnitType.MANDIBLE_FOREMAN, UnitType.GRAYMAN]
+                
+                for i, (player, y, x) in enumerate(p2_positions[:3]):
+                    unit_type = types_to_add[i]
+                    self.add_unit(unit_type, player, y, x)
+                    
+                    # Update unit count
+                    player_unit_counts.setdefault(player, {})
+                    player_unit_counts[player][unit_type] = player_unit_counts[player].get(unit_type, 0) + 1
+                    
+                    logger.info(f"Added Player 2 (AI) unit {unit_type.name} at ({y}, {x})")
+                    
+                # Now add player 1 units with variety
+                for player, y, x in valid_positions:
+                    if player == 1:
+                        # Get valid unit types that don't exceed the 2-unit limit
+                        valid_types = [t for t in player1_unit_types 
+                                    if player_unit_counts.get(player, {}).get(t, 0) < 2]
+                        
+                        # Default to GLAIVEMAN if no valid types
+                        if not valid_types:
+                            unit_type = UnitType.GLAIVEMAN
+                        else:
+                            unit_type = valid_types[0]
+                        
+                        # Add the unit
+                        self.add_unit(unit_type, player, y, x)
+                        
+                        # Update unit count
+                        player_unit_counts.setdefault(player, {})
+                        player_unit_counts[player][unit_type] = player_unit_counts[player].get(unit_type, 0) + 1
+                        
+                        logger.info(f"Added Player 1 unit {unit_type.name} at ({y}, {x})")
             else:
-                # Rotate through valid types to ensure variety
-                unit_type = valid_types[0]
-
-            # Add the unit with the selected type
-            self.add_unit(unit_type, player, y, x)
-
-            # Update unit count for this player and type
-            player_unit_counts.setdefault(player, {})
-            player_unit_counts[player][unit_type] = player_unit_counts[player].get(unit_type, 0) + 1
-
-            logger.info(f"Added {unit_type.name} for player {player} at ({y}, {x})")
+                logger.error(f"Not enough positions for Player 2 in VS_AI mode")
+        else:
+            # STANDARD UNIT PLACEMENT FOR NON-VS_AI MODES
+            logger.info("Using standard unit placement for non-VS_AI mode")
+            
+            # Add units at valid positions with appropriate types
+            for player, y, x in valid_positions:
+                if player == 1:
+                    # For player 1, respect the 2-unit type limit
+                    valid_types = [t for t in player1_unit_types 
+                                if player_unit_counts.get(player, {}).get(t, 0) < 2]
+                    
+                    # Default to GLAIVEMAN if no valid types
+                    if not valid_types:
+                        unit_type = UnitType.GLAIVEMAN
+                    else:
+                        unit_type = valid_types[0]
+                else:  # player 2
+                    # For player 2, use rotation of types
+                    # Default rotation of unit types with variety
+                    player2_unit_types = [
+                        UnitType.GLAIVEMAN,
+                        UnitType.MANDIBLE_FOREMAN,
+                        UnitType.GRAYMAN
+                    ]
+                    
+                    # For player 2, respect the 2-unit type limit
+                    valid_types = [t for t in player2_unit_types 
+                                if player_unit_counts.get(player, {}).get(t, 0) < 2]
+                    
+                    # Default to GLAIVEMAN if no valid types
+                    if not valid_types:
+                        unit_type = UnitType.GLAIVEMAN
+                    else:
+                        unit_type = valid_types[0]
+                
+                # Add the unit and update unit count
+                self.add_unit(unit_type, player, y, x)
+                
+                # Update unit count for this player and type
+                player_unit_counts.setdefault(player, {})
+                player_unit_counts[player][unit_type] = player_unit_counts[player].get(unit_type, 0) + 1
+                
+                logger.info(f"Added {unit_type.name} for player {player} at ({y}, {x})")
 
         # If we couldn't find enough valid positions, add some emergency units
         # at fixed positions (shouldn't happen with our current map)
         if len(self.units) < 6:
             missing = 6 - len(self.units)
             logger.warning(f"Not enough valid positions found. Adding {missing} emergency units.")
-            emergency_positions = [
-                (1, 1, 1), (1, 1, 2), (1, 1, 3),
-                (2, 8, 16), (2, 8, 17), (2, 8, 18)
-            ]
-
-            # For emergency units, still respect the 2-unit type limit
-            for i in range(missing):
-                player, y, x = emergency_positions[i]
-
-                # Choose a valid unit type (respecting the 2-unit limit)
-                valid_types = [t for t in unit_types
+            
+            # Determine how many units we're missing for each player
+            p1_units = sum(1 for unit in self.units if unit.player == 1)
+            p2_units = sum(1 for unit in self.units if unit.player == 2)
+            
+            p1_missing = max(0, 3 - p1_units)
+            p2_missing = max(0, 3 - p2_units)
+            
+            emergency_p1_positions = [(1, 1, 1), (1, 1, 2), (1, 1, 3)]
+            emergency_p2_positions = [(2, 8, 16), (2, 8, 17), (2, 8, 18)]
+            
+            # Check if we're in VS_AI mode
+            from boneglaive.utils.config import ConfigManager, NetworkMode
+            config = ConfigManager()
+            is_vs_ai_mode = config.get('network_mode') == NetworkMode.VS_AI.value
+            
+            # For VS_AI mode, ensure we create exactly one of each unit type for player 2
+            if is_vs_ai_mode and p2_missing > 0:
+                logger.warning("Adding emergency units for VS_AI mode, ensuring one of each unit type")
+                
+                # Make a list of available unit types
+                vs_ai_types = [UnitType.GLAIVEMAN, UnitType.MANDIBLE_FOREMAN, UnitType.GRAYMAN]
+                
+                # See which types we already have
+                for unit in self.units:
+                    if unit.player == 2 and unit.type in vs_ai_types:
+                        vs_ai_types.remove(unit.type)
+                
+                # Add the missing types
+                for i in range(min(p2_missing, len(vs_ai_types))):
+                    player, y, x = emergency_p2_positions[i]
+                    unit_type = vs_ai_types[i]
+                    
+                    # Add the unit
+                    self.add_unit(unit_type, player, y, x)
+                    logger.warning(f"Added emergency VS_AI {unit_type.name} for player 2 at ({y}, {x})")
+                    
+                    # Update unit counts
+                    player_unit_counts.setdefault(player, {})
+                    player_unit_counts[player][unit_type] = player_unit_counts[player].get(unit_type, 0) + 1
+            else:
+                # Standard emergency unit placement for non-VS_AI mode
+                # First handle missing player 2 units with rotating types
+                for i in range(p2_missing):
+                    player, y, x = emergency_p2_positions[i]
+                    
+                    # Determine which unit type to use next
+                    valid_types = [UnitType.GLAIVEMAN, UnitType.MANDIBLE_FOREMAN, UnitType.GRAYMAN]
+                    
+                    # Filter by existing types if needed
+                    if player_unit_counts.get(player, {}):
+                        valid_types = [t for t in valid_types 
+                                      if player_unit_counts.get(player, {}).get(t, 0) < 2]
+                    
+                    # Default to GLAIVEMAN if no valid types
+                    if not valid_types:
+                        unit_type = UnitType.GLAIVEMAN
+                    else:
+                        unit_type = valid_types[0]
+                    
+                    # Add the unit
+                    self.add_unit(unit_type, player, y, x)
+                    logger.warning(f"Added emergency {unit_type.name} for player 2 at ({y}, {x})")
+                    
+                    # Update unit counts
+                    player_unit_counts.setdefault(player, {})
+                    player_unit_counts[player][unit_type] = player_unit_counts[player].get(unit_type, 0) + 1
+            
+            # Now handle missing player 1 units with variety
+            for i in range(p1_missing):
+                player, y, x = emergency_p1_positions[i]
+                
+                # For player 1, respect the 2-unit type limit
+                valid_types = [t for t in player1_unit_types
                             if player_unit_counts.get(player, {}).get(t, 0) < 2]
-
+                
                 # Default to GLAIVEMAN if no valid types
                 if not valid_types:
                     unit_type = UnitType.GLAIVEMAN
                 else:
                     unit_type = valid_types[0]
-
+                
+                # Add the unit
                 self.add_unit(unit_type, player, y, x)
-
-                # Update unit count
+                logger.warning(f"Added emergency {unit_type.name} for player 1 at ({y}, {x})")
+                
+                # Update unit counts
                 player_unit_counts.setdefault(player, {})
                 player_unit_counts[player][unit_type] = player_unit_counts[player].get(unit_type, 0) + 1
         
