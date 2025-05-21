@@ -1009,7 +1009,7 @@ class JudgementSkill(ActiveSkill):
             key="J",
             description="Throw a sacred glaive at an enemy (range 4). Deals pierce damage that ignores defense.",
             target_type=TargetType.ENEMY,
-            cooldown=2,
+            cooldown=3,
             range_=4
         )
         self.damage = 4
@@ -1020,6 +1020,24 @@ class JudgementSkill(ActiveSkill):
             return False
         if not game or not target_pos:
             return False
+            
+        # Check if target is an enemy unit
+        target = game.get_unit_at(target_pos[0], target_pos[1])
+        if not target or target.player == user.player:
+            return False
+            
+        # Check if target is within range from the correct position
+        from_y = user.y
+        from_x = user.x
+        
+        # If unit has a planned move, use that position instead
+        if user.move_target:
+            from_y, from_x = user.move_target
+            
+        distance = game.chess_distance(from_y, from_x, target_pos[0], target_pos[1])
+        if distance > self.range:
+            return False
+            
         return True
             
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
