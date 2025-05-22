@@ -544,8 +544,11 @@ class SimpleAI:
                 logger.info("No skills available for this Glaiveman")
                 return None
                 
-            # Debug available skills
-            logger.info(f"Evaluating skills: {[skill.name for skill in available_skills]}")
+            # Debug available skills with cooldown information
+            logger_msg = "Evaluating skills: "
+            for skill in available_skills:
+                logger_msg += f"{skill.name} (CD: {skill.current_cooldown}/{skill.cooldown}), "
+            logger.info(logger_msg.rstrip(", "))
             
             # Evaluate each skill's potential value
             skill_scores = []
@@ -980,8 +983,11 @@ class SimpleAI:
                 logger.info("No skills available for this Mandible Foreman")
                 return None
                 
-            # Debug available skills
-            logger.info(f"Evaluating skills: {[skill.name for skill in available_skills]}")
+            # Debug available skills with cooldown information
+            logger_msg = "Evaluating skills: "
+            for skill in available_skills:
+                logger_msg += f"{skill.name} (CD: {skill.current_cooldown}/{skill.cooldown}), "
+            logger.info(logger_msg.rstrip(", "))
             
             # Evaluate each skill's potential value
             skill_scores = []
@@ -1586,11 +1592,11 @@ class SimpleAI:
         # Flag to track if we used a skill
         used_skill = None
         
-        # Skip skill usage on EASY difficulty most of the time
-        if self.difficulty == AIDifficulty.EASY and random.random() < 0.7:
+        # Skip skill usage on EASY difficulty less often (reduced probability)
+        if self.difficulty == AIDifficulty.EASY and random.random() < 0.4:  # Reduced from 0.7
             logger.info("EASY difficulty: Skipping skill usage")
         else:
-            # On MEDIUM or HARD, intelligently use skills
+            # On MEDIUM or HARD, always use skills if possible
             try:
                 used_skill = self._use_grayman_skills(unit, target, available_skills)
                 if used_skill:
@@ -1616,8 +1622,8 @@ class SimpleAI:
                 unit.attack_target = (target.y, target.x)
             # If we can't attack, try to move closer
             else:
-                # EASY difficulty has a chance to skip movement
-                if self.difficulty == AIDifficulty.EASY and random.random() < 0.3:
+                # EASY difficulty has a small chance to skip movement (reduced probability)
+                if self.difficulty == AIDifficulty.EASY and random.random() < 0.1:  # Reduced from 0.3
                     logger.info("EASY difficulty: Grayman decided not to move this turn")
                     return
                     
@@ -1657,8 +1663,11 @@ class SimpleAI:
                 logger.info("No skills available for this Grayman")
                 return None
                 
-            # Debug available skills
-            logger.info(f"Evaluating skills: {[skill.name for skill in available_skills]}")
+            # Debug available skills with cooldown information
+            logger_msg = "Evaluating skills: "
+            for skill in available_skills:
+                logger_msg += f"{skill.name} (CD: {skill.current_cooldown}/{skill.cooldown}), "
+            logger.info(logger_msg.rstrip(", "))
             
             # Evaluate each skill's potential value
             skill_scores = []
@@ -1688,8 +1697,8 @@ class SimpleAI:
             # Sort by score (highest first)
             skill_scores.sort(key=lambda x: x[1], reverse=True)
             
-            # Use the highest scoring skill if score is above threshold
-            if skill_scores and skill_scores[0][1] >= 25:  # Set threshold for skill usage
+            # Use the highest scoring skill if score is above threshold (lower threshold to use skills more often)
+            if skill_scores and skill_scores[0][1] >= 15:  # Reduced threshold to encourage more skill usage
                 skill, score, target_pos = skill_scores[0]
                 
                 logger.info(f"Using skill {skill.name} with score {score}")
@@ -1724,6 +1733,8 @@ class SimpleAI:
         """
         # If skill is not ready yet, return no valid position
         if not skill.can_use(unit, None, self.game):
+            # Debug why the skill can't be used
+            logger.debug(f"Delta Config not usable by {unit.get_display_name()}, cooldown: {skill.current_cooldown}")
             return None, -1
             
         # Get effective stats including attack range
@@ -1776,8 +1787,8 @@ class SimpleAI:
             if (y, x) == (unit.y, unit.x):
                 continue
                 
-            # Base score for a valid position
-            score += 10
+            # Base score for a valid position - increased to encourage Delta Config usage
+            score += 20  # Increased from 10
             
             # Score based on health - prioritize escape if low health
             if health_percent <= 0.3:  # Below 30% health
@@ -1813,17 +1824,17 @@ class SimpleAI:
                 can_attack_target = distance_to_target <= attack_range
                 
                 if can_attack_target:
-                    # Big bonus for positions that let us attack the target immediately
-                    score += 40
+                    # Big bonus for positions that let us attack the target immediately - increased to make teleporting to attack more appealing
+                    score += 50  # Increased from 40
                     
                     # Optimal attack position is at exactly attack range
                     if distance_to_target == attack_range:
-                        score += 10  # Extra bonus for optimal distance
+                        score += 15  # Extra bonus for optimal distance (increased from 10)
                 else:
                     # For non-attack positions, prefer to be somewhat close to target
                     # but not so close that we're vulnerable
                     ideal_distance = attack_range + 1  # Just outside attack range
-                    distance_score = 20 - abs(distance_to_target - ideal_distance) * 3
+                    distance_score = 25 - abs(distance_to_target - ideal_distance) * 3  # Increased from 20
                     score += max(0, distance_score)
                 
                 # Consider positions that give tactical advantage
@@ -1995,11 +2006,11 @@ class SimpleAI:
                 if distance <= attack_range:
                     enemies_in_range += 1
                     
-                    # Extra value for specific enemy types that are dangerous
+                    # Extra value for specific enemy types that are dangerous - increased values
                     if enemy.type == UnitType.GLAIVEMAN or enemy.type == UnitType.FOWL_CONTRIVANCE:
-                        current_pos_value += 10
+                        current_pos_value += 15  # Increased from 10
                     else:
-                        current_pos_value += 5
+                        current_pos_value += 8   # Increased from 5
         
         # If no enemies in range, the echo would be useless
         if enemies_in_range == 0:
@@ -2019,11 +2030,11 @@ class SimpleAI:
                 # Calculate score for this position
                 score = 0
                 
-                # Base score for a valid position
-                score += 10
+                # Base score for a valid position - higher base score to encourage usage
+                score += 20
                 
-                # Echo value at current position
-                score += current_pos_value
+                # Echo value at current position - boost this value to make Grae Exchange more appealing
+                score += current_pos_value * 1.5
                 
                 # Prioritize defensive teleport at low health
                 if health_percent <= 0.4:  # Below 40% health
@@ -2060,13 +2071,13 @@ class SimpleAI:
                     can_attack_target = distance_to_target <= attack_range
                     
                     if can_attack_target:
-                        # Bonus for positions that let us attack the target immediately
-                        score += 20
+                        # Bonus for positions that let us attack the target immediately - increased bonus
+                        score += 30  # Increased from 20
                     else:
                         # For non-attack positions, prefer to be somewhat close to target
                         # but not too close
                         ideal_distance = attack_range + 1  # Just outside attack range
-                        distance_score = 15 - abs(distance_to_target - ideal_distance) * 2
+                        distance_score = 20 - abs(distance_to_target - ideal_distance) * 2  # Increased from 15
                         score += max(0, distance_score)
                     
                     # Check for multiple targets in attack range at new position
