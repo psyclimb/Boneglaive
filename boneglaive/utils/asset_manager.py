@@ -63,7 +63,8 @@ class AssetManager:
             'ottoman': '=',    # Ottoman uses equals sign
             'console': 'ε',    # Console table uses epsilon
             'dec_table': 'Π',  # Decorative table uses Pi symbol
-            'marrow_wall': '#'  # Marrow Dike wall uses hash character
+            'marrow_wall': '#',  # Marrow Dike wall uses hash character
+            'rail': '┼'       # Rail track uses cross symbol for intersections
         }
         
         # UI symbols
@@ -122,50 +123,21 @@ class AssetManager:
             'grae_exchange': ['/', '_', '*', 'ψ', 'Ψ'],  # Echo creation effect
             'marrow_healing': ['♥', '❤', '♡', '❤', '♥', '✚', '+', '*'],  # Blood plasma healing animation
             
-            # FOWL_CONTRIVANCE animations - elaborate bird-themed animations
-            'fowl_contrivance_attack': ['V', 'A', 'Y', 'Λ', '*', 'Y', 'V', 'X', '#', '%'],  # Improved basic attack - aggressive flock of diving birds
-            
-            # Murmuration Dusk animation - swirling bird patterns
-            'murmuration_dusk': [
-                '^', '~', 'v', '~', '^', '*', '~', 'V', 'M', 'V', 'v', 
-                '~', '*', '^', '~', 'v', '~', '^', '*', '^', '~'
-            ],
-            
-            # Flap animation - concentrated hawk diving with more predatory imagery
-            'flap': [
-                'Λ', 'Y', 'Λ', 'V', 'A', 'Λ', 'V', 'Y', 'V',
-                '*', '×', '#', '*', '#', '%', '*', '@', 'X'
-            ],
-            
-            # Emetic Flange animation - explosive bird burst outwards
-            'emetic_flange': [
-                '*', '^', 'v', '^', '>', '<', '%', '@', '&', '#', 
-                '<', '>', '≺', '≻', 'V', '*', '^', '~', 'V', '*'
-            ],
-            
-            # Wretched Decension effect - birds descending to claim the wretched (for passive)
-            'wretched_decension': [
-                '.',  '.',  '.',    # Initial distant swarm
-                '^', '^', '',      # First birds appear
-                '^', 'v', '^',   # Starting to circle
-                '^', 'v', '^',   # More birds joining 
-                'v', '^', 'A',   # Forming attack pattern
-                'V', 'A', 'V',   # Diving birds
-                'W', 'v', 'M',   # Descending formation
-                'M', 'V', 'A', # Closing in
-                '|', '%', '#',  # Surrounding the target
-                '@', 'V', '#',   # Engulfing the target
-                '#', '@', '%',   # Swarm intensifies
-                '%', '#', '#',   # Frenzied birds
-                '%', '#', '~',   # Final moments
-                '^', '*', ' '       # Carrying away, leaving nothing
-            ],
+            # FOWL_CONTRIVANCE reworked animations - rail artillery platform
+            'fowl_contrivance_attack': ['T', '*', '#', '@'],  # Basic attack for reworked FOWL_CONTRIVANCE
             
             # Critical health "wretch" animation - displayed when units reach critical health
             'wretch': [
                 '!', '?', '@', '#', '$', '%', '&', '*', 
                 '?', '!', '*', '~', '+', '-', 'x', '/'
             ],
+            
+            # FOWL CONTRIVANCE reworked skills animations
+            'gaussian_dusk_charging': ['~', '=', '≡', '*', '+', 'Φ', 'Θ', 'Ω'],  # Steam and energy buildup
+            'gaussian_dusk_firing': ['*', '#', '@', '~', '.', ' '],  # Beam trail
+            'big_arc_launch': ['o', 'O', '0', '*'],  # Mortar shells ascending  
+            'big_arc_impact': ['*', '#', '@', '%', '~', '.'],  # Explosions and smoke
+            'fragcrest_burst': ['.', ':', '*', '+', '#', 'x'],  # Fragmentation spread
             
             # GAS_MACHINIST animations
             'gas_machinist_attack': ['o', 'O', 'o'],  # Gas bubble attack
@@ -285,12 +257,13 @@ class AssetManager:
             'ossify': ['ossify_1.png', 'ossify_2.png', 'ossify_3.png'],
             'marrow_dike': ['marrow_dike_1.png', 'marrow_dike_2.png', 'marrow_dike_3.png'],
             'slough': ['slough_1.png', 'slough_2.png', 'slough_3.png'],
-            # FOWL_CONTRIVANCE animations
-            'fowl_contrivance_attack': ['fowl_attack_1.png', 'fowl_attack_2.png', 'fowl_attack_3.png', 'fowl_attack_4.png', 'fowl_attack_5.png'],
-            'murmuration_dusk': ['murmuration_1.png', 'murmuration_2.png', 'murmuration_3.png', 'murmuration_4.png', 'murmuration_5.png'],
-            'flap': ['flap_1.png', 'flap_2.png', 'flap_3.png', 'flap_4.png', 'flap_5.png', 'flap_6.png'],
-            'emetic_flange': ['emetic_1.png', 'emetic_2.png', 'emetic_3.png', 'emetic_4.png'],
-            'wretched_decension': ['wretched_1.png', 'wretched_2.png', 'wretched_3.png', 'wretched_4.png'],
+            # FOWL_CONTRIVANCE reworked animations
+            'fowl_contrivance_attack': ['fowl_attack_1.png', 'fowl_attack_2.png', 'fowl_attack_3.png'],
+            'gaussian_dusk_charging': ['gaussian_charge_1.png', 'gaussian_charge_2.png', 'gaussian_charge_3.png'],
+            'gaussian_dusk_firing': ['gaussian_fire_1.png', 'gaussian_fire_2.png', 'gaussian_fire_3.png'],
+            'big_arc_launch': ['arc_launch_1.png', 'arc_launch_2.png', 'arc_launch_3.png'],
+            'big_arc_impact': ['arc_impact_1.png', 'arc_impact_2.png', 'arc_impact_3.png'],
+            'fragcrest_burst': ['frag_burst_1.png', 'frag_burst_2.png', 'frag_burst_3.png'],
             'wretch': ['wretch_1.png', 'wretch_2.png', 'wretch_3.png', 'wretch_4.png', 'wretch_5.png', 'wretch_6.png']
         }
     

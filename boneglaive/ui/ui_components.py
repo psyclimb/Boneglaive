@@ -3113,34 +3113,34 @@ class ActionMenuComponent(UIComponent):
         # FOWL_CONTRIVANCE skills
         elif unit.type == self.UnitType.FOWL_CONTRIVANCE:
             
-            # Add Murmuration Dusk skill
-            murmuration_skill = next((skill for skill in available_skills if skill.name == "Murmuration Dusk"), None)
+            # Add Gaussian Dusk skill
+            gaussian_dusk_skill = next((skill for skill in available_skills if skill.name == "Gaussian Dusk"), None)
             self.actions.append({
-                'key': 'm',
-                'label': 'urmuration Dusk',  # Will be displayed as [M]urmuration Dusk
-                'action': 'murmuration_skill',
-                'enabled': murmuration_skill is not None,
-                'skill': murmuration_skill
+                'key': 'g',
+                'label': 'aussian Dusk',  # Will be displayed as [G]aussian Dusk
+                'action': 'gaussian_dusk_skill',
+                'enabled': gaussian_dusk_skill is not None,
+                'skill': gaussian_dusk_skill
             })
             
-            # Add Flap skill
-            flap_skill = next((skill for skill in available_skills if skill.name == "Flap"), None)
+            # Add Big Arc skill
+            big_arc_skill = next((skill for skill in available_skills if skill.name == "Big Arc"), None)
+            self.actions.append({
+                'key': 'b',
+                'label': 'ig Arc',  # Will be displayed as [B]ig Arc
+                'action': 'big_arc_skill',
+                'enabled': big_arc_skill is not None,
+                'skill': big_arc_skill
+            })
+            
+            # Add Fragcrest skill
+            fragcrest_skill = next((skill for skill in available_skills if skill.name == "Fragcrest"), None)
             self.actions.append({
                 'key': 'f',
-                'label': 'lap',  # Will be displayed as [F]lap
-                'action': 'flap_skill',
-                'enabled': flap_skill is not None,
-                'skill': flap_skill
-            })
-            
-            # Add Emetic Flange skill
-            emetic_flange_skill = next((skill for skill in available_skills if skill.name == "Emetic Flange"), None)
-            self.actions.append({
-                'key': 'e',
-                'label': 'metic Flange',  # Will be displayed as [E]metic Flange
-                'action': 'emetic_flange_skill',
-                'enabled': emetic_flange_skill is not None,
-                'skill': emetic_flange_skill
+                'label': 'ragcrest',  # Will be displayed as [F]ragcrest
+                'action': 'fragcrest_skill',
+                'enabled': fragcrest_skill is not None,
+                'skill': fragcrest_skill
             })
             
         # GAS_MACHINIST skills
@@ -3536,7 +3536,7 @@ class ActionMenuComponent(UIComponent):
                         # We no longer need to show a message here - it's shown in the skill's use() method
                         # Mark that we've shown this message to prevent any legacy code from showing it again
                         unit.jawline_message_shown = True
-                    elif skill.name == "Emetic Flange":
+                    elif skill.name == "Fragcrest":
                         # No need for a message here, as the skill's use() method already adds a message
                         pass
                     else:

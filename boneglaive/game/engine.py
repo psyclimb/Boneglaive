@@ -799,6 +799,10 @@ class Game:
         unit = Unit(unit_type, player, y, x)
         unit.initialize_skills()  # Initialize skills for the unit
         unit.set_game_reference(self)  # Set game reference for trap checks
+        
+        # Apply passive skills immediately when unit is added
+        unit.apply_passive_skills(self)
+        
         self.units.append(unit)
     
     def get_unit_at(self, y, x):
@@ -937,8 +941,9 @@ class Game:
         if self.get_unit_at(y, x):
             return False
         
-        # Check if terrain is passable (not limestone or other blocking terrain)
-        if not self.map.is_passable(y, x):
+        # Check if terrain is passable and unit-specific movement restrictions
+        # Use unit's can_move_to method which handles FOWL_CONTRIVANCE rail restrictions
+        if not unit.can_move_to(y, x, self):
             return False
         
         # Check if position is within effective move range (using chess distance for diagonals)
@@ -1394,6 +1399,12 @@ class Game:
                     target_name=unit.get_display_name()
                 )
         
+        # Handle FOWL_CONTRIVANCE death explosion
+        if dying_unit.type == UnitType.FOWL_CONTRIVANCE and hasattr(dying_unit, 'passive_skill'):
+            passive = dying_unit.passive_skill
+            if passive.name == "Rail Genesis":
+                passive.handle_unit_death(dying_unit, self, ui)
+        
         # Handle Echo death by triggering chain reactions
         if dying_unit.is_echo:
             self._trigger_echo_death_effect(dying_unit, ui)
@@ -1482,6 +1493,13 @@ class Game:
             # Process Pry movement penalty effect
             if hasattr(unit, 'pry_duration') and unit.pry_duration > 0:
                 logger.debug(f"Processing Pry effect for {unit.get_display_name()}, duration: {unit.pry_duration}")
+                
+            # Process shrapnel damage at start of turn
+            if hasattr(unit, 'shrapnel_duration') and unit.shrapnel_duration > 0:
+                damage = unit.apply_shrapnel_damage(self)
+                if damage > 0 and unit.hp <= 0:
+                    # Unit died from shrapnel damage
+                    self.handle_unit_death(unit, None, cause="shrapnel")
                 
             # Process Site Inspection status effect
             if hasattr(unit, 'status_site_inspection') and unit.status_site_inspection:
