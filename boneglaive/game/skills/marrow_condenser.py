@@ -208,14 +208,14 @@ class MarrowDikeSkill(ActiveSkill):
         super().__init__(
             name="Marrow Dike",
             key="M",
-            description="Creates a wall of condensed bone marrow that blocks movement and attacks for 4 turns.",
+            description="Creates a wall of condensed bone marrow that blocks movement and attacks for 3 turns.",
             target_type=TargetType.SELF,
-            cooldown=2,  # 2-turn cooldown
+            cooldown=3,  # 3-turn cooldown
             range_=0,
             area=2  # 5x5 area (center + 2 in each direction)
         )
         self.upgraded = False
-        self.duration = 4  # Duration of 4 turns
+        self.duration = 3  # Duration of 3 turns
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         # Basic validation
@@ -533,11 +533,11 @@ class MarrowDikeSkill(ActiveSkill):
                 unit_at_tile = game.get_unit_at(tile_y, tile_x)
                 
                 if not unit_at_tile:
-                    # Animate the wall creation with RED color (5) for Marrow regardless of player
+                    # Animate the wall creation with player's color
                     ui.renderer.animate_attack_sequence(
                         tile_y, tile_x,
                         wall_animation,
-                        5,  # Red color for Marrow walls
+                        3 if user.player == 1 else 4,  # Player color (3 for Player 1, 4 for Player 2)
                         0.05  # Quick animation
                     )
                     
@@ -552,11 +552,11 @@ class MarrowDikeSkill(ActiveSkill):
                             0.05  # Quick animation
                         )
                     
-                    # Draw final wall symbol in red to make it stand out
+                    # Draw final wall symbol in player's color
                     ui.renderer.draw_tile(
                         tile_y, tile_x,
                         '#',  # Hash symbol for walls
-                        20  # Use specific color defined for marrow walls (red)
+                        3 if user.player == 1 else 4  # Player color (3 for Player 1, 4 for Player 2)
                     )
                 
                 # If it's the 10th tile or last tile, pause briefly to avoid overwhelming rendering
@@ -591,7 +591,7 @@ class BoneTitheSkill(ActiveSkill):
             key="B",
             description="Extracts marrow from adjacent enemies for 1 damage and gains +1 HP for each enemy hit.",
             target_type=TargetType.SELF,  # Self-targeted area effect
-            cooldown=2,
+            cooldown=1,
             range_=0,
             area=1  # 3x3 area (center + 1 in each direction)
         )
