@@ -1646,10 +1646,11 @@ class Game:
                     unit.hp += 1
                     logger.debug(f"{unit.get_display_name()} regenerated 1 HP from resting")
                     
-                    # Log the regeneration
+                    # Log the regeneration using proper format for healing messages
+                    # "healing for X HP" format ensures the number appears in white
                     message_log.add_message(
-                        f"{unit.get_display_name()} regenerated 1 HP from resting.",
-                        MessageType.SYSTEM,
+                        f"{unit.get_display_name()} healing for 1 HP from resting.",
+                        MessageType.ABILITY,  # Using ABILITY type for player coloring
                         player=unit.player
                     )
                 else:
