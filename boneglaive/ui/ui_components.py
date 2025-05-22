@@ -909,6 +909,9 @@ class CursorManager(UIComponent):
             # Set the move target
             self.selected_unit.move_target = (to_position.y, to_position.x)
             
+            # Mark that this unit is taking an action (won't regenerate HP)
+            self.selected_unit.took_no_actions = False
+            
             # Track action order
             self.selected_unit.action_timestamp = self.game_ui.game.action_counter
             self.game_ui.game.action_counter += 1
@@ -976,6 +979,9 @@ class CursorManager(UIComponent):
             # Set the attack target
             target_position = (self.cursor_pos.y, self.cursor_pos.x)
             self.selected_unit.attack_target = target_position
+            
+            # Mark that this unit is taking an action (won't regenerate HP)
+            self.selected_unit.took_no_actions = False
             
             # Track action order
             self.selected_unit.action_timestamp = self.game_ui.game.action_counter
@@ -2136,6 +2142,8 @@ class GameModeManager(UIComponent):
 
             # Set the ally target via the set_ally_target method
             if skill.set_ally_target(unit, target_pos, self.game_ui.game):
+                # Mark that this unit is taking an action (won't regenerate HP)
+                unit.took_no_actions = False
                 # Targets set successfully
                 cursor_manager.highlighted_positions = []
                 return True
@@ -2173,6 +2181,8 @@ class GameModeManager(UIComponent):
         if skill.name in ["Marrow Dike", "Slough"] and unit.skill_target:
             # Use the skill with the pre-set target
             if skill.use(unit, unit.skill_target, self.game_ui.game):
+                # Mark that this unit is taking an action (won't regenerate HP)
+                unit.took_no_actions = False
                 # Clear selection
                 cursor_manager.highlighted_positions = []
 
@@ -2199,6 +2209,8 @@ class GameModeManager(UIComponent):
 
         # Use the skill
         if skill.use(unit, target_pos, self.game_ui.game):
+            # Mark that this unit is taking an action (won't regenerate HP)
+            unit.took_no_actions = False
             # For Auction Curse, if we now need to select an ally, don't clear the selection
             if skill.name == "Auction Curse" and hasattr(unit, 'awaiting_ally_target') and unit.awaiting_ally_target:
                 # Update highlighted positions to show valid allies (all allies within range 3)
