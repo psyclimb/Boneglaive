@@ -412,6 +412,8 @@ class SimpleAI:
             self._process_mandible_foreman(unit, use_coordination=self.difficulty == AIDifficulty.HARD)
         elif unit.type == UnitType.GRAYMAN:
             self._process_grayman(unit, use_coordination=self.difficulty == AIDifficulty.HARD)
+        elif unit.type == UnitType.MARROW_CONDENSER:
+            self._process_marrow_condenser(unit, use_coordination=self.difficulty == AIDifficulty.HARD)
         else:
             # Default behavior for other unit types
             logger.info(f"No specific AI logic for {unit.type.name}, using default behavior")
@@ -1536,6 +1538,110 @@ class SimpleAI:
             score -= 10
             
         return score
+    
+    def _process_marrow_condenser(self, unit: 'Unit', use_coordination: bool = False) -> None:
+        """
+        Process actions for a Marrow Condenser unit.
+        Implements tactical skill usage focusing on area denial, defense, and HP sustain.
+        
+        Args:
+            unit: The Marrow Condenser unit to process
+            use_coordination: Whether to use group coordination tactics
+        """
+        # Always reset move and attack targets at the start of processing
+        unit.move_target = None
+        unit.attack_target = None
+        unit.skill_target = None
+        unit.selected_skill = None
+        
+        # Get a target based on the difficulty level or coordination
+        target = None
+        
+        # If using coordination and this unit has an assigned target, use it
+        if use_coordination and unit.id in self.target_assignments:
+            # Get the assigned target from coordination
+            target_id = self.target_assignments[unit.id]
+            # Find the target unit by ID
+            for player_unit in self.game.units:
+                if player_unit.id == target_id and player_unit.is_alive():
+                    target = player_unit
+                    logger.info(f"Using coordinated target for {unit.get_display_name()}: {target.get_display_name()}")
+                    break
+        
+        # If no coordinated target was found, fall back to normal targeting
+        if not target:
+            if self.difficulty == AIDifficulty.EASY:
+                target = self._find_random_enemy(unit)
+            elif self.difficulty == AIDifficulty.MEDIUM:
+                target = self._find_nearest_enemy(unit)
+            else:  # HARD difficulty
+                target = self._find_best_target_for_marrow_condenser(unit)
+            
+        if not target:
+            logger.info("No enemies found for Marrow Condenser to target")
+            return
+            
+        logger.info(f"Marrow Condenser targeting enemy: {target.get_display_name()} at position ({target.y}, {target.x})")
+        
+        # Get available skills 
+        available_skills = []
+        try:
+            available_skills = unit.get_available_skills()
+            logger.info(f"Marrow Condenser has {len(available_skills)} skills available: {[skill.name for skill in available_skills]}")
+        except Exception as e:
+            logger.error(f"Error getting available skills: {e}")
+            
+        # Flag to track if we used a skill
+        used_skill = None
+        
+        # Check if Marrow Condenser is at low health for defensive priority
+        health_percent = unit.hp / unit.max_hp
+        is_low_health = health_percent <= 0.4  # 40% health threshold
+        
+        # Check for enemies in melee range (immediate threat)
+        enemies_in_melee = self._count_enemies_in_range(unit, 1)
+        
+        # Skip skill usage on EASY difficulty less often (reduced probability)
+        if self.difficulty == AIDifficulty.EASY and random.random() < 0.3:  # 30% chance to skip
+            logger.info("EASY difficulty: Skipping skill usage")
+        else:
+            # On MEDIUM or HARD, always use skills if possible
+            try:
+                used_skill = self._use_marrow_condenser_skills(unit, target, available_skills, is_low_health, enemies_in_melee)
+                if used_skill:
+                    logger.info(f"Marrow Condenser used {used_skill.name} skill")
+                    # Don't return - we'll let the method complete even if a skill was used
+                    # This ensures that units always take some action
+            except Exception as e:
+                logger.error(f"Error using Marrow Condenser skills: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
+                used_skill = None
+        
+        # Only proceed with move/attack if no skill was used
+        if not used_skill:
+            # Check if we can attack the enemy from our current position
+            can_attack = self._can_attack(unit, target)
+            
+            if can_attack:
+                # We can attack from current position
+                unit.attack_target = (target.y, target.x)
+                logger.info(f"Marrow Condenser attacking enemy from current position")
+            else:
+                # Move towards enemy or strategic position
+                logger.info(f"Marrow Condenser moving towards enemy")
+                
+                # If using coordination, consider planned positions
+                if use_coordination:
+                    self._move_with_coordination(unit, target)
+                else:
+                    self._move_towards_enemy(unit, target)
+                
+                # Check if we can attack after moving
+                can_attack_after_move = self._can_attack_after_move(unit, target)
+                if can_attack_after_move:
+                    logger.info(f"Marrow Condenser attacking enemy after movement")
+                    # The attack_target is set in _can_attack_after_move
     
     def _process_grayman(self, unit: 'Unit', use_coordination: bool = False) -> None:
         """
@@ -3030,6 +3136,310 @@ class SimpleAI:
             
         # Fallback to nearest enemy if scoring fails
         return self._find_nearest_enemy(unit)
+    
+    def _find_best_target_for_marrow_condenser(self, unit: 'Unit') -> Optional['Unit']:
+        """
+        Find the best target for a Marrow Condenser.
+        Prioritizes groups of enemies for area effect skills and close targets for melee.
+        
+        Args:
+            unit: The Marrow Condenser unit
+            
+        Returns:
+            The best enemy unit to target, or None if no enemies found
+        """
+        # Get all enemy units
+        enemy_units = [u for u in self.game.units if u.player != unit.player and u.is_alive()]
+        
+        if not enemy_units:
+            return None
+        
+        scored_enemies = []
+        
+        for enemy in enemy_units:
+            score = 0
+            distance = self.game.chess_distance(unit.y, unit.x, enemy.y, enemy.x)
+            
+            # Base score for being a valid target
+            score += 10
+            
+            # Check if enemy can be reached for melee attack (move + attack range)
+            stats = unit.get_effective_stats()
+            total_reach = stats['move_range'] + stats['attack_range']
+            can_reach_for_attack = distance <= total_reach
+            
+            if can_reach_for_attack:
+                score += 30  # High bonus for reachable targets
+            
+            # Count nearby enemies around this target (for area effect value)
+            nearby_enemies = 0
+            for other_enemy in enemy_units:
+                if other_enemy != enemy:
+                    enemy_distance = self.game.chess_distance(enemy.y, enemy.x, other_enemy.y, other_enemy.x)
+                    if enemy_distance <= 2:  # Within range of potential Marrow Dike or movement
+                        nearby_enemies += 1
+            
+            # Bonus for enemies with other enemies nearby (good for area effects)
+            score += nearby_enemies * 10
+            
+            # Prioritize enemies within Bone Tithe range (adjacent when reached)
+            if distance <= total_reach + 1:  # Can move and be adjacent for Bone Tithe
+                score += 25
+            
+            # Prioritize lower HP enemies (easier to kill for Dominion upgrades)
+            if enemy.hp <= 8:  # Low HP threshold
+                score += 20
+            elif enemy.hp <= 15:  # Medium HP
+                score += 10
+            
+            # Prioritize high-value targets
+            enemy_stats = enemy.get_effective_stats()
+            
+            # High attack units should be eliminated
+            if enemy_stats['attack'] >= 4:
+                score += 15
+                
+            # High mobility units are good to trap with Marrow Dike
+            if enemy_stats['move_range'] >= 3:
+                score += 15
+                
+            # Distance penalty (closer targets preferred for melee unit)
+            score -= distance * 2
+            
+            scored_enemies.append((enemy, score))
+        
+        # Get the enemy with the highest score
+        if scored_enemies:
+            # Log the top targets for debugging
+            scored_enemies.sort(key=lambda x: x[1], reverse=True)
+            for i, (enemy, score) in enumerate(scored_enemies[:3]):
+                if i == 0:
+                    logger.debug(f"Best target for {unit.get_display_name()}: {enemy.get_display_name()} (score: {score})")
+                else:
+                    logger.debug(f"Alternative target #{i+1}: {enemy.get_display_name()} (score: {score})")
+            
+            return scored_enemies[0][0]
+            
+        # Fallback to nearest enemy if scoring fails
+        return self._find_nearest_enemy(unit)
+    
+    def _use_marrow_condenser_skills(self, unit: 'Unit', target: 'Unit', available_skills: list, 
+                                   is_low_health: bool, enemies_in_melee: int) -> Optional['ActiveSkill']:
+        """
+        Intelligently use Marrow Condenser skills based on the current situation.
+        
+        Args:
+            unit: The Marrow Condenser unit
+            target: The target enemy unit
+            available_skills: List of available skills
+            is_low_health: Whether the unit is at low health
+            enemies_in_melee: Number of enemies in melee range
+            
+        Returns:
+            The skill that was used, or None if no skill was used
+        """
+        if not available_skills:
+            return None
+        
+        # Count nearby enemies for area effect considerations
+        nearby_enemies = self._count_enemies_in_range(unit, 2)  # Within 2 spaces
+        adjacent_enemies = self._count_enemies_in_range(unit, 1)  # Adjacent only
+        
+        # Evaluate each skill and assign scores
+        skill_scores = []
+        
+        for skill in available_skills:
+            try:
+                score = 0
+                target_pos = None
+                
+                if skill.name == "Ossify":
+                    # Defensive skill - higher priority when threatened
+                    score, target_pos = self._evaluate_ossify(unit, is_low_health, enemies_in_melee)
+                    
+                elif skill.name == "Marrow Dike":
+                    # Area denial/trap skill - good when enemies are nearby
+                    score, target_pos = self._evaluate_marrow_dike(unit, target, nearby_enemies)
+                    
+                elif skill.name == "Bone Tithe":
+                    # Sustain/damage skill - good when adjacent enemies present
+                    score, target_pos = self._evaluate_bone_tithe(unit, adjacent_enemies, is_low_health)
+                
+                if score > 0 and target_pos:
+                    skill_scores.append((skill, score, target_pos))
+                    
+            except Exception as e:
+                logger.error(f"Error evaluating skill {skill.name}: {e}")
+                continue
+        
+        # Debug skill scores
+        logger.info(f"Marrow Condenser skill scores: {[(s[0].name, s[1]) for s in skill_scores]}")
+        
+        # Sort by score (highest first)
+        skill_scores.sort(key=lambda x: x[1], reverse=True)
+        
+        # Use the highest scoring skill if score is above threshold
+        threshold = 15
+        if skill_scores and skill_scores[0][1] >= threshold:
+            skill, score, target_pos = skill_scores[0]
+            
+            logger.info(f"Using skill {skill.name} with score {score}")
+            
+            # Use the skill
+            success = skill.use(unit, target_pos, self.game)
+            logger.info(f"Skill use result: {success}")
+            
+            if success:
+                return skill
+                
+        return None
+    
+    def _evaluate_ossify(self, unit: 'Unit', is_low_health: bool, enemies_in_melee: int) -> Tuple[float, Optional[Tuple[int, int]]]:
+        """
+        Evaluate the value of using Ossify for defense.
+        
+        Args:
+            unit: The Marrow Condenser unit
+            is_low_health: Whether unit is at low health
+            enemies_in_melee: Number of enemies in melee range
+            
+        Returns:
+            Tuple of (score, target_position)
+        """
+        score = 0
+        
+        # Base score for using defensive skill
+        score += 10
+        
+        # High priority when low health and threatened
+        if is_low_health:
+            score += 30
+            if enemies_in_melee > 0:
+                score += 20  # Extra bonus when actively threatened
+        
+        # Moderate priority when enemies are in melee range
+        elif enemies_in_melee > 0:
+            score += 25
+        
+        # Bonus based on number of threatening enemies
+        score += enemies_in_melee * 10
+        
+        # Check if already ossified (don't reapply)
+        if hasattr(unit, 'ossify_active') and unit.ossify_active:
+            score = 0  # Don't use if already active
+            
+        # Target position is self
+        target_pos = (unit.y, unit.x) if score > 0 else None
+        
+        logger.debug(f"Ossify evaluation: score={score}, low_health={is_low_health}, enemies_in_melee={enemies_in_melee}")
+        
+        return score, target_pos
+    
+    def _evaluate_marrow_dike(self, unit: 'Unit', target: 'Unit', nearby_enemies: int) -> Tuple[float, Optional[Tuple[int, int]]]:
+        """
+        Evaluate the value of using Marrow Dike for area denial.
+        
+        Args:
+            unit: The Marrow Condenser unit
+            target: The target enemy
+            nearby_enemies: Number of enemies within 2 spaces
+            
+        Returns:
+            Tuple of (score, target_position)
+        """
+        score = 0
+        
+        # Base score for area denial
+        score += 15
+        
+        # High value when multiple enemies nearby (can trap them)
+        if nearby_enemies >= 2:
+            score += 40
+            score += (nearby_enemies - 2) * 15  # Bonus for each additional enemy
+        elif nearby_enemies == 1:
+            score += 20  # Still good for single enemy trap
+        else:
+            score -= 10  # Less valuable with no nearby enemies
+        
+        # Bonus if target is close enough to be affected
+        distance_to_target = self.game.chess_distance(unit.y, unit.x, target.y, target.x)
+        if distance_to_target <= 3:  # Target would be affected by 5x5 dike
+            score += 25
+        
+        # Check if we already have a Marrow Dike active
+        if hasattr(self.game, 'marrow_dike_tiles') and self.game.marrow_dike_tiles:
+            for tile_info in self.game.marrow_dike_tiles.values():
+                if tile_info.get('owner') and tile_info['owner'].player == unit.player:
+                    score = 0  # Can't use if already have one
+                    break
+        
+        # Target position is self (center of dike)
+        target_pos = (unit.y, unit.x) if score > 0 else None
+        
+        logger.debug(f"Marrow Dike evaluation: score={score}, nearby_enemies={nearby_enemies}, distance_to_target={distance_to_target}")
+        
+        return score, target_pos
+    
+    def _evaluate_bone_tithe(self, unit: 'Unit', adjacent_enemies: int, is_low_health: bool) -> Tuple[float, Optional[Tuple[int, int]]]:
+        """
+        Evaluate the value of using Bone Tithe for sustain/damage.
+        
+        Args:
+            unit: The Marrow Condenser unit
+            adjacent_enemies: Number of adjacent enemies
+            is_low_health: Whether unit is at low health
+            
+        Returns:
+            Tuple of (score, target_position)
+        """
+        score = 0
+        
+        # Base score - very low cooldown makes this spammable
+        score += 5
+        
+        # High value when adjacent enemies present (guaranteed hits)
+        if adjacent_enemies >= 2:
+            score += 35  # Multiple hits = multiple HP gains
+            score += (adjacent_enemies - 2) * 15  # Bonus for each additional enemy
+        elif adjacent_enemies == 1:
+            score += 20  # Still good for single enemy hit
+        else:
+            score = 0  # No value without adjacent enemies
+        
+        # Extra value when low health (HP gain more valuable)
+        if is_low_health and adjacent_enemies > 0:
+            score += 20
+        
+        # Check for upgrade status for better scaling
+        if hasattr(unit, 'passive_skill') and hasattr(unit.passive_skill, 'bone_tithe_upgraded'):
+            if unit.passive_skill.bone_tithe_upgraded:
+                score += 10  # Upgraded version gives more HP
+        
+        # Target position is self (area effect centered on self)
+        target_pos = (unit.y, unit.x) if score > 0 else None
+        
+        logger.debug(f"Bone Tithe evaluation: score={score}, adjacent_enemies={adjacent_enemies}, is_low_health={is_low_health}")
+        
+        return score, target_pos
+    
+    def _count_enemies_in_range(self, unit: 'Unit', range_: int) -> int:
+        """
+        Count the number of enemy units within the specified range.
+        
+        Args:
+            unit: The unit to check from
+            range_: The range to check within
+            
+        Returns:
+            Number of enemies within range
+        """
+        count = 0
+        for enemy in self.game.units:
+            if enemy.player != unit.player and enemy.is_alive():
+                distance = self.game.chess_distance(unit.y, unit.x, enemy.y, enemy.x)
+                if distance <= range_:
+                    count += 1
+        return count
     
     def _find_best_target_for_foreman(self, unit: 'Unit') -> Optional['Unit']:
         """
