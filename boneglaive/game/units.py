@@ -695,6 +695,14 @@ class Unit:
                     if not game_unit.protected_by_safety_gas:
                         logger.debug(f"{game_unit.get_display_name()} is no longer protected by any safety gas")
                         delattr(game_unit, 'protected_by_safety_gas')
+                    # Double check - ensure the protecting vapor is actually in the game
+                    elif hasattr(game, 'units') and self not in game.units:
+                        if self in game_unit.protected_by_safety_gas:
+                            game_unit.protected_by_safety_gas.remove(self)
+                            logger.debug(f"{game_unit.get_display_name()} is no longer protected by removed vapor")
+                            # If there are no more protecting vapors after this, clean up the attribute
+                            if not game_unit.protected_by_safety_gas:
+                                delattr(game_unit, 'protected_by_safety_gas')
             
             # PROTECTION EFFECT: Mark all allied units in the cloud as "protected by safety gas"
             # This allows the targeting code to know which units are protected

@@ -991,9 +991,20 @@ class Game:
             
             # Clean up any dead vapors from the protection list
             active_vapors = []
-            for vapor in target_unit.protected_by_safety_gas:
+            for vapor in target_unit.protected_by_safety_gas[:]:  # Create a copy of the list to avoid modification issues
+                # First verify vapor exists and is actually in the game's units list
+                if vapor not in self.units:
+                    logger.debug(f"Vapor not found in game units - removing from protection list")
+                    continue
+                    
                 if vapor.is_alive():  # Only keep active vapors
-                    active_vapors.append(vapor)
+                    # Double check that the vapor is still a SAFETY type (in case it was changed)
+                    if hasattr(vapor, 'vapor_type') and vapor.vapor_type == "SAFETY":
+                        active_vapors.append(vapor)
+                    else:
+                        logger.debug(f"Vapor type has changed - removing from protection list")
+                else:
+                    logger.debug(f"Dead vapor - removing from protection list")
             
             # Update the protection list with only live vapors
             target_unit.protected_by_safety_gas = active_vapors
@@ -1004,6 +1015,7 @@ class Game:
                 delattr(target_unit, 'protected_by_safety_gas')
                 return False
             
+            # Now check if any of the active vapors actually protect against this attacker
             # For each protecting cloud, check if attacker is also in it
             for vapor in active_vapors:
                 # Calculate distance from attacker to this vapor
@@ -2284,10 +2296,17 @@ class Game:
                         # Find all units that were being protected by this vapor
                         for protected_unit in self.units:
                             if (hasattr(protected_unit, 'protected_by_safety_gas') and 
-                                protected_unit.protected_by_safety_gas and  # Check if it's a non-empty list
-                                vapor_unit in protected_unit.protected_by_safety_gas):
-                                # Remove this vapor from the unit's protection list
-                                protected_unit.protected_by_safety_gas.remove(vapor_unit)
+                                protected_unit.protected_by_safety_gas):  # Check if it's a non-empty list
+                                # Make a copy of the list to avoid modification issues
+                                protection_list = protected_unit.protected_by_safety_gas.copy()
+                                
+                                # Clean up dead or removed vapors
+                                for vapor in protection_list:
+                                    if vapor not in self.units or not vapor.is_alive() or vapor == vapor_unit:
+                                        if vapor in protected_unit.protected_by_safety_gas:
+                                            protected_unit.protected_by_safety_gas.remove(vapor)
+                                            logger.debug(f"{protected_unit.get_display_name()} is no longer protected by expired or removed vapor")
+                                
                                 # If there are no more protecting vapors, clean up the attribute
                                 if not protected_unit.protected_by_safety_gas:
                                     logger.debug(f"{protected_unit.get_display_name()} is no longer protected by any safety gas")
