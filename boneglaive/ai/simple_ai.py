@@ -432,6 +432,9 @@ class SimpleAI:
         unit.skill_target = None
         unit.selected_skill = None
         
+        # Check if unit is trapped - trapped units can only attack, not move or use skills
+        is_trapped = hasattr(unit, 'trapped_by') and unit.trapped_by is not None
+        
         # Get a target based on the difficulty level or coordination
         target = None
         
@@ -532,6 +535,11 @@ class SimpleAI:
             The skill that was used, or None if no skill was used
         """
         try:
+            # Check if unit is trapped - trapped units cannot use skills, only attacks
+            if hasattr(unit, 'trapped_by') and unit.trapped_by is not None:
+                logger.info(f"{unit.get_display_name()} cannot use skills because it is trapped")
+                return None
+                
             if not available_skills:
                 logger.info("No skills available for this Glaiveman")
                 return None
@@ -963,6 +971,11 @@ class SimpleAI:
             The skill that was used, or None if no skill was used
         """
         try:
+            # Check if unit is trapped - trapped units cannot use skills, only attacks
+            if hasattr(unit, 'trapped_by') and unit.trapped_by is not None:
+                logger.info(f"{unit.get_display_name()} cannot use skills because it is trapped")
+                return None
+                
             if not available_skills:
                 logger.info("No skills available for this Mandible Foreman")
                 return None
@@ -1635,6 +1648,11 @@ class SimpleAI:
             The skill that was used, or None if no skill was used
         """
         try:
+            # Check if unit is trapped - trapped units cannot use skills, only attacks
+            if hasattr(unit, 'trapped_by') and unit.trapped_by is not None:
+                logger.info(f"{unit.get_display_name()} cannot use skills because it is trapped")
+                return None
+                
             if not available_skills:
                 logger.info("No skills available for this Grayman")
                 return None
@@ -2524,6 +2542,18 @@ class SimpleAI:
         Returns:
             True if the attack is possible after moving, False otherwise
         """
+        # Check if unit is trapped - trapped units cannot move but can still attack from current position
+        if hasattr(unit, 'trapped_by') and unit.trapped_by is not None:
+            # Calculate distance from current position to target
+            distance = self.game.chess_distance(unit.y, unit.x, target.y, target.x)
+            attack_range = unit.get_effective_stats()['attack_range']
+            
+            # If target is within attack range from current position, set attack target
+            if distance <= attack_range:
+                unit.attack_target = (target.y, target.x)
+                return True
+            return False
+            
         # If no move target set, unit can't attack after moving
         if not unit.move_target:
             return False
@@ -2553,6 +2583,11 @@ class SimpleAI:
             unit: The unit to move
             target: The enemy to move towards
         """
+        # Check if unit is trapped - trapped units cannot move
+        if hasattr(unit, 'trapped_by') and unit.trapped_by is not None:
+            logger.info(f"{unit.get_display_name()} cannot move because it is trapped")
+            return
+            
         # Get effective stats
         stats = unit.get_effective_stats()
         move_range = stats['move_range']
@@ -2607,6 +2642,11 @@ class SimpleAI:
             unit: The unit to move
             target: The enemy to move towards
         """
+        # Check if unit is trapped - trapped units cannot move
+        if hasattr(unit, 'trapped_by') and unit.trapped_by is not None:
+            logger.info(f"{unit.get_display_name()} cannot move because it is trapped")
+            return
+            
         # Get effective stats
         stats = unit.get_effective_stats()
         move_range = stats['move_range']
