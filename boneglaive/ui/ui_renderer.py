@@ -332,9 +332,13 @@ class UIRenderer:
                         color_id = 3 if unit.player == 1 else 4
                         
                         # Check if this is a HEINOUS_VAPOR and use its specific symbol if available
-                        from boneglaive.utils.constants import UnitType
                         if unit.type == UnitType.HEINOUS_VAPOR and hasattr(unit, 'vapor_symbol') and unit.vapor_symbol:
                             tile = unit.vapor_symbol
+                        
+                        # Check if this is a charging FOWL_CONTRIVANCE
+                        if unit.type == UnitType.FOWL_CONTRIVANCE and hasattr(unit, 'charging_status') and unit.charging_status:
+                            tile = "≡"  # Charging symbol
+                            color_id = 6  # Yellow color for charging
                         
                         # No special symbol for GRAYMAN skills
                         # (Previously showed | for Græ Exchange, but this was removed)
@@ -638,7 +642,8 @@ class UIRenderer:
                                 self.renderer.draw_tile(y, x, tile, color_id, 0)
                             continue
 
-                # Check if this position is in a FOWL_CONTRIVANCE skill indicator
+
+                # Check if this position is in a FOWL_CONTRIVANCE skill targeting indicator
                 for u in self.game_ui.game.units:
                     if u.is_alive() and u.selected_skill and hasattr(u.selected_skill, 'name'):
                         

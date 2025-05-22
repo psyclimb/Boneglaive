@@ -86,7 +86,7 @@ class Unit:
         self.original_unit = None  # Reference to the original unit that created this echo
         
         # FOWL_CONTRIVANCE properties
-        self.gaussian_charging = False  # Whether this unit is charging Gaussian Dusk
+        self.charging_status = False  # Whether this unit has "charging" status effect
         self.gaussian_charge_direction = None  # Direction for Gaussian Dusk charging
         self.gaussian_dusk_indicator = None  # Visual indicator for Gaussian Dusk charging
         self.big_arc_indicator = None  # Visual indicator for Big Arc area
@@ -175,10 +175,11 @@ class Unit:
             'attack_range': max(1, self.attack_range + self.attack_range_bonus + estrange_penalty)
         }
         
-        # Special handling for move_range - allow it to be 0 for Jawline effect
-        # This ensures full immobilization when affected by Jawline
-        if hasattr(self, 'jawline_affected') and self.jawline_affected:
-            # When Jawline is active, movement can be reduced to 0
+        # Special handling for move_range - allow it to be 0 for Jawline effect and charging status
+        # This ensures full immobilization when affected by these status effects
+        if ((hasattr(self, 'jawline_affected') and self.jawline_affected) or 
+            (hasattr(self, 'charging_status') and self.charging_status)):
+            # When Jawline or charging is active, movement can be reduced to 0
             stats['move_range'] = max(0, self.move_range + self.move_range_bonus + estrange_penalty)
         else:
             # Normal minimum of 1 for all other cases
@@ -322,6 +323,10 @@ class Unit:
             
         # FOWL_CONTRIVANCE movement restrictions
         if self.type == UnitType.FOWL_CONTRIVANCE:
+            # Cannot move while charging Gaussian Dusk
+            if hasattr(self, 'gaussian_charging') and self.gaussian_charging:
+                return False
+                
             # Must move along rails (if rails exist)
             if game.map.has_rails():
                 from boneglaive.game.map import TerrainType
