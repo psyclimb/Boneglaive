@@ -1592,27 +1592,121 @@ class SimpleAI:
         # Flag to track if we used a skill
         used_skill = None
         
-        # Skip skill usage on EASY difficulty less often (reduced probability)
-        if self.difficulty == AIDifficulty.EASY and random.random() < 0.4:  # Reduced from 0.7
-            logger.info("EASY difficulty: Skipping skill usage")
-        else:
-            # On MEDIUM or HARD, always use skills if possible
+        # Check if the Grayman is at critically low health
+        health_percent = unit.hp / unit.max_hp
+        is_critical_health = health_percent <= 0.25  # 25% health threshold for critical
+        
+        # Check if Grayman is already in a safe position (no enemies within attack range)
+        is_in_safe_position = self._is_grayman_in_safe_position(unit)
+        
+        # If at critical health AND not already safe, ONLY consider escape skills and avoid combat completely
+        if is_critical_health and not is_in_safe_position:
+            logger.info(f"CRITICAL HEALTH ({unit.hp}/{unit.max_hp}): Grayman prioritizing escape")
+            
+            # Debug: Check if teleport skills exist in unit.active_skills
+            teleport_skill_names = [s.name for s in unit.active_skills if s.name in ["Delta Config", "Græ Exchange"]]
+            logger.info(f"DEBUG: Grayman has teleport skills in unit.active_skills: {teleport_skill_names}")
+            
             try:
-                used_skill = self._use_grayman_skills(unit, target, available_skills)
-                if used_skill:
-                    logger.info(f"Grayman used {used_skill.name} skill")
-                    # Don't return - we'll let the method complete even if a skill was used
-                    # This ensures that units always take some action
+                # CRITICAL FIX: Always attempt to use teleport skills when at critical health, even if on cooldown
+                # This is a drastic measure to ensure the Grayman always tries to teleport
+                all_skills = unit.active_skills
+                for skill in all_skills:
+                    if skill.name in ["Delta Config", "Græ Exchange"]:
+                        # Force cooldown to 0 temporarily to ensure the skill can be used in emergency
+                        original_cooldown = skill.current_cooldown
+                        skill.current_cooldown = 0
+                        logger.info(f"DEBUG: EMERGENCY OVERRIDE - Setting {skill.name} cooldown to 0 (was {original_cooldown})")
+                        
+                # After forcing cooldowns to 0, regenerate the available_skills list
+                try:
+                    available_skills = unit.get_available_skills()
+                    logger.info(f"DEBUG: After cooldown override, available skills: {[s.name for s in available_skills]}")
+                except Exception as e:
+                    logger.error(f"Error regenerating available skills: {e}")
+                
+                # Check for teleport skills in available_skills that are now READY to use
+                teleport_skills = [s for s in available_skills if s.name in ["Delta Config", "Græ Exchange"]]
+                logger.info(f"DEBUG: Available teleport skills after override: {[s.name for s in teleport_skills]}")
+                
+                if teleport_skills:
+                    # Special emergency escape mode - only evaluate teleport skills
+                    used_skill = self._use_grayman_emergency_teleport(unit, target, teleport_skills)
+                    
+                    if used_skill:
+                        logger.info(f"Grayman used EMERGENCY {used_skill.name} teleport at critical health")
+                        # Return immediately - do NOT attempt to attack when at critical health
+                        return
+                    else:
+                        logger.warning(f"Failed to find escape option for Grayman at critical health despite cooldown override!")
+                
+                # If we got here, the override didn't work, or we couldn't find valid positions
+                # LAST RESORT: Try direct emergency teleport to any valid position
+                logger.info("DEBUG: Attempting LAST RESORT emergency teleport")
+                if self._try_direct_emergency_teleport(unit):
+                    logger.info("DEBUG: LAST RESORT emergency teleport succeeded")
+                    return
+                else:
+                    logger.error("DEBUG: All teleport attempts failed for Grayman at critical health!")
+                    
+                    # DEBUG: Check map state to understand why no valid positions are found
+                    surrounding_positions = []
+                    for dy in range(-3, 4):
+                        for dx in range(-3, 4):
+                            y, x = unit.y + dy, unit.x + dx
+                            if self.game.is_valid_position(y, x):
+                                is_passable = self.game.map.is_passable(y, x)
+                                occupying_unit = self.game.get_unit_at(y, x)
+                                surrounding_positions.append((y, x, is_passable, occupying_unit.get_display_name() if occupying_unit else "None"))
+                    
+                    logger.info(f"DEBUG: Map state around Grayman: {surrounding_positions}")
             except Exception as e:
-                logger.error(f"Error using Grayman skills: {e}")
+                logger.error(f"Error using Grayman emergency teleport: {e}")
                 import traceback
                 logger.error(traceback.format_exc())
-                used_skill = None
+        # If at critical health but already safe, just heal/wait instead of teleporting
+        elif is_critical_health and is_in_safe_position:
+            logger.info(f"CRITICAL HEALTH but SAFE: Grayman will wait/heal instead of teleporting")
+            # Don't use any offensive skills, just let the unit rest
+            return
         
-        # Only proceed with move/attack if no skill was used
+        # Normal skill usage for non-critical health
+        else:
+            # Skip skill usage on EASY difficulty less often (reduced probability)
+            if self.difficulty == AIDifficulty.EASY and random.random() < 0.4:  # Reduced from 0.7
+                logger.info("EASY difficulty: Skipping skill usage")
+            else:
+                # On MEDIUM or HARD, always use skills if possible
+                try:
+                    used_skill = self._use_grayman_skills(unit, target, available_skills)
+                    if used_skill:
+                        logger.info(f"Grayman used {used_skill.name} skill")
+                        # Don't return - we'll let the method complete even if a skill was used
+                        # This ensures that units always take some action
+                except Exception as e:
+                    logger.error(f"Error using Grayman skills: {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+                    used_skill = None
+        
+        # Only proceed with move/attack if no skill was used AND not at critical health
         if not used_skill:
-            # If we didn't use a skill, proceed with normal attack or movement
-            
+            # If at critical health and not safe and we couldn't teleport, at least try to move away from enemies
+            if is_critical_health and not is_in_safe_position:
+                logger.info(f"Critical health: Grayman attempting to retreat")
+                retreat_result = self._retreat_from_enemies(unit)
+                
+                # Even if retreat failed, ensure we don't continue with attacks
+                # This prevents the unit from standing still at critical health
+                if not retreat_result:
+                    logger.warning("Retreat failed, setting dummy move to current position to prevent freezing")
+                    # Set a dummy move to current position to ensure the unit doesn't freeze
+                    unit.move_target = (unit.y, unit.x)
+                    
+                # Always return for critical health - NEVER attempt to attack
+                return
+                
+            # If we didn't use a skill and not at critical health, proceed with normal attack or movement
             # Check if we can attack the enemy from our current position
             can_attack = self._can_attack(unit, target)
             
@@ -1640,6 +1734,677 @@ class SimpleAI:
                 if can_attack_after_move:
                     logger.info(f"Grayman attacking enemy after movement")
                     # The attack_target is set in _can_attack_after_move
+    
+    def _is_grayman_in_safe_position(self, unit: 'Unit') -> bool:
+        """
+        Check if Grayman is in a safe position (no enemies within attack range).
+        
+        Args:
+            unit: The Grayman unit to check
+            
+        Returns:
+            True if Grayman is safe from immediate attacks, False otherwise
+        """
+        # Count nearby enemies that can attack this position
+        enemies_in_range = 0
+        
+        for enemy in self.game.units:
+            if enemy.player != unit.player and enemy.is_alive():
+                # Calculate distance from enemy to unit
+                distance = self.game.chess_distance(enemy.y, enemy.x, unit.y, unit.x)
+                
+                # Get enemy's effective attack range (including movement)
+                enemy_stats = enemy.get_effective_stats()
+                total_enemy_range = enemy_stats['move_range'] + enemy_stats['attack_range']
+                
+                # If enemy can reach and attack Grayman, it's not safe
+                if distance <= total_enemy_range:
+                    enemies_in_range += 1
+        
+        # Consider safe if no enemies can attack, or at most 1 enemy nearby with good health
+        if enemies_in_range == 0:
+            logger.info(f"Grayman is SAFE: No enemies in attack range")
+            return True
+        elif enemies_in_range == 1 and unit.hp > unit.max_hp * 0.4:  # 40% health threshold
+            logger.info(f"Grayman is RELATIVELY SAFE: Only 1 enemy in range and health > 40%")
+            return True
+        else:
+            logger.info(f"Grayman is NOT SAFE: {enemies_in_range} enemies in attack range")
+            return False
+    
+    def _use_grayman_emergency_teleport(self, unit: 'Unit', target: 'Unit', teleport_skills: list) -> Optional['ActiveSkill']:
+        """
+        Special emergency teleport function for Grayman at critical health.
+        Focuses ONLY on finding the safest position to teleport to, ignoring offensive considerations.
+        
+        Args:
+            unit: The Grayman unit at critical health
+            target: The current enemy target (not used for targeting, just for API compatibility)
+            teleport_skills: List of available teleport skills (Delta Config, Grae Exchange)
+            
+        Returns:
+            The skill that was used for emergency teleport, or None if no teleport was possible
+        """
+        logger.info(f"Evaluating emergency teleport options for Grayman at {unit.hp}/{unit.max_hp} HP")
+        
+        best_teleport_option = None
+        best_teleport_score = -1
+        best_teleport_pos = None
+        
+        # Process each teleport skill
+        for skill in teleport_skills:
+            if skill.name == "Delta Config":
+                # For Delta Config, check EVERY position on the map for safety
+                teleport_pos, score = self._evaluate_emergency_delta_config(unit)
+                if teleport_pos and score > best_teleport_score:
+                    best_teleport_score = score
+                    best_teleport_option = skill
+                    best_teleport_pos = teleport_pos
+                    
+            elif skill.name == "Græ Exchange":
+                # For Grae Exchange, check positions within range
+                teleport_pos, score = self._evaluate_emergency_grae_exchange(unit)
+                if teleport_pos and score > best_teleport_score:
+                    best_teleport_score = score
+                    best_teleport_option = skill
+                    best_teleport_pos = teleport_pos
+        
+        # Report what we found
+        logger.info(f"DEBUG: Best teleport option found: {best_teleport_option.name if best_teleport_option else 'None'}")
+        logger.info(f"DEBUG: Best teleport score: {best_teleport_score}")
+        logger.info(f"DEBUG: Best teleport position: {best_teleport_pos}")
+        
+        # If we found a good teleport option, use it (lower the required score threshold)
+        if best_teleport_option and best_teleport_score > -10 and best_teleport_pos:  # Accept any non-terrible score
+            logger.info(f"Using EMERGENCY teleport to {best_teleport_pos} with score {best_teleport_score}")
+            
+            # Try to use the skill
+            try:
+                success = best_teleport_option.use(unit, best_teleport_pos, self.game)
+                logger.info(f"DEBUG: Emergency teleport use result: {success}")
+                
+                if success:
+                    return best_teleport_option
+                else:
+                    logger.warning(f"DEBUG: Failed to use {best_teleport_option.name} at position {best_teleport_pos}")
+            except Exception as e:
+                logger.error(f"ERROR using emergency teleport: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
+        
+        return None
+        
+    def _evaluate_emergency_delta_config(self, unit: 'Unit') -> Tuple[Optional[Tuple[int, int]], float]:
+        """
+        Emergency evaluation of Delta Config for escaping when at critical health.
+        Finds the safest position on the map to teleport to.
+        
+        Args:
+            unit: The Grayman unit at critical health
+            
+        Returns:
+            Tuple of (best_position, score) where position is (y, x) or (None, -1) if no valid position
+        """
+        # Get the Delta Config skill
+        delta_config = None
+        for skill in unit.active_skills:
+            if skill.name == "Delta Config":
+                delta_config = skill
+                break
+        
+        logger.info(f"DEBUG: Emergency Delta Config eval - found skill: {delta_config is not None}")
+        
+        if not delta_config:
+            logger.warning("DEBUG: No Delta Config skill found in unit.active_skills")
+            return None, -1
+            
+        if not delta_config.can_use(unit, None, self.game):
+            logger.warning(f"DEBUG: Delta Config not usable, cooldown: {delta_config.current_cooldown}")
+            return None, -1
+            
+        logger.info("DEBUG: Delta Config is available and usable for emergency teleport")
+            
+        # Find the safest position on the map
+        best_position = None
+        best_score = 0
+        
+        # Check all positions on the map (limiting to a reasonable search area)
+        search_distance = 15  # Extend search distance for emergency teleport
+        
+        # Starting position is unit's current position
+        start_y, start_x = unit.y, unit.x
+        
+        # Check positions in expanding rings around the unit
+        for distance in range(1, search_distance + 1):
+            for y in range(max(0, start_y - distance), min(self.game.map.height, start_y + distance + 1)):
+                for x in range(max(0, start_x - distance), min(self.game.map.width, start_x + distance + 1)):
+                    # Only check positions at approximately the current distance
+                    if abs(y - start_y) != distance and abs(x - start_x) != distance:
+                        continue
+                        
+                    # Skip if not a valid teleport target
+                    if not delta_config.can_use(unit, (y, x), self.game):
+                        continue
+                        
+                    # Calculate safety score for this position - ONLY care about safety
+                    score = self._calculate_position_safety(unit, y, x)
+                    
+                    logger.debug(f"DEBUG: Evaluating position ({y}, {x}) for Delta Config - safety score: {score}")
+                    
+                    # If this is safer than our current best, update
+                    if score > best_score:
+                        best_score = score
+                        best_position = (y, x)
+                        logger.info(f"DEBUG: New best Delta Config position: ({y}, {x}) with score {score}")
+                        
+                        # If we found a perfectly safe position, return it immediately
+                        if score >= 100:
+                            logger.info(f"Found perfect safety position at ({y}, {x}) with score {score}")
+                            return best_position, best_score
+        
+        return best_position, best_score
+    
+    def _evaluate_emergency_grae_exchange(self, unit: 'Unit') -> Tuple[Optional[Tuple[int, int]], float]:
+        """
+        Emergency evaluation of Grae Exchange for escaping when at critical health.
+        Finds the safest position within range to teleport to.
+        
+        Args:
+            unit: The Grayman unit at critical health
+            
+        Returns:
+            Tuple of (best_position, score) where position is (y, x) or (None, -1) if no valid position
+        """
+        # Get the Grae Exchange skill
+        grae_exchange = None
+        for skill in unit.active_skills:
+            if skill.name == "Græ Exchange":
+                grae_exchange = skill
+                break
+                
+        if not grae_exchange or not grae_exchange.can_use(unit, None, self.game):
+            return None, -1
+            
+        # Find the safest position within range
+        best_position = None
+        best_score = 0
+        
+        # Check potential teleport positions within skill range
+        for y in range(max(0, unit.y - grae_exchange.range), min(self.game.map.height, unit.y + grae_exchange.range + 1)):
+            for x in range(max(0, unit.x - grae_exchange.range), min(self.game.map.width, unit.x + grae_exchange.range + 1)):
+                # Skip if not a valid teleport target
+                if not grae_exchange.can_use(unit, (y, x), self.game):
+                    continue
+                    
+                # Skip current position
+                if (y, x) == (unit.y, unit.x):
+                    continue
+                    
+                # Calculate safety score for this position - ONLY care about safety
+                score = self._calculate_position_safety(unit, y, x)
+                
+                # Echo value at current position (only small consideration)
+                echo_value = 0
+                
+                # Check if there are enemies in attack range from current position for echo value
+                for enemy in self.game.units:
+                    if enemy.player != unit.player and enemy.is_alive():
+                        distance = self.game.chess_distance(unit.y, unit.x, enemy.y, enemy.x)
+                        attack_range = unit.get_effective_stats()['attack_range']
+                        if distance <= attack_range:
+                            echo_value += 5  # Small bonus, safety is primary concern
+                
+                # Add echo value to score (with lower weight than safety)
+                score += echo_value * 0.2
+                
+                # If this is safer than our current best, update
+                if score > best_score:
+                    best_score = score
+                    best_position = (y, x)
+                    
+                    # If we found a perfectly safe position, return it immediately
+                    if score >= 100:
+                        logger.info(f"Found perfect safety position for Grae Exchange at ({y}, {x}) with score {score}")
+                        return best_position, best_score
+        
+        return best_position, best_score
+    
+    def _calculate_position_safety(self, unit: 'Unit', y: int, x: int) -> float:
+        """
+        Calculate how safe a position is for a unit at critical health.
+        Higher scores indicate safer positions.
+        
+        Args:
+            unit: The unit to calculate safety for
+            y, x: The position to evaluate
+            
+        Returns:
+            Safety score (higher is safer)
+        """
+        # Start with base safety score
+        safety_score = 50
+        
+        # Track distance to closest enemy
+        closest_enemy_distance = float('inf')
+        enemies_that_can_reach = 0
+        
+        # Check safety against all enemy units
+        enemy_count = 0
+        for enemy in self.game.units:
+            if enemy.player != unit.player and enemy.is_alive():
+                enemy_count += 1
+                # Calculate distance to this enemy
+                distance = self.game.chess_distance(y, x, enemy.y, enemy.x)
+                closest_enemy_distance = min(closest_enemy_distance, distance)
+                
+                # Check if enemy can potentially reach this position next turn
+                enemy_stats = enemy.get_effective_stats()
+                enemy_reach = enemy_stats['move_range'] + enemy_stats['attack_range']
+                
+                if distance <= enemy_reach:
+                    enemies_that_can_reach += 1
+                    # Large penalty for each enemy that can reach
+                    safety_score -= 40
+        
+        # Log enemy assessment
+        if enemy_count > 0:
+            logger.debug(f"DEBUG: Position ({y},{x}) - closest enemy: {closest_enemy_distance}, enemies that can reach: {enemies_that_can_reach}")
+        
+        # If no enemies can reach, huge safety bonus
+        if enemies_that_can_reach == 0:
+            safety_score += 50
+            
+            # Extra bonus for being far from any enemies
+            if closest_enemy_distance < float('inf'):
+                distance_bonus = min(closest_enemy_distance * 4, 40)
+                safety_score += distance_bonus
+                logger.debug(f"DEBUG: Position ({y},{x}) - adding distance bonus: {distance_bonus}")
+                
+        # If position is completely unsafe, ensure negative score
+        if enemies_that_can_reach >= 2:
+            safety_score = -10
+            
+        logger.debug(f"DEBUG: Position ({y},{x}) final safety score: {safety_score}")
+        return safety_score
+        
+    def _try_direct_emergency_teleport(self, unit: 'Unit') -> bool:
+        """
+        Direct last-resort emergency teleport attempt.
+        This is a simplified approach that just tries to find ANY valid teleport position
+        that gets the unit away from danger.
+        
+        Args:
+            unit: The unit to teleport
+            
+        Returns:
+            True if teleport succeeded, False otherwise
+        """
+        logger.info(f"DIRECT EMERGENCY TELEPORT attempt for {unit.get_display_name()}")
+        
+        # CRITICAL FIX: For emergency teleport, force cooldowns to 0 to ensure we can use the skills
+        # Find all teleport skills and force their cooldowns to 0
+        teleport_skills = []
+        for skill in unit.active_skills:
+            if skill.name in ["Delta Config", "Græ Exchange"]:
+                # Force cooldown to 0 for emergency
+                original_cooldown = skill.current_cooldown
+                skill.current_cooldown = 0
+                logger.info(f"EMERGENCY OVERRIDE: Setting {skill.name} cooldown to 0 (was {original_cooldown})")
+                teleport_skills.append(skill)
+                
+        if not teleport_skills:
+            logger.error("No teleport skills found for direct emergency teleport")
+            return False
+            
+        # Try Delta Config first if available (it can teleport anywhere)
+        delta_config = None
+        grae_exchange = None
+        
+        for skill in teleport_skills:
+            if skill.name == "Delta Config":
+                delta_config = skill
+            elif skill.name == "Græ Exchange":
+                grae_exchange = skill
+                
+        # Prioritize Delta Config for emergency teleport
+        priority_skills = []
+        if delta_config:
+            priority_skills.append(delta_config)
+        if grae_exchange:
+            priority_skills.append(grae_exchange)
+            
+        # Try each skill in priority order
+        for skill in priority_skills:
+            logger.info(f"Trying direct emergency teleport with {skill.name}")
+            
+            # Get search parameters based on skill
+            search_radius = 15 if skill.name == "Delta Config" else skill.range
+            
+            # Find the farthest position from all enemies
+            best_position = None
+            max_min_distance = -1  # Maximum of the minimum distances to any enemy
+            
+            # Get all enemy positions
+            enemy_positions = []
+            for enemy in self.game.units:
+                if enemy.player != unit.player and enemy.is_alive():
+                    enemy_positions.append((enemy.y, enemy.x))
+                    
+            # If no enemies, can't evaluate distance - just pick a random valid position
+            if not enemy_positions:
+                logger.warning("No enemies found for distance calculation, picking any valid position")
+                # Try up to 100 random positions
+                for _ in range(100):
+                    # Generate random position within range
+                    if skill.name == "Delta Config":
+                        # For Delta Config, try anywhere on the map
+                        rand_y = random.randint(0, self.game.map.height - 1)
+                        rand_x = random.randint(0, self.game.map.width - 1)
+                    else:
+                        # For Grae Exchange, stay within range
+                        rand_y = max(0, min(self.game.map.height - 1, unit.y + random.randint(-skill.range, skill.range)))
+                        rand_x = max(0, min(self.game.map.width - 1, unit.x + random.randint(-skill.range, skill.range)))
+                        
+                    # Check if position is valid
+                    if (self.game.is_valid_position(rand_y, rand_x) and 
+                        self.game.map.is_passable(rand_y, rand_x) and 
+                        not self.game.get_unit_at(rand_y, rand_x)):
+                        
+                        # Try to use the skill
+                        if skill.can_use(unit, (rand_y, rand_x), self.game):
+                            success = skill.use(unit, (rand_y, rand_x), self.game)
+                            if success:
+                                logger.info(f"Direct emergency teleport succeeded with {skill.name} to random position ({rand_y}, {rand_x})")
+                                return True
+                
+                logger.warning("Failed to find random valid teleport position")
+                continue  # Try next skill
+                
+            # Search in expanding rings for Delta Config to efficiently cover space
+            if skill.name == "Delta Config":
+                # For Delta Config, check rings of increasing distance
+                for ring_distance in range(2, search_radius + 1, 2):  # Start from distance 2, increment by 2
+                    best_in_ring = None
+                    best_distance_in_ring = -1
+                    
+                    # Check positions at approximately this radius
+                    for y in range(max(0, unit.y - ring_distance), min(self.game.map.height, unit.y + ring_distance + 1)):
+                        for x in range(max(0, unit.x - ring_distance), min(self.game.map.width, unit.x + ring_distance + 1)):
+                            # Only check positions near the ring
+                            if abs(y - unit.y) + abs(x - unit.x) < ring_distance - 1 or abs(y - unit.y) + abs(x - unit.x) > ring_distance + 1:
+                                continue
+                                
+                            # Check if position is valid and skill can be used
+                            if not self.game.is_valid_position(y, x) or not self.game.map.is_passable(y, x):
+                                continue
+                                
+                            if self.game.get_unit_at(y, x):
+                                continue
+                                
+                            if not skill.can_use(unit, (y, x), self.game):
+                                continue
+                                
+                            # Calculate minimum distance to any enemy
+                            min_distance = float('inf')
+                            for enemy_y, enemy_x in enemy_positions:
+                                distance = self.game.chess_distance(y, x, enemy_y, enemy_x)
+                                min_distance = min(min_distance, distance)
+                                
+                            # If this position is farther from all enemies in this ring, use it
+                            if min_distance > best_distance_in_ring:
+                                best_distance_in_ring = min_distance
+                                best_in_ring = (y, x)
+                    
+                    # If found a good position in this ring, try to use it
+                    if best_in_ring and best_distance_in_ring > max_min_distance:
+                        max_min_distance = best_distance_in_ring
+                        best_position = best_in_ring
+                        
+                        # If found a position far enough away, use it immediately
+                        if best_distance_in_ring >= 4:  # Reduced from 5 to be less strict
+                            logger.info(f"Found good position at ring distance {ring_distance}: {best_in_ring} with enemy distance {best_distance_in_ring}")
+                            
+                            # Try to use the skill immediately
+                            success = skill.use(unit, best_in_ring, self.game)
+                            if success:
+                                logger.info(f"Direct emergency teleport succeeded with {skill.name} to {best_in_ring}")
+                                return True
+                            else:
+                                logger.warning(f"Failed to use {skill.name} at good position {best_in_ring}")
+                    
+                    # If we've reached a decent distance ring and found any position, try to use it
+                    if ring_distance >= 6 and best_position:
+                        logger.info(f"Using best position found so far: {best_position} with distance {max_min_distance}")
+                        success = skill.use(unit, best_position, self.game)
+                        if success:
+                            logger.info(f"Direct emergency teleport succeeded with {skill.name} to {best_position}")
+                            return True
+            else:
+                # For Grae Exchange, simpler approach checking all positions within range
+                valid_positions = []
+                
+                # Check all positions within range
+                for y in range(max(0, unit.y - skill.range), min(self.game.map.height, unit.y + skill.range + 1)):
+                    for x in range(max(0, unit.x - skill.range), min(self.game.map.width, unit.x + skill.range + 1)):
+                        # Skip current position
+                        if (y, x) == (unit.y, unit.x):
+                            continue
+                            
+                        # Check if position is valid and skill can be used
+                        if not self.game.is_valid_position(y, x) or not self.game.map.is_passable(y, x):
+                            continue
+                            
+                        if self.game.get_unit_at(y, x):
+                            continue
+                            
+                        if not skill.can_use(unit, (y, x), self.game):
+                            continue
+                            
+                        # Calculate minimum distance to any enemy
+                        min_distance = float('inf')
+                        for enemy_y, enemy_x in enemy_positions:
+                            distance = self.game.chess_distance(y, x, enemy_y, enemy_x)
+                            min_distance = min(min_distance, distance)
+                            
+                        valid_positions.append((y, x, min_distance))
+                
+                # Sort by distance from enemies (descending)
+                valid_positions.sort(key=lambda p: p[2], reverse=True)
+                
+                # Try positions in order of safety
+                for y, x, distance in valid_positions:
+                    logger.info(f"Trying Grae Exchange teleport to ({y}, {x}) with enemy distance {distance}")
+                    success = skill.use(unit, (y, x), self.game)
+                    if success:
+                        logger.info(f"Direct emergency teleport succeeded with {skill.name} to ({y}, {x})")
+                        return True
+                    else:
+                        logger.warning(f"Failed to use {skill.name} at position ({y}, {x})")
+        
+        # EXTREME LAST RESORT: Try ANY position we can teleport to
+        logger.warning("All optimized teleport attempts failed. Trying DESPERATE last resort teleport.")
+        
+        # Try all skills again with relaxed constraints
+        for skill in teleport_skills:
+            # For any teleport skill, try every valid position without restrictions
+            max_search = 200 if skill.name == "Delta Config" else skill.range * 2
+            positions_tried = 0
+            
+            # Range based on skill type
+            if skill.name == "Delta Config":
+                # For Delta Config, try any position on the map in a simple scan
+                for y in range(0, self.game.map.height):
+                    for x in range(0, self.game.map.width):
+                        positions_tried += 1
+                        if positions_tried > max_search:
+                            break
+                            
+                        # Skip invalid positions
+                        if not self.game.is_valid_position(y, x) or not self.game.map.is_passable(y, x):
+                            continue
+                            
+                        if self.game.get_unit_at(y, x):
+                            continue
+                            
+                        # Try to use the skill
+                        try:
+                            if skill.can_use(unit, (y, x), self.game):
+                                success = skill.use(unit, (y, x), self.game)
+                                if success:
+                                    logger.info(f"DESPERATE emergency teleport succeeded with {skill.name} to ({y}, {x})")
+                                    return True
+                        except Exception as e:
+                            logger.error(f"Error in desperate teleport attempt: {e}")
+                            continue
+                    
+                    if positions_tried > max_search:
+                        break
+            else:
+                # For Grae Exchange, try every position within range
+                for y in range(max(0, unit.y - skill.range), min(self.game.map.height, unit.y + skill.range + 1)):
+                    for x in range(max(0, unit.x - skill.range), min(self.game.map.width, unit.x + skill.range + 1)):
+                        positions_tried += 1
+                        
+                        # Skip invalid positions
+                        if not self.game.is_valid_position(y, x) or not self.game.map.is_passable(y, x):
+                            continue
+                            
+                        if self.game.get_unit_at(y, x):
+                            continue
+                            
+                        # Try to use the skill
+                        try:
+                            if skill.can_use(unit, (y, x), self.game):
+                                success = skill.use(unit, (y, x), self.game)
+                                if success:
+                                    logger.info(f"DESPERATE emergency teleport succeeded with {skill.name} to ({y}, {x})")
+                                    return True
+                        except Exception as e:
+                            logger.error(f"Error in desperate teleport attempt: {e}")
+                            continue
+        
+        logger.error("ALL emergency teleport attempts failed completely")
+        return False
+    
+    def _retreat_from_enemies(self, unit: 'Unit') -> bool:
+        """
+        Make a unit retreat from enemies when at critical health.
+        Tries to move to the safest position within move range.
+        
+        Args:
+            unit: The unit that needs to retreat
+            
+        Returns:
+            True if a retreat move was set, False otherwise
+        """
+        logger.info(f"DEBUG: Retreat from enemies for {unit.get_display_name()} at position ({unit.y}, {unit.x})")
+        
+        # Get unit's effective move range
+        stats = unit.get_effective_stats()
+        move_range = stats['move_range']
+        
+        # If unit can't move, can't retreat
+        if move_range <= 0:
+            logger.warning(f"Unit {unit.get_display_name()} cannot move (move_range = {move_range})")
+            return False
+            
+        # Check if unit is trapped - trapped units cannot move
+        if hasattr(unit, 'trapped_by') and unit.trapped_by is not None:
+            logger.warning(f"{unit.get_display_name()} cannot retreat because it is trapped")
+            return False
+            
+        # Get all enemy positions for distance calculation
+        enemy_positions = []
+        for enemy in self.game.units:
+            if enemy.player != unit.player and enemy.is_alive():
+                enemy_positions.append((enemy.y, enemy.x))
+                
+        # No enemies, no need to retreat
+        if not enemy_positions:
+            logger.info("No enemies found, no need to retreat")
+            return False
+            
+        # Find all positions we can move to within move range
+        reachable_positions = []
+        
+        # Check all positions within move range
+        for y in range(max(0, unit.y - move_range), min(self.game.map.height, unit.y + move_range + 1)):
+            for x in range(max(0, unit.x - move_range), min(self.game.map.width, unit.x + move_range + 1)):
+                # Skip current position
+                if (y, x) == (unit.y, unit.x):
+                    continue
+                    
+                # Check if position is valid and passable
+                if not self.game.is_valid_position(y, x) or not self.game.map.is_passable(y, x):
+                    continue
+                    
+                # Check if position is occupied
+                if self.game.get_unit_at(y, x):
+                    continue
+                    
+                # Check if within move range (chess distance)
+                distance = self.game.chess_distance(unit.y, unit.x, y, x)
+                if distance > move_range:
+                    continue
+                
+                # For non-adjacent moves, validate path to ensure no units or impassable terrain blocks the way
+                if distance > 1:
+                    # Import necessary path checking utilities
+                    from boneglaive.utils.coordinates import Position, get_line
+                    
+                    # Get path positions
+                    start_pos = Position(unit.y, unit.x)
+                    end_pos = Position(y, x)
+                    path = get_line(start_pos, end_pos)
+                    
+                    # Check if path is clear (excluding start and end positions)
+                    path_is_clear = True
+                    for pos in path[1:-1]:  # Skip start and end positions
+                        # Check for blocking units
+                        blocking_unit = self.game.get_unit_at(pos.y, pos.x)
+                        if blocking_unit:
+                            path_is_clear = False
+                            break
+                            
+                        # Check for impassable terrain
+                        if not self.game.map.is_passable(pos.y, pos.x):
+                            path_is_clear = False
+                            break
+                    
+                    # Skip this position if path is not clear
+                    if not path_is_clear:
+                        continue
+                
+                # Calculate safety score for this position
+                safety_score = self._calculate_position_safety(unit, y, x)
+                
+                # Calculate minimum distance to any enemy
+                min_enemy_distance = float('inf')
+                for enemy_y, enemy_x in enemy_positions:
+                    enemy_distance = self.game.chess_distance(y, x, enemy_y, enemy_x)
+                    min_enemy_distance = min(min_enemy_distance, enemy_distance)
+                
+                # Add position to reachable positions with its safety score and enemy distance
+                reachable_positions.append((y, x, safety_score, min_enemy_distance))
+                logger.info(f"DEBUG: Found valid retreat position at ({y}, {x}) with safety {safety_score}, enemy distance {min_enemy_distance}")
+        
+        # If no reachable positions, can't retreat
+        if not reachable_positions:
+            logger.warning(f"No valid positions to retreat to for {unit.get_display_name()}")
+            return False
+        
+        # Sort by safety score first (descending), then by enemy distance (descending)
+        reachable_positions.sort(key=lambda x: (x[2], x[3]), reverse=True)
+        
+        # Log the top retreat options
+        for i, (y, x, safety, distance) in enumerate(reachable_positions[:3]):
+            logger.info(f"Retreat option {i+1}: ({y}, {x}) with safety {safety}, enemy distance {distance}")
+        
+        # Move to the best position
+        best_y, best_x, best_safety, best_distance = reachable_positions[0]
+        unit.move_target = (best_y, best_x)
+        logger.info(f"Retreating to position ({best_y}, {best_x}) with safety {best_safety}, enemy distance {best_distance}")
+        return True
     
     def _use_grayman_skills(self, unit: 'Unit', target: 'Unit', available_skills: list) -> Optional['ActiveSkill']:
         """
@@ -1697,8 +2462,16 @@ class SimpleAI:
             # Sort by score (highest first)
             skill_scores.sort(key=lambda x: x[1], reverse=True)
             
-            # Use the highest scoring skill if score is above threshold (lower threshold to use skills more often)
-            if skill_scores and skill_scores[0][1] >= 15:  # Reduced threshold to encourage more skill usage
+            # Check if Grayman is at low health for emergency teleport threshold
+            emergency_teleport = False
+            if unit.type == UnitType.GRAYMAN and unit.hp / unit.max_hp <= 0.4:
+                emergency_teleport = True
+                logger.info(f"EMERGENCY TELEPORT mode active for Grayman at {unit.hp}/{unit.max_hp} HP")
+            
+            # Use the highest scoring skill if score is above threshold
+            # In emergency situations for Grayman, use an even lower threshold
+            threshold = 10 if emergency_teleport else 15  # Use lower threshold for emergency teleport
+            if skill_scores and skill_scores[0][1] >= threshold:
                 skill, score, target_pos = skill_scores[0]
                 
                 logger.info(f"Using skill {skill.name} with score {score}")
@@ -1790,12 +2563,28 @@ class SimpleAI:
             # Base score for a valid position - increased to encourage Delta Config usage
             score += 20  # Increased from 10
             
-            # Score based on health - prioritize escape if low health
-            if health_percent <= 0.3:  # Below 30% health
+            # Score based on health - STRONGLY prioritize escape at low health (emergency teleport)
+            if health_percent <= 0.4:  # Increased threshold from 0.3 to 0.4 (40% health)
                 # For low health, prioritize positions far from any enemies
                 safe_position = True
                 closest_enemy_distance = float('inf')
+                enemies_that_can_reach = 0
                 
+                # Calculate current danger level at existing position
+                current_danger_level = 0
+                for enemy in self.game.units:
+                    if enemy.player != unit.player and enemy.is_alive():
+                        # Check enemy reach to current position
+                        current_distance = self.game.chess_distance(unit.y, unit.x, enemy.y, enemy.x)
+                        enemy_stats = enemy.get_effective_stats()
+                        enemy_reach = enemy_stats['move_range'] + enemy_stats['attack_range']
+                        if current_distance <= enemy_reach:
+                            current_danger_level += 1
+                
+                # Log current danger level for debugging
+                logger.debug(f"Grayman at ({unit.y}, {unit.x}) has current danger level: {current_danger_level}")
+                
+                # Check safety of potential teleport position
                 for enemy in self.game.units:
                     if enemy.player != unit.player and enemy.is_alive():
                         distance = self.game.chess_distance(y, x, enemy.y, enemy.x)
@@ -1805,14 +2594,26 @@ class SimpleAI:
                         enemy_stats = enemy.get_effective_stats()
                         enemy_reach = enemy_stats['move_range'] + enemy_stats['attack_range']
                         if distance <= enemy_reach:
-                            safe_position = False
-                            break
+                            enemies_that_can_reach += 1
+                            if enemies_that_can_reach >= 1:  # Consider unsafe if any enemy can reach
+                                safe_position = False
+                                break
                 
-                if safe_position:
-                    # Huge bonus for finding a safe position when at low health
-                    score += 50
-                    
-                    # Extra bonus for being far from any enemies
+                # Only consider true emergency teleport if current position is dangerous
+                if current_danger_level > 0:
+                    # EXTREME bonus for emergency teleport to safety
+                    if safe_position:
+                        # Massive bonus for escaping danger
+                        score += 100  # Increased from 50
+                        
+                        # Extra bonus for being far from any enemies
+                        score += min(closest_enemy_distance * 5, 50)  # Increased from 30
+                        
+                        # Log that we're considering an emergency teleport
+                        logger.info(f"EMERGENCY TELEPORT: Considering position ({y}, {x}) with score {score}")
+                elif safe_position:
+                    # If current position isn't dangerous, still prefer safe positions but with less urgency
+                    score += 40
                     score += min(closest_enemy_distance * 3, 30)
             else:
                 # If not at low health, evaluate strategic positions
@@ -2036,11 +2837,13 @@ class SimpleAI:
                 # Echo value at current position - boost this value to make Grae Exchange more appealing
                 score += current_pos_value * 1.5
                 
-                # Prioritize defensive teleport at low health
+                # STRONGLY prioritize defensive teleport at low health
                 if health_percent <= 0.4:  # Below 40% health
                     # Check if target position is safer than current
                     current_danger = 0
                     new_danger = 0
+                    safe_position = True
+                    closest_enemy_distance = float('inf')
                     
                     # Calculate danger at current and new positions
                     for enemy in self.game.units:
@@ -2055,12 +2858,24 @@ class SimpleAI:
                                 
                             # Danger at new position
                             distance_new = self.game.chess_distance(y, x, enemy.y, enemy.x)
+                            closest_enemy_distance = min(closest_enemy_distance, distance_new)
                             if distance_new <= enemy_reach:
                                 new_danger += 1
+                                safe_position = False
                     
-                    # Bonus for reducing danger
-                    if new_danger < current_danger:
-                        score += 20 + (current_danger - new_danger) * 10
+                    # Log danger assessment
+                    logger.debug(f"Grae Exchange from danger {current_danger} to danger {new_danger}")
+                    
+                    # If in danger, huge bonus for finding safety
+                    if current_danger > 0:
+                        if new_danger == 0 and safe_position:
+                            # MASSIVE bonus for escaping to complete safety
+                            score += 90  # Emergency escape score
+                            score += min(closest_enemy_distance * 5, 40)  # Bonus for distance
+                            logger.info(f"EMERGENCY GRAE EXCHANGE to ({y}, {x}) with score {score}")
+                        elif new_danger < current_danger:
+                            # Still good to reduce danger even if not completely safe
+                            score += 30 + (current_danger - new_danger) * 15
                 else:
                     # At good health, prioritize strategic positions
                     
@@ -2141,7 +2956,7 @@ class SimpleAI:
         
         # Find estrange skill and its range if available
         estrange_range = 0
-        for skill in unit.skills:
+        for skill in unit.active_skills:
             if skill.name == "Estrange":
                 estrange_range = skill.range
                 break
