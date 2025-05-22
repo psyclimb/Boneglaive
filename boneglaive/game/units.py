@@ -58,8 +58,8 @@ class Unit:
         self.teleport_target_indicator = None  # Visual indicator for Delta Config destination
         self.expedite_path_indicator = None  # Visual indicator for Expedite path
         self.jawline_indicator = None  # Visual indicator for Jawline network area
-        self.murmuration_indicator = None  # Visual indicator for Murmuration Dusk AOE
-        self.emetic_flange_indicator = None  # Visual indicator for Emetic Flange AOE
+        # Old indicator removed - new skills have their own indicators
+        # Old emetic flange indicator removed
         self.broaching_gas_indicator = None  # Visual indicator for Broaching Gas target
         self.saft_e_gas_indicator = None  # Visual indicator for Saft-E-Gas target
         self.market_futures_indicator = None  # Visual indicator for Market Futures furniture target
@@ -84,6 +84,14 @@ class Unit:
         self.is_echo = False  # Whether this unit is an echo created by Græ Exchange
         self.echo_duration = 0  # Number of OWNER'S turns the echo remains (decremented only on owner's turn)
         self.original_unit = None  # Reference to the original unit that created this echo
+        
+        # FOWL_CONTRIVANCE properties
+        self.gaussian_charging = False  # Whether this unit is charging Gaussian Dusk
+        self.gaussian_charge_direction = None  # Direction for Gaussian Dusk charging
+        self.gaussian_dusk_indicator = None  # Visual indicator for Gaussian Dusk charging
+        self.big_arc_indicator = None  # Visual indicator for Big Arc area
+        self.fragcrest_indicator = None  # Visual indicator for Fragcrest cone
+        self.shrapnel_duration = 0  # Number of turns remaining for shrapnel damage
         
         # HEINOUS VAPOR properties (for GAS_MACHINIST)
         self.vapor_type = None  # Type of vapor ("ENBROACHMENT", "SAFETY", "COOLANT", or "CUTTING")
@@ -303,7 +311,49 @@ class Unit:
             skill.tick_cooldown()
         
         # Movement penalties are now handled in reset_movement_penalty method
-        # which is called at the beginning of a player's turn
+    
+    def can_move_to(self, y: int, x: int, game=None) -> bool:
+        """
+        Check if this unit can move to the specified position.
+        FOWL_CONTRIVANCE units can only move along rail tiles.
+        """
+        if not game:
+            return True  # No game context, allow move
+            
+        # FOWL_CONTRIVANCE movement restrictions
+        if self.type == UnitType.FOWL_CONTRIVANCE:
+            # Must move along rails (if rails exist)
+            if game.map.has_rails():
+                from boneglaive.game.map import TerrainType
+                terrain = game.map.get_terrain_at(y, x)
+                return terrain == TerrainType.RAIL
+            else:
+                # No rails exist yet, can move normally
+                return game.map.is_passable(y, x)
+        
+        # All other units can move normally
+        return game.map.is_passable(y, x)
+    
+    def apply_shrapnel_damage(self, game=None) -> int:
+        """
+        Apply shrapnel damage at the start of turn if unit has embedded shrapnel.
+        Returns the damage dealt.
+        """
+        if self.shrapnel_duration <= 0:
+            return 0
+            
+        damage = 1  # Shrapnel always deals 1 damage
+        self.hp = max(0, self.hp - damage)
+        self.shrapnel_duration -= 1
+        
+        from boneglaive.utils.message_log import message_log, MessageType
+        message_log.add_message(
+            f"{self.get_display_name()} takes {damage} damage from embedded shrapnel!",
+            MessageType.ABILITY,
+            player=self.player
+        )
+        
+        return damage
     
     def add_xp(self, amount: int) -> bool:
         """

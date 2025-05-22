@@ -22,7 +22,7 @@ from boneglaive.game.skills.marrow_condenser import (
 )
 
 from boneglaive.game.skills.fowl_contrivance import (
-    WretchedDecension, MurmurationDuskSkill, FlapSkill, EmeticFlangeSkill
+    RailGenesis, GaussianDuskSkill, BigArcSkill, FragcrestSkill
 )
 
 from boneglaive.game.skills.gas_machinist import (
@@ -52,8 +52,8 @@ UNIT_SKILLS = {
         "active": [OssifySkill(), MarrowDikeSkill(), BoneTitheSkill()]
     },
     "FOWL_CONTRIVANCE": {
-        "passive": WretchedDecension(),
-        "active": [MurmurationDuskSkill(), FlapSkill(), EmeticFlangeSkill()]
+        "passive": RailGenesis(),
+        "active": [GaussianDuskSkill(), BigArcSkill(), FragcrestSkill()]
     },
     "GAS_MACHINIST": {
         "passive": EffluviumLathe(),

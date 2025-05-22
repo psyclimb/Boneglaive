@@ -283,6 +283,9 @@ class UIRenderer:
                             color_id = 20  # Default red for Marrow Wall if not in tracked tiles
                     else:
                         color_id = 20  # Default red for Marrow Wall if no tracking dictionary
+                elif terrain == TerrainType.RAIL:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("rail")
+                    color_id = 6  # Yellow color for rails
                 else:
                     # Fallback for any new terrain types
                     tile = self.game_ui.asset_manager.get_terrain_tile("empty")
@@ -635,64 +638,44 @@ class UIRenderer:
                                 self.renderer.draw_tile(y, x, tile, color_id, 0)
                             continue
 
-                # Check if this position is in a Murmuration Dusk AOE
+                # Check if this position is in a FOWL_CONTRIVANCE skill indicator
                 for u in self.game_ui.game.units:
-                    if u.is_alive() and u.selected_skill and hasattr(u.selected_skill, 'name') and \
-                       u.selected_skill.name == "Murmuration Dusk" and u.murmuration_indicator is not None:
-                        target_y, target_x = u.murmuration_indicator
-
-                        # Check if this position is within the 3x3 area of Murmuration Dusk
-                        in_area = (abs(y - target_y) <= 1 and abs(x - target_x) <= 1)
-
-                        if in_area:
-                            # Draw murmuration indicator - use bird symbol for the area
+                    if u.is_alive() and u.selected_skill and hasattr(u.selected_skill, 'name'):
+                        
+                        # Big Arc AOE indicator
+                        if u.selected_skill.name == "Big Arc" and hasattr(u, 'big_arc_indicator') and u.big_arc_indicator is not None:
+                            target_y, target_x = u.big_arc_indicator
+                            # Check if this position is within the 3x3 area
+                            in_area = (abs(y - target_y) <= 1 and abs(x - target_x) <= 1)
+                            if in_area:
+                                tile = "*" if (y, x) == (target_y, target_x) else "·"
+                                color_id = 3 if u.player == 1 else 4
+                                
+                        # Gaussian Dusk charging indicator
+                        elif u.selected_skill.name == "Gaussian Dusk" and hasattr(u, 'gaussian_dusk_indicator') and u.gaussian_dusk_indicator is not None:
+                            # Show charging indicator at user position
+                            if (y, x) == (u.y, u.x):
+                                tile = "≡"  # Charging symbol
+                                color_id = 3 if u.player == 1 else 4
+                                
+                        # Fragcrest cone indicator
+                        elif u.selected_skill.name == "Fragcrest" and hasattr(u, 'fragcrest_indicator') and u.fragcrest_indicator is not None:
+                            # Show targeting indicator (would need cone calculation for full effect)
+                            target_y, target_x = u.fragcrest_indicator
                             if (y, x) == (target_y, target_x):
-                                # Center of murmuration area - use full bird symbol
-                                tile = "^"  # Bird symbol for center of murmuration
-                            else:
-                                # Edge of murmuration area - use a smaller symbol
-                                tile = "·"  # Dots for surrounding area
+                                tile = "X"  # Target marker
+                                color_id = 3 if u.player == 1 else 4
 
-                            color_id = 3 if u.player == 1 else 4  # Color based on player
+                        # Check if cursor is here
+                        is_cursor_here = (pos == cursor_manager.cursor_pos and show_cursor)
 
-                            # Check if cursor is here
-                            is_cursor_here = (pos == cursor_manager.cursor_pos and show_cursor)
-
-                            if is_cursor_here:
-                                # Draw with cursor color
-                                self.renderer.draw_tile(y, x, tile, 2, curses.A_BOLD)
-                            else:
-                                # Draw the murmuration indicator
-                                attr = curses.A_BOLD if (y, x) == (target_y, target_x) else 0
-                                self.renderer.draw_tile(y, x, tile, color_id, attr)
-                            continue
-                
-                # Check if this position is in an Emetic Flange AOE
-                for u in self.game_ui.game.units:
-                    if u.is_alive() and u.selected_skill and hasattr(u.selected_skill, 'name') and \
-                       u.selected_skill.name == "Emetic Flange" and u.emetic_flange_indicator is not None:
-                        target_y, target_x = u.emetic_flange_indicator
-
-                        # Check if this position is within the 3x3 area of Emetic Flange
-                        in_area = (abs(y - target_y) <= 1 and abs(x - target_x) <= 1)
-                        # Skip center (that's the user's position)
-                        if (y, x) == (target_y, target_x):
-                            continue
-
-                        if in_area:
-                            # Draw emetic flange indicator - use bird explosion symbol for surrounding tiles
-                            tile = "@"  # Explosion symbol for emetic flange
-                            color_id = 3 if u.player == 1 else 4  # Color based on player
-
-                            # Check if cursor is here
-                            is_cursor_here = (pos == cursor_manager.cursor_pos and show_cursor)
-
-                            if is_cursor_here:
-                                # Draw with cursor color
-                                self.renderer.draw_tile(y, x, tile, 2, curses.A_BOLD)
-                            else:
-                                # Draw the emetic flange indicator
-                                self.renderer.draw_tile(y, x, tile, color_id, 0)
+                        if is_cursor_here:
+                            # Draw with cursor color
+                            self.renderer.draw_tile(y, x, tile, 2, curses.A_BOLD)
+                        else:
+                            # Draw the skill indicator
+                            attr = curses.A_BOLD
+                            self.renderer.draw_tile(y, x, tile, color_id, attr)
                             continue
 
                 # Check if this position is a Broaching Gas target

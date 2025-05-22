@@ -22,6 +22,7 @@ class TerrainType(Enum):
     CONSOLE = 7    # Console table, blocks movement but not line of sight
     DEC_TABLE = 8  # Decorative table, blocks movement but not line of sight
     MARROW_WALL = 9  # Marrow Dike wall, blocks movement and unit placement but not permanently
+    RAIL = 10      # Rail track, passable by all units but FOWL_CONTRIVANCE gets special movement
 
 
 class GameMap:
@@ -61,13 +62,14 @@ class GameMap:
         """Check if a position is passable (can be moved through)."""
         terrain = self.get_terrain_at(y, x)
         # All furniture types, pillars, limestone, and marrow walls are impassable
-        return terrain in [TerrainType.EMPTY, TerrainType.DUST]
+        # Rails are passable by all units
+        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.RAIL]
     
     def can_place_unit(self, y: int, x: int) -> bool:
         """Check if a unit can be placed at this position."""
         terrain = self.get_terrain_at(y, x)
-        # Units can only be placed on empty or dusty tiles
-        return terrain in [TerrainType.EMPTY, TerrainType.DUST]
+        # Units can be placed on empty, dusty, or rail tiles
+        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.RAIL]
         
     def blocks_line_of_sight(self, y: int, x: int) -> bool:
         """Check if a position blocks line of sight for ranged attacks."""
@@ -131,6 +133,90 @@ class GameMap:
         terrain = self.get_terrain_at(y, x)
         return terrain in [TerrainType.FURNITURE, TerrainType.COAT_RACK,
                           TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE]
+
+    def has_rails(self) -> bool:
+        """Check if the map currently has any rail tiles."""
+        for terrain in self.terrain.values():
+            if terrain == TerrainType.RAIL:
+                return True
+        return False
+
+    def generate_rail_network(self) -> None:
+        """
+        Generate a symmetrical rail network covering significant map area.
+        Creates cross pattern from map center with diagonal branches.
+        Rails don't pass through terrain or furniture.
+        """
+        center_y = self.height // 2
+        center_x = self.width // 2
+        
+        # Create main cross pattern
+        # Horizontal line (East-West)
+        for x in range(self.width):
+            if self._can_place_rail(center_y, x):
+                self.set_terrain_at(center_y, x, TerrainType.RAIL)
+        
+        # Vertical line (North-South) 
+        for y in range(self.height):
+            if self._can_place_rail(y, center_x):
+                self.set_terrain_at(y, center_x, TerrainType.RAIL)
+        
+        # Create diagonal branches at 4-tile intervals from center
+        # These provide good vantage points without cluttering
+        diagonal_positions = [
+            # Main diagonals from center
+            (center_y - 2, center_x - 2), (center_y - 2, center_x + 2),
+            (center_y + 2, center_x - 2), (center_y + 2, center_x + 2),
+            # Additional strategic positions
+            (center_y - 1, center_x - 4), (center_y - 1, center_x + 4),
+            (center_y + 1, center_x - 4), (center_y + 1, center_x + 4),
+            # Corner approach rails (for map edges)
+            (1, 2), (1, self.width - 3),
+            (self.height - 2, 2), (self.height - 2, self.width - 3)
+        ]
+        
+        # Add diagonal connection rails
+        for y, x in diagonal_positions:
+            if self._can_place_rail(y, x):
+                self.set_terrain_at(y, x, TerrainType.RAIL)
+        
+        # Connect diagonal positions to main lines with short branch rails
+        self._add_diagonal_connections(center_y, center_x)
+
+    def _can_place_rail(self, y: int, x: int) -> bool:
+        """Check if a rail can be placed at this position."""
+        if not (0 <= y < self.height and 0 <= x < self.width):
+            return False
+        
+        terrain = self.get_terrain_at(y, x)
+        # Rails can be placed on empty, dust, or existing rail tiles
+        # Cannot be placed on blocking terrain or furniture
+        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.RAIL]
+
+    def _add_diagonal_connections(self, center_y: int, center_x: int) -> None:
+        """Add connecting rails between diagonal positions and main lines."""
+        # Add short connection segments to make the network more connected
+        # while keeping it clean and not overly intricate
+        
+        # Upper diagonal connections
+        if self._can_place_rail(center_y - 1, center_x - 1):
+            self.set_terrain_at(center_y - 1, center_x - 1, TerrainType.RAIL)
+        if self._can_place_rail(center_y - 1, center_x + 1):
+            self.set_terrain_at(center_y - 1, center_x + 1, TerrainType.RAIL)
+        
+        # Lower diagonal connections  
+        if self._can_place_rail(center_y + 1, center_x - 1):
+            self.set_terrain_at(center_y + 1, center_x - 1, TerrainType.RAIL)
+        if self._can_place_rail(center_y + 1, center_x + 1):
+            self.set_terrain_at(center_y + 1, center_x + 1, TerrainType.RAIL)
+
+    def get_rail_positions(self) -> List[Tuple[int, int]]:
+        """Get all positions that have rail tiles."""
+        rail_positions = []
+        for (y, x), terrain in self.terrain.items():
+            if terrain == TerrainType.RAIL:
+                rail_positions.append((y, x))
+        return rail_positions
 
 
 class LimeFoyerMap(GameMap):
