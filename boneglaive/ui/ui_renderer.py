@@ -268,7 +268,21 @@ class UIRenderer:
 
                 elif terrain == TerrainType.MARROW_WALL:
                     tile = self.game_ui.asset_manager.get_terrain_tile("marrow_wall")
-                    color_id = 20  # Red color for Marrow Wall (color pair 20)
+                    
+                    # Check if we have owner information for this wall to determine player color
+                    if hasattr(self.game_ui.game, 'marrow_dike_tiles'):
+                        pos_tuple = (y, x)
+                        if pos_tuple in self.game_ui.game.marrow_dike_tiles:
+                            wall_info = self.game_ui.game.marrow_dike_tiles[pos_tuple]
+                            # Use owner's player color if available
+                            if 'owner' in wall_info and wall_info['owner']:
+                                color_id = 3 if wall_info['owner'].player == 1 else 4  # Player's color
+                            else:
+                                color_id = 20  # Default red for Marrow Wall if no owner info
+                        else:
+                            color_id = 20  # Default red for Marrow Wall if not in tracked tiles
+                    else:
+                        color_id = 20  # Default red for Marrow Wall if no tracking dictionary
                 else:
                     # Fallback for any new terrain types
                     tile = self.game_ui.asset_manager.get_terrain_tile("empty")

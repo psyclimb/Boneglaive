@@ -1047,12 +1047,13 @@ class Game:
         if distance > effective_attack_range:
             return False
             
-        # Line of sight check for GRAYMAN units
-        los_check = True
-        if unit.type == UnitType.GRAYMAN:
-            los_check = self.has_line_of_sight(unit.y, unit.x, y, x)
-            if not los_check:
-                return False
+        # Line of sight check for all units
+        # Check if there is a clear line of sight to the target
+        los_check = self.has_line_of_sight(unit.y, unit.x, y, x)
+        if not los_check:
+            from boneglaive.utils.debug import logger
+            logger.debug(f"{unit.get_display_name()} cannot attack target at ({y}, {x}) due to blocked line of sight")
+            return False
                 
         # Protection Zone Mechanic: Units inside Saft-E-Gas clouds cannot be targeted by enemy units outside
         # This protection is ALWAYS active, not tied to any "tick" effect
@@ -1373,7 +1374,16 @@ class Game:
         if dying_unit.type == UnitType.MANDIBLE_FOREMAN:
             logger.info(f"MANDIBLE_FOREMAN {dying_unit.get_display_name()} has perished, checking for trapped units to release")
             # Critical: Make a list of trapped units first before modifying them
-            trapped_units = [unit for unit in self.units if unit.is_alive() and hasattr(unit, 'trapped_by') and unit.trapped_by == dying_unit]
+            # Check by unit ID rather than direct object comparison which can fail when objects are replaced
+            dying_unit_id = id(dying_unit)
+            trapped_units = []
+            for unit in self.units:
+                if unit.is_alive() and hasattr(unit, 'trapped_by') and unit.trapped_by is not None:
+                    # Check if this unit is trapped by the dying foreman
+                    # Use object identity (id) for more reliable reference checking
+                    if id(unit.trapped_by) == dying_unit_id:
+                        trapped_units.append(unit)
+                    
             for unit in trapped_units:
                 logger.info(f"MANDIBLE_FOREMAN perished, releasing {unit.get_display_name()}")
                 unit.trapped_by = None
