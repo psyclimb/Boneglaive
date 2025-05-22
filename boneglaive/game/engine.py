@@ -1388,6 +1388,7 @@ class Game:
         Decrements durations and removes expired status effects.
         Also applies movement penalties for units inside reinforced Marrow Dikes.
         Also handles Market Futures investment maturation.
+        Also regenerates 1 HP for units that took no actions during their turn.
         """
         from boneglaive.utils.message_log import message_log, MessageType
         
@@ -1604,6 +1605,47 @@ class Game:
                         MessageType.ABILITY,
                         player=unit.player
                     )
+            
+            # Process health regeneration for units that took no actions
+            if (hasattr(unit, 'took_no_actions') and unit.took_no_actions and 
+                unit.hp < unit.max_hp):
+                
+                # Check if any enemy units are adjacent to this unit
+                has_adjacent_enemy = False
+                for dy in [-1, 0, 1]:
+                    for dx in [-1, 0, 1]:
+                        # Skip the center position (the unit itself)
+                        if dy == 0 and dx == 0:
+                            continue
+                            
+                        # Check adjacent position
+                        adjacent_y, adjacent_x = unit.y + dy, unit.x + dx
+                        if self.is_valid_position(adjacent_y, adjacent_x):
+                            adjacent_unit = self.get_unit_at(adjacent_y, adjacent_x)
+                            if adjacent_unit and adjacent_unit.is_alive() and adjacent_unit.player != unit.player:
+                                has_adjacent_enemy = True
+                                break
+                    if has_adjacent_enemy:
+                        break
+                
+                # Only regenerate if no adjacent enemies
+                if not has_adjacent_enemy:
+                    # Regenerate 1 HP
+                    unit.hp += 1
+                    logger.debug(f"{unit.get_display_name()} regenerated 1 HP from resting")
+                    
+                    # Log the regeneration
+                    message_log.add_message(
+                        f"{unit.get_display_name()} regenerated 1 HP from resting.",
+                        MessageType.SYSTEM,
+                        player=unit.player
+                    )
+                else:
+                    # Log that unit couldn't rest due to enemies nearby
+                    logger.debug(f"{unit.get_display_name()} couldn't rest due to nearby enemies")
+                
+                # Reset the flag for the next turn
+                unit.took_no_actions = False
     
     @measure_perf
     def execute_turn(self, ui=None):
@@ -1749,6 +1791,8 @@ class Game:
             if unit.move_target:
                 y, x = unit.move_target
                 if self.can_move_to(unit, y, x):  # Double-check the move is still valid
+                    # Mark that this unit took an action (won't regenerate HP)
+                    unit.took_no_actions = False
                     logger.debug(f"Moving {unit.get_display_name()} from ({unit.y},{unit.x}) to ({y},{x})")
                     
                     # Show movement animation if UI is provided
@@ -1791,6 +1835,9 @@ class Game:
                 from boneglaive.utils.message_log import message_log, MessageType
                 y, x = unit.attack_target
                 target = self.get_unit_at(y, x)
+                
+                # Mark that this unit took an action (won't regenerate HP)
+                unit.took_no_actions = False
                 
                 # Calculate attacking position (either unit's current position or move target)
                 attacking_pos = (unit.y, unit.x)  # Unit's position is already updated if it moved
@@ -2053,6 +2100,9 @@ class Game:
             
             # EXECUTE SKILL if unit has a skill target
             if unit.skill_target and unit.selected_skill:
+                # Mark that this unit took an action (won't regenerate HP)
+                unit.took_no_actions = False
+                
                 # Execute the skill
                 skill = unit.selected_skill
                 target_pos = unit.skill_target
@@ -2083,6 +2133,8 @@ class Game:
             
             # EXECUTE VISEROY TRAP DAMAGE if this is a MANDIBLE_FOREMAN with trapped units
             elif hasattr(unit, 'auction_curse_dot_action') and unit.auction_curse_dot_action:
+                # This is a special action but still counts as an action for health regeneration
+                unit.took_no_actions = False
                 # Process Auction Curse DOT effect
                 from boneglaive.utils.message_log import message_log, MessageType
                 
@@ -2157,6 +2209,9 @@ class Game:
                 unit.auction_curse_dot_action = False
                 
             elif hasattr(unit, 'viseroy_trap_action') and unit.viseroy_trap_action:
+                # This is a special action but still counts as an action for health regeneration
+                unit.took_no_actions = False
+                
                 # Find all units trapped by this foreman
                 trapped_units = [u for u in self.units if u.is_alive() and u.trapped_by == unit]
                 
@@ -2457,9 +2512,12 @@ class Game:
                 self.turn += 1
                 
             # Apply passive skills for the next player's units at the start of their turn
+            # Also initialize the took_no_actions flag for health regeneration
             for unit in self.units:
                 if unit.is_alive() and unit.player == self.current_player:
                     unit.apply_passive_skills(self)
+                    # Initialize the flag for health regeneration
+                    unit.took_no_actions = True
     
     
     def try_trigger_wretched_decension(self, attacker, target, ui=None):

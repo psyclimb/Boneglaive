@@ -74,7 +74,8 @@ class Unit:
         self.was_pried = False  # Track if this unit was affected by Pry skill
         self.trapped_by = None  # Reference to MANDIBLE_FOREMAN that trapped this unit, None if not trapped
         self.trap_duration = 0  # Number of turns this unit has been trapped, for incremental damage
-        self.took_action = False  # Track if this unit took an action this turn
+        self.took_action = False  # Track if this unit took an action this turn (used by MANDIBLE_FOREMAN)
+        self.took_no_actions = True  # Track if unit took no actions for health regeneration
         self.jawline_affected = False  # Track if unit is affected by Jawline skill
         self.jawline_duration = 0  # Duration remaining for Jawline effect
         self.estranged = False  # Track if unit is affected by Estrange skill
