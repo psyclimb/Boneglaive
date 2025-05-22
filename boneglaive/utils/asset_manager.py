@@ -125,6 +125,8 @@ class AssetManager:
             
             # FOWL_CONTRIVANCE reworked animations - rail artillery platform
             'fowl_contrivance_attack': ['T', '*', '#', '@'],  # Basic attack for reworked FOWL_CONTRIVANCE
+            'gaussian_charge': ['=', '=', '=', '=', '=', '=', '='],  # Charging rail cannon animation
+            'gaussian_fire': ['=', '-', '-', '=', '>', '<', '='],  # Firing rail shot animation
             
             # Critical health "wretch" animation - displayed when units reach critical health
             'wretch': [
