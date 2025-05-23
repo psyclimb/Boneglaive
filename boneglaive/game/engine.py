@@ -5,6 +5,7 @@ import time
 from boneglaive.utils.constants import UnitType, HEIGHT, WIDTH, CRITICAL_HEALTH_PERCENT
 from boneglaive.game.units import Unit
 from boneglaive.game.map import GameMap, MapFactory, TerrainType
+from boneglaive.utils.coordinates import Position
 from boneglaive.utils.debug import debug_config, measure_perf, game_assert, logger
 from boneglaive.utils.message_log import message_log, MessageType
 
@@ -672,6 +673,8 @@ class Game:
                 self.setup_phase = False
                 # Assign Greek identification letters to units
                 self._assign_greek_identifiers()
+                # Move FOWL_CONTRIVANCE units to nearest rails
+                self._move_fowl_contrivances_to_rails()
                 # Add welcome message now that game is starting
                 message_log.add_system_message(f"Entering {self.map.name}")
                 # Skip to game start
@@ -691,6 +694,9 @@ class Game:
             self._assign_greek_identifiers()
             
             self.setup_phase = False
+            
+            # Move FOWL_CONTRIVANCE units to nearest rails
+            self._move_fowl_contrivances_to_rails()
             
             # Add welcome message now that game is starting
             message_log.add_system_message(f"Entering {self.map.name}")
@@ -1404,6 +1410,10 @@ class Game:
             passive = dying_unit.passive_skill
             if passive.name == "Rail Genesis":
                 passive.handle_unit_death(dying_unit, self, ui)
+        
+        # Check if this was the last FOWL_CONTRIVANCE and remove rails if so
+        if dying_unit.type == UnitType.FOWL_CONTRIVANCE:
+            self._check_and_remove_rails_if_no_fowl_remaining(ui)
         
         # Handle Echo death by triggering chain reactions
         if dying_unit.is_echo:
@@ -3466,3 +3476,112 @@ class Game:
                 state['units'].append(unit_info)
         
         return state
+    
+    def _move_fowl_contrivances_to_rails(self):
+        """Move all FOWL_CONTRIVANCE units to the nearest rail position when the game starts."""
+        fowl_units = [unit for unit in self.units if unit.is_alive() and unit.type == UnitType.FOWL_CONTRIVANCE]
+        
+        if not fowl_units:
+            return
+            
+        # Get all rail positions on the map
+        rail_positions = self.map.get_rail_positions()
+        
+        if not rail_positions:
+            # No rails available - units stay where they are
+            message_log.add_message(
+                "FOWL_CONTRIVANCE units remain in position - no rail network available!",
+                MessageType.SYSTEM
+            )
+            return
+        
+        for unit in fowl_units:
+            # Find the nearest rail position
+            current_pos = (unit.y, unit.x)
+            nearest_rail = None
+            min_distance = float('inf')
+            
+            for rail_y, rail_x in rail_positions:
+                # Check if position is occupied by another unit
+                if self.get_unit_at(rail_y, rail_x):
+                    continue
+                    
+                # Calculate Manhattan distance
+                distance = abs(unit.y - rail_y) + abs(unit.x - rail_x)
+                if distance < min_distance:
+                    min_distance = distance
+                    nearest_rail = (rail_y, rail_x)
+            
+            if nearest_rail:
+                old_pos = (unit.y, unit.x)
+                unit.y, unit.x = nearest_rail
+                
+                message_log.add_message(
+                    f"{unit.get_display_name()} moves to the rail network for optimal positioning!",
+                    MessageType.SYSTEM,
+                    player=unit.player
+                )
+                
+                logger.debug(f"Moved {unit.get_display_name()} from {old_pos} to {nearest_rail} (nearest rail)")
+            else:
+                # All rails are occupied
+                message_log.add_message(
+                    f"{unit.get_display_name()} cannot reach the rail network - all positions occupied!",
+                    MessageType.SYSTEM,
+                    player=unit.player
+                )
+    
+    def _check_and_remove_rails_if_no_fowl_remaining(self, ui=None):
+        """Check if any FOWL_CONTRIVANCE units remain alive, and if not, explode and remove all rails."""
+        # Check if any FOWL_CONTRIVANCE units are still alive
+        fowl_remaining = [unit for unit in self.units if unit.is_alive() and unit.type == UnitType.FOWL_CONTRIVANCE]
+        
+        # Debug logging
+        logger.debug(f"Checking for remaining FOWL_CONTRIVANCE units: {len(fowl_remaining)} found")
+        for unit in fowl_remaining:
+            logger.debug(f"  - {unit.get_display_name()} (Player {unit.player}) at ({unit.y},{unit.x})")
+        
+        if fowl_remaining:
+            return  # Still have FOWL_CONTRIVANCE units, keep the rails
+            
+        # No FOWL_CONTRIVANCE units left - remove the rails
+        rail_positions = self.map.get_rail_positions()
+        
+        if not rail_positions:
+            return  # No rails to remove
+            
+        
+        # Animate the rail explosions if UI is available - all at once!
+        if ui and hasattr(ui, 'renderer'):
+            explosion_frames = ['*', '#', '*', '#', '*']
+            explosion_colors = [5, 7, 5, 7, 5]  # Red, white, red, white, red
+            
+            # Clear any highlights/selections that might interfere
+            if hasattr(ui, 'cursor_manager'):
+                ui.cursor_manager.highlighted_positions = []
+                ui.cursor_manager.clear_selection()
+            
+            # Flash all rails simultaneously through explosion sequence
+            for frame_char, color in zip(explosion_frames, explosion_colors):
+                # Draw explosion frame on each rail position
+                for rail_y, rail_x in rail_positions:
+                    # First clear the position completely with black background
+                    ui.renderer.draw_tile(rail_y, rail_x, ' ', 0, 0)
+                    # Then draw the explosion character with proper colors
+                    ui.renderer.draw_tile(rail_y, rail_x, frame_char, color, curses.A_BOLD)
+                
+                ui.renderer.refresh()
+                time.sleep(0.12)  # Quick flash timing
+        
+        # Actually remove all rails from the map
+        rail_count = len(rail_positions)
+        for rail_y, rail_x in rail_positions:
+            self.map.set_terrain_at(rail_y, rail_x, TerrainType.EMPTY)
+        
+        # Simple final message
+        message_log.add_message(
+            f"Rails removed ({rail_count} tiles).",
+            MessageType.SYSTEM
+        )
+        
+        logger.info(f"Removed {rail_count} rail tiles - no FOWL_CONTRIVANCE units remaining")

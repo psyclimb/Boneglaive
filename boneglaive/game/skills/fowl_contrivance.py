@@ -13,9 +13,9 @@ from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 import curses
 
 from boneglaive.game.skills.core import PassiveSkill, ActiveSkill, TargetType
+from boneglaive.game.map import TerrainType
 from boneglaive.utils.message_log import message_log, MessageType
 from boneglaive.utils.constants import UnitType, CRITICAL_HEALTH_PERCENT
-from boneglaive.game.map import TerrainType
 
 if TYPE_CHECKING:
     from boneglaive.game.units import Unit
@@ -217,7 +217,7 @@ class GaussianDuskSkill(ActiveSkill):
 
             # Log that charging has started
             message_log.add_message(
-                f"{user.get_display_name()} begins charging its rail cannon!",
+                f"{user.get_display_name()} charges its rail cannon with electromagnetic energy!",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -234,7 +234,7 @@ class GaussianDuskSkill(ActiveSkill):
         
         # Log that firing has started
         message_log.add_message(
-            f"{user.get_display_name()}'s rail cannon fires!",
+            f"{user.get_display_name()}'s rail cannon fires a hypersonic projectile!",
             MessageType.ABILITY,
             player=user.player
         )
@@ -267,9 +267,20 @@ class GaussianDuskSkill(ActiveSkill):
         
         # Apply effects to all positions in the line
         for pos_y, pos_x in positions_in_line:
-            # Check for destructible terrain
+            # Check for destructible terrain - hypersonic projectile destroys everything in its path
             terrain = game.map.get_terrain_at(pos_y, pos_x)
-            if terrain in [TerrainType.MARROW_WALL]:  # Add other destructible terrain as needed
+            destructible_terrain = [
+                TerrainType.LIMESTONE,     # Limestone formations
+                TerrainType.PILLAR,        # Limestone pillars
+                TerrainType.MARROW_WALL,   # Marrow Dike walls
+                TerrainType.FURNITURE,     # Generic furniture
+                TerrainType.COAT_RACK,     # Coat racks
+                TerrainType.OTTOMAN,       # Ottoman seating
+                TerrainType.CONSOLE,       # Console tables
+                TerrainType.DEC_TABLE      # Decorative tables
+            ]
+            
+            if terrain in destructible_terrain:
                 game.map.set_terrain_at(pos_y, pos_x, TerrainType.EMPTY)
                 terrain_destroyed += 1
             
@@ -308,14 +319,14 @@ class GaussianDuskSkill(ActiveSkill):
         # Log results
         if units_hit > 0:
             message_log.add_message(
-                f"The rail cannon pierces {units_hit} {'unit' if units_hit == 1 else 'units'} for {total_damage} damage!",
+                f"The projectile pierces {units_hit} {'target' if units_hit == 1 else 'targets'} for {total_damage} damage!",
                 MessageType.ABILITY,
                 player=user.player
             )
             
         if terrain_destroyed > 0:
             message_log.add_message(
-                f"The beam destroys {terrain_destroyed} terrain {'feature' if terrain_destroyed == 1 else 'features'}!",
+                f"The projectile destroys {terrain_destroyed} terrain {'feature' if terrain_destroyed == 1 else 'features'}!",
                 MessageType.ABILITY,
                 player=user.player
             )
