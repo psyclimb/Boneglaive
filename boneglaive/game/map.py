@@ -143,45 +143,54 @@ class GameMap:
 
     def generate_rail_network(self) -> None:
         """
-        Generate a symmetrical rail network covering significant map area.
-        Creates cross pattern from map center with diagonal branches.
+        Generate a clean rail network with separate horizontal and vertical lines.
+        Creates strategic positioning points without center clutter.
         Rails don't pass through terrain or furniture.
         """
         center_y = self.height // 2
         center_x = self.width // 2
         
-        # Create main cross pattern
-        # Horizontal line (East-West)
+        # Create horizontal line offset from center to avoid crossing
+        horizontal_line = center_y - 2
         for x in range(self.width):
-            if self._can_place_rail(center_y, x):
-                self.set_terrain_at(center_y, x, TerrainType.RAIL)
+            if self._can_place_rail(horizontal_line, x):
+                self.set_terrain_at(horizontal_line, x, TerrainType.RAIL)
         
-        # Vertical line (North-South) 
+        # Create vertical lines offset from center to avoid crossing
+        vertical_line_1 = center_x - 2  # Column 8
+        vertical_line_2 = center_x + 2  # Column 12
         for y in range(self.height):
-            if self._can_place_rail(y, center_x):
-                self.set_terrain_at(y, center_x, TerrainType.RAIL)
+            if self._can_place_rail(y, vertical_line_1):
+                self.set_terrain_at(y, vertical_line_1, TerrainType.RAIL)
+            if self._can_place_rail(y, vertical_line_2):
+                self.set_terrain_at(y, vertical_line_2, TerrainType.RAIL)
         
-        # Create diagonal branches at 4-tile intervals from center
-        # These provide good vantage points without cluttering
-        diagonal_positions = [
-            # Main diagonals from center
-            (center_y - 2, center_x - 2), (center_y - 2, center_x + 2),
-            (center_y + 2, center_x - 2), (center_y + 2, center_x + 2),
-            # Additional strategic positions
-            (center_y - 1, center_x - 4), (center_y - 1, center_x + 4),
-            (center_y + 1, center_x - 4), (center_y + 1, center_x + 4),
-            # Corner approach rails (for map edges)
-            (1, 2), (1, self.width - 3),
-            (self.height - 2, 2), (self.height - 2, self.width - 3)
+        # Add strategic corner positions for tactical positioning
+        strategic_positions = [
+            # Top corners
+            (1, 3), (1, self.width - 4),
+            # Bottom corners  
+            (self.height - 2, 3), (self.height - 2, self.width - 4),
+            # Mid-side positions for flanking
+            (center_y, 2), (center_y, self.width - 3),
+            # Center alternatives offset from the middle
+            (center_y + 2, center_x - 3), (center_y + 2, center_x + 3)
         ]
         
-        # Add diagonal connection rails
-        for y, x in diagonal_positions:
+        # Connect corner flanking positions with horizontal connections
+        flanking_connections = [
+            # Connect top corners along row 1
+            *[(1, x) for x in range(4, self.width - 3)],
+            # Connect bottom corners along row height-2
+            *[(self.height - 2, x) for x in range(4, self.width - 3)]
+        ]
+        
+        strategic_positions.extend(flanking_connections)
+        
+        # Add strategic positioning rails
+        for y, x in strategic_positions:
             if self._can_place_rail(y, x):
                 self.set_terrain_at(y, x, TerrainType.RAIL)
-        
-        # Connect diagonal positions to main lines with short branch rails
-        self._add_diagonal_connections(center_y, center_x)
 
     def _can_place_rail(self, y: int, x: int) -> bool:
         """Check if a rail can be placed at this position."""
@@ -193,22 +202,6 @@ class GameMap:
         # Cannot be placed on blocking terrain or furniture
         return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.RAIL]
 
-    def _add_diagonal_connections(self, center_y: int, center_x: int) -> None:
-        """Add connecting rails between diagonal positions and main lines."""
-        # Add short connection segments to make the network more connected
-        # while keeping it clean and not overly intricate
-        
-        # Upper diagonal connections
-        if self._can_place_rail(center_y - 1, center_x - 1):
-            self.set_terrain_at(center_y - 1, center_x - 1, TerrainType.RAIL)
-        if self._can_place_rail(center_y - 1, center_x + 1):
-            self.set_terrain_at(center_y - 1, center_x + 1, TerrainType.RAIL)
-        
-        # Lower diagonal connections  
-        if self._can_place_rail(center_y + 1, center_x - 1):
-            self.set_terrain_at(center_y + 1, center_x - 1, TerrainType.RAIL)
-        if self._can_place_rail(center_y + 1, center_x + 1):
-            self.set_terrain_at(center_y + 1, center_x + 1, TerrainType.RAIL)
 
     def get_rail_positions(self) -> List[Tuple[int, int]]:
         """Get all positions that have rail tiles."""

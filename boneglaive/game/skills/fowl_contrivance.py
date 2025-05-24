@@ -78,6 +78,23 @@ class RailGenesis(PassiveSkill):
                 units_hit += 1
                 total_damage += damage
                 
+                # Show damage number if UI is available (immediate for death explosion)
+                if ui and hasattr(ui, 'renderer'):
+                    damage_text = f"-{damage}"
+                    
+                    # Make damage text more prominent with flashing effect
+                    for i in range(3):
+                        ui.renderer.draw_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
+                        attrs = curses.A_BOLD if i % 2 == 0 else 0
+                        ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, attrs)
+                        ui.renderer.refresh()
+                        sleep_with_animation_speed(0.1)
+                    
+                    # Final damage display (stays visible a bit longer)
+                    ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.2)
+                
                 # Log the damage
                 message_log.add_combat_message(
                     attacker_name=user.get_display_name(),
@@ -264,6 +281,7 @@ class GaussianDuskSkill(ActiveSkill):
         units_hit = 0
         total_damage = 0
         terrain_destroyed = 0
+        damaged_units = []  # Store units and damage for display after animation
         
         # Apply effects to all positions in the line
         for pos_y, pos_x in positions_in_line:
@@ -298,6 +316,9 @@ class GaussianDuskSkill(ActiveSkill):
                 unit.hp = max(0, unit.hp - damage)
                 units_hit += 1
                 total_damage += damage
+                
+                # Store unit and damage for later display
+                damaged_units.append((unit, damage))
                 
                 # Log the damage
                 message_log.add_combat_message(
@@ -373,6 +394,25 @@ class GaussianDuskSkill(ActiveSkill):
             # Redraw the board after animation
             if hasattr(ui, 'draw_board'):
                 ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+        
+        # Show damage numbers after animation
+        if ui and hasattr(ui, 'renderer') and damaged_units:
+            for unit, damage in damaged_units:
+                if unit.is_alive():  # Only show for living units
+                    damage_text = f"-{damage}"
+                    
+                    # Make damage text more prominent with flashing effect
+                    for i in range(3):
+                        ui.renderer.draw_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
+                        attrs = curses.A_BOLD if i % 2 == 0 else 0
+                        ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, attrs)
+                        ui.renderer.refresh()
+                        sleep_with_animation_speed(0.1)
+                    
+                    # Final damage display (stays visible a bit longer)
+                    ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.2)
         
         return True
 
@@ -482,6 +522,7 @@ class BigArcSkill(ActiveSkill):
         # Track units hit and damage dealt
         units_hit = 0
         total_damage = 0
+        damaged_units = []  # Store units and damage for display after animation
         
         # Apply damage to all units in the area
         for pos_y, pos_x, is_primary in affected_positions:
@@ -501,6 +542,9 @@ class BigArcSkill(ActiveSkill):
                 unit.hp = max(0, unit.hp - damage)
                 units_hit += 1
                 total_damage += damage
+                
+                # Store unit and damage for later display
+                damaged_units.append((unit, damage))
                 
                 # Log the damage
                 damage_type = "primary" if is_primary else "secondary"
@@ -566,6 +610,25 @@ class BigArcSkill(ActiveSkill):
             # Redraw the board after animation
             if hasattr(ui, 'draw_board'):
                 ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+        
+        # Show damage numbers after animation
+        if ui and hasattr(ui, 'renderer') and damaged_units:
+            for unit, damage in damaged_units:
+                if unit.is_alive():  # Only show for living units
+                    damage_text = f"-{damage}"
+                    
+                    # Make damage text more prominent with flashing effect
+                    for i in range(3):
+                        ui.renderer.draw_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
+                        attrs = curses.A_BOLD if i % 2 == 0 else 0
+                        ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, attrs)
+                        ui.renderer.refresh()
+                        sleep_with_animation_speed(0.1)
+                    
+                    # Final damage display (stays visible a bit longer)
+                    ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.2)
         
         return True
 
@@ -681,6 +744,7 @@ class FragcrestSkill(ActiveSkill):
         affected_units = []
         units_hit = 0
         total_damage = 0
+        damaged_units = []  # Store units and damage for display after animation
         
         # Apply damage and effects to all units in cone
         for pos_y, pos_x, is_primary in cone_positions:
@@ -701,6 +765,9 @@ class FragcrestSkill(ActiveSkill):
                 units_hit += 1
                 total_damage += damage
                 affected_units.append(unit)
+                
+                # Store unit and damage for later display
+                damaged_units.append((unit, damage))
                 
                 # Log the damage
                 damage_type = "primary" if is_primary else "cone"
@@ -773,6 +840,25 @@ class FragcrestSkill(ActiveSkill):
             # Redraw the board after animation
             if hasattr(ui, 'draw_board'):
                 ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+        
+        # Show damage numbers after animation
+        if ui and hasattr(ui, 'renderer') and damaged_units:
+            for unit, damage in damaged_units:
+                if unit.is_alive():  # Only show for living units
+                    damage_text = f"-{damage}"
+                    
+                    # Make damage text more prominent with flashing effect
+                    for i in range(3):
+                        ui.renderer.draw_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
+                        attrs = curses.A_BOLD if i % 2 == 0 else 0
+                        ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, attrs)
+                        ui.renderer.refresh()
+                        sleep_with_animation_speed(0.1)
+                    
+                    # Final damage display (stays visible a bit longer)
+                    ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.2)
         
         return True
 

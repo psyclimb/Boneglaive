@@ -85,7 +85,7 @@ class AssetManager:
             'mandible_foreman_attack': 'Ξ', # Mandible jaws (melee)
             'grayman_attack': '≈',        # Reality distortion (ranged)
             'marrow_condenser_attack': 'Ø', # Bone symbol for melee
-            'fowl_contrivance_attack': 'Λ', # Bird dive attack symbol
+            'fowl_contrivance_attack': '>', # Rail artillery projectile symbol
             'delphic_appraiser_attack': '$' # Currency symbol for evaluation
         }
         
@@ -124,7 +124,7 @@ class AssetManager:
             'marrow_healing': ['♥', '❤', '♡', '❤', '♥', '✚', '+', '*'],  # Blood plasma healing animation
             
             # FOWL_CONTRIVANCE reworked animations - rail artillery platform
-            'fowl_contrivance_attack': ['T', '*', '#', '@'],  # Basic attack for reworked FOWL_CONTRIVANCE
+            'fowl_contrivance_attack': ['T', '=', '-', '>', '*', '#', '@'],  # Rail cannon charging and firing
             'gaussian_charge': ['=', '=', '=', '=', '=', '=', '='],  # Charging rail cannon animation
             'gaussian_fire': ['=', '-', '-', '=', '>', '<', '='],  # Firing rail shot animation
             
