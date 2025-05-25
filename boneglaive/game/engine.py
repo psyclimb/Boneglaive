@@ -1909,9 +1909,9 @@ class Game:
                 effective_stats = unit.get_effective_stats()
                 effective_attack_range = effective_stats['attack_range']
                 
-                # Additional line of sight check for GRAYMAN units
+                # Line of sight check for ranged attacks (range > 1)
                 los_check = True
-                if unit.type == UnitType.GRAYMAN:
+                if effective_attack_range > 1:
                     los_check = self.has_line_of_sight(attacking_pos[0], attacking_pos[1], y, x)
                     if not los_check:
                         message_log.add_message(
@@ -2869,6 +2869,19 @@ class Game:
             # 2. It's the trapper's turn
             # 3. The trapper has not taken any action this turn that would have released the trapped unit
             foreman = unit.trapped_by
+            
+            # Safety check: If foreman is dead, release the trapped unit immediately
+            if not foreman.is_alive():
+                logger.info(f"Dead foreman {foreman.get_display_name()} still trapping {unit.get_display_name()}, releasing now")
+                unit.trapped_by = None
+                unit.trap_duration = 0
+                message_log.add_message(
+                    f"{unit.get_display_name()} is released from mechanical jaws!",
+                    MessageType.ABILITY,
+                    target_name=unit.get_display_name()
+                )
+                continue
+            
             if (foreman.is_alive() and 
                 foreman.player == self.current_player and
                 not foreman.took_action):

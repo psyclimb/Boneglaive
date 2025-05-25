@@ -303,30 +303,39 @@ class MarketFuturesSkill(ActiveSkill):
             player=ally.player
         )
         
-        # Always apply the investment effect regardless of cosmic value
-        message_log.add_message(
-            f"Market Futures grants {ally.get_display_name()} a maturing investment effect!",
-            MessageType.ABILITY,
-            player=ally.player
-        )
-        
-        # Apply initial investment bonuses
-        ally.attack_bonus += 1      # Will mature over time
-        ally.attack_range_bonus += 1  # Flat bonus, doesn't mature
-        
-        # Set up investment maturation tracking
-        ally.market_futures_bonus_applied = True
-        ally.market_futures_duration = 3  # 3 turns duration
-        ally.market_futures_maturity = 1  # Starts at maturity level 1
-        
-        # Add currency status icon indicator
-        ally.has_investment_effect = True
-        
-        message_log.add_message(
-            f"The investment starts at +1 ATK and will mature over three turns.",
-            MessageType.ABILITY,
-            player=ally.player
-        )
+        # Apply investment effect if not immune to status effects
+        if ally.is_immune_to_effects():
+            # Log immunity message
+            message_log.add_message(
+                f"{ally.get_display_name()} is immune to investment effects due to Stasiality!",
+                MessageType.ABILITY,
+                player=ally.player
+            )
+        else:
+            # Always apply the investment effect regardless of cosmic value
+            message_log.add_message(
+                f"Market Futures grants {ally.get_display_name()} a maturing investment effect!",
+                MessageType.ABILITY,
+                player=ally.player
+            )
+            
+            # Apply initial investment bonuses
+            ally.attack_bonus += 1      # Will mature over time
+            ally.attack_range_bonus += 1  # Flat bonus, doesn't mature
+            
+            # Set up investment maturation tracking
+            ally.market_futures_bonus_applied = True
+            ally.market_futures_duration = 3  # 3 turns duration
+            ally.market_futures_maturity = 1  # Starts at maturity level 1
+            
+            # Add currency status icon indicator
+            ally.has_investment_effect = True
+            
+            message_log.add_message(
+                f"The investment starts at +1 ATK and will mature over three turns.",
+                MessageType.ABILITY,
+                player=ally.player
+            )
             
         # Play teleport animation
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
