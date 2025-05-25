@@ -790,6 +790,25 @@ class DivineDrepreciationSkill(ActiveSkill):
                 target_player=unit.player
             )
 
+            # Show damage number if UI is available
+            if ui and hasattr(ui, 'renderer') and actual_damage > 0:
+                damage_text = f"-{actual_damage}"
+                
+                # Make damage text more prominent with flashing effect (like FOWL_CONTRIVANCE)
+                for i in range(3):
+                    # First clear the area
+                    ui.renderer.draw_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
+                    # Draw with alternating bold/normal for a flashing effect
+                    attrs = curses.A_BOLD if i % 2 == 0 else 0
+                    ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, attrs)  # White color
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.1)
+                
+                # Final damage display (stays on screen slightly longer)
+                ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
+                ui.renderer.refresh()
+                sleep_with_animation_speed(0.3)  # Match the 0.3s delay used in FOWL_CONTRIVANCE
+
             # Calculate pull effect (move toward center)
             start_pos = (unit.y, unit.x)
             target_center = target_pos

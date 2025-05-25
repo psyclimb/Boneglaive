@@ -771,6 +771,25 @@ class BoneTitheSkill(ActiveSkill):
                 user.max_hp += hp_gained
                 user.hp += hp_gained
                 
+                # Show healing number if UI is available
+                if ui and hasattr(ui, 'renderer') and hp_gained > 0:
+                    healing_text = f"+{hp_gained}"
+                    
+                    # Make healing text prominent with flashing effect (green color)
+                    for i in range(3):
+                        # First clear the area
+                        ui.renderer.draw_text(user.y-1, user.x*2, " " * len(healing_text), 7)
+                        # Draw with alternating bold/normal for a flashing effect
+                        attrs = curses.A_BOLD if i % 2 == 0 else 0
+                        ui.renderer.draw_text(user.y-1, user.x*2, healing_text, 3, attrs)  # Green color
+                        ui.renderer.refresh()
+                        sleep_with_animation_speed(0.1)
+                    
+                    # Final healing display (stays on screen slightly longer)
+                    ui.renderer.draw_text(user.y-1, user.x*2, healing_text, 3, curses.A_BOLD)
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.3)
+                
                 message_log.add_message(
                     f"{user.get_display_name()} compacts bone marrow into himself, gaining {hp_gained} max HP!",
                     MessageType.ABILITY,
