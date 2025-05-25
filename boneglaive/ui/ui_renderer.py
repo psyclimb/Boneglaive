@@ -1034,63 +1034,81 @@ class UIRenderer:
             
             # Draw status effects on a new line
             status_line = info_line + 1
-            status_effects = []
+            positive_effects = []
+            negative_effects = []
             
-            # Duration-based effects (with countdown)
+            # Duration-based effects (categorized as positive or negative)
             if hasattr(unit, 'shrapnel_duration') and unit.shrapnel_duration > 0:
-                status_effects.append(f"Shrapnel({unit.shrapnel_duration})")
+                negative_effects.append(f"Shrapnel({unit.shrapnel_duration})")
             if hasattr(unit, 'auction_curse_dot') and unit.auction_curse_dot:
                 duration = getattr(unit, 'auction_curse_dot_duration', '?')
-                status_effects.append(f"Auction Curse({duration})")
+                negative_effects.append(f"Auction Curse({duration})")
             if hasattr(unit, 'echo_duration') and unit.echo_duration > 0:
-                status_effects.append(f"Echo({unit.echo_duration})")
+                positive_effects.append(f"Echo({unit.echo_duration})")
             if hasattr(unit, 'vapor_duration') and unit.vapor_duration > 0 and unit.type == UnitType.HEINOUS_VAPOR:
                 vapor_type = getattr(unit, 'vapor_type', 'Vapor')
-                status_effects.append(f"{vapor_type}({unit.vapor_duration})")
+                positive_effects.append(f"{vapor_type}({unit.vapor_duration})")
             if hasattr(unit, 'slough_def_duration') and unit.slough_def_duration > 0:
-                status_effects.append(f"Slough Defense({unit.slough_def_duration})")
+                positive_effects.append(f"Slough Defense({unit.slough_def_duration})")
             
-            # Boolean status effects (no duration)
+            # Boolean status effects (categorized as positive or negative)
             if hasattr(unit, 'jawline_affected') and unit.jawline_affected:
                 # Check if it has duration, otherwise just show boolean
                 if hasattr(unit, 'jawline_duration') and unit.jawline_duration > 0:
-                    status_effects.append(f"Jawline({unit.jawline_duration})")
+                    negative_effects.append(f"Jawline({unit.jawline_duration})")
                 else:
-                    status_effects.append("Jawline")
+                    negative_effects.append("Jawline")
             if hasattr(unit, 'estranged') and unit.estranged:
-                status_effects.append("Estranged")
+                negative_effects.append("Estranged")
             if hasattr(unit, 'has_investment_effect') and unit.has_investment_effect:
-                status_effects.append("Investment")
+                positive_effects.append("Investment")
             if hasattr(unit, 'charging_status') and unit.charging_status:
-                status_effects.append("Charging")
+                positive_effects.append("Charging")
             if hasattr(unit, 'ossify_active') and unit.ossify_active:
-                status_effects.append("Ossify")
+                positive_effects.append("Ossify")
             if hasattr(unit, 'status_site_inspection') and unit.status_site_inspection:
-                status_effects.append("Site Inspection")
+                positive_effects.append("Site Inspection")
             if hasattr(unit, 'first_turn_move_bonus') and unit.first_turn_move_bonus:
-                status_effects.append("First Turn Bonus")
+                positive_effects.append("First Turn Bonus")
             if hasattr(unit, 'is_echo') and unit.is_echo and not (hasattr(unit, 'echo_duration') and unit.echo_duration > 0):
                 # Only show if not already shown with duration
-                status_effects.append("Echo")
+                positive_effects.append("Echo")
             if hasattr(unit, 'is_invulnerable') and unit.is_invulnerable:
-                status_effects.append("Invulnerable")
+                positive_effects.append("Invulnerable")
             if hasattr(unit, 'diverge_return_position') and unit.diverge_return_position:
-                status_effects.append("Diverge Return")
+                positive_effects.append("Diverge Return")
             
-            # Movement/action penalties and traps
+            # Movement/action penalties and traps (negative)
             if hasattr(unit, 'was_pried') and unit.was_pried and unit.move_range_bonus < 0:
-                status_effects.append("Pried")
+                negative_effects.append("Pried")
             if hasattr(unit, 'trapped_by') and unit.trapped_by is not None:
                 # Check if it has duration, otherwise just show boolean
                 if hasattr(unit, 'trap_duration') and unit.trap_duration > 0:
-                    status_effects.append(f"Trapped({unit.trap_duration})")
+                    negative_effects.append(f"Trapped({unit.trap_duration})")
                 else:
-                    status_effects.append("Trapped")
+                    negative_effects.append("Trapped")
             
             # Display status effects if any exist
-            if status_effects:
-                status_text = "Status: " + ", ".join(status_effects)
-                self.renderer.draw_text(status_line, 2, status_text, 6)  # Red color for status effects
+            if positive_effects or negative_effects:
+                # Start with "Status: " label
+                self.renderer.draw_text(status_line, 2, "Status: ", 7)  # White for label
+                current_pos = 2 + len("Status: ")
+                
+                # Draw positive effects in green
+                if positive_effects:
+                    positive_text = ", ".join(positive_effects)
+                    self.renderer.draw_text(status_line, current_pos, positive_text, 3)  # Green color (COLOR_GREEN on COLOR_BLACK)
+                    current_pos += len(positive_text)
+                    
+                    # Add separator if both positive and negative exist
+                    if negative_effects:
+                        self.renderer.draw_text(status_line, current_pos, ", ", 1)  # White separator
+                        current_pos += 2
+                
+                # Draw negative effects in red
+                if negative_effects:
+                    negative_text = ", ".join(negative_effects)
+                    self.renderer.draw_text(status_line, current_pos, negative_text, 20)  # Red color (COLOR_RED on COLOR_BLACK)
         
         # Draw message with better visibility
         msg_line = HEIGHT+4  # Moved down by 1 to make room for status line
