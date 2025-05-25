@@ -1432,7 +1432,7 @@ class Game:
         Decrements durations and removes expired status effects.
         Also applies movement penalties for units inside reinforced Marrow Dikes.
         Also handles Market Futures investment maturation.
-        Also regenerates 1 HP for units that took no actions during their turn.
+        Note: Health regeneration is handled separately after all actions are processed.
         """
         from boneglaive.utils.message_log import message_log, MessageType
         
@@ -1656,77 +1656,31 @@ class Game:
                         MessageType.ABILITY,
                         player=unit.player
                     )
-            
-            # Process health regeneration for units that took no actions
-            if (hasattr(unit, 'took_no_actions') and unit.took_no_actions and 
-                unit.hp < unit.max_hp):
-                
-                # Check if any enemy units are adjacent to this unit
-                has_adjacent_enemy = False
-                for dy in [-1, 0, 1]:
-                    for dx in [-1, 0, 1]:
-                        # Skip the center position (the unit itself)
-                        if dy == 0 and dx == 0:
-                            continue
-                            
-                        # Check adjacent position
-                        adjacent_y, adjacent_x = unit.y + dy, unit.x + dx
-                        if self.is_valid_position(adjacent_y, adjacent_x):
-                            adjacent_unit = self.get_unit_at(adjacent_y, adjacent_x)
-                            if adjacent_unit and adjacent_unit.is_alive() and adjacent_unit.player != unit.player:
-                                has_adjacent_enemy = True
-                                break
-                    if has_adjacent_enemy:
-                        break
-                
-                # Only regenerate if no adjacent enemies and not cursed
-                if not has_adjacent_enemy:
-                    # Check if unit is cursed by Auction Curse (healing prevention)
-                    if hasattr(unit, 'auction_curse_no_heal') and unit.auction_curse_no_heal:
-                        logger.debug(f"{unit.get_display_name()} cannot regenerate due to Auction Curse")
+
+            # Process Valuation Oracle buff
+            if hasattr(unit, 'valuation_oracle_buff') and unit.valuation_oracle_buff:
+                if hasattr(unit, 'valuation_oracle_duration') and unit.valuation_oracle_duration > 0:
+                    # Decrement duration
+                    unit.valuation_oracle_duration -= 1
+                    logger.debug(f"{unit.get_display_name()}'s Valuation Oracle buff duration: {unit.valuation_oracle_duration}")
+                    
+                    # Check if the buff has expired
+                    if unit.valuation_oracle_duration <= 0:
+                        # Remove the buff
+                        unit.valuation_oracle_buff = False
+                        
+                        # Remove bonuses
+                        unit.defense_bonus = 0
+                        unit.attack_range_bonus = 0
+                        
+                        # Log the expiration
                         message_log.add_message(
-                            f"{unit.get_display_name()}'s healing is prevented by the curse.",
+                            f"{unit.get_display_name()}'s connection to the cosmic value fades.",
                             MessageType.ABILITY,
                             player=unit.player
                         )
-                    else:
-                        # Regenerate 1 HP
-                        unit.hp += 1
-                        logger.debug(f"{unit.get_display_name()} regenerated 1 HP from resting")
-                        
-                        # Show healing number if UI is available
-                        ui = getattr(self, 'ui', None)
-                        if ui and hasattr(ui, 'renderer'):
-                            healing_text = f"+1"
-                            
-                            # Make healing text prominent with flashing effect (green color)
-                            for i in range(3):
-                                # First clear the area
-                                ui.renderer.draw_text(unit.y-1, unit.x*2, " " * len(healing_text), 7)
-                                # Draw with alternating bold/normal for a flashing effect
-                                attrs = curses.A_BOLD if i % 2 == 0 else 0
-                                ui.renderer.draw_text(unit.y-1, unit.x*2, healing_text, 3, attrs)  # Green color
-                                ui.renderer.refresh()
-                                sleep_with_animation_speed(0.1)
-                            
-                            # Final healing display (stays on screen slightly longer)
-                            ui.renderer.draw_text(unit.y-1, unit.x*2, healing_text, 3, curses.A_BOLD)
-                            ui.renderer.refresh()
-                            sleep_with_animation_speed(0.3)
-                        
-                        # Log the regeneration using proper format for healing messages
-                        # "healing for X HP" format ensures the number appears in white
-                        message_log.add_message(
-                            f"{unit.get_display_name()} healing for 1 HP from resting.",
-                            MessageType.ABILITY,  # Using ABILITY type for player coloring
-                            player=unit.player
-                        )
-                else:
-                    # Log that unit couldn't rest due to enemies nearby
-                    logger.debug(f"{unit.get_display_name()} couldn't rest due to nearby enemies")
-                
-                # Reset the flag for the next turn
-                unit.took_no_actions = False
+            
+            # Health regeneration is now processed after all actions are complete
     
     @measure_perf
     def execute_turn(self, ui=None):
@@ -1734,6 +1688,7 @@ class Game:
         import time
         import curses
         from boneglaive.utils.message_log import message_log, MessageType
+        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
         
         # Store UI reference for animations if provided
         if ui:
@@ -2680,6 +2635,78 @@ class Game:
             time.sleep(0.3)
             ui.draw_board(show_cursor=True, show_selection=True, show_attack_targets=True)  # Restore all UI elements
         
+        # Process health regeneration for units that took no actions this turn
+        # This must happen BEFORE player switching so flags are accurate
+        if not self.winner:
+            
+            for unit in self.units:
+                if (unit.is_alive() and unit.player == self.current_player and
+                    hasattr(unit, 'took_no_actions') and unit.took_no_actions and 
+                    unit.hp < unit.max_hp):
+                    
+                    # Check if any enemy units are adjacent to this unit
+                    has_adjacent_enemy = False
+                    for dy in [-1, 0, 1]:
+                        for dx in [-1, 0, 1]:
+                            # Skip the center position (the unit itself)
+                            if dy == 0 and dx == 0:
+                                continue
+                                
+                            # Check adjacent position
+                            adjacent_y, adjacent_x = unit.y + dy, unit.x + dx
+                            if self.is_valid_position(adjacent_y, adjacent_x):
+                                adjacent_unit = self.get_unit_at(adjacent_y, adjacent_x)
+                                if adjacent_unit and adjacent_unit.is_alive() and adjacent_unit.player != unit.player:
+                                    has_adjacent_enemy = True
+                                    break
+                        if has_adjacent_enemy:
+                            break
+                    
+                    # Only regenerate if no adjacent enemies and not cursed
+                    if not has_adjacent_enemy:
+                        # Check if unit is cursed by Auction Curse (healing prevention)
+                        if hasattr(unit, 'auction_curse_no_heal') and unit.auction_curse_no_heal:
+                            logger.debug(f"{unit.get_display_name()} cannot regenerate due to Auction Curse")
+                            message_log.add_message(
+                                f"{unit.get_display_name()}'s healing is prevented by the curse.",
+                                MessageType.ABILITY,
+                                player=unit.player
+                            )
+                        else:
+                            # Regenerate 1 HP
+                            unit.hp += 1
+                            logger.debug(f"{unit.get_display_name()} regenerated 1 HP from resting")
+                            
+                            # Show healing number if UI is available
+                            if ui and hasattr(ui, 'renderer'):
+                                healing_text = f"+1"
+                                
+                                # Make healing text prominent with flashing effect (green color)
+                                for i in range(3):
+                                    # First clear the area
+                                    ui.renderer.draw_text(unit.y-1, unit.x*2, " " * len(healing_text), 7)
+                                    # Draw with alternating bold/normal for a flashing effect
+                                    attrs = curses.A_BOLD if i % 2 == 0 else 0
+                                    ui.renderer.draw_text(unit.y-1, unit.x*2, healing_text, 3, attrs)  # Green color
+                                    ui.renderer.refresh()
+                                    sleep_with_animation_speed(0.1)
+                                
+                                # Final healing display (stays on screen slightly longer)
+                                ui.renderer.draw_text(unit.y-1, unit.x*2, healing_text, 3, curses.A_BOLD)
+                                ui.renderer.refresh()
+                                sleep_with_animation_speed(0.3)
+                            
+                            # Log the regeneration using proper format for healing messages
+                            # "healing for X HP" format ensures the number appears in white
+                            message_log.add_message(
+                                f"{unit.get_display_name()} healing for 1 HP from resting.",
+                                MessageType.ABILITY,  # Using ABILITY type for player coloring
+                                player=unit.player
+                            )
+                    else:
+                        # Log that unit couldn't rest due to enemies nearby
+                        logger.debug(f"{unit.get_display_name()} couldn't rest due to nearby enemies")
+
         # Before changing players, reset movement penalties for units of the player
         # whose turn is ENDING (not starting). This way penalties last through their entire next turn.
         if not self.winner:
