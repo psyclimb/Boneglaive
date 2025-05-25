@@ -1678,19 +1678,28 @@ class Game:
                     if has_adjacent_enemy:
                         break
                 
-                # Only regenerate if no adjacent enemies
+                # Only regenerate if no adjacent enemies and not cursed
                 if not has_adjacent_enemy:
-                    # Regenerate 1 HP
-                    unit.hp += 1
-                    logger.debug(f"{unit.get_display_name()} regenerated 1 HP from resting")
-                    
-                    # Log the regeneration using proper format for healing messages
-                    # "healing for X HP" format ensures the number appears in white
-                    message_log.add_message(
-                        f"{unit.get_display_name()} healing for 1 HP from resting.",
-                        MessageType.ABILITY,  # Using ABILITY type for player coloring
-                        player=unit.player
-                    )
+                    # Check if unit is cursed by Auction Curse (healing prevention)
+                    if hasattr(unit, 'auction_curse_no_heal') and unit.auction_curse_no_heal:
+                        logger.debug(f"{unit.get_display_name()} cannot regenerate due to Auction Curse")
+                        message_log.add_message(
+                            f"{unit.get_display_name()}'s healing is prevented by the curse.",
+                            MessageType.ABILITY,
+                            player=unit.player
+                        )
+                    else:
+                        # Regenerate 1 HP
+                        unit.hp += 1
+                        logger.debug(f"{unit.get_display_name()} regenerated 1 HP from resting")
+                        
+                        # Log the regeneration using proper format for healing messages
+                        # "healing for X HP" format ensures the number appears in white
+                        message_log.add_message(
+                            f"{unit.get_display_name()} healing for 1 HP from resting.",
+                            MessageType.ABILITY,  # Using ABILITY type for player coloring
+                            player=unit.player
+                        )
                 else:
                     # Log that unit couldn't rest due to enemies nearby
                     logger.debug(f"{unit.get_display_name()} couldn't rest due to nearby enemies")
@@ -2229,6 +2238,61 @@ class Game:
                     target_player=unit.player
                 )
                 
+                # Inflate cosmic values of furniture within 2 tiles of cursed unit
+                furniture_inflated = 0
+                for dy in range(-2, 3):  # -2 to +2
+                    for dx in range(-2, 3):  # -2 to +2
+                        check_y = unit.y + dy
+                        check_x = unit.x + dx
+                        
+                        # Skip if out of bounds
+                        if not self.is_valid_position(check_y, check_x):
+                            continue
+                        
+                        # Check if this position has furniture
+                        if self.map.is_furniture(check_y, check_x):
+                            # Get current cosmic value (defaulting to 1 if none exists)
+                            current_value = self.map.cosmic_values.get((check_y, check_x), 1)
+                            # Increase by 1
+                            self.map.cosmic_values[(check_y, check_x)] = current_value + 1
+                            furniture_inflated += 1
+                
+                # Log furniture value inflation if any occurred
+                if furniture_inflated > 0:
+                    message_log.add_message(
+                        f"Auction Curse inflates {furniture_inflated} furniture cosmic values near {unit.get_display_name()}!",
+                        MessageType.ABILITY,
+                        player=caster_player
+                    )
+                
+                # Heal caster's allies within 2 tiles of cursed unit by 1 HP
+                allies_healed = 0
+                for dy in range(-2, 3):  # -2 to +2
+                    for dx in range(-2, 3):  # -2 to +2
+                        heal_y = unit.y + dy
+                        heal_x = unit.x + dx
+                        
+                        # Skip if out of bounds
+                        if not self.is_valid_position(heal_y, heal_x):
+                            continue
+                        
+                        # Check if there's a caster's ally at this position
+                        ally_unit = self.get_unit_at(heal_y, heal_x)
+                        if (ally_unit and ally_unit.is_alive() and 
+                            ally_unit.player == caster_player and ally_unit.hp < ally_unit.max_hp):
+                            # Heal ally by 1 HP
+                            ally_unit.hp += 1
+                            allies_healed += 1
+                            logger.debug(f"Auction Curse healed ally {ally_unit.get_display_name()} by 1 HP")
+                
+                # Log ally healing if any occurred
+                if allies_healed > 0:
+                    message_log.add_message(
+                        f"Auction Curse's twisted energy heals {allies_healed} allied units near {unit.get_display_name()}!",
+                        MessageType.ABILITY,
+                        player=caster_player
+                    )
+                
                 # Decrement the duration
                 unit.auction_curse_dot_duration -= 1
                 logger.debug(f"{unit.get_display_name()}'s Auction Curse DOT duration: {unit.auction_curse_dot_duration}")
@@ -2246,6 +2310,10 @@ class Game:
                 if unit.auction_curse_dot_duration <= 0:
                     # Remove the DOT effect
                     unit.auction_curse_dot = False
+                    
+                    # Remove healing prevention flag
+                    if hasattr(unit, 'auction_curse_no_heal'):
+                        unit.auction_curse_no_heal = False
                     
                     # Log the expiration - use attacker_name for consistent display
                     message_log.add_message(

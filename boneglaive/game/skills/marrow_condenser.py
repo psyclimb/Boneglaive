@@ -760,14 +760,22 @@ class BoneTitheSkill(ActiveSkill):
         
         # Apply HP gain to user based on number of enemies hit
         if hp_gained > 0:
-            user.max_hp += hp_gained
-            user.hp += hp_gained
-            
-            message_log.add_message(
-                f"{user.get_display_name()} compacts bone marrow into himself, gaining {hp_gained} max HP!",
-                MessageType.ABILITY,
-                player=user.player
-            )
+            # Check if user is cursed by Auction Curse (healing prevention)
+            if hasattr(user, 'auction_curse_no_heal') and user.auction_curse_no_heal:
+                message_log.add_message(
+                    f"{user.get_display_name()}'s bone marrow gain is prevented by the curse.",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
+            else:
+                user.max_hp += hp_gained
+                user.hp += hp_gained
+                
+                message_log.add_message(
+                    f"{user.get_display_name()} compacts bone marrow into himself, gaining {hp_gained} max HP!",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
         
         # No ally buff messaging needed with the new upgrade
         

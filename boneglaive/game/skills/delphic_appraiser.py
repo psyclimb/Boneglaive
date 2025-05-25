@@ -363,16 +363,20 @@ class MarketFuturesSkill(ActiveSkill):
 class AuctionCurseSkill(ActiveSkill):
     """
     Active skill for DELPHIC_APPRAISER.
-    Subjects an enemy to a cosmic auction that reduces their stats and awards tokens to an ally.
+    Forces enemy into unwilling appraisal that inflates surrounding furniture values while draining their life.
     """
 
     def __init__(self):
         super().__init__(
             name="Auction Curse",
-            key="A",
-            description="Subjects an enemy to a cosmic auction that applies a damage-over-time effect (1 damage per turn). Duration equals the average cosmic value of nearby furniture. Awards 1 bid token per piece of furniture to a selected ally.",
+            key="A", 
+            description=("Curse target enemy with a twisted auction. Each turn, they take "
+                        "damage equal to total cosmic value of furniture within 2 tiles. "
+                        "Each damage tick inflates cosmic values of nearby furniture by +1, "
+                        "prevents all healing for the cursed unit, and heals allied units "
+                        "within 2 tiles by 1 HP with twisted energy."),
             target_type=TargetType.ENEMY,
-            cooldown=2,  # Cooldown of 2 turns as specified
+            cooldown=2,
             range_=3
         )
 
@@ -407,62 +411,13 @@ class AuctionCurseSkill(ActiveSkill):
         return True
 
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
-        """Queue up the Auction Curse skill for execution."""
+        """Use the Auction Curse skill directly on target enemy."""
         if not self.can_use(user, target_pos, game):
             return False
 
-        # Store enemy target position
-        user.enemy_target = target_pos
-
-        # Set the auction curse enemy indicator to show the target
-        user.auction_curse_enemy_indicator = target_pos
-
-        # Set a flag indicating we need to select an ally next
-        user.awaiting_ally_target = True
-
-        # Log that the skill has been queued and needs an ally target
-        message_log.add_message(
-            f"{user.get_display_name()} prepares to cast Auction Curse! Select an ally to receive tokens.",
-            MessageType.ABILITY,
-            player=user.player
-        )
-
-        return True
-
-    def set_ally_target(self, user: 'Unit', ally_pos: tuple, game: 'Game') -> bool:
-        """Set the ally target for the auction curse."""
-        # Validate ally target
-        if not game.is_valid_position(ally_pos[0], ally_pos[1]):
-            return False
-
-        # Check if target is a valid ally
-        ally = game.get_unit_at(ally_pos[0], ally_pos[1])
-        if not ally or ally.player != user.player:
-            return False
-
-        # If the unit has a move_target, use that position for range calculation
-        if user.move_target:
-            source_y, source_x = user.move_target
-        else:
-            source_y, source_x = user.y, user.x
-
-        # Check if ally is within range 3 of current or planned position
-        distance = game.chess_distance(source_y, source_x, ally_pos[0], ally_pos[1])
-        if distance > 3:
-            return False
-
-        # Set the skill target to the enemy target we saved earlier
-        user.skill_target = user.enemy_target
+        # Set the skill target directly
+        user.skill_target = target_pos
         user.selected_skill = self
-
-        # Store the ally target for use during execution
-        user.ally_target = ally_pos
-
-        # Set the auction curse ally indicator to show the target
-        user.auction_curse_ally_indicator = ally_pos
-
-        # Reset the awaiting flag
-        user.awaiting_ally_target = False
 
         # Track action order
         user.action_timestamp = game.action_counter
@@ -471,9 +426,9 @@ class AuctionCurseSkill(ActiveSkill):
         # Set cooldown
         self.current_cooldown = self.cooldown
 
-        # Log that both targets have been selected
+        # Log that the skill is ready to execute
         message_log.add_message(
-            f"{user.get_display_name()} will curse an enemy and empower {ally.get_display_name()}!",
+            f"{user.get_display_name()} prepares to cast Auction Curse!",
             MessageType.ABILITY,
             player=user.player
         )
@@ -481,23 +436,10 @@ class AuctionCurseSkill(ActiveSkill):
         return True
 
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
-        """Execute the Auction Curse skill on an enemy and apply tokens to the selected ally."""
-        # Clear the auction curse indicators when skill is executed
-        user.auction_curse_enemy_indicator = None
-        user.auction_curse_ally_indicator = None
-
+        """Execute the Auction Curse skill on target enemy."""
         # Get the target unit (enemy)
         target_unit = game.get_unit_at(target_pos[0], target_pos[1])
         if not target_unit:
-            return False
-
-        # Get the ally unit
-        if not hasattr(user, 'ally_target'):
-            return False
-
-        ally_pos = user.ally_target
-        ally = game.get_unit_at(ally_pos[0], ally_pos[1])
-        if not ally or ally.player != user.player:
             return False
 
         # Find nearby furniture and their cosmic values
@@ -530,9 +472,6 @@ class AuctionCurseSkill(ActiveSkill):
                 # Ensure average value is within valid range
                 average_value = max(1, min(9, average_value))
 
-        # Calculate bid tokens - 1 token per piece of furniture
-        bid_tokens = len(nearby_furniture)
-
         # Apply DOT effect to the target enemy, if they're not immune
         dot_duration = average_value  # Duration equals the average value
 
@@ -557,10 +496,11 @@ class AuctionCurseSkill(ActiveSkill):
                 # Set up the DOT effect
                 target_unit.auction_curse_dot = True
                 target_unit.auction_curse_dot_duration = dot_duration
+                target_unit.auction_curse_no_heal = True  # Prevent all healing
                 
                 # Log the DOT application
                 message_log.add_message(
-                    f"Average cosmic value {average_value} applies a curse dealing 1 damage per turn for {dot_duration} turns!",
+                    f"Auction Curse applied! {target_unit.get_display_name()} will take 1 damage per turn for {dot_duration} turns!",
                     MessageType.ABILITY,
                     player=user.player
                 )
@@ -650,74 +590,14 @@ class AuctionCurseSkill(ActiveSkill):
                                 terrain_char = '.'
                         ui.renderer.draw_tile(point.y, point.x, terrain_char, 0)
 
-                # Final token collection animation at the appraiser
-                token_collection = ['$', '+', '*']
+                # Final curse completion animation at the appraiser
+                curse_completion = ['*', '!', '*']
                 ui.renderer.animate_attack_sequence(
                     user.y, user.x,
-                    token_collection,
-                    3,  # Green color for successfully collected tokens
-                    0.1  # Duration
+                    curse_completion,
+                    1,  # Red color for curse completion
+                    0.15  # Duration
                 )
-
-        # Apply healing to the ally based on bid tokens
-        # Calculate healing amount (2 HP per token)
-        healing_amount = bid_tokens * 2
-
-        # Apply healing (healing is not affected by Stasiality)
-        if healing_amount > 0:
-            # Store old HP for message
-            old_hp = ally.hp
-
-            # Apply healing
-            ally.hp = min(ally.hp + healing_amount, ally.max_hp)
-
-            # Calculate actual healing (to account for max HP cap)
-            actual_healing = ally.hp - old_hp
-
-            # Log healing and tokens message
-            message_log.add_message(
-                f"{user.get_display_name()} awards {bid_tokens} bid tokens to {ally.get_display_name()}!",
-                MessageType.ABILITY,
-                player=user.player
-            )
-            
-            message_log.add_message(
-                f"{ally.get_display_name()} is healed for {actual_healing} HP by the bid tokens!",
-                MessageType.ABILITY,
-                player=user.player
-            )
-
-        # Play token award animation from appraiser to ally
-        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager') and bid_tokens > 0:
-
-            # Get token award animation - glowing tokens transferring to ally
-            token_animation = ui.asset_manager.get_skill_animation_sequence('bid_token')
-            if not token_animation:
-                token_animation = ['$', '*', '+', '¢', '£', '€', 'A']
-
-            # Show animation from user to ally
-            if hasattr(ui.renderer, 'animate_path'):
-                ui.renderer.animate_path(
-                    user.y, user.x,
-                    ally.y, ally.x,
-                    token_animation,
-                    2,  # Green color
-                    0.1  # Duration
-                )
-            else:
-                # Fallback to basic animation if animate_path not available
-                ui.renderer.animate_attack_sequence(
-                    ally.y, ally.x,
-                    token_animation,
-                    2,  # Green color
-                    0.2  # Duration
-                )
-
-        # Clean up temp attributes
-        if hasattr(user, 'enemy_target'):
-            delattr(user, 'enemy_target')
-        if hasattr(user, 'ally_target'):
-            delattr(user, 'ally_target')
 
         return True
 
