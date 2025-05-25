@@ -206,6 +206,11 @@ class MultiplayerManager:
         if player2_units:
             # Apply the buff to each unit
             for unit in player2_units:
+                # Check if unit is immune to status effects (GRAYMAN with Stasiality)
+                if unit.is_immune_to_effects():
+                    logger.debug(f"{unit.get_display_name()} is immune to first turn bonus due to Stasiality")
+                    continue
+                
                 # Add the move bonus (+1)
                 unit.move_range_bonus += 1
                 # Add a flag to show the status effect icon

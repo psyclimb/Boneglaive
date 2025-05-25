@@ -558,8 +558,8 @@ class BigArcSkill(ActiveSkill):
         for pos_y, pos_x, is_primary in affected_positions:
             unit = game.get_unit_at(pos_y, pos_x)
             
-            # Damage all units in area
-            if unit and unit.is_alive():
+            # Damage enemy units in area (no friendly fire)
+            if unit and unit.is_alive() and unit.player != user.player:
                 # Calculate damage based on position and unit's defense
                 base_damage = self.primary_damage if is_primary else self.secondary_damage
                 effective_defense = unit.get_effective_stats()['defense']
@@ -825,19 +825,27 @@ class FragcrestSkill(ActiveSkill):
                     target_player=unit.player
                 )
                 
-                # Apply shrapnel effect (ongoing damage)
-                if not hasattr(unit, 'shrapnel_duration'):
-                    unit.shrapnel_duration = 0
-                previous_shrapnel = unit.shrapnel_duration
-                unit.shrapnel_duration = max(unit.shrapnel_duration, self.shrapnel_duration)
-                
-                # Log shrapnel embedding if it's a new effect or extended
-                if unit.shrapnel_duration > previous_shrapnel:
+                # Apply shrapnel effect (ongoing damage) if not immune
+                if unit.is_immune_to_effects():
+                    # Log immunity message
                     message_log.add_message(
-                        f"Shrapnel embeds in {unit.get_display_name()} for {unit.shrapnel_duration} turns!",
+                        f"{unit.get_display_name()} is immune to shrapnel due to Stasiality!",
                         MessageType.ABILITY,
-                        player=user.player
+                        player=unit.player
                     )
+                else:
+                    if not hasattr(unit, 'shrapnel_duration'):
+                        unit.shrapnel_duration = 0
+                    previous_shrapnel = unit.shrapnel_duration
+                    unit.shrapnel_duration = max(unit.shrapnel_duration, self.shrapnel_duration)
+                    
+                    # Log shrapnel embedding if it's a new effect or extended
+                    if unit.shrapnel_duration > previous_shrapnel:
+                        message_log.add_message(
+                            f"Shrapnel embeds in {unit.get_display_name()} for {unit.shrapnel_duration} turns!",
+                            MessageType.ABILITY,
+                            player=user.player
+                        )
                 
                 # Calculate knockback
                 self._apply_knockback(user, unit, game)
