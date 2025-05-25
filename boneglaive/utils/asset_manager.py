@@ -141,6 +141,12 @@ class AssetManager:
             'big_arc_impact': ['*', '#', '@', '%', '~', '.'],  # Explosions and smoke
             'fragcrest_burst': ['.', ':', '*', '+', '#', 'x'],  # Fragmentation spread
             
+            # FOWL CONTRIVANCE enemy impact animations
+            'gaussian_dusk_impact': ['>', '!', '*', '#', '%', '~', '.'],  # Hypersonic projectile impact
+            'big_arc_unit_impact': ['*', '@', '#', '%', '&', '+', '.'],  # Mortar shell impact on unit
+            'fragcrest_unit_impact': ['x', '+', '*', '#', '.'],  # Fragmentation impact on unit
+            'rail_explosion_impact': ['!', '@', '#', '*', '+', '.'],  # Rail network death explosion impact
+            
             # GAS_MACHINIST animations
             'gas_machinist_attack': ['o', 'O', 'o'],  # Gas bubble attack
             'summon_vapor': ['~', 'o', 'O', 'Φ'],  # Generic vapor formation

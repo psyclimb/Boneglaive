@@ -78,8 +78,23 @@ class RailGenesis(PassiveSkill):
                 units_hit += 1
                 total_damage += damage
                 
-                # Show damage number if UI is available (immediate for death explosion)
+                # Show impact animation and damage number (immediate for death explosion)
                 if ui and hasattr(ui, 'renderer'):
+                    # Play impact animation first
+                    if hasattr(ui, 'asset_manager'):
+                        impact_animation = ui.asset_manager.get_skill_animation_sequence('rail_explosion_impact')
+                        if not impact_animation:
+                            impact_animation = ['!', '@', '#', '*', '+', '.']  # Fallback
+                        
+                        # Animate impact at unit position
+                        ui.renderer.animate_attack_sequence(
+                            unit.y, unit.x,
+                            impact_animation,
+                            4,  # Blue color for rail explosion
+                            0.1  # Quick explosion effect
+                        )
+                    
+                    # Then show damage numbers
                     damage_text = f"-{damage}"
                     
                     # Make damage text more prominent with flashing effect
@@ -395,10 +410,25 @@ class GaussianDuskSkill(ActiveSkill):
             if hasattr(ui, 'draw_board'):
                 ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
         
-        # Show damage numbers after animation
+        # Show impact animations and damage numbers after main animation
         if ui and hasattr(ui, 'renderer') and damaged_units:
             for unit, damage in damaged_units:
                 if unit.is_alive():  # Only show for living units
+                    # Play impact animation first
+                    if hasattr(ui, 'asset_manager'):
+                        impact_animation = ui.asset_manager.get_skill_animation_sequence('gaussian_dusk_impact')
+                        if not impact_animation:
+                            impact_animation = ['>', '!', '*', '#', '%', '~', '.']  # Fallback
+                        
+                        # Animate impact at unit position
+                        ui.renderer.animate_attack_sequence(
+                            unit.y, unit.x,
+                            impact_animation,
+                            1,  # Red color for high-energy impact
+                            0.08  # Quick, intense impact
+                        )
+                    
+                    # Then show damage numbers
                     damage_text = f"-{damage}"
                     
                     # Make damage text more prominent with flashing effect
@@ -611,10 +641,25 @@ class BigArcSkill(ActiveSkill):
             if hasattr(ui, 'draw_board'):
                 ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
         
-        # Show damage numbers after animation
+        # Show impact animations and damage numbers after main animation
         if ui and hasattr(ui, 'renderer') and damaged_units:
             for unit, damage in damaged_units:
                 if unit.is_alive():  # Only show for living units
+                    # Play impact animation first
+                    if hasattr(ui, 'asset_manager'):
+                        impact_animation = ui.asset_manager.get_skill_animation_sequence('big_arc_unit_impact')
+                        if not impact_animation:
+                            impact_animation = ['*', '@', '#', '%', '&', '+', '.']  # Fallback
+                        
+                        # Animate impact at unit position
+                        ui.renderer.animate_attack_sequence(
+                            unit.y, unit.x,
+                            impact_animation,
+                            3,  # Yellow color for explosive impact
+                            0.1  # Moderate duration for mortar explosion
+                        )
+                    
+                    # Then show damage numbers
                     damage_text = f"-{damage}"
                     
                     # Make damage text more prominent with flashing effect
@@ -783,7 +828,16 @@ class FragcrestSkill(ActiveSkill):
                 # Apply shrapnel effect (ongoing damage)
                 if not hasattr(unit, 'shrapnel_duration'):
                     unit.shrapnel_duration = 0
+                previous_shrapnel = unit.shrapnel_duration
                 unit.shrapnel_duration = max(unit.shrapnel_duration, self.shrapnel_duration)
+                
+                # Log shrapnel embedding if it's a new effect or extended
+                if unit.shrapnel_duration > previous_shrapnel:
+                    message_log.add_message(
+                        f"Shrapnel embeds in {unit.get_display_name()} for {unit.shrapnel_duration} turns!",
+                        MessageType.ABILITY,
+                        player=user.player
+                    )
                 
                 # Calculate knockback
                 self._apply_knockback(user, unit, game)
@@ -841,10 +895,25 @@ class FragcrestSkill(ActiveSkill):
             if hasattr(ui, 'draw_board'):
                 ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
         
-        # Show damage numbers after animation
+        # Show impact animations and damage numbers after main animation
         if ui and hasattr(ui, 'renderer') and damaged_units:
             for unit, damage in damaged_units:
                 if unit.is_alive():  # Only show for living units
+                    # Play impact animation first
+                    if hasattr(ui, 'asset_manager'):
+                        impact_animation = ui.asset_manager.get_skill_animation_sequence('fragcrest_unit_impact')
+                        if not impact_animation:
+                            impact_animation = ['x', '+', '*', '#', '.']  # Fallback
+                        
+                        # Animate impact at unit position
+                        ui.renderer.animate_attack_sequence(
+                            unit.y, unit.x,
+                            impact_animation,
+                            6,  # Cyan color for fragmentation impact
+                            0.12  # Slightly longer for shrapnel effect
+                        )
+                    
+                    # Then show damage numbers
                     damage_text = f"-{damage}"
                     
                     # Make damage text more prominent with flashing effect
