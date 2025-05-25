@@ -70,21 +70,25 @@ class ValuationOracle(PassiveSkill):
         # Apply bonuses if adjacent to furniture
         if adjacent_to_furniture:
             # If this is the first time applying the bonus this turn, log a message
-            if not hasattr(user, 'valuation_bonus_applied') or not user.valuation_bonus_applied:
+            if not hasattr(user, 'valuation_oracle_buff') or not user.valuation_oracle_buff:
                 message_log.add_message(
                     f"{user.get_display_name()}'s Valuation Oracle senses the cosmic value of nearby furniture!",
                     MessageType.ABILITY,
                     player=user.player
                 )
-                user.valuation_bonus_applied = True
 
+            # Set status effect flag and duration (lasts indefinitely while adjacent)
+            user.valuation_oracle_buff = True
+            user.valuation_oracle_duration = 999  # High value, will be refreshed each turn while adjacent
+            
             # Apply bonuses to defense and attack range using *_bonus attributes
             user.defense_bonus = 1
             user.attack_range_bonus = 1
         else:
-            # Reset the bonus flag if no longer adjacent
-            if hasattr(user, 'valuation_bonus_applied') and user.valuation_bonus_applied:
-                user.valuation_bonus_applied = False
+            # If no longer adjacent, remove the status effect immediately
+            if hasattr(user, 'valuation_oracle_buff') and user.valuation_oracle_buff:
+                user.valuation_oracle_buff = False
+                user.valuation_oracle_duration = 0
                 # Remove bonuses
                 user.defense_bonus = 0
                 user.attack_range_bonus = 0
@@ -331,11 +335,7 @@ class MarketFuturesSkill(ActiveSkill):
             # Add currency status icon indicator
             ally.has_investment_effect = True
             
-            message_log.add_message(
-                f"The investment starts at +1 ATK and will mature over three turns.",
-                MessageType.ABILITY,
-                player=ally.player
-            )
+            # Investment message removed from log
             
         # Play teleport animation
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):

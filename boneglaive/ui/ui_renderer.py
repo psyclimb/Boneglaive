@@ -218,7 +218,7 @@ class UIRenderer:
 
                     # Override if this has a teleport anchor
                     if has_teleport_anchor:
-                        tile = "¤"  # Replace with currency symbol
+                        tile = "¥"  # Replace with yen/yuan symbol
                         color_id = 3  # Yellow color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
 
@@ -229,7 +229,7 @@ class UIRenderer:
 
                     # Override if this has a teleport anchor
                     if has_teleport_anchor:
-                        tile = "¤"  # Replace with currency symbol
+                        tile = "¥"  # Replace with yen/yuan symbol
                         color_id = 3  # Yellow color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
 
@@ -240,7 +240,7 @@ class UIRenderer:
 
                     # Override if this has a teleport anchor
                     if has_teleport_anchor:
-                        tile = "¤"  # Replace with currency symbol
+                        tile = "¥"  # Replace with yen/yuan symbol
                         color_id = 3  # Yellow color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
 
@@ -251,7 +251,7 @@ class UIRenderer:
 
                     # Override if this has a teleport anchor
                     if has_teleport_anchor:
-                        tile = "¤"  # Replace with currency symbol
+                        tile = "¥"  # Replace with yen/yuan symbol
                         color_id = 3  # Yellow color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
 
@@ -262,7 +262,7 @@ class UIRenderer:
 
                     # Override if this has a teleport anchor
                     if has_teleport_anchor:
-                        tile = "¤"  # Replace with currency symbol
+                        tile = "¥"  # Replace with yen/yuan symbol
                         color_id = 3  # Yellow color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
 
@@ -338,7 +338,7 @@ class UIRenderer:
                         # Check if this is a charging FOWL_CONTRIVANCE
                         if unit.type == UnitType.FOWL_CONTRIVANCE and hasattr(unit, 'charging_status') and unit.charging_status:
                             tile = "≡"  # Charging symbol
-                            color_id = 6  # Yellow color for charging
+                            # Keep player color instead of changing to yellow
                         
                         # No special symbol for GRAYMAN skills
                         # (Previously showed | for Græ Exchange, but this was removed)
@@ -464,20 +464,26 @@ class UIRenderer:
                             elif hasattr(unit, 'has_investment_effect') and unit.has_investment_effect:
                                 # Add pound sign symbol to show investment status
                                 enhanced_tile = f"{tile}£"  # Combine unit symbol with pound sign (represents investment)
-                                # Use bright gold/yellow color (3) to indicate investment
-                                self.renderer.draw_tile(y, x, enhanced_tile, 3, curses.A_BOLD)
+                                # Keep player color, add bold to show investment
+                                self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_BOLD)
                             # Check if unit is affected by Auction Curse DOT
                             elif hasattr(unit, 'auction_curse_dot') and unit.auction_curse_dot:
                                 # Add cent sign symbol to show auction curse status
                                 enhanced_tile = f"{tile}¢"  # Combine unit symbol with cent sign (representing cursed money)
-                                # Use red color to indicate negative status effect
-                                self.renderer.draw_tile(y, x, enhanced_tile, 6, curses.A_BOLD)
+                                # Keep player color, add bold to show curse
+                                self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_BOLD)
                             # Check if unit has first-turn move bonus
                             elif hasattr(unit, 'first_turn_move_bonus') and unit.first_turn_move_bonus:
                                 # Add plus symbol to show movement bonus
                                 enhanced_tile = f"{tile}+"  # Combine unit symbol with plus (represents extra movement)
-                                # Use bright green color to indicate positive status effect
-                                self.renderer.draw_tile(y, x, enhanced_tile, 3, curses.A_BOLD)
+                                # Keep player color, add bold to show bonus
+                                self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_BOLD)
+                            # Check if unit has Valuation Oracle buff
+                            elif hasattr(unit, 'valuation_oracle_buff') and unit.valuation_oracle_buff:
+                                # Add generic currency symbol to show valuation buff
+                                enhanced_tile = f"{tile}¤"  # Combine unit symbol with generic currency (represents cosmic value)
+                                # Keep player color, add bold to show buff
+                                self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_BOLD)
                             else:
                                 # Normal unit draw
                                 self.renderer.draw_tile(y, x, tile, color_id)
@@ -1077,6 +1083,8 @@ class UIRenderer:
                 positive_effects.append("Invulnerable")
             if hasattr(unit, 'diverge_return_position') and unit.diverge_return_position:
                 positive_effects.append("Diverge Return")
+            if hasattr(unit, 'valuation_oracle_buff') and unit.valuation_oracle_buff:
+                positive_effects.append("Valuation Oracle")
             
             # Movement/action penalties and traps (negative)
             if hasattr(unit, 'was_pried') and unit.was_pried and unit.move_range_bonus < 0:

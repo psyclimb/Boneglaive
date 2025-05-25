@@ -1823,14 +1823,8 @@ class GameModeManager(UIComponent):
                 self.set_mode("teleport")
                 self.teleport_anchor = None
 
-                # Show user message
-                self.publish_event(
-                    EventType.MESSAGE_DISPLAY_REQUESTED,
-                    MessageDisplayEventData(
-                        message="Select a teleport anchor",
-                        message_type=MessageType.SYSTEM
-                    )
-                )
+                # Show user instruction in UI
+                self.game_ui.message = "Select a teleport anchor"
             else:
                 # Use event system for message
                 self.publish_event(
@@ -2010,14 +2004,8 @@ class GameModeManager(UIComponent):
                         if game.map.is_passable(y, x) and not game.get_unit_at(y, x):
                             cursor_manager.highlighted_positions.append(Position(y, x))
 
-            # Show message to select destination
-            self.publish_event(
-                EventType.MESSAGE_DISPLAY_REQUESTED,
-                MessageDisplayEventData(
-                    message=f"Select teleport destination (range {cosmic_value})",
-                    message_type=MessageType.SYSTEM
-                )
-            )
+            # Show instruction in UI
+            self.game_ui.message = f"Select teleport destination (range {cosmic_value})"
 
             return True
 
@@ -2028,13 +2016,8 @@ class GameModeManager(UIComponent):
 
             # Check if the destination is valid (in highlighted positions)
             if cursor_manager.cursor_pos not in cursor_manager.highlighted_positions:
-                self.publish_event(
-                    EventType.MESSAGE_DISPLAY_REQUESTED,
-                    MessageDisplayEventData(
-                        message="Invalid teleport destination",
-                        message_type=MessageType.WARNING
-                    )
-                )
+                # Show error in UI instead of message log
+                self.game_ui.message = "Invalid teleport destination"
                 return False
 
             # Get the Market Futures skill from the anchor's creator
@@ -2076,7 +2059,7 @@ class GameModeManager(UIComponent):
             if market_futures_skill.activate_teleport(unit, anchor_pos, destination_pos, game, self.game_ui):
                 # Teleport successful
                 message_log.add_message(
-                    f"{unit.get_display_name()} teleports via Market Futures!",
+                    f"{unit.get_display_name()} teleports via Market Futures to ({destination_pos[0]}, {destination_pos[1]})!",
                     MessageType.ABILITY,
                     player=unit.player
                 )
