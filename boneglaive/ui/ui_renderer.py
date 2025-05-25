@@ -442,6 +442,12 @@ class UIRenderer:
                                 enhanced_tile = f"{tile}Ξ"  # Combine unit symbol with uppercase Xi (resembles mechanical jaws)
                                 # Use red color with dim attribute to indicate negative status effect
                                 self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_DIM)
+                            # Check if unit has embedded shrapnel from Fragcrest
+                            elif hasattr(unit, 'shrapnel_duration') and unit.shrapnel_duration > 0:
+                                # Add x symbol to show embedded shrapnel status effect
+                                enhanced_tile = f"{tile}x"  # Combine unit symbol with x (represents embedded fragments)
+                                # Use red color with dim attribute to indicate ongoing damage
+                                self.renderer.draw_tile(y, x, enhanced_tile, 1, curses.A_DIM)
                             # Check if unit is affected by Pry movement penalty
                             elif (hasattr(unit, 'pry_duration') and unit.pry_duration > 0) or (hasattr(unit, 'pry_active') and unit.pry_active) or (unit.was_pried and unit.move_range_bonus < 0):
                                 # Add a slash to show movement reduction from Pry
@@ -1025,9 +1031,69 @@ class UIRenderer:
             
             # Draw RANGE part with appropriate color
             self.renderer.draw_text(info_line, range_pos, range_part, range_color, range_attr)
+            
+            # Draw status effects on a new line
+            status_line = info_line + 1
+            status_effects = []
+            
+            # Duration-based effects (with countdown)
+            if hasattr(unit, 'shrapnel_duration') and unit.shrapnel_duration > 0:
+                status_effects.append(f"Shrapnel({unit.shrapnel_duration})")
+            if hasattr(unit, 'auction_curse_dot') and unit.auction_curse_dot:
+                duration = getattr(unit, 'auction_curse_dot_duration', '?')
+                status_effects.append(f"Auction Curse({duration})")
+            if hasattr(unit, 'echo_duration') and unit.echo_duration > 0:
+                status_effects.append(f"Echo({unit.echo_duration})")
+            if hasattr(unit, 'vapor_duration') and unit.vapor_duration > 0 and unit.type == UnitType.HEINOUS_VAPOR:
+                vapor_type = getattr(unit, 'vapor_type', 'Vapor')
+                status_effects.append(f"{vapor_type}({unit.vapor_duration})")
+            if hasattr(unit, 'slough_def_duration') and unit.slough_def_duration > 0:
+                status_effects.append(f"Slough Defense({unit.slough_def_duration})")
+            
+            # Boolean status effects (no duration)
+            if hasattr(unit, 'jawline_affected') and unit.jawline_affected:
+                # Check if it has duration, otherwise just show boolean
+                if hasattr(unit, 'jawline_duration') and unit.jawline_duration > 0:
+                    status_effects.append(f"Jawline({unit.jawline_duration})")
+                else:
+                    status_effects.append("Jawline")
+            if hasattr(unit, 'estranged') and unit.estranged:
+                status_effects.append("Estranged")
+            if hasattr(unit, 'has_investment_effect') and unit.has_investment_effect:
+                status_effects.append("Investment")
+            if hasattr(unit, 'charging_status') and unit.charging_status:
+                status_effects.append("Charging")
+            if hasattr(unit, 'ossify_active') and unit.ossify_active:
+                status_effects.append("Ossify")
+            if hasattr(unit, 'status_site_inspection') and unit.status_site_inspection:
+                status_effects.append("Site Inspection")
+            if hasattr(unit, 'first_turn_move_bonus') and unit.first_turn_move_bonus:
+                status_effects.append("First Turn Bonus")
+            if hasattr(unit, 'is_echo') and unit.is_echo and not (hasattr(unit, 'echo_duration') and unit.echo_duration > 0):
+                # Only show if not already shown with duration
+                status_effects.append("Echo")
+            if hasattr(unit, 'is_invulnerable') and unit.is_invulnerable:
+                status_effects.append("Invulnerable")
+            if hasattr(unit, 'diverge_return_position') and unit.diverge_return_position:
+                status_effects.append("Diverge Return")
+            
+            # Movement/action penalties and traps
+            if hasattr(unit, 'was_pried') and unit.was_pried and unit.move_range_bonus < 0:
+                status_effects.append("Pried")
+            if hasattr(unit, 'trapped_by') and unit.trapped_by is not None:
+                # Check if it has duration, otherwise just show boolean
+                if hasattr(unit, 'trap_duration') and unit.trap_duration > 0:
+                    status_effects.append(f"Trapped({unit.trap_duration})")
+                else:
+                    status_effects.append("Trapped")
+            
+            # Display status effects if any exist
+            if status_effects:
+                status_text = "Status: " + ", ".join(status_effects)
+                self.renderer.draw_text(status_line, 2, status_text, 6)  # Red color for status effects
         
         # Draw message with better visibility
-        msg_line = HEIGHT+3
+        msg_line = HEIGHT+4  # Moved down by 1 to make room for status line
         self.renderer.draw_text(msg_line, 0, " " * self.renderer.width, 1)  # Clear line
 
         # Check if we should display cosmic value
@@ -1059,7 +1125,7 @@ class UIRenderer:
             self.renderer.draw_text(msg_line, 2 + len(msg_indicator), self.game_ui.message, 1)
         
         # Draw simplified help reminder and controls
-        help_line = HEIGHT+4
+        help_line = HEIGHT+5
         self.renderer.draw_text(help_line, 0, " " * self.renderer.width, 1)  # Clear line
 
         # Draw game over prompt if visible
