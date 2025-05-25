@@ -8,6 +8,7 @@ from boneglaive.game.map import GameMap, MapFactory, TerrainType
 from boneglaive.utils.coordinates import Position
 from boneglaive.utils.debug import debug_config, measure_perf, game_assert, logger
 from boneglaive.utils.message_log import message_log, MessageType
+from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
 # Set up module logger if not already set up
 if 'logger' not in locals():
@@ -1693,6 +1694,26 @@ class Game:
                         unit.hp += 1
                         logger.debug(f"{unit.get_display_name()} regenerated 1 HP from resting")
                         
+                        # Show healing number if UI is available
+                        ui = getattr(self, 'ui', None)
+                        if ui and hasattr(ui, 'renderer'):
+                            healing_text = f"+1"
+                            
+                            # Make healing text prominent with flashing effect (green color)
+                            for i in range(3):
+                                # First clear the area
+                                ui.renderer.draw_text(unit.y-1, unit.x*2, " " * len(healing_text), 7)
+                                # Draw with alternating bold/normal for a flashing effect
+                                attrs = curses.A_BOLD if i % 2 == 0 else 0
+                                ui.renderer.draw_text(unit.y-1, unit.x*2, healing_text, 3, attrs)  # Green color
+                                ui.renderer.refresh()
+                                sleep_with_animation_speed(0.1)
+                            
+                            # Final healing display (stays on screen slightly longer)
+                            ui.renderer.draw_text(unit.y-1, unit.x*2, healing_text, 3, curses.A_BOLD)
+                            ui.renderer.refresh()
+                            sleep_with_animation_speed(0.3)
+                        
                         # Log the regeneration using proper format for healing messages
                         # "healing for X HP" format ensures the number appears in white
                         message_log.add_message(
@@ -2215,6 +2236,25 @@ class Game:
                 damage = 1
                 unit.hp = max(0, unit.hp - damage)
                 
+                # Show damage number if UI is available
+                if ui and hasattr(ui, 'renderer'):
+                    damage_text = f"-{damage}"
+                    
+                    # Make damage text more prominent with flashing effect (like FOWL_CONTRIVANCE)
+                    for i in range(3):
+                        # First clear the area
+                        ui.renderer.draw_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
+                        # Draw with alternating bold/normal for a flashing effect
+                        attrs = curses.A_BOLD if i % 2 == 0 else 0
+                        ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, attrs)  # White color
+                        ui.renderer.refresh()
+                        sleep_with_animation_speed(0.1)
+                    
+                    # Final damage display (stays on screen slightly longer)
+                    ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.3)  # Match the 0.3s delay used in FOWL_CONTRIVANCE
+                
                 # Get the opposing player (caster of the Auction Curse)
                 caster_player = 3 - unit.player  # If unit.player is 1, this gives 2; if 2, gives 1
                 
@@ -2284,6 +2324,25 @@ class Game:
                             ally_unit.hp += 1
                             allies_healed += 1
                             logger.debug(f"Auction Curse healed ally {ally_unit.get_display_name()} by 1 HP")
+                            
+                            # Show healing number if UI is available
+                            if ui and hasattr(ui, 'renderer'):
+                                healing_text = "+1"
+                                
+                                # Make healing text prominent with flashing effect (green color)
+                                for i in range(3):
+                                    # First clear the area
+                                    ui.renderer.draw_text(ally_unit.y-1, ally_unit.x*2, " " * len(healing_text), 7)
+                                    # Draw with alternating bold/normal for a flashing effect
+                                    attrs = curses.A_BOLD if i % 2 == 0 else 0
+                                    ui.renderer.draw_text(ally_unit.y-1, ally_unit.x*2, healing_text, 3, attrs)  # Green color
+                                    ui.renderer.refresh()
+                                    sleep_with_animation_speed(0.1)
+                                
+                                # Final healing display (stays on screen slightly longer)
+                                ui.renderer.draw_text(ally_unit.y-1, ally_unit.x*2, healing_text, 3, curses.A_BOLD)
+                                ui.renderer.refresh()
+                                sleep_with_animation_speed(0.3)
                 
                 # Log ally healing if any occurred
                 if allies_healed > 0:

@@ -258,6 +258,25 @@ class Autoclave(PassiveSkill):
             # Apply healing (don't exceed max HP)
             user.hp = min(user.max_hp, user.hp + healing)
             
+            # Show healing number if UI is available
+            if ui and hasattr(ui, 'renderer') and healing > 0:
+                healing_text = f"+{healing}"
+                
+                # Make healing text prominent with flashing effect (green color)
+                for i in range(3):
+                    # First clear the area
+                    ui.renderer.draw_text(user.y-1, user.x*2, " " * len(healing_text), 7)
+                    # Draw with alternating bold/normal for a flashing effect
+                    attrs = curses.A_BOLD if i % 2 == 0 else 0
+                    ui.renderer.draw_text(user.y-1, user.x*2, healing_text, 3, attrs)  # Green color
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.1)
+                
+                # Final healing display (stays on screen slightly longer)
+                ui.renderer.draw_text(user.y-1, user.x*2, healing_text, 3, curses.A_BOLD)
+                ui.renderer.refresh()
+                sleep_with_animation_speed(0.3)
+            
             # Log the healing
             message_log.add_message(
                 f"{user.get_display_name()} absorbs life essence, healing for {healing} HP!",
