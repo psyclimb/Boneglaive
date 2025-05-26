@@ -187,7 +187,7 @@ class Game:
                 vs_ai_types = [
                     UnitType.FOWL_CONTRIVANCE,
                     UnitType.MANDIBLE_FOREMAN,
-                    UnitType.MARROW_CONDENSER
+                    UnitType.GAS_MACHINIST
                 ]
                 
                 # Add each unit at a valid position
@@ -207,7 +207,7 @@ class Game:
         unit_types = [
             UnitType.GLAIVEMAN,
             UnitType.MANDIBLE_FOREMAN,
-            UnitType.MARROW_CONDENSER
+            UnitType.GAS_MACHINIST
         ]
         
         for y, x in valid_positions:
@@ -287,7 +287,7 @@ class Game:
         vs_ai_p2_unit_types = [
             UnitType.FOWL_CONTRIVANCE,
             UnitType.MANDIBLE_FOREMAN,
-            UnitType.MARROW_CONDENSER
+            UnitType.GAS_MACHINIST
         ]
         
         # Find valid positions for units that aren't on limestone
@@ -382,7 +382,7 @@ class Game:
         player1_unit_types = [
             UnitType.GLAIVEMAN,
             UnitType.MANDIBLE_FOREMAN,
-            UnitType.MARROW_CONDENSER
+            UnitType.GAS_MACHINIST
         ]
         
         # Track unit counts for each player and type
@@ -398,7 +398,7 @@ class Game:
             # First create units for player 2 (AI) to ensure we get exactly one of each type
             if len(p2_positions) >= 3:
                 # Add exactly one of each unit type for player 2
-                types_to_add = [UnitType.GLAIVEMAN, UnitType.MANDIBLE_FOREMAN, UnitType.MARROW_CONDENSER]
+                types_to_add = [UnitType.GLAIVEMAN, UnitType.MANDIBLE_FOREMAN, UnitType.GAS_MACHINIST]
                 
                 for i, (player, y, x) in enumerate(p2_positions[:3]):
                     unit_type = types_to_add[i]
@@ -455,7 +455,7 @@ class Game:
                     player2_unit_types = [
                         UnitType.GLAIVEMAN,
                         UnitType.MANDIBLE_FOREMAN,
-                        UnitType.MARROW_CONDENSER
+                        UnitType.GAS_MACHINIST
                     ]
                     
                     # For player 2, respect the 2-unit type limit
@@ -503,7 +503,7 @@ class Game:
                 logger.warning("Adding emergency units for VS_AI mode, ensuring one of each unit type")
                 
                 # Make a list of available unit types
-                vs_ai_types = [UnitType.FOWL_CONTRIVANCE, UnitType.MANDIBLE_FOREMAN, UnitType.MARROW_CONDENSER]
+                vs_ai_types = [UnitType.FOWL_CONTRIVANCE, UnitType.MANDIBLE_FOREMAN, UnitType.GAS_MACHINIST]
                 
                 # See which types we already have
                 for unit in self.units:
@@ -529,7 +529,7 @@ class Game:
                     player, y, x = emergency_p2_positions[i]
                     
                     # Determine which unit type to use next
-                    valid_types = [UnitType.GLAIVEMAN, UnitType.MANDIBLE_FOREMAN, UnitType.MARROW_CONDENSER]
+                    valid_types = [UnitType.GLAIVEMAN, UnitType.MANDIBLE_FOREMAN, UnitType.GAS_MACHINIST]
                     
                     # Filter by existing types if needed
                     if player_unit_counts.get(player, {}):
