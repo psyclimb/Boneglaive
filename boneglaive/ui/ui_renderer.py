@@ -446,8 +446,8 @@ class UIRenderer:
                             elif hasattr(unit, 'shrapnel_duration') and unit.shrapnel_duration > 0:
                                 # Add x symbol to show embedded shrapnel status effect
                                 enhanced_tile = f"{tile}x"  # Combine unit symbol with x (represents embedded fragments)
-                                # Use red color with dim attribute to indicate ongoing damage
-                                self.renderer.draw_tile(y, x, enhanced_tile, 1, curses.A_DIM)
+                                # Use player color with dim attribute to indicate ongoing damage while preserving team identification
+                                self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_DIM)
                             # Check if unit is affected by Pry movement penalty
                             elif (hasattr(unit, 'pry_duration') and unit.pry_duration > 0) or (hasattr(unit, 'pry_active') and unit.pry_active) or (unit.was_pried and unit.move_range_bonus < 0):
                                 # Add a slash to show movement reduction from Pry

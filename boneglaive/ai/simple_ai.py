@@ -414,6 +414,12 @@ class SimpleAI:
             self._process_grayman(unit, use_coordination=self.difficulty == AIDifficulty.HARD)
         elif unit.type == UnitType.MARROW_CONDENSER:
             self._process_marrow_condenser(unit, use_coordination=self.difficulty == AIDifficulty.HARD)
+        elif unit.type == UnitType.FOWL_CONTRIVANCE:
+            self._process_fowl_contrivance(unit, use_coordination=self.difficulty == AIDifficulty.HARD)
+        elif unit.type == UnitType.GAS_MACHINIST:
+            self._process_gas_machinist(unit, use_coordination=self.difficulty == AIDifficulty.HARD)
+        elif unit.type == UnitType.HEINOUS_VAPOR:
+            self._process_heinous_vapor(unit, use_coordination=self.difficulty == AIDifficulty.HARD)
         else:
             # Default behavior for other unit types
             logger.info(f"No specific AI logic for {unit.type.name}, using default behavior")
@@ -1643,6 +1649,112 @@ class SimpleAI:
                     logger.info(f"Marrow Condenser attacking enemy after movement")
                     # The attack_target is set in _can_attack_after_move
     
+    def _process_fowl_contrivance(self, unit: 'Unit', use_coordination: bool = False) -> None:
+        """
+        Process actions for a FOWL_CONTRIVANCE unit.
+        Implements intelligent rail artillery tactics with emphasis on Gaussian Dusk
+        targeting of immobilized or predictable enemies.
+        
+        Args:
+            unit: The FOWL_CONTRIVANCE unit to process
+            use_coordination: Whether to use group coordination tactics
+        """
+        # If fowl contrivance has charging status, use gaussian dusk skill again
+        if hasattr(unit, 'charging_status') and unit.charging_status:
+            logger.info(f"{unit.get_display_name()} has charging status - using Gaussian Dusk skill")
+            
+            # Find Gaussian Dusk skill
+            gaussian_dusk_skill = None
+            for skill in unit.skills:
+                if hasattr(skill, 'name') and skill.name == "Gaussian Dusk":
+                    gaussian_dusk_skill = skill
+                    break
+            
+            if gaussian_dusk_skill:
+                # Use the Gaussian Dusk skill again
+                result = gaussian_dusk_skill.use(unit, None, self.game)
+                logger.info(f"FOWL_CONTRIVANCE gaussian_dusk_skill.use() returned: {result}")
+                logger.info(f"FOWL_CONTRIVANCE targets after use(): skill_target={unit.skill_target}, selected_skill={unit.selected_skill.name if unit.selected_skill else None}")
+                if result:
+                    logger.info(f"FOWL_CONTRIVANCE successfully set up firing - RETURNING EARLY")
+                    return
+                else:
+                    logger.error(f"FOWL_CONTRIVANCE gaussian_dusk_skill.use() returned False while charging!")
+            
+            logger.error("Could not use Gaussian Dusk skill while charging")
+            return
+        
+        # Reset move and attack targets only when NOT charging (charging units need to preserve targets)
+        # SAFETY CHECK: Never clear targets if unit is charging
+        if not (hasattr(unit, 'charging_status') and unit.charging_status):
+            unit.move_target = None
+            unit.attack_target = None
+            unit.skill_target = None
+            unit.selected_skill = None
+        
+        # Get a target based on the difficulty level or coordination
+        target = None
+        
+        # If using coordination and this unit has an assigned target, use it
+        if use_coordination and unit.id in self.target_assignments:
+            target_id = self.target_assignments[unit.id]
+            for player_unit in self.game.units:
+                if player_unit.id == target_id and player_unit.is_alive():
+                    target = player_unit
+                    logger.info(f"Using coordinated target for {unit.get_display_name()}: {target.get_display_name()}")
+                    break
+        
+        # If no coordinated target was found, find the best target for Gaussian Dusk
+        if not target:
+            if self.difficulty == AIDifficulty.EASY:
+                target = self._find_random_enemy(unit)
+            elif self.difficulty == AIDifficulty.MEDIUM:
+                target = self._find_nearest_enemy(unit)
+            else:  # HARD difficulty
+                target = self._find_best_gaussian_dusk_target(unit)
+            
+        if not target:
+            logger.info("No enemies found for FOWL_CONTRIVANCE to target")
+            return
+            
+        logger.info(f"FOWL_CONTRIVANCE targeting enemy: {target.get_display_name()} at position ({target.y}, {target.x})")
+        
+        # Get available skills 
+        available_skills = []
+        try:
+            available_skills = unit.get_available_skills()
+            logger.info(f"FOWL_CONTRIVANCE has {len(available_skills)} skills available: {[skill.name for skill in available_skills]}")
+        except Exception as e:
+            logger.error(f"Error getting available skills: {e}")
+            
+        # Try to use Gaussian Dusk if available and we have a good line of sight
+        used_skill = None
+        if self.difficulty == AIDifficulty.EASY and random.random() < 0.4:  # 40% chance to skip on easy
+            logger.info("EASY difficulty: Skipping skill usage")
+        else:
+            try:
+                used_skill = self._use_fowl_contrivance_skills(unit, target, available_skills)
+                if used_skill:
+                    logger.info(f"FOWL_CONTRIVANCE used {used_skill.name} skill")
+                    return  # Don't move if we used a skill
+            except Exception as e:
+                logger.error(f"Error using FOWL_CONTRIVANCE skills: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
+        
+        # If no skill was used, try to move to a better position for next turn
+        # Move to a position with good rail access or line of sight
+        best_position = self._find_best_artillery_position(unit, target)
+        if best_position:
+            unit.move_target = best_position
+            logger.info(f"FOWL_CONTRIVANCE moving to artillery position {best_position}")
+        else:
+            # Fallback to basic attack if in range
+            distance = self.game.chess_distance(unit.y, unit.x, target.y, target.x)
+            if distance <= unit.get_effective_attack_range():
+                unit.attack_target = (target.y, target.x)
+                logger.info(f"FOWL_CONTRIVANCE attacking with basic attack")
+
     def _process_grayman(self, unit: 'Unit', use_coordination: bool = False) -> None:
         """
         Process actions for a Grayman unit.
@@ -3980,3 +4092,1251 @@ class SimpleAI:
                 best_pos = (y, x)
                 
         return best_pos
+
+    def _find_best_gaussian_dusk_target(self, unit: 'Unit') -> Optional['Unit']:
+        """
+        Find the best target for Gaussian Dusk by prioritizing immobilized or predictable enemies.
+        
+        Args:
+            unit: The FOWL_CONTRIVANCE unit
+            
+        Returns:
+            The best target for Gaussian Dusk, or None if no good targets found
+        """
+        enemy_units = [enemy for enemy in self.game.units 
+                      if enemy.player != unit.player and enemy.is_alive()]
+        
+        if not enemy_units:
+            return None
+            
+        scored_enemies = []
+        
+        for enemy in enemy_units:
+            score = 0
+            
+            # High priority: Immobilized or movement-restricted enemies
+            if hasattr(enemy, 'jawline_affected') and enemy.jawline_affected:
+                score += 100  # Jawline tether - can't move
+                logger.debug(f"{enemy.get_display_name()} is tethered by Jawline (+100 points)")
+            
+            if hasattr(enemy, 'trapped_by') and enemy.trapped_by:
+                score += 90  # Trapped units are easy targets
+                logger.debug(f"{enemy.get_display_name()} is trapped (+90 points)")
+            
+            # Medium priority: Units in corners or against walls (limited movement)
+            corner_penalty = self._evaluate_corner_position(enemy)
+            score += corner_penalty
+            if corner_penalty > 0:
+                logger.debug(f"{enemy.get_display_name()} in restricted position (+{corner_penalty} points)")
+            
+            # Check if we can hit multiple enemies in a line
+            line_enemies = self._count_enemies_in_gaussian_line(unit, enemy)
+            if line_enemies > 1:
+                score += (line_enemies - 1) * 30  # Bonus for hitting multiple
+                logger.debug(f"Gaussian line through {enemy.get_display_name()} hits {line_enemies} enemies (+{(line_enemies-1)*30} points)")
+            
+            # Priority based on enemy health - prefer to finish off wounded
+            health_percent = enemy.hp / enemy.max_hp
+            if health_percent <= 0.3:  # Low health
+                score += 25
+                logger.debug(f"{enemy.get_display_name()} at low health (+25 points)")
+            elif health_percent <= 0.6:  # Medium health  
+                score += 15
+                logger.debug(f"{enemy.get_display_name()} at medium health (+15 points)")
+            
+            # Distance consideration - closer is better for reliability
+            distance = self.game.chess_distance(unit.y, unit.x, enemy.y, enemy.x)
+            if distance <= 5:
+                score += 10
+            elif distance <= 8:
+                score += 5
+                
+            # Check if we have clear line of sight
+            if self._has_clear_gaussian_line(unit, enemy):
+                score += 20
+                logger.debug(f"Clear line to {enemy.get_display_name()} (+20 points)")
+            
+            scored_enemies.append((enemy, score))
+            
+        if scored_enemies:
+            # Sort by score (highest first)
+            scored_enemies.sort(key=lambda x: x[1], reverse=True)
+            logger.debug(f"Best Gaussian Dusk target: {scored_enemies[0][0].get_display_name()} (score: {scored_enemies[0][1]})")
+            return scored_enemies[0][0]
+            
+        # Fallback to nearest enemy
+        return self._find_nearest_enemy(unit)
+
+    def _use_fowl_contrivance_skills(self, unit: 'Unit', target: 'Unit', available_skills: list) -> Optional['ActiveSkill']:
+        """
+        Use FOWL_CONTRIVANCE skills intelligently.
+        
+        Args:
+            unit: The FOWL_CONTRIVANCE unit
+            target: The target enemy
+            available_skills: List of available skills
+            
+        Returns:
+            The skill that was used, or None if no skill was used
+        """
+        # Look for available skills
+        gaussian_dusk = None
+        big_arc = None
+        fragcrest = None
+        
+        for skill in available_skills:
+            if hasattr(skill, 'name'):
+                if skill.name == "Gaussian Dusk":
+                    gaussian_dusk = skill
+                elif skill.name == "Big Arc":
+                    big_arc = skill
+                elif skill.name == "Fragcrest":
+                    fragcrest = skill
+        
+        # Prefer Gaussian Dusk if we have a good shot
+        if gaussian_dusk:
+            direction = self._calculate_gaussian_direction(unit, target)
+            if direction and self._is_good_gaussian_shot(unit, target, direction):
+                # FORCE charging initiation - bypass skill.use() for reliability
+                unit.selected_skill = gaussian_dusk
+                unit.skill_target = direction
+                logger.info(f"FOWL_CONTRIVANCE FORCING Gaussian Dusk charge in direction {direction}")
+                return gaussian_dusk
+        
+        # Try Fragcrest if it's tactically advantageous
+        if fragcrest and self._should_use_fragcrest(unit, target, fragcrest):
+            if fragcrest.use(unit, (target.y, target.x), self.game):
+                logger.info(f"FOWL_CONTRIVANCE using Fragcrest tactically")
+                return fragcrest
+            else:
+                logger.debug("Fragcrest use() failed - likely on cooldown or invalid target")
+        
+        # Fallback to Big Arc if available and enemies are clustered
+        if big_arc:
+            # Check if there are multiple enemies in range
+            enemies_in_range = 0
+            for enemy in self.game.units:
+                if (enemy.player != unit.player and enemy.is_alive() and
+                    self.game.chess_distance(unit.y, unit.x, enemy.y, enemy.x) <= 6):  # Big Arc range
+                    enemies_in_range += 1
+            
+            if enemies_in_range >= 2:  # Use Big Arc if hitting multiple enemies
+                if big_arc.use(unit, (target.y, target.x), self.game):
+                    logger.info(f"FOWL_CONTRIVANCE using Big Arc on clustered enemies")
+                    return big_arc
+                else:
+                    logger.debug("Big Arc use() failed - likely on cooldown or invalid target")
+        
+        return None
+
+    def _find_best_artillery_position(self, unit: 'Unit', target: 'Unit') -> Optional[Tuple[int, int]]:
+        """
+        Find the best position for artillery tactics.
+        
+        Args:
+            unit: The FOWL_CONTRIVANCE unit
+            target: The target enemy
+            
+        Returns:
+            The best position to move to, or None if current position is fine
+        """
+        from boneglaive.utils.constants import HEIGHT, WIDTH
+        
+        current_pos = (unit.y, unit.x)
+        best_pos = None
+        best_score = 0
+        
+        # Check positions within movement range
+        move_range = unit.get_effective_move_range()
+        
+        for dy in range(-move_range, move_range + 1):
+            for dx in range(-move_range, move_range + 1):
+                new_y = unit.y + dy
+                new_x = unit.x + dx
+                
+                # Skip if out of bounds
+                if not (0 <= new_y < HEIGHT and 0 <= new_x < WIDTH):
+                    continue
+                    
+                # Skip if not passable or occupied
+                if not self.game.map.is_passable(new_y, new_x) or self.game.get_unit_at(new_y, new_x):
+                    continue
+                    
+                # Skip if can't reach this position
+                distance = self.game.chess_distance(unit.y, unit.x, new_y, new_x)
+                if distance > move_range:
+                    continue
+                    
+                score = self._evaluate_artillery_position(new_y, new_x, target)
+                if score > best_score:
+                    best_score = score
+                    best_pos = (new_y, new_x)
+        
+        # Only move if we found a significantly better position
+        current_score = self._evaluate_artillery_position(unit.y, unit.x, target)
+        if best_score > current_score + 10:  # Require significant improvement
+            return best_pos
+            
+        return None
+
+    def _evaluate_artillery_position(self, y: int, x: int, target: 'Unit') -> float:
+        """
+        Evaluate how good a position is for artillery tactics.
+        
+        Args:
+            y, x: Position to evaluate
+            target: The target enemy
+            
+        Returns:
+            Score for the position (higher is better)
+        """
+        score = 0
+        
+        # Prefer positions with clear line of sight to target
+        temp_unit_pos = (y, x)
+        if self._has_clear_line_of_sight_from_pos(temp_unit_pos, (target.y, target.x)):
+            score += 30
+        
+        # Prefer positions that hit multiple enemies in potential Gaussian lines
+        max_enemies_in_line = 0
+        for dy in [-1, 0, 1]:
+            for dx in [-1, 0, 1]:
+                if dy == 0 and dx == 0:
+                    continue
+                enemies_in_line = self._count_enemies_in_line_from_pos((y, x), (dy, dx))
+                max_enemies_in_line = max(max_enemies_in_line, enemies_in_line)
+        
+        score += max_enemies_in_line * 15
+        
+        # Prefer rails if available (FOWL_CONTRIVANCE rail bonuses)
+        if self.game.map.has_rails() and self.game.map.is_rail_at(y, x):
+            score += 20
+        
+        # Prefer distance from enemies (artillery should stay back)
+        min_enemy_distance = float('inf')
+        for enemy in self.game.units:
+            if enemy.player != 2 and enemy.is_alive():  # Player 1 units
+                distance = self.game.chess_distance(y, x, enemy.y, enemy.x)
+                min_enemy_distance = min(min_enemy_distance, distance)
+        
+        if min_enemy_distance > 3:
+            score += 10  # Bonus for staying at safe distance
+        
+        return score
+
+    def _calculate_gaussian_direction(self, unit: 'Unit', target: 'Unit') -> Optional[Tuple[int, int]]:
+        """
+        Calculate the direction for Gaussian Dusk to hit the target.
+        
+        Args:
+            unit: The FOWL_CONTRIVANCE unit
+            target: The target enemy
+            
+        Returns:
+            Direction tuple (dy, dx) or None if no clear shot
+        """
+        dy = target.y - unit.y
+        dx = target.x - unit.x
+        
+        # Normalize to one of 8 directions
+        if abs(dx) > abs(dy):
+            direction = (0, 1 if dx > 0 else -1)
+        elif abs(dy) > abs(dx):
+            direction = (1 if dy > 0 else -1, 0)
+        else:
+            direction = (1 if dy > 0 else -1, 1 if dx > 0 else -1)
+            
+        return direction
+
+    def _is_good_gaussian_shot(self, unit: 'Unit', target: 'Unit', direction: Tuple[int, int]) -> bool:
+        """
+        Determine if a Gaussian Dusk shot in the given direction is worthwhile.
+        
+        Args:
+            unit: The FOWL_CONTRIVANCE unit
+            target: The target enemy
+            direction: The firing direction
+            
+        Returns:
+            True if it's a good shot, False otherwise
+        """
+        # Check if target is actually in the line of fire
+        if not self._target_in_gaussian_line(unit, target, direction):
+            return False
+            
+        # Count total enemies that would be hit
+        enemies_hit = self._count_enemies_in_gaussian_line_direction(unit, direction)
+        
+        # Good shot if we hit the intended target and at least one enemy total
+        return enemies_hit >= 1
+
+    def _has_clear_gaussian_line(self, unit: 'Unit', target: 'Unit') -> bool:
+        """
+        Check if there's a clear Gaussian Dusk line to the target.
+        
+        Args:
+            unit: The FOWL_CONTRIVANCE unit
+            target: The target enemy
+            
+        Returns:
+            True if there's a clear line, False otherwise
+        """
+        direction = self._calculate_gaussian_direction(unit, target)
+        if not direction:
+            return False
+            
+        return self._target_in_gaussian_line(unit, target, direction)
+
+    def _target_in_gaussian_line(self, unit: 'Unit', target: 'Unit', direction: Tuple[int, int]) -> bool:
+        """
+        Check if target is actually in the Gaussian firing line.
+        
+        Args:
+            unit: The FOWL_CONTRIVANCE unit
+            target: The target enemy
+            direction: The firing direction (dy, dx)
+            
+        Returns:
+            True if target is in the line, False otherwise
+        """
+        dy, dx = direction
+        y, x = unit.y, unit.x
+        
+        # Trace the line and check if we hit the target
+        while 0 <= y + dy < self.game.map.height and 0 <= x + dx < self.game.map.width:
+            y += dy
+            x += dx
+            if y == target.y and x == target.x:
+                return True
+                
+        return False
+
+    def _count_enemies_in_gaussian_line(self, unit: 'Unit', target: 'Unit') -> int:
+        """
+        Count enemies that would be hit by Gaussian Dusk aimed at target.
+        
+        Args:
+            unit: The FOWL_CONTRIVANCE unit
+            target: The target enemy
+            
+        Returns:
+            Number of enemies that would be hit
+        """
+        direction = self._calculate_gaussian_direction(unit, target)
+        if not direction:
+            return 0
+            
+        return self._count_enemies_in_gaussian_line_direction(unit, direction)
+
+    def _count_enemies_in_gaussian_line_direction(self, unit: 'Unit', direction: Tuple[int, int]) -> int:
+        """
+        Count enemies in a Gaussian Dusk line in the given direction.
+        
+        Args:
+            unit: The FOWL_CONTRIVANCE unit
+            direction: The firing direction (dy, dx)
+            
+        Returns:
+            Number of enemies in the line
+        """
+        dy, dx = direction
+        y, x = unit.y, unit.x
+        enemies_hit = 0
+        
+        # Trace the line across the entire map
+        while 0 <= y + dy < self.game.map.height and 0 <= x + dx < self.game.map.width:
+            y += dy
+            x += dx
+            enemy_unit = self.game.get_unit_at(y, x)
+            if enemy_unit and enemy_unit.player != unit.player and enemy_unit.is_alive():
+                enemies_hit += 1
+                
+        return enemies_hit
+
+    def _count_enemies_in_line_from_pos(self, pos: Tuple[int, int], direction: Tuple[int, int]) -> int:
+        """
+        Count enemies in a line from a given position.
+        
+        Args:
+            pos: Starting position (y, x)
+            direction: The direction (dy, dx)
+            
+        Returns:
+            Number of enemies in the line
+        """
+        y, x = pos
+        dy, dx = direction
+        enemies_hit = 0
+        
+        # Trace the line across the entire map
+        while 0 <= y + dy < self.game.map.height and 0 <= x + dx < self.game.map.width:
+            y += dy
+            x += dx
+            enemy_unit = self.game.get_unit_at(y, x)
+            if enemy_unit and enemy_unit.player != 2 and enemy_unit.is_alive():  # Player 1 units
+                enemies_hit += 1
+                
+        return enemies_hit
+
+    def _has_clear_line_of_sight_from_pos(self, from_pos: Tuple[int, int], to_pos: Tuple[int, int]) -> bool:
+        """
+        Check if there's clear line of sight between two positions.
+        
+        Args:
+            from_pos: Starting position (y, x)
+            to_pos: Target position (y, x)
+            
+        Returns:
+            True if clear line of sight, False otherwise
+        """
+        # For simplicity, just check if positions are in same row, column, or diagonal
+        y1, x1 = from_pos
+        y2, x2 = to_pos
+        
+        dy = y2 - y1
+        dx = x2 - x1
+        
+        # Must be in a straight line (8-directional)
+        if dy != 0 and dx != 0 and abs(dy) != abs(dx):
+            return False
+            
+        return True
+
+    def _evaluate_corner_position(self, unit: 'Unit') -> int:
+        """
+        Evaluate if a unit is in a corner or restricted position.
+        
+        Args:
+            unit: The unit to evaluate
+            
+        Returns:
+            Bonus points if unit is in a restricted position
+        """
+        y, x = unit.y, unit.x
+        blocked_directions = 0
+        
+        # Check all 8 directions around the unit
+        for dy in [-1, 0, 1]:
+            for dx in [-1, 0, 1]:
+                if dy == 0 and dx == 0:
+                    continue
+                    
+                new_y, new_x = y + dy, x + dx
+                
+                # Count blocked directions (impassable terrain or map edge)
+                if (not self.game.is_valid_position(new_y, new_x) or 
+                    not self.game.map.is_passable(new_y, new_x)):
+                    blocked_directions += 1
+        
+        # More blocked directions = higher score (easier target)
+        if blocked_directions >= 5:  # Very restricted
+            return 40
+        elif blocked_directions >= 3:  # Somewhat restricted
+            return 20
+        elif blocked_directions >= 1:  # Slightly restricted
+            return 10
+            
+        return 0
+
+    def _should_use_fragcrest(self, unit: 'Unit', target: 'Unit', fragcrest_skill) -> bool:
+        """
+        Determine if Fragcrest should be used tactically.
+        Real players use Fragcrest for:
+        - Hitting multiple enemies in cone
+        - Finishing low-health targets with shrapnel DOT
+        - Tactical knockback positioning
+        - When other skills are on cooldown
+        
+        Args:
+            unit: The FOWL_CONTRIVANCE unit
+            target: The primary target
+            fragcrest_skill: The Fragcrest skill object
+            
+        Returns:
+            True if Fragcrest should be used, False otherwise
+        """
+        # Must be able to use the skill
+        if not fragcrest_skill.can_use(unit, (target.y, target.x), self.game):
+            return False
+            
+        # Must be within range (4 tiles)
+        distance = self.game.chess_distance(unit.y, unit.x, target.y, target.x)
+        if distance > 4:
+            return False
+            
+        # Must have line of sight
+        if not self.game.has_line_of_sight(unit.y, unit.x, target.y, target.x):
+            return False
+        
+        score = 0
+        
+        # High priority: Multiple enemies in the cone
+        cone_enemies = self._count_enemies_in_fragcrest_cone(unit, target)
+        if cone_enemies >= 2:
+            score += 50  # Very good - hitting multiple targets
+            logger.debug(f"Fragcrest can hit {cone_enemies} enemies (+50 points)")
+        elif cone_enemies == 1:
+            score += 10  # Still useful for single target
+            
+        # Medium priority: Target is wounded and shrapnel could finish them
+        target_health_percent = target.hp / target.max_hp
+        if target_health_percent <= 0.3:  # Low health - shrapnel DOT could finish
+            score += 30
+            logger.debug(f"Target at {target_health_percent:.0%} health, shrapnel could finish (+30 points)")
+        elif target_health_percent <= 0.5:  # Medium health
+            score += 15
+            logger.debug(f"Target at {target_health_percent:.0%} health (+15 points)")
+            
+        # Tactical knockback: Can push enemy into bad position
+        knockback_value = self._evaluate_knockback_tactical_value(unit, target)
+        score += knockback_value
+        if knockback_value > 0:
+            logger.debug(f"Tactical knockback value (+{knockback_value} points)")
+            
+        # Priority when other skills unavailable
+        other_skills_available = 0
+        for skill in unit.get_available_skills():
+            if hasattr(skill, 'name') and skill.name in ["Gaussian Dusk", "Big Arc"]:
+                other_skills_available += 1
+                
+        if other_skills_available == 0:
+            score += 25  # Use Fragcrest when it's the only option
+            logger.debug("No other skills available (+25 points)")
+        elif other_skills_available == 1:
+            score += 10  # Some preference when limited options
+            
+        # Distance preference - closer is better for cone effect
+        if distance <= 2:
+            score += 15  # Close range - cone effect more concentrated
+        elif distance <= 3:
+            score += 10
+            
+        # Bonus if target doesn't have shrapnel DOT already
+        if not hasattr(target, 'shrapnel_duration') or target.shrapnel_duration <= 0:
+            score += 15  # Fresh shrapnel application
+            logger.debug("Target doesn't have shrapnel DOT (+15 points)")
+            
+        # Use Fragcrest if score is high enough
+        threshold = 30 if self.difficulty == AIDifficulty.HARD else 40
+        logger.debug(f"Fragcrest tactical score: {score} (threshold: {threshold})")
+        return score >= threshold
+
+    def _count_enemies_in_fragcrest_cone(self, unit: 'Unit', primary_target: 'Unit') -> int:
+        """
+        Count how many enemies would be hit by Fragcrest cone.
+        Uses simplified cone calculation similar to the actual skill.
+        
+        Args:
+            unit: The FOWL_CONTRIVANCE unit
+            primary_target: The primary target
+            
+        Returns:
+            Number of enemies that would be hit
+        """
+        enemies_hit = 0
+        
+        # Calculate cone direction
+        dy = primary_target.y - unit.y
+        dx = primary_target.x - unit.x
+        
+        # Normalize direction for cone calculation
+        if abs(dx) > abs(dy):
+            main_dir = (0, 1 if dx > 0 else -1)
+        elif abs(dy) > abs(dx):
+            main_dir = (1 if dy > 0 else -1, 0)
+        else:
+            main_dir = (1 if dy > 0 else -1, 1 if dx > 0 else -1)
+        
+        # Generate cone positions (simplified version of skill logic)
+        cone_positions = []
+        for range_step in range(1, 5):  # Fragcrest range is 4
+            # Calculate width at this range (cone gets wider with distance)
+            width = min(3, 1 + range_step // 2)
+            
+            # Calculate center position at this range
+            center_y = unit.y + main_dir[0] * range_step
+            center_x = unit.x + main_dir[1] * range_step
+            
+            # Add positions around the center based on width
+            for offset in range(-(width//2), (width//2) + 1):
+                if main_dir[0] == 0:  # Horizontal cone
+                    pos_y = center_y + offset
+                    pos_x = center_x
+                else:  # Vertical cone
+                    pos_y = center_y
+                    pos_x = center_x + offset
+                
+                if self.game.is_valid_position(pos_y, pos_x):
+                    cone_positions.append((pos_y, pos_x))
+        
+        # Count enemies in cone positions
+        for enemy in self.game.units:
+            if (enemy.player != unit.player and enemy.is_alive() and
+                (enemy.y, enemy.x) in cone_positions):
+                enemies_hit += 1
+                
+        return enemies_hit
+
+    def _evaluate_knockback_tactical_value(self, unit: 'Unit', target: 'Unit') -> int:
+        """
+        Evaluate the tactical value of knocking back the target.
+        
+        Args:
+            unit: The FOWL_CONTRIVANCE unit
+            target: The target to be knocked back
+            
+        Returns:
+            Tactical value score (0-30)
+        """
+        # Calculate knockback direction (away from unit)
+        dy = target.y - unit.y
+        dx = target.x - unit.x
+        
+        # Normalize direction
+        if abs(dx) > abs(dy):
+            knock_dir = (0, 1 if dx > 0 else -1)
+        elif abs(dy) > abs(dx):
+            knock_dir = (1 if dy > 0 else -1, 0)
+        else:
+            knock_dir = (1 if dy > 0 else -1, 1 if dx > 0 else -1)
+        
+        # Calculate knockback destination
+        knockback_distance = 2  # Fragcrest knockback distance
+        new_y = target.y + knock_dir[0] * knockback_distance
+        new_x = target.x + knock_dir[1] * knockback_distance
+        
+        score = 0
+        
+        # Check if knockback destination is valid
+        if not (self.game.is_valid_position(new_y, new_x) and 
+                self.game.map.is_passable(new_y, new_x) and
+                not self.game.get_unit_at(new_y, new_x)):
+            # Can't knock back - no tactical value
+            return 0
+            
+        # Tactical advantages of knockback:
+        
+        # 1. Push enemy away from our allies
+        for ally in self.game.units:
+            if (ally.player == unit.player and ally.is_alive() and ally != unit):
+                current_dist = self.game.chess_distance(target.y, target.x, ally.y, ally.x)
+                new_dist = self.game.chess_distance(new_y, new_x, ally.y, ally.x)
+                if new_dist > current_dist:
+                    score += 10  # Good - pushing enemy away from ally
+                    break
+                    
+        # 2. Push enemy into corner or restricted position
+        # Count blocked directions around knockback destination
+        blocked_directions = 0
+        for dy_check in [-1, 0, 1]:
+            for dx_check in [-1, 0, 1]:
+                if dy_check == 0 and dx_check == 0:
+                    continue
+                check_y, check_x = new_y + dy_check, new_x + dx_check
+                if (not self.game.is_valid_position(check_y, check_x) or 
+                    not self.game.map.is_passable(check_y, check_x)):
+                    blocked_directions += 1
+                    
+        if blocked_directions >= 4:  # Pushing into very restricted area
+            score += 20
+        elif blocked_directions >= 2:  # Somewhat restricted
+            score += 10
+            
+        # 3. Push enemy further from objectives (if we could identify them)
+        # For now, just prefer pushing enemies toward map edges
+        from boneglaive.utils.constants import HEIGHT, WIDTH
+        edge_distance_before = min(target.y, target.x, HEIGHT - 1 - target.y, WIDTH - 1 - target.x)
+        edge_distance_after = min(new_y, new_x, HEIGHT - 1 - new_y, WIDTH - 1 - new_x)
+        if edge_distance_after < edge_distance_before:
+            score += 5  # Small bonus for pushing toward edges
+            
+        return min(score, 30)  # Cap at 30 points
+
+    def _process_gas_machinist(self, unit: 'Unit', use_coordination: bool = False) -> None:
+        """
+        Process actions for a GAS_MACHINIST unit.
+        Implements intelligent vapor placement and tactical positioning.
+        Real players use GAS_MACHINIST for:
+        - Supporting allies with healing/protection vapors
+        - Controlling key positions with vapor clouds
+        - Using Diverge for burst healing/damage when needed
+        
+        Args:
+            unit: The GAS_MACHINIST unit to process
+            use_coordination: Whether to use group coordination tactics
+        """
+        # Clear targets
+        unit.move_target = None
+        unit.attack_target = None
+        unit.skill_target = None
+        unit.selected_skill = None
+        
+        # Get available skills and charges
+        available_skills = []
+        try:
+            available_skills = unit.get_available_skills()
+            logger.info(f"GAS_MACHINIST has {len(available_skills)} skills available: {[skill.name for skill in available_skills]}")
+        except Exception as e:
+            logger.error(f"Error getting available skills: {e}")
+            
+        # Get Effluvium charges
+        effluvium_charges = 0
+        if hasattr(unit, 'passive_skill') and unit.passive_skill and hasattr(unit.passive_skill, 'charges'):
+            effluvium_charges = unit.passive_skill.charges
+            
+        logger.info(f"GAS_MACHINIST has {effluvium_charges} Effluvium charges")
+        
+        # Find allies and enemies
+        allies = [u for u in self.game.units if u.player == unit.player and u.is_alive() and u != unit]
+        enemies = [u for u in self.game.units if u.player != unit.player and u.is_alive()]
+        
+        if not enemies:
+            logger.info("No enemies found for GAS_MACHINIST")
+            return
+            
+        # Priority 1: Use Diverge if we have vapor or are in critical situation
+        if self._should_use_diverge(unit, allies, enemies, available_skills, effluvium_charges):
+            return
+            
+        # Priority 2: Place tactical vapors
+        if self._try_place_tactical_vapor(unit, allies, enemies, available_skills):
+            return
+            
+        # Priority 3: Move to better position
+        best_position = self._find_best_support_position(unit, allies, enemies)
+        if best_position:
+            unit.move_target = best_position
+            logger.info(f"GAS_MACHINIST moving to support position {best_position}")
+        else:
+            # Fallback: Basic attack if in range
+            nearest_enemy = self._find_nearest_enemy(unit)
+            if nearest_enemy:
+                distance = self.game.chess_distance(unit.y, unit.x, nearest_enemy.y, nearest_enemy.x)
+                if distance <= unit.get_effective_attack_range():
+                    unit.attack_target = (nearest_enemy.y, nearest_enemy.x)
+                    logger.info(f"GAS_MACHINIST attacking {nearest_enemy.get_display_name()}")
+
+    def _process_heinous_vapor(self, unit: 'Unit', use_coordination: bool = False) -> None:
+        """
+        Process actions for a HEINOUS_VAPOR unit.
+        Implements intelligent vapor positioning and tactical movement.
+        Real players use HEINOUS_VAPOR for:
+        - Positioning to maximize area effect coverage
+        - Supporting allies or harassing enemies based on vapor type
+        - Moving to block chokepoints or control territory
+        
+        Args:
+            unit: The HEINOUS_VAPOR unit to process
+            use_coordination: Whether to use group coordination tactics
+        """
+        # Clear targets
+        unit.move_target = None
+        unit.attack_target = None
+        unit.skill_target = None
+        unit.selected_skill = None
+        
+        # Find allies and enemies
+        allies = [u for u in self.game.units if u.player == unit.player and u.is_alive() and u != unit]
+        enemies = [u for u in self.game.units if u.player != unit.player and u.is_alive()]
+        
+        # Get vapor type to determine behavior
+        vapor_type = getattr(unit, 'vapor_type', None)
+        logger.info(f"HEINOUS_VAPOR {vapor_type} processing turn")
+        
+        if vapor_type in ["BROACHING", "SAFETY", "COOLANT"]:
+            # Support vapors - position to help allies
+            best_position = self._find_best_support_vapor_position(unit, allies, vapor_type)
+        elif vapor_type == "CUTTING":
+            # Offensive vapor - position to damage enemies
+            best_position = self._find_best_offensive_vapor_position(unit, enemies)
+        else:
+            # Unknown vapor type - default to support
+            best_position = self._find_best_support_vapor_position(unit, allies, "SAFETY")
+            
+        if best_position:
+            unit.move_target = best_position
+            logger.info(f"HEINOUS_VAPOR {vapor_type} moving to position {best_position}")
+        else:
+            logger.info(f"HEINOUS_VAPOR {vapor_type} staying in current position")
+
+    def _should_use_diverge(self, unit: 'Unit', allies: list, enemies: list, available_skills: list, charges: int) -> bool:
+        """
+        Determine if Diverge should be used.
+        Real players use Diverge when:
+        - Multiple allies need urgent healing
+        - Need burst damage on clustered enemies
+        - Have existing vapor to split for better coverage
+        
+        Args:
+            unit: The GAS_MACHINIST unit
+            allies: List of allied units
+            enemies: List of enemy units
+            available_skills: Available skills
+            charges: Current Effluvium charges
+            
+        Returns:
+            True if Diverge was used, False otherwise
+        """
+        # Find Diverge skill
+        diverge_skill = None
+        for skill in available_skills:
+            if hasattr(skill, 'name') and skill.name == "Diverge":
+                diverge_skill = skill
+                break
+                
+        if not diverge_skill:
+            return False
+            
+        # Check if we have a vapor to split
+        player_vapors = [u for u in self.game.units 
+                        if u.player == unit.player and u.is_alive() and 
+                        u.type == UnitType.HEINOUS_VAPOR]
+        
+        score = 0
+        
+        # High priority: Multiple wounded allies
+        wounded_allies = [ally for ally in allies if ally.hp < ally.max_hp]
+        if len(wounded_allies) >= 2:
+            score += 40
+            logger.debug(f"Multiple wounded allies (+40 points)")
+            
+        # Medium priority: Have vapor to split for better coverage
+        if player_vapors:
+            score += 25
+            logger.debug(f"Have vapor to split (+25 points)")
+            
+        # Medium priority: Multiple enemies clustered (for cutting gas)
+        clustered_enemies = 0
+        for enemy in enemies:
+            nearby_enemies = sum(1 for e in enemies 
+                               if self.game.chess_distance(enemy.y, enemy.x, e.y, e.x) <= 2)
+            if nearby_enemies >= 2:
+                clustered_enemies += 1
+        if clustered_enemies >= 2:
+            score += 20
+            logger.debug(f"Clustered enemies for cutting gas (+20 points)")
+            
+        # Bonus for having charges to extend duration
+        if charges >= 2:
+            score += 15
+            logger.debug(f"Good charge count (+15 points)")
+            
+        # Use if score is high enough
+        threshold = 35 if self.difficulty == AIDifficulty.HARD else 50
+        logger.debug(f"Diverge score: {score} (threshold: {threshold})")
+        
+        if score >= threshold:
+            # Choose best target (vapor or self)
+            target_pos = None
+            if player_vapors and len(wounded_allies) < 3:  # Split vapor if not too many wounded
+                # Target the vapor farthest from wounded allies
+                best_vapor = None
+                best_distance = 0
+                for vapor in player_vapors:
+                    avg_distance = sum(self.game.chess_distance(vapor.y, vapor.x, ally.y, ally.x) 
+                                     for ally in wounded_allies)
+                    if len(wounded_allies) > 0:
+                        avg_distance /= len(wounded_allies)
+                    if avg_distance > best_distance:
+                        best_distance = avg_distance
+                        best_vapor = vapor
+                if best_vapor:
+                    target_pos = (best_vapor.y, best_vapor.x)
+            
+            if not target_pos:  # Target self
+                target_pos = (unit.y, unit.x)
+                
+            if diverge_skill.use(unit, target_pos, self.game):
+                logger.info(f"GAS_MACHINIST using Diverge at {target_pos}")
+                return True
+                
+        return False
+
+    def _try_place_tactical_vapor(self, unit: 'Unit', allies: list, enemies: list, available_skills: list) -> bool:
+        """
+        Try to place a tactical vapor.
+        Real players choose vapor type based on situation.
+        
+        Args:
+            unit: The GAS_MACHINIST unit
+            allies: List of allied units
+            enemies: List of enemy units
+            available_skills: Available skills
+            
+        Returns:
+            True if a vapor was placed, False otherwise
+        """
+        # Find available vapor skills
+        broaching_skill = None
+        safety_skill = None
+        
+        for skill in available_skills:
+            if hasattr(skill, 'name'):
+                if skill.name == "Broaching Gas":
+                    broaching_skill = skill
+                elif skill.name == "Saft-E-Gas":
+                    safety_skill = skill
+        
+        # Determine which vapor to use based on situation
+        wounded_allies = [ally for ally in allies if ally.hp < ally.max_hp]
+        allies_under_threat = self._count_allies_under_threat(allies, enemies)
+        
+        # Prefer Safety Gas if allies are under ranged threat
+        if safety_skill and allies_under_threat >= 2:
+            target_pos = self._find_best_safety_gas_position(unit, allies, enemies)
+            if target_pos and safety_skill.use(unit, target_pos, self.game):
+                logger.info(f"GAS_MACHINIST placing Saft-E-Gas at {target_pos}")
+                return True
+                
+        # Use Broaching Gas for general support
+        if broaching_skill:
+            target_pos = self._find_best_broaching_gas_position(unit, allies, enemies)
+            if target_pos and broaching_skill.use(unit, target_pos, self.game):
+                logger.info(f"GAS_MACHINIST placing Broaching Gas at {target_pos}")
+                return True
+                
+        return False
+
+    def _count_allies_under_threat(self, allies: list, enemies: list) -> int:
+        """Count allies that are threatened by enemy ranged attacks."""
+        threatened = 0
+        for ally in allies:
+            for enemy in enemies:
+                distance = self.game.chess_distance(ally.y, ally.x, enemy.y, enemy.x)
+                enemy_range = enemy.get_effective_attack_range()
+                if distance <= enemy_range and enemy_range > 1:  # Ranged threat
+                    threatened += 1
+                    break
+        return threatened
+
+    def _find_best_safety_gas_position(self, unit: 'Unit', allies: list, enemies: list) -> Optional[Tuple[int, int]]:
+        """Find the best position for Saft-E-Gas to protect allies."""
+        best_pos = None
+        best_score = 0
+        
+        # Check positions within range
+        for dy in range(-3, 4):
+            for dx in range(-3, 4):
+                pos_y = unit.y + dy
+                pos_x = unit.x + dx
+                
+                if not self.game.is_valid_position(pos_y, pos_x):
+                    continue
+                if not self.game.map.is_passable(pos_y, pos_x):
+                    continue
+                if self.game.get_unit_at(pos_y, pos_x):
+                    continue
+                    
+                distance = self.game.chess_distance(unit.y, unit.x, pos_y, pos_x)
+                if distance > 3:  # Saft-E-Gas range
+                    continue
+                    
+                # Score based on allies protected
+                score = 0
+                for ally in allies:
+                    ally_distance = self.game.chess_distance(pos_y, pos_x, ally.y, ally.x)
+                    if ally_distance <= 1:  # Within vapor cloud
+                        score += 20
+                        if ally.hp < ally.max_hp:
+                            score += 10  # Bonus for wounded allies
+                            
+                if score > best_score:
+                    best_score = score
+                    best_pos = (pos_y, pos_x)
+                    
+        return best_pos
+
+    def _find_best_broaching_gas_position(self, unit: 'Unit', allies: list, enemies: list) -> Optional[Tuple[int, int]]:
+        """Find the best position for Broaching Gas."""
+        best_pos = None
+        best_score = 0
+        
+        # Check positions within range
+        for dy in range(-3, 4):
+            for dx in range(-3, 4):
+                pos_y = unit.y + dy
+                pos_x = unit.x + dx
+                
+                if not self.game.is_valid_position(pos_y, pos_x):
+                    continue
+                if not self.game.map.is_passable(pos_y, pos_x):
+                    continue
+                if self.game.get_unit_at(pos_y, pos_x):
+                    continue
+                    
+                distance = self.game.chess_distance(unit.y, unit.x, pos_y, pos_x)
+                if distance > 3:  # Broaching Gas range
+                    continue
+                    
+                # Score based on tactical value
+                score = 0
+                
+                # Allies in range
+                for ally in allies:
+                    ally_distance = self.game.chess_distance(pos_y, pos_x, ally.y, ally.x)
+                    if ally_distance <= 1:  # Within vapor cloud
+                        score += 15
+                        
+                # Enemies in range (for damage)
+                for enemy in enemies:
+                    enemy_distance = self.game.chess_distance(pos_y, pos_x, enemy.y, enemy.x)
+                    if enemy_distance <= 1:  # Within vapor cloud
+                        score += 10
+                        
+                if score > best_score:
+                    best_score = score
+                    best_pos = (pos_y, pos_x)
+                    
+        return best_pos
+
+    def _find_best_support_position(self, unit: 'Unit', allies: list, enemies: list) -> Optional[Tuple[int, int]]:
+        """Find the best position for GAS_MACHINIST to support allies."""
+        best_pos = None
+        best_score = 0
+        
+        move_range = unit.get_effective_move_range()
+        
+        for dy in range(-move_range, move_range + 1):
+            for dx in range(-move_range, move_range + 1):
+                new_y = unit.y + dy
+                new_x = unit.x + dx
+                
+                if not self.game.is_valid_position(new_y, new_x):
+                    continue
+                if not self.game.map.is_passable(new_y, new_x):
+                    continue
+                if self.game.get_unit_at(new_y, new_x):
+                    continue
+                    
+                distance = self.game.chess_distance(unit.y, unit.x, new_y, new_x)
+                if distance > move_range:
+                    continue
+                    
+                # Score based on support potential
+                score = 0
+                
+                # Closer to wounded allies
+                for ally in allies:
+                    if ally.hp < ally.max_hp:
+                        ally_distance = self.game.chess_distance(new_y, new_x, ally.y, ally.x)
+                        if ally_distance <= 3:  # Within vapor range
+                            score += 20 - ally_distance * 3
+                            
+                # Not too close to enemies
+                for enemy in enemies:
+                    enemy_distance = self.game.chess_distance(new_y, new_x, enemy.y, enemy.x)
+                    if enemy_distance <= 2:
+                        score -= 15
+                        
+                if score > best_score:
+                    best_score = score
+                    best_pos = (new_y, new_x)
+                    
+        return best_pos if best_score > 10 else None
+
+    def _find_best_support_vapor_position(self, unit: 'Unit', allies: list, vapor_type: str) -> Optional[Tuple[int, int]]:
+        """Find the best position for a support vapor to help allies."""
+        best_pos = None
+        best_score = 0
+        
+        move_range = unit.get_effective_move_range()
+        
+        # Special pursuit logic for COOLANT gas - actively chase wounded allies
+        if vapor_type == "COOLANT":
+            # Find the most wounded ally to pursue
+            target_ally = None
+            worst_health_ratio = 1.0
+            
+            for ally in allies:
+                if ally.hp < ally.max_hp:
+                    health_ratio = ally.hp / ally.max_hp
+                    if health_ratio < worst_health_ratio:
+                        worst_health_ratio = health_ratio
+                        target_ally = ally
+            
+            if target_ally:
+                # Move as close as possible to the wounded ally
+                for dy in range(-move_range, move_range + 1):
+                    for dx in range(-move_range, move_range + 1):
+                        new_y = unit.y + dy
+                        new_x = unit.x + dx
+                        
+                        if not self.game.is_valid_position(new_y, new_x):
+                            continue
+                        if not self.game.map.is_passable(new_y, new_x):
+                            continue
+                        if self.game.get_unit_at(new_y, new_x):
+                            continue
+                            
+                        distance = self.game.chess_distance(unit.y, unit.x, new_y, new_x)
+                        if distance > move_range:
+                            continue
+                        
+                        # Score based on proximity to wounded ally
+                        ally_distance = self.game.chess_distance(new_y, new_x, target_ally.y, target_ally.x)
+                        score = 100 - ally_distance * 20  # Closer is much better
+                        
+                        # Huge bonus if we can touch the wounded ally
+                        if ally_distance <= 1:
+                            score += 200
+                            # Extra bonus for critically wounded allies
+                            if worst_health_ratio <= 0.3:
+                                score += 100
+                        
+                        # Small bonus for being near other wounded allies too
+                        for other_ally in allies:
+                            if other_ally != target_ally and other_ally.hp < other_ally.max_hp:
+                                other_distance = self.game.chess_distance(new_y, new_x, other_ally.y, other_ally.x)
+                                if other_distance <= 1:
+                                    score += 30
+                        
+                        if score > best_score:
+                            best_score = score
+                            best_pos = (new_y, new_x)
+                
+                logger.debug(f"COOLANT gas pursuing {target_ally.get_display_name()} (HP: {target_ally.hp}/{target_ally.max_hp})")
+                return best_pos if best_score > 50 else None
+        
+        # Default logic for other support vapors (BROACHING, SAFETY)
+        for dy in range(-move_range, move_range + 1):
+            for dx in range(-move_range, move_range + 1):
+                new_y = unit.y + dy
+                new_x = unit.x + dx
+                
+                if not self.game.is_valid_position(new_y, new_x):
+                    continue
+                if not self.game.map.is_passable(new_y, new_x):
+                    continue
+                if self.game.get_unit_at(new_y, new_x):
+                    continue
+                    
+                distance = self.game.chess_distance(unit.y, unit.x, new_y, new_x)
+                if distance > move_range:
+                    continue
+                    
+                # Score based on allies that would be affected
+                score = 0
+                for ally in allies:
+                    ally_distance = self.game.chess_distance(new_y, new_x, ally.y, ally.x)
+                    if ally_distance <= 1:  # Within vapor effect range
+                        score += 20
+                        if vapor_type in ["BROACHING"] and ally.hp < ally.max_hp:
+                            score += 15  # Bonus for healing vapors near wounded
+                            
+                if score > best_score:
+                    best_score = score
+                    best_pos = (new_y, new_x)
+                    
+        return best_pos if best_score > 15 else None
+
+    def _find_best_offensive_vapor_position(self, unit: 'Unit', enemies: list) -> Optional[Tuple[int, int]]:
+        """Find the best position for an offensive vapor to damage enemies."""
+        best_pos = None
+        best_score = 0
+        
+        move_range = unit.get_effective_move_range()
+        
+        # Special pursuit logic for CUTTING gas - actively chase enemies
+        vapor_type = getattr(unit, 'vapor_type', None)
+        if vapor_type == "CUTTING":
+            # Find the best enemy to pursue (prioritize low health or isolated enemies)
+            target_enemy = None
+            best_target_score = 0
+            
+            for enemy in enemies:
+                enemy_score = 0
+                
+                # Higher priority for low health enemies
+                health_ratio = enemy.hp / enemy.max_hp
+                if health_ratio <= 0.3:
+                    enemy_score += 100  # Very high priority for low health
+                elif health_ratio <= 0.5:
+                    enemy_score += 50
+                else:
+                    enemy_score += 20
+                    
+                # Bonus for isolated enemies (easier to pursue)
+                nearby_allies = sum(1 for ally in enemies 
+                                  if ally != enemy and 
+                                  self.game.chess_distance(enemy.y, enemy.x, ally.y, ally.x) <= 2)
+                if nearby_allies == 0:
+                    enemy_score += 30  # Isolated enemy bonus
+                    
+                if enemy_score > best_target_score:
+                    best_target_score = enemy_score
+                    target_enemy = enemy
+            
+            if target_enemy:
+                # Move as close as possible to the target enemy
+                for dy in range(-move_range, move_range + 1):
+                    for dx in range(-move_range, move_range + 1):
+                        new_y = unit.y + dy
+                        new_x = unit.x + dx
+                        
+                        if not self.game.is_valid_position(new_y, new_x):
+                            continue
+                        if not self.game.map.is_passable(new_y, new_x):
+                            continue
+                        if self.game.get_unit_at(new_y, new_x):
+                            continue
+                            
+                        distance = self.game.chess_distance(unit.y, unit.x, new_y, new_x)
+                        if distance > move_range:
+                            continue
+                        
+                        # Score based on proximity to target enemy
+                        enemy_distance = self.game.chess_distance(new_y, new_x, target_enemy.y, target_enemy.x)
+                        score = 100 - enemy_distance * 25  # Closer is much better
+                        
+                        # Huge bonus if we can touch the target enemy
+                        if enemy_distance <= 1:
+                            score += 250
+                            # Extra bonus for low health enemies
+                            if target_enemy.hp <= 5:
+                                score += 150
+                        
+                        # Small bonus for being near other enemies too
+                        for other_enemy in enemies:
+                            if other_enemy != target_enemy:
+                                other_distance = self.game.chess_distance(new_y, new_x, other_enemy.y, other_enemy.x)
+                                if other_distance <= 1:
+                                    score += 40
+                        
+                        if score > best_score:
+                            best_score = score
+                            best_pos = (new_y, new_x)
+                
+                logger.debug(f"CUTTING gas pursuing {target_enemy.get_display_name()} (HP: {target_enemy.hp}/{target_enemy.max_hp})")
+                return best_pos if best_score > 50 else None
+        
+        # Default logic for other offensive vapors
+        for dy in range(-move_range, move_range + 1):
+            for dx in range(-move_range, move_range + 1):
+                new_y = unit.y + dy
+                new_x = unit.x + dx
+                
+                if not self.game.is_valid_position(new_y, new_x):
+                    continue
+                if not self.game.map.is_passable(new_y, new_x):
+                    continue
+                if self.game.get_unit_at(new_y, new_x):
+                    continue
+                    
+                distance = self.game.chess_distance(unit.y, unit.x, new_y, new_x)
+                if distance > move_range:
+                    continue
+                    
+                # Score based on enemies that would be affected
+                score = 0
+                for enemy in enemies:
+                    enemy_distance = self.game.chess_distance(new_y, new_x, enemy.y, enemy.x)
+                    if enemy_distance <= 1:  # Within vapor effect range
+                        score += 25
+                        if enemy.hp <= 5:  # Low health enemy
+                            score += 10
+                            
+                if score > best_score:
+                    best_score = score
+                    best_pos = (new_y, new_x)
+                    
+        return best_pos if best_score > 20 else None
