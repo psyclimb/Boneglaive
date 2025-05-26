@@ -2938,7 +2938,9 @@ class ActionMenuComponent(UIComponent):
         # Add skill action
         unit_has_skills = unit is not None and hasattr(unit, 'active_skills') and len(unit.get_available_skills()) > 0
         # Allow skills to be used even when a move is planned (the unit can cast from the new position)
-        unit_can_use_skills = unit_has_skills and unit.trapped_by is None and not unit.is_echo
+        # Disable skills when charging (except for Gaussian Dusk auto-firing which is handled differently)
+        unit_can_use_skills = (unit_has_skills and unit.trapped_by is None and not unit.is_echo and
+                              not (hasattr(unit, 'charging_status') and unit.charging_status))
         self.actions.append({
             'key': 's',
             'label': 'kills',  # Will be displayed as [S]kills without space
@@ -3108,7 +3110,7 @@ class ActionMenuComponent(UIComponent):
                 'key': 'g',
                 'label': 'aussian Dusk',  # Will be displayed as [G]aussian Dusk
                 'action': 'gaussian_dusk_skill',
-                'enabled': gaussian_dusk_skill is not None,  # Always enabled when available
+                'enabled': gaussian_dusk_skill is not None,
                 'skill': gaussian_dusk_skill
             })
             
@@ -3360,39 +3362,17 @@ class ActionMenuComponent(UIComponent):
         cursor_manager = self.game_ui.cursor_manager
         mode_manager = self.game_ui.mode_manager
         
-        # Special handling for Gaussian Dusk when unit is charging - auto-fire immediately
-        if (skill.name == "Gaussian Dusk" and cursor_manager.selected_unit and 
-            hasattr(cursor_manager.selected_unit, 'charging_status') and 
-            cursor_manager.selected_unit.charging_status):
-            
-            # Auto-fire without targeting - use stored direction
-            unit = cursor_manager.selected_unit
-            unit.selected_skill = skill
-            unit.skill_target = unit.gaussian_charge_direction
-            
-            # Use the skill immediately
-            skill.use(unit, unit.gaussian_charge_direction, self.game_ui.game)
-            
-            # Mark that this unit is taking an action
-            unit.took_no_actions = False
-            
-            # Clear selection and return to select mode
-            cursor_manager.clear_selection()
-            mode_manager.set_mode("select")
-            
-            # Show firing message
-            self.publish_event(
-                EventType.MESSAGE_DISPLAY_REQUESTED,
-                MessageDisplayEventData(
-                    message="Rail cannon fires!",
-                    message_type=MessageType.ABILITY
-                )
-            )
-            return
-        
         # Set the selected skill
         if cursor_manager.selected_unit:
             cursor_manager.selected_unit.selected_skill = skill
+            
+            # Log skill input for Gaussian Dusk
+            if skill.name == "Gaussian Dusk":
+                message_log.add_message(
+                    f"{cursor_manager.selected_unit.get_display_name()} prepares Gaussian Dusk.",
+                    MessageType.ABILITY,
+                    player=cursor_manager.selected_unit.player
+                )
             
             # Change to skill targeting mode
             mode_manager.set_mode("skill")

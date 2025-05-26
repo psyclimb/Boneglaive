@@ -152,7 +152,7 @@ class GaussianDuskSkill(ActiveSkill):
         super().__init__(
             name="Gaussian Dusk",
             key="G",
-            description="Charges a devastating rail gun shot that pierces everything in its path. Must charge for 1 turn before firing.",
+            description="Charges a devastating rail gun shot that pierces everything in its path. Automatically fires on the next turn.",
             target_type=TargetType.AREA,
             cooldown=4,
             range_=999,  # Entire map range
@@ -163,15 +163,11 @@ class GaussianDuskSkill(ActiveSkill):
         self.charge_direction = None
         
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
-        # If already charging, can always use this skill to fire (no cooldown check needed)
-        if hasattr(user, 'charging_status') and user.charging_status:
-            return True
-
-        # Otherwise, normal cooldown validation for charging
+        # Normal cooldown validation for charging
         if not super().can_use(user, target_pos, game):
             return False
 
-        # For initial charging, need a direction
+        # For charging, need a direction
         if not target_pos:
             return False
 
@@ -180,14 +176,7 @@ class GaussianDuskSkill(ActiveSkill):
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Queue the Gaussian Dusk skill for execution."""
         
-        # Check if already charging - if so, this is the firing turn
-        if hasattr(user, 'charging_status') and user.charging_status:
-            # Fire automatically - use stored direction
-            user.skill_target = user.gaussian_charge_direction
-            user.selected_skill = self
-            return True
-        
-        # Otherwise, this is the charging turn
+        # This is the charging turn
         if not self.can_use(user, target_pos, game):
             return False
 
@@ -228,6 +217,7 @@ class GaussianDuskSkill(ActiveSkill):
             # Set charging status effect
             user.charging_status = True
             user.gaussian_charge_direction = direction
+            user.gaussian_charge_turn = getattr(game, 'turn_count', 0)  # Track when charging started
             
             # Set visual indicator
             user.gaussian_dusk_indicator = direction
@@ -249,7 +239,7 @@ class GaussianDuskSkill(ActiveSkill):
 
             # Log that charging has started
             message_log.add_message(
-                f"{user.get_display_name()} charges its rail cannon with electromagnetic energy!",
+                f"{user.get_display_name()} charges its rail cannon.",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -257,19 +247,19 @@ class GaussianDuskSkill(ActiveSkill):
             # DO NOT set cooldown yet - only after firing
             return True
         
-        # This is the firing turn - clear charging state and fire
+        # This is the firing turn - clear ALL charging state and fire
         user.charging_status = False
-        user.gaussian_dusk_indicator = None
+        if hasattr(user, 'gaussian_dusk_indicator'):
+            user.gaussian_dusk_indicator = None
+        if hasattr(user, 'gaussian_charge_direction'):
+            delattr(user, 'gaussian_charge_direction')
+        if hasattr(user, 'gaussian_charge_turn'):
+            delattr(user, 'gaussian_charge_turn')
         
         # NOW set the cooldown after firing
         self.current_cooldown = self.cooldown
         
-        # Log that firing has started
-        message_log.add_message(
-            f"{user.get_display_name()}'s rail cannon fires a hypersonic projectile!",
-            MessageType.ABILITY,
-            player=user.player
-        )
+        # Firing message removed
         
         # Get firing direction
         direction = target_pos  # target_pos is actually the direction vector
