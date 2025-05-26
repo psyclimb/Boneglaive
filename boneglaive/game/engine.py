@@ -185,7 +185,7 @@ class Game:
             if len(valid_positions) >= 3:
                 # Fixed unit types for VS_AI player 2
                 vs_ai_types = [
-                    UnitType.GLAIVEMAN,
+                    UnitType.FOWL_CONTRIVANCE,
                     UnitType.MANDIBLE_FOREMAN,
                     UnitType.MARROW_CONDENSER
                 ]
@@ -285,7 +285,7 @@ class Game:
         
         # Define specific unit types to use for Player 2 in VS_AI mode
         vs_ai_p2_unit_types = [
-            UnitType.GLAIVEMAN,
+            UnitType.FOWL_CONTRIVANCE,
             UnitType.MANDIBLE_FOREMAN,
             UnitType.MARROW_CONDENSER
         ]
@@ -503,7 +503,7 @@ class Game:
                 logger.warning("Adding emergency units for VS_AI mode, ensuring one of each unit type")
                 
                 # Make a list of available unit types
-                vs_ai_types = [UnitType.GLAIVEMAN, UnitType.MANDIBLE_FOREMAN, UnitType.MARROW_CONDENSER]
+                vs_ai_types = [UnitType.FOWL_CONTRIVANCE, UnitType.MANDIBLE_FOREMAN, UnitType.MARROW_CONDENSER]
                 
                 # See which types we already have
                 for unit in self.units:
@@ -1629,6 +1629,25 @@ class Game:
                             MessageType.ABILITY,
                             player=unit.player
                         )
+
+            # Process Gaussian Dusk charging status - auto-fire after charging turn
+            if (hasattr(unit, 'charging_status') and unit.charging_status and 
+                unit.type == UnitType.FOWL_CONTRIVANCE):
+                # Auto-setup Gaussian Dusk for firing this turn
+                stored_direction = getattr(unit, 'gaussian_charge_direction', (1, 0))
+                
+                # Find the Gaussian Dusk skill
+                gaussian_skill = None
+                for skill in unit.active_skills:
+                    if skill.name == "Gaussian Dusk":
+                        gaussian_skill = skill
+                        break
+                
+                if gaussian_skill:
+                    # Set up for auto-firing
+                    unit.skill_target = stored_direction
+                    unit.selected_skill = gaussian_skill
+                    logger.debug(f"Auto-firing Gaussian Dusk for {unit.get_display_name()} with direction {stored_direction}")
 
             # Process Jawline status effect
             if hasattr(unit, 'jawline_affected') and unit.jawline_affected:
