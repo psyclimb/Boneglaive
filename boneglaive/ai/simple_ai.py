@@ -420,6 +420,8 @@ class SimpleAI:
             self._process_gas_machinist(unit, use_coordination=self.difficulty == AIDifficulty.HARD)
         elif unit.type == UnitType.HEINOUS_VAPOR:
             self._process_heinous_vapor(unit, use_coordination=self.difficulty == AIDifficulty.HARD)
+        elif unit.type == UnitType.DELPHIC_APPRAISER:
+            self._process_delphic_appraiser(unit, use_coordination=self.difficulty == AIDifficulty.HARD)
         else:
             # Default behavior for other unit types
             logger.info(f"No specific AI logic for {unit.type.name}, using default behavior")
@@ -5340,3 +5342,575 @@ class SimpleAI:
                     best_pos = (new_y, new_x)
                     
         return best_pos if best_score > 20 else None
+
+    def _process_delphic_appraiser(self, unit: 'Unit', use_coordination: bool = False) -> None:
+        """
+        Process actions for a DELPHIC_APPRAISER unit.
+        Implements intelligent furniture manipulation, Market Futures portal creation,
+        Auction Curse DOT application, and Divine Depreciation area devastation.
+        
+        Args:
+            unit: The DELPHIC_APPRAISER unit to process
+            use_coordination: Whether to use group coordination tactics
+        """
+        # Always reset targets at the start of processing
+        unit.move_target = None
+        unit.attack_target = None
+        unit.skill_target = None
+        unit.selected_skill = None
+        
+        # Check if unit is trapped - trapped units can only attack, not move or use skills
+        is_trapped = hasattr(unit, 'trapped_by') and unit.trapped_by is not None
+        
+        # Get enemies and allies
+        enemies = [u for u in self.game.units 
+                  if u.player != unit.player and u.is_alive() and u.type != UnitType.HEINOUS_VAPOR]
+        allies = [u for u in self.game.units 
+                 if u.player == unit.player and u.is_alive() and u != unit]
+        
+        # Get available skills
+        available_skills = unit.get_available_skills()
+        
+        # Priority 1: Use Divine Depreciation for massive area damage if good opportunity
+        if not is_trapped and self._should_use_divine_depreciation(unit, enemies, available_skills):
+            return
+            
+        # Priority 2: Use Auction Curse on high-value targets
+        if not is_trapped and self._should_use_auction_curse(unit, enemies, available_skills):
+            return
+            
+        # Priority 3: Create Market Futures portals for team mobility
+        if not is_trapped and self._should_use_market_futures(unit, allies, available_skills):
+            return
+            
+        # Priority 4: Use existing Market Futures portals intelligently
+        if not is_trapped and self._should_use_teleport_portal(unit, allies):
+            return
+            
+        # Priority 5: Position for Valuation Oracle bonuses near furniture
+        self._position_delphic_appraiser(unit, enemies, allies, is_trapped)
+
+    def _should_use_divine_depreciation(self, unit: 'Unit', enemies: list, available_skills: list) -> bool:
+        """
+        Determine if Divine Depreciation should be used.
+        Use when multiple enemies can be caught in the 7x7 area with good furniture density.
+        """
+        # Find Divine Depreciation skill
+        divine_skill = None
+        for skill in available_skills:
+            if hasattr(skill, 'name') and skill.name == "Divine Depreciation":
+                divine_skill = skill
+                break
+                
+        if not divine_skill:
+            return False
+            
+        # Find furniture pieces within range
+        furniture_positions = []
+        for y in range(self.game.map.height):
+            for x in range(self.game.map.width):
+                if self.game.map.is_furniture(y, x):
+                    distance = self.game.chess_distance(unit.y, unit.x, y, x)
+                    if distance <= divine_skill.range:
+                        furniture_positions.append((y, x))
+        
+        if not furniture_positions:
+            return False
+            
+        # Evaluate each furniture piece as a potential target
+        best_score = 0
+        best_target = None
+        
+        for furniture_pos in furniture_positions:
+            # Count enemies in the 7x7 area around this furniture
+            enemies_in_area = []
+            furniture_in_area = []
+            
+            for dy in range(-3, 4):  # 7x7 area
+                for dx in range(-3, 4):
+                    check_y = furniture_pos[0] + dy
+                    check_x = furniture_pos[1] + dx
+                    
+                    if not self.game.is_valid_position(check_y, check_x):
+                        continue
+                        
+                    # Check for enemies
+                    enemy_unit = self.game.get_unit_at(check_y, check_x)
+                    if enemy_unit and enemy_unit.player != unit.player and enemy_unit.is_alive():
+                        enemies_in_area.append(enemy_unit)
+                        
+                    # Check for other furniture (for damage calculation)
+                    if (check_y, check_x) != furniture_pos and self.game.map.is_furniture(check_y, check_x):
+                        furniture_in_area.append((check_y, check_x))
+            
+            # Calculate potential damage (simplified)
+            estimated_avg_cosmic_value = len(furniture_in_area) * 4.5  # Average of 1-9
+            estimated_damage = max(1, int(estimated_avg_cosmic_value / max(1, len(furniture_in_area))) - 1) if furniture_in_area else 1
+            
+            # Score this target
+            score = 0
+            
+            # Base score for number of enemies hit
+            score += len(enemies_in_area) * 150
+            
+            # Bonus for estimated damage potential
+            score += estimated_damage * 30
+            
+            # Bonus for hitting low-health enemies (potential kills)
+            for enemy in enemies_in_area:
+                if enemy.hp <= estimated_damage + 2:  # Likely kill
+                    score += 200
+                elif enemy.hp <= enemy.max_hp * 0.4:  # Low health
+                    score += 75
+                    
+            # Bonus for furniture density (more chaotic effects)
+            score += len(furniture_in_area) * 20
+            
+            if score > best_score:
+                best_score = score
+                best_target = furniture_pos
+                
+        # Use Divine Depreciation if score is high enough
+        if best_score >= 200:  # At least one enemy with decent damage potential
+            if divine_skill.use(unit, best_target, self.game):
+                logger.info(f"DELPHIC_APPRAISER using Divine Depreciation on furniture at {best_target} (score: {best_score})")
+                return True
+                
+        return False
+
+    def _should_use_auction_curse(self, unit: 'Unit', enemies: list, available_skills: list) -> bool:
+        """
+        Determine if Auction Curse should be used.
+        Target enemies in furniture-rich areas for maximum DOT damage.
+        """
+        # Find Auction Curse skill
+        curse_skill = None
+        for skill in available_skills:
+            if hasattr(skill, 'name') and skill.name == "Auction Curse":
+                curse_skill = skill
+                break
+                
+        if not curse_skill:
+            return False
+            
+        # Evaluate each enemy as a potential target
+        best_score = 0
+        best_target = None
+        
+        for enemy in enemies:
+            # Check if enemy is in range
+            distance = self.game.chess_distance(unit.y, unit.x, enemy.y, enemy.x)
+            if distance > curse_skill.range:
+                continue
+                
+            # Check if enemy already has auction curse (don't stack)
+            if hasattr(enemy, 'auction_curse_duration') and enemy.auction_curse_duration > 0:
+                continue
+                
+            # Count furniture within 2 tiles of enemy (curse damage area)
+            furniture_count = 0
+            total_cosmic_value = 0
+            
+            for dy in range(-2, 3):
+                for dx in range(-2, 3):
+                    check_y = enemy.y + dy
+                    check_x = enemy.x + dx
+                    
+                    if not self.game.is_valid_position(check_y, check_x):
+                        continue
+                        
+                    if self.game.map.is_furniture(check_y, check_x):
+                        furniture_count += 1
+                        # Estimate cosmic value (1-9 average = 5)
+                        cosmic_value = self.game.map.get_cosmic_value(check_y, check_x, player=unit.player, game=self.game)
+                        if cosmic_value:
+                            total_cosmic_value += cosmic_value
+                        else:
+                            total_cosmic_value += 5  # Estimated average
+            
+            # Calculate score
+            score = 0
+            
+            # Base score for furniture density (more damage per turn)
+            score += furniture_count * 40
+            score += total_cosmic_value * 10
+            
+            # Prioritize high-health enemies (they'll take more total damage)
+            if enemy.hp >= 15:
+                score += 100
+            elif enemy.hp >= 10:
+                score += 60
+                
+            # Prioritize dangerous enemy types
+            if enemy.type == UnitType.FOWL_CONTRIVANCE:
+                score += 120  # High priority - artillery threat
+            elif enemy.type == UnitType.GRAYMAN:
+                score += 100  # High priority - assassin threat
+            elif enemy.type == UnitType.GLAIVEMAN:
+                score += 80   # Medium-high priority
+            elif enemy.type == UnitType.MANDIBLE_FOREMAN:
+                score += 70   # Medium priority - control threat
+                
+            # Bonus if enemy is isolated from healing
+            allies_near_enemy = 0
+            for other_enemy in enemies:
+                if other_enemy != enemy:
+                    if self.game.chess_distance(enemy.y, enemy.x, other_enemy.y, other_enemy.x) <= 2:
+                        allies_near_enemy += 1
+            if allies_near_enemy == 0:
+                score += 80  # Isolated target
+                
+            if score > best_score:
+                best_score = score
+                best_target = enemy
+                
+        # Use Auction Curse if score is high enough
+        if best_score >= 80:  # Minimum threshold for usefulness
+            if curse_skill.use(unit, (best_target.y, best_target.x), self.game):
+                logger.info(f"DELPHIC_APPRAISER using Auction Curse on {best_target.get_display_name()} (score: {best_score})")
+                return True
+                
+        return False
+
+    def _should_use_market_futures(self, unit: 'Unit', allies: list, available_skills: list) -> bool:
+        """
+        Determine if Market Futures should be used to create teleport portals.
+        Create portals in strategic locations for team mobility.
+        """
+        # Find Market Futures skill
+        futures_skill = None
+        for skill in available_skills:
+            if hasattr(skill, 'name') and skill.name == "Market Futures":
+                futures_skill = skill
+                break
+                
+        if not futures_skill:
+            return False
+            
+        # Check if we already have active portals (don't create too many)
+        active_portals = 0
+        if hasattr(self.game, 'teleport_anchors'):
+            for anchor_pos, anchor_data in self.game.teleport_anchors.items():
+                if anchor_data['active'] and anchor_data['creator'] == unit:
+                    active_portals += 1
+                    
+        if active_portals >= 2:  # Limit to 2 active portals
+            return False
+            
+        # Find furniture pieces within range
+        furniture_positions = []
+        for y in range(self.game.map.height):
+            for x in range(self.game.map.width):
+                if self.game.map.is_furniture(y, x):
+                    distance = self.game.chess_distance(unit.y, unit.x, y, x)
+                    if distance <= futures_skill.range:
+                        furniture_positions.append((y, x))
+        
+        if not furniture_positions:
+            return False
+            
+        # Evaluate each furniture piece as a potential portal location
+        best_score = 0
+        best_target = None
+        
+        for furniture_pos in furniture_positions:
+            # Skip if already has a portal
+            if hasattr(self.game, 'teleport_anchors') and furniture_pos in self.game.teleport_anchors:
+                if self.game.teleport_anchors[furniture_pos]['active']:
+                    continue
+                    
+            score = 0
+            
+            # Get estimated cosmic value for range calculation
+            cosmic_value = self.game.map.get_cosmic_value(furniture_pos[0], furniture_pos[1], player=unit.player, game=self.game)
+            if not cosmic_value:
+                cosmic_value = 5  # Estimated average
+                
+            # Score based on strategic positioning
+            
+            # 1. Central location bonus (can reach more of the map)
+            center_y, center_x = self.game.map.height // 2, self.game.map.width // 2
+            distance_to_center = self.game.chess_distance(furniture_pos[0], furniture_pos[1], center_y, center_x)
+            score += max(0, 100 - distance_to_center * 10)
+            
+            # 2. Distance from current team position (expand reach)
+            min_ally_distance = float('inf')
+            for ally in allies:
+                ally_distance = self.game.chess_distance(furniture_pos[0], furniture_pos[1], ally.y, ally.x)
+                min_ally_distance = min(min_ally_distance, ally_distance)
+            if min_ally_distance != float('inf'):
+                if min_ally_distance >= 6:  # Good for expanding reach
+                    score += 150
+                elif min_ally_distance >= 4:
+                    score += 100
+                elif min_ally_distance >= 2:
+                    score += 50
+                    
+            # 3. High cosmic value bonus (longer teleport range)
+            score += cosmic_value * 15
+            
+            # 4. Near other furniture bonus (Valuation Oracle synergy)
+            nearby_furniture = 0
+            for dy in range(-1, 2):
+                for dx in range(-1, 2):
+                    check_y = furniture_pos[0] + dy
+                    check_x = furniture_pos[1] + dx
+                    if (dy != 0 or dx != 0) and self.game.is_valid_position(check_y, check_x):
+                        if self.game.map.is_furniture(check_y, check_x):
+                            nearby_furniture += 1
+            score += nearby_furniture * 25
+            
+            # 5. Safety bonus (not too close to enemies)
+            enemies = [u for u in self.game.units 
+                      if u.player != unit.player and u.is_alive() and u.type != UnitType.HEINOUS_VAPOR]
+            min_enemy_distance = float('inf')
+            for enemy in enemies:
+                enemy_distance = self.game.chess_distance(furniture_pos[0], furniture_pos[1], enemy.y, enemy.x)
+                min_enemy_distance = min(min_enemy_distance, enemy_distance)
+            if min_enemy_distance != float('inf') and min_enemy_distance >= 4:
+                score += 80  # Safe distance
+            elif min_enemy_distance >= 2:
+                score += 40  # Somewhat safe
+                
+            if score > best_score:
+                best_score = score
+                best_target = furniture_pos
+                
+        # Create Market Futures portal if score is high enough
+        if best_score >= 120:  # Minimum threshold for strategic value
+            if futures_skill.use(unit, best_target, self.game):
+                logger.info(f"DELPHIC_APPRAISER creating Market Futures portal at {best_target} (score: {best_score})")
+                return True
+                
+        return False
+
+    def _should_use_teleport_portal(self, unit: 'Unit', allies: list) -> bool:
+        """
+        Check if DELPHIC_APPRAISER should use an existing Market Futures portal.
+        Uses portals for repositioning or escaping danger.
+        """
+        if not hasattr(self.game, 'teleport_anchors'):
+            return False
+            
+        # Find adjacent active portals
+        adjacent_portals = []
+        for anchor_pos, anchor_data in self.game.teleport_anchors.items():
+            if not anchor_data['active']:
+                continue
+                
+            distance = self.game.chess_distance(unit.y, unit.x, anchor_pos[0], anchor_pos[1])
+            if distance <= 1:  # Adjacent to portal
+                adjacent_portals.append((anchor_pos, anchor_data))
+                
+        if not adjacent_portals:
+            return False
+            
+        # Evaluate teleport destinations for each portal
+        best_score = 0
+        best_portal = None
+        best_destination = None
+        
+        enemies = [u for u in self.game.units 
+                  if u.player != unit.player and u.is_alive() and u.type != UnitType.HEINOUS_VAPOR]
+        
+        for anchor_pos, anchor_data in adjacent_portals:
+            cosmic_value = anchor_data['cosmic_value']
+            
+            # Find valid destinations within cosmic value range
+            for dy in range(-cosmic_value, cosmic_value + 1):
+                for dx in range(-cosmic_value, cosmic_value + 1):
+                    dest_y = anchor_pos[0] + dy
+                    dest_x = anchor_pos[1] + dx
+                    
+                    if not self.game.is_valid_position(dest_y, dest_x):
+                        continue
+                    if not self.game.map.is_passable(dest_y, dest_x):
+                        continue
+                    if self.game.get_unit_at(dest_y, dest_x):
+                        continue
+                        
+                    distance = self.game.chess_distance(anchor_pos[0], anchor_pos[1], dest_y, dest_x)
+                    if distance > cosmic_value:
+                        continue
+                        
+                    # Score this destination
+                    score = 0
+                    
+                    # 1. Safety from enemies
+                    min_enemy_distance = float('inf')
+                    for enemy in enemies:
+                        enemy_distance = self.game.chess_distance(dest_y, dest_x, enemy.y, enemy.x)
+                        min_enemy_distance = min(min_enemy_distance, enemy_distance)
+                    
+                    if min_enemy_distance != float('inf'):
+                        if min_enemy_distance >= 5:
+                            score += 150  # Very safe
+                        elif min_enemy_distance >= 3:
+                            score += 100  # Moderately safe
+                        elif min_enemy_distance >= 2:
+                            score += 50   # Somewhat safe
+                        else:
+                            score -= 100  # Too close to enemies
+                            
+                    # 2. Near furniture for Valuation Oracle
+                    nearby_furniture = 0
+                    for fdy in range(-1, 2):
+                        for fdx in range(-1, 2):
+                            check_y = dest_y + fdy
+                            check_x = dest_x + fdx
+                            if (fdy != 0 or fdx != 0) and self.game.is_valid_position(check_y, check_x):
+                                if self.game.map.is_furniture(check_y, check_x):
+                                    nearby_furniture += 1
+                    score += nearby_furniture * 40
+                    
+                    # 3. Distance from current position (escape bonus)
+                    current_distance = self.game.chess_distance(unit.y, unit.x, dest_y, dest_x)
+                    if current_distance >= 4:
+                        score += 80  # Good escape distance
+                        
+                    # 4. Immediate danger check (high priority for escaping)
+                    immediate_danger = False
+                    for enemy in enemies:
+                        if self.game.chess_distance(unit.y, unit.x, enemy.y, enemy.x) <= 2:
+                            if enemy.hp > unit.hp * 0.8:  # Dangerous enemy nearby
+                                immediate_danger = True
+                                break
+                    if immediate_danger:
+                        score += 200  # Escape bonus
+                        
+                    if score > best_score:
+                        best_score = score
+                        best_portal = anchor_pos
+                        best_destination = (dest_y, dest_x)
+                        
+        # Use portal if score is high enough
+        if best_score >= 100:  # Minimum threshold for teleport value
+            # Simulate teleport activation (this would normally be done through UI)
+            from boneglaive.game.skills.delphic_appraiser import MarketFuturesSkill
+            market_skill = MarketFuturesSkill()
+            if market_skill.activate_teleport(unit, best_portal, best_destination, self.game, self.ui):
+                logger.info(f"DELPHIC_APPRAISER using Market Futures portal to teleport to {best_destination} (score: {best_score})")
+                return True
+                
+        return False
+
+    def _position_delphic_appraiser(self, unit: 'Unit', enemies: list, allies: list, is_trapped: bool) -> None:
+        """
+        Position DELPHIC_APPRAISER for optimal furniture adjacency and safety.
+        Prioritizes Valuation Oracle bonuses while maintaining tactical positioning.
+        """
+        if is_trapped:
+            # If trapped, can only attack
+            target = self._find_closest_enemy(unit, enemies)
+            if target:
+                distance = self.game.chess_distance(unit.y, unit.x, target.y, target.x)
+                attack_range = unit.get_effective_stats()['attack_range']
+                if distance <= attack_range:
+                    unit.attack_target = (target.y, target.x)
+                    logger.info(f"DELPHIC_APPRAISER (trapped) attacking {target.get_display_name()}")
+            return
+            
+        # Find best position considering furniture adjacency and safety
+        best_score = -1
+        best_position = None
+        best_attack_target = None
+        
+        move_range = unit.get_effective_stats()['move_range']
+        attack_range = unit.get_effective_stats()['attack_range']
+        
+        # Evaluate all possible movement positions
+        for dy in range(-move_range, move_range + 1):
+            for dx in range(-move_range, move_range + 1):
+                new_y = unit.y + dy
+                new_x = unit.x + dx
+                
+                if not self.game.is_valid_position(new_y, new_x):
+                    continue
+                if not self.game.map.is_passable(new_y, new_x):
+                    continue
+                if self.game.get_unit_at(new_y, new_x):
+                    continue
+                    
+                distance = self.game.chess_distance(unit.y, unit.x, new_y, new_x)
+                if distance > move_range:
+                    continue
+                    
+                # Score this position
+                score = 0
+                
+                # 1. Furniture adjacency bonus (Valuation Oracle)
+                adjacent_furniture = 0
+                for fdy in range(-1, 2):
+                    for fdx in range(-1, 2):
+                        if fdy == 0 and fdx == 0:
+                            continue
+                        check_y = new_y + fdy
+                        check_x = new_x + fdx
+                        if self.game.is_valid_position(check_y, check_x):
+                            if self.game.map.is_furniture(check_y, check_x):
+                                adjacent_furniture += 1
+                                
+                if adjacent_furniture > 0:
+                    score += 200 + adjacent_furniture * 50  # High priority for Valuation Oracle
+                    
+                # 2. Safety from enemies
+                min_enemy_distance = float('inf')
+                for enemy in enemies:
+                    enemy_distance = self.game.chess_distance(new_y, new_x, enemy.y, enemy.x)
+                    min_enemy_distance = min(min_enemy_distance, enemy_distance)
+                    
+                if min_enemy_distance != float('inf'):
+                    if min_enemy_distance >= 4:
+                        score += 100  # Safe distance
+                    elif min_enemy_distance >= 2:
+                        score += 50   # Moderate distance
+                    elif min_enemy_distance == 1:
+                        score -= 150  # Too close, dangerous
+                        
+                # 3. Attack opportunity
+                attack_target = None
+                for enemy in enemies:
+                    enemy_distance = self.game.chess_distance(new_y, new_x, enemy.y, enemy.x)
+                    if enemy_distance <= attack_range:
+                        attack_target = enemy
+                        score += 80  # Can attack from this position
+                        
+                        # Prioritize dangerous targets
+                        if enemy.type == UnitType.FOWL_CONTRIVANCE:
+                            score += 60
+                        elif enemy.type == UnitType.GRAYMAN:
+                            score += 50
+                        elif enemy.hp <= 8:  # Low health
+                            score += 40
+                        break
+                        
+                # 4. Team coordination (stay somewhat close to allies)
+                if allies:
+                    avg_ally_distance = sum(self.game.chess_distance(new_y, new_x, ally.y, ally.x) 
+                                          for ally in allies) / len(allies)
+                    if avg_ally_distance <= 5:
+                        score += 30  # Good team positioning
+                    elif avg_ally_distance >= 8:
+                        score -= 20  # Too far from team
+                        
+                if score > best_score:
+                    best_score = score
+                    best_position = (new_y, new_x)
+                    best_attack_target = attack_target
+                    
+        # Execute best action
+        if best_position and best_position != (unit.y, unit.x):
+            unit.move_target = best_position
+            logger.info(f"DELPHIC_APPRAISER moving to {best_position} (score: {best_score})")
+        
+        if best_attack_target:
+            unit.attack_target = (best_attack_target.y, best_attack_target.x)
+            logger.info(f"DELPHIC_APPRAISER attacking {best_attack_target.get_display_name()}")
+        elif not best_position:
+            # No good movement, try to attack from current position
+            target = self._find_closest_enemy(unit, enemies)
+            if target:
+                distance = self.game.chess_distance(unit.y, unit.x, target.y, target.x)
+                if distance <= attack_range:
+                    unit.attack_target = (target.y, target.x)
+                    logger.info(f"DELPHIC_APPRAISER attacking {target.get_display_name()} from current position")

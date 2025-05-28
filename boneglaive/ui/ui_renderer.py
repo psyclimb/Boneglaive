@@ -799,8 +799,8 @@ class UIRenderer:
                        u.selected_skill.name == "Divine Depreciation" and u.divine_depreciation_indicator is not None:
                         target_y, target_x = u.divine_depreciation_indicator
 
-                        # Check if this position is within the 5x5 area of Divine Depreciation
-                        in_area = (abs(y - target_y) <= 2 and abs(x - target_x) <= 2)
+                        # Check if this position is within the 7x7 area of Divine Depreciation
+                        in_area = (abs(y - target_y) <= 3 and abs(x - target_x) <= 3)
 
                         if in_area:
                             # Draw divine depreciation indicator

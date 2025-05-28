@@ -385,7 +385,7 @@ class AuctionCurseSkill(ActiveSkill):
                         "prevents all healing for the cursed unit, and heals allied units "
                         "within 2 tiles by 1 HP with twisted energy."),
             target_type=TargetType.ENEMY,
-            cooldown=2,
+            cooldown=4,
             range_=3
         )
 
@@ -621,11 +621,11 @@ class DivineDrepreciationSkill(ActiveSkill):
         super().__init__(
             name="Divine Depreciation",
             key="D",
-            description="Dramatically reappraises a furniture piece as cosmically worthless, creating a 5×5 reality distortion. Sets target furniture to value 1, deals damage that bypasses defense and pulls enemies toward the center based on move values. All other furniture has cosmic values rerolled.",
+            description="Dramatically reappraises a furniture piece as cosmically worthless, creating a 7×7 reality distortion. Sets target furniture to value 1, deals damage that bypasses defense and pulls enemies toward the center based on move values. All other furniture has cosmic values rerolled.",
             target_type=TargetType.AREA,
-            cooldown=4,  # Cooldown of 4 turns
+            cooldown=6,  # Cooldown of 6 turns
             range_=3,
-            area=2  # 5×5 area (radius 2)
+            area=3  # 7×7 area (radius 3)
         )
 
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
@@ -701,11 +701,11 @@ class DivineDrepreciationSkill(ActiveSkill):
         if not hasattr(game, 'reality_distortions'):
             game.reality_distortions = {}
 
-        # Define the affected area (5×5)
+        # Define the affected area (7×7)
         affected_area = []
         center_y, center_x = target_pos
-        for dy in range(-2, 3):  # -2, -1, 0, 1, 2
-            for dx in range(-2, 3):  # -2, -1, 0, 1, 2
+        for dy in range(-3, 4):  # -3, -2, -1, 0, 1, 2, 3
+            for dx in range(-3, 4):  # -3, -2, -1, 0, 1, 2, 3
                 y, x = center_y + dy, center_x + dx
                 if game.is_valid_position(y, x):
                     affected_area.append((y, x))
@@ -956,9 +956,9 @@ class DivineDrepreciationSkill(ActiveSkill):
             )
             sleep_with_animation_speed(0.1)  # Pause between animation phases
 
-            # Step 4: The floor around it warps and sinks - expanded to 5x5 area
+            # Step 4: The floor around it warps and sinks - expanded to 7x7 area
             # First show a ripple effect from the center outward
-            for distance in range(1, 3):  # Range 1-2 to cover inner parts of 5x5 area
+            for distance in range(1, 4):  # Range 1-3 to cover inner parts of 7x7 area
                 for y in range(target_pos[0] - distance, target_pos[0] + distance + 1):
                     for x in range(target_pos[1] - distance, target_pos[1] + distance + 1):
                         # Only animate positions at exactly the current distance (edges)
@@ -973,11 +973,11 @@ class DivineDrepreciationSkill(ActiveSkill):
                                 )
                 sleep_with_animation_speed(0.05)  # Pause between ripples
 
-            # Continue ripple to the outer edge (distance 2)
-            for y in range(target_pos[0] - 2, target_pos[0] + 3):
-                for x in range(target_pos[1] - 2, target_pos[1] + 3):
+            # Continue ripple to the outer edge (distance 3)
+            for y in range(target_pos[0] - 3, target_pos[0] + 4):
+                for x in range(target_pos[1] - 3, target_pos[1] + 4):
                     # Only animate positions at the outer edge
-                    if abs(y - target_pos[0]) == 2 or abs(x - target_pos[1]) == 2:
+                    if abs(y - target_pos[0]) == 3 or abs(x - target_pos[1]) == 3:
                         # Check if position is valid and in affected area
                         if game.is_valid_position(y, x) and (y, x) in affected_area:
                             ui.renderer.animate_attack_sequence(
