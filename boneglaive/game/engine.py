@@ -186,7 +186,7 @@ class Game:
                 # Fixed unit types for VS_AI player 2
                 vs_ai_types = [
                     UnitType.FOWL_CONTRIVANCE,
-                    UnitType.MANDIBLE_FOREMAN,
+                    UnitType.DELPHIC_APPRAISER,
                     UnitType.GAS_MACHINIST
                 ]
                 
@@ -206,7 +206,7 @@ class Game:
         # Set up a variety of unit types to use
         unit_types = [
             UnitType.GLAIVEMAN,
-            UnitType.MANDIBLE_FOREMAN,
+            UnitType.DELPHIC_APPRAISER,
             UnitType.GAS_MACHINIST
         ]
         
@@ -286,7 +286,7 @@ class Game:
         # Define specific unit types to use for Player 2 in VS_AI mode
         vs_ai_p2_unit_types = [
             UnitType.FOWL_CONTRIVANCE,
-            UnitType.MANDIBLE_FOREMAN,
+            UnitType.DELPHIC_APPRAISER,
             UnitType.GAS_MACHINIST
         ]
         
@@ -381,7 +381,7 @@ class Game:
         # Unit type setup
         player1_unit_types = [
             UnitType.GLAIVEMAN,
-            UnitType.MANDIBLE_FOREMAN,
+            UnitType.DELPHIC_APPRAISER,
             UnitType.GAS_MACHINIST
         ]
         
@@ -398,7 +398,7 @@ class Game:
             # First create units for player 2 (AI) to ensure we get exactly one of each type
             if len(p2_positions) >= 3:
                 # Add exactly one of each unit type for player 2
-                types_to_add = [UnitType.GLAIVEMAN, UnitType.MANDIBLE_FOREMAN, UnitType.GAS_MACHINIST]
+                types_to_add = [UnitType.GLAIVEMAN, UnitType.DELPHIC_APPRAISER, UnitType.GAS_MACHINIST]
                 
                 for i, (player, y, x) in enumerate(p2_positions[:3]):
                     unit_type = types_to_add[i]
@@ -454,7 +454,7 @@ class Game:
                     # Default rotation of unit types with variety
                     player2_unit_types = [
                         UnitType.GLAIVEMAN,
-                        UnitType.MANDIBLE_FOREMAN,
+                        UnitType.DELPHIC_APPRAISER,
                         UnitType.GAS_MACHINIST
                     ]
                     
@@ -503,7 +503,7 @@ class Game:
                 logger.warning("Adding emergency units for VS_AI mode, ensuring one of each unit type")
                 
                 # Make a list of available unit types
-                vs_ai_types = [UnitType.FOWL_CONTRIVANCE, UnitType.MANDIBLE_FOREMAN, UnitType.GAS_MACHINIST]
+                vs_ai_types = [UnitType.FOWL_CONTRIVANCE, UnitType.DELPHIC_APPRAISER, UnitType.GAS_MACHINIST]
                 
                 # See which types we already have
                 for unit in self.units:
@@ -529,7 +529,7 @@ class Game:
                     player, y, x = emergency_p2_positions[i]
                     
                     # Determine which unit type to use next
-                    valid_types = [UnitType.GLAIVEMAN, UnitType.MANDIBLE_FOREMAN, UnitType.GAS_MACHINIST]
+                    valid_types = [UnitType.GLAIVEMAN, UnitType.DELPHIC_APPRAISER, UnitType.GAS_MACHINIST]
                     
                     # Filter by existing types if needed
                     if player_unit_counts.get(player, {}):

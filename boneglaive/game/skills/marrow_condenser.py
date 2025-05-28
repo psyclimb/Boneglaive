@@ -210,7 +210,7 @@ class MarrowDikeSkill(ActiveSkill):
             key="M",
             description="Creates a wall of condensed bone marrow that blocks movement and attacks for 3 turns.",
             target_type=TargetType.SELF,
-            cooldown=3,  # 3-turn cooldown
+            cooldown=4,  # 4-turn cooldown
             range_=0,
             area=2  # 5x5 area (center + 2 in each direction)
         )
@@ -361,14 +361,7 @@ class MarrowDikeSkill(ActiveSkill):
                 
                 # Check if the target position is passable terrain
                 if not game.map.is_passable(new_y, new_x):
-                    # Cannot pull onto impassable terrain - log warning message
-                    message_log.add_message(
-                        f"{unit_at_tile.get_display_name()} cannot be pulled onto impassable terrain!",
-                        MessageType.WARNING,
-                        player=user.player,
-                        target_name=unit_at_tile.get_display_name()
-                    )
-                    # Skip this unit - it won't be moved
+                    # Cannot pull onto impassable terrain - skip silently
                     continue
                 
                 # Store the movement info for animation

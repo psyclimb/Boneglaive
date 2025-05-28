@@ -71,7 +71,7 @@ class MenuUI:
         # Create submenus first
         play_menu = Menu("Play Game", [
             MenuItem("Single Player", self._start_single_player),
-            MenuItem("VS AI (Glaiveman)", self._start_vs_ai),
+            MenuItem("VS AI", self._start_vs_ai),
             MenuItem("Local Multiplayer", self._start_local_multiplayer),
             MenuItem("Host LAN Game", self._start_lan_host),
             MenuItem("Join LAN Game", self._start_lan_client),
