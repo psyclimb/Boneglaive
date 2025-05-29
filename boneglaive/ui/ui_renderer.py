@@ -202,6 +202,9 @@ class UIRenderer:
                 elif terrain == TerrainType.CANYON_FLOOR:
                     tile = self.game_ui.asset_manager.get_terrain_tile("canyon_floor")
                     color_id = 11  # Normal white for canyon floor (same as dust)
+                elif terrain == TerrainType.CONCRETE_FLOOR:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("concrete_floor")
+                    color_id = 11  # Normal white for concrete floor (same as dust)
                 elif terrain == TerrainType.PILLAR:
                     tile = self.game_ui.asset_manager.get_terrain_tile("pillar")
                     color_id = 13  # White for pillars
@@ -344,6 +347,66 @@ class UIRenderer:
                         
                 elif terrain == TerrainType.VASE:
                     tile = self.game_ui.asset_manager.get_terrain_tile("vase")
+                    color_id = 14  # White for furniture
+                    tile_attr = curses.A_DIM  # Dim white/gray via dim attribute
+                    
+                    # Override if this has a teleport anchor
+                    if has_teleport_anchor:
+                        tile = "¥"  # Replace with yen/yuan symbol
+                        color_id = teleport_anchor_color  # Player-specific color for imbued furniture
+                        tile_attr = curses.A_BOLD  # Make it bold
+                        
+                # Edgecase map terrain types (gray color scheme like other maps)
+                elif terrain == TerrainType.LATHE:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("lathe")
+                    color_id = 12  # White for lathe machinery
+                    tile_attr = curses.A_BOLD  # Bright white via bold attribute
+                elif terrain == TerrainType.WORKBENCH:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("workbench")
+                    color_id = 14  # White for furniture
+                    tile_attr = curses.A_DIM  # Dim white/gray via dim attribute
+                    
+                    # Override if this has a teleport anchor
+                    if has_teleport_anchor:
+                        tile = "¥"  # Replace with yen/yuan symbol
+                        color_id = teleport_anchor_color  # Player-specific color for imbued furniture
+                        tile_attr = curses.A_BOLD  # Make it bold
+                        
+                elif terrain == TerrainType.COUCH:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("couch")
+                    color_id = 14  # White for furniture
+                    tile_attr = curses.A_DIM  # Dim white/gray via dim attribute
+                    
+                    # Override if this has a teleport anchor
+                    if has_teleport_anchor:
+                        tile = "¥"  # Replace with yen/yuan symbol
+                        color_id = teleport_anchor_color  # Player-specific color for imbued furniture
+                        tile_attr = curses.A_BOLD  # Make it bold
+                        
+                elif terrain == TerrainType.TOOLBOX:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("toolbox")
+                    color_id = 14  # White for furniture
+                    tile_attr = curses.A_DIM  # Dim white/gray via dim attribute
+                    
+                    # Override if this has a teleport anchor
+                    if has_teleport_anchor:
+                        tile = "¥"  # Replace with yen/yuan symbol
+                        color_id = teleport_anchor_color  # Player-specific color for imbued furniture
+                        tile_attr = curses.A_BOLD  # Make it bold
+                        
+                elif terrain == TerrainType.COT:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("cot")
+                    color_id = 14  # White for furniture
+                    tile_attr = curses.A_DIM  # Dim white/gray via dim attribute
+                    
+                    # Override if this has a teleport anchor
+                    if has_teleport_anchor:
+                        tile = "¥"  # Replace with yen/yuan symbol
+                        color_id = teleport_anchor_color  # Player-specific color for imbued furniture
+                        tile_attr = curses.A_BOLD  # Make it bold
+                        
+                elif terrain == TerrainType.CONVEYOR:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("conveyor")
                     color_id = 14  # White for furniture
                     tile_attr = curses.A_DIM  # Dim white/gray via dim attribute
                     

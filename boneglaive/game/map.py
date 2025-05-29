@@ -31,6 +31,14 @@ class TerrainType(Enum):
     PODIUM = 16    # Display podium, blocks movement but not line of sight
     VASE = 17      # Decorative pottery vase, blocks movement but not line of sight
     CANYON_FLOOR = 18  # Canyon floor with natural sediment, visual only (passable)
+    # Edgecase map - Industrial warehouse converted to home
+    LATHE = 19     # Industrial lathe machine, blocks movement and unit placement
+    WORKBENCH = 20 # Industrial workbench, blocks movement but not line of sight
+    COUCH = 21     # Household couch, blocks movement but not line of sight
+    TOOLBOX = 22   # Industrial toolbox, blocks movement but not line of sight
+    COT = 23       # Temporary sleeping cot, blocks movement but not line of sight
+    CONVEYOR = 24  # Industrial conveyor belt, blocks movement but not line of sight
+    CONCRETE_FLOOR = 25 # Industrial concrete floor, visual only (passable)
 
 
 class GameMap:
@@ -70,20 +78,20 @@ class GameMap:
         """Check if a position is passable (can be moved through)."""
         terrain = self.get_terrain_at(y, x)
         # All furniture types, pillars, limestone, stained stone, and marrow walls are impassable
-        # Rails and canyon floor are passable by all units
-        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.RAIL]
+        # Rails, canyon floor, and concrete floor are passable by all units
+        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.CONCRETE_FLOOR, TerrainType.RAIL]
     
     def can_place_unit(self, y: int, x: int) -> bool:
         """Check if a unit can be placed at this position."""
         terrain = self.get_terrain_at(y, x)
-        # Units can be placed on empty, dusty, canyon floor, or rail tiles
-        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.RAIL]
+        # Units can be placed on empty, dusty, canyon floor, concrete floor, or rail tiles
+        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.CONCRETE_FLOOR, TerrainType.RAIL]
         
     def blocks_line_of_sight(self, y: int, x: int) -> bool:
         """Check if a position blocks line of sight for ranged attacks."""
         terrain = self.get_terrain_at(y, x)
-        # Limestone, pillars, stained stone, and marrow walls block line of sight
-        return terrain in [TerrainType.LIMESTONE, TerrainType.PILLAR, TerrainType.STAINED_STONE, TerrainType.MARROW_WALL]
+        # Limestone, pillars, stained stone, lathes, and marrow walls block line of sight
+        return terrain in [TerrainType.LIMESTONE, TerrainType.PILLAR, TerrainType.STAINED_STONE, TerrainType.LATHE, TerrainType.MARROW_WALL]
 
     def get_cosmic_value(self, y: int, x: int, player=None, game=None) -> Optional[int]:
         """
@@ -97,7 +105,9 @@ class GameMap:
         if terrain not in [TerrainType.FURNITURE, TerrainType.COAT_RACK,
                           TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE, 
                           TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE, 
-                          TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE]:
+                          TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
+                          TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
+                          TerrainType.COT, TerrainType.CONVEYOR]:
             return None
 
         # Check if player has DELPHIC_APPRAISER
@@ -208,9 +218,9 @@ class GameMap:
             return False
         
         terrain = self.get_terrain_at(y, x)
-        # Rails can be placed on empty, dust, canyon floor, or existing rail tiles
+        # Rails can be placed on empty, dust, canyon floor, concrete floor, or existing rail tiles
         # Cannot be placed on blocking terrain or furniture
-        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.RAIL]
+        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.CONCRETE_FLOOR, TerrainType.RAIL]
 
 
     def get_rail_positions(self) -> List[Tuple[int, int]]:
@@ -562,6 +572,130 @@ class StainedStonesMap(GameMap):
                 self.set_terrain_at(y, x, TerrainType.CANYON_FLOOR)
 
 
+class EdgecaseMap(GameMap):
+    """Edgecase - Industrial warehouse converted to home, forces edge-based gameplay with central blocking."""
+    
+    def __init__(self):
+        super().__init__()
+        self.name = "Edgecase"
+        from boneglaive.utils.debug import logger
+        logger.info("EdgecaseMap.__init__ called - generating Edgecase warehouse map")
+        self.generate_map()
+    
+    def generate_map(self) -> None:
+        """Generate Edgecase map with central industrial machinery forcing edge play."""
+        from boneglaive.utils.debug import logger
+        logger.info("EdgecaseMap.generate_map() called - creating warehouse layout")
+        # Reset to empty first
+        self.reset_to_empty()
+        
+        # DESIGN CONCEPT: Large central industrial area forces all combat to map edges
+        # Layout: Massive central machinery block with narrow edge corridors
+        
+        # Central industrial machinery complex (3x7 core blocking area)
+        # This creates a large impassable center forcing edge movement
+        central_machinery = [
+            # Core lathe machinery (blocks movement AND line of sight)
+            (4, 8), (4, 9), (4, 10), (4, 11),  # Central row of heavy lathes
+            (5, 8), (5, 9), (5, 10), (5, 11),  # Central row of heavy lathes
+            
+            # Extended machinery wings
+            (3, 9), (3, 10),  # North machinery extension
+            (6, 9), (6, 10),  # South machinery extension
+        ]
+        for y, x in central_machinery:
+            self.set_terrain_at(y, x, TerrainType.LATHE)
+        logger.info(f"Placed {len(central_machinery)} LATHE tiles in central machinery complex")
+        
+        # Workbenches flanking the central area (create L-shaped barriers)
+        north_workbenches = [
+            (2, 7), (2, 8), (2, 11), (2, 12),  # North workbench line
+            (3, 7), (3, 12),  # North workbench corners
+        ]
+        for y, x in north_workbenches:
+            self.set_terrain_at(y, x, TerrainType.WORKBENCH)
+            
+        south_workbenches = [
+            (7, 7), (7, 8), (7, 11), (7, 12),  # South workbench line  
+            (6, 7), (6, 12),  # South workbench corners
+        ]
+        for y, x in south_workbenches:
+            self.set_terrain_at(y, x, TerrainType.WORKBENCH)
+        
+        # Industrial-to-home conversion furniture in edge areas
+        # Living area (west edge) - household furniture
+        self.set_terrain_at(1, 1, TerrainType.COUCH)           # Living room couch
+        self.set_terrain_at(1, 3, TerrainType.COT)             # Sleeping cot
+        self.set_terrain_at(3, 1, TerrainType.COUCH)           # Another couch
+        self.set_terrain_at(3, 3, TerrainType.COT)             # Another sleeping cot
+        self.set_terrain_at(5, 1, TerrainType.COUCH)           # South living couch
+        self.set_terrain_at(5, 3, TerrainType.COT)             # South sleeping cot
+        self.set_terrain_at(7, 1, TerrainType.COUCH)           # Corner living area
+        self.set_terrain_at(8, 3, TerrainType.COT)             # Corner sleeping cot
+        
+        # Workshop area (east edge) - industrial furniture mixed with home
+        self.set_terrain_at(1, 16, TerrainType.TOOLBOX)        # Workshop toolbox
+        self.set_terrain_at(1, 18, TerrainType.WORKBENCH)      # East workshop bench
+        self.set_terrain_at(3, 16, TerrainType.TOOLBOX)        # More toolboxes
+        self.set_terrain_at(3, 18, TerrainType.WORKBENCH)      # East workbench
+        self.set_terrain_at(5, 16, TerrainType.TOOLBOX)        # South toolboxes
+        self.set_terrain_at(5, 18, TerrainType.WORKBENCH)      # South workbench
+        self.set_terrain_at(7, 16, TerrainType.TOOLBOX)        # Corner toolbox
+        self.set_terrain_at(8, 18, TerrainType.WORKBENCH)      # Corner workbench
+        
+        # Conveyor belt connections (create interesting sight lines)
+        # North conveyor line
+        self.set_terrain_at(0, 5, TerrainType.CONVEYOR)        # North conveyor start
+        self.set_terrain_at(0, 9, TerrainType.CONVEYOR)        # North conveyor center
+        self.set_terrain_at(0, 14, TerrainType.CONVEYOR)       # North conveyor end
+        
+        # South conveyor line (symmetrical)
+        self.set_terrain_at(9, 5, TerrainType.CONVEYOR)        # South conveyor start
+        self.set_terrain_at(9, 9, TerrainType.CONVEYOR)        # South conveyor center  
+        self.set_terrain_at(9, 14, TerrainType.CONVEYOR)       # South conveyor end
+        
+        # Edge industrial details
+        self.set_terrain_at(4, 0, TerrainType.TOOLBOX)         # West wall toolbox
+        self.set_terrain_at(4, 19, TerrainType.TOOLBOX)        # East wall toolbox
+        self.set_terrain_at(0, 0, TerrainType.WORKBENCH)       # Northwest corner
+        self.set_terrain_at(0, 19, TerrainType.WORKBENCH)      # Northeast corner
+        self.set_terrain_at(9, 0, TerrainType.WORKBENCH)       # Southwest corner
+        self.set_terrain_at(9, 19, TerrainType.WORKBENCH)      # Southeast corner
+        
+        # Concrete floor patterns (industrial warehouse flooring)
+        # Create paths along the edges where combat will occur
+        concrete_patterns = [
+            # North edge pathway
+            (0, 1), (0, 2), (0, 3), (0, 4), (0, 6), (0, 7), (0, 8), (0, 10), (0, 11), (0, 12), (0, 13), (0, 15), (0, 16), (0, 17), (0, 18),
+            
+            # North interior edge
+            (1, 0), (1, 2), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (1, 11), (1, 12), (1, 13), (1, 14), (1, 15), (1, 17), (1, 19),
+            
+            # West edge corridor  
+            (2, 0), (2, 1), (2, 2), (2, 3), (2, 4), (2, 5), (2, 6), (2, 9), (2, 10), (2, 13), (2, 14), (2, 15), (2, 16), (2, 17), (2, 18), (2, 19),
+            
+            # Central transition areas (limited movement between edges)
+            (3, 0), (3, 2), (3, 4), (3, 5), (3, 6), (3, 8), (3, 11), (3, 13), (3, 14), (3, 15), (3, 17), (3, 19),
+            (4, 1), (4, 2), (4, 3), (4, 4), (4, 5), (4, 6), (4, 7), (4, 12), (4, 13), (4, 14), (4, 15), (4, 16), (4, 17), (4, 18),
+            (5, 0), (5, 2), (5, 4), (5, 5), (5, 6), (5, 7), (5, 12), (5, 13), (5, 14), (5, 15), (5, 17), (5, 19),
+            (6, 0), (6, 1), (6, 2), (6, 3), (6, 4), (6, 5), (6, 6), (6, 8), (6, 11), (6, 13), (6, 14), (6, 15), (6, 16), (6, 17), (6, 18), (6, 19),
+            
+            # East edge corridor
+            (7, 0), (7, 2), (7, 3), (7, 4), (7, 5), (7, 6), (7, 9), (7, 10), (7, 13), (7, 14), (7, 15), (7, 17), (7, 19),
+            
+            # South interior edge
+            (8, 0), (8, 1), (8, 2), (8, 4), (8, 5), (8, 6), (8, 7), (8, 8), (8, 9), (8, 10), (8, 11), (8, 12), (8, 13), (8, 14), (8, 15), (8, 16), (8, 17), (8, 19),
+            
+            # South edge pathway  
+            (9, 1), (9, 2), (9, 3), (9, 4), (9, 6), (9, 7), (9, 8), (9, 10), (9, 11), (9, 12), (9, 13), (9, 15), (9, 16), (9, 17), (9, 18)
+        ]
+        
+        for y, x in concrete_patterns:
+            # Only set concrete floor if the tile is empty (not already furniture or machinery)
+            if self.get_terrain_at(y, x) == TerrainType.EMPTY:
+                self.set_terrain_at(y, x, TerrainType.CONCRETE_FLOOR)
+
+
 class MapFactory:
     """Factory class for creating different maps."""
     
@@ -580,6 +714,9 @@ class MapFactory:
         elif map_name.lower() == "stained_stones":
             logger.info("Creating StainedStonesMap")
             return StainedStonesMap()
+        elif map_name.lower() == "edgecase":
+            logger.info("Creating EdgecaseMap")
+            return EdgecaseMap()
         else:
             logger.warning(f"Unknown map name '{map_name}', defaulting to empty GameMap")
             # Default to empty map

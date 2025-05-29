@@ -73,7 +73,15 @@ class AssetManager:
             'bench': 'n',      # Lowercase n resembles bench with legs
             'podium': 'Γ',     # Gamma symbol for elevated podium platform
             'vase': 'v',       # Lowercase v resembles vase shape
-            'canyon_floor': '.'  # Canyon floor sediment
+            'canyon_floor': '.',  # Canyon floor sediment
+            # Edgecase map terrain - Industrial warehouse converted to home
+            'lathe': 'O',      # Round shape for cylindrical lathe
+            'workbench': 'I',  # I-beam shape for industrial workbench
+            'couch': 'u',      # Lowercase u resembles couch shape
+            'toolbox': 'H',    # H resembles toolbox with handle and compartments
+            'cot': '=',      # Equals sign for flat elevated sleeping surface
+            'conveyor': '~',   # Tilde for moving conveyor belt
+            'concrete_floor': '.'  # Concrete warehouse floor
         }
         
         # UI symbols
