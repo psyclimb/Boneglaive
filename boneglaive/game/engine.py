@@ -178,23 +178,39 @@ class Game:
         is_vs_ai_mode = config.get('network_mode') == NetworkMode.VS_AI.value
         
         if is_vs_ai_mode and player == 2:
-            # In VS_AI mode, use exactly one of each unit type for player 2
-            logger.info("VS_AI mode detected - using exactly one of each unit type for player 2")
+            # In VS_AI mode, use random unit types for player 2 with max 2 of each type
+            logger.info("VS_AI mode detected - using random unit types for player 2 with max 2 of each type")
             
             # Make sure we have the expected number of positions
             if len(valid_positions) >= 3:
-                # Fixed unit types for VS_AI player 2
-                vs_ai_types = [
+                # Available unit types for random selection
+                available_types = [
+                    UnitType.GLAIVEMAN,
+                    UnitType.MANDIBLE_FOREMAN,
+                    UnitType.GRAYMAN,
+                    UnitType.MARROW_CONDENSER,
                     UnitType.FOWL_CONTRIVANCE,
-                    UnitType.DELPHIC_APPRAISER,
-                    UnitType.GAS_MACHINIST
+                    UnitType.GAS_MACHINIST,
+                    UnitType.DELPHIC_APPRAISER
                 ]
                 
-                # Add each unit at a valid position
+                # Track unit counts to enforce max 2 of each type
+                unit_counts = {}
+                
+                import random
+                
+                # Add units with random selection
                 for i, (y, x) in enumerate(valid_positions[:3]):
-                    unit_type = vs_ai_types[i]
-                    self.add_unit(unit_type, player, y, x)
-                    logger.info(f"Added VS_AI mode {unit_type.name} for player {player} at ({y}, {x})")
+                    # Filter available types to those with count < 2
+                    valid_types = [t for t in available_types if unit_counts.get(t, 0) < 2]
+                    
+                    if valid_types:
+                        # Random selection from valid types
+                        unit_type = random.choice(valid_types)
+                        unit_counts[unit_type] = unit_counts.get(unit_type, 0) + 1
+                        
+                        self.add_unit(unit_type, player, y, x)
+                        logger.info(f"Added VS_AI mode {unit_type.name} for player {player} at ({y}, {x})")
                 
                 # Return early since we've added all units
                 return
@@ -283,11 +299,15 @@ class Game:
         # Print debug info
         logger.info(f"Game Mode: {config.get('network_mode')}, VS_AI Mode: {is_vs_ai_mode}")
         
-        # Define specific unit types to use for Player 2 in VS_AI mode
+        # Define available unit types for Player 2 in VS_AI mode (random selection)
         vs_ai_p2_unit_types = [
+            UnitType.GLAIVEMAN,
+            UnitType.MANDIBLE_FOREMAN,
+            UnitType.GRAYMAN,
+            UnitType.MARROW_CONDENSER,
             UnitType.FOWL_CONTRIVANCE,
-            UnitType.DELPHIC_APPRAISER,
-            UnitType.GAS_MACHINIST
+            UnitType.GAS_MACHINIST,
+            UnitType.DELPHIC_APPRAISER
         ]
         
         # Find valid positions for units that aren't on limestone
@@ -393,22 +413,42 @@ class Game:
         
         # SPECIAL HANDLING FOR VS_AI MODE
         if is_vs_ai_mode:
-            logger.info("VS_AI mode detected, using exactly one of each unit type for player 2")
+            logger.info("VS_AI mode detected, using random unit types for player 2 with max 2 of each type")
             
-            # First create units for player 2 (AI) to ensure we get exactly one of each type
+            # First create units for player 2 (AI) with random selection
             if len(p2_positions) >= 3:
-                # Add exactly one of each unit type for player 2
-                types_to_add = [UnitType.GLAIVEMAN, UnitType.DELPHIC_APPRAISER, UnitType.GAS_MACHINIST]
+                # Available unit types for random selection
+                available_types = [
+                    UnitType.GLAIVEMAN,
+                    UnitType.MANDIBLE_FOREMAN,
+                    UnitType.GRAYMAN,
+                    UnitType.MARROW_CONDENSER,
+                    UnitType.FOWL_CONTRIVANCE,
+                    UnitType.GAS_MACHINIST,
+                    UnitType.DELPHIC_APPRAISER
+                ]
+                
+                # Track unit counts to enforce max 2 of each type
+                unit_counts = {}
+                
+                import random
                 
                 for i, (player, y, x) in enumerate(p2_positions[:3]):
-                    unit_type = types_to_add[i]
-                    self.add_unit(unit_type, player, y, x)
+                    # Filter available types to those with count < 2
+                    valid_types = [t for t in available_types if unit_counts.get(t, 0) < 2]
                     
-                    # Update unit count
-                    player_unit_counts.setdefault(player, {})
-                    player_unit_counts[player][unit_type] = player_unit_counts[player].get(unit_type, 0) + 1
-                    
-                    logger.info(f"Added Player 2 (AI) unit {unit_type.name} at ({y}, {x})")
+                    if valid_types:
+                        # Random selection from valid types
+                        unit_type = random.choice(valid_types)
+                        unit_counts[unit_type] = unit_counts.get(unit_type, 0) + 1
+                        
+                        self.add_unit(unit_type, player, y, x)
+                        
+                        # Update unit count
+                        player_unit_counts.setdefault(player, {})
+                        player_unit_counts[player][unit_type] = player_unit_counts[player].get(unit_type, 0) + 1
+                        
+                        logger.info(f"Added Player 2 (AI) unit {unit_type.name} at ({y}, {x})")
                     
                 # Now add player 1 units with variety
                 for player, y, x in valid_positions:
@@ -498,30 +538,46 @@ class Game:
             config = ConfigManager()
             is_vs_ai_mode = config.get('network_mode') == NetworkMode.VS_AI.value
             
-            # For VS_AI mode, ensure we create exactly one of each unit type for player 2
+            # For VS_AI mode, add random unit types for player 2 with max 2 of each
             if is_vs_ai_mode and p2_missing > 0:
-                logger.warning("Adding emergency units for VS_AI mode, ensuring one of each unit type")
+                logger.warning("Adding emergency units for VS_AI mode with random selection")
                 
-                # Make a list of available unit types
-                vs_ai_types = [UnitType.FOWL_CONTRIVANCE, UnitType.DELPHIC_APPRAISER, UnitType.GAS_MACHINIST]
+                # Available unit types for random selection
+                available_types = [
+                    UnitType.GLAIVEMAN,
+                    UnitType.MANDIBLE_FOREMAN,
+                    UnitType.GRAYMAN,
+                    UnitType.MARROW_CONDENSER,
+                    UnitType.FOWL_CONTRIVANCE,
+                    UnitType.GAS_MACHINIST,
+                    UnitType.DELPHIC_APPRAISER
+                ]
                 
-                # See which types we already have
+                # Count existing units for player 2
+                existing_counts = {}
                 for unit in self.units:
-                    if unit.player == 2 and unit.type in vs_ai_types:
-                        vs_ai_types.remove(unit.type)
+                    if unit.player == 2:
+                        existing_counts[unit.type] = existing_counts.get(unit.type, 0) + 1
                 
-                # Add the missing types
-                for i in range(min(p2_missing, len(vs_ai_types))):
-                    player, y, x = emergency_p2_positions[i]
-                    unit_type = vs_ai_types[i]
+                import random
+                
+                # Add missing unit types with random selection
+                for i in range(min(p2_missing, len(emergency_p2_positions))):
+                    # Filter available types to those with count < 2
+                    valid_types = [t for t in available_types if existing_counts.get(t, 0) < 2]
                     
-                    # Add the unit
-                    self.add_unit(unit_type, player, y, x)
-                    logger.warning(f"Added emergency VS_AI {unit_type.name} for player 2 at ({y}, {x})")
-                    
-                    # Update unit counts
-                    player_unit_counts.setdefault(player, {})
-                    player_unit_counts[player][unit_type] = player_unit_counts[player].get(unit_type, 0) + 1
+                    if valid_types:
+                        # Random selection from valid types
+                        unit_type = random.choice(valid_types)
+                        existing_counts[unit_type] = existing_counts.get(unit_type, 0) + 1
+                        
+                        player, y, x = emergency_p2_positions[i]
+                        self.add_unit(unit_type, player, y, x)
+                        logger.warning(f"Added emergency VS_AI {unit_type.name} for player 2 at ({y}, {x})")
+                        
+                        # Update unit counts
+                        player_unit_counts.setdefault(player, {})
+                        player_unit_counts[player][unit_type] = player_unit_counts[player].get(unit_type, 0) + 1
             else:
                 # Standard emergency unit placement for non-VS_AI mode
                 # First handle missing player 2 units with rotating types
