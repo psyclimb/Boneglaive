@@ -64,7 +64,16 @@ class AssetManager:
             'console': 'ε',    # Console table uses epsilon
             'dec_table': 'Π',  # Decorative table uses Pi symbol
             'marrow_wall': '#',  # Marrow Dike wall uses hash character
-            'rail': '┼'       # Rail track uses cross symbol for intersections
+            'rail': '┼',      # Rail track uses cross symbol for intersections
+            # Stained Stones map terrain
+            'tiffany_lamp': 'φ',  # Phi symbol for Tiffany lamp
+            'stained_stone': '█',  # Full block for stained stone formations  
+            'easel': 'h',      # Lowercase h resembles easel frame with crossbar
+            'sculpture': 'Δ',   # Delta triangle for sculpture pedestal
+            'bench': 'n',      # Lowercase n resembles bench with legs
+            'podium': 'Γ',     # Gamma symbol for elevated podium platform
+            'vase': 'v',       # Lowercase v resembles vase shape
+            'canyon_floor': '.'  # Canyon floor sediment
         }
         
         # UI symbols
@@ -212,7 +221,15 @@ class AssetManager:
             'dust': 'assets/tiles/dust.png',
             'pillar': 'assets/tiles/pillar.png',
             'furniture': 'assets/tiles/furniture.png',
-            'marrow_wall': 'assets/tiles/marrow_wall.png'
+            'marrow_wall': 'assets/tiles/marrow_wall.png',
+            # Stained Stones map terrain
+            'tiffany_lamp': 'assets/tiles/tiffany_lamp.png',
+            'stained_stone': 'assets/tiles/stained_stone.png',
+            'easel': 'assets/tiles/easel.png',
+            'sculpture': 'assets/tiles/sculpture.png',
+            'bench': 'assets/tiles/bench.png',
+            'podium': 'assets/tiles/podium.png',
+            'vase': 'assets/tiles/vase.png'
         }
         
         self.ui_tiles = {

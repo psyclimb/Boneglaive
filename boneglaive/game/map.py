@@ -23,6 +23,14 @@ class TerrainType(Enum):
     DEC_TABLE = 8  # Decorative table, blocks movement but not line of sight
     MARROW_WALL = 9  # Marrow Dike wall, blocks movement and unit placement but not permanently
     RAIL = 10      # Rail track, passable by all units but FOWL_CONTRIVANCE gets special movement
+    TIFFANY_LAMP = 11  # Tiffany-style decorative lamp, blocks movement but not line of sight
+    STAINED_STONE = 12  # Stained stone formation, blocks movement and unit placement
+    EASEL = 13     # Artist's easel with canvas, blocks movement but not line of sight
+    SCULPTURE = 14  # Stone sculpture pedestal, blocks movement but not line of sight
+    BENCH = 15     # Viewing bench for art gallery, blocks movement but not line of sight
+    PODIUM = 16    # Display podium, blocks movement but not line of sight
+    VASE = 17      # Decorative pottery vase, blocks movement but not line of sight
+    CANYON_FLOOR = 18  # Canyon floor with natural sediment, visual only (passable)
 
 
 class GameMap:
@@ -61,21 +69,21 @@ class GameMap:
     def is_passable(self, y: int, x: int) -> bool:
         """Check if a position is passable (can be moved through)."""
         terrain = self.get_terrain_at(y, x)
-        # All furniture types, pillars, limestone, and marrow walls are impassable
-        # Rails are passable by all units
-        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.RAIL]
+        # All furniture types, pillars, limestone, stained stone, and marrow walls are impassable
+        # Rails and canyon floor are passable by all units
+        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.RAIL]
     
     def can_place_unit(self, y: int, x: int) -> bool:
         """Check if a unit can be placed at this position."""
         terrain = self.get_terrain_at(y, x)
-        # Units can be placed on empty, dusty, or rail tiles
-        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.RAIL]
+        # Units can be placed on empty, dusty, canyon floor, or rail tiles
+        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.RAIL]
         
     def blocks_line_of_sight(self, y: int, x: int) -> bool:
         """Check if a position blocks line of sight for ranged attacks."""
         terrain = self.get_terrain_at(y, x)
-        # Limestone, pillars, and marrow walls block line of sight
-        return terrain in [TerrainType.LIMESTONE, TerrainType.PILLAR, TerrainType.MARROW_WALL]
+        # Limestone, pillars, stained stone, and marrow walls block line of sight
+        return terrain in [TerrainType.LIMESTONE, TerrainType.PILLAR, TerrainType.STAINED_STONE, TerrainType.MARROW_WALL]
 
     def get_cosmic_value(self, y: int, x: int, player=None, game=None) -> Optional[int]:
         """
@@ -87,7 +95,9 @@ class GameMap:
         # Check if the position has furniture
         terrain = self.get_terrain_at(y, x)
         if terrain not in [TerrainType.FURNITURE, TerrainType.COAT_RACK,
-                          TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE]:
+                          TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE, 
+                          TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE, 
+                          TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE]:
             return None
 
         # Check if player has DELPHIC_APPRAISER
@@ -198,9 +208,9 @@ class GameMap:
             return False
         
         terrain = self.get_terrain_at(y, x)
-        # Rails can be placed on empty, dust, or existing rail tiles
+        # Rails can be placed on empty, dust, canyon floor, or existing rail tiles
         # Cannot be placed on blocking terrain or furniture
-        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.RAIL]
+        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.RAIL]
 
 
     def get_rail_positions(self) -> List[Tuple[int, int]]:
@@ -418,16 +428,159 @@ class NewLimeFoyerMap(GameMap):
                 self.set_terrain_at(y, x, TerrainType.DUST)
 
 
+class StainedStonesMap(GameMap):
+    """The Stained Stones map - an indoor painted canyon art gallery with stained stone formations and Tiffany lamps."""
+    
+    def __init__(self):
+        super().__init__()
+        self.name = "Stained Stones"
+        from boneglaive.utils.debug import logger
+        logger.info("StainedStonesMap.__init__ called - generating Stained Stones map")
+        self.generate_map()
+    
+    def generate_map(self) -> None:
+        """Generate the Stained Stones map with painted canyon art gallery theme."""
+        from boneglaive.utils.debug import logger
+        logger.info("StainedStonesMap.generate_map() called - generating terrain")
+        # Reset to empty first
+        self.reset_to_empty()
+        
+        # Central painted canyon walls - stained stone formations (symmetrical)
+        # North canyon wall formation
+        north_canyon = [
+            (2, 7), (2, 8), (2, 9), (2, 10), (2, 11), (2, 12)
+        ]
+        for y, x in north_canyon:
+            self.set_terrain_at(y, x, TerrainType.STAINED_STONE)
+        logger.info(f"Placed {len(north_canyon)} STAINED_STONE tiles in north canyon")
+        
+        # South canyon wall formation (mirror of north)
+        south_canyon = [
+            (7, 7), (7, 8), (7, 9), (7, 10), (7, 11), (7, 12)
+        ]
+        for y, x in south_canyon:
+            self.set_terrain_at(y, x, TerrainType.STAINED_STONE)
+        logger.info(f"Placed {len(south_canyon)} STAINED_STONE tiles in south canyon")
+        
+        # Western alcove stained stones
+        west_stones = [
+            (3, 2), (4, 2), (5, 2), (6, 2)
+        ]
+        for y, x in west_stones:
+            self.set_terrain_at(y, x, TerrainType.STAINED_STONE)
+        
+        # Eastern alcove stained stones (symmetrical)
+        east_stones = [
+            (3, 17), (4, 17), (5, 17), (6, 17)
+        ]
+        for y, x in east_stones:
+            self.set_terrain_at(y, x, TerrainType.STAINED_STONE)
+        
+        # Art gallery furniture arrangement (all unique to this map)
+        
+        # Tiffany lamps (main lighting for the gallery)
+        self.set_terrain_at(1, 5, TerrainType.TIFFANY_LAMP)   # Northwest gallery lamp
+        self.set_terrain_at(1, 14, TerrainType.TIFFANY_LAMP)  # Northeast gallery lamp
+        self.set_terrain_at(8, 5, TerrainType.TIFFANY_LAMP)   # Southwest gallery lamp
+        self.set_terrain_at(8, 14, TerrainType.TIFFANY_LAMP)  # Southeast gallery lamp
+        
+        # Central canyon viewing lamps
+        self.set_terrain_at(4, 5, TerrainType.TIFFANY_LAMP)   # West canyon lamp
+        self.set_terrain_at(5, 14, TerrainType.TIFFANY_LAMP)  # East canyon lamp
+        
+        # Artist easels with paintings (gallery exhibits)
+        self.set_terrain_at(0, 3, TerrainType.EASEL)          # Northwest easel
+        self.set_terrain_at(0, 16, TerrainType.EASEL)         # Northeast easel
+        self.set_terrain_at(9, 3, TerrainType.EASEL)          # Southwest easel
+        self.set_terrain_at(9, 16, TerrainType.EASEL)         # Southeast easel
+        self.set_terrain_at(3, 0, TerrainType.EASEL)          # West wall easel
+        self.set_terrain_at(6, 19, TerrainType.EASEL)         # East wall easel
+        
+        # Stone sculptures on pedestals (canyon art theme)
+        self.set_terrain_at(1, 1, TerrainType.SCULPTURE)      # Northwest sculpture
+        self.set_terrain_at(1, 18, TerrainType.SCULPTURE)     # Northeast sculpture  
+        self.set_terrain_at(8, 1, TerrainType.SCULPTURE)      # Southwest sculpture
+        self.set_terrain_at(8, 18, TerrainType.SCULPTURE)     # Southeast sculpture
+        self.set_terrain_at(0, 9, TerrainType.SCULPTURE)      # North centerpiece sculpture
+        self.set_terrain_at(9, 10, TerrainType.SCULPTURE)     # South centerpiece sculpture
+        
+        # Viewing benches (for contemplating art)
+        self.set_terrain_at(3, 4, TerrainType.BENCH)          # West canyon viewing bench
+        self.set_terrain_at(3, 15, TerrainType.BENCH)         # East canyon viewing bench
+        self.set_terrain_at(6, 4, TerrainType.BENCH)          # West canyon viewing bench (south)
+        self.set_terrain_at(6, 15, TerrainType.BENCH)         # East canyon viewing bench (south)
+        self.set_terrain_at(1, 9, TerrainType.BENCH)          # North central bench
+        self.set_terrain_at(8, 10, TerrainType.BENCH)         # South central bench
+        
+        # Display podiums (for featured art pieces)
+        self.set_terrain_at(2, 3, TerrainType.PODIUM)         # Northwest podium
+        self.set_terrain_at(2, 16, TerrainType.PODIUM)        # Northeast podium
+        self.set_terrain_at(7, 3, TerrainType.PODIUM)         # Southwest podium
+        self.set_terrain_at(7, 16, TerrainType.PODIUM)        # Southeast podium
+        self.set_terrain_at(4, 9, TerrainType.PODIUM)         # Central north podium
+        self.set_terrain_at(5, 10, TerrainType.PODIUM)        # Central south podium
+        
+        # Decorative pottery vases (painted canyon theme)
+        self.set_terrain_at(0, 1, TerrainType.VASE)           # Northwest corner vase
+        self.set_terrain_at(0, 18, TerrainType.VASE)          # Northeast corner vase
+        self.set_terrain_at(9, 1, TerrainType.VASE)           # Southwest corner vase
+        self.set_terrain_at(9, 18, TerrainType.VASE)          # Southeast corner vase
+        self.set_terrain_at(4, 0, TerrainType.VASE)           # West wall vase
+        self.set_terrain_at(5, 19, TerrainType.VASE)          # East wall vase
+        
+        # Stone dust patterns (from painting and stone carving work)
+        # Creating organic patterns that suggest artistic workspace
+        dust_patterns = [
+            # North gallery area (paint spatters and stone dust)
+            (0, 0), (0, 2), (0, 4), (0, 6), (0, 7), (0, 8), (0, 10), (0, 11), (0, 12), (0, 13), (0, 15), (0, 17), (0, 19),
+            
+            # Upper workshop area
+            (1, 0), (1, 2), (1, 3), (1, 4), (1, 6), (1, 7), (1, 8), (1, 10), (1, 11), (1, 12), (1, 13), (1, 15), (1, 16), (1, 17), (1, 19),
+            
+            # Canyon rim area (stone carving debris)
+            (2, 0), (2, 1), (2, 2), (2, 4), (2, 5), (2, 6), (2, 13), (2, 14), (2, 15), (2, 17), (2, 18), (2, 19),
+            
+            # Central canyon floor (mixed paint and stone dust)
+            (3, 1), (3, 3), (3, 5), (3, 6), (3, 7), (3, 8), (3, 9), (3, 10), (3, 11), (3, 12), (3, 13), (3, 14), (3, 16), (3, 18), (3, 19),
+            (4, 1), (4, 3), (4, 4), (4, 6), (4, 7), (4, 8), (4, 10), (4, 11), (4, 12), (4, 13), (4, 14), (4, 15), (4, 16), (4, 18), (4, 19),
+            (5, 0), (5, 1), (5, 2), (5, 3), (5, 4), (5, 5), (5, 6), (5, 7), (5, 8), (5, 9), (5, 11), (5, 12), (5, 13), (5, 15), (5, 16), (5, 17), (5, 18),
+            (6, 0), (6, 1), (6, 3), (6, 5), (6, 6), (6, 7), (6, 8), (6, 9), (6, 10), (6, 11), (6, 12), (6, 13), (6, 14), (6, 16), (6, 17), (6, 18),
+            
+            # Canyon rim area south (stone carving debris)
+            (7, 0), (7, 1), (7, 2), (7, 4), (7, 5), (7, 6), (7, 13), (7, 14), (7, 15), (7, 17), (7, 18), (7, 19),
+            
+            # Lower workshop area (mirror of upper)
+            (8, 0), (8, 2), (8, 3), (8, 4), (8, 6), (8, 7), (8, 8), (8, 9), (8, 11), (8, 12), (8, 13), (8, 15), (8, 16), (8, 17), (8, 19),
+            
+            # South gallery area (paint spatters and stone dust)
+            (9, 0), (9, 2), (9, 4), (9, 5), (9, 6), (9, 7), (9, 8), (9, 9), (9, 11), (9, 12), (9, 13), (9, 14), (9, 15), (9, 17), (9, 19)
+        ]
+        
+        for y, x in dust_patterns:
+            # Only set canyon floor if the tile is empty (not already furniture, stained stone, etc.)
+            if self.get_terrain_at(y, x) == TerrainType.EMPTY:
+                self.set_terrain_at(y, x, TerrainType.CANYON_FLOOR)
+
+
 class MapFactory:
     """Factory class for creating different maps."""
     
     @staticmethod
     def create_map(map_name: str) -> GameMap:
         """Create a map based on the given name."""
+        from boneglaive.utils.debug import logger
+        logger.info(f"MapFactory.create_map called with map_name: '{map_name}'")
+        
         if map_name.lower() == "lime_foyer":
-            return LimeFoyerMap()
-        elif map_name.lower() == "lime_foyer_arena":
+            logger.info("Creating NewLimeFoyerMap (arena version)")
             return NewLimeFoyerMap()
+        elif map_name.lower() == "lime_foyer_arena":
+            logger.info("Creating NewLimeFoyerMap (arena)")
+            return NewLimeFoyerMap()
+        elif map_name.lower() == "stained_stones":
+            logger.info("Creating StainedStonesMap")
+            return StainedStonesMap()
         else:
+            logger.warning(f"Unknown map name '{map_name}', defaulting to empty GameMap")
             # Default to empty map
             return GameMap()
