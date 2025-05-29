@@ -125,7 +125,11 @@ class MarketFuturesSkill(ActiveSkill):
         # Target must be a furniture piece
         terrain = game.map.get_terrain_at(target_pos[0], target_pos[1])
         if terrain not in [TerrainType.FURNITURE, TerrainType.COAT_RACK,
-                         TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE]:
+                         TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE, 
+                         TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE, 
+                         TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
+                         TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
+                         TerrainType.COT, TerrainType.CONVEYOR]:
             return False
 
         # If the unit has a move_target, use that position for range calculation
@@ -465,7 +469,11 @@ class AuctionCurseSkill(ActiveSkill):
             for x in range(max(0, target_pos[1] - 2), min(game.map.width, target_pos[1] + 3)):
                 terrain = game.map.get_terrain_at(y, x)
                 if terrain in [TerrainType.FURNITURE, TerrainType.COAT_RACK,
-                             TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE]:
+                             TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE, 
+                             TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE, 
+                             TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
+                             TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
+                             TerrainType.COT, TerrainType.CONVEYOR]:
                     nearby_furniture.append((y, x))
 
                     # Get cosmic value (will be generated if it doesn't exist yet)
@@ -651,7 +659,11 @@ class DivineDrepreciationSkill(ActiveSkill):
         # Target must be a furniture piece
         terrain = game.map.get_terrain_at(target_pos[0], target_pos[1])
         if terrain not in [TerrainType.FURNITURE, TerrainType.COAT_RACK,
-                         TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE]:
+                         TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE, 
+                         TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE, 
+                         TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
+                         TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
+                         TerrainType.COT, TerrainType.CONVEYOR]:
             return False
 
         # If the unit has a move_target, use that position for range calculation

@@ -357,9 +357,9 @@ class UIRenderer:
                         tile_attr = curses.A_BOLD  # Make it bold
                         
                 # Edgecase map terrain types (gray color scheme like other maps)
-                elif terrain == TerrainType.LATHE:
-                    tile = self.game_ui.asset_manager.get_terrain_tile("lathe")
-                    color_id = 12  # White for lathe machinery
+                elif terrain == TerrainType.HYDRAULIC_PRESS:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("hydraulic_press")
+                    color_id = 12  # White for hydraulic press machinery
                     tile_attr = curses.A_BOLD  # Bright white via bold attribute
                 elif terrain == TerrainType.WORKBENCH:
                     tile = self.game_ui.asset_manager.get_terrain_tile("workbench")

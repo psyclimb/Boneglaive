@@ -95,6 +95,10 @@ class OssifySkill(ActiveSkill):
         self.duration = 2  # Duration in turns
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        # Check if unit is trapped - trapped units can only attack, not use skills
+        if hasattr(user, 'trapped_by') and user.trapped_by is not None:
+            return False
+            
         # Basic validation (cooldown, etc.)
         return super().can_use(user, target_pos, game)
             
@@ -218,6 +222,10 @@ class MarrowDikeSkill(ActiveSkill):
         self.duration = 3  # Duration of 3 turns
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        # Check if unit is trapped - trapped units can only attack, not use skills
+        if hasattr(user, 'trapped_by') and user.trapped_by is not None:
+            return False
+            
         # Basic validation
         if not super().can_use(user, target_pos, game):
             return False

@@ -1613,9 +1613,16 @@ class SimpleAI:
         # Check for enemies in melee range (immediate threat)
         enemies_in_melee = self._count_enemies_in_range(unit, 1)
         
+        # Check if unit is trapped - trapped units can only attack, not use skills
+        is_trapped = hasattr(unit, 'trapped_by') and unit.trapped_by is not None
+        
+        if is_trapped:
+            logger.info(f"MARROW_CONDENSER {unit.get_display_name()} is trapped - can only attack")
+            used_skill = None
         # Skip skill usage on EASY difficulty less often (reduced probability)
-        if self.difficulty == AIDifficulty.EASY and random.random() < 0.3:  # 30% chance to skip
+        elif self.difficulty == AIDifficulty.EASY and random.random() < 0.3:  # 30% chance to skip
             logger.info("EASY difficulty: Skipping skill usage")
+            used_skill = None
         else:
             # On MEDIUM or HARD, always use skills if possible
             try:
@@ -1733,9 +1740,14 @@ class SimpleAI:
         except Exception as e:
             logger.error(f"Error getting available skills: {e}")
             
+        # Check if unit is trapped - trapped units can only attack, not use skills
+        is_trapped = hasattr(unit, 'trapped_by') and unit.trapped_by is not None
+        
         # Try to use Gaussian Dusk if available and we have a good line of sight
         used_skill = None
-        if self.difficulty == AIDifficulty.EASY and random.random() < 0.4:  # 40% chance to skip on easy
+        if is_trapped:
+            logger.info(f"FOWL_CONTRIVANCE {unit.get_display_name()} is trapped - can only attack")
+        elif self.difficulty == AIDifficulty.EASY and random.random() < 0.4:  # 40% chance to skip on easy
             logger.info("EASY difficulty: Skipping skill usage")
         else:
             try:
