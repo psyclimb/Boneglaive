@@ -1534,14 +1534,8 @@ class GameModeManager(UIComponent):
                 ]
                 
                 if not cursor_manager.highlighted_positions:
-                    # Use event system for message
-                    self.publish_event(
-                        EventType.MESSAGE_DISPLAY_REQUESTED,
-                        MessageDisplayEventData(
-                            message="No valid moves available",
-                            message_type=MessageType.WARNING
-                        )
-                    )
+                    # Skip showing "No valid moves available" message
+                    pass
             else:
                 # Use event system for message
                 self.publish_event(

@@ -32,7 +32,7 @@ class TerrainType(Enum):
     VASE = 17      # Decorative pottery vase, blocks movement but not line of sight
     CANYON_FLOOR = 18  # Canyon floor with natural sediment, visual only (passable)
     # Edgecase map - Industrial warehouse converted to home
-    LATHE = 19     # Industrial lathe machine, blocks movement and unit placement
+    HYDRAULIC_PRESS = 19 # Industrial hydraulic press, blocks movement and unit placement
     WORKBENCH = 20 # Industrial workbench, blocks movement but not line of sight
     COUCH = 21     # Household couch, blocks movement but not line of sight
     TOOLBOX = 22   # Industrial toolbox, blocks movement but not line of sight
@@ -90,8 +90,8 @@ class GameMap:
     def blocks_line_of_sight(self, y: int, x: int) -> bool:
         """Check if a position blocks line of sight for ranged attacks."""
         terrain = self.get_terrain_at(y, x)
-        # Limestone, pillars, stained stone, lathes, and marrow walls block line of sight
-        return terrain in [TerrainType.LIMESTONE, TerrainType.PILLAR, TerrainType.STAINED_STONE, TerrainType.LATHE, TerrainType.MARROW_WALL]
+        # Limestone, pillars, stained stone, hydraulic presses, and marrow walls block line of sight
+        return terrain in [TerrainType.LIMESTONE, TerrainType.PILLAR, TerrainType.STAINED_STONE, TerrainType.HYDRAULIC_PRESS, TerrainType.MARROW_WALL]
 
     def get_cosmic_value(self, y: int, x: int, player=None, game=None) -> Optional[int]:
         """
@@ -152,7 +152,11 @@ class GameMap:
         """Check if a position has furniture."""
         terrain = self.get_terrain_at(y, x)
         return terrain in [TerrainType.FURNITURE, TerrainType.COAT_RACK,
-                          TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE]
+                          TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE, 
+                          TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE, 
+                          TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
+                          TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
+                          TerrainType.COT, TerrainType.CONVEYOR]
 
     def has_rails(self) -> bool:
         """Check if the map currently has any rail tiles."""
@@ -595,17 +599,17 @@ class EdgecaseMap(GameMap):
         # Central industrial machinery complex (3x7 core blocking area)
         # This creates a large impassable center forcing edge movement
         central_machinery = [
-            # Core lathe machinery (blocks movement AND line of sight)
-            (4, 8), (4, 9), (4, 10), (4, 11),  # Central row of heavy lathes
-            (5, 8), (5, 9), (5, 10), (5, 11),  # Central row of heavy lathes
+            # Core hydraulic press machinery (blocks movement AND line of sight)
+            (4, 8), (4, 9), (4, 10), (4, 11),  # Central row of heavy hydraulic presses
+            (5, 8), (5, 9), (5, 10), (5, 11),  # Central row of heavy hydraulic presses
             
             # Extended machinery wings
             (3, 9), (3, 10),  # North machinery extension
             (6, 9), (6, 10),  # South machinery extension
         ]
         for y, x in central_machinery:
-            self.set_terrain_at(y, x, TerrainType.LATHE)
-        logger.info(f"Placed {len(central_machinery)} LATHE tiles in central machinery complex")
+            self.set_terrain_at(y, x, TerrainType.HYDRAULIC_PRESS)
+        logger.info(f"Placed {len(central_machinery)} HYDRAULIC_PRESS tiles in central machinery complex")
         
         # Workbenches flanking the central area (create L-shaped barriers)
         north_workbenches = [

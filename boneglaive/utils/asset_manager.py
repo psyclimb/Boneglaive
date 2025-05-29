@@ -75,10 +75,10 @@ class AssetManager:
             'vase': 'v',       # Lowercase v resembles vase shape
             'canyon_floor': '.',  # Canyon floor sediment
             # Edgecase map terrain - Industrial warehouse converted to home
-            'lathe': 'O',      # Round shape for cylindrical lathe
+            'hydraulic_press': 'O',  # Round shape for massive hydraulic press
             'workbench': 'I',  # I-beam shape for industrial workbench
             'couch': 'u',      # Lowercase u resembles couch shape
-            'toolbox': 'H',    # H resembles toolbox with handle and compartments
+            'toolbox': '&',    # Ampersand for complex toolbox shape
             'cot': '=',      # Equals sign for flat elevated sleeping surface
             'conveyor': '~',   # Tilde for moving conveyor belt
             'concrete_floor': '.'  # Concrete warehouse floor
