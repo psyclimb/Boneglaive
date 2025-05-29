@@ -113,7 +113,7 @@ class Game:
             all_possible_positions = []
             for y in range(min_y, max_y):
                 for x in range(min_x, max_x):
-                    if self.map.can_place_unit(y, x):
+                    if self.map.can_place_unit(y, x) and self.get_unit_at(y, x) is None:
                         all_possible_positions.append((y, x))
             
             # If we found enough potential positions
@@ -165,7 +165,7 @@ class Game:
                 valid_positions = []
                 for y in range(3, 7):
                     for x in range(11, 15):
-                        if self.map.can_place_unit(y, x):
+                        if self.map.can_place_unit(y, x) and self.get_unit_at(y, x) is None:
                             valid_positions.append((y, x))
                             if len(valid_positions) >= 3:
                                 break
@@ -317,7 +317,7 @@ class Game:
         logger.info("Finding positions for player 1 units")
         for y in range(3, 7):
             for x in range(5, 9):
-                if self.map.can_place_unit(y, x):
+                if self.map.can_place_unit(y, x) and self.get_unit_at(y, x) is None:
                     valid_positions.append((1, y, x))
                     if len(valid_positions) >= 3:
                         break
@@ -337,7 +337,7 @@ class Game:
         all_valid_positions = []
         for y in range(min_y, max_y):
             for x in range(min_x, max_x):
-                if self.map.can_place_unit(y, x):
+                if self.map.can_place_unit(y, x) and self.get_unit_at(y, x) is None:
                     all_valid_positions.append((2, y, x))
         
         # Shuffle the positions to add randomness
@@ -386,7 +386,7 @@ class Game:
             p2_positions = []
             for y in range(3, 7):
                 for x in range(11, 15):
-                    if self.map.can_place_unit(y, x):
+                    if self.map.can_place_unit(y, x) and self.get_unit_at(y, x) is None:
                         p2_positions.append((2, y, x))
                         if len(p2_positions) >= 3:
                             break

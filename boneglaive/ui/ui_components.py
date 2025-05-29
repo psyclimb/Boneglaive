@@ -2746,43 +2746,43 @@ class AnimationComponent(UIComponent):
                     7,  # color ID
                     0.5  # duration
                 )
-        # Special case for FOWL_CONTRIVANCE - more elaborate bird swarm animation
+        # Special case for FOWL_CONTRIVANCE - rail artillery platform animation
         elif attacker.type == UnitType.FOWL_CONTRIVANCE:
-            # Get a more elaborate animation sequence for bird attacks
+            # Get the rail artillery animation sequence
             fowl_sequence = self.game_ui.asset_manager.animation_sequences.get('fowl_contrivance_attack', [])
             if not fowl_sequence:
-                fowl_sequence = ['^', 'v', '>', '<', '^', 'v', 'Λ', 'V']  # Fallback bird animation
+                fowl_sequence = ['T', '=', '-', '>', '*', '#', '@']  # Rail artillery fallback
             
-            # Use alternating colors for a more dynamic bird flock appearance
-            color_sequence = [1, 4, 1, 4, 6, 7, 6, 7]  # Red, blue, yellow, white alternating
+            # Use colors appropriate for rail artillery charging/firing
+            color_sequence = [7, 6, 3, 1, 1, 7, 7]  # White, yellow, green, red progression
             
-            # Show initial gathering animation at attacker's position
+            # Show initial charging animation at attacker's position (rail cannon charging)
             for i in range(3):
                 frame = fowl_sequence[i % len(fowl_sequence)]
                 color = color_sequence[i % len(color_sequence)]
                 self.renderer.draw_tile(start_pos.y, start_pos.x, frame, color)
                 self.renderer.refresh()
-                time.sleep(0.08)
+                time.sleep(0.12)  # Slightly slower for mechanical feel
             
             # Create path points between attacker and target
             from boneglaive.game.animations import get_line
             path = get_line(start_pos.y, start_pos.x, end_pos.y, end_pos.x)
             
-            # Animate along the path with varied bird symbols
+            # Animate projectile along the path (rail shot traveling)
             for i, (y, x) in enumerate(path[1:-1]):  # Skip first (attacker) and last (target)
-                frame_idx = (i + 3) % len(fowl_sequence)  # Continue from where gathering left off
+                frame_idx = (i + 3) % len(fowl_sequence)  # Continue from where charging left off
                 color_idx = (i + 3) % len(color_sequence)
                 self.renderer.draw_tile(y, x, fowl_sequence[frame_idx], color_sequence[color_idx])
                 self.renderer.refresh()
-                time.sleep(0.05)
+                time.sleep(0.04)  # Fast projectile movement
             
-            # Final impact animation directly at target
-            final_frames = ['^', 'V', 'Λ', 'v', '♦']
+            # Final impact animation directly at target (rail shot impact)
+            final_frames = ['*', '#', '@', 'X', '※']  # Explosive impact sequence
             for i, frame in enumerate(final_frames):
                 color = 1 if i % 2 == 0 else 7  # Alternate between red and white
                 self.renderer.draw_tile(end_pos.y, end_pos.x, frame, color)
                 self.renderer.refresh()
-                time.sleep(0.1)
+                time.sleep(0.08)
         
         # For all other melee attacks, show standard animation
         else:
@@ -2800,7 +2800,7 @@ class AnimationComponent(UIComponent):
         elif attacker.type == UnitType.MANDIBLE_FOREMAN:
             impact_animation = ['>', '<', '}', '{', '≡']  # Mandible crushing impact
         elif attacker.type == UnitType.FOWL_CONTRIVANCE:
-            impact_animation = ['^', 'v', '^', 'V', 'Λ']  # Bird dive impact
+            impact_animation = ['*', '#', '@', 'X', '*']  # Rail artillery explosive impact
         else:
             impact_animation = ['+', 'x', '+']  # Standard melee/arrow impact
             
