@@ -177,26 +177,18 @@ class UIRenderer:
 
                 # Flag to track if we have a teleport anchor here (for later)
                 has_teleport_anchor = False
+                teleport_anchor_color = 3  # Default to player 1 color
                 if hasattr(self.game_ui.game, 'teleport_anchors') and pos_tuple in self.game_ui.game.teleport_anchors:
                     anchor = self.game_ui.game.teleport_anchors[pos_tuple]
                     # Check if this anchor is active and marked as imbued
                     if anchor.get('active', False) and anchor.get('imbued', False):
                         has_teleport_anchor = True
+                        # Get the player color from the anchor's creator
+                        if 'creator' in anchor and hasattr(anchor['creator'], 'player'):
+                            teleport_anchor_color = 3 if anchor['creator'].player == 1 else 4
 
-                # Check if this position is inside a Marrow Dike interior first (priority rendering)
-                pos_tuple = (y, x)
-                if hasattr(self.game_ui.game, 'marrow_dike_interior') and pos_tuple in self.game_ui.game.marrow_dike_interior:
-                    dike_info = self.game_ui.game.marrow_dike_interior[pos_tuple]
-                    # If this is an upgraded Marrow Dike, show blood plasma
-                    if dike_info.get('upgraded', False):
-                        tile = "~"  # Blood plasma appearance
-                        color_id = 20  # Red color for blood
-                    else:
-                        # Non-upgraded interior still shows as regular floor
-                        tile = self.game_ui.asset_manager.get_terrain_tile("empty")
-                        color_id = 1  # Default color
-                # Handle regular terrain types
-                elif terrain == TerrainType.EMPTY:
+                # Handle regular terrain types first
+                if terrain == TerrainType.EMPTY:
                     tile = self.game_ui.asset_manager.get_terrain_tile("empty")
                     color_id = 1  # Default color
                             
@@ -219,7 +211,7 @@ class UIRenderer:
                     # Override if this has a teleport anchor
                     if has_teleport_anchor:
                         tile = "¥"  # Replace with yen/yuan symbol
-                        color_id = 3  # Yellow color for imbued furniture
+                        color_id = teleport_anchor_color  # Player-specific color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
 
                 elif terrain == TerrainType.COAT_RACK:
@@ -230,7 +222,7 @@ class UIRenderer:
                     # Override if this has a teleport anchor
                     if has_teleport_anchor:
                         tile = "¥"  # Replace with yen/yuan symbol
-                        color_id = 3  # Yellow color for imbued furniture
+                        color_id = teleport_anchor_color  # Player-specific color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
 
                 elif terrain == TerrainType.OTTOMAN:
@@ -241,7 +233,7 @@ class UIRenderer:
                     # Override if this has a teleport anchor
                     if has_teleport_anchor:
                         tile = "¥"  # Replace with yen/yuan symbol
-                        color_id = 3  # Yellow color for imbued furniture
+                        color_id = teleport_anchor_color  # Player-specific color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
 
                 elif terrain == TerrainType.CONSOLE:
@@ -252,7 +244,7 @@ class UIRenderer:
                     # Override if this has a teleport anchor
                     if has_teleport_anchor:
                         tile = "¥"  # Replace with yen/yuan symbol
-                        color_id = 3  # Yellow color for imbued furniture
+                        color_id = teleport_anchor_color  # Player-specific color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
 
                 elif terrain == TerrainType.DEC_TABLE:
@@ -263,7 +255,7 @@ class UIRenderer:
                     # Override if this has a teleport anchor
                     if has_teleport_anchor:
                         tile = "¥"  # Replace with yen/yuan symbol
-                        color_id = 3  # Yellow color for imbued furniture
+                        color_id = teleport_anchor_color  # Player-specific color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
 
                 elif terrain == TerrainType.MARROW_WALL:
@@ -290,6 +282,18 @@ class UIRenderer:
                     # Fallback for any new terrain types
                     tile = self.game_ui.asset_manager.get_terrain_tile("empty")
                     color_id = 1  # Default color
+                
+                # Check if this position is inside a Marrow Dike interior (overlay, not replacement)
+                pos_tuple = (y, x)
+                if hasattr(self.game_ui.game, 'marrow_dike_interior') and pos_tuple in self.game_ui.game.marrow_dike_interior:
+                    dike_info = self.game_ui.game.marrow_dike_interior[pos_tuple]
+                    # If this is an upgraded Marrow Dike, apply blood plasma overlay
+                    if dike_info.get('upgraded', False):
+                        # Only override if terrain is empty - preserve other terrain types
+                        if terrain == TerrainType.EMPTY:
+                            tile = "~"  # Blood plasma appearance
+                            color_id = 20  # Red color for blood
+                        # For non-empty terrain, keep the original terrain visible
                 
                 # Check if there's a unit at this position
                 unit = self.game_ui.game.get_unit_at(y, x)
@@ -337,7 +341,7 @@ class UIRenderer:
                         
                         # Check if this is a charging FOWL_CONTRIVANCE
                         if unit.type == UnitType.FOWL_CONTRIVANCE and hasattr(unit, 'charging_status') and unit.charging_status:
-                            tile = "≡"  # Charging symbol
+                            tile = "Ω"  # Charging symbol
                             # Keep player color instead of changing to yellow
                         
                         # No special symbol for GRAYMAN skills
@@ -672,7 +676,7 @@ class UIRenderer:
                         elif u.selected_skill.name == "Gaussian Dusk" and hasattr(u, 'gaussian_dusk_indicator') and u.gaussian_dusk_indicator is not None:
                             # Show charging indicator at user position
                             if (y, x) == (u.y, u.x):
-                                tile = "≡"  # Charging symbol
+                                tile = "Ω"  # Charging symbol
                                 color_id = 3 if u.player == 1 else 4
                                 
                         # Fragcrest cone indicator
@@ -737,6 +741,33 @@ class UIRenderer:
                             else:
                                 # Draw the saft-e-gas indicator
                                 self.renderer.draw_tile(y, x, tile, color_id, curses.A_BOLD)
+                            continue
+
+                # Check if this position is in a Marrow Dike wall formation area
+                for u in self.game_ui.game.units:
+                    if u.is_alive() and u.selected_skill and hasattr(u.selected_skill, 'name') and \
+                       u.selected_skill.name == "Marrow Dike" and hasattr(u, 'marrow_dike_indicator') and u.marrow_dike_indicator is not None:
+                        center_y, center_x = u.marrow_dike_indicator
+                        
+                        # Check if this position is on the perimeter of a 5x5 area (where walls will form)
+                        dy = y - center_y
+                        dx = x - center_x
+                        
+                        # Check if within 5x5 area and on the perimeter (where walls form)
+                        if abs(dy) <= 2 and abs(dx) <= 2 and (abs(dy) == 2 or abs(dx) == 2):
+                            # Draw marrow dike wall indicator
+                            tile = "═"  # Double horizontal line for wall
+                            color_id = 3 if u.player == 1 else 4  # Color based on player
+                            
+                            # Check if cursor is here
+                            is_cursor_here = (pos == cursor_manager.cursor_pos and show_cursor)
+                            
+                            if is_cursor_here:
+                                # Draw with cursor color
+                                self.renderer.draw_tile(y, x, tile, 2, curses.A_BOLD)
+                            else:
+                                # Draw the marrow dike wall indicator
+                                self.renderer.draw_tile(y, x, tile, color_id, curses.A_DIM)
                             continue
 
                 # Check if this position has a unit targeted by Diverge skill

@@ -442,6 +442,10 @@ class SimpleAI:
         unit.skill_target = None
         unit.selected_skill = None
         
+        # Clear skill indicators
+        if hasattr(unit, 'marrow_dike_indicator'):
+            unit.marrow_dike_indicator = None
+        
         # Check if unit is trapped - trapped units can only attack, not move or use skills
         is_trapped = hasattr(unit, 'trapped_by') and unit.trapped_by is not None
         
@@ -4772,6 +4776,20 @@ class SimpleAI:
         unit.attack_target = None
         unit.skill_target = None
         unit.selected_skill = None
+        
+        # Check if unit is trapped - trapped units can only attack, not move or use skills
+        is_trapped = hasattr(unit, 'trapped_by') and unit.trapped_by is not None
+        
+        if is_trapped:
+            logger.info(f"GAS_MACHINIST {unit.get_display_name()} is trapped - can only attack")
+            # Try to attack if possible
+            nearest_enemy = self._find_nearest_enemy(unit)
+            if nearest_enemy:
+                distance = self.game.chess_distance(unit.y, unit.x, nearest_enemy.y, nearest_enemy.x)
+                if distance <= unit.get_effective_attack_range():
+                    unit.attack_target = (nearest_enemy.y, nearest_enemy.x)
+                    logger.info(f"Trapped GAS_MACHINIST attacking {nearest_enemy.get_display_name()}")
+            return
         
         # Get available skills and charges
         available_skills = []

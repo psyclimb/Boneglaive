@@ -261,6 +261,9 @@ class MarrowDikeSkill(ActiveSkill):
         user.skill_target = target_pos
         user.selected_skill = self
         
+        # Set up wall formation indicator
+        user.marrow_dike_indicator = target_pos
+        
         # Track action order exactly like other units
         if game:
             user.action_timestamp = game.action_counter
@@ -285,6 +288,9 @@ class MarrowDikeSkill(ActiveSkill):
         from boneglaive.game.map import TerrainType
         import time
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+        
+        # Clear the indicator since we're executing
+        user.marrow_dike_indicator = None
 
         
         # Determine if this is upgraded version
