@@ -137,38 +137,55 @@ class MenuUI:
         return None
     
     def _start_single_player(self):
-        """Start a single player game."""
+        """Set single player mode and go to map selection."""
         self.config.set('network_mode', NetworkMode.SINGLE_PLAYER.value)
         self.config.save_config()
-        logger.info("Starting single player game")
-        return ("start_game", None)
+        logger.info("Selected single player mode")
+        return ("submenu", self._create_map_selection_menu())
     
     def _start_local_multiplayer(self):
-        """Start a local multiplayer game."""
+        """Set local multiplayer mode and go to map selection."""
         self.config.set('network_mode', NetworkMode.LOCAL_MULTIPLAYER.value)
         self.config.save_config()
-        logger.info("Starting local multiplayer game")
-        return ("start_game", None)
+        logger.info("Selected local multiplayer mode")
+        return ("submenu", self._create_map_selection_menu())
     
     def _start_lan_host(self):
-        """Start hosting a LAN game."""
+        """Set LAN host mode and go to map selection."""
         self.config.set('network_mode', NetworkMode.LAN_HOST.value)
         self.config.save_config()
-        logger.info("Starting LAN game host")
-        return ("start_game", None)
+        logger.info("Selected LAN host mode")
+        return ("submenu", self._create_map_selection_menu())
     
     def _start_lan_client(self):
-        """Start joining a LAN game."""
+        """Set LAN client mode and go to map selection."""
         self.config.set('network_mode', NetworkMode.LAN_CLIENT.value)
         self.config.save_config()
-        logger.info("Starting LAN game client")
-        return ("start_game", None)
+        logger.info("Selected LAN client mode")
+        return ("submenu", self._create_map_selection_menu())
         
     def _start_vs_ai(self):
-        """Start a game against the AI."""
+        """Set VS AI mode and go to map selection."""
         self.config.set('network_mode', NetworkMode.VS_AI.value)
         self.config.save_config()
-        logger.info("Starting VS AI game")
+        logger.info("Selected VS AI mode")
+        return ("submenu", self._create_map_selection_menu())
+    
+    def _create_map_selection_menu(self) -> Menu:
+        """Create the map selection menu."""
+        menu = Menu("Select Map", [
+            MenuItem("The Lime Foyer", lambda: self._select_map("lime_foyer")),
+            MenuItem("Stained Stones", lambda: self._select_map("stained_stones")),
+            MenuItem("Back", lambda: ("submenu", None))
+        ])
+        menu.parent = self._find_menu_by_title("Play Game")
+        return menu
+    
+    def _select_map(self, map_name: str):
+        """Select a map and start the game."""
+        self.config.set('selected_map', map_name)
+        self.config.save_config()
+        logger.info(f"Selected map: {map_name}")
         return ("start_game", None)
     
     def _set_display_mode(self, mode: str):

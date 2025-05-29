@@ -2349,7 +2349,7 @@ class GameModeManager(UIComponent):
 
         # Check if cursor position has blocking terrain
         if not self.game_ui.game.map.can_place_unit(cursor_pos.y, cursor_pos.x):
-            self.game_ui.message = f"Cannot place unit here: blocked by limestone"
+            self.game_ui.message = f"Cannot place unit here: blocked by terrain"
             return
 
         # Check if there are units remaining to place

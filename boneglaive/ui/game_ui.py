@@ -49,7 +49,11 @@ class GameUI:
         self._event_subscriptions = []
         
         # Game state with setup phase by default
-        self.game = Game(skip_setup=False)
+        # Get selected map from config, default to lime_foyer
+        selected_map = self.config_manager.get('selected_map', 'lime_foyer')
+        from boneglaive.utils.debug import logger
+        logger.info(f"GameUI: Reading selected_map from config: '{selected_map}'")
+        self.game = Game(skip_setup=False, map_name=selected_map)
         
         # Set up multiplayer manager
         from boneglaive.game.multiplayer_manager import MultiplayerManager

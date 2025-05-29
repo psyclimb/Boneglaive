@@ -35,6 +35,7 @@ class GameConfig:
     # Gameplay settings
     animation_speed: float = 1.0
     show_grid: bool = True
+    selected_map: str = "lime_foyer"
     
     # Network settings
     network_mode: str = NetworkMode.SINGLE_PLAYER.value

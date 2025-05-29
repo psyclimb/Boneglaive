@@ -205,6 +205,9 @@ class CursesRenderer(RenderInterface):
         # Skill target color - blue background to differentiate from attack targets (red)
         curses.init_pair(15, curses.COLOR_WHITE, curses.COLOR_BLUE)   # Skill target
         
+        # Canyon floor color - brown/tan text on black background
+        curses.init_pair(21, curses.COLOR_YELLOW, curses.COLOR_BLACK)  # Canyon floor (tan/brown)
+        
         # Message log special colors for critical events
         curses.init_pair(17, curses.COLOR_RED, curses.COLOR_BLACK)       # Wretch messages - bright red
         curses.init_pair(18, curses.COLOR_RED, curses.COLOR_BLACK)       # Death messages - dark red (will use dim attribute)
