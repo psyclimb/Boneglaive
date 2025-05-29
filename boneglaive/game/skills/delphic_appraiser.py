@@ -139,6 +139,10 @@ class MarketFuturesSkill(ActiveSkill):
         if distance > self.range:
             return False
 
+        # Check line of sight to target
+        if not game.has_line_of_sight(source_y, source_x, target_pos[0], target_pos[1]):
+            return False
+
         return True
         
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
@@ -417,6 +421,10 @@ class AuctionCurseSkill(ActiveSkill):
         if distance > self.range:
             return False
 
+        # Check line of sight to target
+        if not game.has_line_of_sight(source_y, source_x, target_pos[0], target_pos[1]):
+            return False
+
         return True
 
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
@@ -655,6 +663,10 @@ class DivineDrepreciationSkill(ActiveSkill):
         # Check if target is within range of current or planned position
         distance = game.chess_distance(source_y, source_x, target_pos[0], target_pos[1])
         if distance > self.range:
+            return False
+
+        # Check line of sight to target
+        if not game.has_line_of_sight(source_y, source_x, target_pos[0], target_pos[1]):
             return False
 
         return True
