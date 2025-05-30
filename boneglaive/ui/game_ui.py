@@ -20,7 +20,7 @@ from boneglaive.utils.event_system import (
 
 # Import component classes
 from boneglaive.ui.ui_components import (
-    MessageLogComponent, HelpComponent, ChatComponent,
+    MessageLogComponent, HelpComponent, UnitHelpComponent, ChatComponent,
     CursorManager, GameModeManager, DebugComponent,
     AnimationComponent, InputManager, ActionMenuComponent,
     GameOverPrompt
@@ -73,6 +73,7 @@ class GameUI:
         # Initialize components (order matters due to dependencies)
         self.cursor_manager = CursorManager(self.renderer, self)
         self.help_component = HelpComponent(self.renderer, self)
+        self.unit_help_component = UnitHelpComponent(self.renderer, self)
         self.message_log_component = MessageLogComponent(self.renderer, self)
         self.chat_component = ChatComponent(self.renderer, self)
         self.mode_manager = GameModeManager(self.renderer, self)

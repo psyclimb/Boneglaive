@@ -507,6 +507,14 @@ class AuctionCurseSkill(ActiveSkill):
             player=user.player
         )
 
+        # Special message for maximum duration (9 turns)
+        if dot_duration == 9:
+            message_log.add_message(
+                f"DELPHIC APPRAISER {user.get_display_name()} rolls deftly!",
+                MessageType.ABILITY,
+                player=user.player
+            )
+
         # Check if the target is immune to status effects (GRAYMAN with Stasiality)
         if target_unit.is_immune_to_effects():
             # Skip applying effects but add a message about immunity
@@ -765,6 +773,14 @@ class DivineDrepreciationSkill(ActiveSkill):
 
         # Calculate effect value based on the difference between average value and target value (now 1)
         effect_value = max(1, avg_cosmic_value - 1)  # Ensure at least 1 damage/healing
+
+        # Special message for maximum damage (8 damage)
+        if effect_value == 8:
+            message_log.add_message(
+                f"DELPHIC APPRAISER {user.get_display_name()} rolls deftly!",
+                MessageType.ABILITY,
+                player=user.player
+            )
 
         # Create the distortion
         distortion_id = f"divine_depreciation_{len(game.reality_distortions) + 1}"
