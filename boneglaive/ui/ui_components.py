@@ -766,43 +766,59 @@ class UnitHelpComponent(UIComponent):
             'GRAYMAN_ECHO': {
                 'title': 'GRAYMAN ECHO',
                 'overview': [
-                    'GRAYMAN echoes are temporary psychic projections created by the Græ Exchange skill. These',
-                    'immobile entities can attack but cannot use skills, serving primarily as area denial units',
-                    'that explode when destroyed. Echoes provide basic combat presence in key locations while',
-                    'the original GRAYMAN repositions elsewhere.',
+                    'GRAYMAN echoes are temporary psychic projections created by the Græ Exchange skill.',
+                    'These immobile entities explode when destroyed, serving as area denial units that',
+                    'provide basic combat presence in key locations.',
                     '',
-                    'Role: Temporary Area Denial / Basic Combat Projection'
+                    'Role: Area Denial / Combat Projection'
                 ],
                 'stats': [
-                    'HP: 5 (fixed, cannot be healed)',
-                    'Attack: 3 (fixed, pierces)',
+                    'HP: 5',
+                    'Attack: 3',
                     'Defense: 0',
                     'Movement: 0',
                     'Range: 1',
-                    'Symbol: ψ',
-                    'Duration: 2 turns'
+                    'Symbol: ψ'
                 ],
                 'skills': [
                     {
-                        'name': 'DEATH EXPLOSION',
+                        'name': 'IMMOBILITY (Passive)',
+                        'description': 'Cannot move from creation position.',
+                        'details': [
+                            'Type: Passive',
+                            'Range: Self',
+                            'Target: Self',
+                            'Line of Sight: No',
+                            'Damage: None',
+                            'Pierce: No',
+                            'Effects: Cannot move',
+                            'Cooldown: None',
+                            'Special: Fixed position for 2-turn duration'
+                        ]
+                    },
+                    {
+                        'name': 'DEATH EXPLOSION (On Death)',
                         'description': 'When destroyed, explodes dealing 4 damage to all adjacent enemy units.',
                         'details': [
+                            'Type: On Death',
                             'Range: All adjacent tiles',
-                            'Damage: 4 (reduced by target defense)',
-                            'Targets: Enemy units'
+                            'Target: Enemy units',
+                            'Line of Sight: No',
+                            'Damage: 4',
+                            'Pierce: No',
+                            'Effects: Explosion on death',
+                            'Cooldown: None',
+                            'Special: Triggers when HP reaches 0'
                         ]
                     }
                 ],
                 'tips': [
-                    '- Immobile: Cannot move from creation position - plan placement carefully',
-                    '- Area Denial: 4-damage explosion threat forces enemies to keep distance',
-                    '- Strategic Positioning: Best placed in chokepoints or near valuable targets'
+                    '- Plan placement carefully since echoes cannot move',
+                    '- Explosion threat forces enemies to keep distance',
+                    '- Best placed in chokepoints or near valuable targets',
+                    '- Cannot use skills, only basic attacks'
                 ],
-                'tactical': [
-                    '- Cannot use skills, only basic attacks',
-                    '- 2-turn duration on owner\'s turns only',
-                    '- Explosion threat provides area control'
-                ]
+                'tactical': []
             },
             UnitType.MARROW_CONDENSER: {
                 'title': 'MARROW CONDENSER',
@@ -1171,6 +1187,310 @@ class UnitHelpComponent(UIComponent):
                     '- Strong against: Static formations, low-mobility teams, furniture-dependent strategies',
                     '- Vulnerable to: High burst damage, units that avoid furniture areas, mobility-based counters',
                     '- Best positioning: Central furniture clusters, defensive positions near valuable terrain'
+                ]
+            },
+            'HEINOUS_VAPOR_BROACHING': {
+                'title': 'BROACHING GAS (Φ)',
+                'overview': [
+                    'BROACHING GAS is a HEINOUS VAPOR entity summoned by the GAS MACHINIST using the Broaching',
+                    'Gas skill. This vapor specializes in dual-purpose area control, dealing 2 damage to enemies',
+                    'while cleansing allies of negative status effects within its 3×3 area of influence.',
+                    '',
+                    'Role: Damage / Status Cleansing'
+                ],
+                'stats': [
+                    'HP: 10',
+                    'Attack: 0',
+                    'Defense: 0',
+                    'Movement: 3',
+                    'Range: 1',
+                    'Symbol: Φ'
+                ],
+                'skills': [
+                    {
+                        'name': 'INVULNERABILITY (Passive)',
+                        'description': 'Complete immunity to all damage sources and status effects.',
+                        'details': [
+                            'Type: Passive',
+                            'Range: Self',
+                            'Target: Self',
+                            'Line of Sight: No',
+                            'Damage: None',
+                            'Pierce: No',
+                            'Effects: Cannot take damage, immune to all debuffs',
+                            'Cooldown: None',
+                            'Special: Can only be removed through natural expiration'
+                        ]
+                    },
+                    {
+                        'name': 'ENEMY DAMAGE (Area Damage)',
+                        'description': 'Deals 2 damage to all enemy units within the 3×3 area each turn.',
+                        'details': [
+                            'Type: Area Damage',
+                            'Range: 3×3 centered on vapor',
+                            'Target: Enemy units in area',
+                            'Line of Sight: No',
+                            'Damage: 2 per turn',
+                            'Pierce: No',
+                            'Effects: None',
+                            'Cooldown: None',
+                            'Special: Activates during owner\'s turn'
+                        ]
+                    },
+                    {
+                        'name': 'ALLY CLEANSING (Status Cleansing)',
+                        'description': 'Removes negative status effects from allied units within the area.',
+                        'details': [
+                            'Type: Status Cleansing',
+                            'Range: 3×3 centered on vapor',
+                            'Target: Allied units in area',
+                            'Line of Sight: No',
+                            'Damage: None',
+                            'Pierce: No',
+                            'Effects: Cleansing (Estrangement, Pry penalty, Jawline immobilization)',
+                            'Cooldown: None',
+                            'Special: Immediate upon entering area or start of turn'
+                        ]
+                    }
+                ],
+                'tips': [
+                    '- Position to maximize enemy exposure while protecting allies',
+                    '- Use movement to chase retreating enemies or reposition for optimal coverage',
+                    '- Coordinate with team movement to ensure allies benefit from cleansing',
+                    '- Build maximum Effluvium charges before summoning for longest duration'
+                ],
+                'tactical': []
+            },
+            'HEINOUS_VAPOR_SAFT_E': {
+                'title': 'SAFT-E-GAS (Θ)',
+                'overview': [
+                    'SAFT-E-GAS is a HEINOUS VAPOR entity summoned by the GAS MACHINIST using the Saft-E-Gas',
+                    'skill. This vapor specializes in defensive area control, blocking ranged attacks while',
+                    'healing allied units within its 3×3 protective area.',
+                    '',
+                    'Role: Defense / Healing'
+                ],
+                'stats': [
+                    'HP: 10',
+                    'Attack: 0',
+                    'Defense: 0',
+                    'Movement: 3',
+                    'Range: 1',
+                    'Symbol: Θ'
+                ],
+                'skills': [
+                    {
+                        'name': 'INVULNERABILITY (Passive)',
+                        'description': 'Complete immunity to all damage sources and status effects.',
+                        'details': [
+                            'Type: Passive',
+                            'Range: Self',
+                            'Target: Self',
+                            'Line of Sight: No',
+                            'Damage: None',
+                            'Pierce: No',
+                            'Effects: Cannot take damage, immune to all debuffs',
+                            'Cooldown: None',
+                            'Special: Can only be removed through natural expiration'
+                        ]
+                    },
+                    {
+                        'name': 'RANGED ATTACK BLOCKING (Defensive Barrier)',
+                        'description': 'Prevents enemies outside the vapor cloud from targeting allies within the protected area.',
+                        'details': [
+                            'Type: Defensive Barrier',
+                            'Range: 3×3 centered on vapor',
+                            'Target: Allied units in area',
+                            'Line of Sight: No',
+                            'Damage: None',
+                            'Pierce: No',
+                            'Effects: Protection from external ranged attacks',
+                            'Cooldown: None',
+                            'Special: Enemies inside same vapor cloud can still target protected allies'
+                        ]
+                    },
+                    {
+                        'name': 'ALLY HEALING (Area Healing)',
+                        'description': 'Heals allied units within the area for 1 HP per turn.',
+                        'details': [
+                            'Type: Area Healing',
+                            'Range: 3×3 centered on vapor',
+                            'Target: Allied units below max HP',
+                            'Line of Sight: No',
+                            'Damage: None',
+                            'Pierce: No',
+                            'Effects: Healing +1 HP per turn',
+                            'Cooldown: None',
+                            'Special: Activates during owner\'s turn'
+                        ]
+                    }
+                ],
+                'tips': [
+                    '- Position to cover the maximum number of vulnerable allies',
+                    '- Use movement to maintain protection as allies advance or retreat',
+                    '- Place strategically to force enemies into melee engagement',
+                    '- Build maximum Effluvium charges before summoning for longest duration'
+                ],
+                'tactical': []
+            },
+            'HEINOUS_VAPOR_COOLANT': {
+                'title': 'COOLANT GAS (Σ)',
+                'overview': [
+                    'COOLANT GAS is a HEINOUS VAPOR entity created by the GAS MACHINIST using the Diverge',
+                    'skill. This vapor specializes in healing, providing 3 HP healing per turn to allies',
+                    'within its 3×3 area of influence.',
+                    '',
+                    'Role: Healing / Area Support'
+                ],
+                'stats': [
+                    'HP: 10',
+                    'Attack: 0',
+                    'Defense: 0',
+                    'Movement: 3',
+                    'Range: 1',
+                    'Symbol: Σ'
+                ],
+                'skills': [
+                    {
+                        'name': 'INVULNERABILITY (Passive)',
+                        'description': 'Complete immunity to all damage sources and status effects.',
+                        'details': [
+                            'Type: Passive',
+                            'Range: Self',
+                            'Target: Self',
+                            'Line of Sight: No',
+                            'Damage: None',
+                            'Pierce: No',
+                            'Effects: Cannot take damage, immune to all debuffs',
+                            'Cooldown: None',
+                            'Special: Can only be removed through natural expiration'
+                        ]
+                    },
+                    {
+                        'name': 'ALLY HEALING (Area Healing)',
+                        'description': 'Heals allied units within the area for 3 HP per turn.',
+                        'details': [
+                            'Type: Area Healing',
+                            'Range: 3×3 centered on vapor',
+                            'Target: Allied units below max HP',
+                            'Line of Sight: No',
+                            'Damage: None',
+                            'Pierce: No',
+                            'Effects: Healing +3 HP per turn',
+                            'Cooldown: None',
+                            'Special: Activates during owner\'s turn'
+                        ]
+                    }
+                ],
+                'tips': [
+                    '- Build maximum Effluvium charges before using Diverge for longest healing duration',
+                    '- Position to cover the most critically wounded allies',
+                    '- Use movement to maintain healing coverage as battle lines shift',
+                    '- Coordinate with CUTTING GAS for simultaneous healing and damage pressure'
+                ],
+                'tactical': []
+            },
+            'HEINOUS_VAPOR_CUTTING': {
+                'title': 'CUTTING GAS (%)',
+                'overview': [
+                    'CUTTING GAS is a HEINOUS VAPOR entity created by the GAS MACHINIST using the Diverge',
+                    'skill. This vapor specializes in offensive area control, dealing 3 piercing damage per',
+                    'turn to all enemies within its 3×3 area of influence.',
+                    '',
+                    'Role: Damage / Area Denial'
+                ],
+                'stats': [
+                    'HP: 10',
+                    'Attack: 0',
+                    'Defense: 0',
+                    'Movement: 3',
+                    'Range: 1',
+                    'Symbol: %'
+                ],
+                'skills': [
+                    {
+                        'name': 'INVULNERABILITY (Passive)',
+                        'description': 'Complete immunity to all damage sources and status effects.',
+                        'details': [
+                            'Type: Passive',
+                            'Range: Self',
+                            'Target: Self',
+                            'Line of Sight: No',
+                            'Damage: None',
+                            'Pierce: No',
+                            'Effects: Cannot take damage, immune to all debuffs',
+                            'Cooldown: None',
+                            'Special: Can only be removed through natural expiration'
+                        ]
+                    },
+                    {
+                        'name': 'PIERCING DAMAGE (Area Damage)',
+                        'description': 'Deals 3 piercing damage per turn to all enemy units in the area.',
+                        'details': [
+                            'Type: Area Damage',
+                            'Range: 3×3 centered on vapor',
+                            'Target: Enemy units in area',
+                            'Line of Sight: No',
+                            'Damage: 3 piercing per turn',
+                            'Pierce: Yes',
+                            'Effects: Bypasses all defense',
+                            'Cooldown: None',
+                            'Special: Activates during owner\'s turn'
+                        ]
+                    }
+                ],
+                'tips': [
+                    '- Build maximum Effluvium charges before using Diverge for longest damage duration',
+                    '- Position to cover enemy clusters or chokepoints',
+                    '- Use movement to chase retreating enemies or deny key areas',
+                    '- Coordinate with COOLANT GAS for simultaneous healing and damage pressure'
+                ],
+                'tactical': []
+            },
+            UnitType.HEINOUS_VAPOR: {
+                'title': 'HEINOUS VAPOR',
+                'overview': [
+                    'HEINOUS VAPOR entities are summoned by the GAS MACHINIST and serve as battlefield',
+                    'manipulators with diverse abilities. Each vapor type has unique properties and',
+                    'effects based on the skill used to create it.',
+                    '',
+                    'Role: Summoned Entity / Area Control / Support'
+                ],
+                'stats': [
+                    'HP: 10',
+                    'Attack: 0',
+                    'Defense: 0',
+                    'Movement: 3',
+                    'Range: 1',
+                    'Symbol: V (varies by type)'
+                ],
+                'skills': [
+                    {
+                        'name': 'INVULNERABILITY (Passive)',
+                        'description': 'Complete immunity to all damage sources and status effects.',
+                        'details': [
+                            'Type: Passive',
+                            'Range: Self',
+                            'Target: Self',
+                            'Line of Sight: No',
+                            'Damage: None',
+                            'Pierce: No',
+                            'Effects: Cannot take damage, immune to all debuffs',
+                            'Cooldown: None',
+                            'Special: Can only be removed through natural expiration or Diverge skill'
+                        ]
+                    }
+                ],
+                'tips': [
+                    '- Each vapor type has unique area effects and abilities',
+                    '- Duration depends on GAS MACHINIST\'s Effluvium charges when summoned',
+                    '- Can be targeted by Diverge skill to split into two different vapor types',
+                    '- Move strategically to maximize area coverage and effects'
+                ],
+                'tactical': [
+                    '- Abilities vary by vapor type - check specific vapor help for details',
+                    '- Generally strong against: Status effect users, clustered enemies',
+                    '- Best positioning: Strategic locations for maximum area control'
                 ]
             }
         }
@@ -4616,6 +4936,28 @@ class InputManager(UIComponent):
             elif unit_type == UnitType.DELPHIC_APPRAISER:
                 # Show DELPHIC_APPRAISER unit help
                 self.game_ui.unit_help_component.toggle_unit_help(UnitType.DELPHIC_APPRAISER)
+                return
+            elif unit_type == UnitType.HEINOUS_VAPOR:
+                # Check what type of vapor this is by symbol
+                if hasattr(cursor_manager.selected_unit, 'vapor_symbol'):
+                    if cursor_manager.selected_unit.vapor_symbol == 'Φ':
+                        # Show BROACHING GAS help
+                        self.game_ui.unit_help_component.toggle_unit_help('HEINOUS_VAPOR_BROACHING')
+                        return
+                    elif cursor_manager.selected_unit.vapor_symbol == 'Θ':
+                        # Show SAFT-E-GAS help
+                        self.game_ui.unit_help_component.toggle_unit_help('HEINOUS_VAPOR_SAFT_E')
+                        return
+                    elif cursor_manager.selected_unit.vapor_symbol == 'Σ':
+                        # Show COOLANT GAS help
+                        self.game_ui.unit_help_component.toggle_unit_help('HEINOUS_VAPOR_COOLANT')
+                        return
+                    elif cursor_manager.selected_unit.vapor_symbol == '%':
+                        # Show CUTTING GAS help
+                        self.game_ui.unit_help_component.toggle_unit_help('HEINOUS_VAPOR_CUTTING')
+                        return
+                # Default case for unknown vapor types
+                self.game_ui.unit_help_component.toggle_unit_help(UnitType.HEINOUS_VAPOR)
                 return
         
         # Show general help screen
