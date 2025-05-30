@@ -433,11 +433,9 @@ class UIRenderer:
                     dike_info = self.game_ui.game.marrow_dike_interior[pos_tuple]
                     # If this is an upgraded Marrow Dike, apply blood plasma overlay
                     if dike_info.get('upgraded', False):
-                        # Only override if terrain is empty - preserve other terrain types
-                        if terrain == TerrainType.EMPTY:
-                            tile = "~"  # Blood plasma appearance
-                            color_id = 20  # Red color for blood
-                        # For non-empty terrain, keep the original terrain visible
+                        # Override all ground tiles with red ~ to show viscous plasma
+                        tile = "~"  # Blood plasma appearance
+                        color_id = 20  # Red color for blood
                 
                 # Check if there's a unit at this position
                 unit = self.game_ui.game.get_unit_at(y, x)
@@ -595,6 +593,12 @@ class UIRenderer:
                                 # Add x symbol to show embedded shrapnel status effect
                                 enhanced_tile = f"{tile}x"  # Combine unit symbol with x (represents embedded fragments)
                                 # Use player color with dim attribute to indicate ongoing damage while preserving team identification
+                                self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_DIM)
+                            # Check if unit is mired by upgraded Marrow Dike
+                            elif hasattr(unit, 'mired') and unit.mired:
+                                # Add double wavy lines to show mired status effect
+                                enhanced_tile = f"{tile}≈"  # Combine unit symbol with double wavy lines (represents thick plasma)
+                                # Use player color with dim attribute to indicate movement restriction
                                 self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_DIM)
                             # Check if unit is affected by Pry movement penalty
                             elif (hasattr(unit, 'pry_duration') and unit.pry_duration > 0) or (hasattr(unit, 'pry_active') and unit.pry_active) or (unit.was_pried and unit.move_range_bonus < 0):

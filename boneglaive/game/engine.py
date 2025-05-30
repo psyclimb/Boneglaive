@@ -1755,6 +1755,21 @@ class Game:
                             player=unit.player
                         )
             
+            # Process Mired status effect from upgraded Marrow Dike
+            if hasattr(unit, 'mired') and unit.mired:
+                if hasattr(unit, 'mired_duration') and unit.mired_duration > 0:
+                    # Decrement duration
+                    unit.mired_duration -= 1
+                    logger.debug(f"{unit.get_display_name()}'s Mired duration: {unit.mired_duration}")
+                    
+                    # Check if the status effect has expired
+                    if unit.mired_duration <= 0:
+                        # Remove the status effect
+                        unit.mired = False
+                        
+                        # Restore movement bonus that was removed by the mired effect
+                        unit.move_range_bonus += 1
+            
             # Health regeneration is now processed after all actions are complete
     
     @measure_perf

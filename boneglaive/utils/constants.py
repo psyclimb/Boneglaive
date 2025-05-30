@@ -45,7 +45,7 @@ UNIT_STATS = {
     UnitType.FOWL_CONTRIVANCE: (18, 5, 0, 4, 2),
     UnitType.GAS_MACHINIST: (18, 4, 1, 3, 1),
     UnitType.HEINOUS_VAPOR: (10, 0, 0, 3, 1),
-    UnitType.DELPHIC_APPRAISER: (20, 4, 0, 3, 2)
+    UnitType.DELPHIC_APPRAISER: (20, 4, 0, 3, 1)
 }
 
 UNIT_SYMBOLS = {
@@ -102,3 +102,8 @@ GREEK_ALPHABET = [
     'ψ',  # psi
     'ω'   # omega
 ]
+
+# Status effect symbols
+STATUS_EFFECT_SYMBOLS = {
+    'MIRED': '≈',             # Movement reduction from upgraded marrow dike
+}

@@ -79,6 +79,8 @@ class Unit:
         self.jawline_affected = False  # Track if unit is affected by Jawline skill
         self.jawline_duration = 0  # Duration remaining for Jawline effect
         self.estranged = False  # Track if unit is affected by Estrange skill
+        self.mired = False  # Track if unit is affected by upgraded Marrow Dike
+        self.mired_duration = 0  # Duration remaining for mired effect
         
         # Græ Exchange echo properties
         self.is_echo = False  # Whether this unit is an echo created by Græ Exchange
