@@ -464,10 +464,11 @@ class MarrowDikeSkill(ActiveSkill):
                             target_name=unit_at_pos.get_display_name()
                         )
                         unit_at_pos.marrow_dike_immunity_message_shown = True
-                    # For non-immune units, apply the movement penalty immediately
-                    elif not hasattr(unit_at_pos, 'prison_move_penalty') or not unit_at_pos.prison_move_penalty:
+                    # For non-immune units, apply the mired status effect
+                    elif not hasattr(unit_at_pos, 'mired') or not unit_at_pos.mired:
+                        unit_at_pos.mired = True
+                        unit_at_pos.mired_duration = self.duration
                         unit_at_pos.move_range_bonus -= 1
-                        unit_at_pos.prison_move_penalty = True
                         
                         # Shorter message for each enemy unit trapped inside
                         message_log.add_message(

@@ -803,6 +803,375 @@ class UnitHelpComponent(UIComponent):
                     '- 2-turn duration on owner\'s turns only',
                     '- Explosion threat provides area control'
                 ]
+            },
+            UnitType.MARROW_CONDENSER: {
+                'title': 'MARROW CONDENSER',
+                'overview': [
+                    'The MARROW CONDENSER is a skeletal fortress builder that manipulates bone matter to create',
+                    'defensive structures and enhance its own capabilities. This high-HP tank excels at area',
+                    'control through wall creation while growing stronger from enemy deaths within its domain.',
+                    'The MARROW CONDENSER serves as a defensive anchor that transforms the battlefield through',
+                    'bone manipulation.',
+                    '',
+                    'Role: Fortress Builder / Area Control Tank'
+                ],
+                'stats': [
+                    'HP: 24',
+                    'Attack: 4',
+                    'Defense: 2',
+                    'Movement: 3',
+                    'Range: 1',
+                    'Symbol: C'
+                ],
+                'skills': [
+                    {
+                        'name': 'DOMINION (Passive)',
+                        'description': 'Gains permanent upgrades when units die within Marrow Dike walls, becoming stronger with each kill.',
+                        'details': [
+                            'Type: Passive',
+                            'Range: Marrow Dike interior',
+                            'Target: Self enhancement',
+                            'Line of Sight: No',
+                            'Damage: None',
+                            'Pierce: No',
+                            'Effects: First kill: +1 defense, Second kill: +1 attack, Third kill: +1 movement',
+                            'Cooldown: None',
+                            'Special: Also upgrades active skills in sequence, tracks kill count for Bone Tithe scaling'
+                        ]
+                    },
+                    {
+                        'name': 'OSSIFY (Active) [Key: O]',
+                        'description': 'Hardens skeletal structure to gain defense bonus at the cost of mobility.',
+                        'details': [
+                            'Type: Active',
+                            'Range: 0',
+                            'Target: Self',
+                            'Line of Sight: No',
+                            'Damage: None',
+                            'Pierce: No',
+                            'Effects: Ossified, +2 defense, -1 movement for 2 turns',
+                            'Cooldown: 3 turns',
+                            'Special: +3 defense when upgraded'
+                        ]
+                    },
+                    {
+                        'name': 'MARROW DIKE (Active) [Key: M]',
+                        'description': 'Creates a 5x5 perimeter of marrow walls around self, pulling enemies inward.',
+                        'details': [
+                            'Type: Active',
+                            'Range: self',
+                            'Target: 5x5 area around self',
+                            'Line of Sight: No',
+                            'Damage: None',
+                            'Pierce: No',
+                            'Effects: Mired, movement -1 when inside the interior and skill is upgraded',
+                            'Cooldown: 4 turns',
+                            'Special: Upgraded walls have 3 HP and cause movement penalty'
+                        ]
+                    },
+                    {
+                        'name': 'BONE TITHE (Active) [Key: B]',
+                        'description': 'Drains life force from nearby enemies through bone manipulation, healing self.',
+                        'details': [
+                            'Type: Active',
+                            'Range: self',
+                            'Target: adjacent tiles around self',
+                            'Line of Sight: No',
+                            'Damage: 1 (scales with kill count when upgraded)',
+                            'Pierce: No',
+                            'Effects: None',
+                            'Cooldown: 1 turn',
+                            'Special: +1 max HP and current HP per enemy hit (+2 when upgraded)'
+                        ]
+                    }
+                ],
+                'tips': [
+                    '- Use Marrow Dike to trap enemies and control battlefield positioning',
+                    '- Bone Tithe frequently for sustained healing and HP growth',
+                    '- Ossify when expecting heavy damage to maximize survivability',
+                    '- Position centrally to maximize Bone Tithe hits and Dominion kill opportunities',
+                    '- High HP allows aggressive frontline positioning'
+                ],
+                'tactical': [
+                    '- Strong against: Melee units, sustained engagements, clustered enemies',
+                    '- Vulnerable to: Long-range attackers, high mobility units, piercing damage',
+                    '- Best positioning: Center of enemy groups, chokepoints for wall placement, interior of own Marrow Dike'
+                ]
+            },
+            UnitType.FOWL_CONTRIVANCE: {
+                'title': 'FOWL CONTRIVANCE',
+                'overview': [
+                    'The FOWL CONTRIVANCE is a mechanical peacock rail artillery platform that specializes in',
+                    'long-range devastation and battlefield control. This unit excels at indirect fire support',
+                    'while establishing an explosive rail network.',
+                    '',
+                    'Role: Artillery / Burst damage'
+                ],
+                'stats': [
+                    'HP: 18',
+                    'Attack: 5',
+                    'Defense: 0',
+                    'Movement: 4',
+                    'Range: 2',
+                    'Symbol: T'
+                ],
+                'skills': [
+                    {
+                        'name': 'RAIL GENESIS (Passive)',
+                        'description': 'The first FOWL_CONTRIVANCE to deploy establishes a permanent rail network.',
+                        'details': [
+                            'Type: Passive',
+                            'Range: Map-wide',
+                            'Target: Battlefield terrain',
+                            'Line of Sight: No',
+                            'Damage: 4 on death explosion',
+                            'Pierce: No',
+                            'Effects: None',
+                            'Cooldown: None',
+                            'Special: Rail network persists until the last FOWL CONTRIVANCE dies'
+                        ]
+                    },
+                    {
+                        'name': 'GAUSSIAN DUSK (Active) [Key: G]',
+                        'description': 'Charges a devastating rail gun shot that pierces everything in its path.',
+                        'details': [
+                            'Type: Active (Two-phase: Charging → Firing)',
+                            'Range: Entire map',
+                            'Target: Line of destruction',
+                            'Line of Sight: No',
+                            'Damage: 12',
+                            'Pierce: Yes',
+                            'Effects: Charging, self, disables move, attack, and skills',
+                            'Cooldown: 4 turns, after firing',
+                            'Special: Destroys terrain'
+                        ]
+                    },
+                    {
+                        'name': 'BIG ARC (Active) [Key: B]',
+                        'description': 'Launches explosive mortar shells in a 3x3 area.',
+                        'details': [
+                            'Type: Active',
+                            'Range: 6',
+                            'Target: 3x3 area',
+                            'Line of Sight: No',
+                            'Damage: 8 primary, 5 adjacent',
+                            'Pierce: No',
+                            'Effects: None',
+                            'Cooldown: 4 turns',
+                            'Special: Cannot target adjacent tiles'
+                        ]
+                    },
+                    {
+                        'name': 'FRAGCREST (Active) [Key: F]',
+                        'description': 'Deploys a directional fragmentation burst that fans out in a cone, firing explosive shrapnel that blasts enemies backward and embeds fragments for ongoing damage.',
+                        'details': [
+                            'Type: Active',
+                            'Range: 4',
+                            'Target: Cone area (90-degree spread)',
+                            'Line of Sight: Yes',
+                            'Damage: 4 primary, 2 secondary',
+                            'Pierce: No',
+                            'Effects: Shrapnel, 1 damage per turn for 3 turns',
+                            'Cooldown: 3 turns',
+                            'Special: Pushes enemies away'
+                        ]
+                    }
+                ],
+                'tips': [
+                    '- Use Gaussian Dusk for maximum damage output but plan the charging turn carefully',
+                    '- Big Arc excels against clustered enemies and ignores line of sight restrictions',
+                    '- Fragcrest provides crowd control through knockback and area denial via shrapnel',
+                    '- High movement allows for repositioning between artillery strikes'
+                ],
+                'tactical': [
+                    '- Strong against: Clustered enemies, static formations, low-mobility units, units with high defence',
+                    '- Vulnerable to: High-mobility rushers, units that can close distance quickly, area denial, high burst damage',
+                    '- Best positioning: Behind cover, near rail network access points for quick repositioning'
+                ]
+            },
+            UnitType.GAS_MACHINIST: {
+                'title': 'GAS MACHINIST',
+                'overview': [
+                    'The GAS MACHINIST is a vapor-controlling technician that specializes in battlefield',
+                    'manipulation through chemical entities. This support unit excels at creating HEINOUS VAPOR',
+                    'minions that provide area control, healing, and damage over time.',
+                    '',
+                    'Role: Summoner / Support / Area Control'
+                ],
+                'stats': [
+                    'HP: 18',
+                    'Attack: 4',
+                    'Defense: 1',
+                    'Movement: 3',
+                    'Range: 1',
+                    'Symbol: M'
+                ],
+                'skills': [
+                    {
+                        'name': 'EFFLUVIUM LATHE (Passive)',
+                        'description': 'Generates 1 Effluvium charge per turn (max 4). Charges extend HEINOUS VAPOR duration by 1 turn each.',
+                        'details': [
+                            'Type: Passive',
+                            'Range: Self',
+                            'Target: Charge generation',
+                            'Line of Sight: No',
+                            'Damage: None',
+                            'Pierce: No',
+                            'Effects: Generates charges, extends vapor duration',
+                            'Cooldown: None',
+                            'Special: Does not generate charges while diverged, starts with 1 charge'
+                        ]
+                    },
+                    {
+                        'name': 'BROACHING GAS (Active) [Key: B]',
+                        'description': 'Summons a HEINOUS VAPOR (Φ) that deals damage to enemies and cleanses allies of negative status effects.',
+                        'details': [
+                            'Type: Active',
+                            'Range: 3',
+                            'Target: Empty tile',
+                            'Line of Sight: No',
+                            'Damage: 2',
+                            'Pierce: No',
+                            'Effects: None',
+                            'Cooldown: 2 turns',
+                            'Special: Vapor cleanses ally status effects, invulnerable unit'
+                        ]
+                    },
+                    {
+                        'name': 'SAFT-E-GAS (Active) [Key: S]',
+                        'description': 'Summons a HEINOUS VAPOR (Θ) that blocks enemy targeting and heals allies.',
+                        'details': [
+                            'Type: Active',
+                            'Range: 3',
+                            'Target: Empty tile',
+                            'Line of Sight: No',
+                            'Damage: None',
+                            'Pierce: No',
+                            'Effects: None',
+                            'Cooldown: 3 turns',
+                            'Special: Prevents being targetted from outside of the area of effect, heals allies, invulnerable unit'
+                        ]
+                    },
+                    {
+                        'name': 'DIVERGE (Active) [Key: D]',
+                        'description': 'Splits an existing HEINOUS VAPOR or self into Coolant Gas and Cutting Gas.',
+                        'details': [
+                            'Type: Active',
+                            'Range: 5',
+                            'Target: Self or owned HEINOUS VAPOR',
+                            'Line of Sight: No',
+                            'Damage: 3',
+                            'Pierce: Yes',
+                            'Effects: None',
+                            'Cooldown: 4 turns',
+                            'Special: Self-targeting removes GAS MACHINIST until vapors expire. Coolant gas heals allied units for 3 HP'
+                        ]
+                    }
+                ],
+                'tips': [
+                    '- Build up Effluvium charges early to maximize vapor duration',
+                    '- Use Broaching Gas for enemy damage and ally cleansing',
+                    '- Deploy Saft-E-Gas defensively to block ranged attacks and heal',
+                    '- Diverge gasses to extend their effectiveness',
+                    '- Self-diverge to become invulernable, maximize area control, or escape'
+                ],
+                'tactical': [
+                    '- Strong against: Status effect users, ranged attackers, sustained damage teams',
+                    '- Vulnerable to: Burst damage, high mobility units that can avoid vapors, area denial',
+                    '- Best positioning: Behind frontlines, near allies for vapor support, central locations for maximum vapor coverage'
+                ]
+            },
+            UnitType.DELPHIC_APPRAISER: {
+                'title': 'DELPHIC APPRAISER',
+                'overview': [
+                    'The DELPHIC APPRAISER is a furniture evaluator with cosmic value perception that',
+                    'specializes in exploiting the metaphysical properties of terrain. This support unit excels',
+                    'at creating tactical advantages through furniture manipulation, teleportation networks,',
+                    'and reality distortion effects.',
+                    '',
+                    'Role: Support / Utility / Reality Manipulator / Gambler'
+                ],
+                'stats': [
+                    'HP: 20',
+                    'Attack: 4',
+                    'Defense: 0',
+                    'Movement: 3',
+                    'Range: 1',
+                    'Symbol: A'
+                ],
+                'skills': [
+                    {
+                        'name': 'VALUATION ORACLE (Passive)',
+                        'description': 'Perceives the \'cosmic value\' of furniture at spawn.',
+                        'details': [
+                            'Type: Passive',
+                            'Range: Adjacent tiles',
+                            'Target: Furniture terrain',
+                            'Line of Sight: No',
+                            'Damage: None',
+                            'Pierce: No',
+                            'Effects: Valuation Oracle, gains +1 to defense and attack range',
+                            'Cooldown: None',
+                            'Special: Bonuses last while adjacent to any furniture'
+                        ]
+                    },
+                    {
+                        'name': 'MARKET FUTURES (Active) [Key: M]',
+                        'description': 'Infuses a furniture piece with temporal investment energy. Creates a teleportation anchor that allies can activate.',
+                        'details': [
+                            'Type: Active',
+                            'Range: 4',
+                            'Target: Furniture piece',
+                            'Line of Sight: Yes',
+                            'Damage: None',
+                            'Pierce: No',
+                            'Effects: Investment, applied on teleport',
+                            'Cooldown: 6 turns',
+                            'Special: Teleport range equals cosmic value. Investment effect grants +1 ATK turn 1, +2 ATK turn 2, +3 ATK turn 3, plus +1 range for all 3 turns. Provides units adjacent to the imbued furniture with an additional menu function, [P]ort'
+                        ]
+                    },
+                    {
+                        'name': 'AUCTION CURSE (Active) [Key: A]',
+                        'description': 'Curse target enemy with a twisted auction.',
+                        'details': [
+                            'Type: Active',
+                            'Range: 3',
+                            'Target: Enemy unit',
+                            'Line of Sight: Yes',
+                            'Damage: 1 per turn (based on cosmic values)',
+                            'Pierce: No',
+                            'Effects: Auction Curse, each tick inflates nearby furniture by +1, heals allies within 2 tiles by 1 HP, and prevents healing',
+                            'Cooldown: 4 turns',
+                            'Special: Duration equals average cosmic value of furniture within 2 tiles'
+                        ]
+                    },
+                    {
+                        'name': 'DIVINE DEPRECIATION (Active) [Key: D]',
+                        'description': 'Dramatically reappraises a furniture piece as cosmically worthless, creating a 7×7 reality distortion.',
+                        'details': [
+                            'Type: Active',
+                            'Range: 3',
+                            'Target: Furniture piece (7×7 area effect)',
+                            'Line of Sight: Yes',
+                            'Damage: Based on cosmic value difference',
+                            'Pierce: Yes',
+                            'Effects: Reality distortion, pulls enemies toward center, rerolls cosmic values',
+                            'Cooldown: 6 turns',
+                            'Special: Sets target furniture to cosmic value 1. Damage equals average cosmic value of other furniture minus1. Pull distance equals average enemy movement minus 1. Rerolls all other furniture cosmic values'
+                        ]
+                    }
+                ],
+                'tips': [
+                    '- Position near furniture to maintain Valuation Oracle bonuses',
+                    '- Use Market Futures to create tactical teleport networks for team mobility',
+                    '- Auction Curse works best in furniture-dense areas for maximum damage over time',
+                    '- Divine Depreciation is devastating in furniture-heavy zones - plan positioning carefully'
+                ],
+                'tactical': [
+                    '- Strong against: Static formations, low-mobility teams, furniture-dependent strategies',
+                    '- Vulnerable to: High burst damage, units that avoid furniture areas, mobility-based counters',
+                    '- Best positioning: Central furniture clusters, defensive positions near valuable terrain'
+                ]
             }
         }
     
@@ -4231,6 +4600,22 @@ class InputManager(UIComponent):
                 else:
                     # Show regular GRAYMAN unit help
                     self.game_ui.unit_help_component.toggle_unit_help(UnitType.GRAYMAN)
+                return
+            elif unit_type == UnitType.MARROW_CONDENSER:
+                # Show MARROW_CONDENSER unit help
+                self.game_ui.unit_help_component.toggle_unit_help(UnitType.MARROW_CONDENSER)
+                return
+            elif unit_type == UnitType.FOWL_CONTRIVANCE:
+                # Show FOWL_CONTRIVANCE unit help
+                self.game_ui.unit_help_component.toggle_unit_help(UnitType.FOWL_CONTRIVANCE)
+                return
+            elif unit_type == UnitType.GAS_MACHINIST:
+                # Show GAS_MACHINIST unit help
+                self.game_ui.unit_help_component.toggle_unit_help(UnitType.GAS_MACHINIST)
+                return
+            elif unit_type == UnitType.DELPHIC_APPRAISER:
+                # Show DELPHIC_APPRAISER unit help
+                self.game_ui.unit_help_component.toggle_unit_help(UnitType.DELPHIC_APPRAISER)
                 return
         
         # Show general help screen
