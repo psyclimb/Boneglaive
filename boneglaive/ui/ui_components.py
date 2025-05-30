@@ -474,6 +474,539 @@ class MessageLogComponent(UIComponent):
                 
         return False
 
+# Unit help screen component  
+class UnitHelpComponent(UIComponent):
+    """Component for displaying unit-specific help pages."""
+    
+    def __init__(self, renderer, game_ui):
+        super().__init__(renderer, game_ui)
+        self.show_unit_help = False  # Whether to show unit help screen
+        self.help_scroll = 0  # Scroll position in help content
+        self.unit_help_data = self._load_unit_help_data()
+        
+    def _load_unit_help_data(self):
+        """Load unit help data for all units."""
+        return {
+            UnitType.GLAIVEMAN: {
+                'title': 'GLAIVEMAN',
+                'overview': [
+                    'The GLAIVEMAN is a versatile melee warrior wielding a polearm and sacred spinning glaives.',
+                    'Balanced between offense and defense, this unit excels at close combat with mobility options',
+                    'and area control. The GLAIVEMAN serves as a reliable frontline fighter with powerful',
+                    'retaliatory abilities.',
+                    '',
+                    'Role: Frontline Fighter / Area Controller'
+                ],
+                'stats': [
+                    'HP: 22',
+                    'Attack: 4',
+                    'Defense: 1', 
+                    'Movement: 2',
+                    'Range: 2',
+                    'Symbol: G'
+                ],
+                'skills': [
+                    {
+                        'name': 'AUTOCLAVE (Passive)',
+                        'description': 'When near death, unleashes a desperate retaliatory burst of energy in four directions.',
+                        'details': [
+                            'Type: Passive',
+                            'Range: 3',
+                            'Target: Enemy units',
+                            'Line of Sight: No',
+                            'Damage: 8',
+                            'Pierce: No',
+                            'Effects: None',
+                            'Cooldown: Once per game',
+                            'Special: Triggers on critical health damage, heals for half damage dealt'
+                        ]
+                    },
+                    {
+                        'name': 'PRY (Active) [Key: P]',
+                        'description': 'Uses the glaive as a lever to launch an enemy into the ceiling, causing debris to rain down.',
+                        'details': [
+                            'Type: Active',
+                            'Range: 1',
+                            'Target: Enemy unit',
+                            'Line of Sight: Yes',
+                            'Damage: 6 primary, 3 splash to adjacent enemies',
+                            'Pierce: No',
+                            'Effects: Pried, -1 movement for 2 turns',
+                            'Cooldown: 3 turns'
+                        ]
+                    },
+                    {
+                        'name': 'VAULT (Active) [Key: V]',
+                        'description': 'Performs an athletic leap to cross obstacles and units.',
+                        'details': [
+                            'Type: Active',
+                            'Range: 2',
+                            'Target: Empty terrain',
+                            'Line of Sight: No',
+                            'Damage: None',
+                            'Pierce: No',
+                            'Effects: None',
+                            'Cooldown: 4 turns'
+                        ]
+                    },
+                    {
+                        'name': 'JUDGEMENT (Active) [Key: J]',
+                        'description': 'Hurls a sacred spinning glaive that pierces through enemy defenses and deals double damage on enemies at critical health',
+                        'details': [
+                            'Type: Active',
+                            'Range: 4',
+                            'Target: Enemy unit',
+                            'Line of Sight: Yes',
+                            'Damage: 4, 8 on critical health enemies',
+                            'Pierce: Yes',
+                            'Effects: None',
+                            'Cooldown: 4 turns'
+                        ]
+                    }
+                ],
+                'tips': [
+                    '- Use Pry to control enemy positioning and reduce their mobility',
+                    '- Vault provides excellent positioning and escape options',
+                    '- Judgement is devastating against wounded enemies (double damage at critical health)',
+                    '- Autoclave makes the GLAIVEMAN dangerous even when near death',
+                    '- Maintain front-line position to threaten multiple enemies with Pry range'
+                ],
+                'tactical': [
+                    '- Strong against: Clustered enemies (Pry splash), high-defense units (Judgement piercing)',
+                    '- Vulnerable to: Long-range attacks, status effects',
+                    '- Best positioning: Front-center to maximize Autoclave coverage'
+                ]
+            },
+            UnitType.MANDIBLE_FOREMAN: {
+                'title': 'MANDIBLE FOREMAN',
+                'overview': [
+                    'The MANDIBLE FOREMAN is a mechanical supervisor wielding industrial jaw contraptions for area',
+                    'control and battlefield management. This durable frontline unit excels at trapping and immobilizing',
+                    'enemies while providing tactical support to allies in open terrain. The MANDIBLE FOREMAN serves',
+                    'as a close-range specialist focused on movement denial and crowd control.',
+                    '',
+                    'Role: Area Control Specialist / Trap Master'
+                ],
+                'stats': [
+                    'HP: 22',
+                    'Attack: 3',
+                    'Defense: 1',
+                    'Movement: 2',
+                    'Range: 1',
+                    'Symbol: F'
+                ],
+                'skills': [
+                    {
+                        'name': 'VISEROY (Passive)',
+                        'description': 'When attacking, traps enemy units in hydraulic mechanical jaws.',
+                        'details': [
+                            'Type: Passive',
+                            'Range: 1',
+                            'Target: Enemy units',
+                            'Line of Sight: No',
+                            'Damage: 3',
+                            'Pierce: No',
+                            'Effects: Trapped, cannot move, cannot use skills, takes incremental damage over time',
+                            'Cooldown: None',
+                            'Special: Automatic when attacking, blocked by immunity effects'
+                        ]
+                    },
+                    {
+                        'name': 'EXPEDITE (Active) [Key: E]',
+                        'description': 'Rush up to 4 tiles in a straight line, trapping and damaging the first enemy encountered.',
+                        'details': [
+                            'Type: Active',
+                            'Range: 4',
+                            'Target: Line movement',
+                            'Line of Sight: Yes',
+                            'Damage: 6',
+                            'Pierce: No',
+                            'Effects: Trapped, cannot move, cannot use skills, takes incremental damage over time',
+                            'Cooldown: 3 turns',
+                            'Special: Stops at first enemy, must move in straight lines, applies Viseroy trap'
+                        ]
+                    },
+                    {
+                        'name': 'SITE INSPECTION (Active) [Key: S]',
+                        'description': 'Survey a 3x3 area for obstacles, granting attack and movement bonuses to allies if terrain is clear.',
+                        'details': [
+                            'Type: Active',
+                            'Range: 3',
+                            'Target: 3x3 area',
+                            'Line of Sight: Yes',
+                            'Damage: None',
+                            'Pierce: No',
+                            'Effects: +1 attack, +1 movement to allies in area for 3 turns',
+                            'Cooldown: 3 turns',
+                            'Special: Only works if no impassable terrain in target area'
+                        ]
+                    },
+                    {
+                        'name': 'JAWLINE (Active) [Key: J]',
+                        'description': 'Deploy network of mechanical jaws in 3x3 area around yourself, damaging and completely immobilizing adjacent enemies.',
+                        'details': [
+                            'Type: Active',
+                            'Range: 0',
+                            'Target: 3x3 area around self',
+                            'Line of Sight: No',
+                            'Damage: 4',
+                            'Pierce: No',
+                            'Effects: Jawline, Immobilized for 2 turns',
+                            'Cooldown: 3 turns',
+                            'Special: Affects all adjacent enemies, complete movement lockdown'
+                        ]
+                    }
+                ],
+                'tips': [
+                    '- Use Viseroy to control enemy positioning with every attack',
+                    '- Expedite provides both gap-closing and guaranteed trap application',
+                    '- Site Inspection rewards positioning in open areas - plan team movements accordingly',
+                    '- Jawline is devastating in chokepoints or when surrounded by multiple enemies',
+                    '- High HP allows aggressive frontline positioning despite low attack range'
+                ],
+                'tactical': [
+                    '- Strong against: Melee units (trapping), clustered enemies (Jawline), open terrain engagements',
+                    '- Vulnerable to: Ranged attackers, immunity effects (GRAYMAN), heavily obstructed terrain',
+                    '- Best positioning: Frontline in open areas, near chokepoints to maximize Jawline effectiveness'
+                ]
+            },
+            UnitType.GRAYMAN: {
+                'title': 'GRAYMAN',
+                'overview': [
+                    'The GRAYMAN is a psychic entity that manipulates spacetime. This highly mobile unit excels at',
+                    'long-range harassment, teleportation tactics, and applying permanent debuffs to enemies. The',
+                    'GRAYMAN serves as an elusive skirmisher that phases in and out of combat while weakening foes',
+                    'through reality distortion and defense piercing attacks.',
+                    '',
+                    'Role: Psychic Skirmisher / Reality Manipulator'
+                ],
+                'stats': [
+                    'HP: 18',
+                    'Attack: 3',
+                    'Defense: 0',
+                    'Movement: 2',
+                    'Range: 5',
+                    'Symbol: Ψ'
+                ],
+                'skills': [
+                    {
+                        'name': 'STASIALITY (Passive)',
+                        'description': 'Exists outside normal spacetime, granting complete immunity to all external effects and manipulations.',
+                        'details': [
+                            'Type: Passive',
+                            'Range: Self',
+                            'Target: Self',
+                            'Line of Sight: No',
+                            'Damage: None',
+                            'Pierce: No',
+                            'Effects: Immunity to all status effects, forced movement, terrain effects, and stat changes',
+                            'Cooldown: None',
+                            'Special: Cannot be buffed, debuffed, or displaced'
+                        ]
+                    },
+                    {
+                        'name': 'DELTA CONFIG (Active) [Key: D]',
+                        'description': 'Instantly teleports across spacetime to any unoccupied location on the battlefield.',
+                        'details': [
+                            'Type: Active',
+                            'Range: 99',
+                            'Target: Empty passable terrain',
+                            'Line of Sight: No',
+                            'Damage: None',
+                            'Pierce: No',
+                            'Effects: Instant teleportation',
+                            'Cooldown: 12 turns',
+                            'Special: Unlimited range, prevents teleport conflicts with other units'
+                        ]
+                    },
+                    {
+                        'name': 'ESTRANGE (Active) [Key: E]',
+                        'description': 'Fires a reality-warping beam that phases the target partially out of spacetime, permanently weakening them.',
+                        'details': [
+                            'Type: Active',
+                            'Range: 5',
+                            'Target: Enemy unit',
+                            'Line of Sight: Yes',
+                            'Damage: 3',
+                            'Pierce: Yes',
+                            'Effects: Estranged - permanent -1 to all stats (attack, defense, movement, range)',
+                            'Cooldown: 3 turns',
+                            'Special: Bypasses defense, permanent debuff, blocked by immunity effects'
+                        ]
+                    },
+                    {
+                        'name': 'GRÆ EXCHANGE (Active) [Key: G]',
+                        'description': 'Creates an echo at current position and teleports to target location, maintaining presence in two places.',
+                        'details': [
+                            'Type: Active',
+                            'Range: 3',
+                            'Target: Empty passable terrain',
+                            'Line of Sight: No',
+                            'Damage: None',
+                            'Pierce: No',
+                            'Effects: Creates echo with 5 HP, 3 attack, immobile, lasts 2 turns',
+                            'Cooldown: 4 turns',
+                            'Special: Echo cannot move but can attack, expires on owner\'s turns'
+                        ]
+                    }
+                ],
+                'tips': [
+                    '- Use Stasiality immunity to ignore enemy control abilities and debuffs',
+                    '- Delta Config provides unmatched repositioning - use for flanking or escaping danger',
+                    '- Estrange permanently weakens key enemy units - prioritize high-value targets',
+                    '- Græ Exchange allows attacking from two positions simultaneously',
+                    '- Stay at maximum range (5) to avoid retaliation due to 0 defense'
+                ],
+                'tactical': [
+                    '- Strong against: Control-heavy teams, stationary units, and long-term engagements',
+                    '- Vulnerable to: High direct damage',
+                    '- Best positioning: Back lines with escape routes, flanking positions using teleportation'
+                ]
+            },
+            'GRAYMAN_ECHO': {
+                'title': 'GRAYMAN ECHO',
+                'overview': [
+                    'GRAYMAN echoes are temporary psychic projections created by the Græ Exchange skill. These',
+                    'immobile entities can attack but cannot use skills, serving primarily as area denial units',
+                    'that explode when destroyed. Echoes provide basic combat presence in key locations while',
+                    'the original GRAYMAN repositions elsewhere.',
+                    '',
+                    'Role: Temporary Area Denial / Basic Combat Projection'
+                ],
+                'stats': [
+                    'HP: 5 (fixed, cannot be healed)',
+                    'Attack: 3 (fixed, pierces)',
+                    'Defense: 0',
+                    'Movement: 0',
+                    'Range: 1',
+                    'Symbol: ψ',
+                    'Duration: 2 turns'
+                ],
+                'skills': [
+                    {
+                        'name': 'DEATH EXPLOSION',
+                        'description': 'When destroyed, explodes dealing 4 damage to all adjacent enemy units.',
+                        'details': [
+                            'Range: All adjacent tiles',
+                            'Damage: 4 (reduced by target defense)',
+                            'Targets: Enemy units'
+                        ]
+                    }
+                ],
+                'tips': [
+                    '- Immobile: Cannot move from creation position - plan placement carefully',
+                    '- Area Denial: 4-damage explosion threat forces enemies to keep distance',
+                    '- Strategic Positioning: Best placed in chokepoints or near valuable targets'
+                ],
+                'tactical': [
+                    '- Cannot use skills, only basic attacks',
+                    '- 2-turn duration on owner\'s turns only',
+                    '- Explosion threat provides area control'
+                ]
+            }
+        }
+    
+    def toggle_unit_help(self, unit_type=None):
+        """Toggle the unit help screen for a specific unit type."""
+        # Can't use unit help screen while in chat mode
+        if self.game_ui.chat_component.chat_mode:
+            return
+            
+        # If already showing, hide it
+        if self.show_unit_help:
+            self.show_unit_help = False
+            self.help_scroll = 0
+        # If unit_type provided and we have data for it, show it
+        elif unit_type and unit_type in self.unit_help_data:
+            self.show_unit_help = True
+            self.current_unit_type = unit_type
+            self.help_scroll = 0
+        else:
+            return
+        
+        # Request UI redraw
+        self.publish_event(
+            EventType.UI_REDRAW_REQUESTED,
+            UIRedrawEventData()
+        )
+        
+        # Display message in UI only, don't add to message log
+        if self.show_unit_help:
+            self.game_ui.message = f"{self.unit_help_data[unit_type]['title']} help shown"
+        else:
+            self.game_ui.message = "Unit help hidden"
+    
+    def handle_input(self, key: int) -> bool:
+        """Handle input while unit help screen is active."""
+        if not self.show_unit_help:
+            return False
+            
+        if key == 27:  # ESC key
+            self.toggle_unit_help()
+            self.game_ui.draw_board()
+            return True
+        elif key == ord('?'):
+            self.toggle_unit_help()
+            self.game_ui.draw_board()
+            return True
+        elif key == curses.KEY_UP:
+            # Scroll up
+            self.help_scroll = max(0, self.help_scroll - 1)
+            self.game_ui.draw_board()
+            return True
+        elif key == curses.KEY_DOWN:
+            # Scroll down (max scroll is enforced in draw method)
+            self.help_scroll += 1
+            self.game_ui.draw_board()
+            return True
+        elif key == ord('G'):  # Shift+g - go to end
+            # Jump to bottom
+            self.help_scroll = 999999  # Value will be clamped in draw method
+            self.game_ui.draw_board()
+            return True
+        elif key == ord('g'):  # g - go to start
+            # Jump to top
+            self.help_scroll = 0
+            self.game_ui.draw_board()
+            return True
+                
+        return False
+    
+    def draw_unit_help_screen(self):
+        """Draw the unit help screen with scrolling."""
+        if not self.show_unit_help or not hasattr(self, 'current_unit_type'):
+            return
+            
+        try:
+            # Get terminal size
+            term_height, term_width = self.renderer.get_terminal_size()
+            
+            # Clear the screen first
+            for y in range(term_height):
+                self.renderer.draw_text(y, 0, " " * term_width, 1)
+            
+            # Get unit data
+            unit_data = self.unit_help_data[self.current_unit_type]
+            
+            # Draw border around the entire screen
+            # Top border with title
+            border_top = f"┌─── {unit_data['title']} HELP " + "─" * (term_width - len(unit_data['title']) - 8) + "┐"
+            self.renderer.draw_text(0, 0, border_top, 1, curses.A_BOLD)
+            
+            # Side borders
+            for y in range(1, term_height - 1):
+                self.renderer.draw_text(y, 0, "│", 1)
+                self.renderer.draw_text(y, term_width - 1, "│", 1)
+            
+            # Bottom border
+            border_bottom = "└" + "─" * (term_width - 2) + "┘"
+            self.renderer.draw_text(term_height - 1, 0, border_bottom, 1)
+            
+            # Define content area dimensions
+            content_start_y = 3  # After the navigation bar
+            content_end_y = term_height - 3  # Before the status bar
+            available_height = content_end_y - content_start_y
+            
+            # Draw navigation instructions in a bar
+            nav_bar = "│ " + "─" * (term_width - 4) + " │"
+            self.renderer.draw_text(1, 0, nav_bar, 1)
+            nav_text = "↑/↓: Scroll | g/G: Start/End | ESC/?: Close"
+            self.renderer.draw_text(1, 2, nav_text, 1, curses.A_BOLD)
+            
+            # Draw a separator below the navigation
+            separator = "├" + "─" * (term_width - 2) + "┤"
+            self.renderer.draw_text(2, 0, separator, 1)
+            
+            # Build content lines
+            content_lines = []
+            
+            # Overview section
+            content_lines.extend(unit_data['overview'])
+            content_lines.append('')
+            
+            # Base Stats section
+            content_lines.append('BASE STATS')
+            content_lines.extend(unit_data['stats'])
+            content_lines.append('')
+            content_lines.append('─' * (term_width - 4))
+            content_lines.append('')
+            
+            # Skills section
+            content_lines.append('SKILLS')
+            content_lines.append('')
+            for skill in unit_data['skills']:
+                content_lines.append(f"● {skill['name']}")
+                content_lines.append(skill['description'])
+                content_lines.append('')
+                for detail in skill['details']:
+                    content_lines.append(f"  - {detail}")
+                content_lines.append('')
+            
+            content_lines.append('─' * (term_width - 4))
+            content_lines.append('')
+            
+            # Combat Tips section
+            content_lines.append('COMBAT TIPS')
+            content_lines.extend(unit_data['tips'])
+            content_lines.append('')
+            
+            # Tactical Notes section  
+            content_lines.append('TACTICAL NOTES')
+            content_lines.extend(unit_data['tactical'])
+            
+            # Calculate max scroll position
+            max_scroll = max(0, len(content_lines) - available_height)
+            # Clamp scroll position
+            self.help_scroll = max(0, min(self.help_scroll, max_scroll))
+            
+            # Draw a separator above the status bar
+            separator_bottom = "├" + "─" * (term_width - 2) + "┤"
+            self.renderer.draw_text(term_height - 2, 0, separator_bottom, 1)
+            
+            # Draw scroll indicator in status bar
+            if len(content_lines) > available_height:
+                scroll_pct = int((self.help_scroll / max_scroll) * 100) if max_scroll > 0 else 0
+                scroll_text = f"Showing {self.help_scroll+1}-{min(self.help_scroll+available_height, len(content_lines))} " \
+                             f"of {len(content_lines)} lines ({scroll_pct}%)"
+                self.renderer.draw_text(term_height - 2, 2, scroll_text, 1, curses.A_BOLD)
+            else:
+                self.renderer.draw_text(term_height - 2, 2, f"Showing all {len(content_lines)} lines", 1, curses.A_BOLD)
+            
+            # Slice content based on scroll position
+            visible_lines = content_lines[self.help_scroll:self.help_scroll+available_height]
+            
+            # Draw content lines
+            for i, line in enumerate(visible_lines):
+                y_pos = content_start_y + i
+                
+                # Truncate lines that are too long for the screen
+                max_text_width = term_width - 4  # Leave margin for borders
+                if len(line) > max_text_width:
+                    line = line[:max_text_width-3] + "..."
+                
+                # Set appropriate styling
+                attributes = 0
+                color_id = 1
+                
+                if line.startswith('●'):  # Skill names
+                    attributes = curses.A_BOLD
+                    color_id = 3  # Green
+                elif line.startswith('BASE STATS') or line.startswith('SKILLS') or line.startswith('COMBAT TIPS') or line.startswith('TACTICAL NOTES'):
+                    attributes = curses.A_BOLD
+                    color_id = 7  # Yellow
+                elif line.startswith('  - '):  # Skill details
+                    color_id = 8  # Gray
+                elif line == '─' * (term_width - 4):  # Section separators
+                    color_id = 8  # Gray
+                
+                # Draw the line
+                self.renderer.draw_text(y_pos, 2, line, color_id, attributes)
+                
+        except Exception as e:
+            # Never let unit help crash the game
+            from boneglaive.utils.debug import logger
+            logger.error(f"Error displaying unit help: {str(e)}")
+
 # Help screen component
 class HelpComponent(UIComponent):
     """Component for displaying the help screen."""
@@ -3664,7 +4197,7 @@ class InputManager(UIComponent):
             GameAction.DEBUG_OVERLAY: self.game_ui.debug_component.handle_debug_overlay,
             GameAction.DEBUG_PERFORMANCE: self.game_ui.debug_component.handle_debug_performance,
             GameAction.DEBUG_SAVE: self.game_ui.debug_component.handle_debug_save,
-            GameAction.HELP: self.game_ui.help_component.toggle_help_screen,
+            GameAction.HELP: self._handle_help_request,
             GameAction.CHAT_MODE: self.game_ui.chat_component.toggle_chat_mode,
             GameAction.CYCLE_UNITS: cursor_manager.cycle_units,
             GameAction.CYCLE_UNITS_REVERSE: cursor_manager.cycle_units_reverse,
@@ -3674,6 +4207,34 @@ class InputManager(UIComponent):
         
         # Add custom key for toggling message log
         self.input_handler.add_mapping(ord('l'), GameAction.DEBUG_INFO)  # Reuse DEBUG_INFO for log toggle
+    
+    def _handle_help_request(self):
+        """Handle help request - show unit help if appropriate unit selected, otherwise general help."""
+        cursor_manager = self.game_ui.cursor_manager
+        
+        # Check if a unit with help data is currently selected
+        if cursor_manager.selected_unit:
+            unit_type = cursor_manager.selected_unit.type
+            if unit_type == UnitType.GLAIVEMAN:
+                # Show GLAIVEMAN unit help
+                self.game_ui.unit_help_component.toggle_unit_help(UnitType.GLAIVEMAN)
+                return
+            elif unit_type == UnitType.MANDIBLE_FOREMAN:
+                # Show MANDIBLE_FOREMAN unit help
+                self.game_ui.unit_help_component.toggle_unit_help(UnitType.MANDIBLE_FOREMAN)
+                return
+            elif unit_type == UnitType.GRAYMAN:
+                # Check if this is an echo or regular GRAYMAN
+                if hasattr(cursor_manager.selected_unit, 'is_echo') and cursor_manager.selected_unit.is_echo:
+                    # Show GRAYMAN echo help
+                    self.game_ui.unit_help_component.toggle_unit_help('GRAYMAN_ECHO')
+                else:
+                    # Show regular GRAYMAN unit help
+                    self.game_ui.unit_help_component.toggle_unit_help(UnitType.GRAYMAN)
+                return
+        
+        # Show general help screen
+        self.game_ui.help_component.toggle_help_screen()
         
     def process_input(self, key: int) -> bool:
         """Process input and delegate to appropriate component."""
@@ -3696,6 +4257,9 @@ class InputManager(UIComponent):
 
         # First check if any components want to handle this input
         if self.game_ui.message_log_component.handle_input(key):
+            return True
+            
+        if self.game_ui.unit_help_component.handle_input(key):
             return True
 
         # If in chat mode, handle chat input
@@ -3720,6 +4284,11 @@ class InputManager(UIComponent):
             
         # If help screen is showing, limit controls
         if self.game_ui.help_component.show_help:
+            self.input_handler.set_context("help")
+            return
+            
+        # If unit help screen is showing, limit controls
+        if self.game_ui.unit_help_component.show_unit_help:
             self.input_handler.set_context("help")
             return
             

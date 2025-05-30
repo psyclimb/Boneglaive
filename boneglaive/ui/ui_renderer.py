@@ -80,6 +80,12 @@ class UIRenderer:
             self.renderer.refresh()
             return
             
+        # If unit help screen is being shown, draw it and return
+        if self.game_ui.unit_help_component.show_unit_help:
+            self.game_ui.unit_help_component.draw_unit_help_screen()
+            self.renderer.refresh()
+            return
+            
         # If log history screen is being shown, draw it and return
         if message_log_component.show_log_history:
             message_log_component.draw_log_history_screen()
