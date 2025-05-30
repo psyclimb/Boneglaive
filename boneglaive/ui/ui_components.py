@@ -818,7 +818,11 @@ class UnitHelpComponent(UIComponent):
                     '- Best placed in chokepoints or near valuable targets',
                     '- Cannot use skills, only basic attacks'
                 ],
-                'tactical': []
+                'tactical': [
+                    '- Strong against: Melee units, low-HP enemies, clustered formations',
+                    '- Limitations: Cannot move, no skills, 2-turn duration, low HP',
+                    '- Best positioning: Chokepoints, objective areas, enemy approach routes'
+                ]
             },
             UnitType.MARROW_CONDENSER: {
                 'title': 'MARROW CONDENSER',
@@ -1259,7 +1263,11 @@ class UnitHelpComponent(UIComponent):
                     '- Coordinate with team movement to ensure allies benefit from cleansing',
                     '- Build maximum Effluvium charges before summoning for longest duration'
                 ],
-                'tactical': []
+                'tactical': [
+                    '- Strong against: Debuff-heavy teams, clustered formations, low-mobility enemies',
+                    '- Limitations: Cannot directly attack, requires positioning for effectiveness',
+                    '- Best positioning: Chokepoints, objective areas, ally support zones'
+                ]
             },
             'HEINOUS_VAPOR_SAFT_E': {
                 'title': 'SAFT-E-GAS (Θ)',
@@ -1331,7 +1339,11 @@ class UnitHelpComponent(UIComponent):
                     '- Place strategically to force enemies into melee engagement',
                     '- Build maximum Effluvium charges before summoning for longest duration'
                 ],
-                'tactical': []
+                'tactical': [
+                    '- Strong against: Ranged attackers, sustained damage teams, area denial strategies',
+                    '- Limitations: Cannot directly damage enemies, requires positioning for effectiveness',
+                    '- Best positioning: Between allies and enemy ranged units, near damaged allies'
+                ]
             },
             'HEINOUS_VAPOR_COOLANT': {
                 'title': 'COOLANT GAS (Σ)',
@@ -1388,7 +1400,11 @@ class UnitHelpComponent(UIComponent):
                     '- Use movement to maintain healing coverage as battle lines shift',
                     '- Coordinate with CUTTING GAS for simultaneous healing and damage pressure'
                 ],
-                'tactical': []
+                'tactical': [
+                    '- Strong against: Attrition strategies, sustained damage, low-healing teams',
+                    '- Limitations: No protective or offensive capabilities, requires positioning',
+                    '- Best positioning: Central ally clusters, objective defense points, critical unit support zones'
+                ]
             },
             'HEINOUS_VAPOR_CUTTING': {
                 'title': 'CUTTING GAS (%)',
@@ -1445,7 +1461,11 @@ class UnitHelpComponent(UIComponent):
                     '- Use movement to chase retreating enemies or deny key areas',
                     '- Coordinate with COOLANT GAS for simultaneous healing and damage pressure'
                 ],
-                'tactical': []
+                'tactical': [
+                    '- Strong against: High-defense units, clustered enemies, static formations',
+                    '- Limitations: Cannot heal or protect allies, requires positioning for effectiveness',
+                    '- Best positioning: Enemy clusters, chokepoints, high-value target areas'
+                ]
             },
             UnitType.HEINOUS_VAPOR: {
                 'title': 'HEINOUS VAPOR',
