@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import curses
+import time
 from typing import Optional, List, Tuple, Dict
 
 from boneglaive.utils.constants import HEIGHT, WIDTH, UnitType
@@ -14,6 +15,72 @@ class UIRenderer:
     def __init__(self, renderer, game_ui):
         self.renderer = renderer
         self.game_ui = game_ui
+        self.status_effect_rotation_interval = 2.5  # seconds per rotation
+    
+    def get_unit_status_effects(self, unit):
+        """Collect all active status effects for a unit in priority order."""
+        effects = []
+        
+        # High priority debuffs (should be shown first)
+        if hasattr(unit, 'mired') and unit.mired:
+            effects.append(('mired', '≈', curses.A_DIM))
+        
+        if unit.trapped_by is not None:
+            effects.append(('trapped', 'Ξ', curses.A_BOLD))
+            
+        if hasattr(unit, 'jawline_affected') and unit.jawline_affected:
+            effects.append(('jawline', 'Ξ', curses.A_DIM))
+            
+        if hasattr(unit, 'shrapnel_duration') and unit.shrapnel_duration > 0:
+            effects.append(('shrapnel', 'x', curses.A_DIM))
+            
+        if (hasattr(unit, 'pry_duration') and unit.pry_duration > 0) or \
+           (hasattr(unit, 'pry_active') and unit.pry_active) or \
+           (unit.was_pried and unit.move_range_bonus < 0):
+            effects.append(('pry', '/', 0))
+            
+        if hasattr(unit, 'estranged') and unit.estranged:
+            effects.append(('estranged', '~', curses.A_DIM, 19))  # Special gray color
+            
+        if hasattr(unit, 'auction_curse_dot') and unit.auction_curse_dot:
+            effects.append(('auction_curse', '¢', curses.A_BOLD))
+            
+        # Medium priority effects
+        if hasattr(unit, 'status_site_inspection') and unit.status_site_inspection:
+            effects.append(('site_inspection', 'Θ', curses.A_BOLD))
+            
+        if hasattr(unit, 'has_investment_effect') and unit.has_investment_effect:
+            effects.append(('investment', '£', curses.A_BOLD))
+            
+        # Positive effects (lower priority, shown last)
+        if hasattr(unit, 'ossify_active') and unit.ossify_active:
+            effects.append(('ossify', 'O', curses.A_BOLD))
+            
+        if hasattr(unit, 'slough_def_duration') and unit.slough_def_duration > 0:
+            effects.append(('bone_tithe', '*', curses.A_BOLD))
+            
+        if hasattr(unit, 'first_turn_move_bonus') and unit.first_turn_move_bonus:
+            effects.append(('move_bonus', '+', curses.A_BOLD))
+            
+        if hasattr(unit, 'valuation_oracle_buff') and unit.valuation_oracle_buff:
+            effects.append(('valuation_oracle', '¤', curses.A_BOLD))
+            
+        return effects
+    
+    def get_displayed_status_effect(self, unit):
+        """Get the status effect to display for a unit using rotation."""
+        effects = self.get_unit_status_effects(unit)
+        
+        if not effects:
+            return None
+        
+        if len(effects) == 1:
+            return effects[0]
+        
+        # Multiple effects - rotate them
+        current_time = time.time()
+        rotation_index = int(current_time / self.status_effect_rotation_interval) % len(effects)
+        return effects[rotation_index]
     
     @measure_perf
     def _draw_spinner_in_menu_area(self):
@@ -547,95 +614,33 @@ class UIRenderer:
                             # Draw with cursor color
                             self.renderer.draw_tile(y, x, tile, 2)
                         else:
-                            # Check if unit is trapped by a MANDIBLE FOREMAN's Viceroy ability
-                            is_trapped = unit.trapped_by is not None
+                            # Use new rotating status effect system
+                            displayed_effect = self.get_displayed_status_effect(unit)
                             
-                            if is_trapped:
-                                # Combine the unit symbol with a mandible symbol but keep original color
-                                enhanced_tile = f"{tile}Ξ"  # Combine unit symbol with mandible symbol
-                                # Use the unit's original color instead of changing to yellow
-                                self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_BOLD)
+                            if displayed_effect:
+                                effect_name, effect_symbol, effect_attr = displayed_effect[:3]
                                 
-                                # Also add a mandible symbol below the unit to reinforce the trap visual
-                                trap_y = min(y + 1, HEIGHT - 1)  # Ensure we don't go off the bottom
-                                trap_x = x
-                                # Only draw if position is empty and within bounds
-                                if trap_y < HEIGHT and not self.game_ui.game.get_unit_at(trap_y, trap_x):
-                                    trap_symbol = "Ξ"  # Mandible symbol
-                                    jaw_color = 7  # Keep jaw symbol yellow
-                                    self.renderer.draw_tile(trap_y, trap_x, trap_symbol, jaw_color, curses.A_BOLD)
-                            # Check if unit has Site Inspection status effect
-                            elif hasattr(unit, 'status_site_inspection') and unit.status_site_inspection:
-                                # Add an eye symbol to show the unit has Site Inspection status effect
-                                enhanced_tile = f"{tile}Θ"  # Combine unit symbol with the Greek theta eye
-                                # Use green color to indicate positive status effect
-                                self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_BOLD)
-                            # Check if unit is affected by Ossify status effect
-                            elif hasattr(unit, 'ossify_active') and unit.ossify_active:
-                                # Add an O symbol to show the unit has Ossify status effect 
-                                enhanced_tile = f"{tile}O"  # Combine unit symbol with O for Ossify
-                                # Use green color to indicate positive status effect
-                                self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_BOLD)
-                            # Check if unit is affected by Bone Tithe defensive buff
-                            elif hasattr(unit, 'slough_def_duration') and unit.slough_def_duration > 0:
-                                # Add an asterisk symbol to show the unit has marrow coating from Bone Tithe
-                                enhanced_tile = f"{tile}*"  # Combine unit symbol with * for marrow coating
-                                # Use green color to indicate positive status effect
-                                self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_BOLD)
-                            # Check if unit is affected by Jawline status effect
-                            elif hasattr(unit, 'jawline_affected') and unit.jawline_affected:
-                                # Add uppercase Xi symbol to show the unit has Jawline status effect
-                                enhanced_tile = f"{tile}Ξ"  # Combine unit symbol with uppercase Xi (resembles mechanical jaws)
-                                # Use red color with dim attribute to indicate negative status effect
-                                self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_DIM)
-                            # Check if unit has embedded shrapnel from Fragcrest
-                            elif hasattr(unit, 'shrapnel_duration') and unit.shrapnel_duration > 0:
-                                # Add x symbol to show embedded shrapnel status effect
-                                enhanced_tile = f"{tile}x"  # Combine unit symbol with x (represents embedded fragments)
-                                # Use player color with dim attribute to indicate ongoing damage while preserving team identification
-                                self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_DIM)
-                            # Check if unit is mired by upgraded Marrow Dike
-                            elif hasattr(unit, 'mired') and unit.mired:
-                                # Add double wavy lines to show mired status effect
-                                enhanced_tile = f"{tile}≈"  # Combine unit symbol with double wavy lines (represents thick plasma)
-                                # Use player color with dim attribute to indicate movement restriction
-                                self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_DIM)
-                            # Check if unit is affected by Pry movement penalty
-                            elif (hasattr(unit, 'pry_duration') and unit.pry_duration > 0) or (hasattr(unit, 'pry_active') and unit.pry_active) or (unit.was_pried and unit.move_range_bonus < 0):
-                                # Add a slash to show movement reduction from Pry
-                                enhanced_tile = f"{tile}/"  # Combine unit symbol with slash (represents glaive that pried)
-                                # Retain the unit's original color instead of changing to red
-                                self.renderer.draw_tile(y, x, enhanced_tile, color_id, 0)  # Original color without special attributes
-                            # Check if unit is affected by estranged status effect
-                            elif hasattr(unit, 'estranged') and unit.estranged:
-                                # Add tilde symbol to show the unit has estranged status effect
-                                enhanced_tile = f"{tile}~"  # Combine unit symbol with tilde (represents phasing)
-                                # Use gray color (19) to indicate phasing out of spacetime
-                                self.renderer.draw_tile(y, x, enhanced_tile, 19, curses.A_DIM)
-                            # Check if unit has Market Futures investment effect
-                            elif hasattr(unit, 'has_investment_effect') and unit.has_investment_effect:
-                                # Add pound sign symbol to show investment status
-                                enhanced_tile = f"{tile}£"  # Combine unit symbol with pound sign (represents investment)
-                                # Keep player color, add bold to show investment
-                                self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_BOLD)
-                            # Check if unit is affected by Auction Curse DOT
-                            elif hasattr(unit, 'auction_curse_dot') and unit.auction_curse_dot:
-                                # Add cent sign symbol to show auction curse status
-                                enhanced_tile = f"{tile}¢"  # Combine unit symbol with cent sign (representing cursed money)
-                                # Keep player color, add bold to show curse
-                                self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_BOLD)
-                            # Check if unit has first-turn move bonus
-                            elif hasattr(unit, 'first_turn_move_bonus') and unit.first_turn_move_bonus:
-                                # Add plus symbol to show movement bonus
-                                enhanced_tile = f"{tile}+"  # Combine unit symbol with plus (represents extra movement)
-                                # Keep player color, add bold to show bonus
-                                self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_BOLD)
-                            # Check if unit has Valuation Oracle buff
-                            elif hasattr(unit, 'valuation_oracle_buff') and unit.valuation_oracle_buff:
-                                # Add generic currency symbol to show valuation buff
-                                enhanced_tile = f"{tile}¤"  # Combine unit symbol with generic currency (represents cosmic value)
-                                # Keep player color, add bold to show buff
-                                self.renderer.draw_tile(y, x, enhanced_tile, color_id, curses.A_BOLD)
+                                # Create enhanced tile with status effect symbol
+                                enhanced_tile = f"{tile}{effect_symbol}"
+                                
+                                # Handle special color cases
+                                if effect_name == 'estranged':
+                                    # Estranged uses special gray color
+                                    effect_color = 19
+                                else:
+                                    effect_color = color_id
+                                
+                                # Draw the enhanced tile with effect
+                                self.renderer.draw_tile(y, x, enhanced_tile, effect_color, effect_attr)
+                                
+                                # Special case: trapped units get additional visual below
+                                if effect_name == 'trapped':
+                                    trap_y = min(y + 1, HEIGHT - 1)
+                                    trap_x = x
+                                    if trap_y < HEIGHT and not self.game_ui.game.get_unit_at(trap_y, trap_x):
+                                        trap_symbol = "Ξ"
+                                        jaw_color = 7  # Yellow
+                                        self.renderer.draw_tile(trap_y, trap_x, trap_symbol, jaw_color, curses.A_BOLD)
                             else:
                                 # Normal unit draw
                                 self.renderer.draw_tile(y, x, tile, color_id)
