@@ -45,6 +45,9 @@ class UIRenderer:
         if hasattr(unit, 'auction_curse_dot') and unit.auction_curse_dot:
             effects.append(('auction_curse', '¢', curses.A_BOLD))
             
+        if hasattr(unit, 'charging_status') and unit.charging_status:
+            effects.append(('charging', 'Ω', curses.A_BOLD))
+            
         # Medium priority effects
         if hasattr(unit, 'status_site_inspection') and unit.status_site_inspection:
             effects.append(('site_inspection', 'Θ', curses.A_BOLD))
@@ -548,11 +551,6 @@ class UIRenderer:
                         if unit.type == UnitType.HEINOUS_VAPOR and hasattr(unit, 'vapor_symbol') and unit.vapor_symbol:
                             tile = unit.vapor_symbol
                         
-                        # Check if this is a charging FOWL_CONTRIVANCE
-                        if unit.type == UnitType.FOWL_CONTRIVANCE and hasattr(unit, 'charging_status') and unit.charging_status:
-                            tile = "Ω"  # Charging symbol
-                            # Keep player color instead of changing to yellow
-                        
                         # No special symbol for GRAYMAN skills
                         # (Previously showed | for Græ Exchange, but this was removed)
                             
@@ -832,9 +830,29 @@ class UIRenderer:
                                 
                         # Gaussian Dusk charging indicator
                         elif u.selected_skill.name == "Gaussian Dusk" and hasattr(u, 'gaussian_dusk_indicator') and u.gaussian_dusk_indicator is not None:
-                            # Show charging indicator at user position
-                            if (y, x) == (u.y, u.x):
-                                tile = "Ω"  # Charging symbol
+                            # Show direction indicator for Gaussian Dusk charging
+                            direction = u.gaussian_dusk_indicator
+                            if direction and (y, x) == (u.y, u.x):
+                                # Show direction arrow based on charge direction
+                                dy, dx = direction
+                                if dy < 0 and dx == 0:  # Up
+                                    tile = "↑"
+                                elif dy < 0 and dx > 0:  # Up-right
+                                    tile = "↗"
+                                elif dy == 0 and dx > 0:  # Right
+                                    tile = "→"
+                                elif dy > 0 and dx > 0:  # Down-right
+                                    tile = "↘"
+                                elif dy > 0 and dx == 0:  # Down
+                                    tile = "↓"
+                                elif dy > 0 and dx < 0:  # Down-left
+                                    tile = "↙"
+                                elif dy == 0 and dx < 0:  # Left
+                                    tile = "←"
+                                elif dy < 0 and dx < 0:  # Up-left
+                                    tile = "↖"
+                                else:
+                                    tile = "•"  # Default marker
                                 color_id = 3 if u.player == 1 else 4
                                 
                         # Fragcrest cone indicator
