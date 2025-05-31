@@ -608,39 +608,44 @@ class UIRenderer:
                                 self.renderer.draw_tile(y, x, tile, 9, curses.A_BOLD)
                             continue
                             
-                        # Check if cursor is here for normal unit draw
+                        # Check if cursor is here for unit draw
                         is_cursor_here = (pos == cursor_manager.cursor_pos and show_cursor)
-                        if is_cursor_here:
-                            # Draw with cursor color
-                            self.renderer.draw_tile(y, x, tile, 2)
-                        else:
-                            # Use new rotating status effect system
-                            displayed_effect = self.get_displayed_status_effect(unit)
+                        
+                        # Use rotating status effect system for all units (cursor or not)
+                        displayed_effect = self.get_displayed_status_effect(unit)
+                        
+                        if displayed_effect:
+                            effect_name, effect_symbol, effect_attr = displayed_effect[:3]
                             
-                            if displayed_effect:
-                                effect_name, effect_symbol, effect_attr = displayed_effect[:3]
-                                
-                                # Create enhanced tile with status effect symbol
-                                enhanced_tile = f"{tile}{effect_symbol}"
-                                
-                                # Handle special color cases
-                                if effect_name == 'estranged':
-                                    # Estranged uses special gray color
-                                    effect_color = 19
-                                else:
-                                    effect_color = color_id
-                                
-                                # Draw the enhanced tile with effect
-                                self.renderer.draw_tile(y, x, enhanced_tile, effect_color, effect_attr)
-                                
-                                # Special case: trapped units get additional visual below
-                                if effect_name == 'trapped':
-                                    trap_y = min(y + 1, HEIGHT - 1)
-                                    trap_x = x
-                                    if trap_y < HEIGHT and not self.game_ui.game.get_unit_at(trap_y, trap_x):
-                                        trap_symbol = "Ξ"
-                                        jaw_color = 7  # Yellow
-                                        self.renderer.draw_tile(trap_y, trap_x, trap_symbol, jaw_color, curses.A_BOLD)
+                            # Create enhanced tile with status effect symbol
+                            enhanced_tile = f"{tile}{effect_symbol}"
+                            
+                            # Handle color selection based on cursor and effect
+                            if is_cursor_here:
+                                # Use cursor color (2) when cursor is over unit
+                                effect_color = 2
+                            elif effect_name == 'estranged':
+                                # Estranged uses special gray color
+                                effect_color = 19
+                            else:
+                                effect_color = color_id
+                            
+                            # Draw the enhanced tile with effect
+                            self.renderer.draw_tile(y, x, enhanced_tile, effect_color, effect_attr)
+                            
+                            # Special case: trapped units get additional visual below
+                            if effect_name == 'trapped':
+                                trap_y = min(y + 1, HEIGHT - 1)
+                                trap_x = x
+                                if trap_y < HEIGHT and not self.game_ui.game.get_unit_at(trap_y, trap_x):
+                                    trap_symbol = "Ξ"
+                                    jaw_color = 7  # Yellow
+                                    self.renderer.draw_tile(trap_y, trap_x, trap_symbol, jaw_color, curses.A_BOLD)
+                        else:
+                            # No status effects - draw normal unit
+                            if is_cursor_here:
+                                # Draw with cursor color
+                                self.renderer.draw_tile(y, x, tile, 2)
                             else:
                                 # Normal unit draw
                                 self.renderer.draw_tile(y, x, tile, color_id)
