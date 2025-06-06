@@ -31,10 +31,10 @@ class NeutronIlluminant(PassiveSkill):
         super().__init__(
             name="Neutron Illuminant",
             key="N",
-            description="On attack, causes radiation sickness in directional pattern. Cardinal attacks radiate diagonally, diagonal attacks radiate cardinally. 1 damage/turn for 2 turns per stack."
+            description="On attack, causes radiation sickness around the INTERFERER. Cardinal attacks radiate diagonally, diagonal attacks radiate cardinally. 1 damage/turn for 2 turns per stack."
         )
         self.current_cooldown = 0
-        self.cooldown = 1  # 1 turn cooldown
+        self.cooldown = 0  # No cooldown
         
     def apply_passive(self, user: 'Unit', game=None) -> None:
         """Apply effects of the passive skill."""
@@ -51,38 +51,38 @@ class NeutronIlluminant(PassiveSkill):
         return self.current_cooldown == 0
     
     def trigger_radiation(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> None:
-        """Trigger radiation sickness in directional pattern."""
+        """Trigger radiation sickness in directional pattern around the INTERFERER."""
         if not self.can_trigger():
             return
             
-        # Set cooldown
+        # Set cooldown (0, so always triggers)
         self.current_cooldown = self.cooldown
         
         # Calculate attack direction
         dy = target_pos[0] - user.y
         dx = target_pos[1] - user.x
         
-        # Determine radiation pattern based on attack direction
+        # Determine radiation pattern based on attack direction, radiating around the INTERFERER
         radiation_positions = []
         
         # Normalize direction for pattern determination
         is_cardinal = (dy == 0 or dx == 0)
         
         if is_cardinal:
-            # Cardinal attack -> radiate diagonally
+            # Cardinal attack -> radiate diagonally around INTERFERER
             radiation_positions = [
-                (target_pos[0] - 1, target_pos[1] - 1),  # Up-left
-                (target_pos[0] - 1, target_pos[1] + 1),  # Up-right
-                (target_pos[0] + 1, target_pos[1] - 1),  # Down-left
-                (target_pos[0] + 1, target_pos[1] + 1)   # Down-right
+                (user.y - 1, user.x - 1),  # Up-left of INTERFERER
+                (user.y - 1, user.x + 1),  # Up-right of INTERFERER
+                (user.y + 1, user.x - 1),  # Down-left of INTERFERER
+                (user.y + 1, user.x + 1)   # Down-right of INTERFERER
             ]
         else:
-            # Diagonal attack -> radiate cardinally
+            # Diagonal attack -> radiate cardinally around INTERFERER
             radiation_positions = [
-                (target_pos[0] - 1, target_pos[1]),      # Up
-                (target_pos[0] + 1, target_pos[1]),      # Down
-                (target_pos[0], target_pos[1] - 1),      # Left
-                (target_pos[0], target_pos[1] + 1)       # Right
+                (user.y - 1, user.x),      # Up from INTERFERER
+                (user.y + 1, user.x),      # Down from INTERFERER
+                (user.y, user.x - 1),      # Left from INTERFERER
+                (user.y, user.x + 1)       # Right from INTERFERER
             ]
         
         # Apply radiation to valid positions
@@ -266,7 +266,7 @@ class NeuralShuntSkill(ActiveSkill):
                 )
         
         # Trigger Neutron Illuminant
-        if hasattr(user, 'passive_skill') and user.passive_skill.name == "Neutron Illuminant":
+        if user.passive_skill and user.passive_skill.name == "Neutron Illuminant":
             user.passive_skill.trigger_radiation(user, target_pos, game, ui)
         
         return True

@@ -1482,13 +1482,13 @@ class Game:
         if dying_unit.is_echo:
             self._trigger_echo_death_effect(dying_unit, ui)
     
-    def process_buff_durations(self):
+    def process_buff_durations(self, ui=None):
         """
         Backward compatibility method - redirects to process_status_effects.
         """
-        return self.process_status_effects()
+        return self.process_status_effects(ui)
         
-    def process_status_effects(self):
+    def process_status_effects(self, ui=None):
         """
         Process status effect durations for all units of the current player.
         Decrements durations and removes expired status effects.
@@ -1807,7 +1807,7 @@ class Game:
         logger.info(f"Executing turn {self.turn} for player {self.current_player}")
         
         # Process status effects for the current player's units
-        self.process_buff_durations()
+        self.process_buff_durations(ui)
         
         # Process Neural Shunt random actions for affected units
         self._process_neural_shunt_actions()

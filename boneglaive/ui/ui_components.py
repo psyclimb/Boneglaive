@@ -1215,14 +1215,14 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'NEUTRON ILLUMINANT (Passive)',
-                        'description': 'Directional radiation spreads behind targets when attacking.',
+                        'description': 'Directional radiation spreads around the INTERFERER when attacking.',
                         'details': [
                             'Type: Passive',
-                            'Trigger: On attack',
-                            'Effect: Creates radiation pattern in 3×3 area behind target',
+                            'Trigger: On attack (no cooldown)',
+                            'Effect: Creates radiation pattern around INTERFERER',
                             'Radiation Damage: 1 per stack per turn',
                             'Radiation Duration: 2 turns per stack',
-                            'Special: Radiation stacks accumulate and spread in the direction of attack'
+                            'Special: Cardinal attacks radiate diagonally, diagonal attacks radiate cardinally'
                         ]
                     },
                     {
