@@ -107,6 +107,14 @@ class Unit:
         # GAS_MACHINIST properties
         self.diverge_return_position = False  # Whether this unit is returning from a diverge
         
+        # INTERFERER properties
+        self.radiation_stacks = []  # List of radiation durations (each stack lasts 2 turns)
+        self.neural_shunt_affected = False  # Whether affected by Neural Shunt
+        self.neural_shunt_duration = 0  # Duration of Neural Shunt effect
+        self.carrier_rave_active = False  # Whether in Carrier Rave phased state
+        self.carrier_rave_duration = 0  # Duration of Carrier Rave effect
+        self.carrier_rave_strikes_ready = False  # Whether next attack will strike 3 times
+        
         # Experience and leveling
         self.level = 1
         self.xp = 0
@@ -924,6 +932,80 @@ class Unit:
         # Redraw board after effects
         if ui and hasattr(ui, 'draw_board'):
             ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+    
+    def apply_radiation_damage(self, game: 'Game', ui=None) -> int:
+        """
+        Apply radiation damage from all active radiation stacks.
+        Returns total damage dealt.
+        """
+        if not hasattr(self, 'radiation_stacks') or not self.radiation_stacks:
+            return 0
+            
+        total_damage = len(self.radiation_stacks)  # 1 damage per stack
+        if total_damage <= 0:
+            return 0
+            
+        # Apply damage
+        self.hp = max(0, self.hp - total_damage)
+        
+        # Log radiation damage
+        from boneglaive.utils.message_log import message_log, MessageType
+        message_log.add_message(
+            f"{self.get_display_name()} takes {total_damage} radiation damage!",
+            MessageType.ABILITY,
+            player=self.player
+        )
+        
+        # Show damage animation
+        if ui and hasattr(ui, 'renderer'):
+            damage_text = f"-{total_damage}"
+            import curses
+            from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+            
+            for i in range(3):
+                ui.renderer.draw_text(self.y-1, self.x*2, " " * len(damage_text), 7)
+                attrs = curses.A_BOLD if i % 2 == 0 else 0
+                ui.renderer.draw_text(self.y-1, self.x*2, damage_text, 6, attrs)  # Yellow color
+                ui.renderer.refresh()
+                sleep_with_animation_speed(0.1)
+        
+        # Decrement all radiation stack durations
+        self.radiation_stacks = [duration - 1 for duration in self.radiation_stacks if duration > 1]
+        
+        return total_damage
+    
+    def is_untargetable(self) -> bool:
+        """Check if this unit is untargetable due to Carrier Rave."""
+        return hasattr(self, 'carrier_rave_active') and self.carrier_rave_active
+    
+    def process_interferer_effects(self, game: 'Game') -> None:
+        """Process INTERFERER-specific status effects at end of turn."""
+        # Process Carrier Rave duration
+        if hasattr(self, 'carrier_rave_duration') and self.carrier_rave_duration > 0:
+            self.carrier_rave_duration -= 1
+            if self.carrier_rave_duration <= 0:
+                self.carrier_rave_active = False
+                self.carrier_rave_strikes_ready = True  # Ready for triple strike
+                
+                from boneglaive.utils.message_log import message_log, MessageType
+                message_log.add_message(
+                    f"{self.get_display_name()} phases back into reality, ready to strike!",
+                    MessageType.ABILITY,
+                    player=self.player
+                )
+        
+        # Process Neural Shunt duration
+        if hasattr(self, 'neural_shunt_duration') and self.neural_shunt_duration > 0:
+            self.neural_shunt_duration -= 1
+            if self.neural_shunt_duration <= 0:
+                self.neural_shunt_affected = False
+                
+                from boneglaive.utils.message_log import message_log, MessageType
+                message_log.add_message(
+                    f"{self.get_display_name()} regains control of their actions!",
+                    MessageType.ABILITY,
+                    player=self.player
+                )
         
     def get_skill_by_key(self, key: str) -> Optional:
         """Get an active skill by its key (for UI selection)."""

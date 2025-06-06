@@ -33,6 +33,10 @@ from boneglaive.game.skills.delphic_appraiser import (
     ValuationOracle, MarketFuturesSkill, AuctionCurseSkill, DivineDrepreciationSkill
 )
 
+from boneglaive.game.skills.interferer import (
+    NeutronIlluminant, NeuralShuntSkill, CarrierRaveSkill, ScalarNodeSkill
+)
+
 # Define the skills available for each unit type
 UNIT_SKILLS = {
     "GLAIVEMAN": {
@@ -62,5 +66,9 @@ UNIT_SKILLS = {
     "DELPHIC_APPRAISER": {
         "passive": ValuationOracle(),
         "active": [MarketFuturesSkill(), AuctionCurseSkill(), DivineDrepreciationSkill()]
+    },
+    "INTERFERER": {
+        "passive": NeutronIlluminant(),
+        "active": [NeuralShuntSkill(), CarrierRaveSkill(), ScalarNodeSkill()]
     }
 }

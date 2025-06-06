@@ -33,6 +33,7 @@ class UnitType(Enum):
     GAS_MACHINIST = 7  # The vapor-controlling technician
     HEINOUS_VAPOR = 8  # Vapor entity controlled by GAS_MACHINIST
     DELPHIC_APPRAISER = 9  # The furniture evaluator with cosmic value perception
+    INTERFERER = 10  # The telecommunications engineer turned assassin
 
 # Unit stats: (hp, attack, defense, move_range, attack_range)
 UNIT_STATS = {
@@ -45,7 +46,8 @@ UNIT_STATS = {
     UnitType.FOWL_CONTRIVANCE: (18, 5, 0, 4, 2),
     UnitType.GAS_MACHINIST: (18, 4, 1, 3, 1),
     UnitType.HEINOUS_VAPOR: (10, 0, 0, 3, 1),
-    UnitType.DELPHIC_APPRAISER: (20, 4, 0, 3, 1)
+    UnitType.DELPHIC_APPRAISER: (20, 4, 0, 3, 1),
+    UnitType.INTERFERER: (18, 4, 0, 2, 1)
 }
 
 UNIT_SYMBOLS = {
@@ -58,7 +60,8 @@ UNIT_SYMBOLS = {
     UnitType.FOWL_CONTRIVANCE: '^',  # Birds in flight
     UnitType.GAS_MACHINIST: 'M',  # M for Machinist
     UnitType.HEINOUS_VAPOR: 'V',  # Generic vapor symbol, actual symbols set in skills
-    UnitType.DELPHIC_APPRAISER: 'A'  # A for Appraiser
+    UnitType.DELPHIC_APPRAISER: 'A',  # A for Appraiser
+    UnitType.INTERFERER: 'R'  # R for Radioactive interference
 }
 
 # Attack visual effects
@@ -72,7 +75,8 @@ ATTACK_EFFECTS = {
     UnitType.FOWL_CONTRIVANCE: "Λ",   # Bird dive attack (ranged)
     UnitType.GAS_MACHINIST: "o",   # Gas bubble (melee)
     UnitType.HEINOUS_VAPOR: "~",    # Vapor effect (area)
-    UnitType.DELPHIC_APPRAISER: "$"  # Currency symbol (evaluation)
+    UnitType.DELPHIC_APPRAISER: "$",  # Currency symbol (evaluation)
+    UnitType.INTERFERER: "x"  # Plutonium carabiner cross (melee)
 }
 
 # Greek alphabet for unit identification
@@ -106,4 +110,7 @@ GREEK_ALPHABET = [
 # Status effect symbols
 STATUS_EFFECT_SYMBOLS = {
     'MIRED': '≈',             # Movement reduction from upgraded marrow dike
+    'RADIATION_SICKNESS': 'r', # Radiation damage over time
+    'NEURAL_SHUNT': '?',      # Random action control
+    'CARRIER_RAVE': 'φ',      # Phased/untargetable state
 }

@@ -191,7 +191,8 @@ class Game:
                     UnitType.MARROW_CONDENSER,
                     UnitType.FOWL_CONTRIVANCE,
                     UnitType.GAS_MACHINIST,
-                    UnitType.DELPHIC_APPRAISER
+                    UnitType.DELPHIC_APPRAISER,
+                    UnitType.INTERFERER
                 ]
                 
                 # Track unit counts to enforce max 2 of each type
@@ -307,7 +308,8 @@ class Game:
             UnitType.MARROW_CONDENSER,
             UnitType.FOWL_CONTRIVANCE,
             UnitType.GAS_MACHINIST,
-            UnitType.DELPHIC_APPRAISER
+            UnitType.DELPHIC_APPRAISER,
+            UnitType.INTERFERER
         ]
         
         # Find valid positions for units that aren't on limestone
@@ -1106,6 +1108,10 @@ class Game:
         # First check for unit targets
         target = self.get_unit_at(y, x)
         
+        # Check if target is untargetable due to Carrier Rave
+        if target and hasattr(target, 'is_untargetable') and target.is_untargetable():
+            return False
+        
         # Calculate attack distance regardless of target type
         distance = self.chess_distance(unit.y, unit.x, y, x)
         effective_stats = unit.get_effective_stats()
@@ -1770,6 +1776,16 @@ class Game:
                         # Restore movement bonus that was removed by the mired effect
                         unit.move_range_bonus += 1
             
+            # Process INTERFERER status effects
+            if unit.player == self.current_player:
+                # Process radiation damage
+                if hasattr(unit, 'radiation_stacks') and unit.radiation_stacks:
+                    unit.apply_radiation_damage(self, ui)
+                
+                # Process INTERFERER-specific effects (Carrier Rave, Neural Shunt)
+                if hasattr(unit, 'process_interferer_effects'):
+                    unit.process_interferer_effects(self)
+            
             # Health regeneration is now processed after all actions are complete
     
     @measure_perf
@@ -1792,6 +1808,9 @@ class Game:
         
         # Process status effects for the current player's units
         self.process_buff_durations()
+        
+        # Process Neural Shunt random actions for affected units
+        self._process_neural_shunt_actions()
         
         # Process echo units before executing actions
         # Update duration and handle expired echoes - ONLY for echoes belonging to the current player
@@ -2181,6 +2200,41 @@ class Game:
                             attacker_player=unit.player,
                             target_player=target.player
                         )
+                        
+                        # Handle INTERFERER attack mechanics
+                        if unit.type == UnitType.INTERFERER:
+                            # Check for Carrier Rave triple strike
+                            if hasattr(unit, 'carrier_rave_strikes_ready') and unit.carrier_rave_strikes_ready:
+                                # Apply two additional strikes
+                                for strike in range(2):
+                                    if target.hp > 0:  # Only continue if target is still alive
+                                        additional_damage = max(1, effective_attack - effective_defense)
+                                        target.hp = max(0, target.hp - additional_damage)
+                                        
+                                        message_log.add_combat_message(
+                                            attacker_name=unit.get_display_name(),
+                                            target_name=target.get_display_name(),
+                                            damage=additional_damage,
+                                            ability=f"Carrier Rave Strike {strike + 2}",
+                                            attacker_player=unit.player,
+                                            target_player=target.player
+                                        )
+                                        
+                                        # Show additional damage animation
+                                        if ui:
+                                            ui.show_attack_animation(unit, target)
+                                
+                                # Clear the triple strike flag
+                                unit.carrier_rave_strikes_ready = False
+                                
+                                # Trigger Neutron Illuminant for each strike (ignoring cooldown during Carrier Rave)
+                                if unit.passive_skill and unit.passive_skill.name == "Neutron Illuminant":
+                                    for _ in range(3):  # Once for each strike
+                                        unit.passive_skill.trigger_radiation(unit, (target.y, target.x), self, ui)
+                            else:
+                                # Normal single attack - trigger Neutron Illuminant if available
+                                if unit.passive_skill and unit.passive_skill.name == "Neutron Illuminant":
+                                    unit.passive_skill.trigger_radiation(unit, (target.y, target.x), self, ui)
                         
                         # Handle removal of Market Futures effect after attack if it's expiring
                         if hasattr(unit, 'market_futures_will_expire_after_attack') and unit.market_futures_will_expire_after_attack:
@@ -2797,6 +2851,10 @@ class Game:
                         # Log that unit couldn't rest due to enemies nearby
                         logger.debug(f"{unit.get_display_name()} couldn't rest due to nearby enemies")
 
+        # Check for scalar node traps before player switching
+        if hasattr(self, 'scalar_nodes') and self.scalar_nodes:
+            self._check_scalar_node_traps(ui)
+        
         # Before changing players, reset movement penalties for units of the player
         # whose turn is ENDING (not starting). This way penalties last through their entire next turn.
         if not self.winner:
@@ -3277,6 +3335,211 @@ class Game:
             
             # Reset the foreman's action tracking
             foreman.took_action = False
+    
+    def _check_scalar_node_traps(self, ui=None):
+        """
+        Check for scalar node traps when units end their turn.
+        Triggers when enemy units end their turn on a scalar node.
+        """
+        from boneglaive.utils.message_log import message_log, MessageType
+        import time
+        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+        import curses
+        
+        # Get the current player (whose turn is ending)
+        ending_player = self.current_player
+        
+        # Check all units of the ending player
+        for unit in self.units:
+            if not unit.is_alive() or unit.player != ending_player:
+                continue
+                
+            unit_pos = (unit.y, unit.x)
+            
+            # Check if unit is on a scalar node
+            if unit_pos in self.scalar_nodes:
+                node_info = self.scalar_nodes[unit_pos]
+                owner = node_info['owner']
+                
+                # Only trigger if node belongs to enemy player
+                if owner.player != unit.player and node_info.get('active', True):
+                    damage = node_info['damage']
+                    
+                    # Apply pierce damage (ignores defense)
+                    unit.hp = max(0, unit.hp - damage)
+                    
+                    # Show damage animation (silent - no messages)
+                    if ui and hasattr(ui, 'renderer'):
+                        explosion_animation = ['*', '#', '+', '.']
+                        ui.renderer.animate_attack_sequence(
+                            unit.y, unit.x,
+                            explosion_animation,
+                            6,  # Yellow color for energy explosion
+                            0.15
+                        )
+                        
+                        # Show damage number
+                        damage_text = f"-{damage}"
+                        for i in range(3):
+                            ui.renderer.draw_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
+                            attrs = curses.A_BOLD if i % 2 == 0 else 0
+                            ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, attrs)
+                            ui.renderer.refresh()
+                            sleep_with_animation_speed(0.1)
+                    
+                    # Check if unit was defeated (silent)
+                    if unit.hp <= 0:
+                        # Silent death - no message log entries
+                        pass
+                    
+                    # Remove the triggered node
+                    del self.scalar_nodes[unit_pos]
+    
+    def _process_neural_shunt_actions(self):
+        """
+        Process Neural Shunt random action effects for affected units.
+        Units affected by Neural Shunt perform random actions during their turn.
+        """
+        import random
+        from boneglaive.utils.message_log import message_log, MessageType
+        from boneglaive.utils.debug import logger
+        
+        # Find all units belonging to current player that are affected by Neural Shunt
+        affected_units = [
+            unit for unit in self.units 
+            if (unit.is_alive() and 
+                unit.player == self.current_player and 
+                hasattr(unit, 'neural_shunt_affected') and 
+                unit.neural_shunt_affected)
+        ]
+        
+        for unit in affected_units:
+            logger.debug(f"Processing Neural Shunt random action for {unit.get_display_name()}")
+            
+            # Clear existing targets to prevent conflicts
+            unit.move_target = None
+            unit.attack_target = None
+            unit.skill_target = None
+            unit.selected_skill = None
+            
+            # Generate random action (33% chance each: move, attack, skill)
+            action_type = random.choice(['move', 'attack', 'skill'])
+            
+            if action_type == 'move':
+                self._generate_random_move_action(unit)
+            elif action_type == 'attack':
+                self._generate_random_attack_action(unit)
+            else:  # skill
+                self._generate_random_skill_action(unit)
+    
+    def _generate_random_move_action(self, unit):
+        """Generate a random movement action for Neural Shunt."""
+        import random
+        from boneglaive.utils.debug import logger
+        
+        # Get all valid movement positions within range
+        valid_moves = []
+        move_range = unit.get_effective_stats()['move_range']
+        
+        for dy in range(-move_range, move_range + 1):
+            for dx in range(-move_range, move_range + 1):
+                if dy == 0 and dx == 0:
+                    continue  # Skip current position
+                    
+                target_y = unit.y + dy
+                target_x = unit.x + dx
+                
+                # Check if position is valid and reachable
+                if (self.is_valid_position(target_y, target_x) and
+                    self.map.is_passable(target_y, target_x) and
+                    not self.get_unit_at(target_y, target_x) and
+                    unit.can_move_to(target_y, target_x, self)):
+                    
+                    # Check manhattan distance for movement range
+                    distance = abs(dy) + abs(dx)
+                    if distance <= move_range:
+                        valid_moves.append((target_y, target_x))
+        
+        if valid_moves:
+            target = random.choice(valid_moves)
+            unit.move_target = target
+            logger.debug(f"Neural Shunt random move: {unit.get_display_name()} -> {target}")
+        else:
+            logger.debug(f"Neural Shunt: No valid moves for {unit.get_display_name()}")
+    
+    def _generate_random_attack_action(self, unit):
+        """Generate a random attack action for Neural Shunt."""
+        import random
+        from boneglaive.utils.debug import logger
+        
+        # Get all valid attack targets within range
+        valid_targets = []
+        attack_range = unit.get_effective_stats()['attack_range']
+        
+        for target_unit in self.units:
+            if (target_unit.is_alive() and 
+                target_unit != unit and
+                not target_unit.is_untargetable()):
+                
+                distance = abs(target_unit.y - unit.y) + abs(target_unit.x - unit.x)
+                if distance <= attack_range:
+                    valid_targets.append((target_unit.y, target_unit.x))
+        
+        if valid_targets:
+            target = random.choice(valid_targets)
+            unit.attack_target = target
+            logger.debug(f"Neural Shunt random attack: {unit.get_display_name()} -> {target}")
+        else:
+            logger.debug(f"Neural Shunt: No valid attack targets for {unit.get_display_name()}")
+    
+    def _generate_random_skill_action(self, unit):
+        """Generate a random skill action for Neural Shunt."""
+        import random
+        from boneglaive.utils.debug import logger
+        
+        # Get available skills that are not on cooldown
+        available_skills = [skill for skill in unit.active_skills if skill.current_cooldown == 0]
+        
+        if not available_skills:
+            logger.debug(f"Neural Shunt: No available skills for {unit.get_display_name()}")
+            return
+            
+        # Pick a random skill
+        selected_skill = random.choice(available_skills)
+        unit.selected_skill = selected_skill
+        
+        # Try to find a valid target for the skill
+        valid_targets = []
+        
+        # Get skill range and targeting rules
+        skill_range = getattr(selected_skill, 'range', 1)
+        
+        # Generate possible target positions within skill range
+        for dy in range(-skill_range, skill_range + 1):
+            for dx in range(-skill_range, skill_range + 1):
+                target_y = unit.y + dy
+                target_x = unit.x + dx
+                
+                if not self.is_valid_position(target_y, target_x):
+                    continue
+                    
+                # Check if this is a valid target using skill's can_use method
+                try:
+                    if selected_skill.can_use(unit, (target_y, target_x), self):
+                        valid_targets.append((target_y, target_x))
+                except Exception as e:
+                    # Skip invalid targets
+                    logger.debug(f"Skill targeting error for {selected_skill.name}: {e}")
+                    continue
+        
+        if valid_targets:
+            target = random.choice(valid_targets)
+            unit.skill_target = target
+            logger.debug(f"Neural Shunt random skill: {unit.get_display_name()} uses {selected_skill.name} -> {target}")
+        else:
+            # Clear skill selection if no valid targets
+            unit.selected_skill = None
+            logger.debug(f"Neural Shunt: No valid targets for skill {selected_skill.name} on {unit.get_display_name()}")
     
     def toggle_test_mode(self):
         self.test_mode = not self.test_mode

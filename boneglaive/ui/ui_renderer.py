@@ -48,6 +48,16 @@ class UIRenderer:
         if hasattr(unit, 'charging_status') and unit.charging_status:
             effects.append(('charging', 'Ω', curses.A_BOLD))
             
+        # INTERFERER status effects
+        if hasattr(unit, 'radiation_stacks') and unit.radiation_stacks:
+            effects.append(('radiation_sickness', 'r', curses.A_BOLD))
+            
+        if hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected:
+            effects.append(('neural_shunt', '?', curses.A_BOLD))
+            
+        if hasattr(unit, 'carrier_rave_active') and unit.carrier_rave_active:
+            effects.append(('carrier_rave', 'φ', curses.A_DIM))
+            
         # Medium priority effects
         if hasattr(unit, 'status_site_inspection') and unit.status_site_inspection:
             effects.append(('site_inspection', 'Θ', curses.A_BOLD))
