@@ -46,7 +46,8 @@ class AssetManager:
             UnitType.FOWL_CONTRIVANCE: 'T',
             UnitType.GAS_MACHINIST: 'M',
             UnitType.HEINOUS_VAPOR: 'V',  # Base symbol, will be replaced by vapor_symbol in display code
-            UnitType.DELPHIC_APPRAISER: 'A'  # A for Appraiser
+            UnitType.DELPHIC_APPRAISER: 'A',  # A for Appraiser
+            UnitType.INTERFERER: 'R'  # R for Radioactive interference
         }
         
         # Terrain symbols
@@ -103,7 +104,8 @@ class AssetManager:
             'grayman_attack': '≈',        # Reality distortion (ranged)
             'marrow_condenser_attack': 'Ø', # Bone symbol for melee
             'fowl_contrivance_attack': '>', # Rail artillery projectile symbol
-            'delphic_appraiser_attack': '$' # Currency symbol for evaluation
+            'delphic_appraiser_attack': '$', # Currency symbol for evaluation
+            'interferer_attack': 'x'  # Plutonium carabiner cross
         }
         
         # Add animation sequence tiles for each attack type (using simple ASCII)
@@ -181,6 +183,7 @@ class AssetManager:
 
             # DELPHIC_APPRAISER animations
             'delphic_appraiser_attack': ['$', '¢', '$'],  # Basic attack with currency symbols
+            'interferer_attack': ['x', '+', '*', 'x'],  # Plutonium carabiner cross attack
 
             # Valuation Oracle: Ancient numerical glyphs materializing, furniture transforms showing ornate details
             'valuation_oracle': ['?', '1', '3', '5', '7', '9', '$', '£', '€'],
@@ -217,7 +220,8 @@ class AssetManager:
             UnitType.FOWL_CONTRIVANCE: 'assets/sprites/fowl_contrivance.png',
             UnitType.GAS_MACHINIST: 'assets/sprites/gas_machinist.png',
             UnitType.HEINOUS_VAPOR: 'assets/sprites/heinous_vapor.png',
-            UnitType.DELPHIC_APPRAISER: 'assets/sprites/delphic_appraiser.png'
+            UnitType.DELPHIC_APPRAISER: 'assets/sprites/delphic_appraiser.png',
+            UnitType.INTERFERER: 'assets/sprites/interferer.png'
         }
         
         self.terrain_tiles = {
@@ -259,7 +263,8 @@ class AssetManager:
             'fowl_contrivance_attack': 'assets/effects/fowl.png',
             'gas_machinist_attack': 'assets/effects/gas.png',
             'heinous_vapor_attack': 'assets/effects/vapor.png',
-            'delphic_appraiser_attack': 'assets/effects/evaluation.png'
+            'delphic_appraiser_attack': 'assets/effects/evaluation.png',
+            'interferer_attack': 'assets/effects/radiation.png'
         }
         
         # Add animation sequences for graphical mode too
@@ -328,7 +333,8 @@ class AssetManager:
             UnitType.FOWL_CONTRIVANCE: 'fowl_contrivance_attack',
             UnitType.GAS_MACHINIST: 'gas_machinist_attack',
             UnitType.HEINOUS_VAPOR: 'heinous_vapor_attack',
-            UnitType.DELPHIC_APPRAISER: 'delphic_appraiser_attack'
+            UnitType.DELPHIC_APPRAISER: 'delphic_appraiser_attack',
+            UnitType.INTERFERER: 'interferer_attack'
         }
         effect_type = effect_map.get(unit_type, 'glaiveman_attack')
         return self.get_effect_tile(effect_type)
