@@ -1193,6 +1193,96 @@ class UnitHelpComponent(UIComponent):
                     '- Best positioning: Central furniture clusters, defensive positions near valuable terrain'
                 ]
             },
+            UnitType.INTERFERER: {
+                'title': 'INTERFERER',
+                'overview': [
+                    'The INTERFERER is a telecommunications engineer turned assassin, a glass cannon unit',
+                    'specialized in radioactive warfare and neural manipulation. This high-risk, high-reward',
+                    'unit excels at delivering devastating attacks through radiation, neural control, and',
+                    'sophisticated silent warfare tactics.',
+                    '',
+                    'Role: Glass Cannon / Assassin / Radiation Specialist'
+                ],
+                'stats': [
+                    'HP: 18',
+                    'Attack: 4', 
+                    'Defense: 0',
+                    'Movement: 2',
+                    'Range: 1 (Melee)',
+                    'Symbol: R (Radioactive interference)',
+                    'Attack Symbol: x (Plutonium carabiner cross)'
+                ],
+                'skills': [
+                    {
+                        'name': 'NEUTRON ILLUMINANT (Passive)',
+                        'description': 'Directional radiation spreads behind targets when attacking.',
+                        'details': [
+                            'Type: Passive',
+                            'Trigger: On attack',
+                            'Effect: Creates radiation pattern in 3×3 area behind target',
+                            'Radiation Damage: 1 per stack per turn',
+                            'Radiation Duration: 2 turns per stack',
+                            'Special: Radiation stacks accumulate and spread in the direction of attack'
+                        ]
+                    },
+                    {
+                        'name': 'NEURAL SHUNT (Active) [Key: N]',
+                        'description': 'Hijacks target\'s nervous system, causing random actions.',
+                        'details': [
+                            'Type: Active',
+                            'Range: 1',
+                            'Target: Any unit',
+                            'Line of Sight: Yes',
+                            'Damage: 8',
+                            'Pierce: No',
+                            'Effects: Neural control for 2 turns',
+                            'Cooldown: 3 turns',
+                            'Special: Affected unit performs random moves, attacks, or skills for 2 turns'
+                        ]
+                    },
+                    {
+                        'name': 'CARRIER RAVE (Active) [Key: C]',
+                        'description': 'Phase out of reality, becoming untargetable and preparing devastating strikes.',
+                        'details': [
+                            'Type: Active',
+                            'Range: Self-target',
+                            'Target: Self',
+                            'Line of Sight: N/A',
+                            'Damage: None',
+                            'Pierce: N/A',
+                            'Effects: Untargetable for 2 turns, next attack strikes 3 times',
+                            'Cooldown: 4 turns',
+                            'Special: Cannot be targeted by any attacks or skills while phased'
+                        ]
+                    },
+                    {
+                        'name': 'SCALAR NODE (Active) [Key: S]',
+                        'description': 'Plants invisible energy traps that detonate silently.',
+                        'details': [
+                            'Type: Active',
+                            'Range: 2',
+                            'Target: Empty tile',
+                            'Line of Sight: Yes',
+                            'Damage: 12 pierce (ignores defense)',
+                            'Pierce: Yes',
+                            'Effects: Invisible trap, silent warfare',
+                            'Cooldown: 2 turns',
+                            'Special: No message log entries, triggers when enemies end turn on trap'
+                        ]
+                    }
+                ],
+                'tips': [
+                    '- Use radiation spread to control enemy positioning and create damage zones',
+                    '- Neural Shunt can disrupt enemy plans by forcing random actions',
+                    '- Time Carrier Rave carefully to avoid counterattacks and set up triple strikes',
+                    '- Place Scalar Nodes on likely enemy movement paths for maximum effectiveness'
+                ],
+                'tactical': [
+                    '- Strong against: High-HP units (radiation damage), ranged units (closing distance), predictable formations',
+                    '- Vulnerable to: Area attacks (low defense), burst damage (glass cannon), detection abilities',
+                    '- Best positioning: Behind cover, flanking positions, near enemy movement corridors'
+                ]
+            },
             'HEINOUS_VAPOR_BROACHING': {
                 'title': 'BROACHING GAS (Φ)',
                 'overview': [
@@ -3545,7 +3635,7 @@ class GameModeManager(UIComponent):
         """
         Toggle between unit types during the setup phase.
         Cycles between GLAIVEMAN, MANDIBLE FOREMAN, GRAYMAN, MARROW_CONDENSER,
-        FOWL_CONTRIVANCE, GAS_MACHINIST, and DELPHIC_APPRAISER.
+        FOWL_CONTRIVANCE, GAS_MACHINIST, DELPHIC_APPRAISER, and INTERFERER.
         """
         if self.setup_unit_type == UnitType.GLAIVEMAN:
             self.setup_unit_type = UnitType.MANDIBLE_FOREMAN
@@ -3565,6 +3655,9 @@ class GameModeManager(UIComponent):
         elif self.setup_unit_type == UnitType.GAS_MACHINIST:
             self.setup_unit_type = UnitType.DELPHIC_APPRAISER
             self.game_ui.message = "Setup unit type: DELPHIC APPRAISER"
+        elif self.setup_unit_type == UnitType.DELPHIC_APPRAISER:
+            self.setup_unit_type = UnitType.INTERFERER
+            self.game_ui.message = "Setup unit type: INTERFERER"
         else:
             self.setup_unit_type = UnitType.GLAIVEMAN
             self.game_ui.message = "Setup unit type: GLAIVEMAN"
@@ -3604,7 +3697,8 @@ class GameModeManager(UIComponent):
             UnitType.MARROW_CONDENSER: "MARROW CONDENSER",
             UnitType.FOWL_CONTRIVANCE: "FOWL CONTRIVANCE",
             UnitType.GAS_MACHINIST: "GAS MACHINIST",
-            UnitType.DELPHIC_APPRAISER: "DELPHIC APPRAISER"
+            UnitType.DELPHIC_APPRAISER: "DELPHIC APPRAISER",
+            UnitType.INTERFERER: "INTERFERER"
         }.get(self.setup_unit_type, "UNKNOWN")
 
         # Check specific error cases based on return value
@@ -3750,7 +3844,8 @@ class GameModeManager(UIComponent):
                 UnitType.MARROW_CONDENSER: "MARROW CONDENSER",
                 UnitType.FOWL_CONTRIVANCE: "FOWL CONTRIVANCE",
                 UnitType.GAS_MACHINIST: "GAS MACHINIST",
-                UnitType.DELPHIC_APPRAISER: "DELPHIC APPRAISER"
+                UnitType.DELPHIC_APPRAISER: "DELPHIC APPRAISER",
+                UnitType.INTERFERER: "INTERFERER"
             }
             current_unit_type = unit_type_display.get(self.setup_unit_type, "UNKNOWN")
             
@@ -4435,6 +4530,39 @@ class ActionMenuComponent(UIComponent):
                 'enabled': divine_depreciation_skill is not None,
                 'skill': divine_depreciation_skill
             })
+
+        # INTERFERER skills
+        elif unit.type == self.UnitType.INTERFERER:
+
+            # Add Neural Shunt skill
+            neural_shunt_skill = next((skill for skill in available_skills if skill.name == "Neural Shunt"), None)
+            self.actions.append({
+                'key': 'n',
+                'label': 'eural Shunt',  # Will be displayed as [N]eural Shunt
+                'action': 'neural_shunt_skill',
+                'enabled': neural_shunt_skill is not None,
+                'skill': neural_shunt_skill
+            })
+
+            # Add Carrier Rave skill
+            carrier_rave_skill = next((skill for skill in available_skills if skill.name == "Carrier Rave"), None)
+            self.actions.append({
+                'key': 'c',
+                'label': 'arrier Rave',  # Will be displayed as [C]arrier Rave
+                'action': 'carrier_rave_skill',
+                'enabled': carrier_rave_skill is not None,
+                'skill': carrier_rave_skill
+            })
+
+            # Add Scalar Node skill
+            scalar_node_skill = next((skill for skill in available_skills if skill.name == "Scalar Node"), None)
+            self.actions.append({
+                'key': 's',
+                'label': 'calar Node',  # Will be displayed as [S]calar Node
+                'action': 'scalar_node_skill',
+                'enabled': scalar_node_skill is not None,
+                'skill': scalar_node_skill
+            })
         
         # Reset selected index
         self.selected_index = 0
@@ -4956,6 +5084,10 @@ class InputManager(UIComponent):
             elif unit_type == UnitType.DELPHIC_APPRAISER:
                 # Show DELPHIC_APPRAISER unit help
                 self.game_ui.unit_help_component.toggle_unit_help(UnitType.DELPHIC_APPRAISER)
+                return
+            elif unit_type == UnitType.INTERFERER:
+                # Show INTERFERER unit help
+                self.game_ui.unit_help_component.toggle_unit_help(UnitType.INTERFERER)
                 return
             elif unit_type == UnitType.HEINOUS_VAPOR:
                 # Check what type of vapor this is by symbol
