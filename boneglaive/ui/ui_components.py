@@ -2322,6 +2322,12 @@ class CursorManager(UIComponent):
             # Check if the target is a unit or a wall
             from boneglaive.utils.message_log import message_log, MessageType
             target_unit = self.game_ui.game.get_unit_at(self.cursor_pos.y, self.cursor_pos.x)
+            
+            # Check if target is under CARRIER_RAVE (untargetable)
+            if target_unit and hasattr(target_unit, 'carrier_rave_active') and target_unit.carrier_rave_active:
+                self.game_ui.message = "Invalid target"
+                return False
+            
             is_wall_target = False
             wall_owner = None
             
@@ -3472,6 +3478,10 @@ class GameModeManager(UIComponent):
             # Check if there's an enemy unit at this position and within range
             target = self.game_ui.game.get_unit_at(target_pos[0], target_pos[1])
             if target and target.player != unit.player:
+                # Check if target is under CARRIER_RAVE (untargetable)
+                if hasattr(target, 'carrier_rave_active') and target.carrier_rave_active:
+                    self.game_ui.message = "Invalid target"
+                    return False
                 # Get the skill origination position (current or planned move)
                 from_y, from_x = unit.y, unit.x
                 if unit.move_target:
@@ -3514,6 +3524,12 @@ class GameModeManager(UIComponent):
         # Check if the target position is valid for this skill
         if cursor_manager.cursor_pos not in cursor_manager.highlighted_positions:
             # Simply return false without showing a message
+            return False
+
+        # Check if target is under CARRIER_RAVE (untargetable)
+        target = self.game_ui.game.get_unit_at(target_pos[0], target_pos[1])
+        if target and hasattr(target, 'carrier_rave_active') and target.carrier_rave_active:
+            self.game_ui.message = "Invalid target"
             return False
 
         # Use the skill
