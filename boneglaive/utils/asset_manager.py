@@ -201,7 +201,10 @@ class AssetManager:
             'bid_token': ['$', '*', '+', '¢', '£', '€', 'A'],
 
             # Divine Depreciation: Downward valuation, furniture value drops, floor sinks
-            'divine_depreciation': ['A', '↓', '9', '6', '3', '0', '_', '.', ' ']
+            'divine_depreciation': ['A', '↓', '9', '6', '3', '0', '_', '.', ' '],
+            
+            # INTERFERER animations
+            'scalar_node_detonation': ['~', '≈', '*', '#', '@', '+', '*', '~', '.']  # Standing wave collapse
         }
     
     def _initialize_graphical_assets(self) -> None:

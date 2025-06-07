@@ -985,11 +985,10 @@ class Unit:
             self.carrier_rave_duration -= 1
             if self.carrier_rave_duration <= 0:
                 self.carrier_rave_active = False
-                self.carrier_rave_strikes_ready = True  # Ready for triple strike
                 
                 from boneglaive.utils.message_log import message_log, MessageType
                 message_log.add_message(
-                    f"{self.get_display_name()} phases back into reality, ready to strike!",
+                    f"{self.get_display_name()} phases back into reality without striking!",
                     MessageType.ABILITY,
                     player=self.player
                 )

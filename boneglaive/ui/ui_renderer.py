@@ -1283,6 +1283,21 @@ class UIRenderer:
                     negative_effects.append("Jawline")
             if hasattr(unit, 'estranged') and unit.estranged:
                 negative_effects.append("Estranged")
+            if hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected:
+                # Check if it has duration, otherwise just show boolean
+                if hasattr(unit, 'neural_shunt_duration') and unit.neural_shunt_duration > 0:
+                    negative_effects.append(f"Neural Shunt({unit.neural_shunt_duration})")
+                else:
+                    negative_effects.append("Neural Shunt")
+            if hasattr(unit, 'radiation_stacks') and unit.radiation_stacks:
+                total_stacks = len(unit.radiation_stacks)
+                negative_effects.append(f"Radiation({total_stacks})")
+            if hasattr(unit, 'carrier_rave_active') and unit.carrier_rave_active:
+                # Check if it has duration, otherwise just show boolean
+                if hasattr(unit, 'carrier_rave_duration') and unit.carrier_rave_duration > 0:
+                    positive_effects.append(f"Carrier Rave({unit.carrier_rave_duration})")
+                else:
+                    positive_effects.append("Carrier Rave")
             if hasattr(unit, 'has_investment_effect') and unit.has_investment_effect:
                 positive_effects.append("Investment")
             if hasattr(unit, 'charging_status') and unit.charging_status:

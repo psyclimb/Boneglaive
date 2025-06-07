@@ -2203,8 +2203,8 @@ class Game:
                         
                         # Handle INTERFERER attack mechanics
                         if unit.type == UnitType.INTERFERER:
-                            # Check for Carrier Rave triple strike
-                            if hasattr(unit, 'carrier_rave_strikes_ready') and unit.carrier_rave_strikes_ready:
+                            # Check for Carrier Rave triple strike (active during phasing)
+                            if hasattr(unit, 'carrier_rave_active') and unit.carrier_rave_active:
                                 # Apply two additional strikes
                                 for strike in range(2):
                                     if target.hp > 0:  # Only continue if target is still alive
@@ -2224,8 +2224,15 @@ class Game:
                                         if ui:
                                             ui.show_attack_animation(unit, target)
                                 
-                                # Clear the triple strike flag
-                                unit.carrier_rave_strikes_ready = False
+                                # End Carrier Rave effect after using triple strike
+                                unit.carrier_rave_active = False
+                                unit.carrier_rave_duration = 0
+                                
+                                message_log.add_message(
+                                    f"{unit.get_display_name()} phases back into reality after the devastating strike!",
+                                    MessageType.ABILITY,
+                                    player=unit.player
+                                )
                                 
                                 # Trigger Neutron Illuminant for each strike (ignoring cooldown during Carrier Rave)
                                 if unit.passive_skill and unit.passive_skill.name == "Neutron Illuminant":
@@ -2857,8 +2864,12 @@ class Game:
                         logger.debug(f"{unit.get_display_name()} couldn't rest due to nearby enemies")
 
         # Check for scalar node traps before player switching
+        logger.debug(f"Checking for scalar nodes. Has attr: {hasattr(self, 'scalar_nodes')}, nodes: {getattr(self, 'scalar_nodes', {})}")
         if hasattr(self, 'scalar_nodes') and self.scalar_nodes:
+            logger.debug("Calling _check_scalar_node_traps")
             self._check_scalar_node_traps(ui)
+        else:
+            logger.debug("No scalar nodes to check or scalar_nodes not present")
         
         # Before changing players, reset movement penalties for units of the player
         # whose turn is ENDING (not starting). This way penalties last through their entire next turn.
@@ -3351,6 +3362,10 @@ class Game:
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
         import curses
         
+        # DEBUG: Log scalar node checking
+        logger.debug(f"Checking scalar node traps. Player {self.current_player} ending turn.")
+        logger.debug(f"Scalar nodes present: {getattr(self, 'scalar_nodes', {})}")
+        
         # Get the current player (whose turn is ending)
         ending_player = self.current_player
         
@@ -3360,14 +3375,17 @@ class Game:
                 continue
                 
             unit_pos = (unit.y, unit.x)
+            logger.debug(f"Checking unit {unit.get_display_name()} at position {unit_pos}")
             
             # Check if unit is on a scalar node
             if unit_pos in self.scalar_nodes:
                 node_info = self.scalar_nodes[unit_pos]
                 owner = node_info['owner']
+                logger.debug(f"Unit on scalar node owned by player {owner.player}, unit is player {unit.player}")
                 
                 # Only trigger if node belongs to enemy player
                 if owner.player != unit.player and node_info.get('active', True):
+                    logger.debug(f"SCALAR NODE TRIGGERED! Triggering animation for unit {unit.get_display_name()}")
                     damage = node_info['damage']
                     
                     # Apply pierce damage (ignores defense)
@@ -3380,17 +3398,33 @@ class Game:
                         player=owner.player
                     )
                     
-                    # Show damage animation
+                    # Show scalar node detonation animation
+                    logger.debug(f"UI object: {ui}, has renderer: {hasattr(ui, 'renderer') if ui else False}")
                     if ui and hasattr(ui, 'renderer'):
-                        explosion_animation = ['*', '#', '+', '.']
+                        logger.debug(f"UI has asset_manager: {hasattr(ui, 'asset_manager')}")
+                        # Try to get the scalar node detonation animation from asset manager
+                        if hasattr(ui, 'asset_manager'):
+                            detonation_animation = ui.asset_manager.get_skill_animation_sequence('scalar_node_detonation')
+                            logger.debug(f"Got animation from asset manager: {detonation_animation}")
+                        else:
+                            detonation_animation = []
+                        
+                        # Fallback animation if asset manager doesn't have it
+                        if not detonation_animation:
+                            detonation_animation = ['~', '≈', '*', '#', '@', '+', '*', '~', '.']
+                            logger.debug(f"Using fallback animation: {detonation_animation}")
+                        
+                        logger.debug(f"About to play animation at position ({unit.y}, {unit.x})")
                         ui.renderer.animate_attack_sequence(
                             unit.y, unit.x,
-                            explosion_animation,
+                            detonation_animation,
                             6,  # Yellow color for energy explosion
-                            0.15
+                            0.12  # Slightly faster for dramatic effect
                         )
+                        logger.debug("Animation call completed")
                         
                         # Show damage number
+                        logger.debug("Showing damage number")
                         damage_text = f"-{damage}"
                         for i in range(3):
                             ui.renderer.draw_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
@@ -3398,6 +3432,7 @@ class Game:
                             ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, attrs)
                             ui.renderer.refresh()
                             sleep_with_animation_speed(0.1)
+                        logger.debug("Damage number display completed")
                     
                     # Check if unit was defeated (silent)
                     if unit.hp <= 0:
