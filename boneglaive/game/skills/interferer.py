@@ -179,7 +179,7 @@ class NeuralShuntSkill(ActiveSkill):
         
         target = game.get_unit_at(target_pos[0], target_pos[1])
         message_log.add_message(
-            f"{user.get_display_name()} prepares to disrupt {target.get_display_name()}'s neural pathways!",
+            f"{user.get_display_name()} coordinates neural interference transmission!",
             MessageType.ABILITY,
             player=user.player
         )
@@ -195,7 +195,7 @@ class NeuralShuntSkill(ActiveSkill):
         
         # Log activation
         message_log.add_message(
-            f"{user.get_display_name()} disrupts {target.get_display_name()}'s neural pathways!",
+            f"Tower array hijacks {target.get_display_name()}'s neural signals!",
             MessageType.ABILITY,
             player=user.player
         )
@@ -282,7 +282,7 @@ class CarrierRaveSkill(ActiveSkill):
         super().__init__(
             name="Carrier Rave",
             key="C",
-            description="Phase out of reality for 2 turns. Become untargetable, but cannot attack. Next attack after phasing strikes 3 times.",
+            description="Phase out of reality for 1 turn. Become untargetable, but cannot attack. Next attack after phasing strikes 3 times.",
             target_type=TargetType.SELF,
             cooldown=5,
             range_=0
@@ -312,7 +312,7 @@ class CarrierRaveSkill(ActiveSkill):
             game.action_counter += 1
         
         message_log.add_message(
-            f"{user.get_display_name()} prepares to phase out of reality!",
+            f"{user.get_display_name()} synchronizes with carrier wave transmission!",
             MessageType.ABILITY,
             player=user.player
         )
@@ -323,7 +323,7 @@ class CarrierRaveSkill(ActiveSkill):
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute Carrier Rave skill."""
         message_log.add_message(
-            f"{user.get_display_name()} phases out of reality!",
+            f"{user.get_display_name()} rides the carrier wave out of phase!",
             MessageType.ABILITY,
             player=user.player
         )
@@ -364,7 +364,7 @@ class ScalarNodeSkill(ActiveSkill):
             key="S",
             description="Place invisible trap on empty terrain (range 3). Triggers when enemy ends turn on tile, dealing 12 pierce damage. Silent deployment and activation.",
             target_type=TargetType.AREA,
-            cooldown=6,
+            cooldown=3,
             range_=3
         )
         self.damage = 12

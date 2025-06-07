@@ -638,7 +638,7 @@ class UnitHelpComponent(UIComponent):
                             'Pierce: No',
                             'Effects: +1 attack, +1 movement to allies in area for 3 turns',
                             'Cooldown: 3 turns',
-                            'Special: Only works if no impassable terrain in target area'
+                            'Special: Only works if no impassable terrain in target area, reveals hidden traps'
                         ]
                     },
                     {
@@ -1196,12 +1196,12 @@ class UnitHelpComponent(UIComponent):
             UnitType.INTERFERER: {
                 'title': 'INTERFERER',
                 'overview': [
-                    'The INTERFERER is a telecommunications engineer turned assassin, a glass cannon unit',
-                    'specialized in radioactive warfare and neural manipulation. This high-risk, high-reward',
-                    'unit excels at delivering devastating attacks through radiation, neural control, and',
-                    'sophisticated silent warfare tactics.',
+                    'The INTERFERER is a telecommunications engineer turned assassin who weaponized a remote',
+                    'radio tower array into a directed energy system. This glass cannon "phones home" to coordinate',
+                    'precise strikes, neural interference, and electromagnetic warfare through triangulated',
+                    'transmissions from the tower network.',
                     '',
-                    'Role: Glass Cannon / Assassin / Radiation Specialist'
+                    'Role: Glass Cannon / Assassin / Radio Warfare Specialist'
                 ],
                 'stats': [
                     'HP: 18',
@@ -1227,7 +1227,7 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'NEURAL SHUNT (Active) [Key: N]',
-                        'description': 'Hijacks target\'s nervous system, causing random actions.',
+                        'description': 'Tower array transmits neural interference signal to hijack target\'s mind.',
                         'details': [
                             'Type: Active',
                             'Range: 1',
@@ -1236,13 +1236,13 @@ class UnitHelpComponent(UIComponent):
                             'Damage: 8',
                             'Pierce: No',
                             'Effects: Neural control for 2 turns',
-                            'Cooldown: 3 turns',
+                            'Cooldown: 4 turns',
                             'Special: Affected unit performs random moves, attacks, or skills for 2 turns'
                         ]
                     },
                     {
                         'name': 'CARRIER RAVE (Active) [Key: C]',
-                        'description': 'Phase out of reality, becoming untargetable and preparing devastating strikes.',
+                        'description': 'Rides carrier wave transmission to phase out, becoming untargetable.',
                         'details': [
                             'Type: Active',
                             'Range: Self-target',
@@ -1251,22 +1251,22 @@ class UnitHelpComponent(UIComponent):
                             'Damage: None',
                             'Pierce: N/A',
                             'Effects: Untargetable for 2 turns, next attack strikes 3 times',
-                            'Cooldown: 4 turns',
+                            'Cooldown: 5 turns',
                             'Special: Cannot be targeted by any attacks or skills while phased'
                         ]
                     },
                     {
                         'name': 'SCALAR NODE (Active) [Key: S]',
-                        'description': 'Plants invisible energy traps that detonate silently.',
+                        'description': 'Triangulates coordinates to create standing wave energy trap.',
                         'details': [
                             'Type: Active',
-                            'Range: 2',
+                            'Range: 3',
                             'Target: Empty tile',
                             'Line of Sight: Yes',
                             'Damage: 12 pierce (ignores defense)',
                             'Pierce: Yes',
                             'Effects: Invisible trap, silent warfare',
-                            'Cooldown: 2 turns',
+                            'Cooldown: 3 turns',
                             'Special: No message log entries, triggers when enemies end turn on trap'
                         ]
                     }
@@ -4244,12 +4244,13 @@ class ActionMenuComponent(UIComponent):
         self.menu_mode = "standard"
         
         # Add standard actions with consistent labeling
-        # Disable move for trapped units, Jawline-affected units, charging units, or echoes (echoes can't move)
+        # Disable move for trapped units, Jawline-affected units, charging units, Neural Shunt, or echoes (echoes can't move)
         unit_can_move = (unit is not None and
                         unit.trapped_by is None and
                         not unit.is_echo and
                         not (hasattr(unit, 'jawline_affected') and unit.jawline_affected) and
-                        not (hasattr(unit, 'charging_status') and unit.charging_status))
+                        not (hasattr(unit, 'charging_status') and unit.charging_status) and
+                        not (hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected))
         self.actions.append({
             'key': 'm',
             'label': 'ove',  # Will be displayed as [M]ove without space
@@ -4257,8 +4258,9 @@ class ActionMenuComponent(UIComponent):
             'enabled': unit_can_move  # Enabled only if unit can move
         })
         
-        # Disable attack for charging units
-        unit_can_attack = not (hasattr(unit, 'charging_status') and unit.charging_status)
+        # Disable attack for charging units and Neural Shunt
+        unit_can_attack = (not (hasattr(unit, 'charging_status') and unit.charging_status) and
+                          not (hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected))
         self.actions.append({
             'key': 'a',
             'label': 'ttack',  # Will be displayed as [A]ttack without space
@@ -4269,9 +4271,10 @@ class ActionMenuComponent(UIComponent):
         # Add skill action
         unit_has_skills = unit is not None and hasattr(unit, 'active_skills') and len(unit.get_available_skills()) > 0
         # Allow skills to be used even when a move is planned (the unit can cast from the new position)
-        # Disable skills when charging (except for Gaussian Dusk auto-firing which is handled differently)
+        # Disable skills when charging (except for Gaussian Dusk auto-firing which is handled differently) or under Neural Shunt
         unit_can_use_skills = (unit_has_skills and unit.trapped_by is None and not unit.is_echo and
-                              not (hasattr(unit, 'charging_status') and unit.charging_status))
+                              not (hasattr(unit, 'charging_status') and unit.charging_status) and
+                              not (hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected))
         self.actions.append({
             'key': 's',
             'label': 'kills',  # Will be displayed as [S]kills without space
@@ -4682,8 +4685,13 @@ class ActionMenuComponent(UIComponent):
             else:
                 key_match = (key == action['key'])
             
-            # For standard menu, key must match and action must be enabled    
-            if key_match and action['enabled']:
+            # Handle key matches - both enabled and disabled actions
+            if key_match:
+                if not action['enabled']:
+                    # Action is disabled - consume the key press to prevent fallthrough
+                    return True
+                    
+                # Action is enabled, proceed normally
                 # Standard menu actions
                 if self.menu_mode == "standard":
                     if action['action'] == GameAction.MOVE_MODE:

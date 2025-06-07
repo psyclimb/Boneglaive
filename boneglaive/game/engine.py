@@ -2303,6 +2303,11 @@ class Game:
                 # Execute the skill if it has an execute method
                 if hasattr(skill, 'execute'):
                     skill.execute(unit, target_pos, self, ui)
+                    
+                    # If unit is under Neural Shunt effects, put the skill on cooldown
+                    if (hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected):
+                        skill.current_cooldown = skill.cooldown
+                        logger.debug(f"Neural Shunt: {unit.get_display_name()}'s {skill.name} placed on cooldown ({skill.cooldown} turns)")
                 else:
                     logger.warning(f"Skill {skill.name} has no execute method")
                 
@@ -3368,7 +3373,14 @@ class Game:
                     # Apply pierce damage (ignores defense)
                     unit.hp = max(0, unit.hp - damage)
                     
-                    # Show damage animation (silent - no messages)
+                    # Log scalar node activation
+                    message_log.add_message(
+                        f"Standing wave resonance overloads {unit.get_display_name()}!",
+                        MessageType.ABILITY,
+                        player=owner.player
+                    )
+                    
+                    # Show damage animation
                     if ui and hasattr(ui, 'renderer'):
                         explosion_animation = ['*', '#', '+', '.']
                         ui.renderer.animate_attack_sequence(

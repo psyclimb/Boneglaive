@@ -821,6 +821,52 @@ class SiteInspectionSkill(ActiveSkill):
                     player=user.player
                 )
             
+            # Check for INTERFERER scalar nodes in the inspection area
+            if hasattr(game, 'scalar_nodes') and game.scalar_nodes:
+                revealed_nodes = []
+                for dy in [-1, 0, 1]:
+                    for dx in [-1, 0, 1]:
+                        check_y = y + dy
+                        check_x = x + dx
+                        
+                        # Skip out of bounds positions
+                        if not game.is_valid_position(check_y, check_x):
+                            continue
+                            
+                        node_pos = (check_y, check_x)
+                        if node_pos in game.scalar_nodes:
+                            node_info = game.scalar_nodes[node_pos]
+                            owner = node_info['owner']
+                            
+                            # Only reveal enemy scalar nodes
+                            if owner.player != user.player:
+                                revealed_nodes.append(node_pos)
+                
+                if revealed_nodes:
+                    message_log.add_message(
+                        f"Site Inspection reveals {len(revealed_nodes)} standing wave pattern{'s' if len(revealed_nodes) > 1 else ''}!",
+                        MessageType.ABILITY,
+                        player=user.player
+                    )
+                    
+                    # Show visual indicators for revealed nodes
+                    if ui and hasattr(ui, 'renderer'):
+                        for node_pos in revealed_nodes:
+                            node_y, node_x = node_pos
+                            # Flash the revealed node position
+                            for flash in range(3):
+                                ui.renderer.draw_tile(node_y, node_x, '~', 6)  # Wave pattern
+                                ui.renderer.refresh()
+                                sleep_with_animation_speed(0.2)
+                                
+                                # Restore terrain
+                                terrain_type = game.map.get_terrain_at(node_y, node_x)
+                                terrain_name = terrain_type.name.lower() if hasattr(terrain_type, 'name') else 'empty'
+                                terrain_tile = ui.asset_manager.get_terrain_tile(terrain_name)
+                                ui.renderer.draw_tile(node_y, node_x, terrain_tile, 1)
+                                ui.renderer.refresh()
+                                sleep_with_animation_speed(0.1)
+            
             # Redraw the board after animations
             if hasattr(ui, 'draw_board'):
                 ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
