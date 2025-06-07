@@ -1104,12 +1104,36 @@ class Game:
         # Target is not protected by any cloud
         return False
     
+    def can_target_unit(self, attacker, target):
+        """
+        Universal targeting validation for both basic attacks and skills.
+        
+        Args:
+            attacker: The unit attempting to target
+            target: The unit being targeted (can be None)
+            
+        Returns:
+            bool: True if targeting is allowed, False otherwise
+        """
+        if not target:
+            return True
+            
+        # Use the target's universal targeting validation
+        if hasattr(target, 'can_be_targeted_by'):
+            return target.can_be_targeted_by(attacker)
+        
+        # Fallback to legacy untargetable check
+        if hasattr(target, 'is_untargetable'):
+            return not target.is_untargetable()
+            
+        return True
+    
     def can_attack(self, unit, y, x):
         # First check for unit targets
         target = self.get_unit_at(y, x)
         
-        # Check if target is untargetable due to Carrier Rave
-        if target and hasattr(target, 'is_untargetable') and target.is_untargetable():
+        # Check universal targeting restrictions
+        if not self.can_target_unit(unit, target):
             return False
         
         # Calculate attack distance regardless of target type

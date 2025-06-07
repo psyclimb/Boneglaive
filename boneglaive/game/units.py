@@ -975,8 +975,25 @@ class Unit:
         return total_damage
     
     def is_untargetable(self) -> bool:
-        """Check if this unit is untargetable due to Carrier Rave."""
-        return hasattr(self, 'carrier_rave_active') and self.carrier_rave_active
+        """Check if this unit is untargetable due to status effects."""
+        # Units under Carrier Rave are untargetable
+        if hasattr(self, 'carrier_rave_active') and self.carrier_rave_active:
+            return True
+            
+        return False
+    
+    def can_be_targeted_by(self, attacker) -> bool:
+        """Check if this unit can be targeted by a specific attacker."""
+        # First check if this unit is globally untargetable
+        if self.is_untargetable():
+            return False
+        
+        # Units under CARRIER_RAVE cannot be targeted by enemy units
+        if (hasattr(self, 'carrier_rave_active') and self.carrier_rave_active and 
+            attacker.player != self.player):
+            return False
+            
+        return True
     
     def process_interferer_effects(self, game: 'Game') -> None:
         """Process INTERFERER-specific status effects at end of turn."""

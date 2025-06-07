@@ -51,7 +51,12 @@ class Skill:
         self.id = f"{name}-{random.randint(1000, 9999)}"
         
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
-        """Check if the skill can be used."""
+        """
+        Check if the skill can be used.
+        
+        For skills that target enemy units, use game.can_target_unit(user, target) 
+        to check universal targeting restrictions (Carrier Rave, untargetable status, etc.)
+        """
         # Check cooldown
         if self.current_cooldown > 0:
             return False
