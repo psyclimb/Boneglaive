@@ -123,7 +123,7 @@ class Autoclave(PassiveSkill):
         logger.debug(f"EXECUTING AUTOCLAVE for {user.get_display_name()}")
         
         message_log.add_message(
-            f"{user.get_display_name()}'s Autoclave activates!",
+            f"{user.get_display_name()}'s Autoclave activates",
             MessageType.ABILITY,
             player=user.player
         )
@@ -221,7 +221,7 @@ class Autoclave(PassiveSkill):
                     # Check if target was defeated
                     if target.hp <= 0:
                         message_log.add_message(
-                            f"{target.get_display_name()} perishes!",
+                            f"{target.get_display_name()} perishes",
                             MessageType.COMBAT,
                             player=user.player,
                             target=target.player,
@@ -279,7 +279,7 @@ class Autoclave(PassiveSkill):
             
             # Log the healing
             message_log.add_message(
-                f"{user.get_display_name()} absorbs life essence, healing for {healing} HP!",
+                f"{user.get_display_name()} absorbs life essence, healing for {healing} HP",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -394,7 +394,7 @@ class PrySkill(ActiveSkill):
         
         # Log that the skill has been queued (this was already correctly implemented)
         message_log.add_message(
-            f"{user.get_display_name()} readies to pry {target.get_display_name()} skyward!",
+            f"{user.get_display_name()} readies to pry {target.get_display_name()} skyward",
             MessageType.ABILITY,
             player=user.player,
             attacker_name=user.get_display_name(),
@@ -429,7 +429,7 @@ class PrySkill(ActiveSkill):
         # Log the skill activation
         if game.chess_distance(user.y, user.x, target.y, target.x) == 1:
             message_log.add_message(
-                f"{user.get_display_name()} pries {target.get_display_name()} skyward with their glaive!",
+                f"{user.get_display_name()} pries {target.get_display_name()} skyward with their glaive",
                 MessageType.ABILITY,
                 player=user.player,
                 attacker_name=user.get_display_name(),
@@ -437,7 +437,7 @@ class PrySkill(ActiveSkill):
             )
         else:
             message_log.add_message(
-                f"{user.get_display_name()} pries {target.get_display_name()} skyward with their glaive!",
+                f"{user.get_display_name()} pries {target.get_display_name()} skyward with their glaive",
                 MessageType.ABILITY,
                 player=user.player,
                 attacker_name=user.get_display_name(),
@@ -627,7 +627,7 @@ class PrySkill(ActiveSkill):
                     # Check if the adjacent unit was defeated
                     if adjacent_unit.hp <= 0:
                         message_log.add_message(
-                            f"{adjacent_unit.get_display_name()} perishes!",
+                            f"{adjacent_unit.get_display_name()} perishes",
                             MessageType.COMBAT,
                             player=user.player,
                             target=adjacent_unit.player,
@@ -691,7 +691,7 @@ class PrySkill(ActiveSkill):
         # Check if primary target is immune to the movement penalty effect
         if target.is_immune_to_effects():
             message_log.add_message(
-                f"{target.get_display_name()} is immune to Pry's movement penalty due to Stasiality!",
+                f"{target.get_display_name()} is immune to Pry's movement penalty due to Stasiality",
                 MessageType.ABILITY,
                 player=target.player,  # Use the target's player for correct color coding
                 target_name=target.get_display_name()
@@ -724,7 +724,7 @@ class PrySkill(ActiveSkill):
 
             # Log the movement reduction
             message_log.add_message(
-                f"{target.get_display_name()}'s movement reduced by 1 for next turn!",
+                f"{target.get_display_name()}'s movement reduced by 1 for next turn",
                 MessageType.ABILITY,
                 player=user.player,
                 target_name=target.get_display_name()
@@ -733,7 +733,7 @@ class PrySkill(ActiveSkill):
         # Check if primary target was defeated
         if target.hp <= 0:
             message_log.add_message(
-                f"{target.get_display_name()} perishes!",
+                f"{target.get_display_name()} perishes",
                 MessageType.COMBAT,
                 player=user.player,
                 target=target.player,
@@ -828,7 +828,7 @@ class VaultSkill(ActiveSkill):
         # Log that the skill has been readied
         from boneglaive.utils.message_log import message_log, MessageType
         message_log.add_message(
-            f"{user.get_display_name()} prepares to vault to position ({target_pos[0]}, {target_pos[1]})!",
+            f"{user.get_display_name()} prepares to vault to position ({target_pos[0]}, {target_pos[1]})",
             MessageType.ABILITY,
             player=user.player
         )
@@ -1008,7 +1008,7 @@ class VaultSkill(ActiveSkill):
         
         # Log the completion of vault
         message_log.add_message(
-            f"{user.get_display_name()} vaults from ({original_pos[0]}, {original_pos[1]}) to ({target_pos[0]}, {target_pos[1]})!",
+            f"{user.get_display_name()} vaults from ({original_pos[0]}, {original_pos[1]}) to ({target_pos[0]}, {target_pos[1]})",
             MessageType.ABILITY,
             player=user.player
         )
@@ -1080,7 +1080,7 @@ class JudgementSkill(ActiveSkill):
         # Log that the skill has been readied
         from boneglaive.utils.message_log import message_log, MessageType
         message_log.add_message(
-            f"{user.get_display_name()} readies a sacred glaive to throw at {target.get_display_name()}!",
+            f"{user.get_display_name()} readies a sacred glaive to throw at {target.get_display_name()}",
             MessageType.ABILITY,
             player=user.player,
             target_name=target.get_display_name()
@@ -1104,7 +1104,7 @@ class JudgementSkill(ActiveSkill):
             
         # Log the skill activation
         message_log.add_message(
-            f"{user.get_display_name()} hurls a sacred glaive!",
+            f"{user.get_display_name()} hurls a sacred glaive",
             MessageType.ABILITY,
             player=user.player,
             attacker_name=user.get_display_name()
@@ -1174,7 +1174,7 @@ class JudgementSkill(ActiveSkill):
                 
             # Always show base effect message
             message_log.add_message(
-                f"The sacred glaive bypasses {target.get_display_name()}'s defenses!",
+                f"The sacred glaive bypasses {target.get_display_name()}'s defenses",
                 MessageType.ABILITY,
                 player=user.player,
                 target_name=target.get_display_name()
@@ -1227,7 +1227,7 @@ class JudgementSkill(ActiveSkill):
             damage = base_damage * 2  # Critical hit doubles damage
             # Log critical effect
             message_log.add_message(
-                f"The sacred glaive strikes with divine judgement!",
+                f"The sacred glaive strikes with divine judgement",
                 MessageType.ABILITY,
                 player=user.player,
                 target_name=target.get_display_name()
@@ -1265,7 +1265,7 @@ class JudgementSkill(ActiveSkill):
         # Check if target was defeated
         if target.hp <= 0:
             message_log.add_message(
-                f"{target.get_display_name()} perishes!",
+                f"{target.get_display_name()} perishes",
                 MessageType.COMBAT,
                 player=user.player,
                 target=target.player,

@@ -1160,7 +1160,7 @@ class Game:
             if self.is_protected_from(target, unit):
                 from boneglaive.utils.message_log import message_log, MessageType
                 message_log.add_message(
-                    f"Cannot target {target.get_display_name()} - protected by safety gas!",
+                    f"Cannot target {target.get_display_name()} - protected by safety gas",
                     MessageType.ABILITY
                 )
                 return False
@@ -1327,7 +1327,7 @@ class Game:
         if previous_hp is not None and previous_hp > critical_threshold:
             # Unit just crossed into critical health - display the retch message
             message_log.add_message(
-                f"{unit.get_display_name()} retches!",
+                f"{unit.get_display_name()} retches",
                 MessageType.COMBAT,
                 player=attacker.player if attacker else None,
                 target=unit.player,
@@ -1390,7 +1390,7 @@ class Game:
         
         # Log the death with appropriate message
         message_log.add_message(
-            f"{dying_unit.get_display_name()} perishes!",
+            f"{dying_unit.get_display_name()} perishes",
             MessageType.COMBAT,
             player=killer_unit.player if killer_unit else None,
             target_name=dying_unit.get_display_name()
@@ -1451,7 +1451,7 @@ class Game:
                     
                     if upgraded_skill:
                         # Create a more distinctive message for the upgrade
-                        upgrade_message = f"DOMINION: {dike_owner.get_display_name()} absorbs power from the fallen!"
+                        upgrade_message = f"DOMINION: {dike_owner.get_display_name()} absorbs power from the fallen"
                         
                         # Add to message log with ABILITY type for correct player coloring
                         message_log.add_message(
@@ -1487,7 +1487,7 @@ class Game:
                 unit.trapped_by = None
                 unit.trap_duration = 0  # Reset trap duration
                 message_log.add_message(
-                    f"{unit.get_display_name()} is released from mechanical jaws!",
+                    f"{unit.get_display_name()} is released from mechanical jaws",
                     MessageType.ABILITY,
                     target_name=unit.get_display_name()
                 )
@@ -1553,7 +1553,7 @@ class Game:
                             
                             # Shorter log message
                             message_log.add_message(
-                                f"{unit.get_display_name()} slogs through the Marrow Dike!",
+                                f"{unit.get_display_name()} slogs through the Marrow Dike",
                                 MessageType.ABILITY,
                                 player=dike_owner.player,
                                 attacker_name=dike_owner.get_display_name(),
@@ -1568,7 +1568,7 @@ class Game:
                         # Only show the message once when first entering the dike
                         if not hasattr(unit, 'marrow_dike_immunity_message_shown'):
                             message_log.add_message(
-                                f"{unit.get_display_name()} ignores the Marrow Dike's effect due to Stasiality!",
+                                f"{unit.get_display_name()} ignores the Marrow Dike's effect due to Stasiality",
                                 MessageType.ABILITY,
                                 player=unit.player,
                                 target_name=unit.get_display_name()
@@ -1757,7 +1757,7 @@ class Game:
                     
                     # Log the expiration
                     message_log.add_message(
-                        f"{unit.get_display_name()} breaks free and can move again!",
+                        f"{unit.get_display_name()} breaks free and can move again",
                         MessageType.ABILITY,
                         player=unit.player
                     )
@@ -1946,7 +1946,7 @@ class Game:
                         # Release the unit
                         trapped_unit.trapped_by = None
                         message_log.add_message(
-                            f"{trapped_unit.get_display_name()} is released from mechanical jaws!",
+                            f"{trapped_unit.get_display_name()} is released from mechanical jaws",
                             MessageType.ABILITY,
                             target_name=trapped_unit.get_display_name()
                         )
@@ -2024,7 +2024,7 @@ class Game:
                     los_check = self.has_line_of_sight(attacking_pos[0], attacking_pos[1], y, x)
                     if not los_check:
                         message_log.add_message(
-                            f"{unit.get_display_name()}'s attack is blocked by terrain!",
+                            f"{unit.get_display_name()}'s attack is blocked by terrain",
                             MessageType.COMBAT,
                             player=unit.player
                         )
@@ -2033,7 +2033,7 @@ class Game:
                 if target and target.player != unit.player and self.is_protected_from(target, unit):
                     logger.debug(f"Attack cancelled: {target.get_display_name()} is protected by Saft-E-Gas")
                     message_log.add_message(
-                        f"{unit.get_display_name()}'s attack fails - target is protected by safety gas!",
+                        f"{unit.get_display_name()}'s attack fails - target is protected by safety gas",
                         MessageType.COMBAT,
                         player=unit.player
                     )
@@ -2069,7 +2069,7 @@ class Game:
                         
                         # Log the attack on the wall
                         message_log.add_message(
-                            f"{unit.get_display_name()} attacks a Marrow Dike wall!",
+                            f"{unit.get_display_name()} attacks a Marrow Dike wall",
                             MessageType.COMBAT,
                             player=unit.player
                         )
@@ -2090,7 +2090,7 @@ class Game:
                             
                             # Log the destruction
                             message_log.add_message(
-                                f"{unit.get_display_name()} breaks through a section of {owner.get_display_name()}'s Marrow Dike!",
+                                f"{unit.get_display_name()} breaks through a section of {owner.get_display_name()}'s Marrow Dike",
                                 MessageType.COMBAT,
                                 player=unit.player
                             )
@@ -2109,7 +2109,7 @@ class Game:
                             
                             # Log the investment maturation before attack
                             message_log.add_message(
-                                f"{unit.get_display_name()}'s investment matures to +{unit.market_futures_maturity} ATK!",
+                                f"{unit.get_display_name()}'s investment matures to +{unit.market_futures_maturity} ATK",
                                 MessageType.ABILITY,
                                 player=unit.player
                             )
@@ -2150,14 +2150,14 @@ class Game:
                             # Different messages for original GRAYMAN vs echo
                             if hasattr(unit, 'is_echo') and unit.is_echo:
                                 message_log.add_message(
-                                    f"The echo's psychic attack bypasses {target.get_display_name()}'s defenses!",
+                                    f"The echo's psychic attack bypasses {target.get_display_name()}'s defenses",
                                     MessageType.ABILITY,
                                     player=unit.player,
                                     target_name=target.get_display_name()
                                 )
                             else:
                                 message_log.add_message(
-                                    f"{unit.get_display_name()}'s psychic attack bypasses {target.get_display_name()}'s defenses!",
+                                    f"{unit.get_display_name()}'s psychic attack bypasses {target.get_display_name()}'s defenses",
                                     MessageType.ABILITY,
                                     player=unit.player,
                                     target_name=target.get_display_name()
@@ -2179,7 +2179,7 @@ class Game:
                         # Check if target is immune to being trapped
                         if target.is_immune_to_trap():  # Changed to is_immune_to_trap
                             message_log.add_message(
-                                f"{target.get_display_name()} is immune to Viseroy due to Stasiality!",
+                                f"{target.get_display_name()} is immune to Viseroy due to Stasiality",
                                 MessageType.ABILITY,
                                 player=target.player,  # Use target's player color
                                 target_name=target.get_display_name()
@@ -2191,7 +2191,7 @@ class Game:
                             
                             # Log the trapping (using MessageType.COMBAT for yellow coloring)
                             message_log.add_message(
-                                f"{target.get_display_name()} is trapped in mechanical jaws!",
+                                f"{target.get_display_name()} is trapped in mechanical jaws",
                                 MessageType.WARNING,  # WARNING messages are explicitly colored yellow
                                 player=unit.player,
                                 target_name=target.get_display_name()
@@ -2209,7 +2209,7 @@ class Game:
                     if unit.add_xp(xp_gained):
                         # Unit leveled up - add a message
                         message_log.add_message(
-                            f"{unit.get_display_name()} gained experience and reached level {unit.level}!",
+                            f"{unit.get_display_name()} gained experience and reached level {unit.level}",
                             MessageType.SYSTEM,
                             player=unit.player
                         )
@@ -2253,7 +2253,7 @@ class Game:
                                 unit.carrier_rave_duration = 0
                                 
                                 message_log.add_message(
-                                    f"{unit.get_display_name()} phases back into reality after the devastating strike!",
+                                    f"{unit.get_display_name()} phases back into reality after the devastating strike",
                                     MessageType.ABILITY,
                                     player=unit.player
                                 )
@@ -2325,7 +2325,7 @@ class Game:
                     if target_unit and target_unit.player != unit.player and self.is_protected_from(target_unit, unit):
                         logger.debug(f"Skill cancelled: {target_unit.get_display_name()} is protected by Saft-E-Gas")
                         message_log.add_message(
-                            f"{unit.get_display_name()}'s skill fails - target is protected by safety gas!",
+                            f"{unit.get_display_name()}'s skill fails - target is protected by safety gas",
                             MessageType.ABILITY,
                             player=unit.player
                         )
@@ -2435,7 +2435,7 @@ class Game:
                 # Log furniture value inflation if any occurred
                 if furniture_inflated > 0:
                     message_log.add_message(
-                        f"Auction Curse inflates {furniture_inflated} furniture cosmic values near {unit.get_display_name()}!",
+                        f"Auction Curse inflates {furniture_inflated} furniture cosmic values near {unit.get_display_name()}",
                         MessageType.ABILITY,
                         player=caster_player
                     )
@@ -2482,7 +2482,7 @@ class Game:
                 # Log ally healing if any occurred
                 if allies_healed > 0:
                     message_log.add_message(
-                        f"Auction Curse's twisted energy heals {allies_healed} allied units near {unit.get_display_name()}!",
+                        f"Auction Curse's twisted energy heals {allies_healed} allied units near {unit.get_display_name()}",
                         MessageType.ABILITY,
                         player=caster_player
                     )
@@ -2495,7 +2495,7 @@ class Game:
                 if unit.hp <= 0:
                     # Use consistent format for death messages
                     message_log.add_message(
-                        f"{unit.get_display_name()} perishes!",
+                        f"{unit.get_display_name()} perishes",
                         MessageType.COMBAT,
                         player=unit.player
                     )
@@ -2640,7 +2640,7 @@ class Game:
                             
                             # Log the return
                             message_log.add_message(
-                                f"{gas_machinist.get_display_name()} reforms at ({vapor_unit.y}, {vapor_unit.x})!",
+                                f"{gas_machinist.get_display_name()} reforms at ({vapor_unit.y}, {vapor_unit.x})",
                                 MessageType.ABILITY,
                                 player=gas_machinist.player
                             )
@@ -2692,7 +2692,7 @@ class Game:
                         
                         # Log the effect expiration
                         message_log.add_message(
-                            f"{unit.get_display_name()} breaks free from Jawline tether!",
+                            f"{unit.get_display_name()} breaks free from Jawline tether",
                             MessageType.ABILITY,
                             target_name=unit.get_display_name()
                         )
@@ -2723,7 +2723,7 @@ class Game:
                                 
                                 # Log the effect expiration
                                 message_log.add_message(
-                                    f"{unit.get_display_name()}'s ossified bone structure returns to normal!",
+                                    f"{unit.get_display_name()}'s ossified bone structure returns to normal",
                                     MessageType.ABILITY,
                                     player=unit.player,
                                     target_name=unit.get_display_name()
@@ -2999,7 +2999,7 @@ class Game:
             logger.debug("TRIGGERING WRETCHED DECENSION!")
             
             message_log.add_message(
-                f"The flocks descends to claim the wretched!",
+                f"The flocks descends to claim the wretched",
                 MessageType.ABILITY,
                 player=attacker.player,
                 target_name=target.get_display_name()
@@ -3090,7 +3090,7 @@ class Game:
             # If not, show it and mark it as shown
             if not hasattr(target_unit, 'autoclave_failure_shown'):
                 message_log.add_message(
-                    f"{target_unit.get_display_name()}'s Autoclave fails to activate - no targets in range!",
+                    f"{target_unit.get_display_name()}'s Autoclave fails to activate - no targets in range",
                     MessageType.ABILITY,
                     player=target_unit.player
                 )
@@ -3121,10 +3121,10 @@ class Game:
         
         if not player1_alive:
             self.winner = 2
-            message_log.add_system_message(f"Player 2 wins! All Player 1 units have been defeated.")
+            message_log.add_system_message(f"Player 2 wins. All Player 1 units have been defeated.")
         elif not player2_alive:
             self.winner = 1
-            message_log.add_system_message(f"Player 1 wins! All Player 2 units have been defeated.")
+            message_log.add_system_message(f"Player 1 wins. All Player 2 units have been defeated.")
     
     def _apply_trap_damage(self):
         """Apply damage to units trapped by MANDIBLE_FOREMENs."""
@@ -3150,7 +3150,7 @@ class Game:
                 unit.trapped_by = None
                 unit.trap_duration = 0
                 message_log.add_message(
-                    f"{unit.get_display_name()} is released from mechanical jaws!",
+                    f"{unit.get_display_name()} is released from mechanical jaws",
                     MessageType.ABILITY,
                     target_name=unit.get_display_name()
                 )
@@ -3207,7 +3207,7 @@ class Game:
                 # Check if target just entered critical health
                 if previous_hp > critical_threshold and unit.hp <= critical_threshold:
                     message_log.add_message(
-                        f"{unit.get_display_name()} retches!",
+                        f"{unit.get_display_name()} retches",
                         MessageType.COMBAT,
                         player=foreman.player,
                         target=unit.player,
@@ -3290,7 +3290,7 @@ class Game:
                     trapped_unit.trapped_by = None
                     trapped_unit.trap_duration = 0  # Reset trap duration
                     message_log.add_message(
-                        f"{trapped_unit.get_display_name()} is released from mechanical jaws!",
+                        f"{trapped_unit.get_display_name()} is released from mechanical jaws",
                         MessageType.ABILITY,
                         target_name=trapped_unit.get_display_name()
                     )
@@ -3308,7 +3308,7 @@ class Game:
             
             # Log the release
             message_log.add_message(
-                f"{unit.get_display_name()} breaks free from mechanical jaws!",
+                f"{unit.get_display_name()} breaks free from mechanical jaws",
                 MessageType.ABILITY,
                 target_name=unit.get_display_name()
             )
@@ -3368,7 +3368,7 @@ class Game:
                     # Release the unit
                     unit.trapped_by = None
                     message_log.add_message(
-                        f"{unit.get_display_name()} is released from mechanical jaws!",
+                        f"{unit.get_display_name()} is released from mechanical jaws",
                         MessageType.ABILITY,
                         target_name=unit.get_display_name()
                     )
@@ -3417,7 +3417,7 @@ class Game:
                     
                     # Log scalar node activation
                     message_log.add_message(
-                        f"Standing wave resonance overloads {unit.get_display_name()}!",
+                        f"Standing wave resonance overloads {unit.get_display_name()}",
                         MessageType.ABILITY,
                         player=owner.player
                     )
@@ -3658,7 +3658,7 @@ class Game:
             
         # Log the explosion with a more dramatic message for the GRAYMAN echo
         message_log.add_message(
-            f"{echo_unit.get_display_name()} collapses into a psychic void, tearing through spacetime!",
+            f"{echo_unit.get_display_name()} collapses into a psychic void, tearing through spacetime",
             MessageType.ABILITY,  # Use ABILITY type to ensure player color is used
             player=echo_unit.player
         )
@@ -3666,7 +3666,7 @@ class Game:
         # Follow up with the affected units information
         if affected_units:
             message_log.add_message(
-                f"The reality disruption affects {len(affected_units)} nearby unit(s)!",
+                f"The reality disruption affects {len(affected_units)} nearby unit(s)",
                 MessageType.ABILITY,
                 player=echo_unit.player
             )
@@ -3790,7 +3790,7 @@ class Game:
                             logger.debug(f"MANDIBLE_FOREMAN perished from explosion, releasing {trapped_unit.get_display_name()}")
                             trapped_unit.trapped_by = None
                             message_log.add_message(
-                                f"{trapped_unit.get_display_name()} is released from mechanical jaws!",
+                                f"{trapped_unit.get_display_name()} is released from mechanical jaws",
                                 MessageType.ABILITY,
                                 target_name=trapped_unit.get_display_name()
                             )
@@ -4081,7 +4081,7 @@ class Game:
         if not rail_positions:
             # No rails available - units stay where they are
             message_log.add_message(
-                "FOWL_CONTRIVANCE units remain in position - no rail network available!",
+                "FOWL_CONTRIVANCE units remain in position - no rail network available",
                 MessageType.SYSTEM
             )
             return
@@ -4108,7 +4108,7 @@ class Game:
                 unit.y, unit.x = nearest_rail
                 
                 message_log.add_message(
-                    f"{unit.get_display_name()} moves to the rail network for optimal positioning!",
+                    f"{unit.get_display_name()} moves to the rail network for optimal positioning",
                     MessageType.SYSTEM,
                     player=unit.player
                 )
@@ -4117,7 +4117,7 @@ class Game:
             else:
                 # All rails are occupied
                 message_log.add_message(
-                    f"{unit.get_display_name()} cannot reach the rail network - all positions occupied!",
+                    f"{unit.get_display_name()} cannot reach the rail network - all positions occupied",
                     MessageType.SYSTEM,
                     player=unit.player
                 )

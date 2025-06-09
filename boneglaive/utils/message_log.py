@@ -95,13 +95,13 @@ class MessageLog:
             # Check if this is the first application of trap damage
             trap_duration = kwargs.get('trap_duration', 0)
             if trap_duration == 0:  # First turn trapped
-                message = f"{attacker_name}'s jaws tighten on {target_name} for {damage} damage!"
+                message = f"{attacker_name}'s jaws tighten on {target_name} for {damage} damage"
             else:
-                message = f"{attacker_name}'s jaws tighten on {target_name} for {damage} damage!"
+                message = f"{attacker_name}'s jaws tighten on {target_name} for {damage} damage"
         elif ability:
-            message = f"{attacker_name} hits {target_name} for {damage} damage with {ability}!"
+            message = f"{attacker_name} hits {target_name} for {damage} damage with {ability}"
         else:
-            message = f"{attacker_name} hits {target_name} for {damage} damage!"
+            message = f"{attacker_name} hits {target_name} for {damage} damage"
             
         # Check for invulnerable target by name (does not change damage sources)
         # Only HEINOUS VAPOR units can have invulnerability
@@ -120,11 +120,11 @@ class MessageLog:
                 
                 # Update the message to show 0 damage
                 if ability == "Viseroy Trap":
-                    message = f"{attacker_name}'s jaws tighten on {target_name} for 0 damage!"
+                    message = f"{attacker_name}'s jaws tighten on {target_name} for 0 damage"
                 elif ability:
-                    message = f"{attacker_name} hits {target_name} for 0 damage with {ability}!"
+                    message = f"{attacker_name} hits {target_name} for 0 damage with {ability}"
                 else:
-                    message = f"{attacker_name} hits {target_name} for 0 damage!"
+                    message = f"{attacker_name} hits {target_name} for 0 damage"
                     
                 # Log that we intercepted the damage
                 logger.debug(f"Intercepted damage to {target_name}: changed {damage} to 0 (invulnerable)")

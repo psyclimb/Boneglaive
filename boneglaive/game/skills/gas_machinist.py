@@ -61,7 +61,7 @@ class EffluviumLathe(PassiveSkill):
                 # Log the charge generation
                 if old_charges != self.charges:  # Only log if charges actually changed
                     message_log.add_message(
-                        f"{user.get_display_name()}'s Effluvium Lathe generates a charge ({self.charges}/{self.max_charges})!",
+                        f"{user.get_display_name()}'s Effluvium Lathe generates a charge ({self.charges}/{self.max_charges})",
                         MessageType.ABILITY,
                         player=user.player
                     )
@@ -146,7 +146,7 @@ class EnbroachmentGasSkill(ActiveSkill):
 
         # Log that the skill has been queued
         message_log.add_message(
-            f"{user.get_display_name()} prepares to summon a Broaching Gas vapor!",
+            f"{user.get_display_name()} prepares to summon a Broaching Gas vapor",
             MessageType.ABILITY,
             player=user.player
         )
@@ -186,14 +186,14 @@ class EnbroachmentGasSkill(ActiveSkill):
 
         # Log the skill activation
         message_log.add_message(
-            f"{user.get_display_name()} summons a Broaching Gas vapor!",
+            f"{user.get_display_name()} summons a Broaching Gas vapor",
             MessageType.ABILITY,
             player=user.player
         )
 
         if charges_consumed > 0:
             message_log.add_message(
-                f"Using {charges_consumed} Effluvium charges to extend duration to {total_duration} turns!",
+                f"Using {charges_consumed} Effluvium charges to extend duration to {total_duration} turns",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -233,7 +233,7 @@ class EnbroachmentGasSkill(ActiveSkill):
         
         # Log the successful summoning
         message_log.add_message(
-            f"A Broaching Gas vapor ({self.vapor_symbol}) appears at position ({target_pos[0]}, {target_pos[1]})!",
+            f"A Broaching Gas vapor ({self.vapor_symbol}) appears at position ({target_pos[0]}, {target_pos[1]})",
             MessageType.ABILITY,
             player=user.player
         )
@@ -310,7 +310,7 @@ class SaftEGasSkill(ActiveSkill):
 
         # Log that the skill has been queued
         message_log.add_message(
-            f"{user.get_display_name()} prepares to summon a Saft-E-Gas vapor!",
+            f"{user.get_display_name()} prepares to summon a Saft-E-Gas vapor",
             MessageType.ABILITY,
             player=user.player
         )
@@ -350,14 +350,14 @@ class SaftEGasSkill(ActiveSkill):
 
         # Log the skill activation
         message_log.add_message(
-            f"{user.get_display_name()} summons a Saft-E-Gas vapor!",
+            f"{user.get_display_name()} summons a Saft-E-Gas vapor",
             MessageType.ABILITY,
             player=user.player
         )
 
         if charges_consumed > 0:
             message_log.add_message(
-                f"Using {charges_consumed} Effluvium charges to extend duration to {total_duration} turns!",
+                f"Using {charges_consumed} Effluvium charges to extend duration to {total_duration} turns",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -397,7 +397,7 @@ class SaftEGasSkill(ActiveSkill):
         
         # Log the successful summoning
         message_log.add_message(
-            f"A Saft-E-Gas vapor ({self.vapor_symbol}) appears at position ({target_pos[0]}, {target_pos[1]})!",
+            f"A Saft-E-Gas vapor ({self.vapor_symbol}) appears at position ({target_pos[0]}, {target_pos[1]})",
             MessageType.ABILITY,
             player=user.player
         )
@@ -488,14 +488,14 @@ class DivergeSkill(ActiveSkill):
         
         if is_self_target:
             message_log.add_message(
-                f"{user.get_display_name()} prepares to diverge!",
+                f"{user.get_display_name()} prepares to diverge",
                 MessageType.ABILITY,
                 player=user.player
             )
         else:
             target_unit = game.get_unit_at(target_pos[0], target_pos[1])
             message_log.add_message(
-                f"{user.get_display_name()} prepares to diverge a vapor at ({target_pos[0]}, {target_pos[1]})!",
+                f"{user.get_display_name()} prepares to diverge a vapor at ({target_pos[0]}, {target_pos[1]})",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -542,20 +542,20 @@ class DivergeSkill(ActiveSkill):
         # Log the skill activation
         if is_self_target:
             message_log.add_message(
-                f"{user.get_display_name()} diverges into two vapor entities!",
+                f"{user.get_display_name()} diverges into two vapor entities",
                 MessageType.ABILITY,
                 player=user.player
             )
         else:
             message_log.add_message(
-                f"{user.get_display_name()} causes the vapor to diverge into two specialized entities!",
+                f"{user.get_display_name()} causes the vapor to diverge into two specialized entities",
                 MessageType.ABILITY,
                 player=user.player
             )
             
         if charges_consumed > 0:
             message_log.add_message(
-                f"Using {charges_consumed} Effluvium charges to extend duration to {total_duration} turns!",
+                f"Using {charges_consumed} Effluvium charges to extend duration to {total_duration} turns",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -621,7 +621,7 @@ class DivergeSkill(ActiveSkill):
             # For self-targeting, we need at least ONE valid position
             if not valid_positions:
                 message_log.add_message(
-                    "Diverge failed: no valid positions for vapor entities!",
+                    "Diverge failed: no valid positions for vapor entities",
                     MessageType.ABILITY,
                     player=user.player
                 )
@@ -630,7 +630,7 @@ class DivergeSkill(ActiveSkill):
             # If we have only one position, both vapors will go there
             if len(valid_positions) == 1:
                 message_log.add_message(
-                    "Limited space - both vapors will be created at the same position!",
+                    "Limited space - both vapors will be created at the same position",
                     MessageType.ABILITY,
                     player=user.player
                 )
@@ -658,7 +658,7 @@ class DivergeSkill(ActiveSkill):
             # If still no valid positions, fail
             if not valid_positions:
                 message_log.add_message(
-                    "Diverge failed: no valid positions for vapor entities!",
+                    "Diverge failed: no valid positions for vapor entities",
                     MessageType.ABILITY,
                     player=user.player
                 )
@@ -727,14 +727,14 @@ class DivergeSkill(ActiveSkill):
             
             # Log the user being split
             message_log.add_message(
-                f"{user.get_display_name()} splits into a Coolant Gas ({self.coolant_symbol}) and a Cutting Gas ({self.cutting_symbol})!",
+                f"{user.get_display_name()} splits into a Coolant Gas ({self.coolant_symbol}) and a Cutting Gas ({self.cutting_symbol})",
                 MessageType.ABILITY,
                 player=user.player
             )
         else:
             # Log the vapor being split
             message_log.add_message(
-                f"The vapor splits into a Coolant Gas ({self.coolant_symbol}) and a Cutting Gas ({self.cutting_symbol})!",
+                f"The vapor splits into a Coolant Gas ({self.coolant_symbol}) and a Cutting Gas ({self.cutting_symbol})",
                 MessageType.ABILITY,
                 player=user.player
             )

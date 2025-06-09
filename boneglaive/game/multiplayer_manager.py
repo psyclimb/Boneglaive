@@ -218,7 +218,7 @@ class MultiplayerManager:
 
             # Show a message about the buff
             message_log.add_message(
-                "Player 2 units gain +1 movement range on their first turn!",
+                "Player 2 units gain +1 movement range on their first turn",
                 MessageType.SYSTEM
             )
     

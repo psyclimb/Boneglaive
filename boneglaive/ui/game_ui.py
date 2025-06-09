@@ -170,8 +170,8 @@ class GameUI:
         """Handle game over events."""
         # Display game over message in message log
         winner = event_data.winner
-        message_log.add_system_message(f"Game over! Player {winner} wins!")
-        self.message = f"Player {winner} wins!"
+        message_log.add_system_message(f"Game over. Player {winner} wins")
+        self.message = f"Player {winner} wins"
 
         # Show the game over prompt
         self.game_over_prompt.show(winner)
@@ -223,8 +223,8 @@ class GameUI:
 
         # Check if player can act on this turn
         if not self.cursor_manager.can_act_this_turn():
-            self.message = "Not your turn!"
-            message_log.add_message("Not your turn!", MessageType.WARNING)
+            self.message = "Not your turn"
+            message_log.add_message("Not your turn", MessageType.WARNING)
             return
 
         # Route to appropriate mode handler
@@ -261,7 +261,7 @@ class GameUI:
         self.game.set_ui_reference(self)
 
         # Reset message
-        self.message = f"New game started! Entering {self.game.map.name}"
+        self.message = f"New game started. Entering {self.game.map.name}"
 
         # Add a welcome message to the cleared log
         message_log.add_system_message(f"New game started. Entering {self.game.map.name}")

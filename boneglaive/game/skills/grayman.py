@@ -101,7 +101,7 @@ class DeltaConfigSkill(ActiveSkill):
         # Log that the skill has been readied
         from boneglaive.utils.message_log import message_log, MessageType
         message_log.add_message(
-            f"{user.get_display_name()} prepares to shift to Delta Config ({target_pos[0]}, {target_pos[1]})!",
+            f"{user.get_display_name()} prepares to shift to Delta Config ({target_pos[0]}, {target_pos[1]})",
             MessageType.ABILITY,
             player=user.player
         )
@@ -124,7 +124,7 @@ class DeltaConfigSkill(ActiveSkill):
         
         # Log the skill activation
         message_log.add_message(
-            f"{user.get_display_name()} initiates Delta Config!",
+            f"{user.get_display_name()} initiates Delta Config",
             MessageType.ABILITY,
             player=user.player
         )
@@ -194,7 +194,7 @@ class DeltaConfigSkill(ActiveSkill):
         
         # Log the completion of teleportation
         message_log.add_message(
-            f"{user.get_display_name()} teleports to position ({target_pos[0]}, {target_pos[1]})!",
+            f"{user.get_display_name()} teleports to position ({target_pos[0]}, {target_pos[1]})",
             MessageType.ABILITY,
             player=user.player
         )
@@ -274,7 +274,7 @@ class EstrangeSkill(ActiveSkill):
         # Log that the skill has been readied
         from boneglaive.utils.message_log import message_log, MessageType
         message_log.add_message(
-            f"{user.get_display_name()} charges the estrangement beam targeting {target.get_display_name()}!",
+            f"{user.get_display_name()} charges the estrangement beam targeting {target.get_display_name()}",
             MessageType.ABILITY,
             player=user.player,
             target_name=target.get_display_name()
@@ -298,7 +298,7 @@ class EstrangeSkill(ActiveSkill):
             
         # Log the skill activation
         message_log.add_message(
-            f"{user.get_display_name()} fires an estrangement beam at {target.get_display_name()}!",
+            f"{user.get_display_name()} fires an estrangement beam at {target.get_display_name()}",
             MessageType.ABILITY,
             player=user.player,
             attacker_name=user.get_display_name(),
@@ -355,7 +355,7 @@ class EstrangeSkill(ActiveSkill):
         
         # Add message that estrangement bypasses defenses
         message_log.add_message(
-            f"The estrangement beam bypasses {target.get_display_name()}'s defenses!",
+            f"The estrangement beam bypasses {target.get_display_name()}'s defenses",
             MessageType.ABILITY,
             player=user.player,
             target_name=target.get_display_name()
@@ -389,7 +389,7 @@ class EstrangeSkill(ActiveSkill):
             
             # Log the effect application - using WARNING type for yellow text
             message_log.add_message(
-                f"{target.get_display_name()} is phased out of normal spacetime!",
+                f"{target.get_display_name()} is phased out of normal spacetime",
                 MessageType.WARNING,
                 player=user.player,
                 target_name=target.get_display_name()
@@ -423,7 +423,7 @@ class EstrangeSkill(ActiveSkill):
                     sleep_with_animation_speed(0.3)
         else:
             message_log.add_message(
-                f"{target.get_display_name()} is immune to Estrange due to Stasiality!",
+                f"{target.get_display_name()} is immune to Estrange due to Stasiality",
                 MessageType.ABILITY,
                 player=target.player,  # Use target's player for correct color coding
                 target_name=target.get_display_name()
@@ -444,7 +444,7 @@ class EstrangeSkill(ActiveSkill):
         # Check if target was defeated
         if target.hp <= 0:
             message_log.add_message(
-                f"{target.get_display_name()} perishes!",
+                f"{target.get_display_name()} perishes",
                 MessageType.COMBAT,
                 player=user.player,
                 target=target.player,
@@ -543,7 +543,7 @@ class GraeExchangeSkill(ActiveSkill):
         # Log that the skill has been readied
         from boneglaive.utils.message_log import message_log, MessageType
         message_log.add_message(
-            f"{user.get_display_name()} initiates the Græ Exchange ritual targeting position ({target_pos[0]}, {target_pos[1]})!",
+            f"{user.get_display_name()} initiates the Græ Exchange ritual targeting position ({target_pos[0]}, {target_pos[1]})",
             MessageType.ABILITY,
             player=user.player
         )
@@ -567,7 +567,7 @@ class GraeExchangeSkill(ActiveSkill):
         
         # Log the skill activation
         message_log.add_message(
-            f"{user.get_display_name()} begins the Græ Exchange ritual!",
+            f"{user.get_display_name()} begins the Græ Exchange ritual",
             MessageType.ABILITY,
             player=user.player
         )
@@ -677,7 +677,7 @@ class GraeExchangeSkill(ActiveSkill):
         
         # Log the completion
         message_log.add_message(
-            f"{user.get_display_name()} creates an echo and teleports to ({target_pos[0]}, {target_pos[1]})!",
+            f"{user.get_display_name()} creates an echo and teleports to ({target_pos[0]}, {target_pos[1]})",
             MessageType.ABILITY,
             player=user.player
         )

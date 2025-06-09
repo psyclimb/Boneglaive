@@ -1411,7 +1411,7 @@ class UIRenderer:
             winner_line = HEIGHT+5
             self.renderer.draw_text(winner_line, 0, " " * self.renderer.width, 1)  # Clear line
             winner_color = 3 if self.game_ui.game.winner == 1 else 4
-            winner_text = f"★★★ PLAYER {self.game_ui.game.winner} WINS! ★★★"
+            winner_text = f"★★★ PLAYER {self.game_ui.game.winner} WINS ★★★"
             # Center the winner text
             center_pos = (self.renderer.width - len(winner_text)) // 2
             self.renderer.draw_text(winner_line, center_pos, winner_text, winner_color, curses.A_BOLD)

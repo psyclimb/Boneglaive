@@ -2351,7 +2351,7 @@ class CursorManager(UIComponent):
                 self.game_ui.message = f"Attack set against Marrow Dike wall"
                 # Add message to log for planned wall attacks
                 message_log.add_message(
-                    f"{self.selected_unit.get_display_name()} readies attack against {wall_owner.get_display_name()}'s Marrow Dike wall!",
+                    f"{self.selected_unit.get_display_name()} readies attack against {wall_owner.get_display_name()}'s Marrow Dike wall",
                     MessageType.COMBAT,
                     player=self.selected_unit.player,
                     attacker_name=self.selected_unit.get_display_name()
@@ -2360,7 +2360,7 @@ class CursorManager(UIComponent):
                 self.game_ui.message = f"Attack set against {target_unit.get_display_name()}"
                 # Add message to log for planned unit attacks
                 message_log.add_message(
-                    f"{self.selected_unit.get_display_name()} readies attack against {target_unit.get_display_name()}!",
+                    f"{self.selected_unit.get_display_name()} readies attack against {target_unit.get_display_name()}",
                     MessageType.COMBAT,
                     player=self.selected_unit.player,
                     attacker_name=self.selected_unit.get_display_name(),
@@ -2370,7 +2370,7 @@ class CursorManager(UIComponent):
                 # This shouldn't happen, but handle it just in case
                 self.game_ui.message = "Attack target set"
                 message_log.add_message(
-                    f"{self.selected_unit.get_display_name()} readies an attack!",
+                    f"{self.selected_unit.get_display_name()} readies an attack",
                     MessageType.COMBAT,
                     player=self.selected_unit.player,
                     attacker_name=self.selected_unit.get_display_name()
@@ -2798,7 +2798,7 @@ class GameModeManager(UIComponent):
             self.publish_event(
                 EventType.MESSAGE_DISPLAY_REQUESTED,
                 MessageDisplayEventData(
-                    message="Not your turn!",
+                    message="Not your turn",
                     message_type=MessageType.WARNING
                 )
             )
@@ -2879,7 +2879,7 @@ class GameModeManager(UIComponent):
                 self.publish_event(
                     EventType.MESSAGE_DISPLAY_REQUESTED,
                     MessageDisplayEventData(
-                        message="You can only move your own units!",
+                        message="You can only move your own units",
                         message_type=MessageType.WARNING
                     )
                 )
@@ -2898,7 +2898,7 @@ class GameModeManager(UIComponent):
             self.publish_event(
                 EventType.MESSAGE_DISPLAY_REQUESTED,
                 MessageDisplayEventData(
-                    message="Not your turn!",
+                    message="Not your turn",
                     message_type=MessageType.WARNING
                 )
             )
@@ -2984,7 +2984,7 @@ class GameModeManager(UIComponent):
                     self.publish_event(
                         EventType.MESSAGE_DISPLAY_REQUESTED,
                         MessageDisplayEventData(
-                            message="You can only use skills with your own units!",
+                            message="You can only use skills with your own units",
                             message_type=MessageType.WARNING
                         )
                     )
@@ -3003,7 +3003,7 @@ class GameModeManager(UIComponent):
             self.publish_event(
                 EventType.MESSAGE_DISPLAY_REQUESTED,
                 MessageDisplayEventData(
-                    message="Not your turn!",
+                    message="Not your turn",
                     message_type=MessageType.WARNING
                 )
             )
@@ -3064,7 +3064,7 @@ class GameModeManager(UIComponent):
                     self.publish_event(
                         EventType.MESSAGE_DISPLAY_REQUESTED,
                         MessageDisplayEventData(
-                            message="You can only attack with your own units!",
+                            message="You can only attack with your own units",
                             message_type=MessageType.WARNING
                         )
                     )
@@ -3096,7 +3096,7 @@ class GameModeManager(UIComponent):
             self.publish_event(
                 EventType.MESSAGE_DISPLAY_REQUESTED,
                 MessageDisplayEventData(
-                    message="Not your turn!",
+                    message="Not your turn",
                     message_type=MessageType.WARNING
                 )
             )
@@ -3391,7 +3391,7 @@ class GameModeManager(UIComponent):
             if market_futures_skill.activate_teleport(unit, anchor_pos, destination_pos, game, self.game_ui):
                 # Teleport successful
                 message_log.add_message(
-                    f"{unit.get_display_name()} teleports via Market Futures to ({destination_pos[0]}, {destination_pos[1]})!",
+                    f"{unit.get_display_name()} teleports via Market Futures to ({destination_pos[0]}, {destination_pos[1]})",
                     MessageType.ABILITY,
                     player=unit.player
                 )
@@ -4908,7 +4908,7 @@ class ActionMenuComponent(UIComponent):
 
                     # Log the message (similar to what's in skill.use())
                     message_log.add_message(
-                        f"{unit.get_display_name()} prepares to collect the Bone Tithe!",
+                        f"{unit.get_display_name()} prepares to collect the Bone Tithe",
                         MessageType.ABILITY,
                         player=unit.player
                     )
@@ -4984,16 +4984,8 @@ class ActionMenuComponent(UIComponent):
                         # No need for a message here, as the skill's use() method already adds a message
                         pass
                     else:
-                        message = f"{skill.name} will be used at end of turn"
-
-                        # Add the message directly to the message log with player information
-                        # This ensures it will be colored according to the player
-                        message_log.add_message(
-                            text=message,
-                            msg_type=MessageType.ABILITY,
-                            player=unit.player,
-                            attacker_name=unit.get_display_name()
-                        )
+                        # No message needed for generic end-of-turn skills
+                        pass
                     
                     # Request a UI redraw to show the message immediately
                     self.publish_event(

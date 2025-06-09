@@ -45,7 +45,7 @@ class RailGenesis(PassiveSkill):
             game.map.generate_rail_network()
             
             message_log.add_message(
-                f"{user.get_display_name()} establishes a rail network across the battlefield!",
+                f"{user.get_display_name()} establishes a rail network across the battlefield",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -129,13 +129,13 @@ class RailGenesis(PassiveSkill):
         
         if units_hit > 0:
             message_log.add_message(
-                f"{user.get_display_name()}'s death explosion strikes {units_hit} {'unit' if units_hit == 1 else 'units'} on rails for {total_damage} damage!",
+                f"{user.get_display_name()}'s death explosion strikes {units_hit} {'unit' if units_hit == 1 else 'units'} on rails for {total_damage} damage",
                 MessageType.ABILITY,
                 player=user.player
             )
         else:
             message_log.add_message(
-                f"{user.get_display_name()}'s rail network remains intact despite its destruction!",
+                f"{user.get_display_name()}'s rail network remains intact despite its destruction",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -158,7 +158,7 @@ class GaussianDuskSkill(ActiveSkill):
             range_=999,  # Entire map range
             area=0
         )
-        self.damage = 12
+        self.damage = 10
         self.charging = False
         self.charge_direction = None
         
@@ -277,7 +277,7 @@ class GaussianDuskSkill(ActiveSkill):
         
         # Log the skill activation
         message_log.add_message(
-            f"{user.get_display_name()}'s rail cannon unleashes devastating energy across the battlefield!",
+            f"{user.get_display_name()}'s rail cannon unleashes devastating energy across the battlefield",
             MessageType.ABILITY,
             player=user.player
         )
@@ -312,7 +312,7 @@ class GaussianDuskSkill(ActiveSkill):
             
             # Damage all enemy units in path (ignores defense completely)
             if unit and unit.is_alive() and unit.player != user.player:
-                damage = self.damage  # Fixed 12 damage, ignores defense
+                damage = self.damage  # Fixed 10 damage, ignores defense
                 
                 # Store previous HP for critical health check
                 previous_hp = unit.hp
@@ -345,21 +345,21 @@ class GaussianDuskSkill(ActiveSkill):
         # Log results
         if units_hit > 0:
             message_log.add_message(
-                f"The projectile pierces {units_hit} {'target' if units_hit == 1 else 'targets'} for {total_damage} damage!",
+                f"The projectile pierces {units_hit} {'target' if units_hit == 1 else 'targets'} for {total_damage} damage",
                 MessageType.ABILITY,
                 player=user.player
             )
             
         if terrain_destroyed > 0:
             message_log.add_message(
-                f"The projectile destroys {terrain_destroyed} terrain {'feature' if terrain_destroyed == 1 else 'features'}!",
+                f"The projectile destroys {terrain_destroyed} terrain {'feature' if terrain_destroyed == 1 else 'features'}",
                 MessageType.ABILITY,
                 player=user.player
             )
         
         if units_hit == 0 and terrain_destroyed == 0:
             message_log.add_message(
-                "The rail cannon's beam finds no targets!",
+                "The rail cannon's beam finds no targets",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -502,7 +502,7 @@ class BigArcSkill(ActiveSkill):
 
         # Log that the skill has been queued
         message_log.add_message(
-            f"{user.get_display_name()} loads mortar shells for artillery barrage!",
+            f"{user.get_display_name()} loads mortar shells for artillery barrage",
             MessageType.ABILITY,
             player=user.player
         )
@@ -534,7 +534,7 @@ class BigArcSkill(ActiveSkill):
         
         # Log the skill activation
         message_log.add_message(
-            f"{user.get_display_name()}'s mortar barrage rains down!",
+            f"{user.get_display_name()}'s mortar barrage rains down",
             MessageType.ABILITY,
             player=user.player
         )
@@ -587,13 +587,13 @@ class BigArcSkill(ActiveSkill):
         # Log results
         if units_hit == 0:
             message_log.add_message(
-                "The mortar barrage strikes empty ground!",
+                "The mortar barrage strikes empty ground",
                 MessageType.ABILITY,
                 player=user.player
             )
         else:
             message_log.add_message(
-                f"Mortar shells strike {units_hit} {'unit' if units_hit == 1 else 'units'} for {total_damage} damage!",
+                f"Mortar shells strike {units_hit} {'unit' if units_hit == 1 else 'units'} for {total_damage} damage",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -746,7 +746,7 @@ class FragcrestSkill(ActiveSkill):
         # Log that the skill has been queued
         target_unit = game.get_unit_at(target_pos[0], target_pos[1])
         message_log.add_message(
-            f"{user.get_display_name()} unfolds its tail and aims fragmentation burst at {target_unit.get_display_name()}!",
+            f"{user.get_display_name()} unfolds its tail and aims fragmentation burst at {target_unit.get_display_name()}",
             MessageType.ABILITY,
             player=user.player
         )
@@ -770,7 +770,7 @@ class FragcrestSkill(ActiveSkill):
             
         # Log the skill activation
         message_log.add_message(
-            f"{user.get_display_name()}'s fragmentation burst explodes in a deadly cone!",
+            f"{user.get_display_name()}'s fragmentation burst explodes in a deadly cone",
             MessageType.ABILITY,
             player=user.player
         )
@@ -819,7 +819,7 @@ class FragcrestSkill(ActiveSkill):
                 if unit.is_immune_to_effects():
                     # Log immunity message
                     message_log.add_message(
-                        f"{unit.get_display_name()} is immune to shrapnel due to Stasiality!",
+                        f"{unit.get_display_name()} is immune to shrapnel due to Stasiality",
                         MessageType.ABILITY,
                         player=unit.player
                     )
@@ -832,7 +832,7 @@ class FragcrestSkill(ActiveSkill):
                     # Log shrapnel embedding if it's a new effect or extended
                     if unit.shrapnel_duration > previous_shrapnel:
                         message_log.add_message(
-                            f"Shrapnel embeds in {unit.get_display_name()} for {unit.shrapnel_duration} turns!",
+                            f"Shrapnel embeds in {unit.get_display_name()} for {unit.shrapnel_duration} turns",
                             MessageType.ABILITY,
                             player=user.player
                         )
@@ -850,13 +850,13 @@ class FragcrestSkill(ActiveSkill):
         # Log results
         if units_hit == 0:
             message_log.add_message(
-                "The fragmentation burst finds no targets!",
+                "The fragmentation burst finds no targets",
                 MessageType.ABILITY,
                 player=user.player
             )
         else:
             message_log.add_message(
-                f"Fragmentation hits {units_hit} {'unit' if units_hit == 1 else 'units'} for {total_damage} damage and embeds shrapnel!",
+                f"Fragmentation hits {units_hit} {'unit' if units_hit == 1 else 'units'} for {total_damage} damage and embeds shrapnel",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -996,7 +996,7 @@ class FragcrestSkill(ActiveSkill):
             target.x = new_x
             
             message_log.add_message(
-                f"{target.get_display_name()} is blasted backward by the explosion!",
+                f"{target.get_display_name()} is blasted backward by the explosion",
                 MessageType.ABILITY,
                 player=target.player
             )

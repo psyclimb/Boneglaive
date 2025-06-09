@@ -72,7 +72,7 @@ class ValuationOracle(PassiveSkill):
             # If this is the first time applying the bonus this turn, log a message
             if not hasattr(user, 'valuation_oracle_buff') or not user.valuation_oracle_buff:
                 message_log.add_message(
-                    f"{user.get_display_name()}'s Valuation Oracle senses the cosmic value of nearby furniture!",
+                    f"{user.get_display_name()}'s Valuation Oracle senses the cosmic value of nearby furniture",
                     MessageType.ABILITY,
                     player=user.player
                 )
@@ -167,7 +167,7 @@ class MarketFuturesSkill(ActiveSkill):
 
         # Log that the skill has been queued
         message_log.add_message(
-            f"{user.get_display_name()} prepares to infuse furniture with Market Futures!",
+            f"{user.get_display_name()} prepares to infuse furniture with Market Futures",
             MessageType.ABILITY,
             player=user.player
         )
@@ -201,7 +201,7 @@ class MarketFuturesSkill(ActiveSkill):
         
         # Log the skill activation
         message_log.add_message(
-            f"{user.get_display_name()} infuses furniture with Market Futures! Cosmic value: {cosmic_value}",
+            f"{user.get_display_name()} infuses furniture with Market Futures. Cosmic value: {cosmic_value}",
             MessageType.ABILITY,
             player=user.player
         )
@@ -310,7 +310,7 @@ class MarketFuturesSkill(ActiveSkill):
         
         # Log the teleportation
         message_log.add_message(
-            f"{ally.get_display_name()} activates Market Futures teleport!",
+            f"{ally.get_display_name()} activates Market Futures teleport",
             MessageType.ABILITY,
             player=ally.player
         )
@@ -319,14 +319,14 @@ class MarketFuturesSkill(ActiveSkill):
         if ally.is_immune_to_effects():
             # Log immunity message
             message_log.add_message(
-                f"{ally.get_display_name()} is immune to investment effects due to Stasiality!",
+                f"{ally.get_display_name()} is immune to investment effects due to Stasiality",
                 MessageType.ABILITY,
                 player=ally.player
             )
         else:
             # Always apply the investment effect regardless of cosmic value
             message_log.add_message(
-                f"Market Futures grants {ally.get_display_name()} a maturing investment effect!",
+                f"Market Futures grants {ally.get_display_name()} a maturing investment effect",
                 MessageType.ABILITY,
                 player=ally.player
             )
@@ -449,7 +449,7 @@ class AuctionCurseSkill(ActiveSkill):
 
         # Log that the skill is ready to execute
         message_log.add_message(
-            f"{user.get_display_name()} prepares to cast Auction Curse!",
+            f"{user.get_display_name()} prepares to cast Auction Curse",
             MessageType.ABILITY,
             player=user.player
         )
@@ -502,7 +502,7 @@ class AuctionCurseSkill(ActiveSkill):
 
         # Log the skill activation
         message_log.add_message(
-            f"{user.get_display_name()} casts Auction Curse on {target_unit.get_display_name()}!",
+            f"{user.get_display_name()} casts Auction Curse on {target_unit.get_display_name()}",
             MessageType.ABILITY,
             player=user.player
         )
@@ -510,7 +510,7 @@ class AuctionCurseSkill(ActiveSkill):
         # Special message for maximum duration (9 turns)
         if dot_duration == 9:
             message_log.add_message(
-                f"DELPHIC APPRAISER {user.get_display_name()} rolls deftly!",
+                f"DELPHIC APPRAISER {user.get_display_name()} rolls deftly",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -519,7 +519,7 @@ class AuctionCurseSkill(ActiveSkill):
         if target_unit.is_immune_to_effects():
             # Skip applying effects but add a message about immunity
             message_log.add_message(
-                f"{target_unit.get_display_name()} is immune to Auction Curse due to Stasiality!",
+                f"{target_unit.get_display_name()} is immune to Auction Curse due to Stasiality",
                 MessageType.ABILITY,
                 player=target_unit.player  # Use target's player color for correct display
             )
@@ -533,7 +533,7 @@ class AuctionCurseSkill(ActiveSkill):
                 
                 # Log the DOT application
                 message_log.add_message(
-                    f"Auction Curse applied! {target_unit.get_display_name()} will take 1 damage per turn for {dot_duration} turns!",
+                    f"Auction Curse applied. {target_unit.get_display_name()} will take 1 damage per turn for {dot_duration} turns",
                     MessageType.ABILITY,
                     player=user.player
                 )
@@ -709,7 +709,7 @@ class DivineDrepreciationSkill(ActiveSkill):
 
         # Log that the skill has been queued
         message_log.add_message(
-            f"{user.get_display_name()} prepares to cast Divine Depreciation!",
+            f"{user.get_display_name()} prepares to cast Divine Depreciation",
             MessageType.ABILITY,
             player=user.player
         )
@@ -777,7 +777,7 @@ class DivineDrepreciationSkill(ActiveSkill):
         # Special message for maximum damage (8 damage)
         if effect_value == 8:
             message_log.add_message(
-                f"DELPHIC APPRAISER {user.get_display_name()} rolls deftly!",
+                f"DELPHIC APPRAISER {user.get_display_name()} rolls deftly",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -867,7 +867,7 @@ class DivineDrepreciationSkill(ActiveSkill):
                 # Check if unit is immune to displacement effects (GRAYMAN with Stasiality)
                 if unit.is_immune_to_effects():
                     message_log.add_message(
-                        f"{unit.get_display_name()} is immune to Divine Depreciation's pull effect due to Stasiality!",
+                        f"{unit.get_display_name()} is immune to Divine Depreciation's pull effect due to Stasiality",
                         MessageType.ABILITY,
                         player=unit.player  # Use unit's player color for correct display
                     )
@@ -922,7 +922,7 @@ class DivineDrepreciationSkill(ActiveSkill):
                     if steps_taken > 0:
                         unit.y, unit.x = new_y, new_x
                         message_log.add_message(
-                            f"{unit.get_display_name()} is pulled {steps_taken} spaces by the reality distortion!",
+                            f"{unit.get_display_name()} is pulled {steps_taken} spaces by the reality distortion",
                             MessageType.ABILITY,
                             player=user.player
                         )
@@ -930,7 +930,7 @@ class DivineDrepreciationSkill(ActiveSkill):
             # Handle unit death
             if unit.hp <= 0:
                 message_log.add_message(
-                    f"{unit.get_display_name()} perishes!",
+                    f"{unit.get_display_name()} perishes",
                     MessageType.COMBAT,
                     player=user.player
                 )
@@ -945,14 +945,14 @@ class DivineDrepreciationSkill(ActiveSkill):
 
         # Log the skill activation with details about the cosmic values
         message_log.add_message(
-            f"{user.get_display_name()} casts Divine Depreciation on the furniture!",
+            f"{user.get_display_name()} casts Divine Depreciation on the furniture",
             MessageType.ABILITY,
             player=user.player
         )
 
         if other_furniture:
             message_log.add_message(
-                f"The furniture's value drops to 1, creating a reality distortion!",
+                f"The furniture's value drops to 1, creating a reality distortion",
                 MessageType.ABILITY,
                 player=user.player
             )

@@ -120,7 +120,7 @@ class OssifySkill(ActiveSkill):
         
         # Log that the skill has been queued
         message_log.add_message(
-            f"{user.get_display_name()} prepares to ossify their bones!",
+            f"{user.get_display_name()} prepares to ossify their bones.",
             MessageType.ABILITY,
             player=user.player
         )
@@ -152,7 +152,7 @@ class OssifySkill(ActiveSkill):
         
         # Use shorter message
         message_log.add_message(
-            f"{user.get_display_name()}'s bones harden!",
+            f"{user.get_display_name()}'s bones harden.",
             MessageType.ABILITY,
             player=user.player
         )
@@ -240,7 +240,7 @@ class MarrowDikeSkill(ActiveSkill):
             for tile_info in game.marrow_dike_tiles.values():
                 if tile_info.get('owner') and tile_info['owner'].player == user.player:
                     message_log.add_message(
-                        f"Cannot use Marrow Dike - you already have an active dike!",
+                        f"Cannot use Marrow Dike - you already have an active dike.",
                         MessageType.WARNING,
                         player=user.player
                     )
@@ -251,7 +251,7 @@ class MarrowDikeSkill(ActiveSkill):
             for tile_info in game.marrow_dike_interior.values():
                 if tile_info.get('owner') and tile_info['owner'].player == user.player:
                     message_log.add_message(
-                        f"Cannot use Marrow Dike - you already have an active dike!",
+                        f"Cannot use Marrow Dike - you already have an active dike.",
                         MessageType.WARNING,
                         player=user.player
                     )
@@ -281,7 +281,7 @@ class MarrowDikeSkill(ActiveSkill):
         
         # Log that the skill has been queued
         message_log.add_message(
-            f"{user.get_display_name()} prepares to create a Marrow Dike!",
+            f"{user.get_display_name()} prepares to create a Marrow Dike.",
             MessageType.ABILITY,
             player=user.player
         )
@@ -354,7 +354,7 @@ class MarrowDikeSkill(ActiveSkill):
                 if unit_at_tile.is_immune_to_effects():
                     # Log message about immunity
                     message_log.add_message(
-                        f"{unit_at_tile.get_display_name()} is immune to Marrow Dike's pull due to Stasiality!",
+                        f"{unit_at_tile.get_display_name()} is immune to Marrow Dike's pull due to Stasiality.",
                         MessageType.ABILITY,
                         player=unit_at_tile.player,  # Use target unit's player for correct color coding
                         target_name=unit_at_tile.get_display_name()
@@ -396,7 +396,7 @@ class MarrowDikeSkill(ActiveSkill):
             if not game.get_unit_at(new_y, new_x):
                 # Log the movement
                 message_log.add_message(
-                    f"{unit.get_display_name()} is pulled inside the Marrow Dike!",
+                    f"{unit.get_display_name()} is pulled inside the Marrow Dike.",
                     MessageType.ABILITY,
                     player=user.player,
                     target_name=unit.get_display_name()
@@ -445,7 +445,7 @@ class MarrowDikeSkill(ActiveSkill):
         # Log the skill activation
         if self.upgraded:
             message_log.add_message(
-                f"{user.get_display_name()} shores up a Marrow Dike and fills it with plasma!",
+                f"{user.get_display_name()} shores up a Marrow Dike and fills it with plasma.",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -458,7 +458,7 @@ class MarrowDikeSkill(ActiveSkill):
                     if unit_at_pos.is_immune_to_effects():
                         # Show message about immunity
                         message_log.add_message(
-                            f"{unit_at_pos.get_display_name()} ignores the Marrow Dike's effect due to Stasiality!",
+                            f"{unit_at_pos.get_display_name()} ignores the Marrow Dike's effect due to Stasiality.",
                             MessageType.ABILITY,
                             player=unit_at_pos.player,
                             target_name=unit_at_pos.get_display_name()
@@ -472,7 +472,7 @@ class MarrowDikeSkill(ActiveSkill):
                         
                         # Shorter message for each enemy unit trapped inside
                         message_log.add_message(
-                            f"{unit_at_pos.get_display_name()} slogs through the Marrow Dike!",
+                            f"{unit_at_pos.get_display_name()} slogs through the Marrow Dike.",
                             MessageType.ABILITY,
                             player=user.player,
                             attacker_name=user.get_display_name(),
@@ -480,7 +480,7 @@ class MarrowDikeSkill(ActiveSkill):
                         )
         else:
             message_log.add_message(
-                f"{user.get_display_name()} creates a Marrow Dike!",
+                f"{user.get_display_name()} creates a Marrow Dike.",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -621,7 +621,7 @@ class BoneTitheSkill(ActiveSkill):
             if potential_allies_to_heal > 0 and user.hp <= min_health_needed:
                 from boneglaive.utils.message_log import message_log, MessageType
                 message_log.add_message(
-                    f"{user.get_display_name()} needs at least {min_health_needed+1} HP to use Bone Tithe!",
+                    f"{user.get_display_name()} needs at least {min_health_needed+1} HP to use Bone Tithe.",
                     MessageType.WARNING,
                     player=user.player
                 )
@@ -656,7 +656,7 @@ class BoneTitheSkill(ActiveSkill):
         
         # Log that the skill has been queued
         message_log.add_message(
-            f"{user.get_display_name()} prepares to collect the Bone Tithe!",
+            f"{user.get_display_name()} prepares to collect the Bone Tithe.",
             MessageType.ABILITY,
             player=user.player
         )
@@ -719,7 +719,7 @@ class BoneTitheSkill(ActiveSkill):
         
         # Log the overall effect
         message_log.add_message(
-            f"{user.get_display_name()} extracts the Bone Tithe from nearby entities!",
+            f"{user.get_display_name()} extracts the Bone Tithe from nearby entities.",
             MessageType.ABILITY,
             player=user.player
         )
@@ -799,7 +799,7 @@ class BoneTitheSkill(ActiveSkill):
                     sleep_with_animation_speed(0.3)
                 
                 message_log.add_message(
-                    f"{user.get_display_name()} compacts bone marrow into himself, gaining {hp_gained} max HP!",
+                    f"{user.get_display_name()} compacts bone marrow into himself, gaining {hp_gained} max HP.",
                     MessageType.ABILITY,
                     player=user.player
                 )

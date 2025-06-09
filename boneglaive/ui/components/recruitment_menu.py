@@ -28,7 +28,7 @@ class RecruitmentMenuComponent:
         try:
             current_player = recruitment_system.get_current_player()
             if not current_player:
-                self.renderer.draw_text(y_offset, x_offset, "Recruitment complete!", 1, curses.A_BOLD)
+                self.renderer.draw_text(y_offset, x_offset, "Recruitment complete", 1, curses.A_BOLD)
                 return
             
             # Side panel width constraint
