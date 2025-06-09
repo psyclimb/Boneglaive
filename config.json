@@ -1,0 +1,18 @@
+{
+  "display_mode": "text",
+  "window_width": 800,
+  "window_height": 600,
+  "fullscreen": false,
+  "animation_speed": 1.4,
+  "show_grid": true,
+  "selected_map": "stained_stones",
+  "network_mode": "single",
+  "server_ip": "192.168.1.100",
+  "server_port": 7777,
+  "player_name": "Player",
+  "ai_difficulty": "medium",
+  "audio_enabled": true,
+  "music_volume": 0.7,
+  "sfx_volume": 1.0,
+  "custom_keybindings": {}
+}
