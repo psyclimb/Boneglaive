@@ -2905,19 +2905,30 @@ class Game:
                     if not unit.was_pried:
                         unit.reset_movement_penalty()
                         
-            # Toggle between player 1 and 2
-            self.current_player = 3 - self.current_player
-            # Increment turn counter when player 1's turn comes around again
-            if self.current_player == 1:
-                self.turn += 1
-                
-            # Apply passive skills for the next player's units at the start of their turn
-            # Also initialize the took_no_actions flag for health regeneration
-            for unit in self.units:
-                if unit.is_alive() and unit.player == self.current_player:
-                    unit.apply_passive_skills(self)
-                    # Initialize the flag for health regeneration
-                    unit.took_no_actions = True
+            # In single player mode, automatically toggle between player 1 and 2
+            # In multiplayer modes, the multiplayer manager handles player switching
+            if not self.local_multiplayer:
+                # Toggle between player 1 and 2
+                self.current_player = 3 - self.current_player
+                # Increment turn counter when player 1's turn comes around again
+                if self.current_player == 1:
+                    self.turn += 1
+                    
+                # Initialize the new player's turn
+                self.initialize_next_player_turn()
+            
+    def initialize_next_player_turn(self):
+        """
+        Initialize the next player's turn by applying passive skills and resetting flags.
+        This should be called after player switching in both single player and multiplayer modes.
+        """
+        # Apply passive skills for the current player's units at the start of their turn
+        # Also initialize the took_no_actions flag for health regeneration
+        for unit in self.units:
+            if unit.is_alive() and unit.player == self.current_player:
+                unit.apply_passive_skills(self)
+                # Initialize the flag for health regeneration
+                unit.took_no_actions = True
     
     
     def try_trigger_wretched_decension(self, attacker, target, ui=None):
