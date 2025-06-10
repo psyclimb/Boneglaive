@@ -101,76 +101,134 @@ class Game:
         # Find valid positions for units that aren't on limestone
         valid_positions = []
         
-        # For player 2, place units on the right side of the map with randomness
+        # For player 2, place units with enhanced randomization and formation variety
         if player == 2:
             import random
             
-            # Define a larger area to place units
-            min_y, max_y = 2, 8  # Expanded Y range for more variety
-            min_x, max_x = 10, 16  # Expanded X range for more variety
+            # Get existing player 1 units to avoid spawning too close
+            player1_units = [unit for unit in self.units if unit.player == 1]
+            player1_positions = [(unit.y, unit.x) for unit in player1_units]
             
-            # Generate a list of all valid positions in this area
-            all_possible_positions = []
-            for y in range(min_y, max_y):
-                for x in range(min_x, max_x):
-                    if self.map.can_place_unit(y, x) and self.get_unit_at(y, x) is None:
-                        all_possible_positions.append((y, x))
+            # Define multiple spawn zones for variety
+            spawn_zones = [
+                # Right side zones (traditional area)
+                {"name": "Right Flank", "min_y": 1, "max_y": 9, "min_x": 12, "max_x": 19},
+                {"name": "Right Edge", "min_y": 2, "max_y": 8, "min_x": 15, "max_x": 19},
+                {"name": "Upper Right", "min_y": 1, "max_y": 5, "min_x": 10, "max_x": 18},
+                {"name": "Lower Right", "min_y": 5, "max_y": 9, "min_x": 10, "max_x": 18},
+                {"name": "Center Right", "min_y": 3, "max_y": 7, "min_x": 11, "max_x": 17},
+                {"name": "Back Line", "min_y": 2, "max_y": 8, "min_x": 16, "max_x": 19},
+                
+                # New alternative zones for more variety
+                {"name": "Far Back", "min_y": 1, "max_y": 9, "min_x": 17, "max_x": 19},
+                {"name": "Mid Right", "min_y": 2, "max_y": 8, "min_x": 13, "max_x": 16},
+                {"name": "Corner Cluster", "min_y": 1, "max_y": 4, "min_x": 16, "max_x": 19},
+                {"name": "Lower Corner", "min_y": 6, "max_y": 9, "min_x": 16, "max_x": 19},
+                
+                # Even more experimental zones
+                {"name": "Wide Right", "min_y": 2, "max_y": 8, "min_x": 11, "max_x": 19},
+                {"name": "Narrow Right", "min_y": 3, "max_y": 7, "min_x": 14, "max_x": 18},
+            ]
             
-            # If we found enough potential positions
-            if len(all_possible_positions) >= 3:
-                # Shuffle to add randomness
-                random.shuffle(all_possible_positions)
-                
-                # Start with first random position
-                first_pos = all_possible_positions[0]
-                valid_positions.append(first_pos)
-                first_y, first_x = first_pos
-                
-                # Remove first position from available positions
-                remaining = all_possible_positions[1:]
-                
-                # Sort by distance to first point (closest first)
-                remaining.sort(key=lambda pos: self.chess_distance(first_y, first_x, pos[0], pos[1]))
-                
-                # Take a random position from the closest 5 (or fewer if not available)
-                selection_pool = remaining[:min(5, len(remaining))]
-                if selection_pool:
-                    second_pos = random.choice(selection_pool)
-                    valid_positions.append(second_pos)
-                    second_y, second_x = second_pos
-                    
-                    # Remove second position
-                    remaining.remove(second_pos)
-                    
-                    # For third unit, prefer positions that maintain group cohesion
-                    remaining.sort(key=lambda pos: 
-                        self.chess_distance(first_y, first_x, pos[0], pos[1]) + 
-                        self.chess_distance(second_y, second_x, pos[0], pos[1]))
-                    
-                    # Again add randomness - select from closest 5 positions
-                    selection_pool = remaining[:min(5, len(remaining))]
-                    if selection_pool:
-                        third_pos = random.choice(selection_pool)
-                        valid_positions.append(third_pos)
-                
-                # Log the positions for debugging
-                logger.info(f"Randomized positions for Player {player}: {valid_positions}")
-                for i, pos in enumerate(valid_positions):
-                    y, x = pos
-                    logger.info(f"AI Unit {i+1} will spawn at position ({y}, {x})")
+            # Shuffle the zones to add more randomness to zone selection
+            random.shuffle(spawn_zones)
             
-            # If we couldn't find enough valid positions with randomization, fall back to the old method
-            if len(valid_positions) < 3:
-                logger.warning("Failed to find enough randomized positions, falling back to fixed positions")
-                valid_positions = []
-                for y in range(3, 7):
-                    for x in range(11, 15):
-                        if self.map.can_place_unit(y, x) and self.get_unit_at(y, x) is None:
-                            valid_positions.append((y, x))
-                            if len(valid_positions) >= 3:
-                                break
+            # Try each spawn zone until we find one with enough valid positions
+            for zone in spawn_zones:
+                zone_positions = []
+                
+                # Find all valid positions in this zone
+                for y in range(zone["min_y"], zone["max_y"]):
+                    for x in range(zone["min_x"], zone["max_x"]):
+                        if (self.map.can_place_unit(y, x) and 
+                            self.get_unit_at(y, x) is None):
+                            
+                            # Check minimum distance from player 1 units (at least 3 tiles away)
+                            min_distance_ok = True
+                            for p1_y, p1_x in player1_positions:
+                                if self.chess_distance(y, x, p1_y, p1_x) < 3:
+                                    min_distance_ok = False
+                                    break
+                            
+                            if min_distance_ok:
+                                zone_positions.append((y, x))
+                
+                # If this zone has enough positions, use it
+                if len(zone_positions) >= 3:
+                    logger.info(f"Using spawn zone: {zone['name']} with {len(zone_positions)} valid positions")
+                    
+                    # Shuffle for randomness
+                    random.shuffle(zone_positions)
+                    
+                    # Choose formation pattern randomly
+                    formation_patterns = [
+                        "clustered",    # Units close together
+                        "line",         # Units in a line
+                        "triangle",     # Units in triangular formation
+                        "scattered"     # Units spread out
+                    ]
+                    formation = random.choice(formation_patterns)
+                    logger.info(f"Using formation pattern: {formation}")
+                    
+                    valid_positions = self._select_positions_by_formation(
+                        zone_positions, formation, zone['name'])
+                    
                     if len(valid_positions) >= 3:
                         break
+            
+            # If no zone worked, fall back to progressively more lenient methods
+            if len(valid_positions) < 3:
+                logger.warning("No spawn zone had enough positions, trying fallback methods")
+                
+                # Fallback 1: Right side with reduced distance requirement
+                if len(valid_positions) < 3:
+                    logger.info("Fallback 1: Right side with reduced distance requirement")
+                    for y in range(1, 9):
+                        for x in range(11, 19):
+                            if (self.map.can_place_unit(y, x) and 
+                                self.get_unit_at(y, x) is None):
+                                
+                                # Reduced distance requirement (at least 2 tiles)
+                                min_distance_ok = True
+                                for p1_y, p1_x in player1_positions:
+                                    if self.chess_distance(y, x, p1_y, p1_x) < 2:
+                                        min_distance_ok = False
+                                        break
+                                
+                                if min_distance_ok:
+                                    valid_positions.append((y, x))
+                                    if len(valid_positions) >= 3:
+                                        break
+                        if len(valid_positions) >= 3:
+                            break
+                
+                # Fallback 2: Anywhere on right half of map
+                if len(valid_positions) < 3:
+                    logger.info("Fallback 2: Anywhere on right half of map")
+                    for y in range(1, 9):
+                        for x in range(10, 19):
+                            if (self.map.can_place_unit(y, x) and 
+                                self.get_unit_at(y, x) is None and
+                                (y, x) not in valid_positions):
+                                valid_positions.append((y, x))
+                                if len(valid_positions) >= 3:
+                                    break
+                        if len(valid_positions) >= 3:
+                            break
+                
+                # Fallback 3: Emergency - anywhere that's valid
+                if len(valid_positions) < 3:
+                    logger.warning("Fallback 3: Emergency placement anywhere valid")
+                    for y in range(1, 9):
+                        for x in range(1, 19):
+                            if (self.map.can_place_unit(y, x) and 
+                                self.get_unit_at(y, x) is None and
+                                (y, x) not in valid_positions):
+                                valid_positions.append((y, x))
+                                if len(valid_positions) >= 3:
+                                    break
+                        if len(valid_positions) >= 3:
+                            break
         
         # Check if we're in VS_AI mode
         from boneglaive.utils.config import ConfigManager, NetworkMode
@@ -217,68 +275,173 @@ class Game:
                 return
         
         # Standard unit placement for non-VS_AI modes
-        # Track unit counts to enforce 2-unit type limit
-        unit_counts = {}
         
-        # Set up a variety of unit types to use
-        unit_types = [
-            UnitType.GLAIVEMAN,
-            UnitType.DELPHIC_APPRAISER,
-            UnitType.GAS_MACHINIST
-        ]
+    def _select_positions_by_formation(self, available_positions, formation_type, zone_name):
+        """
+        Select 3 positions from available positions using the specified formation pattern.
         
-        for y, x in valid_positions:
-            # Choose a valid unit type (respecting the 2-unit limit)
-            valid_types = [t for t in unit_types
-                        if unit_counts.get(t, 0) < 2]
+        Args:
+            available_positions: List of (y, x) tuples of valid spawn positions
+            formation_type: String describing the formation ("clustered", "line", "triangle", "scattered")
+            zone_name: Name of the spawn zone for logging
             
-            # Default to GLAIVEMAN if no valid types (shouldn't happen)
-            if not valid_types:
-                logger.warning(f"No valid unit types available for player {player}. Using GLAIVEMAN.")
-                unit_type = UnitType.GLAIVEMAN
+        Returns:
+            List of 3 (y, x) positions for unit placement
+        """
+        import random
+        from boneglaive.utils.debug import logger
+        
+        if len(available_positions) < 3:
+            return available_positions
+            
+        positions = []
+        
+        if formation_type == "clustered":
+            # Units close together - find a central position and nearby positions
+            # Start with a random position
+            center_pos = random.choice(available_positions)
+            positions.append(center_pos)
+            center_y, center_x = center_pos
+            
+            # Find positions close to the center
+            remaining = [pos for pos in available_positions if pos != center_pos]
+            remaining.sort(key=lambda pos: self.chess_distance(center_y, center_x, pos[0], pos[1]))
+            
+            # Take the 2 closest positions
+            positions.extend(remaining[:2])
+            
+        elif formation_type == "line":
+            # Units in a line formation - find 3 positions that form a relatively straight line
+            # Start with a random position
+            first_pos = random.choice(available_positions)
+            positions.append(first_pos)
+            first_y, first_x = first_pos
+            
+            remaining = [pos for pos in available_positions if pos != first_pos]
+            
+            # Find a second position at medium distance
+            mid_distance_positions = [pos for pos in remaining 
+                                    if 2 <= self.chess_distance(first_y, first_x, pos[0], pos[1]) <= 4]
+            
+            if mid_distance_positions:
+                second_pos = random.choice(mid_distance_positions)
+                positions.append(second_pos)
+                second_y, second_x = second_pos
+                
+                # Find third position that extends the line
+                remaining.remove(second_pos)
+                
+                # Calculate direction vector from first to second
+                dy = second_y - first_y
+                dx = second_x - first_x
+                
+                # Look for positions that continue this direction
+                line_positions = []
+                for pos in remaining:
+                    y, x = pos
+                    # Check if this position is roughly in line with the first two
+                    pos_dy = y - second_y
+                    pos_dx = x - second_x
+                    
+                    # Simple line check - similar direction or perpendicular for variety
+                    if (abs(pos_dy) <= 1 and abs(pos_dx) <= 1) or \
+                       (dy != 0 and pos_dy / abs(dy) > 0) or \
+                       (dx != 0 and pos_dx / abs(dx) > 0):
+                        line_positions.append(pos)
+                
+                if line_positions:
+                    positions.append(random.choice(line_positions))
+                else:
+                    # Fallback to closest position
+                    remaining.sort(key=lambda pos: self.chess_distance(second_y, second_x, pos[0], pos[1]))
+                    positions.append(remaining[0])
             else:
-                # Rotate through valid types to ensure variety
-                unit_type = valid_types[0]
+                # Fallback to closest positions
+                remaining.sort(key=lambda pos: self.chess_distance(first_y, first_x, pos[0], pos[1]))
+                positions.extend(remaining[:2])
+                
+        elif formation_type == "triangle":
+            # Units in triangular formation
+            # Start with a random position
+            first_pos = random.choice(available_positions)
+            positions.append(first_pos)
+            first_y, first_x = first_pos
             
-            # Add the unit with the selected type
-            self.add_unit(unit_type, player, y, x)
+            remaining = [pos for pos in available_positions if pos != first_pos]
             
-            # Update unit count for this type
-            unit_counts[unit_type] = unit_counts.get(unit_type, 0) + 1
+            # Find second position at reasonable distance
+            remaining.sort(key=lambda pos: self.chess_distance(first_y, first_x, pos[0], pos[1]))
+            # Skip positions too close or too far
+            good_distances = [pos for pos in remaining 
+                            if 2 <= self.chess_distance(first_y, first_x, pos[0], pos[1]) <= 4]
             
-            logger.info(f"Added {unit_type.name} for player {player} at ({y}, {x})")
-        
-        # If we couldn't find enough valid positions, add some emergency units
-        if len(valid_positions) < 3:
-            missing = 3 - len(valid_positions)
-            logger.warning(f"Not enough valid positions found. Adding {missing} emergency units for player {player}.")
+            if good_distances:
+                second_pos = random.choice(good_distances)
+                positions.append(second_pos)
+                second_y, second_x = second_pos
+                
+                # Find third position that forms a triangle
+                remaining.remove(second_pos)
+                
+                # Look for positions roughly equidistant from both first and second
+                triangle_positions = []
+                for pos in remaining:
+                    y, x = pos
+                    dist1 = self.chess_distance(first_y, first_x, y, x)
+                    dist2 = self.chess_distance(second_y, second_x, y, x)
+                    
+                    # Good triangle position if distances are reasonably balanced
+                    if 1 <= dist1 <= 4 and 1 <= dist2 <= 4 and abs(dist1 - dist2) <= 2:
+                        triangle_positions.append(pos)
+                
+                if triangle_positions:
+                    positions.append(random.choice(triangle_positions))
+                else:
+                    # Fallback
+                    remaining.sort(key=lambda pos: 
+                        self.chess_distance(first_y, first_x, pos[0], pos[1]) + 
+                        self.chess_distance(second_y, second_x, pos[0], pos[1]))
+                    positions.append(remaining[0])
+            else:
+                # Fallback to closest positions
+                positions.extend(remaining[:2])
+                
+        else:  # formation_type == "scattered"
+            # Units spread out across the available area
+            # Divide available positions into regions and pick from different regions
             
-            # Emergency positions depend on player
-            emergency_positions = [
-                (8, 16), (8, 17), (8, 18)  # Player 2 emergency positions
+            # Sort by Y coordinate to divide into regions
+            available_positions.sort(key=lambda pos: pos[0])
+            region_size = len(available_positions) // 3
+            
+            regions = [
+                available_positions[:region_size],
+                available_positions[region_size:2*region_size],
+                available_positions[2*region_size:]
             ]
             
-            # Place units at emergency positions
-            for i in range(missing):
-                y, x = emergency_positions[i]
-                
-                # Choose a valid unit type (respecting the 2-unit limit)
-                valid_types = [t for t in unit_types
-                            if unit_counts.get(t, 0) < 2]
-                
-                # Default to GLAIVEMAN if no valid types
-                if not valid_types:
-                    unit_type = UnitType.GLAIVEMAN
-                else:
-                    unit_type = valid_types[0]
-                
-                # Add the unit with the selected type
-                self.add_unit(unit_type, player, y, x)
-                
-                # Update unit count for this type
-                unit_counts[unit_type] = unit_counts.get(unit_type, 0) + 1
-                
-                logger.info(f"Added emergency {unit_type.name} for player {player} at ({y}, {x})")
+            # Pick one position from each region
+            for region in regions:
+                if region:
+                    positions.append(random.choice(region))
+                    
+            # If we need more positions, fill from remaining
+            while len(positions) < 3 and len(available_positions) > len(positions):
+                remaining = [pos for pos in available_positions if pos not in positions]
+                if remaining:
+                    positions.append(random.choice(remaining))
+        
+        # Ensure we have exactly 3 positions
+        if len(positions) < 3:
+            # Fill remaining slots with random positions
+            remaining = [pos for pos in available_positions if pos not in positions]
+            while len(positions) < 3 and remaining:
+                positions.append(remaining.pop(random.randint(0, len(remaining) - 1)))
+        
+        # Log the formation result
+        logger.info(f"Formation '{formation_type}' in {zone_name}: {positions}")
+        
+        return positions[:3]  # Ensure we return exactly 3 positions
     
     def setup_initial_units(self):
         """
