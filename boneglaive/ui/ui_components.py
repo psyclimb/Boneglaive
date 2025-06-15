@@ -3868,7 +3868,7 @@ class GameModeManager(UIComponent):
         if result == "max_unit_type_limit":
             self.game_ui.message = f"Cannot place more than 2 {unit_type_name} units"
         elif result == "position_occupied":
-            self.game_ui.message = "Cannot place unit here - position is already occupied"
+            self.game_ui.message = "Cannot place unit here - position occupied"
         elif result is True:
             # Unit was placed successfully
             self.game_ui.message = f"{unit_type_name} placed. {self.game_ui.game.setup_units_remaining[setup_player]} remaining."

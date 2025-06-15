@@ -856,10 +856,10 @@ class Game:
             return "max_unit_type_limit"
 
         # Place the unit with the specified type
-        # Check for existing unit at position (now that add_unit validates)
+        # Check for existing unit at position - only reject if same player
         existing_unit = self.get_unit_at(y, x)
-        if existing_unit is not None:
-            return "position_occupied"  # Position occupied
+        if existing_unit is not None and existing_unit.player == self.setup_player:
+            return "position_occupied"  # Position occupied by same player
         
         self.add_unit(unit_type, self.setup_player, y, x)
 
@@ -1025,7 +1025,13 @@ class Game:
             else:
                 # Position is free, mark it as occupied
                 occupied_positions.add(pos)
-        
+    
+    def resolve_unit_conflicts(self):
+        """
+        Public method to resolve unit placement conflicts.
+        Called from recruitment menu when game starts.
+        """
+        self._resolve_unit_placement_conflicts()
     
     def add_unit(self, unit_type, player, y, x):
         # Check if position is valid for placement
@@ -1035,7 +1041,11 @@ class Game:
         # Check if there's already a unit at this position
         existing_unit = self.get_unit_at(y, x)
         if existing_unit is not None:
-            raise ValueError(f"Position ({y}, {x}) is already occupied by {existing_unit.type.name}")
+            # Only prevent placement if it's the same player's unit
+            # Cross-player overlap is allowed during setup to hide positions
+            if existing_unit.player == player:
+                raise ValueError(f"Position ({y}, {x}) is already occupied by your {existing_unit.type.name}")
+            # For different players, allow placement - conflicts will be resolved when game starts
         
         unit = Unit(unit_type, player, y, x)
         unit.initialize_skills()  # Initialize skills for the unit
