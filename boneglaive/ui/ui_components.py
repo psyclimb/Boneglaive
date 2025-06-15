@@ -1813,6 +1813,7 @@ class HelpComponent(UIComponent):
     def __init__(self, renderer, game_ui):
         super().__init__(renderer, game_ui)
         self.show_help = False  # Whether to show help screen
+        self.help_scroll = 0  # Scroll position in help content
     
     def _setup_event_handlers(self):
         """Set up event handlers for the help component."""
@@ -1838,6 +1839,10 @@ class HelpComponent(UIComponent):
             
         self.show_help = not self.show_help
         
+        # Reset scroll when toggling
+        if self.show_help:
+            self.help_scroll = 0
+        
         # Publish help toggled event
         self.publish_event(
             EventType.HELP_TOGGLED,
@@ -1853,37 +1858,122 @@ class HelpComponent(UIComponent):
         # Display message in UI only, don't add to message log
         self.game_ui.message = f"Help screen {'shown' if self.show_help else 'hidden'}"
     
+    def handle_input(self, key: int) -> bool:
+        """Handle input while help screen is active."""
+        if not self.show_help:
+            return False
+            
+        if key == 27:  # ESC key
+            self.toggle_help_screen()
+            self.game_ui.draw_board()
+            return True
+        elif key == ord('?'):
+            self.toggle_help_screen()
+            self.game_ui.draw_board()
+            return True
+        elif key == curses.KEY_UP:
+            # Scroll up
+            self.help_scroll = max(0, self.help_scroll - 1)
+            self.game_ui.draw_board()
+            return True
+        elif key == curses.KEY_DOWN:
+            # Scroll down (max scroll is enforced in draw method)
+            self.help_scroll += 1
+            self.game_ui.draw_board()
+            return True
+        elif key == ord('G'):  # Shift+g - go to end
+            # Jump to bottom
+            self.help_scroll = 999999  # Value will be clamped in draw method
+            self.game_ui.draw_board()
+            return True
+        elif key == ord('g'):  # g - go to start
+            # Jump to top
+            self.help_scroll = 0
+            self.game_ui.draw_board()
+            return True
+                
+        return False
+    
     def draw_help_screen(self):
-        """Draw the help screen overlay."""
+        """Draw the help screen overlay with improved formatting and scrolling."""
         try:
-            # Clear the screen area for help display
-            self.renderer.clear_screen()
+            # Get terminal size
+            term_height, term_width = self.renderer.get_terminal_size()
             
-            # Draw help title
-            self.renderer.draw_text(2, 2, "=== BONEGLAIVE HELP ===", 1, curses.A_BOLD)
+            # Clear the screen first
+            for y in range(term_height):
+                self.renderer.draw_text(y, 0, " " * term_width, 1)
             
-            # Draw control information section
-            self.renderer.draw_text(4, 2, "GAME CONTROLS:", 1, curses.A_BOLD)
-            controls = [
-                "Arrow keys: Move cursor",
-                "Enter/Space: Select unit/confirm action",
-                "Tab: Cycle forward through your units",
-                "Shift+Tab: Cycle backward through your units",
-                "m: Move selected unit",
-                "a: Attack with selected unit",
-                "s: Use selected unit's skill",
-                "t: End turn",
-                "Esc/c: Cancel current action/clear selection",
-                "l: Toggle message log",
-                "r: Enter chat/message mode",
-                "q: Quit game",
-                "?: Toggle this help screen"
-            ]
+            # Draw border around the entire screen
+            # Top border with title
+            border_top = "┌─── BONEGLAIVE HELP " + "─" * (term_width - 21) + "┐"
+            self.renderer.draw_text(0, 0, border_top, 1, curses.A_BOLD)
             
-            for i, control in enumerate(controls):
-                self.renderer.draw_text(6 + i, 4, control)
+            # Side borders
+            for y in range(1, term_height - 1):
+                self.renderer.draw_text(y, 0, "│", 1)
+                self.renderer.draw_text(y, term_width - 1, "│", 1)
             
-            # Removed footer
+            # Bottom border with controls
+            controls_text = "ESC/? to close | ↑/↓ to scroll | g/G to start/end"
+            border_bottom = "└─ " + controls_text + " " + "─" * (term_width - len(controls_text) - 5) + "┘"
+            self.renderer.draw_text(term_height - 1, 0, border_bottom, 1, curses.A_BOLD)
+            
+            # Build all content lines first
+            content_lines = []
+            
+            # Movement Controls section
+            content_lines.append(("MOVEMENT CONTROLS:", 1, curses.A_BOLD))
+            content_lines.append(("Arrow Keys        Move cursor around the battlefield", 1, 0))
+            content_lines.append(("Tab               Cycle forward through your units", 1, 0))
+            content_lines.append(("Shift+Tab         Cycle backward through your units", 1, 0))
+            content_lines.append(("", 1, 0))  # Empty line
+            
+            # Unit Actions section
+            content_lines.append(("UNIT ACTIONS:", 1, curses.A_BOLD))
+            content_lines.append(("Enter/Space       Select unit or confirm action", 1, 0))
+            content_lines.append(("m                 Enter movement mode for selected unit", 1, 0))
+            content_lines.append(("a                 Enter attack mode for selected unit", 1, 0))
+            content_lines.append(("s                 Use selected unit's active skill", 1, 0))
+            content_lines.append(("p                 Use a teleport anchor created by Market Futures", 1, 0))
+            content_lines.append(("t                 End current player's turn", 1, 0))
+            content_lines.append(("", 1, 0))  # Empty line
+            
+            # Interface Controls section
+            content_lines.append(("INTERFACE CONTROLS:", 1, curses.A_BOLD))
+            content_lines.append(("Esc/c             Cancel current action or clear selection", 1, 0))
+            content_lines.append(("l                 Toggle message log display", 1, 0))
+            content_lines.append(("L                 Show full message history (Shift+L)", 1, 0))
+            content_lines.append(("r                 Enter chat/message mode", 1, 0))
+            content_lines.append(("?                 Toggle this help screen", 1, 0))
+            content_lines.append(("q                 Quit game", 1, 0))
+            content_lines.append(("", 1, 0))  # Empty line
+            
+            # Game Information section
+            content_lines.append(("GAME INFORMATION:", 1, curses.A_BOLD))
+            content_lines.append(("• Select a unit and press a key to see detailed help for that unit type", 7, 0))
+            content_lines.append(("• Units have unique skills - experiment with 's' key when units are selected", 7, 0))
+            content_lines.append(("• Some units have multiple skills - check unit help for complete abilities", 7, 0))
+            content_lines.append(("• Game mode: VS AI - defeat all enemy units to win", 7, 0))
+            content_lines.append(("• Turn-based: complete your moves and actions, then press 't' to end turn", 7, 0))
+            
+            # Calculate content display area
+            content_start_y = 2
+            content_height = term_height - 3  # Reserve space for top border and bottom border
+            
+            # Enforce scroll limits
+            max_scroll = max(0, len(content_lines) - content_height)
+            self.help_scroll = max(0, min(self.help_scroll, max_scroll))
+            
+            # Draw visible content lines
+            for i, (text, color, attrs) in enumerate(content_lines[self.help_scroll:]):
+                display_y = content_start_y + i
+                if display_y >= term_height - 1:  # Don't overlap bottom border
+                    break
+                    
+                # Determine indent based on content type
+                indent = 2 if attrs == curses.A_BOLD else 4
+                self.renderer.draw_text(display_y, indent, text, color, attrs)
             
         except Exception as e:
             logger.error(f"Error displaying help screen: {str(e)}")
@@ -3777,11 +3867,15 @@ class GameModeManager(UIComponent):
         # Check specific error cases based on return value
         if result == "max_unit_type_limit":
             self.game_ui.message = f"Cannot place more than 2 {unit_type_name} units"
+        elif result == "position_occupied":
+            self.game_ui.message = "Cannot place unit here - position is already occupied"
         elif result is True:
             # Unit was placed successfully
             self.game_ui.message = f"{unit_type_name} placed. {self.game_ui.game.setup_units_remaining[setup_player]} remaining."
+        elif result is False:
+            self.game_ui.message = "Cannot place unit here - invalid position"
         else:
-            self.game_ui.message = "Failed to place unit: unknown error"
+            self.game_ui.message = "Cannot place unit - please try a different position"
 
         # Redraw the board
         self.game_ui.draw_board()

@@ -856,7 +856,11 @@ class Game:
             return "max_unit_type_limit"
 
         # Place the unit with the specified type
-        # Allow placement even if position is occupied by another unit - we'll resolve conflicts later
+        # Check for existing unit at position (now that add_unit validates)
+        existing_unit = self.get_unit_at(y, x)
+        if existing_unit is not None:
+            return "position_occupied"  # Position occupied
+        
         self.add_unit(unit_type, self.setup_player, y, x)
 
         # Decrement remaining units
@@ -1024,6 +1028,15 @@ class Game:
         
     
     def add_unit(self, unit_type, player, y, x):
+        # Check if position is valid for placement
+        if not self.map.can_place_unit(y, x):
+            raise ValueError(f"Cannot place unit at ({y}, {x}) - invalid terrain")
+        
+        # Check if there's already a unit at this position
+        existing_unit = self.get_unit_at(y, x)
+        if existing_unit is not None:
+            raise ValueError(f"Position ({y}, {x}) is already occupied by {existing_unit.type.name}")
+        
         unit = Unit(unit_type, player, y, x)
         unit.initialize_skills()  # Initialize skills for the unit
         unit.set_game_reference(self)  # Set game reference for trap checks
