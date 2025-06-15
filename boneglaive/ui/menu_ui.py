@@ -70,7 +70,6 @@ class MenuUI:
         """Create the main menu."""
         # Create submenus first
         play_menu = Menu("Play Game", [
-            MenuItem("Single Player", self._start_single_player),
             MenuItem("VS AI", self._start_vs_ai),
             MenuItem("Local Multiplayer", self._start_local_multiplayer),
             MenuItem("Host LAN Game", self._start_lan_host),
@@ -136,12 +135,6 @@ class MenuUI:
         
         return None
     
-    def _start_single_player(self):
-        """Set single player mode and go to map selection."""
-        self.config.set('network_mode', NetworkMode.SINGLE_PLAYER.value)
-        self.config.save_config()
-        logger.info("Selected single player mode")
-        return ("submenu", self._create_map_selection_menu())
     
     def _start_local_multiplayer(self):
         """Set local multiplayer mode and go to map selection."""

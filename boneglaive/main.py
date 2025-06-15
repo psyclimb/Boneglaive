@@ -23,7 +23,7 @@ def parse_args():
     mode_group = parser.add_argument_group('Game Mode Options')
     mode_group.add_argument('--skip-menu', action='store_true', help='Skip menu and start game directly')
     mode_group.add_argument('--mode', choices=['single', 'local', 'lan_host', 'lan_client', 'vs_ai'],
-                        default='single', help='Game mode (single, local, lan_host, lan_client, vs_ai)')
+                        default='vs_ai', help='Game mode (single, local, lan_host, lan_client, vs_ai)')
     mode_group.add_argument('--server', default='127.0.0.1', help='Server IP address for LAN mode')
     mode_group.add_argument('--port', type=int, default=7777, help='Server port for LAN mode')
     mode_group.add_argument('--ai-difficulty', choices=['easy', 'medium', 'hard'],
