@@ -14,6 +14,7 @@ from boneglaive.ui.game_ui import GameUI
 from boneglaive.ui.menu_ui import MenuUI
 from boneglaive.utils.debug import debug_config, logger, LogLevel
 from boneglaive.utils.config import ConfigManager, NetworkMode, DisplayMode
+from boneglaive.utils.platform_compat import setup_terminal_optimizations, get_platform_name
 
 def parse_args():
     """Parse command line arguments"""
@@ -130,6 +131,16 @@ def main(stdscr):
     curses.curs_set(0)  # Hide cursor
     stdscr.timeout(-1)  # No timeout for getch
     
+    # Set up platform-specific terminal optimizations
+    setup_terminal_optimizations()
+    
+    # Set escape key delay if supported by curses
+    try:
+        if hasattr(curses, 'set_escdelay'):
+            curses.set_escdelay(25)
+    except:
+        pass  # Ignore if not supported on this system
+    
     # Get arguments
     args = parse_args()
     
@@ -168,5 +179,11 @@ def main(stdscr):
             logger.info("Quitting from menu")
 
 if __name__ == "__main__":
+    # Set up platform-specific terminal optimizations before starting curses
+    setup_terminal_optimizations()
+    
+    # Log platform information
+    logger.info(f"Starting Boneglaive on {get_platform_name()}")
+    
     # Start the application
     curses.wrapper(main)

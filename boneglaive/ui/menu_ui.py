@@ -72,14 +72,11 @@ class MenuUI:
         play_menu = Menu("Play Game", [
             MenuItem("VS AI", self._start_vs_ai),
             MenuItem("Local Multiplayer", self._start_local_multiplayer),
-            MenuItem("Host LAN Game", self._start_lan_host),
-            MenuItem("Join LAN Game", self._start_lan_client),
             MenuItem("Back", lambda: ("submenu", None))
         ])
         
         settings_menu = Menu("Settings", [
             MenuItem("Display Settings", lambda: ("submenu", self._create_display_settings_menu())),
-            MenuItem("Network Settings", lambda: ("submenu", self._create_network_settings_menu())),
             MenuItem("Back", lambda: ("submenu", None))
         ])
         
@@ -99,9 +96,11 @@ class MenuUI:
     
     def _create_display_settings_menu(self) -> Menu:
         """Create the display settings menu."""
+        current_speed = self.config.get('animation_speed')
+        speed_label = self._get_animation_speed_label(current_speed)
+        
         menu = Menu("Display Settings", [
-            MenuItem("Text Mode", lambda: self._set_display_mode(DisplayMode.TEXT.value)),
-            MenuItem("Graphical Mode (Not Implemented)", lambda: self._set_display_mode(DisplayMode.GRAPHICAL.value)),
+            MenuItem(f"Animation Speed: {speed_label}", self._cycle_animation_speed),
             MenuItem("Back", lambda: ("submenu", None))
         ])
         menu.parent = self._find_menu_by_title("Settings")
@@ -169,7 +168,7 @@ class MenuUI:
         menu = Menu("Select Map", [
             MenuItem("The Lime Foyer", lambda: self._select_map("lime_foyer")),
             MenuItem("Stained Stones", lambda: self._select_map("stained_stones")),
-            MenuItem("Edgecase", lambda: self._select_map("edgecase")),
+            MenuItem("Edge Case", lambda: self._select_map("edgecase")),
             MenuItem("Back", lambda: ("submenu", None))
         ])
         menu.parent = self._find_menu_by_title("Play Game")
@@ -182,11 +181,39 @@ class MenuUI:
         logger.info(f"Selected map: {map_name}")
         return ("start_game", None)
     
-    def _set_display_mode(self, mode: str):
-        """Set the display mode."""
-        self.config.set('display_mode', mode)
+    def _get_animation_speed_label(self, speed: float) -> str:
+        """Get display label for animation speed."""
+        if speed <= 0.5:
+            return "Very Slow"
+        elif speed <= 0.8:
+            return "Slow"
+        elif speed <= 1.2:
+            return "Normal"
+        elif speed <= 1.6:
+            return "Fast"
+        else:
+            return "Very Fast"
+    
+    def _cycle_animation_speed(self):
+        """Cycle through animation speed options."""
+        # Define speed options: Very Slow, Slow, Normal, Fast, Very Fast
+        speed_options = [0.5, 0.7, 1.0, 1.4, 2.0]
+        current_speed = self.config.get('animation_speed', 1.0)
+        
+        # Find current index and move to next
+        try:
+            current_index = speed_options.index(current_speed)
+            next_index = (current_index + 1) % len(speed_options)
+        except ValueError:
+            # If current speed isn't in our options, default to Normal (index 2)
+            next_index = 2
+        
+        new_speed = speed_options[next_index]
+        self.config.set('animation_speed', new_speed)
         self.config.save_config()
-        return None
+        
+        # Refresh the menu to show updated label
+        return ("submenu", self._create_display_settings_menu())
     
     def _set_server_ip(self):
         """Set the server IP address."""
@@ -235,7 +262,7 @@ class MenuUI:
         
         # Draw navigation help
         self.renderer.draw_text(3 + len(menu.items) + 2, 2, 
-                              "↑↓: Navigate | Enter: Select | Esc/Backspace: Back", 1)
+                              "↑↓: Navigate | Enter: Select | Esc/c: Cancel", 1)
         
         # Refresh the display
         self.renderer.refresh()
@@ -255,8 +282,8 @@ class MenuUI:
             if menu_result:
                 return menu_result
         
-        # Back
-        elif key in [27, curses.KEY_BACKSPACE, 8, 127]:  # Esc, Backspace
+        # Back/Cancel
+        elif key in [27, ord('c')]:  # Esc, c key
             result = self.current_menu.go_back()
             menu_result = self._handle_menu_result(result)
             if menu_result:

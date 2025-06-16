@@ -6,7 +6,7 @@
   "animation_speed": 1.4,
   "show_grid": true,
   "selected_map": "lime_foyer",
-  "network_mode": "local",
+  "network_mode": "vs_ai",
   "server_ip": "192.168.1.100",
   "server_port": 7777,
   "player_name": "Player",

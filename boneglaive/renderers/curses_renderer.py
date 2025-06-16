@@ -3,11 +3,16 @@
 Curses-based renderer implementation.
 """
 
-import curses
 import time
 from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+from boneglaive.utils.platform_compat import get_curses_module
 
 import os
+
+# Get platform-appropriate curses module
+curses = get_curses_module()
+if curses is None:
+    raise ImportError("Curses module not available for this platform. On Windows, install: pip install windows-curses")
 from typing import Dict, List, Optional, Tuple
 
 from boneglaive.utils.render_interface import RenderInterface
