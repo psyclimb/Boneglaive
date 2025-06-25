@@ -442,7 +442,7 @@ class UIRenderer:
                         color_id = teleport_anchor_color  # Player-specific color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
                         
-                # Edgecase map terrain types (gray color scheme like other maps)
+                # Edge Case map terrain types (gray color scheme like other maps)
                 elif terrain == TerrainType.HYDRAULIC_PRESS:
                     tile = self.game_ui.asset_manager.get_terrain_tile("hydraulic_press")
                     color_id = 12  # White for hydraulic press machinery

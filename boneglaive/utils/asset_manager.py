@@ -75,7 +75,7 @@ class AssetManager:
             'podium': 'Γ',     # Gamma symbol for elevated podium platform
             'vase': 'v',       # Lowercase v resembles vase shape
             'canyon_floor': '.',  # Canyon floor sediment
-            # Edgecase map terrain - Industrial warehouse converted to home
+            # Edge Case map terrain - Industrial warehouse converted to home
             'hydraulic_press': 'O',  # Round shape for massive hydraulic press
             'workbench': 'I',  # I-beam shape for industrial workbench
             'couch': 'u',      # Lowercase u resembles couch shape
