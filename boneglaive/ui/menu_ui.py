@@ -56,10 +56,14 @@ class Menu:
 class MenuUI:
     """User interface for the menu system."""
     
-    def __init__(self, stdscr):
+    def __init__(self, stdscr=None, renderer=None):
         self.config = ConfigManager()
-        self.renderer = CursesRenderer(stdscr)
-        self.renderer.initialize()
+        # Set up renderer - use provided renderer or create curses renderer
+        if renderer is not None:
+            self.renderer = renderer
+        else:
+            self.renderer = CursesRenderer(stdscr)
+            self.renderer.initialize()
         self.current_menu = self._create_main_menu()
         self.running = True
         

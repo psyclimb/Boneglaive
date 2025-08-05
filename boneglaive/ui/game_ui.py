@@ -30,16 +30,25 @@ from boneglaive.ui.ui_renderer import UIRenderer
 class GameUI:
     """User interface for the game - refactored to use component architecture."""
     
-    def __init__(self, stdscr):
+    def __init__(self, stdscr=None, renderer=None):
         # Initialize configuration
         self.config_manager = ConfigManager()
         
-        # Set up renderer
-        self.renderer = CursesRenderer(stdscr)
-        self.renderer.initialize()
+        # Set up renderer - use provided renderer or create curses renderer
+        if renderer is not None:
+            self.renderer = renderer
+        else:
+            self.renderer = CursesRenderer(stdscr)
+            self.renderer.initialize()
         
-        # Set up asset manager
-        self.asset_manager = AssetManager(self.config_manager)
+        # Set up asset manager - force text mode if using pygame renderer
+        if renderer is not None and hasattr(renderer, '__class__') and 'PygameRenderer' in renderer.__class__.__name__:
+            # For pygame renderer, use text mode assets (characters) not sprite paths
+            text_config = ConfigManager()
+            text_config.set('display_mode', 'text')
+            self.asset_manager = AssetManager(text_config)
+        else:
+            self.asset_manager = AssetManager(self.config_manager)
         
         # Set up input handler
         self.input_handler = InputHandler()
