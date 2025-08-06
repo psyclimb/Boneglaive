@@ -2599,7 +2599,7 @@ class GameOverPrompt(UIComponent):
         super().__init__(renderer, game_ui)
         self.visible = False
         self.selected_option = 0
-        self.options = ["New Round", "Exit Game"]
+        self.options = ["New Round", "Main Menu", "Exit Game"]
 
     def show(self, winner):
         """Show the game over prompt."""
@@ -2625,8 +2625,12 @@ class GameOverPrompt(UIComponent):
             # Reset the game
             self.game_ui.reset_game()
             self.hide()
+        elif self.selected_option == 1:  # Main Menu
+            # Return special value to indicate main menu should be shown
+            self.hide()
+            return "main_menu"
         else:  # Exit Game
-            # We'll just return False from handle_input to exit
+            # Return False to exit
             return False
         return True
 
@@ -2635,8 +2639,20 @@ class GameOverPrompt(UIComponent):
         if not self.visible:
             return
 
-        # Get screen dimensions
-        height, width = self.renderer.height, self.renderer.width
+        # Get screen dimensions - handle both renderer types
+        if hasattr(self.renderer, 'height') and hasattr(self.renderer, 'width'):
+            # Curses renderer
+            height, width = self.renderer.height, self.renderer.width
+        elif hasattr(self.renderer, 'grid_height') and hasattr(self.renderer, 'grid_width'):
+            # Pygame renderer
+            height, width = self.renderer.grid_height, self.renderer.grid_width
+        else:
+            # Fallback - get from get_size method
+            height, width = self.renderer.get_size()
+
+        # Clear screen to ensure prompt is visible over game content
+        if hasattr(self.renderer, 'clear_screen'):
+            self.renderer.clear_screen()
 
         # Import game board constants
         from boneglaive.utils.constants import HEIGHT as BOARD_HEIGHT
@@ -2653,31 +2669,35 @@ class GameOverPrompt(UIComponent):
         # Make sure the prompt doesn't go off the top of the screen
         prompt_y = max(prompt_y, 1)
 
-        # Draw border and background
+        # Draw border and background - use simple ASCII characters for compatibility
         for y in range(prompt_y, prompt_y + prompt_height):
             for x in range(prompt_x, prompt_x + prompt_width):
                 if (y == prompt_y or y == prompt_y + prompt_height - 1 or
                     x == prompt_x or x == prompt_x + prompt_width - 1):
-                    self.renderer.draw_text(y, x, "█", 1)  # Border
+                    self.renderer.draw_text(y, x, "#", 7)  # Border with white color
                 else:
-                    self.renderer.draw_text(y, x, " ", 1)  # Background
+                    self.renderer.draw_text(y, x, " ", 7)  # Background with white color
 
         # Draw title
         title = f"Player {self.winner} Wins!"
         title_x = prompt_x + (prompt_width - len(title)) // 2
-        self.renderer.draw_text(prompt_y + 1, title_x, title, 1, curses.A_BOLD)
+        # Use bright white color with bold attribute
+        self.renderer.draw_text(prompt_y + 1, title_x, title, 7, 1)
 
         # Draw options
         for i, option in enumerate(self.options):
             option_x = prompt_x + (prompt_width - len(option)) // 2
-            color = 2 if i == self.selected_option else 1  # Highlight selected option
-            attr = curses.A_BOLD if i == self.selected_option else 0
+            color = 3 if i == self.selected_option else 7  # Yellow for selected, white for normal
+            attr = 1 if i == self.selected_option else 0  # Bold for selected option
             self.renderer.draw_text(prompt_y + 3 + i, option_x, option, color, attr)
 
         # Draw controls
-        controls = "↑↓: Navigate | Enter: Select"
+        controls = "UP/DOWN: Navigate | ENTER: Select"
         controls_x = prompt_x + (prompt_width - len(controls)) // 2
-        self.renderer.draw_text(prompt_y + 6, controls_x, controls, 1)
+        self.renderer.draw_text(prompt_y + 6, controls_x, controls, 7)
+        
+        # Refresh the display to make sure the prompt is visible
+        self.renderer.refresh()
 
 
 class GameModeManager(UIComponent):
@@ -5295,7 +5315,11 @@ class InputManager(UIComponent):
                 self.game_ui.game_over_prompt.move_selection(1)
                 return True
             elif key in [curses.KEY_ENTER, 10, 13]:  # Enter key
-                return self.game_ui.game_over_prompt.select_option()
+                result = self.game_ui.game_over_prompt.select_option()
+                if result == "main_menu":
+                    # Return special value to indicate main menu should be shown
+                    return "main_menu"
+                return result
             # No other keys have effect when game over prompt is visible
             return True
 

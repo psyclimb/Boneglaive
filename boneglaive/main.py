@@ -116,7 +116,7 @@ def run_game(stdscr) -> None:
     
     # Check display mode and use appropriate UI
     if config.get('display_mode') == 'graphical':
-        # Use pygame UI for graphical mode (Dwarf Fortress-style)
+        # Use pygame UI for graphical mode (graphical grid system)
         from boneglaive.ui.pygame_game_ui import PygameGameUI
         
         # Get window size from config or use defaults
@@ -151,7 +151,11 @@ def run_game(stdscr) -> None:
             key = stdscr.getch()
             
             # Handle input - this will update the game state and redraw
-            running = game_ui.handle_input(key)
+            result = game_ui.handle_input(key)
+            if result == "main_menu":
+                return "main_menu"
+            elif result == False:
+                running = False
 
 def main(stdscr):
     """Main function that coordinates menu and game."""
@@ -193,18 +197,35 @@ def main(stdscr):
     # Run menu or skip to game
     if args.skip_menu:
         logger.info("Skipping menu")
-        run_game(stdscr)
+        game_result = run_game(stdscr)
+        # If game returns "main_menu", show menu anyway
+        if game_result == "main_menu":
+            while True:
+                logger.info("Returning to menu")
+                menu_result = run_menu(stdscr)
+                if menu_result and menu_result[0] == "start_game":
+                    logger.info("Starting game from menu")
+                    game_result = run_game(stdscr)
+                    if game_result != "main_menu":
+                        break
+                else:
+                    logger.info("Quitting from menu")
+                    break
     else:
-        # Run menu
-        logger.info("Starting menu")
-        menu_result = run_menu(stdscr)
-        
-        # Process menu result
-        if menu_result and menu_result[0] == "start_game":
-            logger.info("Starting game from menu")
-            run_game(stdscr)
-        else:
-            logger.info("Quitting from menu")
+        # Run menu loop
+        while True:
+            logger.info("Starting menu")
+            menu_result = run_menu(stdscr)
+            
+            # Process menu result
+            if menu_result and menu_result[0] == "start_game":
+                logger.info("Starting game from menu")
+                game_result = run_game(stdscr)
+                if game_result != "main_menu":
+                    break  # Exit if game ended normally or player quit
+            else:
+                logger.info("Quitting from menu")
+                break
 
 def main_graphical(args):
     """Main function for graphical mode (pygame) - bypasses curses."""
@@ -245,9 +266,16 @@ def main_graphical(args):
     # Run menu or skip to game
     if args.skip_menu:
         logger.info("Skipping menu in graphical mode")
-        run_game_graphical()
+        game_result = run_game_graphical()
+        # If game returns "main_menu", show menu anyway
+        if game_result == "main_menu":
+            _run_graphical_menu_loop()
     else:
-        # Run pygame menu using existing MenuUI
+        _run_graphical_menu_loop()
+
+def _run_graphical_menu_loop():
+    """Run the graphical menu loop, handling returns to menu from game."""
+    while True:
         logger.info("Starting graphical menu")
         
         config = ConfigManager()
@@ -268,9 +296,12 @@ def main_graphical(args):
             if menu_result and menu_result[0] == "start_game":
                 logger.info("Starting game from graphical menu")
                 renderer.cleanup()  # Clean up menu renderer
-                run_game_graphical()
+                game_result = run_game_graphical()
+                if game_result != "main_menu":
+                    break  # Exit if game ended normally or player quit
             else:
                 logger.info("Quitting from graphical menu")
+                break
         finally:
             renderer.cleanup()
 
@@ -308,7 +339,11 @@ def run_game_graphical():
                 continue
                 
             # Handle input using existing GameUI logic
-            running = game_ui.handle_input(key)
+            result = game_ui.handle_input(key)
+            if result == "main_menu":
+                return "main_menu"
+            elif result == False:
+                running = False
             
     finally:
         # Clean up pygame resources

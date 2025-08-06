@@ -25,7 +25,7 @@ class PygameRenderer(RenderInterface):
         self.font = None
         self.ui_reference = ui_reference  # Reference to UI for animation redraws
         
-        # Character grid system (like Dwarf Fortress)
+        # Graphical grid system
         self.char_width = 12   # Width of each character cell in pixels
         self.char_height = 20  # Height of each character cell in pixels
         
@@ -138,7 +138,7 @@ class PygameRenderer(RenderInterface):
     
     def draw_char(self, y: int, x: int, char: str, fg_color_id: int = 7, 
                   bg_color_id: Optional[int] = None, attributes: int = 0) -> None:
-        """Draw a single character at exact grid position (Dwarf Fortress style)."""
+        """Draw a single character at exact grid position (graphical grid style)."""
         if x >= self.grid_width or y >= self.grid_height or x < 0 or y < 0:
             return  # Outside grid bounds
         
@@ -330,7 +330,7 @@ class PygameRenderer(RenderInterface):
                 self.screen.blit(char_surface, char_rect)
         
     def draw_tile(self, y: int, x: int, tile_id: str, color_id: int = 7, attributes: int = 0) -> None:
-        """Draw a tile using character grid system (Dwarf Fortress style)."""
+        """Draw a tile using graphical grid system."""
         # Calculate screen position like curses renderer: screen_x = x * tile_width, screen_y = y + ui_offset_y
         # Each game tile gets 2 character columns (tile_width = 2)
         screen_x = x * self.tile_width
