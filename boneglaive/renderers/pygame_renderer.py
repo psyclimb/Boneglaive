@@ -17,12 +17,13 @@ from boneglaive.utils.constants import UnitType
 class PygameRenderer(RenderInterface):
     """Renderer implementation using pygame for graphical display."""
     
-    def __init__(self, width: int = 800, height: int = 600):
+    def __init__(self, width: int = 800, height: int = 600, ui_reference=None):
         self.width = width
         self.height = height
         self.screen = None
         self.clock = None
         self.font = None
+        self.ui_reference = ui_reference  # Reference to UI for animation redraws
         
         # Character grid system (like Dwarf Fortress)
         self.char_width = 12   # Width of each character cell in pixels
@@ -42,6 +43,9 @@ class PygameRenderer(RenderInterface):
         self.tile_size = 32  # Keep for sprite fallbacks
         self.colors = {}
         self.running = True
+        
+        # Animation buffer to store what was under animation frames
+        self.animation_buffer = {}  # {(y,x): (char, color_id, bg_color_id)}
         
         # Font system with fallbacks
         self.monospace_fonts = [
@@ -96,6 +100,25 @@ class PygameRenderer(RenderInterface):
         
         # Clear screen initially
         self.clear_screen()
+        
+    def set_ui_reference(self, ui_reference):
+        """Set the UI reference for animation redraws."""
+        self.ui_reference = ui_reference
+        
+    def save_tile_content(self, y: int, x: int, char: str, color_id: int = 7, bg_color_id: int = 0):
+        """Save the content of a tile before drawing an animation frame."""
+        self.animation_buffer[(y, x)] = (char, color_id, bg_color_id)
+        
+    def restore_tile_content(self, y: int, x: int):
+        """Restore the saved content of a tile after animation."""
+        if (y, x) in self.animation_buffer:
+            char, color_id, bg_color_id = self.animation_buffer[(y, x)]
+            self.draw_char(y, x, char, color_id, bg_color_id)
+            del self.animation_buffer[(y, x)]
+            
+    def clear_animation_buffer(self):
+        """Clear all saved animation content."""
+        self.animation_buffer.clear()
         
     def _load_best_monospace_font(self, size: int = 16) -> pygame.font.Font:
         """Load the best available monospace font with fallbacks."""
@@ -163,15 +186,11 @@ class PygameRenderer(RenderInterface):
     def setup_key_mapping(self):
         """Set up key mapping from pygame to curses-like key codes."""
         self.key_map = {
-            # Arrow keys - map to both curses constants and vim keys
+            # Arrow keys
             pygame.K_UP: 259,     # curses.KEY_UP
             pygame.K_DOWN: 258,   # curses.KEY_DOWN  
             pygame.K_LEFT: 260,   # curses.KEY_LEFT
             pygame.K_RIGHT: 261,  # curses.KEY_RIGHT
-            pygame.K_k: 259,      # Also map k to UP
-            pygame.K_j: 258,      # Also map j to DOWN
-            pygame.K_h: 260,      # Also map h to LEFT  
-            pygame.K_l: 261,      # Also map l to RIGHT
             
             # Special keys
             pygame.K_RETURN: 343,  # curses.KEY_ENTER
@@ -197,14 +216,18 @@ class PygameRenderer(RenderInterface):
             pygame.K_v: ord('v'),
             pygame.K_x: ord('x'),
             pygame.K_z: ord('z'),
+            pygame.K_h: ord('h'),
+            pygame.K_j: ord('j'),
+            pygame.K_k: ord('k'),
+            pygame.K_l: ord('l'),
+            pygame.K_y: ord('y'),
+            pygame.K_u: ord('u'),  
+            pygame.K_i: ord('i'),
+            pygame.K_o: ord('o'),
+            pygame.K_n: ord('n'),
             
             # Missing important keys
             pygame.K_p: ord('p'),        # Teleport mode
-            pygame.K_y: ord('y'),        # Diagonal movement (up-left)
-            pygame.K_u: ord('u'),        # Diagonal movement (up-right)  
-            pygame.K_i: ord('i'),        # Diagonal movement 
-            pygame.K_o: ord('o'),        # Diagonal movement
-            pygame.K_n: ord('n'),        # Diagonal movement (down-left)
             pygame.K_SLASH: ord('/'),    # Often used in games
             pygame.K_QUESTION: ord('?'), # Help system (SHIFT+/)
             
@@ -236,13 +259,17 @@ class PygameRenderer(RenderInterface):
         self.colors = {
             0: (0, 0, 0),         # Black
             1: (255, 0, 0),       # Red
-            2: (0, 255, 0),       # Green
+            2: (0, 255, 0),       # Green  
             3: (255, 255, 0),     # Yellow
             4: (0, 0, 255),       # Blue
             5: (255, 0, 255),     # Magenta
             6: (0, 255, 255),     # Cyan
             7: (255, 255, 255),   # White
             8: (128, 128, 128),   # Gray
+            # Additional colors for better highlighting visibility
+            9: (0, 128, 0),       # Dark Green
+            10: (128, 0, 0),      # Dark Red
+            11: (0, 0, 128),      # Dark Blue
         }
         
     def clear_screen(self) -> None:
@@ -280,22 +307,27 @@ class PygameRenderer(RenderInterface):
             r, g, b = color
             render_color = (r//2, g//2, b//2)
         
-        # Render each character individually for perfect grid alignment
+        # For each character, clear background with black before drawing
         for i, char in enumerate(text):
-            if x + i >= self.grid_width or y >= self.grid_height:
+            char_x = x + i
+            if char_x >= self.grid_width or y >= self.grid_height:
                 break  # Don't render outside grid bounds
-                
-            char_surface = font.render(char, True, render_color)
             
-            # Calculate exact pixel position in character grid and center like draw_char
-            pixel_x = (x + i) * self.char_width
+            # Clear background with black rectangle to prevent overlap
+            pixel_x = char_x * self.char_width
             pixel_y = y * self.char_height
+            bg_rect = pygame.Rect(pixel_x, pixel_y, self.char_width, self.char_height)
+            pygame.draw.rect(self.screen, self.colors[0], bg_rect)  # Black background
             
-            # Center character in cell (consistent with draw_char)
-            char_rect = char_surface.get_rect()
-            char_rect.center = (pixel_x + self.char_width // 2, pixel_y + self.char_height // 2)
-            
-            self.screen.blit(char_surface, char_rect)
+            # Draw character
+            if char and char != ' ':
+                char_surface = font.render(char, True, render_color)
+                
+                # Center character in cell (consistent with draw_char)
+                char_rect = char_surface.get_rect()
+                char_rect.center = (pixel_x + self.char_width // 2, pixel_y + self.char_height // 2)
+                
+                self.screen.blit(char_surface, char_rect)
         
     def draw_tile(self, y: int, x: int, tile_id: str, color_id: int = 7, attributes: int = 0) -> None:
         """Draw a tile using character grid system (Dwarf Fortress style)."""
@@ -303,6 +335,33 @@ class PygameRenderer(RenderInterface):
         # Each game tile gets 2 character columns (tile_width = 2)
         screen_x = x * self.tile_width
         screen_y = y + self.ui_offset_y  # Leave room for UI header
+        
+        # Map curses color IDs to foreground/background combinations for highlighting
+        fg_color_id = color_id
+        bg_color_id = None
+        
+        # Handle highlighting color IDs (these have colored backgrounds in curses)
+        if color_id == 2:  # Cursor - white background
+            fg_color_id = 0  # Black text
+            bg_color_id = 7  # White background
+        elif color_id == 5:  # Movement highlight - green background  
+            fg_color_id = 0  # Black text
+            bg_color_id = 2  # Green background
+        elif color_id == 6:  # Attack highlight - red background
+            fg_color_id = 0  # Black text
+            bg_color_id = 1  # Red background
+        elif color_id == 9:  # Selected unit - yellow background
+            fg_color_id = 0  # Black text
+            bg_color_id = 3  # Yellow background
+        elif color_id == 10:  # Attack target - red background
+            fg_color_id = 7  # White text  
+            bg_color_id = 1  # Red background
+        elif color_id == 15:  # Skill target - blue background
+            fg_color_id = 7  # White text
+            bg_color_id = 4  # Blue background
+        elif color_id == 16:  # Skill targeting - blue background
+            fg_color_id = 0  # Black text
+            bg_color_id = 4  # Blue background
         
         # The tile_id is already a character from the UI renderer, so draw it directly
         # Handle multi-character tiles (like unit + status effect symbols)
@@ -313,10 +372,38 @@ class PygameRenderer(RenderInterface):
                 # Check bounds in character space
                 if char_x >= self.grid_width or char_x < 0:
                     break  # Don't draw outside character grid bounds
-                self.draw_char(screen_y, char_x, char, color_id, attributes=attributes)
+                
+                # For highlighting, draw background only for the main content (first character)
+                # Status effect column (second character) should remain unhighlighted
+                if bg_color_id is not None and i == 0:  # Only draw background for first character
+                    # Draw background rectangle covering only the first character (main content)
+                    pixel_x = screen_x * self.char_width
+                    pixel_y = screen_y * self.char_height
+                    # Only highlight the first character width, not the full tile width
+                    main_content_rect = pygame.Rect(pixel_x, pixel_y, self.char_width, self.char_height)
+                    bg_color = self.colors.get(bg_color_id, self.colors[0])
+                    pygame.draw.rect(self.screen, bg_color, main_content_rect)
+                
+                # Draw character - only apply highlighting colors to first character (main content)
+                # Status effect characters (i > 0) should use normal colors
+                if i == 0:
+                    # Main content gets highlighting colors
+                    self.draw_char(screen_y, char_x, char, fg_color_id, bg_color_id=None, attributes=attributes)
+                else:
+                    # Status effects get normal colors (ignore highlighting)
+                    self.draw_char(screen_y, char_x, char, color_id, bg_color_id=None, attributes=attributes)
         else:
-            # Draw empty/unknown tile as a dot
-            self.draw_char(screen_y, screen_x, '.', 8, attributes=attributes)  # Gray dot
+            # Draw empty/unknown tile as a dot with highlighting if needed
+            if bg_color_id is not None:
+                # Draw background rectangle covering only the first character (main content)
+                pixel_x = screen_x * self.char_width
+                pixel_y = screen_y * self.char_height
+                # Only highlight the first character width, not the full tile width
+                main_content_rect = pygame.Rect(pixel_x, pixel_y, self.char_width, self.char_height)
+                bg_color = self.colors.get(bg_color_id, self.colors[0])
+                pygame.draw.rect(self.screen, bg_color, main_content_rect)
+            
+            self.draw_char(screen_y, screen_x, '.', fg_color_id, bg_color_id=None, attributes=attributes)  # Gray dot
     
     def draw_unit_sprite(self, y: int, x: int, unit_type: UnitType, player: int = 1) -> None:
         """Draw a unit using character grid system."""
@@ -407,26 +494,49 @@ class PygameRenderer(RenderInterface):
             current_y = int(start_y + (end_y - start_y) * progress)
             current_x = int(start_x + (end_x - start_x) * progress)
             
-            # Clear and redraw (simplified)
-            self.clear_screen()
-            
-            # Draw projectile using tile-based positioning like draw_tile
+            # Draw projectile using tile-based positioning with black background
             if tile_id:
                 screen_x = current_x * self.tile_width  # Apply tile spacing
                 screen_y = current_y + self.ui_offset_y  # Apply UI offset
-                self.draw_char(screen_y, screen_x, tile_id[0], color_id)
-            
-            self.refresh()
-            sleep_with_animation_speed(duration / steps)
+                
+                # Save what's at this position before drawing projectile
+                original_content = None
+                restore_color = 7
+                if self.ui_reference and hasattr(self.ui_reference, 'game'):
+                    unit = self.ui_reference.game.get_unit_at(current_y, current_x)
+                    if unit and unit.is_alive():
+                        original_content = self.ui_reference.asset_manager.get_unit_tile(unit.type)
+                        restore_color = 3 if unit.player == 1 else 4
+                    else:
+                        terrain_type = self.ui_reference.game.map.get_terrain_at(current_y, current_x)
+                        original_content = self.ui_reference.asset_manager.get_terrain_tile(terrain_type)
+                        restore_color = 7
+                
+                # Draw projectile frame with black background
+                self.draw_char(screen_y, screen_x, tile_id[0], color_id, bg_color_id=0)
+                self.refresh()
+                sleep_with_animation_speed(duration / steps)
+                
+                # Restore original content after projectile passes (except on last frame)
+                if original_content and i < steps:
+                    self.draw_char(screen_y, screen_x, original_content, restore_color, bg_color_id=0)
+            else:
+                sleep_with_animation_speed(duration / steps)
             
     def flash_tile(self, y: int, x: int, tile_ids: List[str], color_ids: List[int], 
                   durations: List[float]) -> None:
         """Flash a tile with different characters and colors in sequence."""
         for tile_id, color_id, duration in zip(tile_ids, color_ids, durations):
+            # Redraw the board to restore background before drawing animation frame
+            if self.ui_reference:
+                self.ui_reference.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+            
+            # Draw the animation frame with black background to replace underlying content
             if tile_id:
                 screen_x = x * self.tile_width  # Apply tile spacing
                 screen_y = y + self.ui_offset_y  # Apply UI offset
-                self.draw_char(screen_y, screen_x, tile_id[0], color_id)
+                # Clear the background by drawing with black background, then draw animation char
+                self.draw_char(screen_y, screen_x, tile_id[0], color_id, bg_color_id=0)  # Black background
             self.refresh()
             sleep_with_animation_speed(duration)
             
@@ -436,10 +546,16 @@ class PygameRenderer(RenderInterface):
         frame_duration = duration / len(sequence) if sequence else 0
         
         for frame in sequence:
+            # Redraw the board to restore background before drawing animation frame
+            if self.ui_reference:
+                self.ui_reference.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+            
+            # Draw the animation frame with black background to replace underlying content
             if frame:
                 screen_x = x * self.tile_width  # Apply tile spacing
                 screen_y = y + self.ui_offset_y  # Apply UI offset
-                self.draw_char(screen_y, screen_x, frame[0], color_id)
+                # Clear the background by drawing with black background, then draw animation char
+                self.draw_char(screen_y, screen_x, frame[0], color_id, bg_color_id=0)  # Black background
             self.refresh()
             sleep_with_animation_speed(frame_duration)
             
@@ -481,11 +597,16 @@ class PygameRenderer(RenderInterface):
             # Get the appropriate frame from the sequence (loop if needed)
             frame = sequence[i % sequence_length]
 
-            # Draw the current frame at the current position with tile spacing
+            # Redraw the board to restore background before drawing animation frame
+            if self.ui_reference:
+                self.ui_reference.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+            
+            # Draw the current frame at the current position with tile spacing and black background
             if frame:
                 screen_x = x * self.tile_width  # Apply tile spacing
                 screen_y = y + self.ui_offset_y  # Apply UI offset
-                self.draw_char(screen_y, screen_x, frame[0], color_id)
+                # Clear the background by drawing with black background, then draw animation char
+                self.draw_char(screen_y, screen_x, frame[0], color_id, bg_color_id=0)  # Black background
             
             self.refresh()
             sleep_with_animation_speed(step_duration)

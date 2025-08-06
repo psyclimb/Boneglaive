@@ -292,6 +292,9 @@ def run_game_graphical():
         from boneglaive.ui.game_ui import GameUI
         game_ui = GameUI(renderer=renderer)
         
+        # Set UI reference in renderer for animation support
+        renderer.set_ui_reference(game_ui)
+        
         # Draw initial board
         game_ui.draw_board()
         
