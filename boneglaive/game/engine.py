@@ -2564,15 +2564,15 @@ class Game:
                     # Make damage text more prominent with flashing effect (like FOWL_CONTRIVANCE)
                     for i in range(3):
                         # First clear the area
-                        ui.renderer.draw_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
+                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
                         # Draw with alternating bold/normal for a flashing effect
                         attrs = curses.A_BOLD if i % 2 == 0 else 0
-                        ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, attrs)  # White color
+                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)  # White color
                         ui.renderer.refresh()
                         sleep_with_animation_speed(0.1)
                     
                     # Final damage display (stays on screen slightly longer)
-                    ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
+                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
                     ui.renderer.refresh()
                     sleep_with_animation_speed(0.3)  # Match the 0.3s delay used in FOWL_CONTRIVANCE
                 
@@ -2653,15 +2653,15 @@ class Game:
                                 # Make healing text prominent with flashing effect (green color)
                                 for i in range(3):
                                     # First clear the area
-                                    ui.renderer.draw_text(ally_unit.y-1, ally_unit.x*2, " " * len(healing_text), 7)
+                                    ui.renderer.draw_damage_text(ally_unit.y-1, ally_unit.x*2, " " * len(healing_text), 7)
                                     # Draw with alternating bold/normal for a flashing effect
                                     attrs = curses.A_BOLD if i % 2 == 0 else 0
-                                    ui.renderer.draw_text(ally_unit.y-1, ally_unit.x*2, healing_text, 3, attrs)  # Green color
+                                    ui.renderer.draw_damage_text(ally_unit.y-1, ally_unit.x*2, healing_text, 3, attrs)  # Green color
                                     ui.renderer.refresh()
                                     sleep_with_animation_speed(0.1)
                                 
                                 # Final healing display (stays on screen slightly longer)
-                                ui.renderer.draw_text(ally_unit.y-1, ally_unit.x*2, healing_text, 3, curses.A_BOLD)
+                                ui.renderer.draw_damage_text(ally_unit.y-1, ally_unit.x*2, healing_text, 3, curses.A_BOLD)
                                 ui.renderer.refresh()
                                 sleep_with_animation_speed(0.3)
                 
@@ -3050,15 +3050,15 @@ class Game:
                                 # Make healing text prominent with flashing effect (green color)
                                 for i in range(3):
                                     # First clear the area
-                                    ui.renderer.draw_text(unit.y-1, unit.x*2, " " * len(healing_text), 7)
+                                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(healing_text), 7)
                                     # Draw with alternating bold/normal for a flashing effect
                                     attrs = curses.A_BOLD if i % 2 == 0 else 0
-                                    ui.renderer.draw_text(unit.y-1, unit.x*2, healing_text, 3, attrs)  # Green color
+                                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, healing_text, 3, attrs)  # Green color
                                     ui.renderer.refresh()
                                     sleep_with_animation_speed(0.1)
                                 
                                 # Final healing display (stays on screen slightly longer)
-                                ui.renderer.draw_text(unit.y-1, unit.x*2, healing_text, 3, curses.A_BOLD)
+                                ui.renderer.draw_damage_text(unit.y-1, unit.x*2, healing_text, 3, curses.A_BOLD)
                                 ui.renderer.refresh()
                                 sleep_with_animation_speed(0.3)
                             
@@ -3219,7 +3219,7 @@ class Game:
                 ui.renderer.animate_attack_sequence(
                     target.y, target.x,
                     wretched_animation,
-                    1,  # Red color for death
+                    10,  # Red color for death
                     0.1  # Duration
                 )
                 
@@ -3437,15 +3437,15 @@ class Game:
                     # Make damage text more prominent
                     for i in range(3):
                         # First clear the area
-                        ui.renderer.draw_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
+                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
                         # Draw with alternating bold/normal for a flashing effect
                         attrs = curses.A_BOLD if i % 2 == 0 else 0
-                        ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, attrs)  # White color (same as attack damage)
+                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)  # White color (same as attack damage)
                         ui.renderer.refresh()
                         time.sleep(0.1)
                     
                     # Final damage display (stays on screen slightly longer)
-                    ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
+                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
                     ui.renderer.refresh()
                     time.sleep(0.3)  # Match the 0.3s delay used in attack damage
                 
@@ -3648,9 +3648,9 @@ class Game:
                         logger.debug("Showing damage number")
                         damage_text = f"-{damage}"
                         for i in range(3):
-                            ui.renderer.draw_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
+                            ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
                             attrs = curses.A_BOLD if i % 2 == 0 else 0
-                            ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, attrs)
+                            ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)
                             ui.renderer.refresh()
                             sleep_with_animation_speed(0.1)
                         logger.debug("Damage number display completed")
@@ -3960,16 +3960,16 @@ class Game:
                 # Make damage text more prominent with flashing effect
                 for i in range(3):
                     # First clear the area
-                    ui.renderer.draw_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
+                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
                     # Draw with alternating bold/normal for a flashing effect
                     attrs = curses.A_BOLD if i % 2 == 0 else 0
-                    ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, attrs)
+                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)
                     ui.renderer.refresh()
                     if hasattr(time, 'sleep'):
                         time.sleep(0.1)
                 
                 # Final damage display (stays on screen slightly longer)
-                ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
+                ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
                 ui.renderer.refresh()
                 if hasattr(time, 'sleep'):
                     time.sleep(0.2)
@@ -4192,20 +4192,20 @@ class Game:
         # Make damage text more prominent with flashing effect
         for i in range(3):
             # First clear the area
-            ui.renderer.draw_text(wall_y-1, wall_x*2, " " * len(damage_text), 7)
+            ui.renderer.draw_damage_text(wall_y-1, wall_x*2, " " * len(damage_text), 7)
             # Draw with alternating bold/normal for a flashing effect
             attrs = curses.A_BOLD if i % 2 == 0 else 0
-            ui.renderer.draw_text(wall_y-1, wall_x*2, damage_text, 1, attrs)  # Red color for wall damage
+            ui.renderer.draw_damage_text(wall_y-1, wall_x*2, damage_text, 10, attrs)  # Red color for wall damage
             ui.renderer.refresh()
             time.sleep(0.1)
         
         # Final damage display (stays on screen slightly longer)
-        ui.renderer.draw_text(wall_y-1, wall_x*2, damage_text, 1, curses.A_BOLD)
+        ui.renderer.draw_damage_text(wall_y-1, wall_x*2, damage_text, 10, curses.A_BOLD)
         ui.renderer.refresh()
         time.sleep(0.3)
         
         # Clear the damage text
-        ui.renderer.draw_text(wall_y-1, wall_x*2, " " * len(damage_text), 0)
+        ui.renderer.draw_damage_text(wall_y-1, wall_x*2, " " * len(damage_text), 0)
         
         # Draw a cracking effect on the wall to show damage
         ui.renderer.draw_tile(wall_y, wall_x, '#', 20)  # Use red color for damaged wall

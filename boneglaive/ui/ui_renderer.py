@@ -1095,7 +1095,9 @@ class UIRenderer:
                 # Check if position is highlighted for movement, attack, or skill
                 if pos in cursor_manager.highlighted_positions:
                     if mode_manager.mode == "move":
-                        color_id = 5  # Green for movement
+                        # Use player-specific move highlight colors
+                        current_player = self.game_ui.game.current_player
+                        color_id = 17 if current_player == 1 else 18  # Player-specific move highlights
                     elif mode_manager.mode == "attack":
                         color_id = 6  # Red for attack
                     elif mode_manager.mode == "skill":
@@ -1145,11 +1147,11 @@ class UIRenderer:
             
             # Draw HP with color based on health percentage
             hp_percent = unit.hp / unit.max_hp
-            hp_color = 2  # default green
+            hp_color = 8  # default gray (using color 8 for proper gray)
             if hp_percent <= 0.3:
-                hp_color = 6  # red for critical
+                hp_color = 25  # red text for critical
             elif hp_percent <= 0.7:
-                hp_color = 7  # yellow for damaged
+                hp_color = 21  # yellow text for damaged
                 
             hp_info = f"HP: {unit.hp}/{unit.max_hp}"
             self.renderer.draw_text(info_line, len(type_info) + 4, hp_info, hp_color)

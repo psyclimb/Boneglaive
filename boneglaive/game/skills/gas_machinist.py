@@ -761,7 +761,7 @@ class DivergeSkill(ActiveSkill):
             ui.renderer.animate_attack_sequence(
                 cutting_gas.y, cutting_gas.x,
                 cutting_animation,
-                1,  # Red color
+                10,  # Red color
                 0.15
             )
             

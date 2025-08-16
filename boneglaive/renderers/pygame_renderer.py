@@ -258,9 +258,9 @@ class PygameRenderer(RenderInterface):
         """Set up color mappings similar to curses colors."""
         self.colors = {
             0: (0, 0, 0),         # Black
-            1: (255, 0, 0),       # Red
-            2: (0, 255, 0),       # Green  
-            3: (255, 255, 0),     # Yellow
+            1: (192, 192, 192),   # Light Gray (UI elements - matches curses white)
+            2: (255, 255, 0),     # Yellow (swapped with green)
+            3: (0, 255, 0),       # Green (player 1 color)
             4: (0, 0, 255),       # Blue
             5: (255, 0, 255),     # Magenta
             6: (0, 255, 255),     # Cyan
@@ -268,8 +268,23 @@ class PygameRenderer(RenderInterface):
             8: (128, 128, 128),   # Gray
             # Additional colors for better highlighting visibility
             9: (0, 128, 0),       # Dark Green
-            10: (128, 0, 0),      # Dark Red
-            11: (0, 0, 128),      # Dark Blue
+            10: (255, 0, 0),      # Red (moved from color 1)
+            11: (160, 160, 160),  # Medium Gray (floor tiles)
+            12: (255, 255, 255),  # Bright White (limestone with bold)
+            13: (200, 200, 200),  # Light Gray (pillars)
+            14: (140, 140, 140),  # Dark Gray (furniture)
+            15: (0, 0, 128),      # Dark Blue (if needed)
+            # Background highlight colors (for move/attack indicators)
+            16: (0, 0, 255),      # Blue background (skill targets)
+            17: (0, 255, 0),      # Green background (player 1 move indicators)  
+            18: (0, 0, 255),      # Blue background (player 2 move indicators)
+            19: (255, 0, 0),      # Red background (attack targets)
+            20: (255, 0, 0),      # Red (marrow wall)
+            21: (255, 255, 0),    # Yellow text (damaged HP)
+            22: (192, 192, 192),  # Light Gray (estranged effect)
+            23: (255, 0, 255),    # Magenta (damage numbers)
+            24: (255, 255, 255),  # White (healing numbers)
+            25: (255, 0, 0),      # Red text (critical HP)
         }
         
     def clear_screen(self) -> None:
@@ -282,7 +297,7 @@ class PygameRenderer(RenderInterface):
         self.clock.tick(60)  # 60 FPS
         
     def draw_text(self, y: int, x: int, text: str, color_id: int = 7, 
-                 attributes: int = 0) -> None:
+                 attributes: int = 0, clear_background: bool = True) -> None:
         """Draw text at the specified grid position using fixed character grid."""
         color = self.colors.get(color_id, self.colors[7])
         
@@ -307,27 +322,27 @@ class PygameRenderer(RenderInterface):
             r, g, b = color
             render_color = (r//2, g//2, b//2)
         
-        # For each character, clear background with black before drawing
+        # For each character, optionally clear background before drawing
         for i, char in enumerate(text):
             char_x = x + i
             if char_x >= self.grid_width or y >= self.grid_height:
                 break  # Don't render outside grid bounds
             
-            # Clear background with black rectangle to prevent overlap
-            pixel_x = char_x * self.char_width
-            pixel_y = y * self.char_height
-            bg_rect = pygame.Rect(pixel_x, pixel_y, self.char_width, self.char_height)
-            pygame.draw.rect(self.screen, self.colors[0], bg_rect)  # Black background
+            # Only clear background if requested (prevents conflicts with animations)
+            if clear_background:
+                pixel_x = char_x * self.char_width
+                pixel_y = y * self.char_height
+                bg_rect = pygame.Rect(pixel_x, pixel_y, self.char_width, self.char_height)
+                pygame.draw.rect(self.screen, self.colors[0], bg_rect)  # Black background
             
-            # Draw character
+            # Draw character using draw_char for consistency
             if char and char != ' ':
-                char_surface = font.render(char, True, render_color)
-                
-                # Center character in cell (consistent with draw_char)
-                char_rect = char_surface.get_rect()
-                char_rect.center = (pixel_x + self.char_width // 2, pixel_y + self.char_height // 2)
-                
-                self.screen.blit(char_surface, char_rect)
+                self.draw_char(y, char_x, char, color_id, attributes=attributes)
+        
+    def draw_damage_text(self, y: int, x: int, text: str, color_id: int = 7, 
+                        attributes: int = 0) -> None:
+        """Draw damage/healing text without clearing background to avoid animation conflicts."""
+        self.draw_text(y, x, text, color_id, attributes, clear_background=False)
         
     def draw_tile(self, y: int, x: int, tile_id: str, color_id: int = 7, attributes: int = 0) -> None:
         """Draw a tile using graphical grid system."""
@@ -346,16 +361,22 @@ class PygameRenderer(RenderInterface):
             bg_color_id = 7  # White background
         elif color_id == 5:  # Movement highlight - green background  
             fg_color_id = 0  # Black text
-            bg_color_id = 2  # Green background
+            bg_color_id = 3  # Green background
         elif color_id == 6:  # Attack highlight - red background
             fg_color_id = 0  # Black text
-            bg_color_id = 1  # Red background
+            bg_color_id = 10  # Red background
         elif color_id == 9:  # Selected unit - yellow background
             fg_color_id = 0  # Black text
-            bg_color_id = 3  # Yellow background
+            bg_color_id = 2  # Yellow background
+        elif color_id == 17:  # Player 1 move highlight - green background
+            fg_color_id = 0  # Black text
+            bg_color_id = 3  # Green background
+        elif color_id == 18:  # Player 2 move highlight - blue background
+            fg_color_id = 0  # Black text
+            bg_color_id = 4  # Blue background
         elif color_id == 10:  # Attack target - red background
             fg_color_id = 7  # White text  
-            bg_color_id = 1  # Red background
+            bg_color_id = 10  # Red background
         elif color_id == 15:  # Skill target - blue background
             fg_color_id = 7  # White text
             bg_color_id = 4  # Blue background
@@ -409,7 +430,7 @@ class PygameRenderer(RenderInterface):
         """Draw a unit using character grid system."""
         # Use character-based rendering (AssetManager provides characters, not sprites)
         unit_char = self.asset_manager.get_unit_tile(unit_type)
-        color_id = 1 if player == 1 else 4  # Red for player 1, blue for player 2
+        color_id = 3 if player == 1 else 4  # Green for player 1, blue for player 2
         self.draw_char(y, x, unit_char, color_id, attributes=1)  # Bold for units
     
     def draw_ui_element(self, y: int, x: int, element_type: str, color_id: int = 6) -> None:
@@ -597,16 +618,11 @@ class PygameRenderer(RenderInterface):
             # Get the appropriate frame from the sequence (loop if needed)
             frame = sequence[i % sequence_length]
 
-            # Redraw the board to restore background before drawing animation frame
-            if self.ui_reference:
-                self.ui_reference.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-            
-            # Draw the current frame at the current position with tile spacing and black background
+            # Draw the current frame directly (like curses renderer)
             if frame:
                 screen_x = x * self.tile_width  # Apply tile spacing
                 screen_y = y + self.ui_offset_y  # Apply UI offset
-                # Clear the background by drawing with black background, then draw animation char
-                self.draw_char(screen_y, screen_x, frame[0], color_id, bg_color_id=0)  # Black background
+                self.draw_char(screen_y, screen_x, frame[0], color_id)
             
             self.refresh()
             sleep_with_animation_speed(step_duration)

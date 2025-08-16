@@ -786,15 +786,15 @@ class BoneTitheSkill(ActiveSkill):
                     # Make healing text prominent with flashing effect (green color)
                     for i in range(3):
                         # First clear the area
-                        ui.renderer.draw_text(user.y-1, user.x*2, " " * len(healing_text), 7)
+                        ui.renderer.draw_damage_text(user.y-1, user.x*2, " " * len(healing_text), 7)
                         # Draw with alternating bold/normal for a flashing effect
                         attrs = curses.A_BOLD if i % 2 == 0 else 0
-                        ui.renderer.draw_text(user.y-1, user.x*2, healing_text, 3, attrs)  # Green color
+                        ui.renderer.draw_damage_text(user.y-1, user.x*2, healing_text, 3, attrs)  # Green color
                         ui.renderer.refresh()
                         sleep_with_animation_speed(0.1)
                     
                     # Final healing display (stays on screen slightly longer)
-                    ui.renderer.draw_text(user.y-1, user.x*2, healing_text, 3, curses.A_BOLD)
+                    ui.renderer.draw_damage_text(user.y-1, user.x*2, healing_text, 3, curses.A_BOLD)
                     ui.renderer.refresh()
                     sleep_with_animation_speed(0.3)
                 
@@ -885,7 +885,7 @@ class BoneTitheSkill(ActiveSkill):
                 # Show damage number
                 if hasattr(ui, 'renderer'):
                     damage_text = f"-{damage}"
-                    ui.renderer.draw_text(enemy.y - 1, enemy.x * 2, damage_text, 1, curses.A_BOLD)
+                    ui.renderer.draw_damage_text(enemy.y - 1, enemy.x * 2, damage_text, 1, curses.A_BOLD)
                     ui.renderer.refresh()
                     sleep_with_animation_speed(0.1)
                 

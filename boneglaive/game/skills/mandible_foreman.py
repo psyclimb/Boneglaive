@@ -289,9 +289,9 @@ class DischargeSkill(ActiveSkill):
                         damage_text = f"-{damage}"
                         
                         for i in range(3):
-                            ui.renderer.draw_text(enemy_pos[0]-1, enemy_pos[1]*2, " " * len(damage_text), 7)
+                            ui.renderer.draw_damage_text(enemy_pos[0]-1, enemy_pos[1]*2, " " * len(damage_text), 7)
                             attrs = curses.A_BOLD if i % 2 == 0 else 0
-                            ui.renderer.draw_text(enemy_pos[0]-1, enemy_pos[1]*2, damage_text, 7, attrs)
+                            ui.renderer.draw_damage_text(enemy_pos[0]-1, enemy_pos[1]*2, damage_text, 7, attrs)
                             ui.renderer.refresh()
                             sleep_with_animation_speed(0.1)
                     
@@ -457,9 +457,9 @@ class DischargeSkill(ActiveSkill):
                     damage_text = f"-{damage}"
                     
                     for i in range(3):
-                        ui.renderer.draw_text(enemy_pos[0]-1, enemy_pos[1]*2, " " * len(damage_text), 7)
+                        ui.renderer.draw_damage_text(enemy_pos[0]-1, enemy_pos[1]*2, " " * len(damage_text), 7)
                         attrs = curses.A_BOLD if i % 2 == 0 else 0
-                        ui.renderer.draw_text(enemy_pos[0]-1, enemy_pos[1]*2, damage_text, 7, attrs)
+                        ui.renderer.draw_damage_text(enemy_pos[0]-1, enemy_pos[1]*2, damage_text, 7, attrs)
                         ui.renderer.refresh()
                         sleep_with_animation_speed(0.1)
                 
@@ -796,12 +796,12 @@ class SiteInspectionSkill(ActiveSkill):
                                     ui.renderer.flash_tile(ally.y, ally.x, tile_ids, color_ids, durations)
                                     
                                     # Display effect symbol above ally
-                                    ui.renderer.draw_text(ally.y-1, ally.x*2, "+1", 2)  # Green text
+                                    ui.renderer.draw_damage_text(ally.y-1, ally.x*2, "+1", 2)  # Green text
                                     ui.renderer.refresh()
                                     sleep_with_animation_speed(0.3)
                                     
                                     # Clear effect symbol
-                                    ui.renderer.draw_text(ally.y-1, ally.x*2, "  ", 7)
+                                    ui.renderer.draw_damage_text(ally.y-1, ally.x*2, "  ", 7)
                                     ui.renderer.refresh()
                             else:
                                 # If already has the effect, refresh the duration but don't stack
@@ -1103,9 +1103,9 @@ class JawlineSkill(ActiveSkill):
                 
                 # Make damage text visible
                 for i in range(3):
-                    ui.renderer.draw_text(target.y-1, target.x*2, " " * len(damage_text), 7)
+                    ui.renderer.draw_damage_text(target.y-1, target.x*2, " " * len(damage_text), 7)
                     attrs = curses.A_BOLD if i % 2 == 0 else 0
-                    ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, attrs)
+                    ui.renderer.draw_damage_text(target.y-1, target.x*2, damage_text, 7, attrs)
                     ui.renderer.refresh()
                     sleep_with_animation_speed(0.1)
             

@@ -207,14 +207,14 @@ class Autoclave(PassiveSkill):
                         
                         # Make damage text more prominent with flashing effect
                         for i in range(3):
-                            ui.renderer.draw_text(target.y-1, target.x*2, " " * len(damage_text), 7)
+                            ui.renderer.draw_damage_text(target.y-1, target.x*2, " " * len(damage_text), 7)
                             attrs = curses.A_BOLD if i % 2 == 0 else 0
-                            ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, attrs)
+                            ui.renderer.draw_damage_text(target.y-1, target.x*2, damage_text, 7, attrs)
                             ui.renderer.refresh()
                             sleep_with_animation_speed(0.1)
                         
                         # Final damage display (stays visible a bit longer)
-                        ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, curses.A_BOLD)
+                        ui.renderer.draw_damage_text(target.y-1, target.x*2, damage_text, 7, curses.A_BOLD)
                         ui.renderer.refresh()
                         sleep_with_animation_speed(0.2)
                     
@@ -265,15 +265,15 @@ class Autoclave(PassiveSkill):
                 # Make healing text prominent with flashing effect (green color)
                 for i in range(3):
                     # First clear the area
-                    ui.renderer.draw_text(user.y-1, user.x*2, " " * len(healing_text), 7)
+                    ui.renderer.draw_damage_text(user.y-1, user.x*2, " " * len(healing_text), 7)
                     # Draw with alternating bold/normal for a flashing effect
                     attrs = curses.A_BOLD if i % 2 == 0 else 0
-                    ui.renderer.draw_text(user.y-1, user.x*2, healing_text, 3, attrs)  # Green color
+                    ui.renderer.draw_damage_text(user.y-1, user.x*2, healing_text, 3, attrs)  # Green color
                     ui.renderer.refresh()
                     sleep_with_animation_speed(0.1)
                 
                 # Final healing display (stays on screen slightly longer)
-                ui.renderer.draw_text(user.y-1, user.x*2, healing_text, 3, curses.A_BOLD)
+                ui.renderer.draw_damage_text(user.y-1, user.x*2, healing_text, 3, curses.A_BOLD)
                 ui.renderer.refresh()
                 sleep_with_animation_speed(0.3)
             
@@ -302,10 +302,10 @@ class Autoclave(PassiveSkill):
                     # Make healing text more prominent
                     for i in range(3):
                         # Clear area first
-                        ui.renderer.draw_text(user.y-1, user.x*2, " " * len(healing_text), 2)
+                        ui.renderer.draw_damage_text(user.y-1, user.x*2, " " * len(healing_text), 2)
                         # Draw healing text
                         attrs = curses.A_BOLD if i % 2 == 0 else 0
-                        ui.renderer.draw_text(user.y-1, user.x*2, healing_text, 2, attrs)
+                        ui.renderer.draw_damage_text(user.y-1, user.x*2, healing_text, 2, attrs)
                         ui.renderer.refresh()
                         sleep_with_animation_speed(0.1)
 
@@ -656,9 +656,9 @@ class PrySkill(ActiveSkill):
                 
                 # Make damage text visible
                 for i in range(2):  # Fewer flashes for secondary targets
-                    ui.renderer.draw_text(adjacent_unit.y-1, adjacent_unit.x*2, " " * len(damage_text), 7)
+                    ui.renderer.draw_damage_text(adjacent_unit.y-1, adjacent_unit.x*2, " " * len(damage_text), 7)
                     attrs = curses.A_BOLD if i % 2 == 0 else 0
-                    ui.renderer.draw_text(adjacent_unit.y-1, adjacent_unit.x*2, damage_text, 7, attrs)
+                    ui.renderer.draw_damage_text(adjacent_unit.y-1, adjacent_unit.x*2, damage_text, 7, attrs)
                     ui.renderer.refresh()
                     sleep_with_animation_speed(0.1)
                 
@@ -677,14 +677,14 @@ class PrySkill(ActiveSkill):
             
             # Make damage text more prominent
             for i in range(3):
-                ui.renderer.draw_text(target.y-1, target.x*2, " " * len(damage_text), 7)
+                ui.renderer.draw_damage_text(target.y-1, target.x*2, " " * len(damage_text), 7)
                 attrs = curses.A_BOLD if i % 2 == 0 else 0
-                ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, attrs)
+                ui.renderer.draw_damage_text(target.y-1, target.x*2, damage_text, 7, attrs)
                 ui.renderer.refresh()
                 sleep_with_animation_speed(0.1)
             
             # Final damage display (stays on screen slightly longer)
-            ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, curses.A_BOLD)
+            ui.renderer.draw_damage_text(target.y-1, target.x*2, damage_text, 7, curses.A_BOLD)
             ui.renderer.refresh()
             sleep_with_animation_speed(0.2)
         
@@ -1126,42 +1126,29 @@ class JudgementSkill(ActiveSkill):
             from boneglaive.utils.coordinates import get_line, Position
             path = get_line(Position(user.y, user.x), Position(target.y, target.x))
             
-            # Show a wind-up animation at user position first (first frame)
-            ui.renderer.draw_tile(user.y, user.x, throw_animation[0], 7)  # White color
-            ui.renderer.refresh()
-            sleep_with_animation_speed(0.15)
+            # Show wind-up and throw motion at user position using proper animation method
+            windup_frames = throw_animation[:3] if len(throw_animation) >= 3 else throw_animation
+            ui.renderer.animate_attack_sequence(
+                user.y, user.x,
+                windup_frames,
+                7,  # White color
+                0.25  # Total duration for wind-up
+            )
             
-            # Show the throw motion (next two frames)
-            for i in range(1, 3):
-                if i < len(throw_animation):
-                    ui.renderer.draw_tile(user.y, user.x, throw_animation[i], 7)
-                    ui.renderer.refresh()
-                    sleep_with_animation_speed(0.1)
-            
-            # Animate the glaive moving along the path
-            # Skip first (user) position in the path
-            for i, pos in enumerate(path[1:]):
-                # Use spinning frames for the traveling glaive
-                frame_index = (i % 2) + 3  # Use frames 3 and 4, alternating
-                if frame_index < len(throw_animation):
-                    char = throw_animation[frame_index]
-                else:
-                    char = '⊕'  # Default spinning glaive character
+            # Animate the glaive moving along the path using projectile animation
+            if len(path) > 1:
+                # Get spinning glaive frames for projectile animation
+                spinning_frames = throw_animation[3:5] if len(throw_animation) >= 5 else ['*', '+']
+                projectile_char = spinning_frames[0] if spinning_frames else '*'
                 
-                # Draw the glaive at this position
-                ui.renderer.draw_tile(pos.y, pos.x, char, 7)  # White color
-                ui.renderer.refresh()
-                
-                # Clear previous position if not the first step
-                if i > 0:
-                    prev_pos = path[i]  # Get previous position
-                    ui.renderer.draw_tile(prev_pos.y, prev_pos.x, ' ', 7)
-                
-                sleep_with_animation_speed(0.08)  # Fast travel for the glaive
-                
-                # If we've reached the target, stop
-                if pos.y == target.y and pos.x == target.x:
-                    break
+                # Use the renderer's animate_projectile method for proper path animation
+                ui.renderer.animate_projectile(
+                    (user.y, user.x),  # Start position
+                    (target.y, target.x),  # End position 
+                    projectile_char,  # Glaive character
+                    7,  # White color
+                    0.3  # Duration for projectile travel
+                )
             
             # Show impact at target position
             if len(throw_animation) >= 6:
@@ -1256,9 +1243,9 @@ class JudgementSkill(ActiveSkill):
             damage_text = f"-{damage}"
             
             for i in range(3):
-                ui.renderer.draw_text(target.y-1, target.x*2, " " * len(damage_text), 7)
+                ui.renderer.draw_damage_text(target.y-1, target.x*2, " " * len(damage_text), 7)
                 attrs = curses.A_BOLD if i % 2 == 0 else 0
-                ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, attrs)
+                ui.renderer.draw_damage_text(target.y-1, target.x*2, damage_text, 7, attrs)
                 ui.renderer.refresh()
                 sleep_with_animation_speed(0.1)
         

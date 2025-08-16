@@ -589,7 +589,7 @@ class AuctionCurseSkill(ActiveSkill):
                 ui.renderer.animate_attack_sequence(
                     target_pos[0], target_pos[1],
                     curse_symbols,
-                    1,  # Red color for the target
+                    10,  # Red color for the target
                     0.15  # Duration
                 )
 
@@ -628,7 +628,7 @@ class AuctionCurseSkill(ActiveSkill):
                 ui.renderer.animate_attack_sequence(
                     user.y, user.x,
                     curse_completion,
-                    1,  # Red color for curse completion
+                    10,  # Red color for curse completion
                     0.15  # Duration
                 )
 
@@ -837,15 +837,15 @@ class DivineDrepreciationSkill(ActiveSkill):
                 # Make damage text more prominent with flashing effect (like FOWL_CONTRIVANCE)
                 for i in range(3):
                     # First clear the area
-                    ui.renderer.draw_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
+                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
                     # Draw with alternating bold/normal for a flashing effect
                     attrs = curses.A_BOLD if i % 2 == 0 else 0
-                    ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, attrs)  # White color
+                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)  # White color
                     ui.renderer.refresh()
                     sleep_with_animation_speed(0.1)
                 
                 # Final damage display (stays on screen slightly longer)
-                ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
+                ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
                 ui.renderer.refresh()
                 sleep_with_animation_speed(0.3)  # Match the 0.3s delay used in FOWL_CONTRIVANCE
 
@@ -1035,7 +1035,7 @@ class DivineDrepreciationSkill(ActiveSkill):
                 ui.renderer.animate_attack_sequence(
                     unit.y, unit.x,
                     damage_animation,
-                    1,  # Red color for damage
+                    10,  # Red color for damage
                     0.1  # Duration
                 )
 
