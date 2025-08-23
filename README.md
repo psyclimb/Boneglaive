@@ -15,7 +15,7 @@ For the full terminal-based experience (Linux and BSD):
 # Install python (version 3.8 or later recommended)
 # Install ncurses
 
-# Run the game:
+# Run the game from your Boneglaive directory:
 python3 -m boneglaive.main
 ```
 
