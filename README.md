@@ -9,11 +9,12 @@ A tactical turn-based combat game with dual rendering modes: classic terminal (n
 ## 🚀 Installation
 
 ### Text Mode Setup (Recommended)
-For the full terminal-based experience(Linux and BSD):
+For the full terminal-based experience (Linux and BSD):
+
+```bash
 # Install python (version 3.8 or later recommended)
 # Install ncurses
 
-```bash
 # Run the game:
 python3 -m boneglaive.main
 ```
@@ -66,24 +67,6 @@ python3 -m boneglaive.main
 - **Tab**: Cycle through units
 - **Shift+Tab**: Cycle backwards through units
 - **p**: Activate appraiser anchor
-
-## 🐛 Troubleshooting
-
-**Pygame not found (for graphical mode)?**
-```bash
-python install.py
-```
-
-**Windows curses issues?**
-```bash
-pip install windows-curses
-```
-
-**Can't run the game?**
-Make sure you have Python 3.8+ and try with PYTHONPATH set:
-```bash
-PYTHONPATH=. python3 -m boneglaive.main
-```
 
 ## ⚠️ Development Status - BETA 0.7.0
 
