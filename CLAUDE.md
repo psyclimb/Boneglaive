@@ -54,6 +54,18 @@ python3 boneglaive_test.py  # Integration tests for maps and game mechanics
 - Python 3.x with curses, json, socket, threading (standard library only)
 - No external package dependencies
 
+## Git Repository Management
+**IMPORTANT**: This project has been merged into the original boneglaive repository. All future commits should be pushed to:
+- Repository: https://github.com/psyclimb/Boneglaive.git
+- Remote name: `original`
+- **DO NOT** push to the boneglaive2 repository anymore
+
+Use these commands for git operations:
+```bash
+git push original main  # Push to main boneglaive repository
+git fetch original      # Fetch from main repository
+```
+
 ## File Priorities for AI Development
 1. `game/engine.py` - Core game logic
 2. `game/skills/core.py` - Skill base classes
