@@ -384,10 +384,10 @@ class Autoclave(PassiveSkill):
                     # Make healing text more prominent
                     for i in range(3):
                         # Clear area first
-                        ui.renderer.draw_text(user.y-1, user.x*2, " " * len(healing_text), 2)
+                        ui.renderer.draw_damage_text(user.y-1, user.x*2, " " * len(healing_text), 2)
                         # Draw healing text
                         attrs = curses.A_BOLD if i % 2 == 0 else 0
-                        ui.renderer.draw_text(user.y-1, user.x*2, healing_text, 2, attrs)
+                        ui.renderer.draw_damage_text(user.y-1, user.x*2, healing_text, 2, attrs)
                         ui.renderer.refresh()
                         time.sleep(0.1)
 
@@ -732,9 +732,9 @@ class PrySkill(ActiveSkill):
                 
                 # Make damage text visible
                 for i in range(2):  # Fewer flashes for secondary targets
-                    ui.renderer.draw_text(adjacent_unit.y-1, adjacent_unit.x*2, " " * len(damage_text), 7)
+                    ui.renderer.draw_damage_text(adjacent_unit.y-1, adjacent_unit.x*2, " " * len(damage_text), 7)
                     attrs = curses.A_BOLD if i % 2 == 0 else 0
-                    ui.renderer.draw_text(adjacent_unit.y-1, adjacent_unit.x*2, damage_text, 7, attrs)
+                    ui.renderer.draw_damage_text(adjacent_unit.y-1, adjacent_unit.x*2, damage_text, 7, attrs)
                     ui.renderer.refresh()
                     time.sleep(0.1)
                 
@@ -753,14 +753,14 @@ class PrySkill(ActiveSkill):
             
             # Make damage text more prominent
             for i in range(3):
-                ui.renderer.draw_text(target.y-1, target.x*2, " " * len(damage_text), 7)
+                ui.renderer.draw_damage_text(target.y-1, target.x*2, " " * len(damage_text), 7)
                 attrs = curses.A_BOLD if i % 2 == 0 else 0
-                ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, attrs)
+                ui.renderer.draw_damage_text(target.y-1, target.x*2, damage_text, 7, attrs)
                 ui.renderer.refresh()
                 time.sleep(0.1)
             
             # Final damage display (stays on screen slightly longer)
-            ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, curses.A_BOLD)
+            ui.renderer.draw_damage_text(target.y-1, target.x*2, damage_text, 7, curses.A_BOLD)
             ui.renderer.refresh()
             time.sleep(0.2)
         

@@ -442,7 +442,7 @@ class UIRenderer:
                         color_id = teleport_anchor_color  # Player-specific color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
                         
-                # Edgecase map terrain types (gray color scheme like other maps)
+                # Edge Case map terrain types (gray color scheme like other maps)
                 elif terrain == TerrainType.HYDRAULIC_PRESS:
                     tile = self.game_ui.asset_manager.get_terrain_tile("hydraulic_press")
                     color_id = 12  # White for hydraulic press machinery
@@ -1095,7 +1095,9 @@ class UIRenderer:
                 # Check if position is highlighted for movement, attack, or skill
                 if pos in cursor_manager.highlighted_positions:
                     if mode_manager.mode == "move":
-                        color_id = 5  # Green for movement
+                        # Use player-specific move highlight colors
+                        current_player = self.game_ui.game.current_player
+                        color_id = 17 if current_player == 1 else 18  # Player-specific move highlights
                     elif mode_manager.mode == "attack":
                         color_id = 6  # Red for attack
                     elif mode_manager.mode == "skill":
@@ -1145,11 +1147,11 @@ class UIRenderer:
             
             # Draw HP with color based on health percentage
             hp_percent = unit.hp / unit.max_hp
-            hp_color = 2  # default green
+            hp_color = 8  # default gray (using color 8 for proper gray)
             if hp_percent <= 0.3:
-                hp_color = 6  # red for critical
+                hp_color = 25  # red text for critical
             elif hp_percent <= 0.7:
-                hp_color = 7  # yellow for damaged
+                hp_color = 21  # yellow text for damaged
                 
             hp_info = f"HP: {unit.hp}/{unit.max_hp}"
             self.renderer.draw_text(info_line, len(type_info) + 4, hp_info, hp_color)
@@ -1411,7 +1413,7 @@ class UIRenderer:
             winner_line = HEIGHT+5
             self.renderer.draw_text(winner_line, 0, " " * self.renderer.width, 1)  # Clear line
             winner_color = 3 if self.game_ui.game.winner == 1 else 4
-            winner_text = f"★★★ PLAYER {self.game_ui.game.winner} WINS! ★★★"
+            winner_text = f"★★★ PLAYER {self.game_ui.game.winner} WINS ★★★"
             # Center the winner text
             center_pos = (self.renderer.width - len(winner_text)) // 2
             self.renderer.draw_text(winner_line, center_pos, winner_text, winner_color, curses.A_BOLD)
@@ -1434,5 +1436,9 @@ class UIRenderer:
             except Exception as e:
                 # Never let debug features crash the game
                 logger.error(f"Error displaying debug overlay: {str(e)}")
+        
+        # Draw unit selection menu during setup phase
+        if self.game_ui.game.setup_phase:
+            self.game_ui.unit_selection_menu.draw()
         
         self.renderer.refresh()

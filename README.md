@@ -1,50 +1,88 @@
-# Boneglaive
+# Boneglaive2 🎯
 
-A turn-based tactical combat game built with Python and curses.
+A tactical turn-based combat game with dual rendering modes: classic terminal (curses) and modern graphical (pygame).
 
-## Game Overview
+## 🚀 Quick Start (Choose One)
 
-Boneglaive is a tactical combat game where two players control units with different abilities on a grid battlefield. Units include warriors, archers, and mages, each with unique stats and attack ranges.
-
-## Project Structure
-
-The project is now organized into modules:
-- `boneglaive/utils/constants.py` - Game constants and enums
-- `boneglaive/game/units.py` - Unit class definition
-- `boneglaive/game/engine.py` - Core game logic
-- `boneglaive/game/animations.py` - Animation utilities
-- `boneglaive/ui/game_ui.py` - User interface handling
-- `boneglaive/main.py` - Entry point
-
-## Running the Game
-
+### Option 1: Automatic Installation (Recommended)
 ```bash
-# Run the game normally
-python -m boneglaive.main
+python install.py
+```
+This automatically installs all dependencies including pygame.
 
-# Run with debugging enabled
-python -m boneglaive.main --debug --log-file --overlay
+### Option 2: Manual Installation
+```bash
+pip install pygame
+# On Windows, also install:
+pip install windows-curses
 ```
 
-## Game Controls
+### Option 3: Using pip with requirements
+```bash
+pip install -r requirements.txt
+```
 
-### Basic Controls
-- Arrow keys: Move cursor
-- Enter: Select unit/confirm action
-- m: Move selected unit
-- a: Attack with selected unit
-- e: End turn
-- c: Clear selection
-- t: Toggle test mode (allows controlling both players' units)
-- q: Quit game
+## 🎮 Running the Game
 
-### Debug Controls
-- d: Show unit positions
-- D (Shift+D): Toggle debug mode
-- O (Shift+O): Toggle debug overlay
-- P (Shift+P): Toggle performance tracking
-- S (Shift+S): Save game state to file (debug mode only)
+### Graphical Mode (Recommended)
+1. Set `"display_mode": "graphical"` in `config.json`
+2. Run: `python boneglaive/main.py`
 
-## Development
+### Text Mode
+1. Set `"display_mode": "text"` in `config.json` 
+2. Run: `python boneglaive/main.py`
 
-This project is in conceptualization/proof-of-concept stage. See CLAUDE.md for development guidelines.
+## 🔧 Game Modes
+
+- **Single Player**: `--single-player`
+- **Local Multiplayer**: `--local-mp` 
+- **LAN Host**: `--lan-host`
+- **LAN Client**: `--lan-client`
+- **VS AI**: `--vs-ai`
+
+## 📦 For Developers
+
+### Create Standalone Executable
+```bash
+python build_executable.py
+```
+This creates a single executable file that users can run without installing Python or pygame.
+
+### Project Structure
+- `boneglaive/` - Main game code
+  - `renderers/` - Cross-platform rendering (curses + pygame)
+  - `game/` - Core game logic and skills
+  - `ui/` - User interface components
+  - `networking/` - Multiplayer support
+
+## 🎯 Features
+
+- **Dual Rendering**: Terminal-based and graphical modes
+- **Cross-Platform**: Windows, macOS, Linux
+- **Complex Combat**: Unit skills, status effects, terrain
+- **Multiplayer**: Local and network play
+- **No External Dependencies**: Pure Python + pygame
+
+## ⚡ Controls
+
+- **Arrow Keys**: Movement
+- **Enter/Space**: Select/Confirm
+- **M**: Move mode
+- **A**: Attack mode  
+- **S**: Skill mode
+- **?**: Help
+
+## 🐛 Troubleshooting
+
+**Pygame not found?**
+```bash
+python install.py
+```
+
+**Windows curses issues?**
+```bash
+pip install windows-curses
+```
+
+**Can't run the game?**
+Make sure you have Python 3.8+ and run from the project root directory.

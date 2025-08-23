@@ -1813,6 +1813,7 @@ class HelpComponent(UIComponent):
     def __init__(self, renderer, game_ui):
         super().__init__(renderer, game_ui)
         self.show_help = False  # Whether to show help screen
+        self.help_scroll = 0  # Scroll position in help content
     
     def _setup_event_handlers(self):
         """Set up event handlers for the help component."""
@@ -1838,6 +1839,10 @@ class HelpComponent(UIComponent):
             
         self.show_help = not self.show_help
         
+        # Reset scroll when toggling
+        if self.show_help:
+            self.help_scroll = 0
+        
         # Publish help toggled event
         self.publish_event(
             EventType.HELP_TOGGLED,
@@ -1853,37 +1858,122 @@ class HelpComponent(UIComponent):
         # Display message in UI only, don't add to message log
         self.game_ui.message = f"Help screen {'shown' if self.show_help else 'hidden'}"
     
+    def handle_input(self, key: int) -> bool:
+        """Handle input while help screen is active."""
+        if not self.show_help:
+            return False
+            
+        if key == 27:  # ESC key
+            self.toggle_help_screen()
+            self.game_ui.draw_board()
+            return True
+        elif key == ord('?'):
+            self.toggle_help_screen()
+            self.game_ui.draw_board()
+            return True
+        elif key == curses.KEY_UP:
+            # Scroll up
+            self.help_scroll = max(0, self.help_scroll - 1)
+            self.game_ui.draw_board()
+            return True
+        elif key == curses.KEY_DOWN:
+            # Scroll down (max scroll is enforced in draw method)
+            self.help_scroll += 1
+            self.game_ui.draw_board()
+            return True
+        elif key == ord('G'):  # Shift+g - go to end
+            # Jump to bottom
+            self.help_scroll = 999999  # Value will be clamped in draw method
+            self.game_ui.draw_board()
+            return True
+        elif key == ord('g'):  # g - go to start
+            # Jump to top
+            self.help_scroll = 0
+            self.game_ui.draw_board()
+            return True
+                
+        return False
+    
     def draw_help_screen(self):
-        """Draw the help screen overlay."""
+        """Draw the help screen overlay with improved formatting and scrolling."""
         try:
-            # Clear the screen area for help display
-            self.renderer.clear_screen()
+            # Get terminal size
+            term_height, term_width = self.renderer.get_terminal_size()
             
-            # Draw help title
-            self.renderer.draw_text(2, 2, "=== BONEGLAIVE HELP ===", 1, curses.A_BOLD)
+            # Clear the screen first
+            for y in range(term_height):
+                self.renderer.draw_text(y, 0, " " * term_width, 1)
             
-            # Draw control information section
-            self.renderer.draw_text(4, 2, "GAME CONTROLS:", 1, curses.A_BOLD)
-            controls = [
-                "Arrow keys: Move cursor",
-                "Enter/Space: Select unit/confirm action",
-                "Tab: Cycle forward through your units",
-                "Shift+Tab: Cycle backward through your units",
-                "m: Move selected unit",
-                "a: Attack with selected unit",
-                "s: Use selected unit's skill",
-                "t: End turn",
-                "Esc/c: Cancel current action/clear selection",
-                "l: Toggle message log",
-                "r: Enter chat/message mode",
-                "q: Quit game",
-                "?: Toggle this help screen"
-            ]
+            # Draw border around the entire screen
+            # Top border with title
+            border_top = "┌─── BONEGLAIVE HELP " + "─" * (term_width - 21) + "┐"
+            self.renderer.draw_text(0, 0, border_top, 1, curses.A_BOLD)
             
-            for i, control in enumerate(controls):
-                self.renderer.draw_text(6 + i, 4, control)
+            # Side borders
+            for y in range(1, term_height - 1):
+                self.renderer.draw_text(y, 0, "│", 1)
+                self.renderer.draw_text(y, term_width - 1, "│", 1)
             
-            # Removed footer
+            # Bottom border with controls
+            controls_text = "ESC/? to close | ↑/↓ to scroll | g/G to start/end"
+            border_bottom = "└─ " + controls_text + " " + "─" * (term_width - len(controls_text) - 5) + "┘"
+            self.renderer.draw_text(term_height - 1, 0, border_bottom, 1, curses.A_BOLD)
+            
+            # Build all content lines first
+            content_lines = []
+            
+            # Movement Controls section
+            content_lines.append(("MOVEMENT CONTROLS:", 1, curses.A_BOLD))
+            content_lines.append(("Arrow Keys        Move cursor around the battlefield", 1, 0))
+            content_lines.append(("Tab               Cycle forward through your units", 1, 0))
+            content_lines.append(("Shift+Tab         Cycle backward through your units", 1, 0))
+            content_lines.append(("", 1, 0))  # Empty line
+            
+            # Unit Actions section
+            content_lines.append(("UNIT ACTIONS:", 1, curses.A_BOLD))
+            content_lines.append(("Enter/Space       Select unit or confirm action", 1, 0))
+            content_lines.append(("m                 Enter movement mode for selected unit", 1, 0))
+            content_lines.append(("a                 Enter attack mode for selected unit", 1, 0))
+            content_lines.append(("s                 Use selected unit's active skill", 1, 0))
+            content_lines.append(("p                 Use a teleport anchor created by Market Futures", 1, 0))
+            content_lines.append(("t                 End current player's turn", 1, 0))
+            content_lines.append(("", 1, 0))  # Empty line
+            
+            # Interface Controls section
+            content_lines.append(("INTERFACE CONTROLS:", 1, curses.A_BOLD))
+            content_lines.append(("Esc/c             Cancel current action or clear selection", 1, 0))
+            content_lines.append(("l                 Toggle message log display", 1, 0))
+            content_lines.append(("L                 Show full message history (Shift+L)", 1, 0))
+            content_lines.append(("r                 Enter chat/message mode", 1, 0))
+            content_lines.append(("?                 Toggle this help screen", 1, 0))
+            content_lines.append(("q                 Quit game", 1, 0))
+            content_lines.append(("", 1, 0))  # Empty line
+            
+            # Game Information section
+            content_lines.append(("GAME INFORMATION:", 1, curses.A_BOLD))
+            content_lines.append(("• Select a unit and press a key to see detailed help for that unit type", 7, 0))
+            content_lines.append(("• Units have unique skills - experiment with 's' key when units are selected", 7, 0))
+            content_lines.append(("• Some units have multiple skills - check unit help for complete abilities", 7, 0))
+            content_lines.append(("• Game mode: VS AI - defeat all enemy units to win", 7, 0))
+            content_lines.append(("• Turn-based: complete your moves and actions, then press 't' to end turn", 7, 0))
+            
+            # Calculate content display area
+            content_start_y = 2
+            content_height = term_height - 3  # Reserve space for top border and bottom border
+            
+            # Enforce scroll limits
+            max_scroll = max(0, len(content_lines) - content_height)
+            self.help_scroll = max(0, min(self.help_scroll, max_scroll))
+            
+            # Draw visible content lines
+            for i, (text, color, attrs) in enumerate(content_lines[self.help_scroll:]):
+                display_y = content_start_y + i
+                if display_y >= term_height - 1:  # Don't overlap bottom border
+                    break
+                    
+                # Determine indent based on content type
+                indent = 2 if attrs == curses.A_BOLD else 4
+                self.renderer.draw_text(display_y, indent, text, color, attrs)
             
         except Exception as e:
             logger.error(f"Error displaying help screen: {str(e)}")
@@ -2351,7 +2441,7 @@ class CursorManager(UIComponent):
                 self.game_ui.message = f"Attack set against Marrow Dike wall"
                 # Add message to log for planned wall attacks
                 message_log.add_message(
-                    f"{self.selected_unit.get_display_name()} readies attack against {wall_owner.get_display_name()}'s Marrow Dike wall!",
+                    f"{self.selected_unit.get_display_name()} readies attack against {wall_owner.get_display_name()}'s Marrow Dike wall",
                     MessageType.COMBAT,
                     player=self.selected_unit.player,
                     attacker_name=self.selected_unit.get_display_name()
@@ -2360,7 +2450,7 @@ class CursorManager(UIComponent):
                 self.game_ui.message = f"Attack set against {target_unit.get_display_name()}"
                 # Add message to log for planned unit attacks
                 message_log.add_message(
-                    f"{self.selected_unit.get_display_name()} readies attack against {target_unit.get_display_name()}!",
+                    f"{self.selected_unit.get_display_name()} readies attack against {target_unit.get_display_name()}",
                     MessageType.COMBAT,
                     player=self.selected_unit.player,
                     attacker_name=self.selected_unit.get_display_name(),
@@ -2370,7 +2460,7 @@ class CursorManager(UIComponent):
                 # This shouldn't happen, but handle it just in case
                 self.game_ui.message = "Attack target set"
                 message_log.add_message(
-                    f"{self.selected_unit.get_display_name()} readies an attack!",
+                    f"{self.selected_unit.get_display_name()} readies an attack",
                     MessageType.COMBAT,
                     player=self.selected_unit.player,
                     attacker_name=self.selected_unit.get_display_name()
@@ -2509,7 +2599,7 @@ class GameOverPrompt(UIComponent):
         super().__init__(renderer, game_ui)
         self.visible = False
         self.selected_option = 0
-        self.options = ["New Round", "Exit Game"]
+        self.options = ["New Round", "Main Menu", "Exit Game"]
 
     def show(self, winner):
         """Show the game over prompt."""
@@ -2535,8 +2625,12 @@ class GameOverPrompt(UIComponent):
             # Reset the game
             self.game_ui.reset_game()
             self.hide()
+        elif self.selected_option == 1:  # Main Menu
+            # Return special value to indicate main menu should be shown
+            self.hide()
+            return "main_menu"
         else:  # Exit Game
-            # We'll just return False from handle_input to exit
+            # Return False to exit
             return False
         return True
 
@@ -2545,8 +2639,20 @@ class GameOverPrompt(UIComponent):
         if not self.visible:
             return
 
-        # Get screen dimensions
-        height, width = self.renderer.height, self.renderer.width
+        # Get screen dimensions - handle both renderer types
+        if hasattr(self.renderer, 'height') and hasattr(self.renderer, 'width'):
+            # Curses renderer
+            height, width = self.renderer.height, self.renderer.width
+        elif hasattr(self.renderer, 'grid_height') and hasattr(self.renderer, 'grid_width'):
+            # Pygame renderer
+            height, width = self.renderer.grid_height, self.renderer.grid_width
+        else:
+            # Fallback - get from get_size method
+            height, width = self.renderer.get_size()
+
+        # Clear screen to ensure prompt is visible over game content
+        if hasattr(self.renderer, 'clear_screen'):
+            self.renderer.clear_screen()
 
         # Import game board constants
         from boneglaive.utils.constants import HEIGHT as BOARD_HEIGHT
@@ -2563,31 +2669,35 @@ class GameOverPrompt(UIComponent):
         # Make sure the prompt doesn't go off the top of the screen
         prompt_y = max(prompt_y, 1)
 
-        # Draw border and background
+        # Draw border and background - use simple ASCII characters for compatibility
         for y in range(prompt_y, prompt_y + prompt_height):
             for x in range(prompt_x, prompt_x + prompt_width):
                 if (y == prompt_y or y == prompt_y + prompt_height - 1 or
                     x == prompt_x or x == prompt_x + prompt_width - 1):
-                    self.renderer.draw_text(y, x, "█", 1)  # Border
+                    self.renderer.draw_text(y, x, "#", 7)  # Border with white color
                 else:
-                    self.renderer.draw_text(y, x, " ", 1)  # Background
+                    self.renderer.draw_text(y, x, " ", 7)  # Background with white color
 
         # Draw title
         title = f"Player {self.winner} Wins!"
         title_x = prompt_x + (prompt_width - len(title)) // 2
-        self.renderer.draw_text(prompt_y + 1, title_x, title, 1, curses.A_BOLD)
+        # Use bright white color with bold attribute
+        self.renderer.draw_text(prompt_y + 1, title_x, title, 7, 1)
 
         # Draw options
         for i, option in enumerate(self.options):
             option_x = prompt_x + (prompt_width - len(option)) // 2
-            color = 2 if i == self.selected_option else 1  # Highlight selected option
-            attr = curses.A_BOLD if i == self.selected_option else 0
+            color = 3 if i == self.selected_option else 7  # Yellow for selected, white for normal
+            attr = 1 if i == self.selected_option else 0  # Bold for selected option
             self.renderer.draw_text(prompt_y + 3 + i, option_x, option, color, attr)
 
         # Draw controls
-        controls = "↑↓: Navigate | Enter: Select"
+        controls = "UP/DOWN: Navigate | ENTER: Select"
         controls_x = prompt_x + (prompt_width - len(controls)) // 2
-        self.renderer.draw_text(prompt_y + 6, controls_x, controls, 1)
+        self.renderer.draw_text(prompt_y + 6, controls_x, controls, 7)
+        
+        # Refresh the display to make sure the prompt is visible
+        self.renderer.refresh()
 
 
 class GameModeManager(UIComponent):
@@ -2798,7 +2908,7 @@ class GameModeManager(UIComponent):
             self.publish_event(
                 EventType.MESSAGE_DISPLAY_REQUESTED,
                 MessageDisplayEventData(
-                    message="Not your turn!",
+                    message="Not your turn",
                     message_type=MessageType.WARNING
                 )
             )
@@ -2879,7 +2989,7 @@ class GameModeManager(UIComponent):
                 self.publish_event(
                     EventType.MESSAGE_DISPLAY_REQUESTED,
                     MessageDisplayEventData(
-                        message="You can only move your own units!",
+                        message="You can only move your own units",
                         message_type=MessageType.WARNING
                     )
                 )
@@ -2898,7 +3008,7 @@ class GameModeManager(UIComponent):
             self.publish_event(
                 EventType.MESSAGE_DISPLAY_REQUESTED,
                 MessageDisplayEventData(
-                    message="Not your turn!",
+                    message="Not your turn",
                     message_type=MessageType.WARNING
                 )
             )
@@ -2984,7 +3094,7 @@ class GameModeManager(UIComponent):
                     self.publish_event(
                         EventType.MESSAGE_DISPLAY_REQUESTED,
                         MessageDisplayEventData(
-                            message="You can only use skills with your own units!",
+                            message="You can only use skills with your own units",
                             message_type=MessageType.WARNING
                         )
                     )
@@ -3003,7 +3113,7 @@ class GameModeManager(UIComponent):
             self.publish_event(
                 EventType.MESSAGE_DISPLAY_REQUESTED,
                 MessageDisplayEventData(
-                    message="Not your turn!",
+                    message="Not your turn",
                     message_type=MessageType.WARNING
                 )
             )
@@ -3064,7 +3174,7 @@ class GameModeManager(UIComponent):
                     self.publish_event(
                         EventType.MESSAGE_DISPLAY_REQUESTED,
                         MessageDisplayEventData(
-                            message="You can only attack with your own units!",
+                            message="You can only attack with your own units",
                             message_type=MessageType.WARNING
                         )
                     )
@@ -3096,7 +3206,7 @@ class GameModeManager(UIComponent):
             self.publish_event(
                 EventType.MESSAGE_DISPLAY_REQUESTED,
                 MessageDisplayEventData(
-                    message="Not your turn!",
+                    message="Not your turn",
                     message_type=MessageType.WARNING
                 )
             )
@@ -3391,7 +3501,7 @@ class GameModeManager(UIComponent):
             if market_futures_skill.activate_teleport(unit, anchor_pos, destination_pos, game, self.game_ui):
                 # Teleport successful
                 message_log.add_message(
-                    f"{unit.get_display_name()} teleports via Market Futures to ({destination_pos[0]}, {destination_pos[1]})!",
+                    f"{unit.get_display_name()} teleports via Market Futures to ({destination_pos[0]}, {destination_pos[1]})",
                     MessageType.ABILITY,
                     player=unit.player
                 )
@@ -3678,7 +3788,64 @@ class GameModeManager(UIComponent):
             self.setup_unit_type = UnitType.GLAIVEMAN
             self.game_ui.message = "Setup unit type: GLAIVEMAN"
         
+        # Sync the unit selection menu with the new unit type
+        self.game_ui.unit_selection_menu.set_selected_unit_type(self.setup_unit_type)
+        
         # Redraw the board to show the message
+        self.game_ui.draw_board()
+    
+    def navigate_setup_unit_next(self):
+        """Navigate to the next unit type in the setup menu (TAB)."""
+        if not self.game_ui.game.setup_phase:
+            return
+            
+        # Get current index in unit types list
+        unit_types = [
+            UnitType.GLAIVEMAN, UnitType.MANDIBLE_FOREMAN, UnitType.GRAYMAN,
+            UnitType.MARROW_CONDENSER, UnitType.FOWL_CONTRIVANCE, UnitType.GAS_MACHINIST,
+            UnitType.DELPHIC_APPRAISER, UnitType.INTERFERER
+        ]
+        
+        try:
+            current_index = unit_types.index(self.setup_unit_type)
+            # Move to next unit type, wrapping around to beginning
+            next_index = (current_index + 1) % len(unit_types)
+            self.setup_unit_type = unit_types[next_index]
+        except ValueError:
+            # Fallback if current type not found
+            self.setup_unit_type = UnitType.GLAIVEMAN
+        
+        # Update message and sync menu
+        unit_name = self.setup_unit_type.name.replace('_', ' ')
+        self.game_ui.message = f"Setup unit type: {unit_name}"
+        self.game_ui.unit_selection_menu.set_selected_unit_type(self.setup_unit_type)
+        self.game_ui.draw_board()
+    
+    def navigate_setup_unit_prev(self):
+        """Navigate to the previous unit type in the setup menu (SHIFT+TAB)."""
+        if not self.game_ui.game.setup_phase:
+            return
+            
+        # Get current index in unit types list
+        unit_types = [
+            UnitType.GLAIVEMAN, UnitType.MANDIBLE_FOREMAN, UnitType.GRAYMAN,
+            UnitType.MARROW_CONDENSER, UnitType.FOWL_CONTRIVANCE, UnitType.GAS_MACHINIST,
+            UnitType.DELPHIC_APPRAISER, UnitType.INTERFERER
+        ]
+        
+        try:
+            current_index = unit_types.index(self.setup_unit_type)
+            # Move to previous unit type, wrapping around to end
+            prev_index = (current_index - 1) % len(unit_types)
+            self.setup_unit_type = unit_types[prev_index]
+        except ValueError:
+            # Fallback if current type not found
+            self.setup_unit_type = UnitType.GLAIVEMAN
+        
+        # Update message and sync menu
+        unit_name = self.setup_unit_type.name.replace('_', ' ')
+        self.game_ui.message = f"Setup unit type: {unit_name}"
+        self.game_ui.unit_selection_menu.set_selected_unit_type(self.setup_unit_type)
         self.game_ui.draw_board()
         
     def handle_setup_select(self):
@@ -3720,11 +3887,15 @@ class GameModeManager(UIComponent):
         # Check specific error cases based on return value
         if result == "max_unit_type_limit":
             self.game_ui.message = f"Cannot place more than 2 {unit_type_name} units"
+        elif result == "position_occupied":
+            self.game_ui.message = "Cannot place unit here - position occupied"
         elif result is True:
             # Unit was placed successfully
             self.game_ui.message = f"{unit_type_name} placed. {self.game_ui.game.setup_units_remaining[setup_player]} remaining."
+        elif result is False:
+            self.game_ui.message = "Cannot place unit here - invalid position"
         else:
-            self.game_ui.message = "Failed to place unit: unknown error"
+            self.game_ui.message = "Cannot place unit - please try a different position"
 
         # Redraw the board
         self.game_ui.draw_board()
@@ -4851,7 +5022,7 @@ class ActionMenuComponent(UIComponent):
 
                     # Log the message (similar to what's in skill.use())
                     message_log.add_message(
-                        f"{unit.get_display_name()} prepares to collect the Bone Tithe!",
+                        f"{unit.get_display_name()} prepares to collect the Bone Tithe",
                         MessageType.ABILITY,
                         player=unit.player
                     )
@@ -4927,16 +5098,8 @@ class ActionMenuComponent(UIComponent):
                         # No need for a message here, as the skill's use() method already adds a message
                         pass
                     else:
-                        message = f"{skill.name} will be used at end of turn"
-
-                        # Add the message directly to the message log with player information
-                        # This ensures it will be colored according to the player
-                        message_log.add_message(
-                            text=message,
-                            msg_type=MessageType.ABILITY,
-                            player=unit.player,
-                            attacker_name=unit.get_display_name()
-                        )
+                        # No message needed for generic end-of-turn skills
+                        pass
                     
                     # Request a UI redraw to show the message immediately
                     self.publish_event(
@@ -5063,7 +5226,9 @@ class InputManager(UIComponent):
             GameAction.CYCLE_UNITS: cursor_manager.cycle_units,
             GameAction.CYCLE_UNITS_REVERSE: cursor_manager.cycle_units_reverse,
             GameAction.LOG_HISTORY: self.game_ui.message_log_component.toggle_log_history,
-            GameAction.CONFIRM: mode_manager.handle_confirm  # For setup phase confirmation
+            GameAction.CONFIRM: mode_manager.handle_confirm,  # For setup phase confirmation
+            GameAction.SETUP_NEXT_UNIT: mode_manager.navigate_setup_unit_next,  # TAB in setup
+            GameAction.SETUP_PREV_UNIT: mode_manager.navigate_setup_unit_prev   # SHIFT+TAB in setup
         })
         
         # Add custom key for toggling message log
@@ -5150,7 +5315,11 @@ class InputManager(UIComponent):
                 self.game_ui.game_over_prompt.move_selection(1)
                 return True
             elif key in [curses.KEY_ENTER, 10, 13]:  # Enter key
-                return self.game_ui.game_over_prompt.select_option()
+                result = self.game_ui.game_over_prompt.select_option()
+                if result == "main_menu":
+                    # Return special value to indicate main menu should be shown
+                    return "main_menu"
+                return result
             # No other keys have effect when game over prompt is visible
             return True
 
@@ -5224,3 +5393,72 @@ class InputManager(UIComponent):
             
         # Default - all contexts active
         self.input_handler.set_context("default")
+
+
+# Unit selection menu component for setup phase
+class UnitSelectionMenuComponent(UIComponent):
+    """Component for displaying unit selection menu during setup phase."""
+    
+    def __init__(self, renderer, game_ui):
+        super().__init__(renderer, game_ui)
+        self.selected_index = 0  # Index of currently selected unit type
+        self.unit_types = [
+            UnitType.GLAIVEMAN,
+            UnitType.MANDIBLE_FOREMAN,
+            UnitType.GRAYMAN,
+            UnitType.MARROW_CONDENSER,
+            UnitType.FOWL_CONTRIVANCE,
+            UnitType.GAS_MACHINIST,
+            UnitType.DELPHIC_APPRAISER,
+            UnitType.INTERFERER
+        ]
+        self.unit_names = {
+            UnitType.GLAIVEMAN: "GLAIVEMAN",
+            UnitType.MANDIBLE_FOREMAN: "MANDIBLE FOREMAN",
+            UnitType.GRAYMAN: "GRAYMAN",
+            UnitType.MARROW_CONDENSER: "MARROW CONDENSER",
+            UnitType.FOWL_CONTRIVANCE: "FOWL CONTRIVANCE",
+            UnitType.GAS_MACHINIST: "GAS MACHINIST",
+            UnitType.DELPHIC_APPRAISER: "DELPHIC APPRAISER",
+            UnitType.INTERFERER: "INTERFERER"
+        }
+        
+    def _setup_event_handlers(self):
+        """Set up event handlers for the unit selection menu."""
+        pass
+    
+    def get_selected_unit_type(self):
+        """Get the currently selected unit type."""
+        return self.unit_types[self.selected_index]
+    
+    def set_selected_unit_type(self, unit_type):
+        """Set the selected unit type."""
+        if unit_type in self.unit_types:
+            self.selected_index = self.unit_types.index(unit_type)
+    
+    
+    def draw(self):
+        """Draw the unit selection menu on the right side of the screen."""
+        if not self.game_ui.game.setup_phase:
+            return
+            
+        # Menu positioning - far right to avoid overlap with map and UI elements  
+        menu_x = WIDTH + 25  # Move further right to avoid overlap
+        menu_y = 2  # Start a bit down from the top
+        
+        # Draw menu title
+        self.renderer.draw_text(menu_y, menu_x, "Unit Selection:", curses.A_BOLD)
+        
+        # Draw each unit type
+        for i, unit_type in enumerate(self.unit_types):
+            y_pos = menu_y + 2 + i
+            unit_name = self.unit_names[unit_type]
+            
+            # Highlight selected unit
+            if i == self.selected_index:
+                # Draw with highlight
+                self.renderer.draw_text(y_pos, menu_x, f"> {unit_name}", curses.A_REVERSE)
+            else:
+                # Draw normally
+                self.renderer.draw_text(y_pos, menu_x, f"  {unit_name}")
+    

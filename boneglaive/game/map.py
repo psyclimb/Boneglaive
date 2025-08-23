@@ -31,7 +31,7 @@ class TerrainType(Enum):
     PODIUM = 16    # Display podium, blocks movement but not line of sight
     VASE = 17      # Decorative pottery vase, blocks movement but not line of sight
     CANYON_FLOOR = 18  # Canyon floor with natural sediment, visual only (passable)
-    # Edgecase map - Industrial warehouse converted to home
+    # Edge Case map - Industrial warehouse converted to home
     HYDRAULIC_PRESS = 19 # Industrial hydraulic press, blocks movement and unit placement
     WORKBENCH = 20 # Industrial workbench, blocks movement but not line of sight
     COUCH = 21     # Household couch, blocks movement but not line of sight
@@ -577,19 +577,19 @@ class StainedStonesMap(GameMap):
 
 
 class EdgecaseMap(GameMap):
-    """Edgecase - Industrial warehouse converted to home, forces edge-based gameplay with central blocking."""
+    """Edge Case - Industrial warehouse converted to home, forces edge-based gameplay with central blocking."""
     
     def __init__(self):
         super().__init__()
-        self.name = "Edgecase"
+        self.name = "Edge Case"
         from boneglaive.utils.debug import logger
-        logger.info("EdgecaseMap.__init__ called - generating Edgecase warehouse map")
+        logger.info("EdgecaseMap.__init__ called - generating Edge Case warehouse map")
         self.generate_map()
     
     def generate_map(self) -> None:
-        """Generate Edgecase map with central industrial machinery forcing edge play."""
+        """Generate Edge Case map with central industrial machinery forcing edge play."""
         from boneglaive.utils.debug import logger
-        logger.info("EdgecaseMap.generate_map() called - creating warehouse layout")
+        logger.info("EdgecaseMap.generate_map() called - creating Edge Case warehouse layout")
         # Reset to empty first
         self.reset_to_empty()
         
@@ -719,7 +719,7 @@ class MapFactory:
             logger.info("Creating StainedStonesMap")
             return StainedStonesMap()
         elif map_name.lower() == "edgecase":
-            logger.info("Creating EdgecaseMap")
+            logger.info("Creating Edge Case map")
             return EdgecaseMap()
         else:
             logger.warning(f"Unknown map name '{map_name}', defaulting to empty GameMap")

@@ -123,7 +123,7 @@ class Autoclave(PassiveSkill):
         logger.debug(f"EXECUTING AUTOCLAVE for {user.get_display_name()}")
         
         message_log.add_message(
-            f"{user.get_display_name()}'s Autoclave activates!",
+            f"{user.get_display_name()}'s Autoclave activates",
             MessageType.ABILITY,
             player=user.player
         )
@@ -207,21 +207,21 @@ class Autoclave(PassiveSkill):
                         
                         # Make damage text more prominent with flashing effect
                         for i in range(3):
-                            ui.renderer.draw_text(target.y-1, target.x*2, " " * len(damage_text), 7)
+                            ui.renderer.draw_damage_text(target.y-1, target.x*2, " " * len(damage_text), 7)
                             attrs = curses.A_BOLD if i % 2 == 0 else 0
-                            ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, attrs)
+                            ui.renderer.draw_damage_text(target.y-1, target.x*2, damage_text, 7, attrs)
                             ui.renderer.refresh()
                             sleep_with_animation_speed(0.1)
                         
                         # Final damage display (stays visible a bit longer)
-                        ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, curses.A_BOLD)
+                        ui.renderer.draw_damage_text(target.y-1, target.x*2, damage_text, 7, curses.A_BOLD)
                         ui.renderer.refresh()
                         sleep_with_animation_speed(0.2)
                     
                     # Check if target was defeated
                     if target.hp <= 0:
                         message_log.add_message(
-                            f"{target.get_display_name()} perishes!",
+                            f"{target.get_display_name()} perishes",
                             MessageType.COMBAT,
                             player=user.player,
                             target=target.player,
@@ -265,21 +265,21 @@ class Autoclave(PassiveSkill):
                 # Make healing text prominent with flashing effect (green color)
                 for i in range(3):
                     # First clear the area
-                    ui.renderer.draw_text(user.y-1, user.x*2, " " * len(healing_text), 7)
+                    ui.renderer.draw_damage_text(user.y-1, user.x*2, " " * len(healing_text), 7)
                     # Draw with alternating bold/normal for a flashing effect
                     attrs = curses.A_BOLD if i % 2 == 0 else 0
-                    ui.renderer.draw_text(user.y-1, user.x*2, healing_text, 3, attrs)  # Green color
+                    ui.renderer.draw_damage_text(user.y-1, user.x*2, healing_text, 3, attrs)  # Green color
                     ui.renderer.refresh()
                     sleep_with_animation_speed(0.1)
                 
                 # Final healing display (stays on screen slightly longer)
-                ui.renderer.draw_text(user.y-1, user.x*2, healing_text, 3, curses.A_BOLD)
+                ui.renderer.draw_damage_text(user.y-1, user.x*2, healing_text, 3, curses.A_BOLD)
                 ui.renderer.refresh()
                 sleep_with_animation_speed(0.3)
             
             # Log the healing
             message_log.add_message(
-                f"{user.get_display_name()} absorbs life essence, healing for {healing} HP!",
+                f"{user.get_display_name()} absorbs life essence, healing for {healing} HP",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -302,10 +302,10 @@ class Autoclave(PassiveSkill):
                     # Make healing text more prominent
                     for i in range(3):
                         # Clear area first
-                        ui.renderer.draw_text(user.y-1, user.x*2, " " * len(healing_text), 2)
+                        ui.renderer.draw_damage_text(user.y-1, user.x*2, " " * len(healing_text), 2)
                         # Draw healing text
                         attrs = curses.A_BOLD if i % 2 == 0 else 0
-                        ui.renderer.draw_text(user.y-1, user.x*2, healing_text, 2, attrs)
+                        ui.renderer.draw_damage_text(user.y-1, user.x*2, healing_text, 2, attrs)
                         ui.renderer.refresh()
                         sleep_with_animation_speed(0.1)
 
@@ -394,7 +394,7 @@ class PrySkill(ActiveSkill):
         
         # Log that the skill has been queued (this was already correctly implemented)
         message_log.add_message(
-            f"{user.get_display_name()} readies to pry {target.get_display_name()} skyward!",
+            f"{user.get_display_name()} readies to pry {target.get_display_name()} skyward",
             MessageType.ABILITY,
             player=user.player,
             attacker_name=user.get_display_name(),
@@ -429,7 +429,7 @@ class PrySkill(ActiveSkill):
         # Log the skill activation
         if game.chess_distance(user.y, user.x, target.y, target.x) == 1:
             message_log.add_message(
-                f"{user.get_display_name()} pries {target.get_display_name()} skyward with their glaive!",
+                f"{user.get_display_name()} pries {target.get_display_name()} skyward with their glaive",
                 MessageType.ABILITY,
                 player=user.player,
                 attacker_name=user.get_display_name(),
@@ -437,7 +437,7 @@ class PrySkill(ActiveSkill):
             )
         else:
             message_log.add_message(
-                f"{user.get_display_name()} pries {target.get_display_name()} skyward with their glaive!",
+                f"{user.get_display_name()} pries {target.get_display_name()} skyward with their glaive",
                 MessageType.ABILITY,
                 player=user.player,
                 attacker_name=user.get_display_name(),
@@ -627,7 +627,7 @@ class PrySkill(ActiveSkill):
                     # Check if the adjacent unit was defeated
                     if adjacent_unit.hp <= 0:
                         message_log.add_message(
-                            f"{adjacent_unit.get_display_name()} perishes!",
+                            f"{adjacent_unit.get_display_name()} perishes",
                             MessageType.COMBAT,
                             player=user.player,
                             target=adjacent_unit.player,
@@ -656,9 +656,9 @@ class PrySkill(ActiveSkill):
                 
                 # Make damage text visible
                 for i in range(2):  # Fewer flashes for secondary targets
-                    ui.renderer.draw_text(adjacent_unit.y-1, adjacent_unit.x*2, " " * len(damage_text), 7)
+                    ui.renderer.draw_damage_text(adjacent_unit.y-1, adjacent_unit.x*2, " " * len(damage_text), 7)
                     attrs = curses.A_BOLD if i % 2 == 0 else 0
-                    ui.renderer.draw_text(adjacent_unit.y-1, adjacent_unit.x*2, damage_text, 7, attrs)
+                    ui.renderer.draw_damage_text(adjacent_unit.y-1, adjacent_unit.x*2, damage_text, 7, attrs)
                     ui.renderer.refresh()
                     sleep_with_animation_speed(0.1)
                 
@@ -677,21 +677,21 @@ class PrySkill(ActiveSkill):
             
             # Make damage text more prominent
             for i in range(3):
-                ui.renderer.draw_text(target.y-1, target.x*2, " " * len(damage_text), 7)
+                ui.renderer.draw_damage_text(target.y-1, target.x*2, " " * len(damage_text), 7)
                 attrs = curses.A_BOLD if i % 2 == 0 else 0
-                ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, attrs)
+                ui.renderer.draw_damage_text(target.y-1, target.x*2, damage_text, 7, attrs)
                 ui.renderer.refresh()
                 sleep_with_animation_speed(0.1)
             
             # Final damage display (stays on screen slightly longer)
-            ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, curses.A_BOLD)
+            ui.renderer.draw_damage_text(target.y-1, target.x*2, damage_text, 7, curses.A_BOLD)
             ui.renderer.refresh()
             sleep_with_animation_speed(0.2)
         
         # Check if primary target is immune to the movement penalty effect
         if target.is_immune_to_effects():
             message_log.add_message(
-                f"{target.get_display_name()} is immune to Pry's movement penalty due to Stasiality!",
+                f"{target.get_display_name()} is immune to Pry's movement penalty due to Stasiality",
                 MessageType.ABILITY,
                 player=target.player,  # Use the target's player for correct color coding
                 target_name=target.get_display_name()
@@ -724,7 +724,7 @@ class PrySkill(ActiveSkill):
 
             # Log the movement reduction
             message_log.add_message(
-                f"{target.get_display_name()}'s movement reduced by 1 for next turn!",
+                f"{target.get_display_name()}'s movement reduced by 1 for next turn",
                 MessageType.ABILITY,
                 player=user.player,
                 target_name=target.get_display_name()
@@ -733,7 +733,7 @@ class PrySkill(ActiveSkill):
         # Check if primary target was defeated
         if target.hp <= 0:
             message_log.add_message(
-                f"{target.get_display_name()} perishes!",
+                f"{target.get_display_name()} perishes",
                 MessageType.COMBAT,
                 player=user.player,
                 target=target.player,
@@ -828,7 +828,7 @@ class VaultSkill(ActiveSkill):
         # Log that the skill has been readied
         from boneglaive.utils.message_log import message_log, MessageType
         message_log.add_message(
-            f"{user.get_display_name()} prepares to vault to position ({target_pos[0]}, {target_pos[1]})!",
+            f"{user.get_display_name()} prepares to vault to position ({target_pos[0]}, {target_pos[1]})",
             MessageType.ABILITY,
             player=user.player
         )
@@ -1008,7 +1008,7 @@ class VaultSkill(ActiveSkill):
         
         # Log the completion of vault
         message_log.add_message(
-            f"{user.get_display_name()} vaults from ({original_pos[0]}, {original_pos[1]}) to ({target_pos[0]}, {target_pos[1]})!",
+            f"{user.get_display_name()} vaults from ({original_pos[0]}, {original_pos[1]}) to ({target_pos[0]}, {target_pos[1]})",
             MessageType.ABILITY,
             player=user.player
         )
@@ -1080,7 +1080,7 @@ class JudgementSkill(ActiveSkill):
         # Log that the skill has been readied
         from boneglaive.utils.message_log import message_log, MessageType
         message_log.add_message(
-            f"{user.get_display_name()} readies a sacred glaive to throw at {target.get_display_name()}!",
+            f"{user.get_display_name()} readies a sacred glaive to throw at {target.get_display_name()}",
             MessageType.ABILITY,
             player=user.player,
             target_name=target.get_display_name()
@@ -1104,7 +1104,7 @@ class JudgementSkill(ActiveSkill):
             
         # Log the skill activation
         message_log.add_message(
-            f"{user.get_display_name()} hurls a sacred glaive!",
+            f"{user.get_display_name()} hurls a sacred glaive",
             MessageType.ABILITY,
             player=user.player,
             attacker_name=user.get_display_name()
@@ -1126,42 +1126,29 @@ class JudgementSkill(ActiveSkill):
             from boneglaive.utils.coordinates import get_line, Position
             path = get_line(Position(user.y, user.x), Position(target.y, target.x))
             
-            # Show a wind-up animation at user position first (first frame)
-            ui.renderer.draw_tile(user.y, user.x, throw_animation[0], 7)  # White color
-            ui.renderer.refresh()
-            sleep_with_animation_speed(0.15)
+            # Show wind-up and throw motion at user position using proper animation method
+            windup_frames = throw_animation[:3] if len(throw_animation) >= 3 else throw_animation
+            ui.renderer.animate_attack_sequence(
+                user.y, user.x,
+                windup_frames,
+                7,  # White color
+                0.25  # Total duration for wind-up
+            )
             
-            # Show the throw motion (next two frames)
-            for i in range(1, 3):
-                if i < len(throw_animation):
-                    ui.renderer.draw_tile(user.y, user.x, throw_animation[i], 7)
-                    ui.renderer.refresh()
-                    sleep_with_animation_speed(0.1)
-            
-            # Animate the glaive moving along the path
-            # Skip first (user) position in the path
-            for i, pos in enumerate(path[1:]):
-                # Use spinning frames for the traveling glaive
-                frame_index = (i % 2) + 3  # Use frames 3 and 4, alternating
-                if frame_index < len(throw_animation):
-                    char = throw_animation[frame_index]
-                else:
-                    char = '⊕'  # Default spinning glaive character
+            # Animate the glaive moving along the path using projectile animation
+            if len(path) > 1:
+                # Get spinning glaive frames for projectile animation
+                spinning_frames = throw_animation[3:5] if len(throw_animation) >= 5 else ['*', '+']
+                projectile_char = spinning_frames[0] if spinning_frames else '*'
                 
-                # Draw the glaive at this position
-                ui.renderer.draw_tile(pos.y, pos.x, char, 7)  # White color
-                ui.renderer.refresh()
-                
-                # Clear previous position if not the first step
-                if i > 0:
-                    prev_pos = path[i]  # Get previous position
-                    ui.renderer.draw_tile(prev_pos.y, prev_pos.x, ' ', 7)
-                
-                sleep_with_animation_speed(0.08)  # Fast travel for the glaive
-                
-                # If we've reached the target, stop
-                if pos.y == target.y and pos.x == target.x:
-                    break
+                # Use the renderer's animate_projectile method for proper path animation
+                ui.renderer.animate_projectile(
+                    (user.y, user.x),  # Start position
+                    (target.y, target.x),  # End position 
+                    projectile_char,  # Glaive character
+                    7,  # White color
+                    0.3  # Duration for projectile travel
+                )
             
             # Show impact at target position
             if len(throw_animation) >= 6:
@@ -1174,7 +1161,7 @@ class JudgementSkill(ActiveSkill):
                 
             # Always show base effect message
             message_log.add_message(
-                f"The sacred glaive bypasses {target.get_display_name()}'s defenses!",
+                f"The sacred glaive bypasses {target.get_display_name()}'s defenses",
                 MessageType.ABILITY,
                 player=user.player,
                 target_name=target.get_display_name()
@@ -1227,7 +1214,7 @@ class JudgementSkill(ActiveSkill):
             damage = base_damage * 2  # Critical hit doubles damage
             # Log critical effect
             message_log.add_message(
-                f"The sacred glaive strikes with divine judgement!",
+                f"The sacred glaive strikes with divine judgement",
                 MessageType.ABILITY,
                 player=user.player,
                 target_name=target.get_display_name()
@@ -1256,16 +1243,16 @@ class JudgementSkill(ActiveSkill):
             damage_text = f"-{damage}"
             
             for i in range(3):
-                ui.renderer.draw_text(target.y-1, target.x*2, " " * len(damage_text), 7)
+                ui.renderer.draw_damage_text(target.y-1, target.x*2, " " * len(damage_text), 7)
                 attrs = curses.A_BOLD if i % 2 == 0 else 0
-                ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, attrs)
+                ui.renderer.draw_damage_text(target.y-1, target.x*2, damage_text, 7, attrs)
                 ui.renderer.refresh()
                 sleep_with_animation_speed(0.1)
         
         # Check if target was defeated
         if target.hp <= 0:
             message_log.add_message(
-                f"{target.get_display_name()} perishes!",
+                f"{target.get_display_name()} perishes",
                 MessageType.COMBAT,
                 player=user.player,
                 target=target.player,

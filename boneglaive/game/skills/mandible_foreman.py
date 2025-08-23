@@ -159,7 +159,7 @@ class DischargeSkill(ActiveSkill):
         # Log that the skill has been readied
         from boneglaive.utils.message_log import message_log, MessageType
         message_log.add_message(
-            f"{user.get_display_name()} expedites his M.O. to position ({target_pos[0]}, {target_pos[1]})!",
+            f"{user.get_display_name()} expedites his M.O. to position ({target_pos[0]}, {target_pos[1]})",
             MessageType.ABILITY,
             player=user.player
         )
@@ -218,7 +218,7 @@ class DischargeSkill(ActiveSkill):
         
         # Log the skill activation
         message_log.add_message(
-            f"{user.get_display_name()} steams forward!",
+            f"{user.get_display_name()} steams forward",
             MessageType.ABILITY,
             player=user.player
         )
@@ -289,16 +289,16 @@ class DischargeSkill(ActiveSkill):
                         damage_text = f"-{damage}"
                         
                         for i in range(3):
-                            ui.renderer.draw_text(enemy_pos[0]-1, enemy_pos[1]*2, " " * len(damage_text), 7)
+                            ui.renderer.draw_damage_text(enemy_pos[0]-1, enemy_pos[1]*2, " " * len(damage_text), 7)
                             attrs = curses.A_BOLD if i % 2 == 0 else 0
-                            ui.renderer.draw_text(enemy_pos[0]-1, enemy_pos[1]*2, damage_text, 7, attrs)
+                            ui.renderer.draw_damage_text(enemy_pos[0]-1, enemy_pos[1]*2, damage_text, 7, attrs)
                             ui.renderer.refresh()
                             sleep_with_animation_speed(0.1)
                     
                     # Check if enemy was defeated
                     if enemy_hit.hp <= 0:
                         message_log.add_message(
-                            f"{enemy_hit.get_display_name()} perishes!",
+                            f"{enemy_hit.get_display_name()} perishes",
                             MessageType.COMBAT,
                             player=user.player,
                             target=enemy_hit.player,
@@ -315,7 +315,7 @@ class DischargeSkill(ActiveSkill):
                             enemy_hit.trap_duration = 0  # Initialize trap duration for incremental damage
                             
                             message_log.add_message(
-                                f"{enemy_hit.get_display_name()} is trapped in {user.get_display_name()}'s mechanical jaws!",
+                                f"{enemy_hit.get_display_name()} is trapped in {user.get_display_name()}'s mechanical jaws",
                                 MessageType.ABILITY,
                                 player=user.player,
                                 target=enemy_hit.player,
@@ -334,7 +334,7 @@ class DischargeSkill(ActiveSkill):
                                     )
                         elif enemy_hit.hp > 0:
                             message_log.add_message(
-                                f"{enemy_hit.get_display_name()} is immune to Viseroy due to Stasiality!",
+                                f"{enemy_hit.get_display_name()} is immune to Viseroy due to Stasiality",
                                 MessageType.ABILITY,
                                 player=enemy_hit.player,  # Use target's player color
                                 target_name=enemy_hit.get_display_name()
@@ -457,16 +457,16 @@ class DischargeSkill(ActiveSkill):
                     damage_text = f"-{damage}"
                     
                     for i in range(3):
-                        ui.renderer.draw_text(enemy_pos[0]-1, enemy_pos[1]*2, " " * len(damage_text), 7)
+                        ui.renderer.draw_damage_text(enemy_pos[0]-1, enemy_pos[1]*2, " " * len(damage_text), 7)
                         attrs = curses.A_BOLD if i % 2 == 0 else 0
-                        ui.renderer.draw_text(enemy_pos[0]-1, enemy_pos[1]*2, damage_text, 7, attrs)
+                        ui.renderer.draw_damage_text(enemy_pos[0]-1, enemy_pos[1]*2, damage_text, 7, attrs)
                         ui.renderer.refresh()
                         sleep_with_animation_speed(0.1)
                 
                 # Check if enemy was defeated
                 if enemy_hit.hp <= 0:
                     message_log.add_message(
-                        f"{enemy_hit.get_display_name()} perishes!",
+                        f"{enemy_hit.get_display_name()} perishes",
                         MessageType.COMBAT,
                         player=user.player,
                         target=enemy_hit.player,
@@ -506,7 +506,7 @@ class DischargeSkill(ActiveSkill):
                         enemy_hit.trap_duration = 0  # Initialize trap duration for incremental damage
                         
                         message_log.add_message(
-                            f"{enemy_hit.get_display_name()} is trapped in {user.get_display_name()}'s mechanical jaws!",
+                            f"{enemy_hit.get_display_name()} is trapped in {user.get_display_name()}'s mechanical jaws",
                             MessageType.ABILITY,
                             player=user.player,
                             target=enemy_hit.player,
@@ -524,7 +524,7 @@ class DischargeSkill(ActiveSkill):
                             )
                     else:
                         message_log.add_message(
-                            f"{enemy_hit.get_display_name()} is immune to Viseroy due to Stasiality!",
+                            f"{enemy_hit.get_display_name()} is immune to Viseroy due to Stasiality",
                             MessageType.ABILITY,
                             player=enemy_hit.player,  # Use target's player color
                             target_name=enemy_hit.get_display_name()
@@ -625,7 +625,7 @@ class SiteInspectionSkill(ActiveSkill):
         # Log that the skill has been readied
         from boneglaive.utils.message_log import message_log, MessageType
         message_log.add_message(
-            f"{user.get_display_name()} prepares to inspect the site around ({target_pos[0]}, {target_pos[1]})!",
+            f"{user.get_display_name()} prepares to inspect the site around ({target_pos[0]}, {target_pos[1]})",
             MessageType.ABILITY,
             player=user.player
         )
@@ -645,7 +645,7 @@ class SiteInspectionSkill(ActiveSkill):
         
         # Log the skill activation
         message_log.add_message(
-            f"{user.get_display_name()} begins inspecting the site around ({target_pos[0]}, {target_pos[1]})!",
+            f"{user.get_display_name()} begins inspecting the site around ({target_pos[0]}, {target_pos[1]})",
             MessageType.ABILITY,
             player=user.player
         )
@@ -760,7 +760,7 @@ class SiteInspectionSkill(ActiveSkill):
                             # Check if ally is immune to status effects (GRAYMAN with Stasiality)
                             if ally.is_immune_to_effects():
                                 message_log.add_message(
-                                    f"{ally.get_display_name()} is immune to Site Inspection due to Stasiality!",
+                                    f"{ally.get_display_name()} is immune to Site Inspection due to Stasiality",
                                     MessageType.ABILITY,
                                     player=ally.player,  # Use ally's player for correct color coding
                                     target_name=ally.get_display_name()
@@ -782,7 +782,7 @@ class SiteInspectionSkill(ActiveSkill):
                                 
                                 # Log the status effect application
                                 message_log.add_message(
-                                    f"{ally.get_display_name()} gains +1 attack and movement from Site Inspection!",
+                                    f"{ally.get_display_name()} gains +1 attack and movement from Site Inspection",
                                     MessageType.ABILITY,
                                     player=user.player
                                 )
@@ -796,12 +796,12 @@ class SiteInspectionSkill(ActiveSkill):
                                     ui.renderer.flash_tile(ally.y, ally.x, tile_ids, color_ids, durations)
                                     
                                     # Display effect symbol above ally
-                                    ui.renderer.draw_text(ally.y-1, ally.x*2, "+1", 2)  # Green text
+                                    ui.renderer.draw_damage_text(ally.y-1, ally.x*2, "+1", 2)  # Green text
                                     ui.renderer.refresh()
                                     sleep_with_animation_speed(0.3)
                                     
                                     # Clear effect symbol
-                                    ui.renderer.draw_text(ally.y-1, ally.x*2, "  ", 7)
+                                    ui.renderer.draw_damage_text(ally.y-1, ally.x*2, "  ", 7)
                                     ui.renderer.refresh()
                             else:
                                 # If already has the effect, refresh the duration but don't stack
@@ -809,14 +809,14 @@ class SiteInspectionSkill(ActiveSkill):
                                 
                                 # Log the refresh
                                 message_log.add_message(
-                                    f"{ally.get_display_name()}'s Site Inspection effect refreshed!",
+                                    f"{ally.get_display_name()}'s Site Inspection effect refreshed",
                                     MessageType.ABILITY,
                                     player=user.player
                                 )
             else:
                 # Impassable terrain found - skill doesn't apply any buffs
                 message_log.add_message(
-                    f"Terrain features blocking free movement in the inspection area!",
+                    f"Terrain features blocking free movement in the inspection area",
                     MessageType.ABILITY,
                     player=user.player
                 )
@@ -844,7 +844,7 @@ class SiteInspectionSkill(ActiveSkill):
                 
                 if revealed_nodes:
                     message_log.add_message(
-                        f"Site Inspection reveals {len(revealed_nodes)} standing wave pattern{'s' if len(revealed_nodes) > 1 else ''}!",
+                        f"Site Inspection reveals {len(revealed_nodes)} standing wave pattern{'s' if len(revealed_nodes) > 1 else ''}",
                         MessageType.ABILITY,
                         player=user.player
                     )
@@ -926,7 +926,7 @@ class JawlineSkill(ActiveSkill):
         # Log that the skill has been readied
         from boneglaive.utils.message_log import message_log, MessageType
         message_log.add_message(
-            f"{user.get_display_name()} prepares to deploy a JAWLINE network!",
+            f"{user.get_display_name()} prepares to deploy a JAWLINE network",
             MessageType.ABILITY,
             player=user.player
         )
@@ -951,7 +951,7 @@ class JawlineSkill(ActiveSkill):
         
         # Log the skill activation
         message_log.add_message(
-            f"{user.get_display_name()} deploys JAWLINE network!",
+            f"{user.get_display_name()} deploys JAWLINE network",
             MessageType.ABILITY,
             player=user.player
         )
@@ -1051,7 +1051,7 @@ class JawlineSkill(ActiveSkill):
                     # Check if target was defeated
                     if target.hp <= 0:
                         message_log.add_message(
-                            f"{target.get_display_name()} perishes!",
+                            f"{target.get_display_name()} perishes",
                             MessageType.COMBAT,
                             player=user.player,
                             target=target.player,
@@ -1065,7 +1065,7 @@ class JawlineSkill(ActiveSkill):
                         # Check if target is immune to status effects (GRAYMAN with Stasiality)
                         if target.is_immune_to_effects():
                             message_log.add_message(
-                                f"{target.get_display_name()} is immune to Jawline's immobilization due to Stasiality!",
+                                f"{target.get_display_name()} is immune to Jawline's immobilization due to Stasiality",
                                 MessageType.ABILITY,
                                 player=target.player,  # Use target's player color for immunity message
                                 target_name=target.get_display_name()
@@ -1081,7 +1081,7 @@ class JawlineSkill(ActiveSkill):
                             target.move_range_bonus = -target.move_range
                             
                             message_log.add_message(
-                                f"{target.get_display_name()} is immobilized by the Jawline tether!",
+                                f"{target.get_display_name()} is immobilized by the Jawline tether",
                                 MessageType.ABILITY,
                                 player=user.player,
                                 target=target.player,
@@ -1103,9 +1103,9 @@ class JawlineSkill(ActiveSkill):
                 
                 # Make damage text visible
                 for i in range(3):
-                    ui.renderer.draw_text(target.y-1, target.x*2, " " * len(damage_text), 7)
+                    ui.renderer.draw_damage_text(target.y-1, target.x*2, " " * len(damage_text), 7)
                     attrs = curses.A_BOLD if i % 2 == 0 else 0
-                    ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, attrs)
+                    ui.renderer.draw_damage_text(target.y-1, target.x*2, damage_text, 7, attrs)
                     ui.renderer.refresh()
                     sleep_with_animation_speed(0.1)
             
@@ -1141,7 +1141,7 @@ class JawlineSkill(ActiveSkill):
                     # Check if target was defeated
                     if target.hp <= 0:
                         message_log.add_message(
-                            f"{target.get_display_name()} perishes!",
+                            f"{target.get_display_name()} perishes",
                             MessageType.COMBAT,
                             player=user.player,
                             target=target.player,
@@ -1155,7 +1155,7 @@ class JawlineSkill(ActiveSkill):
                         # Check if target is immune to status effects (GRAYMAN with Stasiality)
                         if target.is_immune_to_effects():
                             message_log.add_message(
-                                f"{target.get_display_name()} is immune to Jawline's immobilization due to Stasiality!",
+                                f"{target.get_display_name()} is immune to Jawline's immobilization due to Stasiality",
                                 MessageType.ABILITY,
                                 player=target.player,  # Use target's player color for immunity message
                                 target_name=target.get_display_name()
@@ -1171,7 +1171,7 @@ class JawlineSkill(ActiveSkill):
                             target.move_range_bonus = -target.move_range
                             
                             message_log.add_message(
-                                f"{target.get_display_name()} is immobilized by the Jawline tether!",
+                                f"{target.get_display_name()} is immobilized by the Jawline tether",
                                 MessageType.ABILITY,
                                 player=user.player,
                                 target=target.player,
