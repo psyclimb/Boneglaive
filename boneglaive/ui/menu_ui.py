@@ -88,7 +88,7 @@ class MenuUI:
         main_menu = Menu("Boneglaive", [
             MenuItem("Play", None, play_menu),
             MenuItem("Settings", None, settings_menu),
-            MenuItem("Help", self._show_help),
+            MenuItem("About", self._show_about),
             MenuItem("Quit", self._quit_game)
         ])
         
@@ -235,10 +235,68 @@ class MenuUI:
         self.config.save_config()
         return ("submenu", self._create_network_settings_menu())  # Refresh menu
     
-    def _show_help(self):
-        """Show the help screen."""
-        # In a real implementation, this would show a help screen
-        return None
+    def _show_about(self):
+        """Show the about screen with license information."""
+        return ("show_about", None)
+    
+    def _display_about_screen(self):
+        """Display the about screen with copyright and license information."""
+        self.renderer.clear_screen()
+        
+        # About screen content
+        lines = [
+            "Boneglaive v1.0",
+            "Tactical Turn-Based Combat Game",
+            "",
+            "Copyright (C) 2025 Psyclimb",
+            "",
+            "This program is free software licensed under GPL-3.0",
+            "This program comes with ABSOLUTELY NO WARRANTY.",
+            "",
+            "You are welcome to redistribute it under certain conditions.",
+            "See the LICENSE file for full terms.",
+            "",
+            "Source code: https://github.com/psyclimb/Boneglaive",
+            "",
+            "Built with Python and curses",
+            "",
+            "Press any key to return to menu..."
+        ]
+        
+        # Get renderer dimensions - different properties for different renderers
+        if hasattr(self.renderer, 'grid_height'):
+            # Pygame renderer uses grid_height/grid_width
+            height = self.renderer.grid_height
+            width = self.renderer.grid_width
+        else:
+            # Curses renderer uses height/width
+            height = self.renderer.height
+            width = self.renderer.width
+        
+        # Calculate starting position to center the content
+        start_row = max(2, (height - len(lines)) // 2)
+        
+        # Draw each line
+        for i, line in enumerate(lines):
+            if line:  # Non-empty line
+                # Center the text horizontally
+                col = max(2, (width - len(line)) // 2)
+                if "Boneglaive v1.0" in line:
+                    # Title in bold
+                    self.renderer.draw_text(start_row + i, col, line, 1, curses.A_BOLD)
+                elif "Copyright" in line or "GPL-3.0" in line:
+                    # Important legal text in different color
+                    self.renderer.draw_text(start_row + i, col, line, 2, 0)
+                elif "Source code:" in line:
+                    # URL in different color
+                    self.renderer.draw_text(start_row + i, col, line, 3, 0)
+                else:
+                    # Regular text
+                    self.renderer.draw_text(start_row + i, col, line, 1, 0)
+        
+        # Refresh display and wait for input
+        self.renderer.refresh()
+        self.renderer.get_input()  # Wait for any key press
     
     def _quit_game(self):
         """Quit the game."""
@@ -316,6 +374,9 @@ class MenuUI:
             # This ensures the result is passed up to the caller
             return ("start_game", None)
         
+        elif action == "show_about":
+            self._display_about_screen()
+            
         elif action == "quit":
             self.running = False
             return ("quit", None)
