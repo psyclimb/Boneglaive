@@ -72,7 +72,7 @@ class PygameRenderer(RenderInterface):
         
         # Create the display
         self.screen = pygame.display.set_mode((self.width, self.height))
-        pygame.display.set_caption("Boneglaive2")
+        pygame.display.set_caption("Boneglaive Beta")
         
         # Create clock for FPS control
         self.clock = pygame.time.Clock()
