@@ -28,21 +28,19 @@ pip install -r requirements.txt
 
 ## 🎮 Running the Game
 
-### Graphical Mode (Recommended)
-1. Set `"display_mode": "graphical"` in `config.json`
+### Text Mode (Recommended)
+1. Set `"display_mode": "text"` in `config.json` 
 2. Run: `python boneglaive/main.py`
 
-### Text Mode
-1. Set `"display_mode": "text"` in `config.json` 
+### Graphical Mode (Experimental)
+1. Set `"display_mode": "graphical"` in `config.json`
 2. Run: `python boneglaive/main.py`
 
 ## 🔧 Game Modes
 
-- **Single Player**: `--single-player`
-- **Local Multiplayer**: `--local-mp` 
-- **LAN Host**: `--lan-host`
-- **LAN Client**: `--lan-client`
-- **VS AI**: `--vs-ai`
+- **Single Player**: `--mode single`
+- **Local Multiplayer**: `--mode local` 
+- **VS AI**: `--mode vs_ai` (default)
 
 ## 📦 For Developers
 
@@ -62,19 +60,26 @@ This creates a single executable file that users can run without installing Pyth
 ## 🎯 Features
 
 - **Dual Rendering**: Terminal-based and graphical modes
-- **Cross-Platform**: Windows, macOS, Linux
+- **Cross-Platform**: Linux, FreeBSD (tested); Windows, macOS (untested)
 - **Complex Combat**: Unit skills, status effects, terrain
 - **Multiplayer**: Local and network play
-- **No External Dependencies**: Pure Python + pygame
+- **Minimal Dependencies**: Python stdlib + optional pygame
 
 ## ⚡ Controls
 
 - **Arrow Keys**: Movement
 - **Enter/Space**: Select/Confirm
-- **M**: Move mode
-- **A**: Attack mode  
-- **S**: Skill mode
+- **m**: Move mode
+- **a**: Attack mode  
+- **s**: Skill mode
+- **t**: End turn
+- **c**: Cancel action
 - **?**: Help
+- **l**: Toggle message log
+- **L**: Toggle full message log
+- **Tab**: Cycle through units
+- **Shift+Tab**: Cycle backwards through units
+- **p**: Activate appraiser anchor
 
 ## 🐛 Troubleshooting
 
@@ -89,7 +94,10 @@ pip install windows-curses
 ```
 
 **Can't run the game?**
-Make sure you have Python 3.8+ and run from the project root directory.
+Make sure you have Python 3.8+ and run with PYTHONPATH set:
+```bash
+PYTHONPATH=. python3 boneglaive/main.py
+```
 
 ## ⚠️ Development Status - BETA 0.7.0
 
