@@ -33,7 +33,7 @@ def parse_args():
     # Display options
     display_group = parser.add_argument_group('Display Options')
     display_group.add_argument('--display', choices=['text', 'graphical'],
-                            default='text', help='Display mode (text or graphical)')
+                            default=None, help='Display mode (text or graphical)')
     
     # Debug options
     debug_group = parser.add_argument_group('Debug Options')
