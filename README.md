@@ -2,67 +2,53 @@
 
 🚧 **BETA VERSION 0.7.0** - Core gameplay complete, some features in development
 
-A tactical turn-based combat game with dual rendering modes: classic terminal (curses) and modern graphical (pygame).
+A tactical turn-based combat game with dual rendering modes: classic terminal (ncurses) and modern graphical (pygame).
 
 > **For Developers & Testers**: See [Contributing](#-contributing) section below for development setup and testing guidelines.
 
-## 🚀 Quick Start (Choose One)
+## 🚀 Installation
 
-### Option 1: Automatic Installation (Recommended)
+### Text Mode Setup (Recommended)
+For the full terminal-based experience(Linux and BSD):
+# Install python (version 3.8 or later recommended)
+# Install ncurses
+
 ```bash
-python install.py
+# Run the game:
+python3 -m boneglaive.main
 ```
-This automatically installs all dependencies including pygame.
 
-### Option 2: Manual Installation
+### Graphical Mode Setup (Experimental)
+For the pygame-based graphical interface:
+
 ```bash
-pip install pygame
+# Install pygame:
+python install.py
+# OR manually: pip install pygame
+
 # On Windows, also install:
 pip install windows-curses
+
+# Set graphical mode in config.json:
+# Change "display_mode": "text" to "display_mode": "graphical"
+
+# Run the game:
+python3 -m boneglaive.main
 ```
-
-### Option 3: Using pip with requirements
-```bash
-pip install -r requirements.txt
-```
-
-## 🎮 Running the Game
-
-### Text Mode (Recommended)
-1. Set `"display_mode": "text"` in `config.json` 
-2. Run: `python boneglaive/main.py`
-
-### Graphical Mode (Experimental)
-1. Set `"display_mode": "graphical"` in `config.json`
-2. Run: `python boneglaive/main.py`
-
-## 🔧 Game Modes
-
-- **Single Player**: `--mode single`
-- **Local Multiplayer**: `--mode local` 
-- **VS AI**: `--mode vs_ai` (default)
-
-## 📦 For Developers
-
-### Create Standalone Executable
-```bash
-python build_executable.py
-```
-This creates a single executable file that users can run without installing Python or pygame.
 
 ### Project Structure
 - `boneglaive/` - Main game code
   - `renderers/` - Cross-platform rendering (curses + pygame)
   - `game/` - Core game logic and skills
   - `ui/` - User interface components
-  - `networking/` - Multiplayer support
 
 ## 🎯 Features
 
 - **Dual Rendering**: Terminal-based and graphical modes
 - **Cross-Platform**: Linux, FreeBSD (tested); Windows, macOS (untested)
 - **Complex Combat**: Unit skills, status effects, terrain
-- **Multiplayer**: Local and network play
+- **Singleplayer**: Singleplayer vs bots
+- **Multiplayer**: Hotseat multiplayer
 - **Minimal Dependencies**: Python stdlib + optional pygame
 
 ## ⚡ Controls
@@ -83,7 +69,7 @@ This creates a single executable file that users can run without installing Pyth
 
 ## 🐛 Troubleshooting
 
-**Pygame not found?**
+**Pygame not found (for graphical mode)?**
 ```bash
 python install.py
 ```
@@ -94,9 +80,9 @@ pip install windows-curses
 ```
 
 **Can't run the game?**
-Make sure you have Python 3.8+ and run with PYTHONPATH set:
+Make sure you have Python 3.8+ and try with PYTHONPATH set:
 ```bash
-PYTHONPATH=. python3 boneglaive/main.py
+PYTHONPATH=. python3 -m boneglaive.main
 ```
 
 ## ⚠️ Development Status - BETA 0.7.0
