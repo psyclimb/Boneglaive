@@ -25,7 +25,7 @@ for req in requirements:
 
 setup(
     name="boneglaive2",
-    version="1.0.0",
+    version="0.7.0",
     description="Tactical turn-based combat game with cross-platform rendering",
     packages=find_packages(),
     install_requires=install_requires,

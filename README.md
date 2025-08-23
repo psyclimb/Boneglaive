@@ -1,5 +1,7 @@
 # Boneglaive 🎯
 
+🚧 **BETA VERSION 0.7.0** - Core gameplay complete, some features in development
+
 A tactical turn-based combat game with dual rendering modes: classic terminal (curses) and modern graphical (pygame).
 
 > **For Developers & Testers**: See [Contributing](#-contributing) section below for development setup and testing guidelines.
@@ -89,10 +91,13 @@ pip install windows-curses
 **Can't run the game?**
 Make sure you have Python 3.8+ and run from the project root directory.
 
-## ⚠️ Development Status
+## ⚠️ Development Status - BETA 0.7.0
 
-**Text Mode**: Fully functional and recommended for play
-**Graphical Mode**: Unfinished - use text mode for best experience
+**Text Mode**: Fully functional and polished - recommended for play
+**Graphical Mode**: Incomplete - use text mode for best experience
+**Multiplayer**: Code exists but UI not accessible (single-player only currently)
+
+This beta version represents solid, playable core gameplay with some major features still in development toward 1.0 release.
 
 ## 🤝 Contributing
 
