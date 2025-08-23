@@ -146,6 +146,13 @@ class MultiplayerManager:
 
                 # Ensure the player number in the game engine is also updated
                 self.game.current_player = self.current_player
+                
+                # Increment turn counter when switching back to player 1
+                if self.current_player == 1:
+                    self.game.turn += 1
+
+                # Initialize the new player's turn (apply passive skills and reset flags)
+                self.game.initialize_next_player_turn()
 
                 # When switching to player 2, check if it's the first turn
                 if is_switching_to_player2:
@@ -163,6 +170,9 @@ class MultiplayerManager:
                 # Player 1 ended turn, switch to AI (player 2)
                 self.current_player = 2
                 self.game.current_player = 2
+                
+                # Initialize the AI player's turn
+                self.game.initialize_next_player_turn()
                 
                 # If this is player 2's first turn, apply move bonus to their units
                 if hasattr(self.game, 'is_player2_first_turn') and self.game.is_player2_first_turn:
@@ -186,6 +196,13 @@ class MultiplayerManager:
                     # Switch back to player 1 after AI turn
                     self.current_player = 1
                     self.game.current_player = 1
+                    
+                    # Increment turn counter when switching back to player 1
+                    self.game.turn += 1
+                    
+                    # Initialize player 1's turn
+                    self.game.initialize_next_player_turn()
+                    
                     message_log.add_system_message("Player 1's turn")
                     
                     # Force UI refresh if UI is available
@@ -195,6 +212,7 @@ class MultiplayerManager:
                 # This shouldn't happen in VS AI mode, but handle it anyway
                 self.current_player = 1
                 self.game.current_player = 1
+                self.game.initialize_next_player_turn()
 
     def _apply_player2_first_turn_buff(self) -> None:
         """Apply +2 move range buff to all player 2 units on their first turn."""
@@ -218,7 +236,7 @@ class MultiplayerManager:
 
             # Show a message about the buff
             message_log.add_message(
-                "Player 2 units gain +1 movement range on their first turn!",
+                "Player 2 units gain +1 movement range on their first turn",
                 MessageType.SYSTEM
             )
     

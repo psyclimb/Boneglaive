@@ -128,7 +128,11 @@ class GameStateSync:
             x = unit_data["position"]["x"]
             
             # Create new unit
-            unit = self.game.add_unit(unit_type, player, y, x)
+            try:
+                unit = self.game.add_unit(unit_type, player, y, x)
+            except ValueError as e:
+                logger.warning(f"Failed to restore unit {unit_type.name} at ({y}, {x}): {e}")
+                continue
             
             # Update unit properties
             unit.hp = unit_data["hp"]

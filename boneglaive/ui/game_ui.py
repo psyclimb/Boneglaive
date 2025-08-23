@@ -23,23 +23,32 @@ from boneglaive.ui.ui_components import (
     MessageLogComponent, HelpComponent, UnitHelpComponent, ChatComponent,
     CursorManager, GameModeManager, DebugComponent,
     AnimationComponent, InputManager, ActionMenuComponent,
-    GameOverPrompt
+    GameOverPrompt, UnitSelectionMenuComponent
 )
 from boneglaive.ui.ui_renderer import UIRenderer
 
 class GameUI:
     """User interface for the game - refactored to use component architecture."""
     
-    def __init__(self, stdscr):
+    def __init__(self, stdscr=None, renderer=None):
         # Initialize configuration
         self.config_manager = ConfigManager()
         
-        # Set up renderer
-        self.renderer = CursesRenderer(stdscr)
-        self.renderer.initialize()
+        # Set up renderer - use provided renderer or create curses renderer
+        if renderer is not None:
+            self.renderer = renderer
+        else:
+            self.renderer = CursesRenderer(stdscr)
+            self.renderer.initialize()
         
-        # Set up asset manager
-        self.asset_manager = AssetManager(self.config_manager)
+        # Set up asset manager - force text mode if using pygame renderer
+        if renderer is not None and hasattr(renderer, '__class__') and 'PygameRenderer' in renderer.__class__.__name__:
+            # For pygame renderer, use text mode assets (characters) not sprite paths
+            text_config = ConfigManager()
+            text_config.set('display_mode', 'text')
+            self.asset_manager = AssetManager(text_config)
+        else:
+            self.asset_manager = AssetManager(self.config_manager)
         
         # Set up input handler
         self.input_handler = InputHandler()
@@ -81,8 +90,13 @@ class GameUI:
         self.animation_component = AnimationComponent(self.renderer, self)
         self.action_menu_component = ActionMenuComponent(self.renderer, self)
         self.game_over_prompt = GameOverPrompt(self.renderer, self)  # Add game over prompt
+        self.unit_selection_menu = UnitSelectionMenuComponent(self.renderer, self)
         self.input_manager = InputManager(self.renderer, self, self.input_handler)
         self.ui_renderer = UIRenderer(self.renderer, self)
+        
+        # Sync unit selection menu with mode manager's initial setup unit type
+        if self.game.setup_phase:
+            self.unit_selection_menu.set_selected_unit_type(self.mode_manager.setup_unit_type)
         
         # Set up event handlers
         self._setup_event_handlers()
@@ -165,8 +179,8 @@ class GameUI:
         """Handle game over events."""
         # Display game over message in message log
         winner = event_data.winner
-        message_log.add_system_message(f"Game over! Player {winner} wins!")
-        self.message = f"Player {winner} wins!"
+        message_log.add_system_message(f"Game over. Player {winner} wins")
+        self.message = f"Player {winner} wins"
 
         # Show the game over prompt
         self.game_over_prompt.show(winner)
@@ -218,8 +232,8 @@ class GameUI:
 
         # Check if player can act on this turn
         if not self.cursor_manager.can_act_this_turn():
-            self.message = "Not your turn!"
-            message_log.add_message("Not your turn!", MessageType.WARNING)
+            self.message = "Not your turn"
+            message_log.add_message("Not your turn", MessageType.WARNING)
             return
 
         # Route to appropriate mode handler
@@ -256,7 +270,7 @@ class GameUI:
         self.game.set_ui_reference(self)
 
         # Reset message
-        self.message = f"New game started! Entering {self.game.map.name}"
+        self.message = f"New game started. Entering {self.game.map.name}"
 
         # Add a welcome message to the cleared log
         message_log.add_system_message(f"New game started. Entering {self.game.map.name}")
@@ -305,6 +319,7 @@ class GameUI:
             self.mode_manager.show_setup_instructions = False
             self.draw_board()
             return True
+        
             
         # Special handling for 'y' key in setup phase - check if confirmation is needed
         # This resolves the conflict with 'y' for diagonal movement in setup phase

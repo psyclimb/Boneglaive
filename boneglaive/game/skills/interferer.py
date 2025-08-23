@@ -118,7 +118,7 @@ class NeutronIlluminant(PassiveSkill):
             
             # Log radiation effect
             message_log.add_message(
-                f"Neutron radiation spreads from the impact!",
+                f"Neutron radiation spreads from the impact",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -179,7 +179,7 @@ class NeuralShuntSkill(ActiveSkill):
         
         target = game.get_unit_at(target_pos[0], target_pos[1])
         message_log.add_message(
-            f"{user.get_display_name()} coordinates neural interference transmission!",
+            f"{user.get_display_name()} coordinates neural interference transmission",
             MessageType.ABILITY,
             player=user.player
         )
@@ -195,7 +195,7 @@ class NeuralShuntSkill(ActiveSkill):
         
         # Log activation
         message_log.add_message(
-            f"Tower array hijacks {target.get_display_name()}'s neural signals!",
+            f"Tower array hijacks {target.get_display_name()}'s neural signals",
             MessageType.ABILITY,
             player=user.player
         )
@@ -228,15 +228,15 @@ class NeuralShuntSkill(ActiveSkill):
         if ui and hasattr(ui, 'renderer'):
             damage_text = f"-{damage}"
             for i in range(3):
-                ui.renderer.draw_text(target.y-1, target.x*2, " " * len(damage_text), 7)
+                ui.renderer.draw_damage_text(target.y-1, target.x*2, " " * len(damage_text), 7)
                 attrs = curses.A_BOLD if i % 2 == 0 else 0
-                ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, attrs)
+                ui.renderer.draw_damage_text(target.y-1, target.x*2, damage_text, 7, attrs)
                 ui.renderer.refresh()
                 sleep_with_animation_speed(0.1)
         
         if target.hp <= 0:
             message_log.add_message(
-                f"{target.get_display_name()} perishes!",
+                f"{target.get_display_name()} perishes",
                 MessageType.COMBAT,
                 player=user.player,
                 target=target.player,
@@ -249,7 +249,7 @@ class NeuralShuntSkill(ActiveSkill):
             # Apply neural shunt effect if target survives and not immune
             if target.is_immune_to_effects():
                 message_log.add_message(
-                    f"{target.get_display_name()} is immune to Neural Shunt due to Stasiality!",
+                    f"{target.get_display_name()} is immune to Neural Shunt due to Stasiality",
                     MessageType.ABILITY,
                     player=target.player,
                     target_name=target.get_display_name()
@@ -259,7 +259,7 @@ class NeuralShuntSkill(ActiveSkill):
                 target.neural_shunt_duration = self.effect_duration
                 
                 message_log.add_message(
-                    f"{target.get_display_name()}'s actions become erratic!",
+                    f"{target.get_display_name()}'s actions become erratic",
                     MessageType.ABILITY,
                     player=user.player,
                     target_name=target.get_display_name()
@@ -312,7 +312,7 @@ class CarrierRaveSkill(ActiveSkill):
             game.action_counter += 1
         
         message_log.add_message(
-            f"{user.get_display_name()} synchronizes with carrier wave transmission!",
+            f"{user.get_display_name()} synchronizes with carrier wave transmission",
             MessageType.ABILITY,
             player=user.player
         )
@@ -323,7 +323,7 @@ class CarrierRaveSkill(ActiveSkill):
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute Carrier Rave skill."""
         message_log.add_message(
-            f"{user.get_display_name()} rides the carrier wave out of phase!",
+            f"{user.get_display_name()} rides the carrier wave out of phase",
             MessageType.ABILITY,
             player=user.player
         )
@@ -344,7 +344,7 @@ class CarrierRaveSkill(ActiveSkill):
         user.carrier_rave_strikes_ready = False  # Will be set to True when effect ends
         
         message_log.add_message(
-            f"{user.get_display_name()} becomes untargetable!",
+            f"{user.get_display_name()} becomes untargetable",
             MessageType.ABILITY,
             player=user.player
         )

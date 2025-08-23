@@ -3,11 +3,16 @@
 Curses-based renderer implementation.
 """
 
-import curses
 import time
 from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+from boneglaive.utils.platform_compat import get_curses_module
 
 import os
+
+# Get platform-appropriate curses module
+curses = get_curses_module()
+if curses is None:
+    raise ImportError("Curses module not available for this platform. On Windows, install: pip install windows-curses")
 from typing import Dict, List, Optional, Tuple
 
 from boneglaive.utils.render_interface import RenderInterface
@@ -205,15 +210,18 @@ class CursesRenderer(RenderInterface):
         # Skill target color - blue background to differentiate from attack targets (red)
         curses.init_pair(15, curses.COLOR_WHITE, curses.COLOR_BLUE)   # Skill target
         
-        # Canyon floor color - brown/tan text on black background
-        curses.init_pair(21, curses.COLOR_YELLOW, curses.COLOR_BLACK)  # Canyon floor (tan/brown)
+        # Player-specific move highlight colors
+        curses.init_pair(17, curses.COLOR_BLACK, curses.COLOR_GREEN)     # Player 1 move highlight - green background
+        curses.init_pair(18, curses.COLOR_BLACK, curses.COLOR_BLUE)      # Player 2 move highlight - blue background
         
         # Message log special colors for critical events
-        curses.init_pair(17, curses.COLOR_RED, curses.COLOR_BLACK)       # Wretch messages - bright red
-        curses.init_pair(18, curses.COLOR_RED, curses.COLOR_BLACK)       # Death messages - dark red (will use dim attribute)
-        curses.init_pair(19, curses.COLOR_WHITE, curses.COLOR_BLACK)     # Estranged unit effect - gray (white with dim attribute)
-        curses.init_pair(21, curses.COLOR_MAGENTA, curses.COLOR_BLACK)   # Damage numbers - magenta
-        curses.init_pair(22, curses.COLOR_WHITE, curses.COLOR_BLACK)     # Healing numbers - white (bright with A_BOLD)
+        curses.init_pair(19, curses.COLOR_RED, curses.COLOR_BLACK)       # Wretch messages - bright red
+        curses.init_pair(20, curses.COLOR_RED, curses.COLOR_BLACK)       # Death messages - dark red (will use dim attribute)
+        curses.init_pair(21, curses.COLOR_YELLOW, curses.COLOR_BLACK)    # Canyon floor (tan/brown)
+        curses.init_pair(22, curses.COLOR_WHITE, curses.COLOR_BLACK)     # Estranged unit effect - gray (white with dim attribute)
+        curses.init_pair(23, curses.COLOR_MAGENTA, curses.COLOR_BLACK)   # Damage numbers - magenta
+        curses.init_pair(24, curses.COLOR_WHITE, curses.COLOR_BLACK)     # Healing numbers - white (bright with A_BOLD)
+        curses.init_pair(25, curses.COLOR_RED, curses.COLOR_BLACK)       # Red text (for critical HP)
     
     def animate_projectile(self, start_pos: Tuple[int, int], end_pos: Tuple[int, int], 
                           tile_id: str, color_id: int = 7, duration: float = 0.5) -> None:
@@ -287,6 +295,11 @@ class CursesRenderer(RenderInterface):
             sleep_with_animation_speed(adjusted_duration)
             
         # No need to restore tile as the next full redraw will handle it
+        
+    def draw_damage_text(self, y: int, x: int, text: str, color_id: int = 7, 
+                        attributes: int = 0) -> None:
+        """Draw damage/healing text (same as draw_text for curses renderer)."""
+        self.draw_text(y, x, text, color_id, attributes)
         
     def animate_attack_sequence(self, y: int, x: int, sequence: List[str],
                              color_id: int = 7, duration: float = 0.5) -> None:

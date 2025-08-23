@@ -38,7 +38,7 @@ class GameConfig:
     selected_map: str = "lime_foyer"
     
     # Network settings
-    network_mode: str = NetworkMode.SINGLE_PLAYER.value
+    network_mode: str = NetworkMode.VS_AI.value
     server_ip: str = "127.0.0.1"
     server_port: int = 7777
     player_name: str = "Player"

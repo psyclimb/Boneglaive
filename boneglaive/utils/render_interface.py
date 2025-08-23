@@ -85,3 +85,9 @@ class RenderInterface(abc.ABC):
                               color_id: int = 1, duration: float = 0.5) -> None:
         """Animate an attack sequence at the specified position."""
         pass
+    
+    @abc.abstractmethod
+    def draw_damage_text(self, y: int, x: int, text: str, color_id: int = 7, 
+                        attributes: int = 0) -> None:
+        """Draw damage/healing text without background clearing to avoid animation conflicts."""
+        pass

@@ -50,6 +50,8 @@ class GameAction(Enum):
     CYCLE_UNITS_REVERSE = auto()  # Cycle through player's units (backward)
     LOG_HISTORY = auto()  # Full log history screen
     CONFIRM = auto()  # Confirm setup/action
+    SETUP_NEXT_UNIT = auto()  # Navigate down in setup unit menu (TAB)
+    SETUP_PREV_UNIT = auto()  # Navigate up in setup unit menu (SHIFT+TAB)
     QUIT = auto()
 
 class InputHandler:
@@ -120,6 +122,10 @@ class InputHandler:
             setup_context = {}
             setup_context[curses.KEY_BACKSPACE] = GameAction.TEST_MODE  # Reuse TEST_MODE for unit type toggle using backspace
             setup_context[127] = GameAction.TEST_MODE  # ASCII 127 is also backspace on some systems
+            # TAB navigation in setup phase
+            setup_context[9] = GameAction.SETUP_NEXT_UNIT  # TAB for next unit type
+            setup_context[curses.KEY_BTAB] = GameAction.SETUP_PREV_UNIT  # SHIFT+TAB for previous unit type
+            setup_context[353] = GameAction.SETUP_PREV_UNIT  # Alternative SHIFT+TAB code
             
             # Store setup context
             self.context_sensitive_maps["setup"] = setup_context
@@ -182,17 +188,19 @@ class InputHandler:
         Process raw input and trigger appropriate action callbacks.
         Returns True to continue processing, False to quit.
         """
-        # Get action from default map
-        action = self.action_map.get(raw_input)
+        action = None
         
-        # If no action found in default map, check context-sensitive maps
+        # Check context-sensitive maps first (they take precedence)
+        for context in self.get_active_contexts():
+            if context in self.context_sensitive_maps:
+                context_map = self.context_sensitive_maps[context]
+                if raw_input in context_map:
+                    action = context_map[raw_input]
+                    break
+        
+        # If no action found in context maps, check default map
         if not action:
-            for context in self.get_active_contexts():
-                if context in self.context_sensitive_maps:
-                    context_map = self.context_sensitive_maps[context]
-                    if raw_input in context_map:
-                        action = context_map[raw_input]
-                        break
+            action = self.action_map.get(raw_input)
         
         # If we have a mapping and a callback for this action, execute it
         if action and action in self.action_callbacks:

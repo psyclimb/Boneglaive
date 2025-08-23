@@ -101,76 +101,134 @@ class Game:
         # Find valid positions for units that aren't on limestone
         valid_positions = []
         
-        # For player 2, place units on the right side of the map with randomness
+        # For player 2, place units with enhanced randomization and formation variety
         if player == 2:
             import random
             
-            # Define a larger area to place units
-            min_y, max_y = 2, 8  # Expanded Y range for more variety
-            min_x, max_x = 10, 16  # Expanded X range for more variety
+            # Get existing player 1 units to avoid spawning too close
+            player1_units = [unit for unit in self.units if unit.player == 1]
+            player1_positions = [(unit.y, unit.x) for unit in player1_units]
             
-            # Generate a list of all valid positions in this area
-            all_possible_positions = []
-            for y in range(min_y, max_y):
-                for x in range(min_x, max_x):
-                    if self.map.can_place_unit(y, x) and self.get_unit_at(y, x) is None:
-                        all_possible_positions.append((y, x))
+            # Define multiple spawn zones for variety
+            spawn_zones = [
+                # Right side zones (traditional area)
+                {"name": "Right Flank", "min_y": 1, "max_y": 9, "min_x": 12, "max_x": 19},
+                {"name": "Right Edge", "min_y": 2, "max_y": 8, "min_x": 15, "max_x": 19},
+                {"name": "Upper Right", "min_y": 1, "max_y": 5, "min_x": 10, "max_x": 18},
+                {"name": "Lower Right", "min_y": 5, "max_y": 9, "min_x": 10, "max_x": 18},
+                {"name": "Center Right", "min_y": 3, "max_y": 7, "min_x": 11, "max_x": 17},
+                {"name": "Back Line", "min_y": 2, "max_y": 8, "min_x": 16, "max_x": 19},
+                
+                # New alternative zones for more variety
+                {"name": "Far Back", "min_y": 1, "max_y": 9, "min_x": 17, "max_x": 19},
+                {"name": "Mid Right", "min_y": 2, "max_y": 8, "min_x": 13, "max_x": 16},
+                {"name": "Corner Cluster", "min_y": 1, "max_y": 4, "min_x": 16, "max_x": 19},
+                {"name": "Lower Corner", "min_y": 6, "max_y": 9, "min_x": 16, "max_x": 19},
+                
+                # Even more experimental zones
+                {"name": "Wide Right", "min_y": 2, "max_y": 8, "min_x": 11, "max_x": 19},
+                {"name": "Narrow Right", "min_y": 3, "max_y": 7, "min_x": 14, "max_x": 18},
+            ]
             
-            # If we found enough potential positions
-            if len(all_possible_positions) >= 3:
-                # Shuffle to add randomness
-                random.shuffle(all_possible_positions)
-                
-                # Start with first random position
-                first_pos = all_possible_positions[0]
-                valid_positions.append(first_pos)
-                first_y, first_x = first_pos
-                
-                # Remove first position from available positions
-                remaining = all_possible_positions[1:]
-                
-                # Sort by distance to first point (closest first)
-                remaining.sort(key=lambda pos: self.chess_distance(first_y, first_x, pos[0], pos[1]))
-                
-                # Take a random position from the closest 5 (or fewer if not available)
-                selection_pool = remaining[:min(5, len(remaining))]
-                if selection_pool:
-                    second_pos = random.choice(selection_pool)
-                    valid_positions.append(second_pos)
-                    second_y, second_x = second_pos
-                    
-                    # Remove second position
-                    remaining.remove(second_pos)
-                    
-                    # For third unit, prefer positions that maintain group cohesion
-                    remaining.sort(key=lambda pos: 
-                        self.chess_distance(first_y, first_x, pos[0], pos[1]) + 
-                        self.chess_distance(second_y, second_x, pos[0], pos[1]))
-                    
-                    # Again add randomness - select from closest 5 positions
-                    selection_pool = remaining[:min(5, len(remaining))]
-                    if selection_pool:
-                        third_pos = random.choice(selection_pool)
-                        valid_positions.append(third_pos)
-                
-                # Log the positions for debugging
-                logger.info(f"Randomized positions for Player {player}: {valid_positions}")
-                for i, pos in enumerate(valid_positions):
-                    y, x = pos
-                    logger.info(f"AI Unit {i+1} will spawn at position ({y}, {x})")
+            # Shuffle the zones to add more randomness to zone selection
+            random.shuffle(spawn_zones)
             
-            # If we couldn't find enough valid positions with randomization, fall back to the old method
-            if len(valid_positions) < 3:
-                logger.warning("Failed to find enough randomized positions, falling back to fixed positions")
-                valid_positions = []
-                for y in range(3, 7):
-                    for x in range(11, 15):
-                        if self.map.can_place_unit(y, x) and self.get_unit_at(y, x) is None:
-                            valid_positions.append((y, x))
-                            if len(valid_positions) >= 3:
-                                break
+            # Try each spawn zone until we find one with enough valid positions
+            for zone in spawn_zones:
+                zone_positions = []
+                
+                # Find all valid positions in this zone
+                for y in range(zone["min_y"], zone["max_y"]):
+                    for x in range(zone["min_x"], zone["max_x"]):
+                        if (self.map.can_place_unit(y, x) and 
+                            self.get_unit_at(y, x) is None):
+                            
+                            # Check minimum distance from player 1 units (at least 3 tiles away)
+                            min_distance_ok = True
+                            for p1_y, p1_x in player1_positions:
+                                if self.chess_distance(y, x, p1_y, p1_x) < 3:
+                                    min_distance_ok = False
+                                    break
+                            
+                            if min_distance_ok:
+                                zone_positions.append((y, x))
+                
+                # If this zone has enough positions, use it
+                if len(zone_positions) >= 3:
+                    logger.info(f"Using spawn zone: {zone['name']} with {len(zone_positions)} valid positions")
+                    
+                    # Shuffle for randomness
+                    random.shuffle(zone_positions)
+                    
+                    # Choose formation pattern randomly
+                    formation_patterns = [
+                        "clustered",    # Units close together
+                        "line",         # Units in a line
+                        "triangle",     # Units in triangular formation
+                        "scattered"     # Units spread out
+                    ]
+                    formation = random.choice(formation_patterns)
+                    logger.info(f"Using formation pattern: {formation}")
+                    
+                    valid_positions = self._select_positions_by_formation(
+                        zone_positions, formation, zone['name'])
+                    
                     if len(valid_positions) >= 3:
                         break
+            
+            # If no zone worked, fall back to progressively more lenient methods
+            if len(valid_positions) < 3:
+                logger.warning("No spawn zone had enough positions, trying fallback methods")
+                
+                # Fallback 1: Right side with reduced distance requirement
+                if len(valid_positions) < 3:
+                    logger.info("Fallback 1: Right side with reduced distance requirement")
+                    for y in range(1, 9):
+                        for x in range(11, 19):
+                            if (self.map.can_place_unit(y, x) and 
+                                self.get_unit_at(y, x) is None):
+                                
+                                # Reduced distance requirement (at least 2 tiles)
+                                min_distance_ok = True
+                                for p1_y, p1_x in player1_positions:
+                                    if self.chess_distance(y, x, p1_y, p1_x) < 2:
+                                        min_distance_ok = False
+                                        break
+                                
+                                if min_distance_ok:
+                                    valid_positions.append((y, x))
+                                    if len(valid_positions) >= 3:
+                                        break
+                        if len(valid_positions) >= 3:
+                            break
+                
+                # Fallback 2: Anywhere on right half of map
+                if len(valid_positions) < 3:
+                    logger.info("Fallback 2: Anywhere on right half of map")
+                    for y in range(1, 9):
+                        for x in range(10, 19):
+                            if (self.map.can_place_unit(y, x) and 
+                                self.get_unit_at(y, x) is None and
+                                (y, x) not in valid_positions):
+                                valid_positions.append((y, x))
+                                if len(valid_positions) >= 3:
+                                    break
+                        if len(valid_positions) >= 3:
+                            break
+                
+                # Fallback 3: Emergency - anywhere that's valid
+                if len(valid_positions) < 3:
+                    logger.warning("Fallback 3: Emergency placement anywhere valid")
+                    for y in range(1, 9):
+                        for x in range(1, 19):
+                            if (self.map.can_place_unit(y, x) and 
+                                self.get_unit_at(y, x) is None and
+                                (y, x) not in valid_positions):
+                                valid_positions.append((y, x))
+                                if len(valid_positions) >= 3:
+                                    break
+                        if len(valid_positions) >= 3:
+                            break
         
         # Check if we're in VS_AI mode
         from boneglaive.utils.config import ConfigManager, NetworkMode
@@ -217,68 +275,173 @@ class Game:
                 return
         
         # Standard unit placement for non-VS_AI modes
-        # Track unit counts to enforce 2-unit type limit
-        unit_counts = {}
         
-        # Set up a variety of unit types to use
-        unit_types = [
-            UnitType.GLAIVEMAN,
-            UnitType.DELPHIC_APPRAISER,
-            UnitType.GAS_MACHINIST
-        ]
+    def _select_positions_by_formation(self, available_positions, formation_type, zone_name):
+        """
+        Select 3 positions from available positions using the specified formation pattern.
         
-        for y, x in valid_positions:
-            # Choose a valid unit type (respecting the 2-unit limit)
-            valid_types = [t for t in unit_types
-                        if unit_counts.get(t, 0) < 2]
+        Args:
+            available_positions: List of (y, x) tuples of valid spawn positions
+            formation_type: String describing the formation ("clustered", "line", "triangle", "scattered")
+            zone_name: Name of the spawn zone for logging
             
-            # Default to GLAIVEMAN if no valid types (shouldn't happen)
-            if not valid_types:
-                logger.warning(f"No valid unit types available for player {player}. Using GLAIVEMAN.")
-                unit_type = UnitType.GLAIVEMAN
+        Returns:
+            List of 3 (y, x) positions for unit placement
+        """
+        import random
+        from boneglaive.utils.debug import logger
+        
+        if len(available_positions) < 3:
+            return available_positions
+            
+        positions = []
+        
+        if formation_type == "clustered":
+            # Units close together - find a central position and nearby positions
+            # Start with a random position
+            center_pos = random.choice(available_positions)
+            positions.append(center_pos)
+            center_y, center_x = center_pos
+            
+            # Find positions close to the center
+            remaining = [pos for pos in available_positions if pos != center_pos]
+            remaining.sort(key=lambda pos: self.chess_distance(center_y, center_x, pos[0], pos[1]))
+            
+            # Take the 2 closest positions
+            positions.extend(remaining[:2])
+            
+        elif formation_type == "line":
+            # Units in a line formation - find 3 positions that form a relatively straight line
+            # Start with a random position
+            first_pos = random.choice(available_positions)
+            positions.append(first_pos)
+            first_y, first_x = first_pos
+            
+            remaining = [pos for pos in available_positions if pos != first_pos]
+            
+            # Find a second position at medium distance
+            mid_distance_positions = [pos for pos in remaining 
+                                    if 2 <= self.chess_distance(first_y, first_x, pos[0], pos[1]) <= 4]
+            
+            if mid_distance_positions:
+                second_pos = random.choice(mid_distance_positions)
+                positions.append(second_pos)
+                second_y, second_x = second_pos
+                
+                # Find third position that extends the line
+                remaining.remove(second_pos)
+                
+                # Calculate direction vector from first to second
+                dy = second_y - first_y
+                dx = second_x - first_x
+                
+                # Look for positions that continue this direction
+                line_positions = []
+                for pos in remaining:
+                    y, x = pos
+                    # Check if this position is roughly in line with the first two
+                    pos_dy = y - second_y
+                    pos_dx = x - second_x
+                    
+                    # Simple line check - similar direction or perpendicular for variety
+                    if (abs(pos_dy) <= 1 and abs(pos_dx) <= 1) or \
+                       (dy != 0 and pos_dy / abs(dy) > 0) or \
+                       (dx != 0 and pos_dx / abs(dx) > 0):
+                        line_positions.append(pos)
+                
+                if line_positions:
+                    positions.append(random.choice(line_positions))
+                else:
+                    # Fallback to closest position
+                    remaining.sort(key=lambda pos: self.chess_distance(second_y, second_x, pos[0], pos[1]))
+                    positions.append(remaining[0])
             else:
-                # Rotate through valid types to ensure variety
-                unit_type = valid_types[0]
+                # Fallback to closest positions
+                remaining.sort(key=lambda pos: self.chess_distance(first_y, first_x, pos[0], pos[1]))
+                positions.extend(remaining[:2])
+                
+        elif formation_type == "triangle":
+            # Units in triangular formation
+            # Start with a random position
+            first_pos = random.choice(available_positions)
+            positions.append(first_pos)
+            first_y, first_x = first_pos
             
-            # Add the unit with the selected type
-            self.add_unit(unit_type, player, y, x)
+            remaining = [pos for pos in available_positions if pos != first_pos]
             
-            # Update unit count for this type
-            unit_counts[unit_type] = unit_counts.get(unit_type, 0) + 1
+            # Find second position at reasonable distance
+            remaining.sort(key=lambda pos: self.chess_distance(first_y, first_x, pos[0], pos[1]))
+            # Skip positions too close or too far
+            good_distances = [pos for pos in remaining 
+                            if 2 <= self.chess_distance(first_y, first_x, pos[0], pos[1]) <= 4]
             
-            logger.info(f"Added {unit_type.name} for player {player} at ({y}, {x})")
-        
-        # If we couldn't find enough valid positions, add some emergency units
-        if len(valid_positions) < 3:
-            missing = 3 - len(valid_positions)
-            logger.warning(f"Not enough valid positions found. Adding {missing} emergency units for player {player}.")
+            if good_distances:
+                second_pos = random.choice(good_distances)
+                positions.append(second_pos)
+                second_y, second_x = second_pos
+                
+                # Find third position that forms a triangle
+                remaining.remove(second_pos)
+                
+                # Look for positions roughly equidistant from both first and second
+                triangle_positions = []
+                for pos in remaining:
+                    y, x = pos
+                    dist1 = self.chess_distance(first_y, first_x, y, x)
+                    dist2 = self.chess_distance(second_y, second_x, y, x)
+                    
+                    # Good triangle position if distances are reasonably balanced
+                    if 1 <= dist1 <= 4 and 1 <= dist2 <= 4 and abs(dist1 - dist2) <= 2:
+                        triangle_positions.append(pos)
+                
+                if triangle_positions:
+                    positions.append(random.choice(triangle_positions))
+                else:
+                    # Fallback
+                    remaining.sort(key=lambda pos: 
+                        self.chess_distance(first_y, first_x, pos[0], pos[1]) + 
+                        self.chess_distance(second_y, second_x, pos[0], pos[1]))
+                    positions.append(remaining[0])
+            else:
+                # Fallback to closest positions
+                positions.extend(remaining[:2])
+                
+        else:  # formation_type == "scattered"
+            # Units spread out across the available area
+            # Divide available positions into regions and pick from different regions
             
-            # Emergency positions depend on player
-            emergency_positions = [
-                (8, 16), (8, 17), (8, 18)  # Player 2 emergency positions
+            # Sort by Y coordinate to divide into regions
+            available_positions.sort(key=lambda pos: pos[0])
+            region_size = len(available_positions) // 3
+            
+            regions = [
+                available_positions[:region_size],
+                available_positions[region_size:2*region_size],
+                available_positions[2*region_size:]
             ]
             
-            # Place units at emergency positions
-            for i in range(missing):
-                y, x = emergency_positions[i]
-                
-                # Choose a valid unit type (respecting the 2-unit limit)
-                valid_types = [t for t in unit_types
-                            if unit_counts.get(t, 0) < 2]
-                
-                # Default to GLAIVEMAN if no valid types
-                if not valid_types:
-                    unit_type = UnitType.GLAIVEMAN
-                else:
-                    unit_type = valid_types[0]
-                
-                # Add the unit with the selected type
-                self.add_unit(unit_type, player, y, x)
-                
-                # Update unit count for this type
-                unit_counts[unit_type] = unit_counts.get(unit_type, 0) + 1
-                
-                logger.info(f"Added emergency {unit_type.name} for player {player} at ({y}, {x})")
+            # Pick one position from each region
+            for region in regions:
+                if region:
+                    positions.append(random.choice(region))
+                    
+            # If we need more positions, fill from remaining
+            while len(positions) < 3 and len(available_positions) > len(positions):
+                remaining = [pos for pos in available_positions if pos not in positions]
+                if remaining:
+                    positions.append(random.choice(remaining))
+        
+        # Ensure we have exactly 3 positions
+        if len(positions) < 3:
+            # Fill remaining slots with random positions
+            remaining = [pos for pos in available_positions if pos not in positions]
+            while len(positions) < 3 and remaining:
+                positions.append(remaining.pop(random.randint(0, len(remaining) - 1)))
+        
+        # Log the formation result
+        logger.info(f"Formation '{formation_type}' in {zone_name}: {positions}")
+        
+        return positions[:3]  # Ensure we return exactly 3 positions
     
     def setup_initial_units(self):
         """
@@ -693,7 +856,11 @@ class Game:
             return "max_unit_type_limit"
 
         # Place the unit with the specified type
-        # Allow placement even if position is occupied by another unit - we'll resolve conflicts later
+        # Check for existing unit at position - only reject if same player
+        existing_unit = self.get_unit_at(y, x)
+        if existing_unit is not None and existing_unit.player == self.setup_player:
+            return "position_occupied"  # Position occupied by same player
+        
         self.add_unit(unit_type, self.setup_player, y, x)
 
         # Decrement remaining units
@@ -858,9 +1025,28 @@ class Game:
             else:
                 # Position is free, mark it as occupied
                 occupied_positions.add(pos)
-        
+    
+    def resolve_unit_conflicts(self):
+        """
+        Public method to resolve unit placement conflicts.
+        Called from recruitment menu when game starts.
+        """
+        self._resolve_unit_placement_conflicts()
     
     def add_unit(self, unit_type, player, y, x):
+        # Check if position is valid for placement
+        if not self.map.can_place_unit(y, x):
+            raise ValueError(f"Cannot place unit at ({y}, {x}) - invalid terrain")
+        
+        # Check if there's already a unit at this position
+        existing_unit = self.get_unit_at(y, x)
+        if existing_unit is not None:
+            # Only prevent placement if it's the same player's unit
+            # Cross-player overlap is allowed during setup to hide positions
+            if existing_unit.player == player:
+                raise ValueError(f"Position ({y}, {x}) is already occupied by your {existing_unit.type.name}")
+            # For different players, allow placement - conflicts will be resolved when game starts
+        
         unit = Unit(unit_type, player, y, x)
         unit.initialize_skills()  # Initialize skills for the unit
         unit.set_game_reference(self)  # Set game reference for trap checks
@@ -1160,7 +1346,7 @@ class Game:
             if self.is_protected_from(target, unit):
                 from boneglaive.utils.message_log import message_log, MessageType
                 message_log.add_message(
-                    f"Cannot target {target.get_display_name()} - protected by safety gas!",
+                    f"Cannot target {target.get_display_name()} - protected by safety gas",
                     MessageType.ABILITY
                 )
                 return False
@@ -1327,7 +1513,7 @@ class Game:
         if previous_hp is not None and previous_hp > critical_threshold:
             # Unit just crossed into critical health - display the retch message
             message_log.add_message(
-                f"{unit.get_display_name()} retches!",
+                f"{unit.get_display_name()} retches",
                 MessageType.COMBAT,
                 player=attacker.player if attacker else None,
                 target=unit.player,
@@ -1390,7 +1576,7 @@ class Game:
         
         # Log the death with appropriate message
         message_log.add_message(
-            f"{dying_unit.get_display_name()} perishes!",
+            f"{dying_unit.get_display_name()} perishes",
             MessageType.COMBAT,
             player=killer_unit.player if killer_unit else None,
             target_name=dying_unit.get_display_name()
@@ -1451,7 +1637,7 @@ class Game:
                     
                     if upgraded_skill:
                         # Create a more distinctive message for the upgrade
-                        upgrade_message = f"DOMINION: {dike_owner.get_display_name()} absorbs power from the fallen!"
+                        upgrade_message = f"DOMINION: {dike_owner.get_display_name()} absorbs power from the fallen"
                         
                         # Add to message log with ABILITY type for correct player coloring
                         message_log.add_message(
@@ -1487,7 +1673,7 @@ class Game:
                 unit.trapped_by = None
                 unit.trap_duration = 0  # Reset trap duration
                 message_log.add_message(
-                    f"{unit.get_display_name()} is released from mechanical jaws!",
+                    f"{unit.get_display_name()} is released from mechanical jaws",
                     MessageType.ABILITY,
                     target_name=unit.get_display_name()
                 )
@@ -1553,7 +1739,7 @@ class Game:
                             
                             # Shorter log message
                             message_log.add_message(
-                                f"{unit.get_display_name()} slogs through the Marrow Dike!",
+                                f"{unit.get_display_name()} slogs through the Marrow Dike",
                                 MessageType.ABILITY,
                                 player=dike_owner.player,
                                 attacker_name=dike_owner.get_display_name(),
@@ -1568,7 +1754,7 @@ class Game:
                         # Only show the message once when first entering the dike
                         if not hasattr(unit, 'marrow_dike_immunity_message_shown'):
                             message_log.add_message(
-                                f"{unit.get_display_name()} ignores the Marrow Dike's effect due to Stasiality!",
+                                f"{unit.get_display_name()} ignores the Marrow Dike's effect due to Stasiality",
                                 MessageType.ABILITY,
                                 player=unit.player,
                                 target_name=unit.get_display_name()
@@ -1757,7 +1943,7 @@ class Game:
                     
                     # Log the expiration
                     message_log.add_message(
-                        f"{unit.get_display_name()} breaks free and can move again!",
+                        f"{unit.get_display_name()} breaks free and can move again",
                         MessageType.ABILITY,
                         player=unit.player
                     )
@@ -1946,7 +2132,7 @@ class Game:
                         # Release the unit
                         trapped_unit.trapped_by = None
                         message_log.add_message(
-                            f"{trapped_unit.get_display_name()} is released from mechanical jaws!",
+                            f"{trapped_unit.get_display_name()} is released from mechanical jaws",
                             MessageType.ABILITY,
                             target_name=trapped_unit.get_display_name()
                         )
@@ -2024,7 +2210,7 @@ class Game:
                     los_check = self.has_line_of_sight(attacking_pos[0], attacking_pos[1], y, x)
                     if not los_check:
                         message_log.add_message(
-                            f"{unit.get_display_name()}'s attack is blocked by terrain!",
+                            f"{unit.get_display_name()}'s attack is blocked by terrain",
                             MessageType.COMBAT,
                             player=unit.player
                         )
@@ -2033,7 +2219,7 @@ class Game:
                 if target and target.player != unit.player and self.is_protected_from(target, unit):
                     logger.debug(f"Attack cancelled: {target.get_display_name()} is protected by Saft-E-Gas")
                     message_log.add_message(
-                        f"{unit.get_display_name()}'s attack fails - target is protected by safety gas!",
+                        f"{unit.get_display_name()}'s attack fails - target is protected by safety gas",
                         MessageType.COMBAT,
                         player=unit.player
                     )
@@ -2069,7 +2255,7 @@ class Game:
                         
                         # Log the attack on the wall
                         message_log.add_message(
-                            f"{unit.get_display_name()} attacks a Marrow Dike wall!",
+                            f"{unit.get_display_name()} attacks a Marrow Dike wall",
                             MessageType.COMBAT,
                             player=unit.player
                         )
@@ -2090,7 +2276,7 @@ class Game:
                             
                             # Log the destruction
                             message_log.add_message(
-                                f"{unit.get_display_name()} breaks through a section of {owner.get_display_name()}'s Marrow Dike!",
+                                f"{unit.get_display_name()} breaks through a section of {owner.get_display_name()}'s Marrow Dike",
                                 MessageType.COMBAT,
                                 player=unit.player
                             )
@@ -2109,7 +2295,7 @@ class Game:
                             
                             # Log the investment maturation before attack
                             message_log.add_message(
-                                f"{unit.get_display_name()}'s investment matures to +{unit.market_futures_maturity} ATK!",
+                                f"{unit.get_display_name()}'s investment matures to +{unit.market_futures_maturity} ATK",
                                 MessageType.ABILITY,
                                 player=unit.player
                             )
@@ -2150,14 +2336,14 @@ class Game:
                             # Different messages for original GRAYMAN vs echo
                             if hasattr(unit, 'is_echo') and unit.is_echo:
                                 message_log.add_message(
-                                    f"The echo's psychic attack bypasses {target.get_display_name()}'s defenses!",
+                                    f"The echo's psychic attack bypasses {target.get_display_name()}'s defenses",
                                     MessageType.ABILITY,
                                     player=unit.player,
                                     target_name=target.get_display_name()
                                 )
                             else:
                                 message_log.add_message(
-                                    f"{unit.get_display_name()}'s psychic attack bypasses {target.get_display_name()}'s defenses!",
+                                    f"{unit.get_display_name()}'s psychic attack bypasses {target.get_display_name()}'s defenses",
                                     MessageType.ABILITY,
                                     player=unit.player,
                                     target_name=target.get_display_name()
@@ -2179,7 +2365,7 @@ class Game:
                         # Check if target is immune to being trapped
                         if target.is_immune_to_trap():  # Changed to is_immune_to_trap
                             message_log.add_message(
-                                f"{target.get_display_name()} is immune to Viseroy due to Stasiality!",
+                                f"{target.get_display_name()} is immune to Viseroy due to Stasiality",
                                 MessageType.ABILITY,
                                 player=target.player,  # Use target's player color
                                 target_name=target.get_display_name()
@@ -2191,7 +2377,7 @@ class Game:
                             
                             # Log the trapping (using MessageType.COMBAT for yellow coloring)
                             message_log.add_message(
-                                f"{target.get_display_name()} is trapped in mechanical jaws!",
+                                f"{target.get_display_name()} is trapped in mechanical jaws",
                                 MessageType.WARNING,  # WARNING messages are explicitly colored yellow
                                 player=unit.player,
                                 target_name=target.get_display_name()
@@ -2209,7 +2395,7 @@ class Game:
                     if unit.add_xp(xp_gained):
                         # Unit leveled up - add a message
                         message_log.add_message(
-                            f"{unit.get_display_name()} gained experience and reached level {unit.level}!",
+                            f"{unit.get_display_name()} gained experience and reached level {unit.level}",
                             MessageType.SYSTEM,
                             player=unit.player
                         )
@@ -2253,7 +2439,7 @@ class Game:
                                 unit.carrier_rave_duration = 0
                                 
                                 message_log.add_message(
-                                    f"{unit.get_display_name()} phases back into reality after the devastating strike!",
+                                    f"{unit.get_display_name()} phases back into reality after the devastating strike",
                                     MessageType.ABILITY,
                                     player=unit.player
                                 )
@@ -2325,7 +2511,7 @@ class Game:
                     if target_unit and target_unit.player != unit.player and self.is_protected_from(target_unit, unit):
                         logger.debug(f"Skill cancelled: {target_unit.get_display_name()} is protected by Saft-E-Gas")
                         message_log.add_message(
-                            f"{unit.get_display_name()}'s skill fails - target is protected by safety gas!",
+                            f"{unit.get_display_name()}'s skill fails - target is protected by safety gas",
                             MessageType.ABILITY,
                             player=unit.player
                         )
@@ -2378,15 +2564,15 @@ class Game:
                     # Make damage text more prominent with flashing effect (like FOWL_CONTRIVANCE)
                     for i in range(3):
                         # First clear the area
-                        ui.renderer.draw_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
+                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
                         # Draw with alternating bold/normal for a flashing effect
                         attrs = curses.A_BOLD if i % 2 == 0 else 0
-                        ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, attrs)  # White color
+                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)  # White color
                         ui.renderer.refresh()
                         sleep_with_animation_speed(0.1)
                     
                     # Final damage display (stays on screen slightly longer)
-                    ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
+                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
                     ui.renderer.refresh()
                     sleep_with_animation_speed(0.3)  # Match the 0.3s delay used in FOWL_CONTRIVANCE
                 
@@ -2435,7 +2621,7 @@ class Game:
                 # Log furniture value inflation if any occurred
                 if furniture_inflated > 0:
                     message_log.add_message(
-                        f"Auction Curse inflates {furniture_inflated} furniture cosmic values near {unit.get_display_name()}!",
+                        f"Auction Curse inflates {furniture_inflated} furniture cosmic values near {unit.get_display_name()}",
                         MessageType.ABILITY,
                         player=caster_player
                     )
@@ -2467,22 +2653,22 @@ class Game:
                                 # Make healing text prominent with flashing effect (green color)
                                 for i in range(3):
                                     # First clear the area
-                                    ui.renderer.draw_text(ally_unit.y-1, ally_unit.x*2, " " * len(healing_text), 7)
+                                    ui.renderer.draw_damage_text(ally_unit.y-1, ally_unit.x*2, " " * len(healing_text), 7)
                                     # Draw with alternating bold/normal for a flashing effect
                                     attrs = curses.A_BOLD if i % 2 == 0 else 0
-                                    ui.renderer.draw_text(ally_unit.y-1, ally_unit.x*2, healing_text, 3, attrs)  # Green color
+                                    ui.renderer.draw_damage_text(ally_unit.y-1, ally_unit.x*2, healing_text, 3, attrs)  # Green color
                                     ui.renderer.refresh()
                                     sleep_with_animation_speed(0.1)
                                 
                                 # Final healing display (stays on screen slightly longer)
-                                ui.renderer.draw_text(ally_unit.y-1, ally_unit.x*2, healing_text, 3, curses.A_BOLD)
+                                ui.renderer.draw_damage_text(ally_unit.y-1, ally_unit.x*2, healing_text, 3, curses.A_BOLD)
                                 ui.renderer.refresh()
                                 sleep_with_animation_speed(0.3)
                 
                 # Log ally healing if any occurred
                 if allies_healed > 0:
                     message_log.add_message(
-                        f"Auction Curse's twisted energy heals {allies_healed} allied units near {unit.get_display_name()}!",
+                        f"Auction Curse's twisted energy heals {allies_healed} allied units near {unit.get_display_name()}",
                         MessageType.ABILITY,
                         player=caster_player
                     )
@@ -2495,7 +2681,7 @@ class Game:
                 if unit.hp <= 0:
                     # Use consistent format for death messages
                     message_log.add_message(
-                        f"{unit.get_display_name()} perishes!",
+                        f"{unit.get_display_name()} perishes",
                         MessageType.COMBAT,
                         player=unit.player
                     )
@@ -2640,7 +2826,7 @@ class Game:
                             
                             # Log the return
                             message_log.add_message(
-                                f"{gas_machinist.get_display_name()} reforms at ({vapor_unit.y}, {vapor_unit.x})!",
+                                f"{gas_machinist.get_display_name()} reforms at ({vapor_unit.y}, {vapor_unit.x})",
                                 MessageType.ABILITY,
                                 player=gas_machinist.player
                             )
@@ -2692,7 +2878,7 @@ class Game:
                         
                         # Log the effect expiration
                         message_log.add_message(
-                            f"{unit.get_display_name()} breaks free from Jawline tether!",
+                            f"{unit.get_display_name()} breaks free from Jawline tether",
                             MessageType.ABILITY,
                             target_name=unit.get_display_name()
                         )
@@ -2723,7 +2909,7 @@ class Game:
                                 
                                 # Log the effect expiration
                                 message_log.add_message(
-                                    f"{unit.get_display_name()}'s ossified bone structure returns to normal!",
+                                    f"{unit.get_display_name()}'s ossified bone structure returns to normal",
                                     MessageType.ABILITY,
                                     player=unit.player,
                                     target_name=unit.get_display_name()
@@ -2864,15 +3050,15 @@ class Game:
                                 # Make healing text prominent with flashing effect (green color)
                                 for i in range(3):
                                     # First clear the area
-                                    ui.renderer.draw_text(unit.y-1, unit.x*2, " " * len(healing_text), 7)
+                                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(healing_text), 7)
                                     # Draw with alternating bold/normal for a flashing effect
                                     attrs = curses.A_BOLD if i % 2 == 0 else 0
-                                    ui.renderer.draw_text(unit.y-1, unit.x*2, healing_text, 3, attrs)  # Green color
+                                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, healing_text, 3, attrs)  # Green color
                                     ui.renderer.refresh()
                                     sleep_with_animation_speed(0.1)
                                 
                                 # Final healing display (stays on screen slightly longer)
-                                ui.renderer.draw_text(unit.y-1, unit.x*2, healing_text, 3, curses.A_BOLD)
+                                ui.renderer.draw_damage_text(unit.y-1, unit.x*2, healing_text, 3, curses.A_BOLD)
                                 ui.renderer.refresh()
                                 sleep_with_animation_speed(0.3)
                             
@@ -2905,19 +3091,30 @@ class Game:
                     if not unit.was_pried:
                         unit.reset_movement_penalty()
                         
-            # Toggle between player 1 and 2
-            self.current_player = 3 - self.current_player
-            # Increment turn counter when player 1's turn comes around again
-            if self.current_player == 1:
-                self.turn += 1
-                
-            # Apply passive skills for the next player's units at the start of their turn
-            # Also initialize the took_no_actions flag for health regeneration
-            for unit in self.units:
-                if unit.is_alive() and unit.player == self.current_player:
-                    unit.apply_passive_skills(self)
-                    # Initialize the flag for health regeneration
-                    unit.took_no_actions = True
+            # In single player mode, automatically toggle between player 1 and 2
+            # In multiplayer modes, the multiplayer manager handles player switching
+            if not self.local_multiplayer:
+                # Toggle between player 1 and 2
+                self.current_player = 3 - self.current_player
+                # Increment turn counter when player 1's turn comes around again
+                if self.current_player == 1:
+                    self.turn += 1
+                    
+                # Initialize the new player's turn
+                self.initialize_next_player_turn()
+            
+    def initialize_next_player_turn(self):
+        """
+        Initialize the next player's turn by applying passive skills and resetting flags.
+        This should be called after player switching in both single player and multiplayer modes.
+        """
+        # Apply passive skills for the current player's units at the start of their turn
+        # Also initialize the took_no_actions flag for health regeneration
+        for unit in self.units:
+            if unit.is_alive() and unit.player == self.current_player:
+                unit.apply_passive_skills(self)
+                # Initialize the flag for health regeneration
+                unit.took_no_actions = True
     
     
     def try_trigger_wretched_decension(self, attacker, target, ui=None):
@@ -2999,7 +3196,7 @@ class Game:
             logger.debug("TRIGGERING WRETCHED DECENSION!")
             
             message_log.add_message(
-                f"The flocks descends to claim the wretched!",
+                f"The flocks descends to claim the wretched",
                 MessageType.ABILITY,
                 player=attacker.player,
                 target_name=target.get_display_name()
@@ -3022,7 +3219,7 @@ class Game:
                 ui.renderer.animate_attack_sequence(
                     target.y, target.x,
                     wretched_animation,
-                    1,  # Red color for death
+                    10,  # Red color for death
                     0.1  # Duration
                 )
                 
@@ -3090,7 +3287,7 @@ class Game:
             # If not, show it and mark it as shown
             if not hasattr(target_unit, 'autoclave_failure_shown'):
                 message_log.add_message(
-                    f"{target_unit.get_display_name()}'s Autoclave fails to activate - no targets in range!",
+                    f"{target_unit.get_display_name()}'s Autoclave fails to activate - no targets in range",
                     MessageType.ABILITY,
                     player=target_unit.player
                 )
@@ -3121,10 +3318,10 @@ class Game:
         
         if not player1_alive:
             self.winner = 2
-            message_log.add_system_message(f"Player 2 wins! All Player 1 units have been defeated.")
+            message_log.add_system_message(f"Player 2 wins. All Player 1 units have been defeated.")
         elif not player2_alive:
             self.winner = 1
-            message_log.add_system_message(f"Player 1 wins! All Player 2 units have been defeated.")
+            message_log.add_system_message(f"Player 1 wins. All Player 2 units have been defeated.")
     
     def _apply_trap_damage(self):
         """Apply damage to units trapped by MANDIBLE_FOREMENs."""
@@ -3150,7 +3347,7 @@ class Game:
                 unit.trapped_by = None
                 unit.trap_duration = 0
                 message_log.add_message(
-                    f"{unit.get_display_name()} is released from mechanical jaws!",
+                    f"{unit.get_display_name()} is released from mechanical jaws",
                     MessageType.ABILITY,
                     target_name=unit.get_display_name()
                 )
@@ -3207,7 +3404,7 @@ class Game:
                 # Check if target just entered critical health
                 if previous_hp > critical_threshold and unit.hp <= critical_threshold:
                     message_log.add_message(
-                        f"{unit.get_display_name()} retches!",
+                        f"{unit.get_display_name()} retches",
                         MessageType.COMBAT,
                         player=foreman.player,
                         target=unit.player,
@@ -3240,15 +3437,15 @@ class Game:
                     # Make damage text more prominent
                     for i in range(3):
                         # First clear the area
-                        ui.renderer.draw_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
+                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
                         # Draw with alternating bold/normal for a flashing effect
                         attrs = curses.A_BOLD if i % 2 == 0 else 0
-                        ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, attrs)  # White color (same as attack damage)
+                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)  # White color (same as attack damage)
                         ui.renderer.refresh()
                         time.sleep(0.1)
                     
                     # Final damage display (stays on screen slightly longer)
-                    ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
+                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
                     ui.renderer.refresh()
                     time.sleep(0.3)  # Match the 0.3s delay used in attack damage
                 
@@ -3290,7 +3487,7 @@ class Game:
                     trapped_unit.trapped_by = None
                     trapped_unit.trap_duration = 0  # Reset trap duration
                     message_log.add_message(
-                        f"{trapped_unit.get_display_name()} is released from mechanical jaws!",
+                        f"{trapped_unit.get_display_name()} is released from mechanical jaws",
                         MessageType.ABILITY,
                         target_name=trapped_unit.get_display_name()
                     )
@@ -3308,7 +3505,7 @@ class Game:
             
             # Log the release
             message_log.add_message(
-                f"{unit.get_display_name()} breaks free from mechanical jaws!",
+                f"{unit.get_display_name()} breaks free from mechanical jaws",
                 MessageType.ABILITY,
                 target_name=unit.get_display_name()
             )
@@ -3368,7 +3565,7 @@ class Game:
                     # Release the unit
                     unit.trapped_by = None
                     message_log.add_message(
-                        f"{unit.get_display_name()} is released from mechanical jaws!",
+                        f"{unit.get_display_name()} is released from mechanical jaws",
                         MessageType.ABILITY,
                         target_name=unit.get_display_name()
                     )
@@ -3417,7 +3614,7 @@ class Game:
                     
                     # Log scalar node activation
                     message_log.add_message(
-                        f"Standing wave resonance overloads {unit.get_display_name()}!",
+                        f"Standing wave resonance overloads {unit.get_display_name()}",
                         MessageType.ABILITY,
                         player=owner.player
                     )
@@ -3451,9 +3648,9 @@ class Game:
                         logger.debug("Showing damage number")
                         damage_text = f"-{damage}"
                         for i in range(3):
-                            ui.renderer.draw_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
+                            ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
                             attrs = curses.A_BOLD if i % 2 == 0 else 0
-                            ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, attrs)
+                            ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)
                             ui.renderer.refresh()
                             sleep_with_animation_speed(0.1)
                         logger.debug("Damage number display completed")
@@ -3658,7 +3855,7 @@ class Game:
             
         # Log the explosion with a more dramatic message for the GRAYMAN echo
         message_log.add_message(
-            f"{echo_unit.get_display_name()} collapses into a psychic void, tearing through spacetime!",
+            f"{echo_unit.get_display_name()} collapses into a psychic void, tearing through spacetime",
             MessageType.ABILITY,  # Use ABILITY type to ensure player color is used
             player=echo_unit.player
         )
@@ -3666,7 +3863,7 @@ class Game:
         # Follow up with the affected units information
         if affected_units:
             message_log.add_message(
-                f"The reality disruption affects {len(affected_units)} nearby unit(s)!",
+                f"The reality disruption affects {len(affected_units)} nearby unit(s)",
                 MessageType.ABILITY,
                 player=echo_unit.player
             )
@@ -3763,16 +3960,16 @@ class Game:
                 # Make damage text more prominent with flashing effect
                 for i in range(3):
                     # First clear the area
-                    ui.renderer.draw_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
+                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
                     # Draw with alternating bold/normal for a flashing effect
                     attrs = curses.A_BOLD if i % 2 == 0 else 0
-                    ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, attrs)
+                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)
                     ui.renderer.refresh()
                     if hasattr(time, 'sleep'):
                         time.sleep(0.1)
                 
                 # Final damage display (stays on screen slightly longer)
-                ui.renderer.draw_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
+                ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
                 ui.renderer.refresh()
                 if hasattr(time, 'sleep'):
                     time.sleep(0.2)
@@ -3790,7 +3987,7 @@ class Game:
                             logger.debug(f"MANDIBLE_FOREMAN perished from explosion, releasing {trapped_unit.get_display_name()}")
                             trapped_unit.trapped_by = None
                             message_log.add_message(
-                                f"{trapped_unit.get_display_name()} is released from mechanical jaws!",
+                                f"{trapped_unit.get_display_name()} is released from mechanical jaws",
                                 MessageType.ABILITY,
                                 target_name=trapped_unit.get_display_name()
                             )
@@ -3995,20 +4192,20 @@ class Game:
         # Make damage text more prominent with flashing effect
         for i in range(3):
             # First clear the area
-            ui.renderer.draw_text(wall_y-1, wall_x*2, " " * len(damage_text), 7)
+            ui.renderer.draw_damage_text(wall_y-1, wall_x*2, " " * len(damage_text), 7)
             # Draw with alternating bold/normal for a flashing effect
             attrs = curses.A_BOLD if i % 2 == 0 else 0
-            ui.renderer.draw_text(wall_y-1, wall_x*2, damage_text, 1, attrs)  # Red color for wall damage
+            ui.renderer.draw_damage_text(wall_y-1, wall_x*2, damage_text, 10, attrs)  # Red color for wall damage
             ui.renderer.refresh()
             time.sleep(0.1)
         
         # Final damage display (stays on screen slightly longer)
-        ui.renderer.draw_text(wall_y-1, wall_x*2, damage_text, 1, curses.A_BOLD)
+        ui.renderer.draw_damage_text(wall_y-1, wall_x*2, damage_text, 10, curses.A_BOLD)
         ui.renderer.refresh()
         time.sleep(0.3)
         
         # Clear the damage text
-        ui.renderer.draw_text(wall_y-1, wall_x*2, " " * len(damage_text), 0)
+        ui.renderer.draw_damage_text(wall_y-1, wall_x*2, " " * len(damage_text), 0)
         
         # Draw a cracking effect on the wall to show damage
         ui.renderer.draw_tile(wall_y, wall_x, '#', 20)  # Use red color for damaged wall
@@ -4081,7 +4278,7 @@ class Game:
         if not rail_positions:
             # No rails available - units stay where they are
             message_log.add_message(
-                "FOWL_CONTRIVANCE units remain in position - no rail network available!",
+                "FOWL_CONTRIVANCE units remain in position - no rail network available",
                 MessageType.SYSTEM
             )
             return
@@ -4108,7 +4305,7 @@ class Game:
                 unit.y, unit.x = nearest_rail
                 
                 message_log.add_message(
-                    f"{unit.get_display_name()} moves to the rail network for optimal positioning!",
+                    f"{unit.get_display_name()} moves to the rail network for optimal positioning",
                     MessageType.SYSTEM,
                     player=unit.player
                 )
@@ -4117,7 +4314,7 @@ class Game:
             else:
                 # All rails are occupied
                 message_log.add_message(
-                    f"{unit.get_display_name()} cannot reach the rail network - all positions occupied!",
+                    f"{unit.get_display_name()} cannot reach the rail network - all positions occupied",
                     MessageType.SYSTEM,
                     player=unit.player
                 )

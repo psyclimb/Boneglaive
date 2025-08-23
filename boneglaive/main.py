@@ -14,6 +14,7 @@ from boneglaive.ui.game_ui import GameUI
 from boneglaive.ui.menu_ui import MenuUI
 from boneglaive.utils.debug import debug_config, logger, LogLevel
 from boneglaive.utils.config import ConfigManager, NetworkMode, DisplayMode
+from boneglaive.utils.platform_compat import setup_terminal_optimizations, get_platform_name
 
 def parse_args():
     """Parse command line arguments"""
@@ -23,7 +24,7 @@ def parse_args():
     mode_group = parser.add_argument_group('Game Mode Options')
     mode_group.add_argument('--skip-menu', action='store_true', help='Skip menu and start game directly')
     mode_group.add_argument('--mode', choices=['single', 'local', 'lan_host', 'lan_client', 'vs_ai'],
-                        default='single', help='Game mode (single, local, lan_host, lan_client, vs_ai)')
+                        default='vs_ai', help='Game mode (single, local, lan_host, lan_client, vs_ai)')
     mode_group.add_argument('--server', default='127.0.0.1', help='Server IP address for LAN mode')
     mode_group.add_argument('--port', type=int, default=7777, help='Server port for LAN mode')
     mode_group.add_argument('--ai-difficulty', choices=['easy', 'medium', 'hard'],
@@ -110,25 +111,67 @@ def run_menu(stdscr) -> Optional[Tuple[str, None]]:
     return menu_ui.run()
 
 def run_game(stdscr) -> None:
-    """Run the game."""
-    game_ui = GameUI(stdscr)
+    """Run the game with appropriate UI based on display mode."""
+    config = ConfigManager()
     
-    # Draw initial board
-    game_ui.draw_board()
-    
-    running = True
-    while running:
-        # Get user input
-        key = stdscr.getch()
+    # Check display mode and use appropriate UI
+    if config.get('display_mode') == 'graphical':
+        # Use pygame UI for graphical mode (graphical grid system)
+        from boneglaive.ui.pygame_game_ui import PygameGameUI
         
-        # Handle input - this will update the game state and redraw
-        running = game_ui.handle_input(key)
+        # Get window size from config or use defaults
+        width = config.get('window_width', 1000)
+        height = config.get('window_height', 700)
+        
+        game_ui = PygameGameUI(width, height)
+        
+        # Main pygame game loop
+        running = True
+        while running and game_ui.renderer.running:
+            # Get user input (this handles pygame events)
+            key = game_ui.renderer.get_input()
+            if key == -1:  # No input
+                continue
+                
+            # Handle input - this will update the game state and redraw
+            running = game_ui.handle_input(key)
+            
+        # Clean up pygame resources
+        game_ui.renderer.cleanup()
+    else:
+        # Use curses UI for text mode (traditional terminal)
+        game_ui = GameUI(stdscr)
+        
+        # Draw initial board
+        game_ui.draw_board()
+        
+        running = True
+        while running:
+            # Get user input
+            key = stdscr.getch()
+            
+            # Handle input - this will update the game state and redraw
+            result = game_ui.handle_input(key)
+            if result == "main_menu":
+                return "main_menu"
+            elif result == False:
+                running = False
 
 def main(stdscr):
     """Main function that coordinates menu and game."""
     # Initial setup for the curses screen
     curses.curs_set(0)  # Hide cursor
     stdscr.timeout(-1)  # No timeout for getch
+    
+    # Set up platform-specific terminal optimizations
+    setup_terminal_optimizations()
+    
+    # Set escape key delay if supported by curses
+    try:
+        if hasattr(curses, 'set_escdelay'):
+            curses.set_escdelay(25)
+    except:
+        pass  # Ignore if not supported on this system
     
     # Get arguments
     args = parse_args()
@@ -154,19 +197,174 @@ def main(stdscr):
     # Run menu or skip to game
     if args.skip_menu:
         logger.info("Skipping menu")
-        run_game(stdscr)
+        game_result = run_game(stdscr)
+        # If game returns "main_menu", show menu anyway
+        if game_result == "main_menu":
+            while True:
+                logger.info("Returning to menu")
+                menu_result = run_menu(stdscr)
+                if menu_result and menu_result[0] == "start_game":
+                    logger.info("Starting game from menu")
+                    game_result = run_game(stdscr)
+                    if game_result != "main_menu":
+                        break
+                else:
+                    logger.info("Quitting from menu")
+                    break
     else:
-        # Run menu
-        logger.info("Starting menu")
-        menu_result = run_menu(stdscr)
+        # Run menu loop
+        while True:
+            logger.info("Starting menu")
+            menu_result = run_menu(stdscr)
+            
+            # Process menu result
+            if menu_result and menu_result[0] == "start_game":
+                logger.info("Starting game from menu")
+                game_result = run_game(stdscr)
+                if game_result != "main_menu":
+                    break  # Exit if game ended normally or player quit
+            else:
+                logger.info("Quitting from menu")
+                break
+
+def main_graphical(args):
+    """Main function for graphical mode (pygame) - bypasses curses."""
+    # Configure debug settings
+    if args.debug:
+        debug_config.enabled = True
+    
+    # Set log level
+    log_level_map = {
+        'DEBUG': LogLevel.DEBUG,
+        'INFO': LogLevel.INFO,
+        'WARNING': LogLevel.WARNING,
+        'ERROR': LogLevel.ERROR,
+        'CRITICAL': LogLevel.CRITICAL
+    }
+    debug_config.log_level = log_level_map[args.log_level]
+    
+    # Other debug settings
+    debug_config.log_to_file = args.log_file
+    debug_config.perf_tracking = args.perf
+    debug_config.show_debug_overlay = args.overlay
+    
+    # Initialize logging
+    logger.setLevel(debug_config.log_level.value)
+    if debug_config.log_to_file:
+        # If we're logging to a file, make sure the root logger is set up properly
+        os.makedirs('logs', exist_ok=True)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        file_handler = logging.FileHandler('logs/boneglaive.log')
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+    else:
+        # Otherwise use a null handler to prevent stdout logging
+        logger.addHandler(logging.NullHandler())
+    
+    logger.info("Starting Boneglaive in graphical mode")
+    
+    # Run menu or skip to game
+    if args.skip_menu:
+        logger.info("Skipping menu in graphical mode")
+        game_result = run_game_graphical()
+        # If game returns "main_menu", show menu anyway
+        if game_result == "main_menu":
+            _run_graphical_menu_loop()
+    else:
+        _run_graphical_menu_loop()
+
+def _run_graphical_menu_loop():
+    """Run the graphical menu loop, handling returns to menu from game."""
+    while True:
+        logger.info("Starting graphical menu")
         
-        # Process menu result
-        if menu_result and menu_result[0] == "start_game":
-            logger.info("Starting game from menu")
-            run_game(stdscr)
-        else:
-            logger.info("Quitting from menu")
+        config = ConfigManager()
+        width = config.get('window_width', 1000)
+        height = config.get('window_height', 700)
+        
+        # Create pygame renderer for menu
+        from boneglaive.renderers.pygame_renderer import PygameRenderer
+        renderer = PygameRenderer(width, height)
+        renderer.initialize()
+        
+        try:
+            from boneglaive.ui.menu_ui import MenuUI
+            menu_ui = MenuUI(renderer=renderer)
+            menu_result = menu_ui.run()
+            
+            # Process menu result
+            if menu_result and menu_result[0] == "start_game":
+                logger.info("Starting game from graphical menu")
+                renderer.cleanup()  # Clean up menu renderer
+                game_result = run_game_graphical()
+                if game_result != "main_menu":
+                    break  # Exit if game ended normally or player quit
+            else:
+                logger.info("Quitting from graphical menu")
+                break
+        finally:
+            renderer.cleanup()
+
+def run_game_graphical():
+    """Run the game in graphical (pygame) mode."""
+    config = ConfigManager()
+    
+    # Get window size from config or use defaults
+    width = config.get('window_width', 1000)
+    height = config.get('window_height', 700)
+    
+    # Create pygame renderer
+    from boneglaive.renderers.pygame_renderer import PygameRenderer
+    renderer = PygameRenderer(width, height)
+    renderer.initialize()
+    
+    try:
+        # Use existing GameUI with pygame renderer
+        from boneglaive.ui.game_ui import GameUI
+        game_ui = GameUI(renderer=renderer)
+        
+        # Set UI reference in renderer for animation support
+        renderer.set_ui_reference(game_ui)
+        
+        # Draw initial board
+        game_ui.draw_board()
+        
+        # Run game loop using existing input handling
+        running = True
+        while running and renderer.running:
+            # Get input from pygame renderer
+            key = renderer.get_input()
+            
+            if key == -1:  # No input
+                continue
+                
+            # Handle input using existing GameUI logic
+            result = game_ui.handle_input(key)
+            if result == "main_menu":
+                return "main_menu"
+            elif result == False:
+                running = False
+            
+    finally:
+        # Clean up pygame resources
+        renderer.cleanup()
 
 if __name__ == "__main__":
-    # Start the application
-    curses.wrapper(main)
+    # Set up platform-specific terminal optimizations before starting curses
+    setup_terminal_optimizations()
+    
+    # Log platform information
+    logger.info(f"Starting Boneglaive on {get_platform_name()}")
+    
+    # Parse args early to check display mode
+    args = parse_args()
+    configure_settings(args)
+    
+    # Check if we should run in graphical mode (bypass curses)
+    config = ConfigManager()
+    if config.get('display_mode') == 'graphical':
+        # Run graphical mode directly without curses
+        main_graphical(args)
+    else:
+        # Start the application with curses for text mode
+        curses.wrapper(main)
