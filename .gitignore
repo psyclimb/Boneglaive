@@ -74,3 +74,11 @@ Thumbs.db
 # Logs
 logs/
 *.log
+
+# Personal development files
+.claude/
+*.local.json
+
+# Game-specific
+*.save
+game_state_*.json
