@@ -1,6 +1,8 @@
-# Boneglaive2 🎯
+# Boneglaive 🎯
 
 A tactical turn-based combat game with dual rendering modes: classic terminal (curses) and modern graphical (pygame).
+
+> **For Developers & Testers**: See [Contributing](#-contributing) section below for development setup and testing guidelines.
 
 ## 🚀 Quick Start (Choose One)
 
@@ -86,3 +88,45 @@ pip install windows-curses
 
 **Can't run the game?**
 Make sure you have Python 3.8+ and run from the project root directory.
+
+## ⚠️ Development Status
+
+**Text Mode**: Fully functional and recommended for play
+**Graphical Mode**: Unfinished - use text mode for best experience
+
+## 🤝 Contributing
+
+### For Developers
+1. **Setup**: Clone the repository and run `python install.py`
+2. **Code Style**: Follow PEP 8, use 4-space indentation
+3. **Testing**: Test all game modes before submitting PRs
+4. **Documentation**: Update CLAUDE.md for significant changes
+
+### For Testers
+1. **Bug Reports**: Use GitHub issues with detailed steps to reproduce
+2. **Test Coverage**: Try different unit combinations, skills, edge cases
+3. **Performance**: Note any lag, crashes, or display issues
+4. **Platforms**: Test on different OS if possible (Windows/macOS/Linux)
+
+### Development Commands
+```bash
+# Run tests
+python boneglaive_test.py
+
+# Build executable (for testing distribution)
+python build_executable.py
+
+# Clean cache files
+find . -name "__pycache__" -exec rm -rf {} +
+```
+
+### Known Issues & Limitations
+- Graphical mode is incomplete - use text mode
+- Multiplayer code exists but not accessible via UI (single-player only currently)
+- Terminal resizing can cause display glitches in text mode
+- AI difficulty is currently basic
+- Save/load functionality not yet implemented
+- Limited animation system
+
+## 📄 License
+See LICENSE file for details.
