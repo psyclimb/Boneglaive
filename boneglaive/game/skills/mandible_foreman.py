@@ -574,7 +574,7 @@ class SiteInspectionSkill(ActiveSkill):
         super().__init__(
             name="Site Inspection",
             key="S",
-            description="Survey a 3x3 area without obstacles. Grants movement and attack bonuses to allies when no impassable terrain is found.",
+            description="Survey a 3x3 area for tactical analysis. No terrain: +1 attack & movement. 1 terrain: +1 attack only. 2+ terrain: no effect.",
             target_type=TargetType.AREA,
             cooldown=3,
             range_=3,
@@ -653,8 +653,8 @@ class SiteInspectionSkill(ActiveSkill):
         # Calculate the area (3x3 around target position)
         y, x = target_pos
         
-        # Check if there's impassable terrain in the inspection area
-        has_impassable_terrain = False
+        # Count impassable terrain in the inspection area
+        impassable_count = 0
         for dy in [-1, 0, 1]:
             for dx in [-1, 0, 1]:
                 check_y = y + dy
@@ -666,10 +666,7 @@ class SiteInspectionSkill(ActiveSkill):
                 
                 # Check if this position has impassable terrain
                 if not game.map.is_passable(check_y, check_x):
-                    has_impassable_terrain = True
-                    break
-            if has_impassable_terrain:
-                break
+                    impassable_count += 1
         
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
@@ -742,8 +739,8 @@ class SiteInspectionSkill(ActiveSkill):
                 ui.renderer.refresh()
                 sleep_with_animation_speed(0.1)
             
-            # Only apply buffs if NO impassable terrain was found in the inspection area
-            if not has_impassable_terrain:
+            # Apply scaled buffs based on terrain count
+            if impassable_count <= 1:
                 # Find allies in the area and apply the buff
                 for dy in [-1, 0, 1]:
                     for dx in [-1, 0, 1]:
@@ -767,27 +764,84 @@ class SiteInspectionSkill(ActiveSkill):
                                 )
                                 continue
                                 
-                            # Check if ally already has the site inspection status effect
-                            has_effect = hasattr(ally, 'status_site_inspection') and ally.status_site_inspection
+                            # Determine effect type based on terrain count
+                            if impassable_count == 0:
+                                # Full effect: +1 attack and +1 movement
+                                effect_type = "full"
+                                attack_bonus = 1
+                                move_bonus = 1
+                                effect_message = f"{ally.get_display_name()} gains +1 attack and movement from clear Site Inspection"
+                                effect_symbol = "++"
+                            else:  # impassable_count == 1
+                                # Partial effect: +1 attack only
+                                effect_type = "partial"
+                                attack_bonus = 1
+                                move_bonus = 0
+                                effect_message = f"{ally.get_display_name()} gains +1 attack from partially obstructed Site Inspection"
+                                effect_symbol = "+1"
                             
-                            # Apply status effect to ally (only if doesn't already have it)
-                            if not has_effect:
-                                # Add site inspection status effect attributes to the ally
-                                ally.status_site_inspection = True
-                                ally.status_site_inspection_duration = self.effect_duration
+                            # Check if ally already has any site inspection status effect
+                            has_full_effect = hasattr(ally, 'status_site_inspection') and ally.status_site_inspection
+                            has_partial_effect = hasattr(ally, 'status_site_inspection_partial') and ally.status_site_inspection_partial
+                            
+                            # Apply status effect to ally
+                            if not has_full_effect and not has_partial_effect:
+                                # No existing effect - apply new one
+                                if effect_type == "full":
+                                    ally.status_site_inspection = True
+                                    ally.status_site_inspection_duration = self.effect_duration
+                                else:  # partial
+                                    ally.status_site_inspection_partial = True
+                                    ally.status_site_inspection_partial_duration = self.effect_duration
                                 
                                 # Apply stat bonuses
-                                ally.attack_bonus = getattr(ally, 'attack_bonus', 0) + 1
-                                ally.move_range_bonus = getattr(ally, 'move_range_bonus', 0) + 1
+                                ally.attack_bonus = getattr(ally, 'attack_bonus', 0) + attack_bonus
+                                ally.move_range_bonus = getattr(ally, 'move_range_bonus', 0) + move_bonus
                                 
                                 # Log the status effect application
+                                message_log.add_message(effect_message, MessageType.ABILITY, player=user.player)
+                                
+                            elif has_full_effect and effect_type == "full":
+                                # Refresh existing full effect
+                                ally.status_site_inspection_duration = self.effect_duration
                                 message_log.add_message(
-                                    f"{ally.get_display_name()} gains +1 attack and movement from Site Inspection",
+                                    f"{ally.get_display_name()}'s full Site Inspection effect refreshed",
                                     MessageType.ABILITY,
                                     player=user.player
                                 )
-                                
-                                # Visual feedback for status effect application
+                            elif has_partial_effect and effect_type == "partial":
+                                # Refresh existing partial effect
+                                ally.status_site_inspection_partial_duration = self.effect_duration
+                                message_log.add_message(
+                                    f"{ally.get_display_name()}'s partial Site Inspection effect refreshed",
+                                    MessageType.ABILITY,
+                                    player=user.player
+                                )
+                            elif has_partial_effect and effect_type == "full":
+                                # Upgrade partial to full effect
+                                # Remove partial effect
+                                ally.status_site_inspection_partial = False
+                                ally.status_site_inspection_partial_duration = 0
+                                # Apply full effect
+                                ally.status_site_inspection = True
+                                ally.status_site_inspection_duration = self.effect_duration
+                                # Add movement bonus (attack bonus already applied)
+                                ally.move_range_bonus = getattr(ally, 'move_range_bonus', 0) + 1
+                                message_log.add_message(
+                                    f"{ally.get_display_name()}'s Site Inspection upgraded to full effect",
+                                    MessageType.ABILITY,
+                                    player=user.player
+                                )
+                            elif has_full_effect and effect_type == "partial":
+                                # Keep existing full effect (don't downgrade)
+                                message_log.add_message(
+                                    f"{ally.get_display_name()} retains full Site Inspection effect",
+                                    MessageType.ABILITY,
+                                    player=user.player
+                                )
+                            
+                            # Visual feedback for new status effect application (not refreshes)
+                            if (not has_full_effect and not has_partial_effect) or (has_partial_effect and effect_type == "full"):
                                 if hasattr(ui, 'asset_manager'):
                                     tile_ids = [ui.asset_manager.get_unit_tile(ally.type)] * 4
                                     color_ids = [2, 3 if ally.player == 1 else 4] * 2  # Green to indicate positive effect
@@ -796,27 +850,17 @@ class SiteInspectionSkill(ActiveSkill):
                                     ui.renderer.flash_tile(ally.y, ally.x, tile_ids, color_ids, durations)
                                     
                                     # Display effect symbol above ally
-                                    ui.renderer.draw_damage_text(ally.y-1, ally.x*2, "+1", 2)  # Green text
+                                    ui.renderer.draw_damage_text(ally.y-1, ally.x*2, effect_symbol, 2)  # Green text
                                     ui.renderer.refresh()
                                     sleep_with_animation_speed(0.3)
                                     
                                     # Clear effect symbol
                                     ui.renderer.draw_damage_text(ally.y-1, ally.x*2, "  ", 7)
                                     ui.renderer.refresh()
-                            else:
-                                # If already has the effect, refresh the duration but don't stack
-                                ally.status_site_inspection_duration = self.effect_duration
-                                
-                                # Log the refresh
-                                message_log.add_message(
-                                    f"{ally.get_display_name()}'s Site Inspection effect refreshed",
-                                    MessageType.ABILITY,
-                                    player=user.player
-                                )
             else:
-                # Impassable terrain found - skill doesn't apply any buffs
+                # 2+ impassable terrain found - skill doesn't apply any buffs
                 message_log.add_message(
-                    f"Terrain features blocking free movement in the inspection area",
+                    f"Multiple obstructions prevent effective site analysis ({impassable_count} terrain features detected)",
                     MessageType.ABILITY,
                     player=user.player
                 )

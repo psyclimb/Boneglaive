@@ -1805,6 +1805,26 @@ class Game:
                         player=unit.player
                     )
             
+            # Process partial Site Inspection status effect
+            if hasattr(unit, 'status_site_inspection_partial') and unit.status_site_inspection_partial:
+                # Decrement the duration
+                unit.status_site_inspection_partial_duration -= 1
+                logger.debug(f"{unit.get_display_name()}'s partial Site Inspection duration: {unit.status_site_inspection_partial_duration}")
+                
+                # Check if the status effect has expired
+                if unit.status_site_inspection_partial_duration <= 0:
+                    # Remove the status effect
+                    unit.status_site_inspection_partial = False
+                    # Remove the stat bonuses (only attack bonus for partial effect)
+                    unit.attack_bonus -= 1
+                    
+                    # Log the expiration
+                    message_log.add_message(
+                        f"{unit.get_display_name()}'s partial Site Inspection effect has worn off.",
+                        MessageType.ABILITY,
+                        player=unit.player
+                    )
+            
             # Process Ossify status effect for MARROW CONDENSER
             if hasattr(unit, 'ossify_active') and unit.ossify_active:
                 # Only process if not upgraded (upgraded version is permanent)
