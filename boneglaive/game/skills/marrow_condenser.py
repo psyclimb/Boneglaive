@@ -269,8 +269,12 @@ class MarrowDikeSkill(ActiveSkill):
         user.skill_target = target_pos
         user.selected_skill = self
         
-        # Set up wall formation indicator
-        user.marrow_dike_indicator = target_pos
+        # Set up wall formation indicator - use move target position if unit has issued a move command
+        if user.move_target:
+            center_y, center_x = user.move_target
+        else:
+            center_y, center_x = user.y, user.x
+        user.marrow_dike_indicator = (center_y, center_x)
         
         # Track action order exactly like other units
         if game:

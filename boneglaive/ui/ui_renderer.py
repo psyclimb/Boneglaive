@@ -58,6 +58,10 @@ class UIRenderer:
         if hasattr(unit, 'carrier_rave_active') and unit.carrier_rave_active:
             effects.append(('carrier_rave', 'φ', curses.A_DIM))
             
+        # DELPHIC APPRAISER status effects
+        if hasattr(unit, 'can_use_anchor') and unit.can_use_anchor:
+            effects.append(('anchor', 'Π', curses.A_BOLD))
+            
         # Medium priority effects
         if hasattr(unit, 'status_site_inspection') and unit.status_site_inspection:
             effects.append(('site_inspection', 'Θ', curses.A_BOLD))
@@ -289,7 +293,7 @@ class UIRenderer:
                     color_id = 11  # Normal white for dust
                 elif terrain == TerrainType.CANYON_FLOOR:
                     tile = self.game_ui.asset_manager.get_terrain_tile("canyon_floor")
-                    color_id = 11  # Normal white for canyon floor (same as dust)
+                    color_id = 7  # White for canyon floor (matches stained stone and game over screen text)
                 elif terrain == TerrainType.CONCRETE_FLOOR:
                     tile = self.game_ui.asset_manager.get_terrain_tile("concrete_floor")
                     color_id = 11  # Normal white for concrete floor (same as dust)
@@ -371,13 +375,13 @@ class UIRenderer:
                         color_id = 20  # Default red for Marrow Wall if no tracking dictionary
                 elif terrain == TerrainType.RAIL:
                     tile = self.game_ui.asset_manager.get_terrain_tile("rail")
-                    color_id = 6  # Yellow color for rails
+                    color_id = 8  # Gray color for rails with black background
                     
                 # Stained Stones map terrain types (gray color scheme like Lime Foyer)
                 elif terrain == TerrainType.STAINED_STONE:
                     tile = self.game_ui.asset_manager.get_terrain_tile("stained_stone")
-                    color_id = 12  # White for stained stone formations
-                    tile_attr = curses.A_BOLD  # Bright white via bold attribute
+                    color_id = 7  # White color for stained stone formations (matches game over screen text)
+                    tile_attr = curses.A_BOLD  # Bold white for visibility
                 elif terrain == TerrainType.TIFFANY_LAMP:
                     tile = self.game_ui.asset_manager.get_terrain_tile("tiffany_lamp")
                     color_id = 14  # White for furniture
@@ -1299,9 +1303,9 @@ class UIRenderer:
             if hasattr(unit, 'carrier_rave_active') and unit.carrier_rave_active:
                 # Check if it has duration, otherwise just show boolean
                 if hasattr(unit, 'carrier_rave_duration') and unit.carrier_rave_duration > 0:
-                    positive_effects.append(f"Carrier Rave({unit.carrier_rave_duration})")
+                    positive_effects.append(f"Karrier Rave({unit.carrier_rave_duration})")
                 else:
-                    positive_effects.append("Carrier Rave")
+                    positive_effects.append("Karrier Rave")
             if hasattr(unit, 'has_investment_effect') and unit.has_investment_effect:
                 positive_effects.append("Investment")
             if hasattr(unit, 'charging_status') and unit.charging_status:
@@ -1323,6 +1327,8 @@ class UIRenderer:
                 positive_effects.append("Diverge Return")
             if hasattr(unit, 'valuation_oracle_buff') and unit.valuation_oracle_buff:
                 positive_effects.append("Valuation Oracle")
+            if hasattr(unit, 'can_use_anchor') and unit.can_use_anchor:
+                positive_effects.append("Parallax")
             
             # Movement/action penalties and traps (negative)
             if hasattr(unit, 'was_pried') and unit.was_pried and unit.move_range_bonus < 0:
@@ -1395,6 +1401,10 @@ class UIRenderer:
         # Draw game over prompt if visible
         if hasattr(self.game_ui, 'game_over_prompt') and self.game_ui.game_over_prompt.visible:
             self.game_ui.game_over_prompt.draw()
+        
+        # Draw concede prompt if visible
+        if hasattr(self.game_ui, 'concede_prompt') and self.game_ui.concede_prompt.visible:
+            self.game_ui.concede_prompt.draw()
         
         # Check if the selected unit is affected by Jawline
         cursor_manager = self.game_ui.cursor_manager

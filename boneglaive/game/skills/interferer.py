@@ -280,8 +280,8 @@ class CarrierRaveSkill(ActiveSkill):
     
     def __init__(self):
         super().__init__(
-            name="Carrier Rave",
-            key="C",
+            name="Karrier Rave",
+            key="K",
             description="Phase out of reality for 1 turn. Become untargetable, but cannot attack. Next attack after phasing strikes 3 times.",
             target_type=TargetType.SELF,
             cooldown=5,

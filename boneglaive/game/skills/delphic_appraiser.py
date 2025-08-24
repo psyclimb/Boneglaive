@@ -199,6 +199,9 @@ class MarketFuturesSkill(ActiveSkill):
             'imbued': True  # Mark as imbued for special rendering
         }
         
+        # Update anchor status effects for all units
+        game.update_anchor_status_effects()
+        
         # Log the skill activation
         message_log.add_message(
             f"{user.get_display_name()} infuses furniture with Market Futures. Cosmic value: {cosmic_value}",
@@ -281,6 +284,10 @@ class MarketFuturesSkill(ActiveSkill):
 
         anchor = game.teleport_anchors[anchor_pos]
         if not anchor['active']:
+            return False
+
+        # Check if the ally is on the same team as the anchor creator
+        if ally.player != anchor['creator'].player:
             return False
 
         # Check if the destination is valid and empty
@@ -373,6 +380,9 @@ class MarketFuturesSkill(ActiveSkill):
         # Deactivate the anchor after use
         game.teleport_anchors[anchor_pos]['active'] = False
         game.teleport_anchors[anchor_pos]['imbued'] = False  # Remove imbued status for rendering
+        
+        # Update anchor status effects for all units after deactivation
+        game.update_anchor_status_effects()
         
         return True
 
@@ -839,42 +849,9 @@ class DivineDrepreciationSkill(ActiveSkill):
         # Calculate pull distance based on difference between average move value and cosmic value (1)
         pull_distance = max(1, avg_move_value - 1)  # Ensure at least 1 space pull
 
-        # Apply damage and pull effects to enemies
+        # Store damage and pull calculations for later application (after animation)
+        effects_to_apply = []
         for unit in enemies_in_area:
-            # Deal damage based on cosmic value difference, bypassing defense
-            old_hp = unit.hp
-            
-            # Use take_damage to apply damage directly (bypassing defense)
-            actual_damage = unit.take_damage(effect_value, user, "Divine Depreciation")
-
-            message_log.add_combat_message(
-                attacker_name=user.get_display_name(),
-                target_name=unit.get_display_name(),
-                damage=actual_damage,
-                ability="Divine Depreciation",
-                attacker_player=user.player,
-                target_player=unit.player
-            )
-
-            # Show damage number if UI is available
-            if ui and hasattr(ui, 'renderer') and actual_damage > 0:
-                damage_text = f"-{actual_damage}"
-                
-                # Make damage text more prominent with flashing effect (like FOWL_CONTRIVANCE)
-                for i in range(3):
-                    # First clear the area
-                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
-                    # Draw with alternating bold/normal for a flashing effect
-                    attrs = curses.A_BOLD if i % 2 == 0 else 0
-                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)  # White color
-                    ui.renderer.refresh()
-                    sleep_with_animation_speed(0.1)
-                
-                # Final damage display (stays on screen slightly longer)
-                ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
-                ui.renderer.refresh()
-                sleep_with_animation_speed(0.3)  # Match the 0.3s delay used in FOWL_CONTRIVANCE
-
             # Calculate pull effect (move toward center)
             start_pos = (unit.y, unit.x)
             target_center = target_pos
@@ -889,79 +866,15 @@ class DivineDrepreciationSkill(ActiveSkill):
             # Calculate how far to pull the unit (not exceeding distance to center)
             actual_pull = min(pull_distance, distance)
 
-            if actual_pull > 0 and distance > 0:
-                # Check if unit is immune to displacement effects (GRAYMAN with Stasiality)
-                if unit.is_immune_to_effects():
-                    message_log.add_message(
-                        f"{unit.get_display_name()} is immune to Divine Depreciation's pull effect due to Stasiality",
-                        MessageType.ABILITY,
-                        player=unit.player  # Use unit's player color for correct display
-                    )
-                else:
-                    # Calculate pull vector (respecting terrain and other units)
-                    pull_y = int(dir_y * actual_pull / distance) if dir_y != 0 else 0
-                    pull_x = int(dir_x * actual_pull / distance) if dir_x != 0 else 0
-
-                    # Try to move the unit as close as possible to the target direction
-                    new_y, new_x = unit.y, unit.x
-                    steps_taken = 0
-
-                    # Try to move the unit step by step
-                    for step in range(actual_pull):
-                        # Calculate step direction (prioritize largest component)
-                        if abs(dir_y) > abs(dir_x):
-                            step_y = 1 if dir_y > 0 else -1 if dir_y < 0 else 0
-                            step_x = 0
-                        else:
-                            step_y = 0
-                            step_x = 1 if dir_x > 0 else -1 if dir_x < 0 else 0
-
-                        # Check if the next position is valid and empty
-                        next_y, next_x = new_y + step_y, new_x + step_x
-                        if (game.is_valid_position(next_y, next_x) and
-                            game.map.is_passable(next_y, next_x) and
-                            game.get_unit_at(next_y, next_x) is None):
-                            # Move to the next position
-                            new_y, new_x = next_y, next_x
-                            steps_taken += 1
-                        else:
-                            # Try the other direction component
-                            if step_y != 0:  # Was trying vertical, try horizontal
-                                step_y = 0
-                                step_x = 1 if dir_x > 0 else -1 if dir_x < 0 else 0
-                            else:  # Was trying horizontal, try vertical
-                                step_y = 1 if dir_y > 0 else -1 if dir_y < 0 else 0
-                                step_x = 0
-
-                            next_y, next_x = new_y + step_y, new_x + step_x
-                            if (game.is_valid_position(next_y, next_x) and
-                                game.map.is_passable(next_y, next_x) and
-                                game.get_unit_at(next_y, next_x) is None):
-                                # Move to the alternative position
-                                new_y, new_x = next_y, next_x
-                                steps_taken += 1
-                            else:
-                                # Can't move further in either direction
-                                break
-
-                    # Update unit position if it moved
-                    if steps_taken > 0:
-                        unit.y, unit.x = new_y, new_x
-                        message_log.add_message(
-                            f"{unit.get_display_name()} is pulled {steps_taken} spaces by the {furniture_name.lower()}'s reality distortion",
-                            MessageType.ABILITY,
-                            player=user.player
-                        )
-
-            # Handle unit death
-            if unit.hp <= 0:
-                message_log.add_message(
-                    f"{unit.get_display_name()} perishes",
-                    MessageType.COMBAT,
-                    player=user.player
-                )
-                # Units are not removed from the game, just marked as dead by setting hp to 0
-                unit.hp = 0
+            # Store all effect data for this unit
+            effects_to_apply.append({
+                'unit': unit,
+                'damage': effect_value,
+                'pull_distance': actual_pull,
+                'dir_y': dir_y,
+                'dir_x': dir_x,
+                'distance': distance
+            })
 
         # Reroll cosmic values for all other furniture in the AOE
         for pos in other_furniture:
@@ -1048,5 +961,123 @@ class DivineDrepreciationSkill(ActiveSkill):
                         3,  # Yellow/green for revaluation
                         0.10  # Same duration as falling
                     )
+
+        # Now apply damage and pull effects after animation completes
+        for effect_data in effects_to_apply:
+            unit = effect_data['unit']
+            damage_value = effect_data['damage']
+            actual_pull = effect_data['pull_distance']
+            dir_y = effect_data['dir_y']
+            dir_x = effect_data['dir_x']
+            distance = effect_data['distance']
+            
+            # Deal damage based on cosmic value difference, bypassing defense
+            old_hp = unit.hp
+            
+            # Use take_damage to apply damage directly (bypassing defense)
+            actual_damage = unit.take_damage(damage_value, user, "Divine Depreciation")
+
+            message_log.add_combat_message(
+                attacker_name=user.get_display_name(),
+                target_name=unit.get_display_name(),
+                damage=actual_damage,
+                ability="Divine Depreciation",
+                attacker_player=user.player,
+                target_player=unit.player
+            )
+
+            # Show damage number if UI is available
+            if ui and hasattr(ui, 'renderer') and actual_damage > 0:
+                damage_text = f"-{actual_damage}"
+                
+                # Make damage text more prominent with flashing effect (like FOWL_CONTRIVANCE)
+                for i in range(3):
+                    # First clear the area
+                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
+                    # Draw with alternating bold/normal for a flashing effect
+                    attrs = curses.A_BOLD if i % 2 == 0 else 0
+                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)  # White color
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.1)
+                
+                # Final damage display (stays on screen slightly longer)
+                ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
+                ui.renderer.refresh()
+                sleep_with_animation_speed(0.3)  # Match the 0.3s delay used in FOWL_CONTRIVANCE
+
+            # Apply pull effects
+            if actual_pull > 0 and distance > 0:
+                # Check if unit is immune to displacement effects (GRAYMAN with Stasiality)
+                if unit.is_immune_to_effects():
+                    message_log.add_message(
+                        f"{unit.get_display_name()} is immune to Divine Depreciation's pull effect due to Stasiality",
+                        MessageType.ABILITY,
+                        player=unit.player  # Use unit's player color for correct display
+                    )
+                else:
+                    # Calculate pull vector (respecting terrain and other units)
+                    pull_y = int(dir_y * actual_pull / distance) if dir_y != 0 else 0
+                    pull_x = int(dir_x * actual_pull / distance) if dir_x != 0 else 0
+
+                    # Try to move the unit as close as possible to the target direction
+                    new_y, new_x = unit.y, unit.x
+                    steps_taken = 0
+
+                    # Try to move the unit step by step
+                    for step in range(actual_pull):
+                        # Calculate step direction (prioritize largest component)
+                        if abs(dir_y) > abs(dir_x):
+                            step_y = 1 if dir_y > 0 else -1 if dir_y < 0 else 0
+                            step_x = 0
+                        else:
+                            step_y = 0
+                            step_x = 1 if dir_x > 0 else -1 if dir_x < 0 else 0
+
+                        # Check if the next position is valid and empty
+                        next_y, next_x = new_y + step_y, new_x + step_x
+                        if (game.is_valid_position(next_y, next_x) and
+                            game.map.is_passable(next_y, next_x) and
+                            game.get_unit_at(next_y, next_x) is None):
+                            # Move to the next position
+                            new_y, new_x = next_y, next_x
+                            steps_taken += 1
+                        else:
+                            # Try the other direction component
+                            if step_y != 0:  # Was trying vertical, try horizontal
+                                step_y = 0
+                                step_x = 1 if dir_x > 0 else -1 if dir_x < 0 else 0
+                            else:  # Was trying horizontal, try vertical
+                                step_y = 1 if dir_y > 0 else -1 if dir_y < 0 else 0
+                                step_x = 0
+
+                            next_y, next_x = new_y + step_y, new_x + step_x
+                            if (game.is_valid_position(next_y, next_x) and
+                                game.map.is_passable(next_y, next_x) and
+                                game.get_unit_at(next_y, next_x) is None):
+                                # Move to the alternative position
+                                new_y, new_x = next_y, next_x
+                                steps_taken += 1
+                            else:
+                                # Can't move further in either direction
+                                break
+
+                    # Update unit position if it moved
+                    if steps_taken > 0:
+                        unit.y, unit.x = new_y, new_x
+                        message_log.add_message(
+                            f"{unit.get_display_name()} is pulled {steps_taken} spaces by the {furniture_name.lower()}'s reality distortion",
+                            MessageType.ABILITY,
+                            player=user.player
+                        )
+
+            # Handle unit death
+            if unit.hp <= 0:
+                message_log.add_message(
+                    f"{unit.get_display_name()} perishes",
+                    MessageType.COMBAT,
+                    player=user.player
+                )
+                # Units are not removed from the game, just marked as dead by setting hp to 0
+                unit.hp = 0
 
         return True
