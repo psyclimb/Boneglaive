@@ -245,7 +245,7 @@ class MenuUI:
         
         # About screen content
         lines = [
-            "Boneglaive v0.7.0 BETA",
+            "Boneglaive v0.7.1 BETA",
             "Tactical Turn-Based Combat Game",
             "Beta Release",
             "",
@@ -282,7 +282,7 @@ class MenuUI:
             if line:  # Non-empty line
                 # Center the text horizontally
                 col = max(2, (width - len(line)) // 2)
-                if "v0.7.0 BETA" in line:
+                if "v0.7.1 BETA" in line:
                     # Title in bold
                     self.renderer.draw_text(start_row + i, col, line, 1, curses.A_BOLD)
                 elif "Copyright" in line or "GPL-3.0" in line:
