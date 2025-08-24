@@ -23,7 +23,7 @@ from boneglaive.ui.ui_components import (
     MessageLogComponent, HelpComponent, UnitHelpComponent, ChatComponent,
     CursorManager, GameModeManager, DebugComponent,
     AnimationComponent, InputManager, ActionMenuComponent,
-    GameOverPrompt, UnitSelectionMenuComponent
+    GameOverPrompt, ConcedePrompt, UnitSelectionMenuComponent
 )
 from boneglaive.ui.ui_renderer import UIRenderer
 
@@ -90,6 +90,7 @@ class GameUI:
         self.animation_component = AnimationComponent(self.renderer, self)
         self.action_menu_component = ActionMenuComponent(self.renderer, self)
         self.game_over_prompt = GameOverPrompt(self.renderer, self)  # Add game over prompt
+        self.concede_prompt = ConcedePrompt(self.renderer, self)  # Add concede prompt
         self.unit_selection_menu = UnitSelectionMenuComponent(self.renderer, self)
         self.input_manager = InputManager(self.renderer, self, self.input_handler)
         self.ui_renderer = UIRenderer(self.renderer, self)
@@ -265,6 +266,20 @@ class GameUI:
 
         # Update multiplayer manager to use the new game
         self.multiplayer.game = self.game
+        
+        # Reinitialize the network interface (including AI) with the new game
+        if self.multiplayer.network_interface:
+            # Clean up old interface
+            if hasattr(self.multiplayer.network_interface, 'cleanup'):
+                self.multiplayer.network_interface.cleanup()
+            
+            # Reinitialize with new game
+            if hasattr(self.multiplayer.network_interface, 'initialize'):
+                success = self.multiplayer.network_interface.initialize(self.game, ui=self)
+                if not success:
+                    logger.error("Failed to reinitialize network interface after game reset")
+                else:
+                    logger.info("Network interface successfully reinitialized after game reset")
 
         # Set UI reference in game engine for animations
         self.game.set_ui_reference(self)
@@ -280,6 +295,10 @@ class GameUI:
         from boneglaive.utils.constants import HEIGHT, WIDTH
         from boneglaive.utils.coordinates import Position
         self.cursor_manager.cursor_pos = Position(HEIGHT // 2, WIDTH // 2)
+
+        # Clear the screen buffer to prevent flickering from previous game content
+        if hasattr(self.renderer, 'clear_screen'):
+            self.renderer.clear_screen()
 
         # Reset game mode
         self.mode_manager.set_mode("select")

@@ -1691,6 +1691,7 @@ class Game:
         # Handle Echo death by triggering chain reactions
         if dying_unit.is_echo:
             self._trigger_echo_death_effect(dying_unit, ui)
+        
     
     def process_buff_durations(self, ui=None):
         """
@@ -2178,6 +2179,9 @@ class Game:
                         # Update unit position
                         unit.y, unit.x = y, x
                         
+                        # Update anchor status effects after position change
+                        self.update_anchor_status_effects()
+                        
                         # Check for trap release due to position change
                         self._check_position_change_trap_release(unit, start_y, start_x)
                         
@@ -2199,6 +2203,9 @@ class Game:
                         
                         # Without UI, just update position
                         unit.y, unit.x = y, x
+                        
+                        # Update anchor status effects after position change
+                        self.update_anchor_status_effects()
                         
                         # Check for trap release due to position change
                         self._check_position_change_trap_release(unit, start_y, start_x)
@@ -2445,7 +2452,7 @@ class Game:
                                             attacker_name=unit.get_display_name(),
                                             target_name=target.get_display_name(),
                                             damage=additional_damage,
-                                            ability=f"Carrier Rave Strike {strike + 2}",
+                                            ability=f"Karrier Rave Strike {strike + 2}",
                                             attacker_player=unit.player,
                                             target_player=target.player
                                         )
@@ -4015,6 +4022,7 @@ class Game:
                     # Chain reaction - trigger this echo's death effect too
                     self._trigger_echo_death_effect(unit, ui)
     
+    
     def _show_wall_attack_animation(self, ui, unit, wall_position, damage):
         """
         Show animation for a wall attack when a unit attacks a Marrow Dike wall.
@@ -4393,3 +4401,25 @@ class Game:
         )
         
         logger.info(f"Removed {rail_count} rail tiles - no FOWL_CONTRIVANCE units remaining")
+    
+    def update_anchor_status_effects(self):
+        """Update anchor status effects for all units based on adjacency to friendly teleport anchors."""
+        if not hasattr(self, 'teleport_anchors'):
+            return
+            
+        for unit in self.units:
+            if not unit.is_alive():
+                continue
+                
+            unit.can_use_anchor = False  # Reset status
+            
+            # Check if unit is adjacent to any friendly active anchor
+            for anchor_pos, anchor in self.teleport_anchors.items():
+                if not anchor['active']:
+                    continue
+                    
+                # Check if this unit can use this anchor (same team and adjacent)
+                if (anchor['creator'].player == unit.player and 
+                    self.chess_distance(unit.y, unit.x, anchor_pos[0], anchor_pos[1]) <= 1):
+                    unit.can_use_anchor = True
+                    break

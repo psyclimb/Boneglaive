@@ -115,6 +115,9 @@ class Unit:
         self.carrier_rave_duration = 0  # Duration of Carrier Rave effect
         self.carrier_rave_strikes_ready = False  # Whether next attack will strike 3 times
         
+        # DELPHIC APPRAISER properties
+        self.can_use_anchor = False  # Whether this unit can use Market Futures teleport anchors
+        
         # Experience and leveling
         self.level = 1
         self.xp = 0
@@ -240,16 +243,23 @@ class Unit:
                 else:
                     vapor_name = "HEINOUS VAPOR"
                 
-                # Include the symbol in the name
-                if hasattr(self, 'vapor_symbol') and self.vapor_symbol:
-                    if shortened:
-                        return f"{self.vapor_symbol}"
-                    else:
-                        return f"{vapor_name} {self.vapor_symbol}"
+                # Use vapor name without symbols, only Greek ID
+                if shortened:
+                    base_name = vapor_name[:8]  # Shortened version
                 else:
-                    return vapor_name
+                    base_name = vapor_name
+                
+                # Add Greek identifier if available
+                if self.greek_id:
+                    return f"{base_name} {self.greek_id}"
+                else:
+                    return base_name
             else:
-                return "HEINOUS VAPOR"
+                # Fallback case - add Greek identifier if available
+                if self.greek_id:
+                    return f"HEINOUS VAPOR {self.greek_id}"
+                else:
+                    return "HEINOUS VAPOR"
         elif display_type == "FOWL_CONTRIVANCE":
             # Use a shorter name if requested (for UI menus)
             if shortened:

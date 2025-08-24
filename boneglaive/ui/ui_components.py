@@ -2205,13 +2205,8 @@ class CursorManager(UIComponent):
         if self.game_ui.game.test_mode:
             return True
 
-        # Check if unit has already issued an attack or skill
-        # These attributes are set when a unit uses a skill or plans an attack
-        if unit.attack_target or unit.skill_target or unit.selected_skill:
-            # Unit has already taken an action this turn, don't allow selection
-            # Set the message directly in the game UI to display it in the message area
-            self.game_ui.message = "Unit has already issued an attack or skill"
-            return False
+        # Allow selection of units for UI purposes even if they have actions queued
+        # The action menu will handle preventing additional actions
 
         # Local multiplayer can select current player's units
         if self.game_ui.multiplayer.is_local_multiplayer():
@@ -2611,6 +2606,10 @@ class GameOverPrompt(UIComponent):
         self.selected_option = 0
         self.winner = winner
 
+        # Clear the screen buffer once when showing the prompt
+        if hasattr(self.renderer, 'clear_screen'):
+            self.renderer.clear_screen()
+
         # Force a board redraw to show the prompt
         self.game_ui.draw_board()
 
@@ -2654,9 +2653,7 @@ class GameOverPrompt(UIComponent):
             # Fallback - get from get_size method
             height, width = self.renderer.get_size()
 
-        # Clear screen to ensure prompt is visible over game content
-        if hasattr(self.renderer, 'clear_screen'):
-            self.renderer.clear_screen()
+        # Screen is cleared once in show() method - no need to clear on every draw
 
         # Import game board constants
         from boneglaive.utils.constants import HEIGHT as BOARD_HEIGHT
@@ -2701,6 +2698,136 @@ class GameOverPrompt(UIComponent):
         self.renderer.draw_text(prompt_y + 6, controls_x, controls, 7)
         
         # Refresh the display to make sure the prompt is visible
+        self.renderer.refresh()
+
+
+class ConcedePrompt(UIComponent):
+    """
+    Component for showing a concede confirmation dialog when 'q' is pressed.
+    Allows player to concede (lose game), resume, or go to main menu.
+    """
+
+    def __init__(self, renderer, game_ui):
+        """Initialize the component."""
+        super().__init__(renderer, game_ui)
+        self.visible = False
+        self.selected_option = 0
+        self.options = ["Resume Game", "Concede (Lose)", "Main Menu"]
+
+    def show(self):
+        """Show the concede prompt."""
+        self.visible = True
+        self.selected_option = 0
+
+        # Force a board redraw to show the prompt
+        self.game_ui.draw_board()
+
+    def hide(self):
+        """Hide the concede prompt."""
+        self.visible = False
+
+    def move_selection(self, direction):
+        """Move the selection up or down."""
+        self.selected_option = (self.selected_option + direction) % len(self.options)
+        self.game_ui.draw_board()
+
+    def select_option(self):
+        """Select the currently highlighted option."""
+        if self.selected_option == 0:  # Resume Game
+            # Just hide and continue playing
+            self.hide()
+            return True
+        elif self.selected_option == 1:  # Concede (Lose)
+            # Determine the winner (opponent of current player)
+            current_player = self.game_ui.game.current_player
+            winner = 2 if current_player == 1 else 1
+            
+            # Set game winner and trigger game over
+            self.game_ui.game.winner = winner
+            from boneglaive.utils.message_log import message_log, MessageType
+            message_log.add_message(
+                f"Player {current_player} has conceded. Player {winner} wins!",
+                MessageType.SYSTEM
+            )
+            
+            # Hide this dialog and show game over prompt
+            self.hide()
+            self.game_ui.game_over_prompt.show(winner)
+            return True
+        else:  # Main Menu
+            # Return special value to indicate main menu should be shown
+            self.hide()
+            return "main_menu"
+
+    def draw(self):
+        """Draw the concede prompt."""
+        if not self.visible:
+            return
+
+        # Get screen dimensions - handle both renderer types
+        if hasattr(self.renderer, 'height') and hasattr(self.renderer, 'width'):
+            # Curses renderer
+            height, width = self.renderer.height, self.renderer.width
+        elif hasattr(self.renderer, 'grid_height') and hasattr(self.renderer, 'grid_width'):
+            # Pygame renderer
+            height, width = self.renderer.grid_height, self.renderer.grid_width
+        else:
+            # Fallback - get from get_size method
+            height, width = self.renderer.get_size()
+
+        # Screen should be cleared when prompt is shown, not on every draw
+
+        # Import game board constants
+        from boneglaive.utils.constants import HEIGHT as BOARD_HEIGHT
+
+        # Calculate prompt dimensions and position
+        prompt_width = 45
+        prompt_height = 10
+        prompt_x = (width - prompt_width) // 2
+
+        # Position the prompt in the middle of the game board area
+        prompt_y = BOARD_HEIGHT // 2 - prompt_height // 2
+
+        # Make sure the prompt doesn't go off the top of the screen
+        prompt_y = max(prompt_y, 1)
+
+        # Draw border and background - use simple ASCII characters for compatibility
+        for y in range(prompt_y, prompt_y + prompt_height):
+            for x in range(prompt_x, prompt_x + prompt_width):
+                if (y == prompt_y or y == prompt_y + prompt_height - 1 or
+                    x == prompt_x or x == prompt_x + prompt_width - 1):
+                    self.renderer.draw_text(y, x, "#", 7)  # Border with white color
+                else:
+                    self.renderer.draw_text(y, x, " ", 7)  # Background with white color
+
+        # Draw title
+        title = "Confirm Action"
+        title_x = prompt_x + (prompt_width - len(title)) // 2
+        # Use bright white color with bold attribute
+        self.renderer.draw_text(prompt_y + 1, title_x, title, 7, 1)
+
+        # Draw description
+        desc1 = "Are you sure you want to quit?"
+        desc2 = "Select 'Concede' to lose the current game."
+        desc1_x = prompt_x + (prompt_width - len(desc1)) // 2
+        desc2_x = prompt_x + (prompt_width - len(desc2)) // 2
+        self.renderer.draw_text(prompt_y + 3, desc1_x, desc1, 7)
+        self.renderer.draw_text(prompt_y + 4, desc2_x, desc2, 7)
+
+        # Draw options
+        for i, option in enumerate(self.options):
+            option_y = prompt_y + 6 + i
+            option_x = prompt_x + (prompt_width - len(option)) // 2
+
+            if i == self.selected_option:
+                # Highlight selected option
+                self.renderer.draw_text(option_y, option_x - 2, ">", 7)
+                self.renderer.draw_text(option_y, option_x, option, 7, 1)  # Bold
+                self.renderer.draw_text(option_y, option_x + len(option), "<", 7)
+            else:
+                self.renderer.draw_text(option_y, option_x, option, 7)
+
+        # Refresh the screen
         self.renderer.refresh()
 
 
@@ -3099,7 +3226,8 @@ class GameModeManager(UIComponent):
                         EventType.MESSAGE_DISPLAY_REQUESTED,
                         MessageDisplayEventData(
                             message="You can only use skills with your own units",
-                            message_type=MessageType.WARNING
+                            message_type=MessageType.WARNING,
+                            log_message=False  # Don't add to message log, only show in UI
                         )
                     )
         else:
@@ -3299,8 +3427,7 @@ class GameModeManager(UIComponent):
         if result:
             # Return to select mode after successful skill use (publishes mode changed event)
             self.set_mode("select")
-            # Clear the unit selection to prevent multiple actions
-            self.game_ui.cursor_manager.clear_selection()
+            # Don't clear selection - allow players to continue selecting units normally
         return result
         
     def handle_select_in_vapor_targeting_mode(self):
@@ -4434,11 +4561,15 @@ class ActionMenuComponent(UIComponent):
         self.actions = []
         self.menu_mode = "standard"
         
+        # Check if unit has already taken an action this turn
+        unit_has_action = (unit.attack_target or unit.skill_target or unit.selected_skill)
+        
         # Add standard actions with consistent labeling
-        # Disable move for trapped units, Jawline-affected units, charging units, Neural Shunt, or echoes (echoes can't move)
+        # Disable move for trapped units, Jawline-affected units, charging units, Neural Shunt, echoes, or units with actions
         unit_can_move = (unit is not None and
                         unit.trapped_by is None and
                         not unit.is_echo and
+                        not unit_has_action and
                         not (hasattr(unit, 'jawline_affected') and unit.jawline_affected) and
                         not (hasattr(unit, 'charging_status') and unit.charging_status) and
                         not (hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected))
@@ -4449,8 +4580,9 @@ class ActionMenuComponent(UIComponent):
             'enabled': unit_can_move  # Enabled only if unit can move
         })
         
-        # Disable attack for charging units and Neural Shunt
-        unit_can_attack = (not (hasattr(unit, 'charging_status') and unit.charging_status) and
+        # Disable attack for charging units, Neural Shunt, or units with actions
+        unit_can_attack = (not unit_has_action and
+                          not (hasattr(unit, 'charging_status') and unit.charging_status) and
                           not (hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected))
         self.actions.append({
             'key': 'a',
@@ -4462,8 +4594,9 @@ class ActionMenuComponent(UIComponent):
         # Add skill action
         unit_has_skills = unit is not None and hasattr(unit, 'active_skills') and len(unit.get_available_skills()) > 0
         # Allow skills to be used even when a move is planned (the unit can cast from the new position)
-        # Disable skills when charging (except for Gaussian Dusk auto-firing which is handled differently) or under Neural Shunt
+        # Disable skills when charging (except for Gaussian Dusk auto-firing which is handled differently), under Neural Shunt, or with actions
         unit_can_use_skills = (unit_has_skills and unit.trapped_by is None and not unit.is_echo and
+                              not unit_has_action and
                               not (hasattr(unit, 'charging_status') and unit.charging_status) and
                               not (hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected))
         self.actions.append({
@@ -4739,11 +4872,11 @@ class ActionMenuComponent(UIComponent):
             })
 
             # Add Carrier Rave skill
-            carrier_rave_skill = next((skill for skill in available_skills if skill.name == "Carrier Rave"), None)
+            carrier_rave_skill = next((skill for skill in available_skills if skill.name == "Karrier Rave"), None)
             self.actions.append({
-                'key': 'c',
-                'label': 'arrier Rave',  # Will be displayed as [C]arrier Rave
-                'action': 'carrier_rave_skill',
+                'key': 'k',
+                'label': 'arrier Rave',  # Will be displayed as [K]arrier Rave
+                'action': 'karrier_rave_skill',
                 'enabled': carrier_rave_skill is not None,
                 'skill': carrier_rave_skill
             })
@@ -5009,6 +5142,8 @@ class ActionMenuComponent(UIComponent):
                         # Store unit reference before clearing selection
                         unit = cursor_manager.selected_unit
                         skill.use(unit, (from_y, from_x), game)
+                        # Return to select mode
+                        mode_manager.set_mode("select")
                         # Clear selection to prevent further actions
                         cursor_manager.clear_selection()
                 # For Bone Tithe, we need to directly set the cooldown since its can_use check
@@ -5031,6 +5166,8 @@ class ActionMenuComponent(UIComponent):
                         player=unit.player
                     )
 
+                    # Return to select mode
+                    mode_manager.set_mode("select")
                     # Clear selection to prevent further actions
                     cursor_manager.clear_selection()
                 
@@ -5090,6 +5227,8 @@ class ActionMenuComponent(UIComponent):
                     # Actually use the skill now
                     skill.use(unit, (from_y, from_x), game)
 
+                    # Return to select mode
+                    mode_manager.set_mode("select")
                     # Clear the unit selection to prevent multiple actions
                     cursor_manager.clear_selection()
                     
@@ -5327,9 +5466,31 @@ class InputManager(UIComponent):
             # No other keys have effect when game over prompt is visible
             return True
 
-        # Quick exit for 'q' key (except in chat mode)
+        # Handle concede prompt input
+        if self.game_ui.concede_prompt.visible:
+            if key in [curses.KEY_UP, ord('k')]:  # Move selection up
+                self.game_ui.concede_prompt.move_selection(-1)
+                return True
+            elif key in [curses.KEY_DOWN, ord('j')]:  # Move selection down
+                self.game_ui.concede_prompt.move_selection(1)
+                return True
+            elif key in [curses.KEY_ENTER, 10, 13]:  # Enter key
+                result = self.game_ui.concede_prompt.select_option()
+                if result == "main_menu":
+                    # Return special value to indicate main menu should be shown
+                    return "main_menu"
+                return result
+            elif key == 27 or key == ord('c'):  # Escape or 'c' key - cancel/resume
+                self.game_ui.concede_prompt.hide()
+                return True
+            # No other keys have effect when concede prompt is visible
+            return True
+
+        # Handle 'q' key for concede dialog (except in chat mode)
         if key == ord('q') and not self.game_ui.chat_component.chat_mode and not self.game_ui.message_log_component.show_log_history:
-            return False
+            # Show concede prompt instead of immediately quitting
+            self.game_ui.concede_prompt.show()
+            return True
 
         # First check if any components want to handle this input
         if self.game_ui.message_log_component.handle_input(key):

@@ -832,8 +832,8 @@ class FragcrestSkill(ActiveSkill):
                     # Log shrapnel embedding if it's a new effect or extended
                     if unit.shrapnel_duration > previous_shrapnel:
                         message_log.add_message(
-                            f"Shrapnel embeds in {unit.get_display_name()} for {unit.shrapnel_duration} turns",
-                            MessageType.ABILITY,
+                            f"Shrapnel is embedded deeply in {unit.get_display_name()}",
+                            MessageType.COMBAT,  # Use COMBAT type for potential yellow coloring
                             player=user.player
                         )
                 
@@ -855,11 +855,8 @@ class FragcrestSkill(ActiveSkill):
                 player=user.player
             )
         else:
-            message_log.add_message(
-                f"Fragmentation hits {units_hit} {'unit' if units_hit == 1 else 'units'} for {total_damage} damage and embeds shrapnel",
-                MessageType.ABILITY,
-                player=user.player
-            )
+            # Removed extraneous fragmentation message per notes
+            pass
         
         # Play fragmentation cone animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
@@ -992,11 +989,14 @@ class FragcrestSkill(ActiveSkill):
             game.map.is_passable(new_y, new_x) and
             not game.get_unit_at(new_y, new_x)):
             
+            # Store original position for message
+            orig_y, orig_x = target.y, target.x
+            
             target.y = new_y
             target.x = new_x
             
             message_log.add_message(
-                f"{target.get_display_name()} is blasted backward by the explosion",
+                f"{target.get_display_name()} is blasted backward from ({orig_y},{orig_x}) to ({new_y},{new_x})",
                 MessageType.ABILITY,
                 player=target.player
             )
