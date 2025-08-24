@@ -1,6 +1,6 @@
 # Boneglaive 🎯
 
-🚧 **BETA VERSION 0.7.0** - Core gameplay complete, some features in development
+🚧 **BETA VERSION 0.7.1** - Core gameplay complete, some features in development
 
 A tactical turn-based combat game with dual rendering modes: classic terminal (ncurses) and modern graphical (pygame).
 
@@ -68,7 +68,7 @@ python3 -m boneglaive.main
 - **Shift+Tab**: Cycle backwards through units
 - **p**: Activate appraiser anchor
 
-## ⚠️ Development Status - BETA 0.7.0
+## ⚠️ Development Status - BETA 0.7.1
 
 **Text Mode**: Fully functional and polished - recommended for play
 **Graphical Mode**: Incomplete - use text mode for best experience
