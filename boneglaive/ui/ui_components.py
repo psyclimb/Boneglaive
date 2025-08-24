@@ -628,7 +628,7 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'SITE INSPECTION (Active) [Key: S]',
-                        'description': 'Survey a 3x3 area for obstacles, granting attack and movement bonuses to allies if terrain is clear.',
+                        'description': 'Survey a 3x3 area for tactical analysis, granting scaled bonuses based on terrain obstacles.',
                         'details': [
                             'Type: Active',
                             'Range: 3',
@@ -636,9 +636,12 @@ class UnitHelpComponent(UIComponent):
                             'Line of Sight: Yes',
                             'Damage: None',
                             'Pierce: No',
-                            'Effects: +1 attack, +1 movement to allies in area for 3 turns',
+                            'Effects: Scaled bonuses to allies in area for 3 turns:',
+                            '  • 0 terrain: +1 attack & +1 movement (full effect)',
+                            '  • 1 terrain: +1 attack only (partial effect)',
+                            '  • 2+ terrain: No effect',
                             'Cooldown: 3 turns',
-                            'Special: Only works if no impassable terrain in target area, reveals hidden traps'
+                            'Special: Reveals hidden traps, effect strength depends on terrain count'
                         ]
                     },
                     {
@@ -660,14 +663,15 @@ class UnitHelpComponent(UIComponent):
                 'tips': [
                     '- Use Viseroy to control enemy positioning with every attack',
                     '- Expedite provides both gap-closing and guaranteed trap application',
-                    '- Site Inspection rewards positioning in open areas - plan team movements accordingly',
+                    '- Site Inspection now provides partial benefits - even 1 terrain obstacle still gives +1 attack',
+                    '- Position teams strategically: clear areas give full bonuses, lightly obstructed areas give partial',
                     '- Jawline is devastating in chokepoints or when surrounded by multiple enemies',
                     '- High HP allows aggressive frontline positioning despite low attack range'
                 ],
                 'tactical': [
-                    '- Strong against: Melee units (trapping), clustered enemies (Jawline), open terrain engagements',
-                    '- Vulnerable to: Ranged attackers, immunity effects (GRAYMAN), heavily obstructed terrain',
-                    '- Best positioning: Frontline in open areas, near chokepoints to maximize Jawline effectiveness'
+                    '- Strong against: Melee units (trapping), clustered enemies (Jawline), mixed terrain engagements',
+                    '- Vulnerable to: Ranged attackers, immunity effects (GRAYMAN), extremely cluttered terrain',
+                    '- Best positioning: Frontline in moderately open areas, near chokepoints to maximize Jawline effectiveness'
                 ]
             },
             UnitType.GRAYMAN: {

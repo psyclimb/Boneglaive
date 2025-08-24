@@ -651,6 +651,28 @@ class DivineDrepreciationSkill(ActiveSkill):
             range_=3,
             area=3  # 7×7 area (radius 3)
         )
+    
+    def _get_furniture_name(self, terrain_type) -> str:
+        """Convert TerrainType enum to readable furniture name."""
+        terrain_names = {
+            TerrainType.FURNITURE: "Furniture",
+            TerrainType.COAT_RACK: "Coat Rack", 
+            TerrainType.OTTOMAN: "Ottoman",
+            TerrainType.CONSOLE: "Console",
+            TerrainType.DEC_TABLE: "Decorative Table",
+            TerrainType.TIFFANY_LAMP: "Tiffany Lamp",
+            TerrainType.EASEL: "Easel",
+            TerrainType.SCULPTURE: "Sculpture", 
+            TerrainType.BENCH: "Bench",
+            TerrainType.PODIUM: "Podium",
+            TerrainType.VASE: "Vase",
+            TerrainType.WORKBENCH: "Workbench",
+            TerrainType.COUCH: "Couch",
+            TerrainType.TOOLBOX: "Toolbox",
+            TerrainType.COT: "Cot",
+            TerrainType.CONVEYOR: "Conveyor Belt"
+        }
+        return terrain_names.get(terrain_type, "Furniture")
 
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Check if Divine Depreciation can be used."""
@@ -728,6 +750,10 @@ class DivineDrepreciationSkill(ActiveSkill):
         original_cosmic_value = game.map.get_cosmic_value(target_pos[0], target_pos[1], player=user.player, game=game)
         if original_cosmic_value is None:
             original_cosmic_value = random.randint(1, 9)  # Fallback
+            
+        # Get the furniture name for messages
+        target_terrain = game.map.get_terrain_at(target_pos[0], target_pos[1])
+        furniture_name = self._get_furniture_name(target_terrain)
 
         # Create reality distortion zone
         if not hasattr(game, 'reality_distortions'):
@@ -922,7 +948,7 @@ class DivineDrepreciationSkill(ActiveSkill):
                     if steps_taken > 0:
                         unit.y, unit.x = new_y, new_x
                         message_log.add_message(
-                            f"{unit.get_display_name()} is pulled {steps_taken} spaces by the reality distortion",
+                            f"{unit.get_display_name()} is pulled {steps_taken} spaces by the {furniture_name.lower()}'s reality distortion",
                             MessageType.ABILITY,
                             player=user.player
                         )
@@ -957,135 +983,70 @@ class DivineDrepreciationSkill(ActiveSkill):
                 player=user.player
             )
 
-        # Play elaborate animation sequence
+        # Play fast sinkhole animation sequence
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Step 1: The APPRAISER makes a dramatic downward valuation gesture
-            gesture_animation = ['A', '↓', '$', '↓']
-            ui.renderer.animate_attack_sequence(
-                user.y, user.x,  # First part is at the user's position
-                gesture_animation,
-                7,  # White color for the appraiser
-                0.2  # Duration
-            )
-            sleep_with_animation_speed(0.1)  # Pause between animation phases
-
-            # Step 2: The target furniture's cosmic value rapidly drops to 1
-            value_drop_animation = []
-            # Start with the actual cosmic value and drop to 1
+            # Step 1: Value Collapse - Show furniture's cosmic value plummeting
+            value_collapse_animation = []
             current_value = original_cosmic_value
-            while current_value > 1:
-                value_drop_animation.append(str(current_value))
-                current_value -= 1
-            value_drop_animation.append('1')  # Ensure it ends at 1
-
+            while current_value > 1 and len(value_collapse_animation) < 3:  # Limit to 3 frames max
+                value_collapse_animation.append(str(current_value))
+                current_value = max(1, current_value - 3)  # Drop faster for shorter animation
+            value_collapse_animation.append('1')  # Always end at 1
+            
             ui.renderer.animate_attack_sequence(
                 target_pos[0], target_pos[1],
-                value_drop_animation,
-                5,  # Magenta color for value display
-                0.15  # Duration
+                value_collapse_animation,
+                7,  # White→Yellow showing instability  
+                0.08  # Quick duration
             )
-            sleep_with_animation_speed(0.1)  # Pause between animation phases
 
-            # Step 3: The furniture piece appears to age/depreciate
-            aging_animation = ['Ω', '§', '@', '#', '_']
+            # Step 2: Sinkhole Formation - Floor collapses inward creating gravitational pull
+            sinkhole_animation = ['o', 'O', '@']
+            # Show sinkhole forming at center and expanding outward
             ui.renderer.animate_attack_sequence(
                 target_pos[0], target_pos[1],
-                aging_animation,
-                6,  # Yellowish color for aging
-                0.15  # Duration
+                sinkhole_animation,
+                0,  # Black/dark showing the void
+                0.06  # Quick formation
             )
-            sleep_with_animation_speed(0.1)  # Pause between animation phases
-
-            # Step 4: The floor around it warps and sinks - expanded to 7x7 area
-            # First show a ripple effect from the center outward
-            for distance in range(1, 4):  # Range 1-3 to cover inner parts of 7x7 area
+            
+            # Show sinkhole effect radiating outward in concentric rings
+            for distance in range(1, 4):  # 1, 2, 3 distance from center
                 for y in range(target_pos[0] - distance, target_pos[0] + distance + 1):
                     for x in range(target_pos[1] - distance, target_pos[1] + distance + 1):
-                        # Only animate positions at exactly the current distance (edges)
-                        if abs(y - target_pos[0]) == distance or abs(x - target_pos[1]) == distance:
-                            # Check if position is valid and in affected area
-                            if game.is_valid_position(y, x) and (y, x) in affected_area:
-                                ui.renderer.animate_attack_sequence(
-                                    y, x,
-                                    ['~', '_', '.'],
-                                    4,  # Purple color
-                                    0.05  # Quick duration for ripple
-                                )
-                sleep_with_animation_speed(0.05)  # Pause between ripples
-
-            # Continue ripple to the outer edge (distance 3)
-            for y in range(target_pos[0] - 3, target_pos[0] + 4):
-                for x in range(target_pos[1] - 3, target_pos[1] + 4):
-                    # Only animate positions at the outer edge
-                    if abs(y - target_pos[0]) == 3 or abs(x - target_pos[1]) == 3:
-                        # Check if position is valid and in affected area
-                        if game.is_valid_position(y, x) and (y, x) in affected_area:
+                        # Only animate positions at exactly the current distance (ring edge)
+                        if (abs(y - target_pos[0]) == distance or abs(x - target_pos[1]) == distance) and \
+                           game.is_valid_position(y, x) and (y, x) in affected_area:
                             ui.renderer.animate_attack_sequence(
                                 y, x,
-                                ['~', '_', '.'],
-                                4,  # Purple color
-                                0.05  # Quick duration for ripple
+                                ['o'],  # Single frame showing ground instability
+                                0,  # Dark color
+                                0.02  # Very quick
                             )
-            sleep_with_animation_speed(0.1)  # Pause after outer ripple
 
-            # Step 5: Damage and implosion effects for enemies
+            # Step 3: Everything Falls In - Units tumble toward center, simultaneous effects
+            fall_animation = ['\\', '|', '/']
+            
+            # Apply effects to all units simultaneously
             for unit in enemies_in_area:
-                # Damage animation
-                damage_animation = ['$', '!', '-', '×']
+                # Show tumbling/falling effect
                 ui.renderer.animate_attack_sequence(
                     unit.y, unit.x,
-                    damage_animation,
-                    10,  # Red color for damage
-                    0.1  # Duration
+                    fall_animation,
+                    10,  # Red color showing damage/distress
+                    0.10  # Duration
                 )
-
-                # Implosion/pull animation
-                if pull_distance > 0:
-                    # Create pull effect pointing toward center
-                    pull_animation = ['←', '↖', '↑', '↗', '→', '↘', '↓', '↙']
-
-                    # Determine direction from unit to center (8-way)
-                    dir_y = target_pos[0] - unit.y
-                    dir_x = target_pos[1] - unit.x
-
-                    # Select appropriate arrow based on direction
-                    arrow_index = 0
-                    if dir_y < 0 and dir_x == 0:  # Up
-                        arrow_index = 2
-                    elif dir_y < 0 and dir_x > 0:  # Up-Right
-                        arrow_index = 3
-                    elif dir_y == 0 and dir_x > 0:  # Right
-                        arrow_index = 4
-                    elif dir_y > 0 and dir_x > 0:  # Down-Right
-                        arrow_index = 5
-                    elif dir_y > 0 and dir_x == 0:  # Down
-                        arrow_index = 6
-                    elif dir_y > 0 and dir_x < 0:  # Down-Left
-                        arrow_index = 7
-                    elif dir_y == 0 and dir_x < 0:  # Left
-                        arrow_index = 0
-                    elif dir_y < 0 and dir_x < 0:  # Up-Left
-                        arrow_index = 1
-
-                    # Show pull animation
-                    ui.renderer.animate_attack_sequence(
-                        unit.y, unit.x,
-                        [pull_animation[arrow_index], 'o', '.'],
-                        5,  # Magenta color for pull
-                        0.15  # Duration
-                    )
-
-            # Step 6: Show revaluation of other furniture pieces
+            
+            # Show furniture revaluation effect simultaneously
             if other_furniture:
-                sleep_with_animation_speed(0.2)  # Pause before revaluation effect
                 for pos in other_furniture:
-                    # Revaluation animation
-                    revalue_animation = ['?', '!', '*', '$']
+                    # Furniture gets jostled and revalued as everything shifts
+                    revalue_animation = ['?', '$', '*']
                     ui.renderer.animate_attack_sequence(
                         pos[0], pos[1],
                         revalue_animation,
-                        3,  # Green/yellow color for revaluation
-                        0.1  # Duration
+                        3,  # Yellow/green for revaluation
+                        0.10  # Same duration as falling
                     )
 
         return True

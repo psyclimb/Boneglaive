@@ -61,6 +61,8 @@ class UIRenderer:
         # Medium priority effects
         if hasattr(unit, 'status_site_inspection') and unit.status_site_inspection:
             effects.append(('site_inspection', 'Θ', curses.A_BOLD))
+        elif hasattr(unit, 'status_site_inspection_partial') and unit.status_site_inspection_partial:
+            effects.append(('site_inspection_partial', 'θ', curses.A_BOLD))
             
         if hasattr(unit, 'has_investment_effect') and unit.has_investment_effect:
             effects.append(('investment', '£', curses.A_BOLD))
@@ -1308,6 +1310,8 @@ class UIRenderer:
                 positive_effects.append("Ossify")
             if hasattr(unit, 'status_site_inspection') and unit.status_site_inspection:
                 positive_effects.append("Site Inspection")
+            elif hasattr(unit, 'status_site_inspection_partial') and unit.status_site_inspection_partial:
+                positive_effects.append("Site Inspection (Partial)")
             if hasattr(unit, 'first_turn_move_bonus') and unit.first_turn_move_bonus:
                 positive_effects.append("First Turn Bonus")
             if hasattr(unit, 'is_echo') and unit.is_echo and not (hasattr(unit, 'echo_duration') and unit.echo_duration > 0):
