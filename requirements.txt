@@ -1,16 +1,15 @@
 # Boneglaive Dependencies
+# Linux and BSD Terminal Gaming
 
-# Core game dependencies (cross-platform)
-# All dependencies are from Python standard library except for platform-specific ones
+# Core game dependencies
+# All core dependencies are from Python standard library (curses, json, socket, threading)
 
-# Windows-specific dependencies
-windows-curses; sys_platform == "win32"
-
-# Optional dependencies for enhanced features
-# pygame is optional but recommended for graphical rendering
-pygame; python_version >= "3.8"
+# Optional dependencies for development
+# pygame kept for potential future enhancements (not user-facing)
+# pygame; python_version >= "3.8"
 
 # Development/testing dependencies (optional)
 # These are not required for basic gameplay but useful for development
+distro>=1.5.0  # For better Linux distribution detection
 # pytest; extra == "dev"
 # pytest-cov; extra == "dev"

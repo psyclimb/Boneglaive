@@ -26,7 +26,7 @@ for req in requirements:
 setup(
     name="boneglaive2",
     version="0.7.2a",
-    description="Tactical turn-based combat game with cross-platform rendering",
+    description="Linux & BSD terminal tactical combat game",
     packages=find_packages(),
     install_requires=install_requires,
     python_requires=">=3.8",
@@ -42,9 +42,10 @@ setup(
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "License :: OSI Approved :: MIT License",
-        "Operating System :: OS Independent",
+        "Operating System :: POSIX :: Linux",
+        "Operating System :: POSIX :: BSD",
         "Topic :: Games/Entertainment :: Turn Based Strategy",
     ],
-    keywords="game tactical combat strategy pygame curses",
+    keywords="game tactical combat strategy terminal curses nix unix linux bsd",
     include_package_data=True,
 )

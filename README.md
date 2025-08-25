@@ -1,58 +1,44 @@
-# Boneglaive 🎯
+# Boneglaive
 
-🚧 **BETA VERSION 0.7.2a** - Core gameplay complete, some features in development
+**BETA VERSION 0.7.2a** - Core gameplay complete, some features in development
 
-A tactical turn-based combat game with dual rendering modes: classic terminal (ncurses) and modern graphical (pygame).
+**Linux & BSD Terminal Gaming** - A tactical turn-based combat game designed for *nix terminal environments using ncurses.
+
+> **Platform Support**: Boneglaive is designed for Linux and BSD systems, taking full advantage of native terminal capabilities.
 
 > **For Developers & Testers**: See [Contributing](#-contributing) section below for development setup and testing guidelines.
 
-## 🚀 Installation
+## Installation
 
-### Text Mode Setup (Recommended)
-For the full terminal-based experience (Linux and BSD):
+### Linux & BSD Setup
+Boneglaive requires Python 3.8+ and uses the native curses library available on Linux and BSD systems:
 
 ```bash
-# Install python (version 3.8 or later recommended)
-# Install ncurses
+# Ensure you have Python 3.8 or later
+python3 --version
 
-# Run the game from your Boneglaive directory:
+# No additional dependencies needed for core gameplay!
+# Run directly from your Boneglaive directory:
 python3 -m boneglaive.main
 ```
 
-### Graphical Mode Setup (Experimental)
-For the pygame-based graphical interface:
-
-```bash
-# Install pygame:
-python install.py
-# OR manually: pip install pygame
-
-# On Windows, also install:
-pip install windows-curses
-
-# Set graphical mode in config.json:
-# Change "display_mode": "text" to "display_mode": "graphical"
-
-# Run the game:
-python3 -m boneglaive.main
-```
 
 ### Project Structure
 - `boneglaive/` - Main game code
-  - `renderers/` - Cross-platform rendering (curses + pygame)
+  - `renderers/` - Terminal rendering system
   - `game/` - Core game logic and skills
   - `ui/` - User interface components
 
-## 🎯 Features
+## Features
 
-- **Dual Rendering**: Terminal-based and graphical modes
-- **Cross-Platform**: Linux, FreeBSD (tested); Windows, macOS (untested)
+- **Pure Terminal**: Authentic ncurses terminal interface
+- **Native Terminal**: Optimized for Linux and BSD environments
 - **Complex Combat**: Unit skills, status effects, terrain
 - **Singleplayer**: Singleplayer vs bots
 - **Multiplayer**: Hotseat multiplayer
-- **Minimal Dependencies**: Python stdlib + optional pygame
+- **Zero Dependencies**: Pure Python standard library
 
-## ⚡ Controls
+## Controls
 
 - **Arrow Keys**: Movement
 - **Enter/Space**: Select/Confirm
