@@ -4421,5 +4421,16 @@ class Game:
                 # Check if this unit can use this anchor (same team and adjacent)
                 if (anchor['creator'].player == unit.player and 
                     self.chess_distance(unit.y, unit.x, anchor_pos[0], anchor_pos[1]) <= 1):
+                    
+                    # GRAYMAN is immune to Parallax and cannot use teleport anchors
+                    if (unit.type.name == "GRAYMAN" and unit.is_immune_to_effects()):
+                        # Show immunity message when GRAYMAN would receive Parallax
+                        from boneglaive.utils.message_log import message_log, MessageType
+                        message_log.add_message(
+                            f"{unit.get_display_name()} is immune to Parallax due to Stasiality",
+                            MessageType.SYSTEM
+                        )
+                        continue  # Skip setting can_use_anchor but continue checking other anchors
+                    
                     unit.can_use_anchor = True
                     break

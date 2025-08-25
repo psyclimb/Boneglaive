@@ -39,8 +39,8 @@ class CursesRenderer(RenderInterface):
         # Set timeout
         self.stdscr.timeout(-1)
         
-        # Clear the screen once (no need for both clear and erase)
-        self.stdscr.clear()
+        # Use erase() instead of clear() to avoid flicker - clear() forces complete redraw
+        self.stdscr.erase()
         
         # Set up colors
         self.setup_colors()
@@ -48,11 +48,18 @@ class CursesRenderer(RenderInterface):
         # Get terminal dimensions
         self.height, self.width = self.stdscr.getmaxyx()
         
+        # Clean up any existing buffer first
+        if hasattr(self, 'buffer') and self.buffer:
+            try:
+                del self.buffer
+            except:
+                pass
+        
         # Initialize buffer for double buffering - make it slightly larger than screen
         # to avoid issues with terminal boundaries
         self.buffer = curses.newpad(self.height + 5, self.width + 5)
         
-        # Clear the buffer
+        # Clear the new buffer
         self.buffer.clear()
         
         # Enable non-blocking mode
@@ -80,7 +87,7 @@ class CursesRenderer(RenderInterface):
     
     def clear_screen(self) -> None:
         """Clear the screen buffer."""
-        # Clear the buffer instead of the screen directly
+        # Clear the buffer instead of the screen directly to avoid flicker
         if self.buffer:
             self.buffer.erase()
     

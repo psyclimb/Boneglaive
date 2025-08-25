@@ -2598,7 +2598,7 @@ class GameOverPrompt(UIComponent):
         super().__init__(renderer, game_ui)
         self.visible = False
         self.selected_option = 0
-        self.options = ["New Round", "Main Menu", "Exit Game"]
+        self.options = ["Exit Game"]
 
     def show(self, winner):
         """Show the game over prompt."""
@@ -2624,18 +2624,8 @@ class GameOverPrompt(UIComponent):
 
     def select_option(self):
         """Select the currently highlighted option."""
-        if self.selected_option == 0:  # New Round
-            # Reset the game
-            self.game_ui.reset_game()
-            self.hide()
-        elif self.selected_option == 1:  # Main Menu
-            # Return special value to indicate main menu should be shown
-            self.hide()
-            return "main_menu"
-        else:  # Exit Game
-            # Return False to exit
-            return False
-        return True
+        # Only Exit Game option remains
+        return False
 
     def draw(self):
         """Draw the game over prompt."""
@@ -2712,7 +2702,7 @@ class ConcedePrompt(UIComponent):
         super().__init__(renderer, game_ui)
         self.visible = False
         self.selected_option = 0
-        self.options = ["Resume Game", "Concede (Lose)", "Main Menu"]
+        self.options = ["Resume Game", "Concede"]
 
     def show(self):
         """Show the concede prompt."""
@@ -2737,27 +2727,9 @@ class ConcedePrompt(UIComponent):
             # Just hide and continue playing
             self.hide()
             return True
-        elif self.selected_option == 1:  # Concede (Lose)
-            # Determine the winner (opponent of current player)
-            current_player = self.game_ui.game.current_player
-            winner = 2 if current_player == 1 else 1
-            
-            # Set game winner and trigger game over
-            self.game_ui.game.winner = winner
-            from boneglaive.utils.message_log import message_log, MessageType
-            message_log.add_message(
-                f"Player {current_player} has conceded. Player {winner} wins!",
-                MessageType.SYSTEM
-            )
-            
-            # Hide this dialog and show game over prompt
-            self.hide()
-            self.game_ui.game_over_prompt.show(winner)
-            return True
-        else:  # Main Menu
-            # Return special value to indicate main menu should be shown
-            self.hide()
-            return "main_menu"
+        else:  # Exit Game
+            # Return False to exit
+            return False
 
     def draw(self):
         """Draw the concede prompt."""
@@ -3347,6 +3319,11 @@ class GameModeManager(UIComponent):
         if cursor_manager.selected_unit:
             # Check if unit belongs to current player or test mode is on
             if cursor_manager.can_select_unit(cursor_manager.selected_unit):
+                # Check if unit has Parallax status (can_use_anchor)
+                if not (hasattr(cursor_manager.selected_unit, 'can_use_anchor') and 
+                        cursor_manager.selected_unit.can_use_anchor):
+                    return
+                    
                 # Cannot use teleport if the unit has already planned an attack or used a skill
                 if cursor_manager.selected_unit.attack_target or cursor_manager.selected_unit.skill_target:
                     self.publish_event(

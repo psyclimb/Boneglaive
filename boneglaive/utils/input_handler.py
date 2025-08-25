@@ -126,15 +126,22 @@ class InputHandler:
             setup_context[9] = GameAction.SETUP_NEXT_UNIT  # TAB for next unit type
             setup_context[curses.KEY_BTAB] = GameAction.SETUP_PREV_UNIT  # SHIFT+TAB for previous unit type
             setup_context[353] = GameAction.SETUP_PREV_UNIT  # Alternative SHIFT+TAB code
+            setup_context[351] = GameAction.SETUP_PREV_UNIT  # Another SHIFT+TAB variant
+            setup_context[337] = GameAction.SETUP_PREV_UNIT  # Yet another SHIFT+TAB variant
             
             # Store setup context
             self.context_sensitive_maps["setup"] = setup_context
             
             # Cycle units keys (Tab and Shift+Tab)
             self.action_map[9] = GameAction.CYCLE_UNITS  # ASCII code 9 is Tab
-            # Map both common representations of Shift+Tab
+            # Map all common representations of Shift+Tab for different terminals/TTY
             self.action_map[curses.KEY_BTAB] = GameAction.CYCLE_UNITS_REVERSE  # Shift+Tab in most terminals
             self.action_map[353] = GameAction.CYCLE_UNITS_REVERSE  # Alternative code for Shift+Tab
+            self.action_map[351] = GameAction.CYCLE_UNITS_REVERSE  # Another Shift+Tab variant
+            self.action_map[337] = GameAction.CYCLE_UNITS_REVERSE  # Yet another Shift+Tab variant
+            # Try to dynamically get the KEY_BTAB value for this terminal
+            if hasattr(curses, 'KEY_BTAB') and curses.KEY_BTAB not in self.action_map:
+                self.action_map[curses.KEY_BTAB] = GameAction.CYCLE_UNITS_REVERSE
     
     def register_action_callback(self, action: GameAction, callback: Callable) -> None:
         """Register a callback function for a game action."""

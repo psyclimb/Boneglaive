@@ -314,7 +314,7 @@ class EstrangeSkill(ActiveSkill):
             # Get estrange animation sequence
             estrange_animation = ui.asset_manager.get_skill_animation_sequence('estrange')
             if not estrange_animation:
-                estrange_animation = ['≡', '≢', '⋍', '≈', '~', '≈', '⋍', '≢', '≡']  # Fallback
+                estrange_animation = ['=', '!', '~', '-', '~', '-', '~', '!', '=']  # ASCII-only fallback for basic terminals
             
             # Show a building effect at user position first
             ui.renderer.animate_attack_sequence(

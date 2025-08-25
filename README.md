@@ -1,6 +1,6 @@
 # Boneglaive 🎯
 
-🚧 **BETA VERSION 0.7.1** - Core gameplay complete, some features in development
+🚧 **BETA VERSION 0.7.2a** - Core gameplay complete, some features in development
 
 A tactical turn-based combat game with dual rendering modes: classic terminal (ncurses) and modern graphical (pygame).
 
