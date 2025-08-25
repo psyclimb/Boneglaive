@@ -868,6 +868,28 @@ class Game:
 
         return True
             
+    def remove_last_setup_unit(self):
+        """
+        Remove the last unit placed by the current setup player.
+        
+        Returns:
+            True if a unit was removed, False if no units to remove
+        """
+        if not self.setup_phase:
+            return False
+            
+        # Find the last unit placed by the current setup player
+        # Search backwards through the units list
+        for i in range(len(self.units) - 1, -1, -1):
+            unit = self.units[i]
+            if unit.player == self.setup_player:
+                # Remove this unit
+                self.units.remove(unit)
+                # Increment remaining units counter
+                self.setup_units_remaining[self.setup_player] += 1
+                return True
+                
+        return False
         
     def confirm_setup(self):
         """

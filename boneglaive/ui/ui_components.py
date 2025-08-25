@@ -5603,10 +5603,27 @@ class InputManager(UIComponent):
             # No other keys have effect when concede prompt is visible
             return True
 
-        # Handle 'q' key for concede dialog (except in chat mode)
-        if key == ord('q') and not self.game_ui.chat_component.chat_mode and not self.game_ui.message_log_component.show_log_history:
+        # Handle 'q' key for concede dialog (except in chat mode and setup phase)
+        if key == ord('q') and not self.game_ui.chat_component.chat_mode and not self.game_ui.message_log_component.show_log_history and not self.game_ui.game.setup_phase:
             # Show concede prompt instead of immediately quitting
             self.game_ui.concede_prompt.show()
+            return True
+
+        # Handle '?' key for context-aware help during setup phase
+        if key == ord('?') and self.game_ui.game.setup_phase:
+            # During setup phase, show unit-specific help based on cursor position
+            selected_unit_type = self.game_ui.unit_selection_menu.get_selected_unit_type()
+            self.game_ui.unit_help_component.toggle_unit_help(selected_unit_type)
+            return True
+
+        # Handle 'c' key to remove last placed unit during setup phase
+        if key == ord('c') and self.game_ui.game.setup_phase:
+            # Remove the last unit placed by the current player
+            removed = self.game_ui.game.remove_last_setup_unit()
+            if removed:
+                self.game_ui.message = "Last placed unit removed"
+            else:
+                self.game_ui.message = "No units to remove"
             return True
 
         # First check if any components want to handle this input

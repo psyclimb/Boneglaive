@@ -1,6 +1,6 @@
 # Boneglaive
 
-**BETA VERSION 0.7.3** - Core gameplay complete, some features in development
+**BETA VERSION 0.7.3a** - Core gameplay complete, some features in development
 
 **Linux & BSD Terminal Gaming** - A tactical turn-based combat game designed for *nix terminal environments using ncurses.
 
@@ -22,12 +22,6 @@ python3 --version
 python3 -m boneglaive.main
 ```
 
-
-### Project Structure
-- `boneglaive/` - Main game code
-  - `renderers/` - Terminal rendering system
-  - `game/` - Core game logic and skills
-  - `ui/` - User interface components
 
 ## Features
 
