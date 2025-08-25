@@ -585,7 +585,7 @@ class UnitHelpComponent(UIComponent):
                     'enemies while providing tactical support to allies in open terrain. The MANDIBLE FOREMAN serves',
                     'as a close-range specialist focused on movement denial and crowd control.',
                     '',
-                    'Role: Area Control Specialist / Trap Master'
+                    'Role: Frontline Fighter / Area Controller / Disabler'
                 ],
                 'stats': [
                     'HP: 22',
@@ -682,7 +682,7 @@ class UnitHelpComponent(UIComponent):
                     'GRAYMAN serves as an elusive skirmisher that phases in and out of combat while weakening foes',
                     'through reality distortion and defense piercing attacks.',
                     '',
-                    'Role: Psychic Skirmisher / Reality Manipulator'
+                    'Role: Reality Manipulator / Disabler'
                 ],
                 'stats': [
                     'HP: 18',
@@ -837,7 +837,7 @@ class UnitHelpComponent(UIComponent):
                     'The MARROW CONDENSER serves as a defensive anchor that transforms the battlefield through',
                     'bone manipulation.',
                     '',
-                    'Role: Fortress Builder / Area Control Tank'
+                    'Role: Tank / Frontline Fighter / Area Controller'
                 ],
                 'stats': [
                     'HP: 24',
@@ -929,7 +929,7 @@ class UnitHelpComponent(UIComponent):
                     'long-range devastation and battlefield control. This unit excels at indirect fire support',
                     'while establishing an explosive rail network.',
                     '',
-                    'Role: Artillery / Burst damage'
+                    'Role: Artillery / Glass Cannon'
                 ],
                 'stats': [
                     'HP: 18',
@@ -1020,7 +1020,7 @@ class UnitHelpComponent(UIComponent):
                     'manipulation through chemical entities. This support unit excels at creating HEINOUS VAPOR',
                     'minions that provide area control, healing, and damage over time.',
                     '',
-                    'Role: Summoner / Support / Area Control'
+                    'Role: Summoner / Utility / Area Controller'
                 ],
                 'stats': [
                     'HP: 18',
@@ -1113,7 +1113,7 @@ class UnitHelpComponent(UIComponent):
                     'at creating tactical advantages through furniture manipulation, teleportation networks,',
                     'and reality distortion effects.',
                     '',
-                    'Role: Support / Utility / Reality Manipulator / Gambler'
+                    'Role: Utility / Reality Manipulator / Gambler'
                 ],
                 'stats': [
                     'HP: 20',
@@ -1203,9 +1203,9 @@ class UnitHelpComponent(UIComponent):
                     'The INTERFERER is a telecommunications engineer turned assassin who weaponized a remote',
                     'radio tower array into a directed energy system. This glass cannon "phones home" to coordinate',
                     'precise strikes, neural interference, and electromagnetic warfare through triangulated',
-                    'transmissions from the tower network.',
+                    'transmissions from the tower network. Also attacks with plutonium tipped carabiners.',
                     '',
-                    'Role: Glass Cannon / Assassin / Radio Warfare Specialist'
+                    'Role: Glass Cannon / Disabler'
                 ],
                 'stats': [
                     'HP: 18',
@@ -1213,8 +1213,8 @@ class UnitHelpComponent(UIComponent):
                     'Defense: 0',
                     'Movement: 2',
                     'Range: 1 (Melee)',
-                    'Symbol: R (Radioactive interference)',
-                    'Attack Symbol: x (Plutonium carabiner cross)'
+                    'Symbol: R',
+                    'Attack Symbol: x'
                 ],
                 'skills': [
                     {
@@ -1245,8 +1245,8 @@ class UnitHelpComponent(UIComponent):
                         ]
                     },
                     {
-                        'name': 'CARRIER RAVE (Active) [Key: C]',
-                        'description': 'Rides carrier wave transmission to phase out, becoming untargetable.',
+                        'name': 'KARRIER RAVE (Active) [Key: K]',
+                        'description': 'Rides karrier wave transmission to phase out, becoming untargetable.',
                         'details': [
                             'Type: Active',
                             'Range: Self-target',
@@ -1267,7 +1267,7 @@ class UnitHelpComponent(UIComponent):
                             'Range: 3',
                             'Target: Empty tile',
                             'Line of Sight: Yes',
-                            'Damage: 12 pierce (ignores defense)',
+                            'Damage: 12 pierce',
                             'Pierce: Yes',
                             'Effects: Invisible trap, silent warfare',
                             'Cooldown: 3 turns',
@@ -1294,7 +1294,7 @@ class UnitHelpComponent(UIComponent):
                     'Gas skill. This vapor specializes in dual-purpose area control, dealing 2 damage to enemies',
                     'while cleansing allies of negative status effects within its 3×3 area of influence.',
                     '',
-                    'Role: Damage / Status Cleansing'
+                    'Role: Utility / Area Controller'
                 ],
                 'stats': [
                     'HP: 10',
@@ -1370,7 +1370,7 @@ class UnitHelpComponent(UIComponent):
                     'skill. This vapor specializes in defensive area control, blocking ranged attacks while',
                     'healing allied units within its 3×3 protective area.',
                     '',
-                    'Role: Defense / Healing'
+                    'Role: Utility / Area Controller'
                 ],
                 'stats': [
                     'HP: 10',
@@ -1446,7 +1446,7 @@ class UnitHelpComponent(UIComponent):
                     'skill. This vapor specializes in healing, providing 3 HP healing per turn to allies',
                     'within its 3×3 area of influence.',
                     '',
-                    'Role: Healing / Area Support'
+                    'Role: Utility / Area Controller'
                 ],
                 'stats': [
                     'HP: 10',
@@ -1507,7 +1507,7 @@ class UnitHelpComponent(UIComponent):
                     'skill. This vapor specializes in offensive area control, dealing 3 piercing damage per',
                     'turn to all enemies within its 3×3 area of influence.',
                     '',
-                    'Role: Damage / Area Denial'
+                    'Role: Utility / Area Controller'
                 ],
                 'stats': [
                     'HP: 10',
