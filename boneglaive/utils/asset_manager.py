@@ -124,8 +124,8 @@ class AssetManager:
             'pry_debris': ['@', '#', '*', '+', '.'],  # Large chunks of debris falling straight down
             'vault': ['^', 'Λ', '↑', '↟', '↑'],  # Vault initiation animation - upward movement
             'vault_impact': ['↓', 'v', 'V', '*', '.'],  # Vault landing animation
-            'judgement': ['*', 'Φ', 'Ø', 'Θ', 'O', 'Θ' 'Ø', 'Φ', '*'],  # Circular spinning Krull glaive animation
-            'judgement_critical': ['X', 'Φ', 'Z', 'Ø', 'Z', '#', 'Σ', '!', 'Z', '!', 'Σ', 'Ω'],  # Lightning striking the glaive at moment of critical impact
+            'judgement': ['*', '+', 'X', '#', 'O', '#', 'X', '+', '*'],  # Circular spinning Krull glaive animation - ASCII only
+            'judgement_critical': ['X', '!', 'Z', '#', 'Z', '#', '*', '!', 'Z', '!', '*', '!'],  # Lightning striking the glaive at moment of critical impact - ASCII only
             'viseroy_trap': ['Ξ', '{', 'Ξ', '#', '%', '&', 'Ξ'],  # Animation for Viseroy trap crushing effect
             # MARROW CONDENSER animations
             'marrow_condenser_attack': ['/', '|', '\\', '-', '8', '$', 'Ø', '#', '*'],  # Swinging and striking with bone chunks

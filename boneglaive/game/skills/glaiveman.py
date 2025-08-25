@@ -1135,29 +1135,67 @@ class JudgementSkill(ActiveSkill):
                 0.25  # Total duration for wind-up
             )
             
-            # Animate the glaive moving along the path using projectile animation
+            # Animate the glaive moving along the path with single-tile precision
             if len(path) > 1:
                 # Get spinning glaive frames for projectile animation
                 spinning_frames = throw_animation[3:5] if len(throw_animation) >= 5 else ['*', '+']
-                projectile_char = spinning_frames[0] if spinning_frames else '*'
                 
-                # Use the renderer's animate_projectile method for proper path animation
-                ui.renderer.animate_projectile(
-                    (user.y, user.x),  # Start position
-                    (target.y, target.x),  # End position 
-                    projectile_char,  # Glaive character
-                    7,  # White color
-                    0.3  # Duration for projectile travel
-                )
+                # Store original terrain for each position to restore later
+                terrain_backup = []
+                for pos in path[1:-1]:  # Skip start and end positions
+                    terrain_type = game.map.get_terrain_at(pos.y, pos.x)
+                    terrain_name = terrain_type.name.lower() if hasattr(terrain_type, 'name') else 'empty'
+                    terrain_tile = ui.asset_manager.get_terrain_tile(terrain_name)
+                    
+                    # Determine terrain color
+                    if terrain_name == 'empty':
+                        terrain_color = 1
+                    elif terrain_name == 'dust':
+                        terrain_color = 11
+                    elif terrain_name == 'limestone':
+                        terrain_color = 12
+                    elif terrain_name == 'pillar':
+                        terrain_color = 13
+                    elif terrain_name == 'furniture' or terrain_name.startswith('coat_rack') or terrain_name.startswith('ottoman'):
+                        terrain_color = 14
+                    elif terrain_name == 'marrow_wall':
+                        terrain_color = 20
+                    else:
+                        terrain_color = 1
+                    
+                    terrain_backup.append((pos, terrain_tile, terrain_color))
+                
+                # Animate projectile moving along path
+                for i, (pos, original_tile, original_color) in enumerate(terrain_backup):
+                    # Show projectile at current position
+                    projectile_char = spinning_frames[i % len(spinning_frames)]
+                    ui.renderer.draw_tile(pos.y, pos.x, projectile_char, 7)  # White color
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.05)  # Quick movement
+                    
+                    # Restore original terrain immediately after showing projectile
+                    ui.renderer.draw_tile(pos.y, pos.x, original_tile, original_color)
+                
+                # Final refresh to ensure everything is restored
+                ui.renderer.refresh()
             
-            # Show impact at target position
+            # Show impact at target position - single tile only
             if len(throw_animation) >= 6:
-                ui.renderer.animate_attack_sequence(
-                    target.y, target.x,
-                    [throw_animation[5]],  # Last frame for impact
-                    5,  # Reddish color
-                    0.2  # duration
-                )
+                impact_char = throw_animation[5]  # Last frame for impact
+                # Store original unit tile for restoration
+                original_unit_tile = ui.asset_manager.get_unit_tile(target.type)
+                original_color = 3 if target.player == 1 else 4
+                
+                # Show impact effect on target tile only
+                for i in range(4):  # Quick impact flash
+                    ui.renderer.draw_tile(target.y, target.x, impact_char, 5)  # Reddish color
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.05)
+                    
+                    # Restore unit tile
+                    ui.renderer.draw_tile(target.y, target.x, original_unit_tile, original_color)
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.05)
                 
             # Always show base effect message
             message_log.add_message(
@@ -1172,26 +1210,28 @@ class JudgementSkill(ActiveSkill):
             critical_threshold = int(target.max_hp * CRITICAL_HEALTH_PERCENT)
             is_critical_target = target.hp <= critical_threshold
             
-            # Show critical animation (lightning effect) for piercing damage
-            # Normal effect for regular targets, enhanced for critical targets
-            if is_critical_target:
-                # Enhance the critical animation with multiple iterations for critical targets
-                for _ in range(3):  # Triple effect for critical targets
-                    ui.renderer.animate_attack_sequence(
-                        target.y, target.x,
-                        critical_animation,
-                        6,  # Yellowish color for first pass
-                        0.12  # duration
-                    )
-                    sleep_with_animation_speed(0.05)  # Brief pause between iterations
-            else:
-                # Regular critical animation for normal targets
-                ui.renderer.animate_attack_sequence(
-                    target.y, target.x,
-                    critical_animation,
-                    6,  # Yellowish color
-                    0.12  # duration
-                )
+            # Use flash_tile method instead of draw_tile to ensure proper containment to unit tile only
+            if hasattr(ui, 'asset_manager'):
+                # Create critical effect using flash_tile (which is properly constrained)
+                original_unit_tile = ui.asset_manager.get_unit_tile(target.type)
+                
+                if is_critical_target:
+                    # Enhanced critical effect for critical targets
+                    for iteration in range(3):
+                        # Flash with critical animation frames
+                        tile_ids = [original_unit_tile, '!', original_unit_tile, '*', original_unit_tile, '+']
+                        color_ids = [3 if target.player == 1 else 4, 6, 3 if target.player == 1 else 4, 6, 3 if target.player == 1 else 4, 6]
+                        durations = [0.03, 0.03, 0.03, 0.03, 0.03, 0.03]
+                        
+                        ui.renderer.flash_tile(target.y, target.x, tile_ids, color_ids, durations)
+                        sleep_with_animation_speed(0.05)
+                else:
+                    # Regular critical effect
+                    tile_ids = [original_unit_tile, '!', original_unit_tile, '*', original_unit_tile]
+                    color_ids = [3 if target.player == 1 else 4, 6, 3 if target.player == 1 else 4, 6, 3 if target.player == 1 else 4]
+                    durations = [0.03, 0.03, 0.03, 0.03, 0.03]
+                    
+                    ui.renderer.flash_tile(target.y, target.x, tile_ids, color_ids, durations)
             
             # Flash the target to show impact
             if hasattr(ui, 'asset_manager'):
@@ -1238,7 +1278,7 @@ class JudgementSkill(ActiveSkill):
             target_player=target.player
         )
         
-        # Show damage number if UI is available
+        # Show damage number after animations complete
         if ui and hasattr(ui, 'renderer'):
             damage_text = f"-{damage}"
             

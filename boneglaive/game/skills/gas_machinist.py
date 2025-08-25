@@ -87,7 +87,7 @@ class EnbroachmentGasSkill(ActiveSkill):
         super().__init__(
             name="Broaching Gas",
             key="B",
-            description="Summons a HEINOUS VAPOR (Φ) that deals 2 damage to enemies and cleanses allies of negative status effects.",
+            description="Summons a HEINOUS VAPOR that deals 2 damage to enemies and cleanses allies of negative status effects.",
             target_type=TargetType.AREA,
             cooldown=2,
             range_=3
@@ -231,9 +231,15 @@ class EnbroachmentGasSkill(ActiveSkill):
         # Add vapor to the game units
         game.units.append(vapor_unit)
         
-        # Log the successful summoning
+        # Assign a Greek identifier for this vapor based on its type (global across both players)
+        from boneglaive.utils.constants import GREEK_ALPHABET
+        existing_vapors_of_type = len([u for u in game.units if u.is_alive() and u.type == UnitType.HEINOUS_VAPOR and hasattr(u, 'vapor_type') and u.vapor_type == self.vapor_type])
+        if existing_vapors_of_type <= len(GREEK_ALPHABET):
+            vapor_unit.greek_id = GREEK_ALPHABET[existing_vapors_of_type - 1]  # -1 because we just added this vapor
+        
+        # Log the successful summoning with proper Greek letter
         message_log.add_message(
-            f"A Broaching Gas vapor ({self.vapor_symbol}) appears at position ({target_pos[0]}, {target_pos[1]})",
+            f"{vapor_unit.get_display_name()} appears at position ({target_pos[0]}, {target_pos[1]})",
             MessageType.ABILITY,
             player=user.player
         )
@@ -251,7 +257,7 @@ class SaftEGasSkill(ActiveSkill):
         super().__init__(
             name="Saft-E-Gas",
             key="S",
-            description="Summons a HEINOUS VAPOR (Θ) that blocks enemy ranged attacks and heals allies by 1 HP.",
+            description="Summons a HEINOUS VAPOR that blocks enemy ranged attacks and heals allies by 1 HP.",
             target_type=TargetType.AREA,
             cooldown=3,
             range_=3
@@ -395,9 +401,15 @@ class SaftEGasSkill(ActiveSkill):
         # Add vapor to the game units
         game.units.append(vapor_unit)
         
-        # Log the successful summoning
+        # Assign a Greek identifier for this vapor based on its type (global across both players)
+        from boneglaive.utils.constants import GREEK_ALPHABET
+        existing_vapors_of_type = len([u for u in game.units if u.is_alive() and u.type == UnitType.HEINOUS_VAPOR and hasattr(u, 'vapor_type') and u.vapor_type == self.vapor_type])
+        if existing_vapors_of_type <= len(GREEK_ALPHABET):
+            vapor_unit.greek_id = GREEK_ALPHABET[existing_vapors_of_type - 1]  # -1 because we just added this vapor
+        
+        # Log the successful summoning with proper Greek letter
         message_log.add_message(
-            f"A Saft-E-Gas vapor ({self.vapor_symbol}) appears at position ({target_pos[0]}, {target_pos[1]})",
+            f"{vapor_unit.get_display_name()} appears at position ({target_pos[0]}, {target_pos[1]})",
             MessageType.ABILITY,
             player=user.player
         )
@@ -415,7 +427,7 @@ class DivergeSkill(ActiveSkill):
         super().__init__(
             name="Diverge",
             key="D",
-            description="Splits an existing HEINOUS VAPOR or self into Coolant Gas (Σ, heals allies) and Cutting Gas (%, damages enemies). Consumes all Effluvium charges to extend duration.",
+            description="Splits an existing HEINOUS VAPOR or self into Coolant Gas (heals allies) and Cutting Gas (damages enemies). Consumes all Effluvium charges to extend duration.",
             target_type=TargetType.SELF,  # Changed to SELF to enable self-targeting
             cooldown=4,
             range_=5
@@ -718,6 +730,19 @@ class DivergeSkill(ActiveSkill):
         game.units.append(coolant_gas)
         game.units.append(cutting_gas)
         
+        # Assign Greek identifiers for both vapors based on their types (global across both players)
+        from boneglaive.utils.constants import GREEK_ALPHABET
+        
+        # Count existing COOLANT gases from both players (including the one we just added)
+        existing_coolant_count = len([u for u in game.units if u.is_alive() and u.type == UnitType.HEINOUS_VAPOR and hasattr(u, 'vapor_type') and u.vapor_type == "COOLANT"])
+        if existing_coolant_count <= len(GREEK_ALPHABET):
+            coolant_gas.greek_id = GREEK_ALPHABET[existing_coolant_count - 1]  # -1 because we just added this vapor
+        
+        # Count existing CUTTING gases from both players (including the one we just added)
+        existing_cutting_count = len([u for u in game.units if u.is_alive() and u.type == UnitType.HEINOUS_VAPOR and hasattr(u, 'vapor_type') and u.vapor_type == "CUTTING"])
+        if existing_cutting_count <= len(GREEK_ALPHABET):
+            cutting_gas.greek_id = GREEK_ALPHABET[existing_cutting_count - 1]  # -1 because we just added this vapor
+        
         # If targeting self, set return position property
         if is_self_target:
             # Set property to indicate user will return at either gas's location when they expire
@@ -725,16 +750,16 @@ class DivergeSkill(ActiveSkill):
             coolant_gas.diverged_user = user
             cutting_gas.diverged_user = user
             
-            # Log the user being split
+            # Log the user being split with proper Greek letters
             message_log.add_message(
-                f"{user.get_display_name()} splits into a Coolant Gas ({self.coolant_symbol}) and a Cutting Gas ({self.cutting_symbol})",
+                f"{user.get_display_name()} splits into {coolant_gas.get_display_name()} and {cutting_gas.get_display_name()}",
                 MessageType.ABILITY,
                 player=user.player
             )
         else:
-            # Log the vapor being split
+            # Log the vapor being split with proper Greek letters
             message_log.add_message(
-                f"The vapor splits into a Coolant Gas ({self.coolant_symbol}) and a Cutting Gas ({self.cutting_symbol})",
+                f"The vapor splits into {coolant_gas.get_display_name()} and {cutting_gas.get_display_name()}",
                 MessageType.ABILITY,
                 player=user.player
             )
