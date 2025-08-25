@@ -83,7 +83,7 @@ class MessageLogComponent(UIComponent):
     def __init__(self, renderer, game_ui):
         super().__init__(renderer, game_ui)
         self.show_log = True  # Whether to show the message log
-        self.log_height = 5   # Number of log lines to display
+        self.log_height = 7   # Number of log lines to display
         self.show_log_history = False  # Whether to show the full log history screen
         self.log_history_scroll = 0    # Scroll position in log history
     
@@ -154,6 +154,43 @@ class MessageLogComponent(UIComponent):
         
     # Removed colored text handling methods as they're no longer needed
     
+    def _wrap_text(self, text: str, max_width: int, indent: str = "") -> list:
+        """Wrap text to fit within max_width, preserving word boundaries."""
+        if not text or max_width <= 0:
+            return [text] if text else [""]
+            
+        words = text.split()
+        if not words:
+            return [""]
+            
+        wrapped_lines = []
+        current_line = indent
+        
+        for word in words:
+            # Check if adding this word would exceed the width
+            test_line = current_line + (" " if current_line != indent else "") + word
+            
+            if len(test_line) <= max_width:
+                current_line = test_line
+            else:
+                # If current line has content, save it and start a new line
+                if current_line != indent:
+                    wrapped_lines.append(current_line)
+                    current_line = indent + word
+                else:
+                    # Word is too long even by itself - truncate it
+                    if len(word) > max_width - len(indent):
+                        wrapped_lines.append(indent + word[:max_width - len(indent) - 3] + "...")
+                        current_line = indent
+                    else:
+                        current_line = indent + word
+        
+        # Add the last line if it has content
+        if current_line != indent:
+            wrapped_lines.append(current_line)
+        
+        return wrapped_lines if wrapped_lines else [indent]
+    
     def draw_message_log(self):
         """Draw the message log in the game UI."""
         try:
@@ -184,10 +221,15 @@ class MessageLogComponent(UIComponent):
             border_bottom = "└" + "─" * (term_width - 2) + "┘"
             self.renderer.draw_text(start_y + self.log_height + 1, 0, border_bottom, 1)
             
-            # Draw messages in reverse order (newest at the bottom)
-            for i, (text, color_id) in enumerate(reversed(messages)):
-                y_pos = start_y + self.log_height - i
-                
+            # Process messages with text wrapping to create content lines
+            content_lines = []
+            max_text_width = term_width - 4  # Allow for borders
+            
+            import re
+            damage_pattern = re.compile(r'#DAMAGE_(\d+)#')
+            heal_pattern = re.compile(r'#HEAL_(\d+)#')
+            
+            for text, color_id in messages:
                 # Add bold attribute for player messages to make them stand out more
                 attributes = 0
                 if "[Player " in text:  # It's a chat message
@@ -198,36 +240,26 @@ class MessageLogComponent(UIComponent):
                     text = "» " + text
 
                 # Process special placeholders to highlight damage/heal numbers
-                import re
-                damage_pattern = re.compile(r'#DAMAGE_(\d+)#')
-                heal_pattern = re.compile(r'#HEAL_(\d+)#')
                 damage_num = None
                 heal_num = None
                 original_text = text
+                has_special_numbers = False
 
                 # Check if the message contains damage placeholder
                 if '#DAMAGE_' in text:
-                    # We need to handle this specially since we can't embed colors in a single message
-                    # Extract damage numbers to highlight in magenta
                     match = damage_pattern.search(text)
                     if match:
                         damage_num = match.group(1)
-                        # Replace the placeholder with just the number (we'll draw it separately)
                         text = damage_pattern.sub(damage_num, text)
+                        has_special_numbers = True
 
                 # Check if the message contains heal placeholder
                 elif '#HEAL_' in text:
-                    # Extract heal numbers to highlight in white
                     match = heal_pattern.search(text)
                     if match:
                         heal_num = match.group(1)
-                        # Replace the placeholder with just the number (we'll draw it separately)
                         text = heal_pattern.sub(heal_num, text)
-
-                # Truncate message if too long for display
-                max_text_width = term_width - 4  # Allow for borders
-                if len(text) > max_text_width:
-                    text = text[:max_text_width-3] + "..."
+                        has_special_numbers = True
                 
                 # Set appropriate attributes based on color
                 if color_id == 8:  # Gray message log text
@@ -240,15 +272,46 @@ class MessageLogComponent(UIComponent):
                     attributes |= curses.A_BOLD  # Make wretch messages bold red
                 elif color_id == 18:  # Death messages (dark red)
                     attributes |= curses.A_DIM  # Make death messages dim red
+
+                # Apply text wrapping
+                wrapped_lines = self._wrap_text(text, max_text_width)
+                
+                # Store each wrapped line with its metadata
+                for line in wrapped_lines:
+                    content_lines.append({
+                        'text': line,
+                        'color_id': color_id,
+                        'attributes': attributes,
+                        'original_text': original_text,
+                        'damage_num': damage_num,
+                        'heal_num': heal_num,
+                        'has_special_numbers': has_special_numbers
+                    })
+            
+            # Take only the last N lines that fit in the log height
+            # (newest messages at the end, so we want the tail)
+            visible_lines = content_lines[-self.log_height:] if len(content_lines) > self.log_height else content_lines
+            
+            # Draw wrapped message lines (newest at bottom)
+            for i, line_data in enumerate(visible_lines):
+                y_pos = start_y + 1 + i  # +1 to account for the header border
+                text = line_data['text']
+                color_id = line_data['color_id']
+                attributes = line_data['attributes']
+                damage_num = line_data['damage_num']
+                heal_num = line_data['heal_num']
+                has_special_numbers = line_data['has_special_numbers']
+
                 # Draw the message, with special handling for damage or heal numbers
-                if damage_num is not None:
+                if has_special_numbers and damage_num is not None and damage_num in text:
                     # Render with damage numbers in magenta
-                    parts = original_text.split(f"#DAMAGE_{damage_num}#")
+                    parts = text.split(damage_num)
                     pos_x = 2
 
                     # Draw the first part with the regular color
-                    self.renderer.draw_text(y_pos, pos_x, parts[0], color_id, attributes)
-                    pos_x += len(parts[0])
+                    if parts[0]:
+                        self.renderer.draw_text(y_pos, pos_x, parts[0], color_id, attributes)
+                        pos_x += len(parts[0])
 
                     # Draw the damage number in magenta
                     self.renderer.draw_text(y_pos, pos_x, damage_num, 21, curses.A_BOLD)  # 21 is the magenta color pair
@@ -257,14 +320,15 @@ class MessageLogComponent(UIComponent):
                     # Draw any remaining part with the regular color
                     if len(parts) > 1 and parts[1]:
                         self.renderer.draw_text(y_pos, pos_x, parts[1], color_id, attributes)
-                elif heal_num is not None:
+                elif has_special_numbers and heal_num is not None and heal_num in text:
                     # Render with heal numbers in white
-                    parts = original_text.split(f"#HEAL_{heal_num}#")
+                    parts = text.split(heal_num)
                     pos_x = 2
 
                     # Draw the first part with the regular color
-                    self.renderer.draw_text(y_pos, pos_x, parts[0], color_id, attributes)
-                    pos_x += len(parts[0])
+                    if parts[0]:
+                        self.renderer.draw_text(y_pos, pos_x, parts[0], color_id, attributes)
+                        pos_x += len(parts[0])
 
                     # Draw the heal number in bright white
                     self.renderer.draw_text(y_pos, pos_x, heal_num, 22, curses.A_BOLD)  # 22 is the white color pair with bold
@@ -324,31 +388,15 @@ class MessageLogComponent(UIComponent):
             # Avoid filtering when viewing full history - get all messages
             all_messages = message_log.get_formatted_messages(count=message_log.MAX_MESSAGES, filter_types=None)
             
-            # Calculate max scroll position
-            max_scroll = max(0, len(all_messages) - available_height)
-            # Clamp scroll position
-            self.log_history_scroll = max(0, min(self.log_history_scroll, max_scroll))
+            # Process all messages with text wrapping to create content lines
+            content_lines = []
+            max_text_width = term_width - 4  # Leave margin for borders
             
-            # Draw a separator above the status bar
-            separator_bottom = "├" + "─" * (term_width - 2) + "┤"
-            self.renderer.draw_text(term_height - 2, 0, separator_bottom, 1)
+            import re
+            damage_pattern = re.compile(r'#DAMAGE_(\d+)#')
+            heal_pattern = re.compile(r'#HEAL_(\d+)#')
             
-            # Draw scroll indicator in status bar
-            if len(all_messages) > available_height:
-                scroll_pct = int((self.log_history_scroll / max_scroll) * 100)
-                scroll_text = f"Showing {self.log_history_scroll+1}-{min(self.log_history_scroll+available_height, len(all_messages))} " \
-                             f"of {len(all_messages)} messages ({scroll_pct}%)"
-                self.renderer.draw_text(term_height - 2, 2, scroll_text, 1, curses.A_BOLD)
-            else:
-                self.renderer.draw_text(term_height - 2, 2, f"Showing all {len(all_messages)} messages", 1, curses.A_BOLD)
-            
-            # Slice messages based on scroll position
-            visible_messages = all_messages[self.log_history_scroll:self.log_history_scroll+available_height]
-            
-            # Draw messages (in chronological order, oldest first)
-            for i, (text, color_id) in enumerate(visible_messages):
-                y_pos = content_start_y + i
-                
+            for text, color_id in all_messages:
                 # Add bold attribute for player messages
                 attributes = 0
                 if "[Player " in text:  # It's a chat message
@@ -359,36 +407,26 @@ class MessageLogComponent(UIComponent):
                     text = "» " + text
 
                 # Process special placeholders to highlight damage/heal numbers
-                import re
-                damage_pattern = re.compile(r'#DAMAGE_(\d+)#')
-                heal_pattern = re.compile(r'#HEAL_(\d+)#')
                 damage_num = None
                 heal_num = None
                 original_text = text
+                has_special_numbers = False
 
                 # Check if the message contains damage placeholder
                 if '#DAMAGE_' in text:
-                    # We need to handle this specially since we can't embed colors in a single message
-                    # Extract damage numbers to highlight in magenta
                     match = damage_pattern.search(text)
                     if match:
                         damage_num = match.group(1)
-                        # Replace the placeholder with just the number (we'll draw it separately)
                         text = damage_pattern.sub(damage_num, text)
+                        has_special_numbers = True
 
                 # Check if the message contains heal placeholder
                 elif '#HEAL_' in text:
-                    # Extract heal numbers to highlight in white
                     match = heal_pattern.search(text)
                     if match:
                         heal_num = match.group(1)
-                        # Replace the placeholder with just the number (we'll draw it separately)
                         text = heal_pattern.sub(heal_num, text)
-
-                # Truncate messages that are too long for the screen
-                max_text_width = term_width - 4  # Leave margin for borders
-                if len(text) > max_text_width:
-                    text = text[:max_text_width-3] + "..."
+                        has_special_numbers = True
                 
                 # Set appropriate attributes based on color
                 if color_id == 8:  # Gray message log text
@@ -402,15 +440,63 @@ class MessageLogComponent(UIComponent):
                 elif color_id == 18:  # Death messages (dark red)
                     attributes |= curses.A_DIM  # Make death messages dim red
 
+                # Apply text wrapping
+                wrapped_lines = self._wrap_text(text, max_text_width)
+                
+                # Store each wrapped line with its metadata
+                for line in wrapped_lines:
+                    content_lines.append({
+                        'text': line,
+                        'color_id': color_id,
+                        'attributes': attributes,
+                        'original_text': original_text,
+                        'damage_num': damage_num,
+                        'heal_num': heal_num,
+                        'has_special_numbers': has_special_numbers
+                    })
+            
+            # Calculate max scroll position based on wrapped lines
+            max_scroll = max(0, len(content_lines) - available_height)
+            # Clamp scroll position
+            self.log_history_scroll = max(0, min(self.log_history_scroll, max_scroll))
+            
+            # Draw a separator above the status bar
+            separator_bottom = "├" + "─" * (term_width - 2) + "┤"
+            self.renderer.draw_text(term_height - 2, 0, separator_bottom, 1)
+            
+            # Draw scroll indicator in status bar
+            if len(content_lines) > available_height:
+                scroll_pct = int((self.log_history_scroll / max_scroll) * 100) if max_scroll > 0 else 0
+                scroll_text = f"Showing {self.log_history_scroll+1}-{min(self.log_history_scroll+available_height, len(content_lines))} " \
+                             f"of {len(content_lines)} lines ({scroll_pct}%)"
+                self.renderer.draw_text(term_height - 2, 2, scroll_text, 1, curses.A_BOLD)
+            else:
+                self.renderer.draw_text(term_height - 2, 2, f"Showing all {len(content_lines)} lines", 1, curses.A_BOLD)
+            
+            # Slice content lines based on scroll position
+            visible_lines = content_lines[self.log_history_scroll:self.log_history_scroll+available_height]
+            
+            # Draw wrapped message lines
+            for i, line_data in enumerate(visible_lines):
+                y_pos = content_start_y + i
+                text = line_data['text']
+                color_id = line_data['color_id']
+                attributes = line_data['attributes']
+                damage_num = line_data['damage_num']
+                heal_num = line_data['heal_num']
+                original_text = line_data['original_text']
+                has_special_numbers = line_data['has_special_numbers']
+
                 # Draw the message, with special handling for damage or heal numbers
-                if damage_num is not None:
+                if has_special_numbers and damage_num is not None and damage_num in text:
                     # Render with damage numbers in magenta
-                    parts = original_text.split(f"#DAMAGE_{damage_num}#")
+                    parts = text.split(damage_num)
                     pos_x = 2
 
                     # Draw the first part with the regular color
-                    self.renderer.draw_text(y_pos, pos_x, parts[0], color_id, attributes)
-                    pos_x += len(parts[0])
+                    if parts[0]:
+                        self.renderer.draw_text(y_pos, pos_x, parts[0], color_id, attributes)
+                        pos_x += len(parts[0])
 
                     # Draw the damage number in magenta
                     self.renderer.draw_text(y_pos, pos_x, damage_num, 21, curses.A_BOLD)  # 21 is the magenta color pair
@@ -419,14 +505,15 @@ class MessageLogComponent(UIComponent):
                     # Draw any remaining part with the regular color
                     if len(parts) > 1 and parts[1]:
                         self.renderer.draw_text(y_pos, pos_x, parts[1], color_id, attributes)
-                elif heal_num is not None:
+                elif has_special_numbers and heal_num is not None and heal_num in text:
                     # Render with heal numbers in white
-                    parts = original_text.split(f"#HEAL_{heal_num}#")
+                    parts = text.split(heal_num)
                     pos_x = 2
 
                     # Draw the first part with the regular color
-                    self.renderer.draw_text(y_pos, pos_x, parts[0], color_id, attributes)
-                    pos_x += len(parts[0])
+                    if parts[0]:
+                        self.renderer.draw_text(y_pos, pos_x, parts[0], color_id, attributes)
+                        pos_x += len(parts[0])
 
                     # Draw the heal number in bright white
                     self.renderer.draw_text(y_pos, pos_x, heal_num, 22, curses.A_BOLD)  # 22 is the white color pair with bold
@@ -483,6 +570,43 @@ class UnitHelpComponent(UIComponent):
         self.show_unit_help = False  # Whether to show unit help screen
         self.help_scroll = 0  # Scroll position in help content
         self.unit_help_data = self._load_unit_help_data()
+        
+    def _wrap_text(self, text: str, max_width: int, indent: str = "") -> list:
+        """Wrap text to fit within max_width, preserving word boundaries."""
+        if not text or max_width <= 0:
+            return [text] if text else [""]
+            
+        words = text.split()
+        if not words:
+            return [""]
+            
+        wrapped_lines = []
+        current_line = indent
+        
+        for word in words:
+            # Check if adding this word would exceed the width
+            test_line = current_line + (" " if current_line != indent else "") + word
+            
+            if len(test_line) <= max_width:
+                current_line = test_line
+            else:
+                # If current line has content, save it and start a new line
+                if current_line != indent:
+                    wrapped_lines.append(current_line)
+                    current_line = indent + word
+                else:
+                    # Word is too long even by itself - truncate it
+                    if len(word) > max_width - len(indent):
+                        wrapped_lines.append(indent + word[:max_width - len(indent) - 3] + "...")
+                        current_line = indent
+                    else:
+                        current_line = indent + word
+        
+        # Add the last line if it has content
+        if current_line != indent:
+            wrapped_lines.append(current_line)
+        
+        return wrapped_lines if wrapped_lines else [indent]
         
     def _load_unit_help_data(self):
         """Load unit help data for all units."""
@@ -602,13 +726,13 @@ class UnitHelpComponent(UIComponent):
                         'details': [
                             'Type: Passive',
                             'Range: 1',
-                            'Target: Enemy units',
-                            'Line of Sight: No',
+                            'Target: Enemy unit',
+                            'Line of Sight: Yes',
                             'Damage: 3',
                             'Pierce: No',
                             'Effects: Trapped, cannot move, cannot use skills, takes incremental damage over time',
                             'Cooldown: None',
-                            'Special: Automatic when attacking, blocked by immunity effects'
+                            'Special: Automatic when attacking'
                         ]
                     },
                     {
@@ -663,14 +787,13 @@ class UnitHelpComponent(UIComponent):
                 'tips': [
                     '- Use Viseroy to control enemy positioning with every attack',
                     '- Expedite provides both gap-closing and guaranteed trap application',
-                    '- Site Inspection now provides partial benefits - even 1 terrain obstacle still gives +1 attack',
                     '- Position teams strategically: clear areas give full bonuses, lightly obstructed areas give partial',
-                    '- Jawline is devastating in chokepoints or when surrounded by multiple enemies',
+                    '- Jawline is strong in chokepoints or when surrounded by multiple enemies',
                     '- High HP allows aggressive frontline positioning despite low attack range'
                 ],
                 'tactical': [
-                    '- Strong against: Melee units (trapping), clustered enemies (Jawline), mixed terrain engagements',
-                    '- Vulnerable to: Ranged attackers, immunity effects (GRAYMAN), extremely cluttered terrain',
+                    '- Strong against: Isolated units',
+                    '- Vulnerable to: Ranged attackers, immunity effects, extremely cluttered terrain',
                     '- Best positioning: Frontline in moderately open areas, near chokepoints to maximize Jawline effectiveness'
                 ]
             },
@@ -703,7 +826,7 @@ class UnitHelpComponent(UIComponent):
                             'Line of Sight: No',
                             'Damage: None',
                             'Pierce: No',
-                            'Effects: Immunity to all status effects, forced movement, terrain effects, and stat changes',
+                            'Effects: Immunity to all status effects, forced movement, and stat changes',
                             'Cooldown: None',
                             'Special: Cannot be buffed, debuffed, or displaced'
                         ]
@@ -720,7 +843,7 @@ class UnitHelpComponent(UIComponent):
                             'Pierce: No',
                             'Effects: Instant teleportation',
                             'Cooldown: 12 turns',
-                            'Special: Unlimited range, prevents teleport conflicts with other units'
+                            'Special: Unlimited range'
                         ]
                     },
                     {
@@ -733,9 +856,9 @@ class UnitHelpComponent(UIComponent):
                             'Line of Sight: Yes',
                             'Damage: 3',
                             'Pierce: Yes',
-                            'Effects: Estranged - permanent -1 to all stats (attack, defense, movement, range)',
+                            'Effects: Estranged - -1 to all stats',
                             'Cooldown: 3 turns',
-                            'Special: Bypasses defense, permanent debuff, blocked by immunity effects'
+                            'Special: This effect does not wear off'
                         ]
                     },
                     {
@@ -750,7 +873,7 @@ class UnitHelpComponent(UIComponent):
                             'Pierce: No',
                             'Effects: Creates echo with 5 HP, 3 attack, immobile, lasts 2 turns',
                             'Cooldown: 4 turns',
-                            'Special: Echo cannot move but can attack, expires on owner\'s turns'
+                            'Special: Expires on owner\'s turns'
                         ]
                     }
                 ],
@@ -762,7 +885,7 @@ class UnitHelpComponent(UIComponent):
                     '- Stay at maximum range (5) to avoid retaliation due to 0 defense'
                 ],
                 'tactical': [
-                    '- Strong against: Control-heavy teams, stationary units, and long-term engagements',
+                    '- Strong against: Control-heavy teams, stationary units, long-term engagements',
                     '- Vulnerable to: High direct damage',
                     '- Best positioning: Back lines with escape routes, flanking positions using teleportation'
                 ]
@@ -774,7 +897,7 @@ class UnitHelpComponent(UIComponent):
                     'These immobile entities explode when destroyed, serving as area denial units that',
                     'provide basic combat presence in key locations.',
                     '',
-                    'Role: Area Denial / Combat Projection'
+                    'Role: Area Controller'
                 ],
                 'stats': [
                     'HP: 5',
@@ -823,7 +946,7 @@ class UnitHelpComponent(UIComponent):
                     '- Cannot use skills, only basic attacks'
                 ],
                 'tactical': [
-                    '- Strong against: Melee units, low-HP enemies, clustered formations',
+                    '- Strong against: Melee units, clustered formations',
                     '- Limitations: Cannot move, no skills, 2-turn duration, low HP',
                     '- Best positioning: Chokepoints, objective areas, enemy approach routes'
                 ]
@@ -831,7 +954,7 @@ class UnitHelpComponent(UIComponent):
             UnitType.MARROW_CONDENSER: {
                 'title': 'MARROW CONDENSER',
                 'overview': [
-                    'The MARROW CONDENSER is a skeletal fortress builder that manipulates bone matter to create',
+                    'The MARROW CONDENSER is a quadrupedal fortress builder that manipulates bone matter to create',
                     'defensive structures and enhance its own capabilities. This high-HP tank excels at area',
                     'control through wall creation while growing stronger from enemy deaths within its domain.',
                     'The MARROW CONDENSER serves as a defensive anchor that transforms the battlefield through',
@@ -880,7 +1003,7 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'MARROW DIKE (Active) [Key: M]',
-                        'description': 'Creates a 5x5 perimeter of marrow walls around self, pulling enemies inward.',
+                        'description': 'Creates a 5x5 perimeter of marrow walls around itself, pulling enemies inward.',
                         'details': [
                             'Type: Active',
                             'Range: self',
@@ -888,9 +1011,9 @@ class UnitHelpComponent(UIComponent):
                             'Line of Sight: No',
                             'Damage: None',
                             'Pierce: No',
-                            'Effects: Mired, movement -1 when inside the interior and skill is upgraded',
+                            'Effects: Mired, -1 move when inside the interior (upgrade only)',
                             'Cooldown: 4 turns',
-                            'Special: Upgraded walls have 3 HP and cause movement penalty'
+                            'Special: Upgraded walls have 3 HP and apply Mired to enemies'
                         ]
                     },
                     {
@@ -919,7 +1042,7 @@ class UnitHelpComponent(UIComponent):
                 'tactical': [
                     '- Strong against: Melee units, sustained engagements, clustered enemies',
                     '- Vulnerable to: Long-range attackers, high mobility units, piercing damage',
-                    '- Best positioning: Center of enemy groups, chokepoints for wall placement, interior of own Marrow Dike'
+                    '- Best positioning: Center of enemy groups, chokepoints for wall placement, interior of Marrow Dike'
                 ]
             },
             UnitType.FOWL_CONTRIVANCE: {
@@ -1141,7 +1264,7 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'MARKET FUTURES (Active) [Key: M]',
-                        'description': 'Infuses a furniture piece with temporal investment energy. Creates a teleportation anchor that allies can activate.',
+                        'description': 'Imbues a furniture piece with temporal investment energy, turning it into a portal.',
                         'details': [
                             'Type: Active',
                             'Range: 4',
@@ -1149,9 +1272,9 @@ class UnitHelpComponent(UIComponent):
                             'Line of Sight: Yes',
                             'Damage: None',
                             'Pierce: No',
-                            'Effects: Investment, applied on teleport',
+                            'Effects: Parallax, applied when adjacent to the anchor. Investment, applied on teleport',
                             'Cooldown: 6 turns',
-                            'Special: Teleport range equals cosmic value. Investment effect grants +1 ATK turn 1, +2 ATK turn 2, +3 ATK turn 3, plus +1 range for all 3 turns. Provides units adjacent to the imbued furniture with an additional menu function, [P]ort'
+                            'Special: Teleport range equals cosmic value. Maturing investment grants +1 ATK per turn'
                         ]
                     },
                     {
@@ -1171,7 +1294,7 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'DIVINE DEPRECIATION (Active) [Key: D]',
-                        'description': 'Dramatically reappraises a furniture piece as cosmically worthless, creating a 7×7 reality distortion.',
+                        'description': 'Dramatically reappraises a furniture piece as cosmically worthless, creating a 7×7 reality sinkhole.',
                         'details': [
                             'Type: Active',
                             'Range: 3',
@@ -1179,7 +1302,7 @@ class UnitHelpComponent(UIComponent):
                             'Line of Sight: Yes',
                             'Damage: Based on cosmic value difference',
                             'Pierce: Yes',
-                            'Effects: Reality distortion, pulls enemies toward center, rerolls cosmic values',
+                            'Effects: None',
                             'Cooldown: 6 turns',
                             'Special: Sets target furniture to cosmic value 1. Damage equals average cosmic value of other furniture minus1. Pull distance equals average enemy movement minus 1. Rerolls all other furniture cosmic values'
                         ]
@@ -1187,13 +1310,13 @@ class UnitHelpComponent(UIComponent):
                 ],
                 'tips': [
                     '- Position near furniture to maintain Valuation Oracle bonuses',
-                    '- Use Market Futures to create tactical teleport networks for team mobility',
+                    '- Use Market Futures to create tactical teleports for team mobility',
                     '- Auction Curse works best in furniture-dense areas for maximum damage over time',
                     '- Divine Depreciation is devastating in furniture-heavy zones - plan positioning carefully'
                 ],
                 'tactical': [
-                    '- Strong against: Static formations, low-mobility teams, furniture-dependent strategies',
-                    '- Vulnerable to: High burst damage, units that avoid furniture areas, mobility-based counters',
+                    '- Strong against: Static formations, low-mobility units, position-reliant strategies',
+                    '- Vulnerable to: High burst damage, open area engagements, mobility-based counters',
                     '- Best positioning: Central furniture clusters, defensive positions near valuable terrain'
                 ]
             },
@@ -1278,7 +1401,7 @@ class UnitHelpComponent(UIComponent):
                 'tips': [
                     '- Use radiation spread to control enemy positioning and create damage zones',
                     '- Neural Shunt can disrupt enemy plans by forcing random actions',
-                    '- Time Carrier Rave carefully to avoid counterattacks and set up triple strikes',
+                    '- Time Karrier Rave carefully to avoid counterattacks and set up triple strikes',
                     '- Place Scalar Nodes on likely enemy movement paths for maximum effectiveness'
                 ],
                 'tactical': [
@@ -1720,42 +1843,64 @@ class UnitHelpComponent(UIComponent):
             separator = "├" + "─" * (term_width - 2) + "┤"
             self.renderer.draw_text(2, 0, separator, 1)
             
-            # Build content lines
+            # Build content lines with text wrapping
             content_lines = []
+            max_text_width = term_width - 4  # Leave margin for borders
             
             # Overview section
-            content_lines.extend(unit_data['overview'])
+            for line in unit_data['overview']:
+                if line:  # Non-empty line
+                    wrapped_lines = self._wrap_text(line, max_text_width)
+                    content_lines.extend(wrapped_lines)
+                else:  # Empty line
+                    content_lines.append('')
             content_lines.append('')
             
             # Base Stats section
             content_lines.append('BASE STATS')
             content_lines.extend(unit_data['stats'])
             content_lines.append('')
-            content_lines.append('─' * (term_width - 4))
+            content_lines.append('─' * max_text_width)
             content_lines.append('')
             
             # Skills section
             content_lines.append('SKILLS')
             content_lines.append('')
             for skill in unit_data['skills']:
+                # Skill name
                 content_lines.append(f"● {skill['name']}")
-                content_lines.append(skill['description'])
+                
+                # Skill description with wrapping
+                wrapped_desc = self._wrap_text(skill['description'], max_text_width)
+                content_lines.extend(wrapped_desc)
                 content_lines.append('')
+                
+                # Skill details with wrapping
                 for detail in skill['details']:
-                    content_lines.append(f"  - {detail}")
+                    wrapped_detail = self._wrap_text(detail, max_text_width, "  - ")
+                    # For wrapped lines after the first, use continuation indent
+                    for i, line in enumerate(wrapped_detail):
+                        if i > 0:
+                            # Replace "  - " with "    " for continuation lines
+                            line = "    " + line[4:]
+                        content_lines.append(line)
                 content_lines.append('')
             
-            content_lines.append('─' * (term_width - 4))
+            content_lines.append('─' * max_text_width)
             content_lines.append('')
             
             # Combat Tips section
             content_lines.append('COMBAT TIPS')
-            content_lines.extend(unit_data['tips'])
+            for tip in unit_data['tips']:
+                wrapped_tip = self._wrap_text(tip, max_text_width)
+                content_lines.extend(wrapped_tip)
             content_lines.append('')
             
             # Tactical Notes section  
             content_lines.append('TACTICAL NOTES')
-            content_lines.extend(unit_data['tactical'])
+            for note in unit_data['tactical']:
+                wrapped_note = self._wrap_text(note, max_text_width)
+                content_lines.extend(wrapped_note)
             
             # Calculate max scroll position
             max_scroll = max(0, len(content_lines) - available_height)
@@ -1782,11 +1927,6 @@ class UnitHelpComponent(UIComponent):
             for i, line in enumerate(visible_lines):
                 y_pos = content_start_y + i
                 
-                # Truncate lines that are too long for the screen
-                max_text_width = term_width - 4  # Leave margin for borders
-                if len(line) > max_text_width:
-                    line = line[:max_text_width-3] + "..."
-                
                 # Set appropriate styling
                 attributes = 0
                 color_id = 1
@@ -1797,9 +1937,9 @@ class UnitHelpComponent(UIComponent):
                 elif line.startswith('BASE STATS') or line.startswith('SKILLS') or line.startswith('COMBAT TIPS') or line.startswith('TACTICAL NOTES'):
                     attributes = curses.A_BOLD
                     color_id = 7  # Yellow
-                elif line.startswith('  - '):  # Skill details
+                elif line.startswith('  - ') or line.startswith('    '):  # Skill details and continuation lines
                     color_id = 8  # Gray
-                elif line == '─' * (term_width - 4):  # Section separators
+                elif line.startswith('─'):  # Section separators
                     color_id = 8  # Gray
                 
                 # Draw the line
@@ -2412,7 +2552,7 @@ class CursorManager(UIComponent):
             from boneglaive.utils.message_log import message_log, MessageType
             target_unit = self.game_ui.game.get_unit_at(self.cursor_pos.y, self.cursor_pos.x)
             
-            # Check if target is under CARRIER_RAVE (untargetable)
+            # Check if target is under KARRIER_RAVE (untargetable)
             if target_unit and hasattr(target_unit, 'carrier_rave_active') and target_unit.carrier_rave_active:
                 self.game_ui.message = "Invalid target"
                 return False
@@ -3744,7 +3884,7 @@ class GameModeManager(UIComponent):
             # Simply return false without showing a message
             return False
 
-        # Check if target is under CARRIER_RAVE (untargetable)
+        # Check if target is under KARRIER_RAVE (untargetable)
         target = self.game_ui.game.get_unit_at(target_pos[0], target_pos[1])
         if target and hasattr(target, 'carrier_rave_active') and target.carrier_rave_active:
             self.game_ui.message = "Invalid target"
@@ -4848,7 +4988,7 @@ class ActionMenuComponent(UIComponent):
                 'skill': neural_shunt_skill
             })
 
-            # Add Carrier Rave skill
+            # Add Karrier Rave skill
             carrier_rave_skill = next((skill for skill in available_skills if skill.name == "Karrier Rave"), None)
             self.actions.append({
                 'key': 'k',
