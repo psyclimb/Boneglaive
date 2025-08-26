@@ -21,6 +21,7 @@ class GameStateSync:
     def __init__(self, game: Game, network: NetworkInterface):
         self.game = game
         self.network = network
+        self.ui = None  # UI reference for animations
         self.last_sync_time = 0
         self.sync_interval = 0.5  # Seconds between state syncs
         self.last_sent_state = {}
@@ -34,6 +35,10 @@ class GameStateSync:
         self.network.register_message_handler(
             MessageType.PLAYER_ACTION, self._handle_player_action
         )
+    
+    def set_ui_reference(self, ui) -> None:
+        """Set the UI reference for animations."""
+        self.ui = ui
     
     def update(self) -> None:
         """
@@ -253,7 +258,10 @@ class GameStateSync:
                     break
         
         elif action_type == "end_turn":
-            # Execute turn for all units
-            self.game.execute_turn()
+            # Execute turn for all units with animations if UI available
+            if self.ui:
+                self.game.execute_turn(self.ui)
+            else:
+                self.game.execute_turn()
         
         # Add more action types as needed

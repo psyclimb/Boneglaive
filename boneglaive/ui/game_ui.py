@@ -71,6 +71,9 @@ class GameUI:
         # Set UI reference in game engine for animations
         self.game.set_ui_reference(self)
         
+        # Set UI reference in multiplayer manager for network sync animations
+        self.multiplayer.set_ui_reference(self)
+        
         # Message buffer for UI feedback
         self.message = ""
         

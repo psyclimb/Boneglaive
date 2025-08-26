@@ -10,6 +10,7 @@ from boneglaive.game.engine import Game
 from boneglaive.networking.network_interface import NetworkInterface
 from boneglaive.networking.local_multiplayer import LocalMultiplayerInterface
 from boneglaive.networking.lan_multiplayer import LANMultiplayerInterface
+from boneglaive.networking.game_state_sync import GameStateSync
 from boneglaive.ai.ai_interface import AIInterface
 from boneglaive.utils.config import ConfigManager, NetworkMode
 from boneglaive.utils.debug import logger
@@ -25,6 +26,7 @@ class MultiplayerManager:
         self.game = game
         self.config = ConfigManager()
         self.network_interface: Optional[NetworkInterface] = None
+        self.game_state_sync: Optional[GameStateSync] = None
         self.initialized = False
         self.current_player = 1
         
@@ -67,7 +69,9 @@ class MultiplayerManager:
                 # Set current player based on network role
                 self.current_player = self.network_interface.get_player_number()
                 self.game.current_player = self.current_player
-                logger.info(f"LAN host initialized as player {self.current_player}")
+                # Initialize game state synchronization
+                self.game_state_sync = GameStateSync(self.game, self.network_interface)
+                logger.info(f"LAN host initialized as player {self.current_player} with game state sync")
             self.initialized = result
             return result
             
@@ -83,7 +87,9 @@ class MultiplayerManager:
                 # Set current player based on network role
                 self.current_player = self.network_interface.get_player_number()
                 self.game.current_player = self.current_player
-                logger.info(f"LAN client initialized as player {self.current_player}")
+                # Initialize game state synchronization
+                self.game_state_sync = GameStateSync(self.game, self.network_interface)
+                logger.info(f"LAN client initialized as player {self.current_player} with game state sync")
             self.initialized = result
             return result
             
@@ -293,6 +299,22 @@ class MultiplayerManager:
         
         return self.current_player
     
+    def send_player_action(self, action_type: str, data: Dict[str, Any]) -> None:
+        """Send a player action through the network (if networked) or apply directly."""
+        if self.game_state_sync and self.is_network_multiplayer():
+            # Route through GameStateSync for networked games
+            self.game_state_sync.send_player_action(action_type, data)
+            logger.debug(f"Sent network action: {action_type}")
+        else:
+            # For local games, apply actions directly to game engine
+            logger.debug(f"Applied local action: {action_type}")
+            # TODO: Apply action directly to game state for non-networked games
+    
+    def set_ui_reference(self, ui) -> None:
+        """Set UI reference for game state sync animations."""
+        if self.game_state_sync:
+            self.game_state_sync.set_ui_reference(ui)
+    
     def update(self) -> None:
         """Update multiplayer state - call this each game loop iteration."""
         if self.network_interface and self.is_network_multiplayer():
@@ -302,13 +324,19 @@ class MultiplayerManager:
                     message_log.add_system_message("Network connection lost")
                     self.initialized = False
             
-            # Process incoming network messages
-            self.network_interface.receive_messages()
+            # Update game state synchronization
+            if self.game_state_sync:
+                self.game_state_sync.update()
+            else:
+                # Fallback to basic message processing if GameStateSync not available
+                self.network_interface.receive_messages()
     
     def cleanup(self) -> None:
         """Clean up network resources."""
         if self.network_interface:
             self.network_interface.cleanup()
             self.network_interface = None
+        if self.game_state_sync:
+            self.game_state_sync = None
         self.initialized = False
         logger.info("Multiplayer manager cleaned up")
