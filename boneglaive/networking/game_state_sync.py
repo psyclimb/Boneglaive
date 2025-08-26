@@ -231,6 +231,10 @@ class GameStateSync:
             self._apply_setup_action(action_type, data)
             return
         
+        # For clients, apply the action locally AND send to host
+        # This allows the client to see their own units immediately
+        self._apply_setup_action(action_type, data)
+        
         # Send setup action to host
         self.network.send_message(MessageType.SETUP_ACTION, {
             "action_type": action_type,
