@@ -88,6 +88,10 @@ class GameStateSync:
         if not self.network.is_host():
             return
         
+        # Don't sync game state during setup phase - setup has its own message handling
+        if self.game.setup_phase:
+            return
+        
         # Serialize game state
         state = self._serialize_game_state()
         
@@ -158,6 +162,9 @@ class GameStateSync:
             # Create new unit
             try:
                 unit = self.game.add_unit(unit_type, player, y, x)
+                if unit is None:
+                    logger.warning(f"Failed to create unit {unit_type.name} at ({y}, {x}): add_unit returned None")
+                    continue
             except ValueError as e:
                 logger.warning(f"Failed to restore unit {unit_type.name} at ({y}, {x}): {e}")
                 continue
@@ -259,9 +266,11 @@ class GameStateSync:
         """
         # Apply received game states (for non-host)
         if not self.network.is_host() and self.received_states:
-            # Apply only the most recent state
-            latest_state, _ = self.received_states[-1]
-            self._deserialize_game_state(latest_state)
+            # Don't apply game state during setup phase - setup has its own message handling
+            if not self.game.setup_phase:
+                # Apply only the most recent state
+                latest_state, _ = self.received_states[-1]
+                self._deserialize_game_state(latest_state)
             self.received_states = []
         
         # Apply pending actions (for host)
