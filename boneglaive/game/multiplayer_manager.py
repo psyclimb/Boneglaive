@@ -70,9 +70,12 @@ class MultiplayerManager:
                 self.current_player = self.network_interface.get_player_number()
                 # Game always starts with Player 1's turn, regardless of which network player you are
                 self.game.current_player = 1
+                # For LAN multiplayer, turn switching is handled by network layer, not game engine
+                # Set local_multiplayer = True to prevent game engine from doing its own turn switching
+                self.game.local_multiplayer = True
                 # Initialize game state synchronization
                 self.game_state_sync = GameStateSync(self.game, self.network_interface)
-                logger.info(f"MULTIPLAYER INIT DEBUG: LAN host initialized as player {self.current_player}, game.current_player={self.game.current_player} with game state sync")
+                logger.info(f"MULTIPLAYER INIT DEBUG: LAN host initialized as player {self.current_player}, game.current_player={self.game.current_player}, local_multiplayer={self.game.local_multiplayer} with game state sync")
             self.initialized = result
             return result
             
@@ -89,9 +92,12 @@ class MultiplayerManager:
                 self.current_player = self.network_interface.get_player_number()
                 # Game always starts with Player 1's turn, regardless of which network player you are
                 self.game.current_player = 1
+                # For LAN multiplayer, turn switching is handled by network layer, not game engine
+                # Set local_multiplayer = True to prevent game engine from doing its own turn switching
+                self.game.local_multiplayer = True
                 # Initialize game state synchronization
                 self.game_state_sync = GameStateSync(self.game, self.network_interface)
-                logger.info(f"MULTIPLAYER INIT DEBUG: LAN client initialized as player {self.current_player}, game.current_player={self.game.current_player} with game state sync")
+                logger.info(f"MULTIPLAYER INIT DEBUG: LAN client initialized as player {self.current_player}, game.current_player={self.game.current_player}, local_multiplayer={self.game.local_multiplayer} with game state sync")
             self.initialized = result
             return result
             
