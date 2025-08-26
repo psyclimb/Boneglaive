@@ -72,7 +72,7 @@ class MultiplayerManager:
                 self.game.current_player = 1
                 # Initialize game state synchronization
                 self.game_state_sync = GameStateSync(self.game, self.network_interface)
-                logger.info(f"LAN host initialized as player {self.current_player} with game state sync")
+                logger.info(f"MULTIPLAYER INIT DEBUG: LAN host initialized as player {self.current_player}, game.current_player={self.game.current_player} with game state sync")
             self.initialized = result
             return result
             
@@ -91,7 +91,7 @@ class MultiplayerManager:
                 self.game.current_player = 1
                 # Initialize game state synchronization
                 self.game_state_sync = GameStateSync(self.game, self.network_interface)
-                logger.info(f"LAN client initialized as player {self.current_player} with game state sync")
+                logger.info(f"MULTIPLAYER INIT DEBUG: LAN client initialized as player {self.current_player}, game.current_player={self.game.current_player} with game state sync")
             self.initialized = result
             return result
             
