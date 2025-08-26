@@ -2284,6 +2284,14 @@ class CursorManager(UIComponent):
     
     def move_cursor(self, dy: int, dx: int):
         """Move the cursor by the given delta."""
+        # Block cursor movement during setup phase when it's not this player's turn
+        if self.game_ui.game.setup_phase and self.game_ui.multiplayer.is_network_multiplayer():
+            game_state_sync = self.game_ui.multiplayer.game_state_sync
+            if game_state_sync and not game_state_sync.can_act_in_setup():
+                current_setup_player = self.game_ui.game.setup_player
+                self.game_ui.message = f"Player {current_setup_player} is placing units..."
+                return
+        
         previous_pos = self.cursor_pos
         new_y = max(0, min(HEIGHT-1, self.cursor_pos.y + dy))
         new_x = max(0, min(WIDTH-1, self.cursor_pos.x + dx))
@@ -4065,6 +4073,14 @@ class GameModeManager(UIComponent):
         """Navigate to the next unit type in the setup menu (TAB)."""
         if not self.game_ui.game.setup_phase:
             return
+        
+        # Block unit cycling during setup phase when it's not this player's turn
+        if self.game_ui.multiplayer.is_network_multiplayer():
+            game_state_sync = self.game_ui.multiplayer.game_state_sync
+            if game_state_sync and not game_state_sync.can_act_in_setup():
+                current_setup_player = self.game_ui.game.setup_player
+                self.game_ui.message = f"Player {current_setup_player} is placing units..."
+                return
             
         # Get current index in unit types list
         unit_types = [
@@ -4092,6 +4108,14 @@ class GameModeManager(UIComponent):
         """Navigate to the previous unit type in the setup menu (SHIFT+TAB)."""
         if not self.game_ui.game.setup_phase:
             return
+        
+        # Block unit cycling during setup phase when it's not this player's turn
+        if self.game_ui.multiplayer.is_network_multiplayer():
+            game_state_sync = self.game_ui.multiplayer.game_state_sync
+            if game_state_sync and not game_state_sync.can_act_in_setup():
+                current_setup_player = self.game_ui.game.setup_player
+                self.game_ui.message = f"Player {current_setup_player} is placing units..."
+                return
             
         # Get current index in unit types list
         unit_types = [
@@ -4117,6 +4141,14 @@ class GameModeManager(UIComponent):
         
     def handle_setup_select(self):
         """Handle unit placement during setup phase."""
+        # Check if this player can act during setup in network games
+        if self.game_ui.multiplayer.is_network_multiplayer():
+            game_state_sync = self.game_ui.multiplayer.game_state_sync
+            if game_state_sync and not game_state_sync.can_act_in_setup():
+                current_setup_player = self.game_ui.game.setup_player
+                self.game_ui.message = f"Player {current_setup_player} is placing units..."
+                return
+        
         # Get the current setup player
         setup_player = self.game_ui.game.setup_player
         cursor_pos = self.game_ui.cursor_manager.cursor_pos
@@ -4136,7 +4168,17 @@ class GameModeManager(UIComponent):
             self.game_ui.message = f"All units placed. Press 'y' to confirm."
             return
 
-        # Try to place the unit with the current unit type
+        # For network games, route through GameStateSync
+        if self.game_ui.multiplayer.is_network_multiplayer() and self.game_ui.multiplayer.game_state_sync:
+            # Send setup action through network
+            self.game_ui.multiplayer.game_state_sync.send_setup_action("place_unit", {
+                "y": cursor_pos.y,
+                "x": cursor_pos.x,
+                "unit_type": self.setup_unit_type.name
+            })
+            return
+        
+        # For local games, place unit directly
         result = self.game_ui.game.place_setup_unit(cursor_pos.y, cursor_pos.x, self.setup_unit_type)
 
         # Map for unit type names with proper spacing/display
@@ -4171,6 +4213,14 @@ class GameModeManager(UIComponent):
         """Handle confirmation action (mainly for setup phase)."""
         if not self.game_ui.game.setup_phase:
             return  # Ignore outside of setup
+        
+        # Check if this player can act during setup in network games
+        if self.game_ui.multiplayer.is_network_multiplayer():
+            game_state_sync = self.game_ui.multiplayer.game_state_sync
+            if game_state_sync and not game_state_sync.can_act_in_setup():
+                current_setup_player = self.game_ui.game.setup_player
+                self.game_ui.message = f"Player {current_setup_player} is placing units..."
+                return
             
         # Check if all units have been placed
         setup_player = self.game_ui.game.setup_player
@@ -4183,6 +4233,12 @@ class GameModeManager(UIComponent):
                     message_type=MessageType.WARNING
                 )
             )
+            return
+        
+        # For network games, route through GameStateSync
+        if self.game_ui.multiplayer.is_network_multiplayer() and self.game_ui.multiplayer.game_state_sync:
+            # Send setup confirmation through network
+            self.game_ui.multiplayer.game_state_sync.send_setup_action("confirm_setup", {})
             return
         
         # Check if we're in single player mode

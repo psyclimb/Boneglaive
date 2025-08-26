@@ -35,10 +35,33 @@ class GameStateSync:
         self.network.register_message_handler(
             MessageType.PLAYER_ACTION, self._handle_player_action
         )
+        self.network.register_message_handler(
+            MessageType.SETUP_ACTION, self._handle_setup_action
+        )
+        self.network.register_message_handler(
+            MessageType.SETUP_PHASE_TRANSITION, self._handle_setup_phase_transition
+        )
+        self.network.register_message_handler(
+            MessageType.SETUP_COMPLETE, self._handle_setup_complete
+        )
     
     def set_ui_reference(self, ui) -> None:
         """Set the UI reference for animations."""
         self.ui = ui
+    
+    def can_act_in_setup(self) -> bool:
+        """
+        Check if the current player can take setup actions.
+        Only the active setup player should be able to place units.
+        """
+        if not self.game.setup_phase:
+            return True  # Not in setup phase, normal game rules apply
+        
+        # Get the network player number (1 for host, 2 for client)
+        network_player = self.network.get_player_number()
+        
+        # Only allow actions if it's this player's setup turn
+        return self.game.setup_player == network_player
     
     def update(self) -> None:
         """
@@ -187,6 +210,27 @@ class GameStateSync:
             "timestamp": time.time()
         })
     
+    def send_setup_action(self, action_type: str, data: Dict[str, Any]) -> None:
+        """
+        Send a setup action to the host.
+        """
+        # Only allow setup actions if it's this player's turn
+        if not self.can_act_in_setup():
+            logger.warning(f"Attempted setup action {action_type} when not this player's turn")
+            return
+        
+        # Host can apply setup actions directly
+        if self.network.is_host():
+            self._apply_setup_action(action_type, data)
+            return
+        
+        # Send setup action to host
+        self.network.send_message(MessageType.SETUP_ACTION, {
+            "action_type": action_type,
+            "data": data,
+            "timestamp": time.time()
+        })
+    
     def _handle_player_action(self, data: Dict[str, Any]) -> None:
         """
         Handle received player action message.
@@ -265,3 +309,123 @@ class GameStateSync:
                 self.game.execute_turn()
         
         # Add more action types as needed
+    
+    def _handle_setup_action(self, data: Dict[str, Any]) -> None:
+        """
+        Handle received setup action message.
+        Only the host should process setup actions.
+        """
+        if not self.network.is_host():
+            return
+        
+        try:
+            action_type = data.get("action_type", "")
+            action_data = data.get("data", {})
+            timestamp = data.get("timestamp", 0)
+            
+            # Apply the setup action directly
+            self._apply_setup_action(action_type, action_data)
+            
+        except Exception as e:
+            logger.error(f"Error handling setup action: {str(e)}")
+    
+    def _handle_setup_phase_transition(self, data: Dict[str, Any]) -> None:
+        """
+        Handle setup phase transition message.
+        Only clients should receive this.
+        """
+        if self.network.is_host():
+            return
+        
+        try:
+            new_setup_player = data.get("setup_player", 1)
+            logger.info(f"Setup phase transition: now player {new_setup_player}'s turn")
+            
+            # Update the local game state to match
+            self.game.setup_player = new_setup_player
+            
+            # Add appropriate message to UI
+            if self.ui:
+                from boneglaive.utils.message_log import message_log, MessageType as LogMessageType
+                if new_setup_player == self.network.get_player_number():
+                    message_log.add_system_message("Your turn to place units")
+                    self.ui.message = "Your turn to place units"
+                else:
+                    message_log.add_system_message(f"Player {new_setup_player} is placing units...")
+                    self.ui.message = f"Player {new_setup_player} is placing units..."
+            
+        except Exception as e:
+            logger.error(f"Error handling setup phase transition: {str(e)}")
+    
+    def _handle_setup_complete(self, data: Dict[str, Any]) -> None:
+        """
+        Handle setup complete message.
+        Both players should receive this.
+        """
+        try:
+            logger.info("Setup phase complete, game starting")
+            
+            # End setup phase
+            self.game.setup_phase = False
+            
+            # Add game start message
+            if self.ui:
+                from boneglaive.utils.message_log import message_log, MessageType as LogMessageType
+                message_log.add_system_message(f"Game starting - Player 1's turn")
+                self.ui.message = f"Game starting - Player 1's turn"
+                
+                # Update the player message in UI
+                self.ui.update_player_message()
+            
+        except Exception as e:
+            logger.error(f"Error handling setup complete: {str(e)}")
+    
+    def _apply_setup_action(self, action_type: str, data: Dict[str, Any]) -> None:
+        """
+        Apply a setup action to the game state.
+        """
+        if action_type == "place_unit":
+            y = data.get("y")
+            x = data.get("x")
+            unit_type_name = data.get("unit_type")
+            
+            if y is not None and x is not None and unit_type_name:
+                from boneglaive.utils.constants import UnitType
+                try:
+                    unit_type = UnitType[unit_type_name]
+                    result = self.game.place_setup_unit(y, x, unit_type)
+                    logger.debug(f"Placed setup unit {unit_type_name} at ({y}, {x}): {result}")
+                except (KeyError, ValueError) as e:
+                    logger.error(f"Error placing setup unit: {str(e)}")
+        
+        elif action_type == "confirm_setup":
+            # Confirm the current player's setup
+            game_start = self.game.confirm_setup()
+            logger.info(f"Setup confirmed for player {self.game.setup_player}")
+            
+            if self.network.is_host():
+                if self.game.setup_player == 2:
+                    # Player 1 confirmed, transition to Player 2
+                    self.network.send_message(MessageType.SETUP_PHASE_TRANSITION, {
+                        "setup_player": 2,
+                        "timestamp": time.time()
+                    })
+                    logger.info("Sent setup phase transition to Player 2")
+                    
+                    # Update UI for host
+                    if self.ui:
+                        from boneglaive.utils.message_log import message_log, MessageType as LogMessageType
+                        message_log.add_system_message("Player 2 is placing units...")
+                        self.ui.message = "Player 2 is placing units..."
+                
+                elif game_start:
+                    # Player 2 confirmed, game starts
+                    self.network.send_message(MessageType.SETUP_COMPLETE, {
+                        "timestamp": time.time()
+                    })
+                    logger.info("Sent setup complete message")
+                    
+                    # Apply setup complete locally
+                    self._handle_setup_complete({})
+        
+        # Add more setup action types as needed

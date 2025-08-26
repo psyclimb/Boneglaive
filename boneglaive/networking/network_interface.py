@@ -27,6 +27,9 @@ class MessageType(Enum):
     CHAT = "chat"
     ERROR = "error"
     PING = "ping"
+    SETUP_ACTION = "setup_action"
+    SETUP_PHASE_TRANSITION = "setup_phase_transition"
+    SETUP_COMPLETE = "setup_complete"
 
 class NetworkInterface(abc.ABC):
     """Abstract base class for network implementations."""
