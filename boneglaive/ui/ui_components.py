@@ -3964,6 +3964,14 @@ class GameModeManager(UIComponent):
     
     def handle_end_turn(self):
         """End the current turn."""
+        # Check if it's actually this player's turn
+        if not self.game_ui.multiplayer.is_current_player_turn():
+            logger.info(f"END_TURN VALIDATION: Not current player's turn - ignoring end_turn request")
+            self.game_ui.message = "Not your turn"
+            from boneglaive.utils.message_log import message_log, MessageType
+            message_log.add_message("Not your turn", MessageType.WARNING)
+            return
+        
         cursor_manager = self.game_ui.cursor_manager
         
         # Publish turn ended event
