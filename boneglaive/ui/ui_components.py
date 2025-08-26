@@ -3954,8 +3954,15 @@ class GameModeManager(UIComponent):
             )
         )
         
-        # Pass UI to execute_turn for animations
-        self.game_ui.game.execute_turn(self.game_ui)
+        # Route turn execution through multiplayer manager for network sync
+        if self.game_ui.multiplayer.is_network_multiplayer():
+            # For networked games, send end_turn action through GameStateSync
+            self.game_ui.multiplayer.send_player_action("end_turn", {
+                "ui": id(self.game_ui)  # Send UI reference ID for animations
+            })
+        else:
+            # For local games, execute turn directly with animations
+            self.game_ui.game.execute_turn(self.game_ui)
         
         # Clear selection after executing turn
         cursor_manager.clear_selection()
