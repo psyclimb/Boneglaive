@@ -210,13 +210,21 @@ class GameStateSync:
         """
         Send a player action to the host.
         """
+        my_player_num = self.network.get_player_number()
+        is_host = self.network.is_host()
+        current_game_player = self.game.current_player
+        
+        logger.info(f"SEND_ACTION DEBUG: {action_type} - my_player_num={my_player_num}, is_host={is_host}, current_game_player={current_game_player}")
+        
         # Only non-host players need to send actions
         if self.network.is_host():
             # Host can apply actions directly
+            logger.info(f"SEND_ACTION DEBUG: Host applying {action_type} directly")
             self._apply_action(action_type, data)
             return
         
         # Send action to host
+        logger.info(f"SEND_ACTION DEBUG: Client sending {action_type} to host")
         self.network.send_message(MessageType.PLAYER_ACTION, {
             "action_type": action_type,
             "data": data,
@@ -359,12 +367,14 @@ class GameStateSync:
                 self.game.initialize_next_player_turn()
                 
                 # Send turn transition to client
-                self.network.send_message(MessageType.TURN_TRANSITION, {
+                turn_transition_msg = {
                     "new_player": self.game.current_player,
                     "turn_number": self.game.turn,
                     "timestamp": time.time()
-                })
+                }
+                self.network.send_message(MessageType.TURN_TRANSITION, turn_transition_msg)
                 logger.info(f"HOST END_TURN DEBUG: Sent TURN_TRANSITION message to client - new_player={self.game.current_player}")
+                logger.info(f"HOST END_TURN DEBUG: Full TURN_TRANSITION message: {turn_transition_msg}")
                 
                 # Update UI for host
                 if self.ui:

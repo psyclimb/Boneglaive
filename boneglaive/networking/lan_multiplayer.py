@@ -156,6 +156,7 @@ class LANMultiplayerInterface(NetworkInterface):
                         message = json.loads(messages[i].decode('utf-8'))
                         # Validate message structure
                         if isinstance(message, dict) and 'type' in message and 'data' in message:
+                            logger.info(f"NETWORK RECEIVE DEBUG: Received {message['type']} message: {message['data']}")
                             self.message_queue.append(message)
                         else:
                             logger.warning(f"Received message with invalid structure: {message}")
@@ -198,6 +199,9 @@ class LANMultiplayerInterface(NetworkInterface):
                 'sender': self.player_id,
                 'timestamp': time.time()
             }
+            
+            # Log message being sent for debugging
+            logger.info(f"NETWORK SEND DEBUG: Sending {message_type.value} message: {data}")
             
             # Encode and send the message
             message_bytes = json.dumps(message).encode('utf-8') + MESSAGE_DELIMITER
