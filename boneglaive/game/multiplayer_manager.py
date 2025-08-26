@@ -66,9 +66,10 @@ class MultiplayerManager:
             result = self.network_interface.initialize()
             if result:
                 self._setup_chat_handler()
-                # Set current player based on network role
+                # Set current player based on network role (this is your network identity, not turn player)
                 self.current_player = self.network_interface.get_player_number()
-                self.game.current_player = self.current_player
+                # Game always starts with Player 1's turn, regardless of which network player you are
+                self.game.current_player = 1
                 # Initialize game state synchronization
                 self.game_state_sync = GameStateSync(self.game, self.network_interface)
                 logger.info(f"LAN host initialized as player {self.current_player} with game state sync")
@@ -84,9 +85,10 @@ class MultiplayerManager:
             result = self.network_interface.initialize()
             if result:
                 self._setup_chat_handler()
-                # Set current player based on network role
+                # Set current player based on network role (this is your network identity, not turn player)
                 self.current_player = self.network_interface.get_player_number()
-                self.game.current_player = self.current_player
+                # Game always starts with Player 1's turn, regardless of which network player you are
+                self.game.current_player = 1
                 # Initialize game state synchronization
                 self.game_state_sync = GameStateSync(self.game, self.network_interface)
                 logger.info(f"LAN client initialized as player {self.current_player} with game state sync")
@@ -146,9 +148,9 @@ class MultiplayerManager:
             # In single player, it's always the player's turn
             return True
             
-        # For LAN multiplayer, check if the current player matches the network player number
+        # For LAN multiplayer, check if the game's current turn player matches your network player number  
         if self.is_network_multiplayer():
-            return self.current_player == self.network_interface.get_player_number()
+            return self.game.current_player == self.network_interface.get_player_number()
             
         # For local multiplayer, always return true since both players are on the same computer
         # and take turns physically passing control
