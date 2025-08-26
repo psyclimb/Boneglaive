@@ -549,9 +549,18 @@ class UIRenderer:
                 
                 if unit:
                     # Check if this unit should be hidden during setup
-                    hide_unit = (self.game_ui.game.setup_phase and 
-                                self.game_ui.game.setup_player == 2 and 
-                                unit.player == 1)
+                    hide_unit = False
+                    if self.game_ui.game.setup_phase:
+                        # For network games, hide opponent units during setup (fog of war)
+                        if self.game_ui.multiplayer.is_network_multiplayer():
+                            # Get the current network player number (1 for host, 2 for client)
+                            network_player = self.game_ui.multiplayer.network_interface.get_player_number()
+                            # Hide units that belong to the other player
+                            hide_unit = (unit.player != network_player)
+                        else:
+                            # For local multiplayer, keep the original logic
+                            # (Hide player 1 units when it's player 2's setup turn)
+                            hide_unit = (self.game_ui.game.setup_player == 2 and unit.player == 1)
                                 
                     # Even if unit is hidden, still draw cursor if it's here
                     if hide_unit and pos == cursor_manager.cursor_pos and show_cursor:
