@@ -150,7 +150,9 @@ class MultiplayerManager:
             
         # For LAN multiplayer, check if the game's current turn player matches your network player number  
         if self.is_network_multiplayer():
-            return self.game.current_player == self.network_interface.get_player_number()
+            result = self.game.current_player == self.network_interface.get_player_number()
+            logger.debug(f"TURN_CHECK DEBUG: game.current_player={self.game.current_player}, my_player_num={self.network_interface.get_player_number()}, is_my_turn={result}")
+            return result
             
         # For local multiplayer, always return true since both players are on the same computer
         # and take turns physically passing control

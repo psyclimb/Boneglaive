@@ -342,6 +342,8 @@ class GameStateSync:
                 current_player = self.game.current_player
                 next_player = 2 if current_player == 1 else 1
                 
+                logger.info(f"HOST END_TURN DEBUG: Before switch - current_player={current_player}, host_player_num={self.network.get_player_number()}")
+                
                 # Update game state
                 if current_player == 1:
                     # Player 1 finished, switch to Player 2
@@ -350,6 +352,8 @@ class GameStateSync:
                     # Player 2 finished, switch to Player 1 and increment turn
                     self.game.current_player = 1
                     self.game.turn += 1
+                
+                logger.info(f"HOST END_TURN DEBUG: After switch - new_current_player={self.game.current_player}, turn={self.game.turn}")
                 
                 # Initialize the new player's turn
                 self.game.initialize_next_player_turn()
@@ -360,7 +364,7 @@ class GameStateSync:
                     "turn_number": self.game.turn,
                     "timestamp": time.time()
                 })
-                logger.info(f"Sent turn transition to Player {self.game.current_player}")
+                logger.info(f"HOST END_TURN DEBUG: Sent TURN_TRANSITION message to client - new_player={self.game.current_player}")
                 
                 # Update UI for host
                 if self.ui:
@@ -368,9 +372,11 @@ class GameStateSync:
                     if self.game.current_player == self.network.get_player_number():
                         message_log.add_system_message(f"Your turn - Turn {self.game.turn}")
                         self.ui.message = f"Your turn - Turn {self.game.turn}"
+                        logger.info(f"HOST END_TURN DEBUG: Host UI updated - it's host's turn again")
                     else:
                         message_log.add_system_message(f"Player {self.game.current_player}'s turn - Turn {self.game.turn}")  
                         self.ui.message = f"Player {self.game.current_player} is thinking..."
+                        logger.info(f"HOST END_TURN DEBUG: Host UI updated - it's client's turn now")
         
         # Add more action types as needed
     
@@ -545,11 +551,17 @@ class GameStateSync:
         try:
             new_player = data.get("new_player", 1)
             turn_number = data.get("turn_number", 1)
-            logger.info(f"Turn transition: Player {new_player}, Turn {turn_number}")
+            my_player_number = self.network.get_player_number()
+            is_host = self.network.is_host()
+            
+            logger.info(f"TURN_TRANSITION DEBUG: Received message - new_player={new_player}, turn={turn_number}, my_player_num={my_player_number}, is_host={is_host}")
             
             # Update local game state
+            old_current_player = self.game.current_player
             self.game.current_player = new_player
             self.game.turn = turn_number
+            
+            logger.info(f"TURN_TRANSITION DEBUG: Updated local state - old_current_player={old_current_player} -> new_current_player={self.game.current_player}")
             
             # Initialize the new player's turn locally
             self.game.initialize_next_player_turn()
@@ -560,9 +572,11 @@ class GameStateSync:
                 if new_player == self.network.get_player_number():
                     message_log.add_system_message(f"Your turn - Turn {turn_number}")
                     self.ui.message = f"Your turn - Turn {turn_number}"
+                    logger.info(f"TURN_TRANSITION DEBUG: UI updated - it's MY turn now")
                 else:
                     message_log.add_system_message(f"Player {new_player}'s turn - Turn {turn_number}")
                     self.ui.message = f"Player {new_player} is thinking..."
+                    logger.info(f"TURN_TRANSITION DEBUG: UI updated - it's OTHER player's turn")
                 
                 # Update the player message in UI
                 self.ui.update_player_message()

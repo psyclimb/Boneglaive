@@ -555,7 +555,7 @@ class UIRenderer:
                         if self.game_ui.multiplayer.is_network_multiplayer():
                             # Get the current network player number (1 for host, 2 for client)
                             network_player = self.game_ui.multiplayer.network_interface.get_player_number()
-                            # Hide units that belong to the other player
+                            # Players can always see their own units, but hide opponent's units
                             hide_unit = (unit.player != network_player)
                         else:
                             # For local multiplayer, keep the original logic
