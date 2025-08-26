@@ -325,6 +325,11 @@ class GameStateSync:
                     break
         
         elif action_type == "end_turn":
+            # Apply any planned actions from the ending player first
+            planned_actions = data.get("planned_actions", [])
+            if planned_actions:
+                self._apply_planned_actions(planned_actions)
+            
             # Execute turn for all units with animations if UI available
             if self.ui:
                 self.game.execute_turn(self.ui)
@@ -505,6 +510,32 @@ class GameStateSync:
                     self._handle_setup_complete({})
         
         # Add more setup action types as needed
+    
+    def _apply_planned_actions(self, planned_actions):
+        """Apply a list of planned actions from a player."""
+        for unit_actions in planned_actions:
+            # Apply move action if present
+            if 'move' in unit_actions:
+                move_data = unit_actions['move']
+                self._apply_action("move", move_data)
+            
+            # Apply attack action if present  
+            if 'attack' in unit_actions:
+                attack_data = unit_actions['attack']
+                self._apply_action("attack", attack_data)
+            
+            # Apply metadata if present
+            if 'metadata' in unit_actions:
+                metadata = unit_actions['metadata']
+                unit_id = unit_actions.get('move', unit_actions.get('attack', {})).get('unit_id')
+                
+                if unit_id:
+                    # Find and update unit metadata
+                    for unit in self.game.units:
+                        if id(unit) == unit_id and unit.is_alive():
+                            unit.took_no_actions = metadata.get('took_no_actions', True)
+                            unit.action_timestamp = metadata.get('action_timestamp', 0)
+                            break
     
     def _handle_turn_transition(self, data: Dict[str, Any]) -> None:
         """

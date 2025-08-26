@@ -2493,25 +2493,18 @@ class CursorManager(UIComponent):
             from_position = Position(self.selected_unit.y, self.selected_unit.x)
             to_position = cursor_position
             
-            # For network multiplayer, route through GameStateSync
-            if self.game_ui.multiplayer.is_network_multiplayer() and self.game_ui.multiplayer.game_state_sync:
-                # Send move action through network
-                self.game_ui.multiplayer.game_state_sync.send_player_action("move", {
-                    "unit_id": id(self.selected_unit),
-                    "target": (to_position.y, to_position.x),
-                    "from_position": (from_position.y, from_position.x)
-                })
-            else:
-                # For local games, apply move directly
-                # Set the move target
-                self.selected_unit.move_target = (to_position.y, to_position.x)
-                
-                # Mark that this unit is taking an action (won't regenerate HP)
-                self.selected_unit.took_no_actions = False
-                
-                # Track action order
-                self.selected_unit.action_timestamp = self.game_ui.game.action_counter
-                self.game_ui.game.action_counter += 1
+            # For all games (local and network), apply move locally during planning
+            # Network sync happens only during turn execution for fog of war
+            
+            # Set the move target
+            self.selected_unit.move_target = (to_position.y, to_position.x)
+            
+            # Mark that this unit is taking an action (won't regenerate HP)
+            self.selected_unit.took_no_actions = False
+            
+            # Track action order
+            self.selected_unit.action_timestamp = self.game_ui.game.action_counter
+            self.game_ui.game.action_counter += 1
             
             # Publish move planned event
             self.publish_event(
@@ -2576,23 +2569,17 @@ class CursorManager(UIComponent):
             # Set the attack target
             target_position = (self.cursor_pos.y, self.cursor_pos.x)
             
-            # For network multiplayer, route through GameStateSync
-            if self.game_ui.multiplayer.is_network_multiplayer() and self.game_ui.multiplayer.game_state_sync:
-                # Send attack action through network
-                self.game_ui.multiplayer.game_state_sync.send_player_action("attack", {
-                    "unit_id": id(self.selected_unit),
-                    "target": target_position
-                })
-            else:
-                # For local games, apply attack directly
-                self.selected_unit.attack_target = target_position
-                
-                # Mark that this unit is taking an action (won't regenerate HP)
-                self.selected_unit.took_no_actions = False
-                
-                # Track action order
-                self.selected_unit.action_timestamp = self.game_ui.game.action_counter
-                self.game_ui.game.action_counter += 1
+            # For all games (local and network), apply attack locally during planning
+            # Network sync happens only during turn execution for fog of war
+            
+            self.selected_unit.attack_target = target_position
+            
+            # Mark that this unit is taking an action (won't regenerate HP)
+            self.selected_unit.took_no_actions = False
+            
+            # Track action order
+            self.selected_unit.action_timestamp = self.game_ui.game.action_counter
+            self.game_ui.game.action_counter += 1
             
             # Check if the target is a unit or a wall
             from boneglaive.utils.message_log import message_log, MessageType
@@ -3990,9 +3977,13 @@ class GameModeManager(UIComponent):
         
         # Route turn execution through multiplayer manager for network sync
         if self.game_ui.multiplayer.is_network_multiplayer():
-            # For networked games, send end_turn action through GameStateSync
+            # Collect all planned actions for this player before ending turn
+            planned_actions = self._collect_planned_actions()
+            
+            # For networked games, send end_turn action through GameStateSync with planned actions
             self.game_ui.multiplayer.send_player_action("end_turn", {
-                "ui": id(self.game_ui)  # Send UI reference ID for animations
+                "ui": id(self.game_ui),  # Send UI reference ID for animations
+                "planned_actions": planned_actions  # Include all planned actions for fog of war
             })
         else:
             # For local games, execute turn directly with animations
@@ -4026,6 +4017,46 @@ class GameModeManager(UIComponent):
             
         # Redraw the board to update visuals
         self.game_ui.draw_board()
+    
+    def _collect_planned_actions(self):
+        """Collect all planned actions for the current player for network sync."""
+        current_player = self.game_ui.multiplayer.get_current_player()
+        network_player = self.game_ui.multiplayer.network_interface.get_player_number()
+        
+        # Only collect actions if it's actually your turn
+        if current_player != network_player:
+            return []
+        
+        planned_actions = []
+        
+        # Collect all units with planned actions for this player
+        for unit in self.game_ui.game.units:
+            if unit.is_alive() and unit.player == network_player:
+                unit_actions = {}
+                
+                # Check for move target
+                if hasattr(unit, 'move_target') and unit.move_target is not None:
+                    unit_actions['move'] = {
+                        "unit_id": id(unit),
+                        "target": unit.move_target
+                    }
+                
+                # Check for attack target
+                if hasattr(unit, 'attack_target') and unit.attack_target is not None:
+                    unit_actions['attack'] = {
+                        "unit_id": id(unit), 
+                        "target": unit.attack_target
+                    }
+                
+                # Include other action metadata
+                if unit_actions:
+                    unit_actions['metadata'] = {
+                        "took_no_actions": getattr(unit, 'took_no_actions', True),
+                        "action_timestamp": getattr(unit, 'action_timestamp', 0)
+                    }
+                    planned_actions.append(unit_actions)
+        
+        return planned_actions
     
     def handle_test_mode(self):
         """
