@@ -64,6 +64,10 @@ class MultiplayerManager:
             result = self.network_interface.initialize()
             if result:
                 self._setup_chat_handler()
+                # Set current player based on network role
+                self.current_player = self.network_interface.get_player_number()
+                self.game.current_player = self.current_player
+                logger.info(f"LAN host initialized as player {self.current_player}")
             self.initialized = result
             return result
             
@@ -76,6 +80,10 @@ class MultiplayerManager:
             result = self.network_interface.initialize()
             if result:
                 self._setup_chat_handler()
+                # Set current player based on network role
+                self.current_player = self.network_interface.get_player_number()
+                self.game.current_player = self.current_player
+                logger.info(f"LAN client initialized as player {self.current_player}")
             self.initialized = result
             return result
             
@@ -278,6 +286,10 @@ class MultiplayerManager:
         if self.is_local_multiplayer():
             if isinstance(self.network_interface, LocalMultiplayerInterface):
                 return self.network_interface.get_player_number()
+        
+        # For network multiplayer (LAN), return the network interface's player number
+        if self.is_network_multiplayer() and self.network_interface:
+            return self.network_interface.get_player_number()
         
         return self.current_player
     
