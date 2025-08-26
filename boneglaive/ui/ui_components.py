@@ -3996,18 +3996,22 @@ class GameModeManager(UIComponent):
         
         # Handle multiplayer turn switching
         if not self.game_ui.game.winner:
-            # End turn in multiplayer manager
-            self.game_ui.multiplayer.end_turn()
-            self.game_ui.update_player_message()
-            
-            # Publish turn started event for the new player
-            self.publish_event(
-                EventType.TURN_STARTED,
-                TurnEventData(
-                    player=self.game_ui.multiplayer.get_current_player(),
-                    turn_number=self.game_ui.game.turn
+            # For network multiplayer, turn switching is handled by GameStateSync
+            # through TURN_TRANSITION messages, so we don't call end_turn() locally
+            if not self.game_ui.multiplayer.is_network_multiplayer():
+                # End turn in multiplayer manager for local/AI games only
+                self.game_ui.multiplayer.end_turn()
+                self.game_ui.update_player_message()
+                
+                # Publish turn started event for the new player
+                self.publish_event(
+                    EventType.TURN_STARTED,
+                    TurnEventData(
+                        player=self.game_ui.multiplayer.get_current_player(),
+                        turn_number=self.game_ui.game.turn
+                    )
                 )
-            )
+            # For network multiplayer, turn events will be published when TURN_TRANSITION is received
         else:
             # Publish game over event
             self.publish_event(
