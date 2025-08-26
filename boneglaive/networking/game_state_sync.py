@@ -566,6 +566,17 @@ class GameStateSync:
                 
                 # Update the player message in UI
                 self.ui.update_player_message()
+                
+                # Publish turn started event for the new player
+                from boneglaive.utils.event_system import get_event_manager, EventType, TurnEventData
+                event_manager = get_event_manager()
+                event_manager.publish(
+                    EventType.TURN_STARTED,
+                    TurnEventData(
+                        player=new_player,
+                        turn_number=turn_number
+                    )
+                )
             
         except Exception as e:
             logger.error(f"Error handling turn transition: {str(e)}")
