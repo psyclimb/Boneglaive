@@ -76,11 +76,14 @@ class MenuUI:
         play_menu = Menu("Play Game", [
             MenuItem("VS AI", self._start_vs_ai),
             MenuItem("Local Multiplayer", self._start_local_multiplayer),
+            MenuItem("LAN Host (Player 1)", self._start_lan_host),
+            MenuItem("LAN Client (Player 2)", self._start_lan_client),
             MenuItem("Back", lambda: ("submenu", None))
         ])
         
         settings_menu = Menu("Settings", [
             MenuItem("Display Settings", lambda: ("submenu", self._create_display_settings_menu())),
+            MenuItem("Network Settings", lambda: ("submenu", self._create_network_settings_menu())),
             MenuItem("Back", lambda: ("submenu", None))
         ])
         
@@ -120,6 +123,20 @@ class MenuUI:
         menu.parent = self._find_menu_by_title("Settings")
         return menu
     
+    def _create_lan_client_setup_menu(self) -> Menu:
+        """Create the LAN client setup menu for configuring connection."""
+        current_ip = self.config.get('server_ip')
+        current_port = self.config.get('server_port')
+        
+        menu = Menu("LAN Client Setup", [
+            MenuItem(f"Host IP Address: {current_ip}", self._set_server_ip),
+            MenuItem(f"Host Port: {current_port}", self._set_server_port),
+            MenuItem("Connect & Select Map", lambda: ("submenu", self._create_map_selection_menu())),
+            MenuItem("Back to Play Menu", lambda: ("submenu", None))
+        ])
+        menu.parent = self._find_menu_by_title("Play Game")
+        return menu
+    
     def _find_menu_by_title(self, title: str) -> Optional[Menu]:
         """Find a menu by its title."""
         if self.current_menu.title == title:
@@ -154,11 +171,12 @@ class MenuUI:
         return ("submenu", self._create_map_selection_menu())
     
     def _start_lan_client(self):
-        """Set LAN client mode and go to map selection."""
+        """Set LAN client mode and prompt for network settings."""
         self.config.set('network_mode', NetworkMode.LAN_CLIENT.value)
         self.config.save_config()
         logger.info("Selected LAN client mode")
-        return ("submenu", self._create_map_selection_menu())
+        # Direct to network settings first for LAN client
+        return ("submenu", self._create_lan_client_setup_menu())
         
     def _start_vs_ai(self):
         """Set VS AI mode and go to map selection."""
@@ -220,20 +238,61 @@ class MenuUI:
         return ("submenu", self._create_display_settings_menu())
     
     def _set_server_ip(self):
-        """Set the server IP address."""
-        # In a real implementation, this would show a text input dialog
-        # For now, we'll just use a placeholder
-        self.config.set('server_ip', "192.168.1.100")  # Placeholder
+        """Cycle through common server IP addresses."""
+        current_ip = self.config.get('server_ip', '127.0.0.1')
+        
+        # Common IPs for testing (including jail-friendly ranges)
+        ip_options = [
+            '127.0.0.1',      # Localhost
+            '192.168.1.10',   # Common jail IP
+            '192.168.1.11',   # Another jail IP  
+            '192.168.1.100',  # LAN host
+            '10.0.0.10',      # Another common jail range
+            '10.0.0.11'       # Another jail IP
+        ]
+        
+        try:
+            current_index = ip_options.index(current_ip)
+            next_index = (current_index + 1) % len(ip_options)
+        except ValueError:
+            # If current IP isn't in our list, start from beginning
+            next_index = 0
+        
+        new_ip = ip_options[next_index]
+        self.config.set('server_ip', new_ip)
         self.config.save_config()
-        return ("submenu", self._create_network_settings_menu())  # Refresh menu
+        logger.info(f"Server IP set to: {new_ip}")
+        
+        # Return to the appropriate menu based on context
+        if self._find_menu_by_title("LAN Client Setup"):
+            return ("submenu", self._create_lan_client_setup_menu())
+        else:
+            return ("submenu", self._create_network_settings_menu())
     
     def _set_server_port(self):
-        """Set the server port."""
-        # In a real implementation, this would show a number input dialog
-        # For now, we'll just use a placeholder
-        self.config.set('server_port', 7777)  # Placeholder
+        """Cycle through common server ports."""
+        current_port = self.config.get('server_port', 7777)
+        
+        # Common ports for testing
+        port_options = [7777, 8080, 9999, 12345]
+        
+        try:
+            current_index = port_options.index(current_port)
+            next_index = (current_index + 1) % len(port_options)
+        except ValueError:
+            # If current port isn't in our list, start from beginning
+            next_index = 0
+        
+        new_port = port_options[next_index]
+        self.config.set('server_port', new_port)
         self.config.save_config()
-        return ("submenu", self._create_network_settings_menu())  # Refresh menu
+        logger.info(f"Server port set to: {new_port}")
+        
+        # Return to the appropriate menu based on context
+        if self._find_menu_by_title("LAN Client Setup"):
+            return ("submenu", self._create_lan_client_setup_menu())
+        else:
+            return ("submenu", self._create_network_settings_menu())
     
     def _show_about(self):
         """Show the about screen with license information."""
