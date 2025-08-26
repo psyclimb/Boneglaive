@@ -3980,6 +3980,11 @@ class GameModeManager(UIComponent):
             # Collect all planned actions for this player before ending turn
             planned_actions = self._collect_planned_actions()
             
+            current_player = self.game_ui.game.current_player
+            my_player_num = self.game_ui.multiplayer.network_interface.get_player_number()
+            is_host = self.game_ui.multiplayer.network_interface.is_host()
+            logger.info(f"UI END_TURN DEBUG: Sending end_turn - current_player={current_player}, my_player_num={my_player_num}, is_host={is_host}, planned_actions_count={len(planned_actions)}")
+            
             # For networked games, send end_turn action through GameStateSync with planned actions
             self.game_ui.multiplayer.send_player_action("end_turn", {
                 "ui": id(self.game_ui),  # Send UI reference ID for animations
