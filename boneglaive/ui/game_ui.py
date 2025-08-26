@@ -333,6 +333,9 @@ class GameUI:
         
     def handle_input(self, key: int) -> bool:
         """Handle user input using the input manager."""
+        # Update multiplayer state and process network messages
+        self.multiplayer.update()
+        
         # Handle setup instructions screen
         if self.game.setup_phase and self.mode_manager.show_setup_instructions:
             self.mode_manager.show_setup_instructions = False

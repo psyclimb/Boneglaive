@@ -62,6 +62,8 @@ class MultiplayerManager:
             server_port = self.config.get('server_port')
             self.network_interface = LANMultiplayerInterface(host=True, port=server_port)
             result = self.network_interface.initialize()
+            if result:
+                self._setup_chat_handler()
             self.initialized = result
             return result
             
@@ -72,6 +74,8 @@ class MultiplayerManager:
             server_port = self.config.get('server_port')
             self.network_interface = LANMultiplayerInterface(host=False, server_ip=server_ip, port=server_port)
             result = self.network_interface.initialize()
+            if result:
+                self._setup_chat_handler()
             self.initialized = result
             return result
             
@@ -95,6 +99,32 @@ class MultiplayerManager:
             logger.error(f"Unknown network mode: {network_mode}")
             self.initialized = False
             return False
+    
+    def _setup_chat_handler(self) -> None:
+        """Set up chat message handler for network multiplayer."""
+        if self.network_interface:
+            from boneglaive.networking.network_interface import MessageType
+            self.network_interface.register_message_handler(
+                MessageType.CHAT, self._handle_chat_message
+            )
+            logger.info("Chat message handler registered")
+    
+    def _handle_chat_message(self, data: Dict[str, Any]) -> None:
+        """Handle incoming chat messages from network."""
+        try:
+            player = data.get('player')
+            message = data.get('message')
+            
+            if player and message:
+                # Add the message to the local message log
+                message_log.add_player_message(player, message)
+                logger.info(f"Received chat message from player {player}: {message}")
+            else:
+                logger.warning(f"Invalid chat message format received: {data}")
+                message_log.add_system_message("Received malformed chat message")
+        except Exception as e:
+            logger.error(f"Error handling chat message: {str(e)}")
+            message_log.add_system_message(f"Error processing chat message: {str(e)}")
     
     def is_current_player_turn(self) -> bool:
         """Check if it's the current player's turn."""
@@ -250,6 +280,18 @@ class MultiplayerManager:
                 return self.network_interface.get_player_number()
         
         return self.current_player
+    
+    def update(self) -> None:
+        """Update multiplayer state - call this each game loop iteration."""
+        if self.network_interface and self.is_network_multiplayer():
+            # Check connection status
+            if hasattr(self.network_interface, 'connected') and not self.network_interface.connected:
+                if self.initialized:  # Only report once
+                    message_log.add_system_message("Network connection lost")
+                    self.initialized = False
+            
+            # Process incoming network messages
+            self.network_interface.receive_messages()
     
     def cleanup(self) -> None:
         """Clean up network resources."""
