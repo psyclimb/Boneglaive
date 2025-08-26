@@ -2292,6 +2292,12 @@ class CursorManager(UIComponent):
                 self.game_ui.message = f"Player {current_setup_player} is placing units..."
                 return
         
+        # Block cursor movement during main game when it's not this player's turn
+        if not self.game_ui.game.setup_phase and not self.can_act_this_turn():
+            current_player = self.game_ui.multiplayer.get_current_player()
+            self.game_ui.message = f"Player {current_player} is thinking..."
+            return
+        
         previous_pos = self.cursor_pos
         new_y = max(0, min(HEIGHT-1, self.cursor_pos.y + dy))
         new_x = max(0, min(WIDTH-1, self.cursor_pos.x + dx))
@@ -2487,15 +2493,25 @@ class CursorManager(UIComponent):
             from_position = Position(self.selected_unit.y, self.selected_unit.x)
             to_position = cursor_position
             
-            # Set the move target
-            self.selected_unit.move_target = (to_position.y, to_position.x)
-            
-            # Mark that this unit is taking an action (won't regenerate HP)
-            self.selected_unit.took_no_actions = False
-            
-            # Track action order
-            self.selected_unit.action_timestamp = self.game_ui.game.action_counter
-            self.game_ui.game.action_counter += 1
+            # For network multiplayer, route through GameStateSync
+            if self.game_ui.multiplayer.is_network_multiplayer() and self.game_ui.multiplayer.game_state_sync:
+                # Send move action through network
+                self.game_ui.multiplayer.game_state_sync.send_player_action("move", {
+                    "unit_id": id(self.selected_unit),
+                    "target": (to_position.y, to_position.x),
+                    "from_position": (from_position.y, from_position.x)
+                })
+            else:
+                # For local games, apply move directly
+                # Set the move target
+                self.selected_unit.move_target = (to_position.y, to_position.x)
+                
+                # Mark that this unit is taking an action (won't regenerate HP)
+                self.selected_unit.took_no_actions = False
+                
+                # Track action order
+                self.selected_unit.action_timestamp = self.game_ui.game.action_counter
+                self.game_ui.game.action_counter += 1
             
             # Publish move planned event
             self.publish_event(
@@ -2559,14 +2575,24 @@ class CursorManager(UIComponent):
         if cursor_position in self.highlighted_positions:
             # Set the attack target
             target_position = (self.cursor_pos.y, self.cursor_pos.x)
-            self.selected_unit.attack_target = target_position
             
-            # Mark that this unit is taking an action (won't regenerate HP)
-            self.selected_unit.took_no_actions = False
-            
-            # Track action order
-            self.selected_unit.action_timestamp = self.game_ui.game.action_counter
-            self.game_ui.game.action_counter += 1
+            # For network multiplayer, route through GameStateSync
+            if self.game_ui.multiplayer.is_network_multiplayer() and self.game_ui.multiplayer.game_state_sync:
+                # Send attack action through network
+                self.game_ui.multiplayer.game_state_sync.send_player_action("attack", {
+                    "unit_id": id(self.selected_unit),
+                    "target": target_position
+                })
+            else:
+                # For local games, apply attack directly
+                self.selected_unit.attack_target = target_position
+                
+                # Mark that this unit is taking an action (won't regenerate HP)
+                self.selected_unit.took_no_actions = False
+                
+                # Track action order
+                self.selected_unit.action_timestamp = self.game_ui.game.action_counter
+                self.game_ui.game.action_counter += 1
             
             # Check if the target is a unit or a wall
             from boneglaive.utils.message_log import message_log, MessageType

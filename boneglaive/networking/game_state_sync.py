@@ -44,6 +44,12 @@ class GameStateSync:
         self.network.register_message_handler(
             MessageType.SETUP_COMPLETE, self._handle_setup_complete
         )
+        self.network.register_message_handler(
+            MessageType.TURN_TRANSITION, self._handle_turn_transition
+        )
+        self.network.register_message_handler(
+            MessageType.TURN_COMPLETE, self._handle_turn_complete
+        )
     
     def set_ui_reference(self, ui) -> None:
         """Set the UI reference for animations."""
@@ -296,6 +302,8 @@ class GameStateSync:
             for unit in self.game.units:
                 if id(unit) == unit_id and unit.is_alive():
                     unit.move_target = target
+                    # Mark that this unit is taking an action (won't regenerate HP)
+                    unit.took_no_actions = False
                     # Track action order
                     unit.action_timestamp = self.game.action_counter
                     self.game.action_counter += 1
@@ -309,6 +317,8 @@ class GameStateSync:
             for unit in self.game.units:
                 if id(unit) == unit_id and unit.is_alive():
                     unit.attack_target = target
+                    # Mark that this unit is taking an action (won't regenerate HP)
+                    unit.took_no_actions = False
                     # Track action order
                     unit.action_timestamp = self.game.action_counter
                     self.game.action_counter += 1
@@ -320,6 +330,42 @@ class GameStateSync:
                 self.game.execute_turn(self.ui)
             else:
                 self.game.execute_turn()
+            
+            # Handle turn transition after execution (only host)
+            if self.network.is_host():
+                # Determine next player
+                current_player = self.game.current_player
+                next_player = 2 if current_player == 1 else 1
+                
+                # Update game state
+                if current_player == 1:
+                    # Player 1 finished, switch to Player 2
+                    self.game.current_player = 2
+                elif current_player == 2:
+                    # Player 2 finished, switch to Player 1 and increment turn
+                    self.game.current_player = 1
+                    self.game.turn += 1
+                
+                # Initialize the new player's turn
+                self.game.initialize_next_player_turn()
+                
+                # Send turn transition to client
+                self.network.send_message(MessageType.TURN_TRANSITION, {
+                    "new_player": self.game.current_player,
+                    "turn_number": self.game.turn,
+                    "timestamp": time.time()
+                })
+                logger.info(f"Sent turn transition to Player {self.game.current_player}")
+                
+                # Update UI for host
+                if self.ui:
+                    from boneglaive.utils.message_log import message_log, MessageType as LogMessageType
+                    if self.game.current_player == self.network.get_player_number():
+                        message_log.add_system_message(f"Your turn - Turn {self.game.turn}")
+                        self.ui.message = f"Your turn - Turn {self.game.turn}"
+                    else:
+                        message_log.add_system_message(f"Player {self.game.current_player}'s turn - Turn {self.game.turn}")  
+                        self.ui.message = f"Player {self.game.current_player} is thinking..."
         
         # Add more action types as needed
     
@@ -457,5 +503,52 @@ class GameStateSync:
                     
                     # Apply setup complete locally
                     self._handle_setup_complete({})
+        
+        # Add more setup action types as needed
+    
+    def _handle_turn_transition(self, data: Dict[str, Any]) -> None:
+        """
+        Handle turn transition message.
+        Both players should receive this to sync turn state.
+        """
+        try:
+            new_player = data.get("new_player", 1)
+            turn_number = data.get("turn_number", 1)
+            logger.info(f"Turn transition: Player {new_player}, Turn {turn_number}")
+            
+            # Update local game state
+            self.game.current_player = new_player
+            self.game.turn = turn_number
+            
+            # Initialize the new player's turn locally
+            self.game.initialize_next_player_turn()
+            
+            # Update UI
+            if self.ui:
+                from boneglaive.utils.message_log import message_log, MessageType as LogMessageType
+                if new_player == self.network.get_player_number():
+                    message_log.add_system_message(f"Your turn - Turn {turn_number}")
+                    self.ui.message = f"Your turn - Turn {turn_number}"
+                else:
+                    message_log.add_system_message(f"Player {new_player}'s turn - Turn {turn_number}")
+                    self.ui.message = f"Player {new_player} is thinking..."
+                
+                # Update the player message in UI
+                self.ui.update_player_message()
+            
+        except Exception as e:
+            logger.error(f"Error handling turn transition: {str(e)}")
+    
+    def _handle_turn_complete(self, data: Dict[str, Any]) -> None:
+        """
+        Handle turn complete message.
+        This can be used for future turn validation/confirmation.
+        """
+        try:
+            logger.info("Turn execution complete")
+            # Future: Add turn completion validation logic here
+            
+        except Exception as e:
+            logger.error(f"Error handling turn complete: {str(e)}")
         
         # Add more setup action types as needed

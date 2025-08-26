@@ -208,6 +208,13 @@ class MultiplayerManager:
 
                 logger.info(f"Switched to player {self.current_player}")
         
+        elif self.is_network_multiplayer():
+            # In network multiplayer, turn switching is handled by the host
+            # through GameStateSync - the current player doesn't change locally
+            # until we receive a turn transition message from the host
+            logger.info(f"Network multiplayer turn end - current player stays {self.current_player}")
+            # Turn switching will be handled by GameStateSync when turn execution completes
+            
         elif self.is_vs_ai():
             # In VS AI mode, switch between player 1 and AI (player 2)
             if self.current_player == 1:
@@ -293,9 +300,10 @@ class MultiplayerManager:
             if isinstance(self.network_interface, LocalMultiplayerInterface):
                 return self.network_interface.get_player_number()
         
-        # For network multiplayer (LAN), return the network interface's player number
-        if self.is_network_multiplayer() and self.network_interface:
-            return self.network_interface.get_player_number()
+        # For network multiplayer (LAN), return the game engine's current player
+        # This is synchronized through GameStateSync turn transitions
+        if self.is_network_multiplayer():
+            return self.game.current_player
         
         return self.current_player
     
