@@ -408,13 +408,18 @@ class GameStateSync:
                     logger.error(f"Error placing setup unit: {str(e)}")
         
         elif action_type == "confirm_setup":
-            # Confirm the current player's setup
-            game_start = self.game.confirm_setup()
-            logger.info(f"Setup confirmed for player {self.game.setup_player}")
+            # Store which player is confirming before calling confirm_setup
+            confirming_player = self.game.setup_player
+            
+            # For network multiplayer, manually handle the setup confirmation logic
+            # instead of using the game engine's logic which assumes local multiplayer
+            self.game.setup_confirmed[confirming_player] = True
+            logger.info(f"Setup confirmed for player {confirming_player}")
             
             if self.network.is_host():
-                if self.game.setup_player == 2:
+                if confirming_player == 1:
                     # Player 1 confirmed, transition to Player 2
+                    self.game.setup_player = 2
                     self.network.send_message(MessageType.SETUP_PHASE_TRANSITION, {
                         "setup_player": 2,
                         "timestamp": time.time()
@@ -427,8 +432,20 @@ class GameStateSync:
                         message_log.add_system_message("Player 2 is placing units...")
                         self.ui.message = "Player 2 is placing units..."
                 
-                elif game_start:
+                elif confirming_player == 2:
                     # Player 2 confirmed, game starts
+                    # Resolve any unit placement conflicts before the game starts
+                    self.game._resolve_unit_placement_conflicts()
+                    
+                    # Assign Greek identification letters to units
+                    self.game._assign_greek_identifiers()
+                    
+                    # Move FOWL_CONTRIVANCE units to nearest rails
+                    self.game._move_fowl_contrivances_to_rails()
+                    
+                    # End setup phase
+                    self.game.setup_phase = False
+                    
                     self.network.send_message(MessageType.SETUP_COMPLETE, {
                         "timestamp": time.time()
                     })
