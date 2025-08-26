@@ -30,6 +30,8 @@ class MessageType(Enum):
     SETUP_ACTION = "setup_action"
     SETUP_PHASE_TRANSITION = "setup_phase_transition"
     SETUP_COMPLETE = "setup_complete"
+    TURN_TRANSITION = "turn_transition"
+    TURN_COMPLETE = "turn_complete"
 
 class NetworkInterface(abc.ABC):
     """Abstract base class for network implementations."""
