@@ -154,9 +154,15 @@ class LANMultiplayerInterface(NetworkInterface):
                 for i in range(len(messages) - 1):
                     try:
                         message = json.loads(messages[i].decode('utf-8'))
-                        self.message_queue.append(message)
-                    except json.JSONDecodeError:
-                        logger.warning(f"Received invalid JSON: {messages[i]}")
+                        # Validate message structure
+                        if isinstance(message, dict) and 'type' in message and 'data' in message:
+                            self.message_queue.append(message)
+                        else:
+                            logger.warning(f"Received message with invalid structure: {message}")
+                    except json.JSONDecodeError as e:
+                        logger.warning(f"Received invalid JSON: {messages[i]}, error: {str(e)}")
+                    except Exception as e:
+                        logger.error(f"Error processing message: {str(e)}")
                 
                 # Keep the incomplete message in the buffer
                 buffer = messages[-1]
