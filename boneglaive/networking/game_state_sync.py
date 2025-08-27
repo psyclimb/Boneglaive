@@ -970,15 +970,10 @@ class GameStateSync:
                 self.network.send_message(MessageType.GAME_STATE_PARITY_CHECK, parity_response)
                 logger.info(f"GAME_STATE_PARITY DEBUG: Sent parity response (match: {parity_match})")
                 
-                # If there's a mismatch, request full sync
+                # If there's a mismatch, use structured recovery system
                 if not parity_match:
-                    logger.warning(f"GAME_STATE_RECOVERY: Game state desync detected - requesting full sync from Player {from_player}")
-                    sync_request = {
-                        "from_player": self.network.get_player_number(),
-                        "turn_number": turn_number,
-                        "timestamp": time.time()
-                    }
-                    self.network.send_message(MessageType.GAME_STATE_SYNC_REQUEST, sync_request)
+                    logger.warning(f"GAME_STATE_RECOVERY: Game state desync detected - using structured recovery")
+                    self.handle_state_desync(other_checksum, from_player, turn_number)
                 
         except Exception as e:
             logger.error(f"Error handling game state batch: {str(e)}")
@@ -1008,14 +1003,9 @@ class GameStateSync:
                 logger.warning(f"GAME_STATE_PARITY RESULT: ✗ Game state sync issue detected after turn {turn_number}")
                 logger.warning(f"Their verification: {parity_match}, My verification: {our_parity_match}")
                 
-                # Request full sync to fix the issue
-                logger.warning(f"GAME_STATE_RECOVERY: Requesting full game state sync from Player {from_player}")
-                sync_request = {
-                    "from_player": self.network.get_player_number(),
-                    "turn_number": turn_number,
-                    "timestamp": time.time()
-                }
-                self.network.send_message(MessageType.GAME_STATE_SYNC_REQUEST, sync_request)
+                # Use structured recovery system to fix the issue
+                logger.warning(f"GAME_STATE_RECOVERY: Using structured recovery system")
+                self.handle_state_desync(their_checksum, from_player, turn_number)
                 
         except Exception as e:
             logger.error(f"Error handling game state parity check: {str(e)}")
@@ -1067,31 +1057,14 @@ class GameStateSync:
             logger.warning(f"GAME_STATE_FULL_SYNC DEBUG: Received full game state from Player {from_player}")
             
             if state_data and other_checksum:
-                # Store current state for comparison
-                old_checksum = game_state_serializer.generate_checksum(self.game)
+                # Use structured recovery system with UI preservation
+                recovery_success = self.replace_game_state_with_recovery(
+                    state_data, other_checksum, from_player
+                )
                 
-                # Replace our game state with the authoritative version
-                game_state_serializer.deserialize_game_state(state_data, self.game)
-                
-                # Verify the sync worked
-                new_checksum = game_state_serializer.generate_checksum(self.game)
-                
-                logger.warning(f"GAME_STATE_FULL_SYNC DEBUG: State replacement complete")
-                logger.warning(f"Old checksum: {old_checksum}")
-                logger.warning(f"Expected: {other_checksum}")  
-                logger.warning(f"New checksum: {new_checksum}")
-                
-                if new_checksum == other_checksum:
-                    logger.info(f"GAME_STATE_RECOVERY: ✓ Game state successfully synchronized with Player {from_player}")
-                    
-                    # Add system message about recovery
-                    from boneglaive.utils.message_log import message_log, MessageType as LogMessageType
-                    message_log.add_message(
-                        "Game state synchronized with other player",
-                        LogMessageType.SYSTEM
-                    )
-                else:
-                    logger.error(f"GAME_STATE_RECOVERY: ✗ Game state sync failed - checksums still don't match")
+                if not recovery_success:
+                    logger.error(f"GAME_STATE_RECOVERY: ✗ Structured recovery failed for Player {from_player}")
+                    # Could implement additional fallback mechanisms here if needed
             
         except Exception as e:
             logger.error(f"Error handling game state full sync: {str(e)}")
@@ -1202,3 +1175,291 @@ class GameStateSync:
         except Exception as e:
             logger.error(f"Error in end-of-turn sync: {str(e)}")
             return False
+    
+    # ===== PHASE 5.5: RECOVERY & ERROR HANDLING METHODS =====
+    
+    def handle_state_desync(self, other_checksum: str, from_player: int, turn_number: int) -> bool:
+        """
+        Handle detected game state desync by requesting authoritative state.
+        Phase 5.5: Comprehensive desync detection and recovery.
+        """
+        try:
+            my_checksum = game_state_serializer.generate_checksum(self.game)
+            
+            logger.warning(f"DESYNC_HANDLER: Game state desync detected!")
+            logger.warning(f"  Turn: {turn_number}, From Player: {from_player}")
+            logger.warning(f"  My checksum: {my_checksum}")
+            logger.warning(f"  Their checksum: {other_checksum}")
+            
+            # Request full game state from the other player
+            return self.request_full_game_state_sync(from_player, turn_number)
+            
+        except Exception as e:
+            logger.error(f"Error handling state desync: {str(e)}")
+            return False
+    
+    def request_full_game_state_sync(self, from_player: int, turn_number: int) -> bool:
+        """
+        Request complete game state from another player for recovery.
+        Phase 5.5: Structured sync request with error handling.
+        """
+        try:
+            logger.warning(f"SYNC_REQUEST: Requesting full game state from Player {from_player}")
+            
+            sync_request = {
+                "from_player": self.network.get_player_number(),
+                "target_player": from_player,
+                "turn_number": turn_number,
+                "timestamp": time.time(),
+                "reason": "checksum_mismatch"
+            }
+            
+            success = self.network.send_message(MessageType.GAME_STATE_SYNC_REQUEST, sync_request)
+            
+            if success:
+                logger.warning(f"SYNC_REQUEST: ✓ Full state sync request sent to Player {from_player}")
+                return True
+            else:
+                logger.error(f"SYNC_REQUEST: ✗ Failed to send sync request to Player {from_player}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error requesting full game state sync: {str(e)}")
+            return False
+    
+    def replace_game_state_with_recovery(self, authoritative_state: Dict[str, Any], 
+                                       expected_checksum: str, from_player: int) -> bool:
+        """
+        Replace entire game state with authoritative version, preserving UI state.
+        Phase 5.5: Complete state recovery with UI preservation.
+        """
+        try:
+            logger.warning(f"STATE_REPLACEMENT: Starting full game state recovery from Player {from_player}")
+            
+            # Store current state for rollback if needed
+            old_checksum = game_state_serializer.generate_checksum(self.game)
+            
+            # Preserve UI state during recovery
+            ui_state = self.preserve_ui_state()
+            
+            # Replace complete game state
+            logger.warning(f"STATE_REPLACEMENT: Applying authoritative game state...")
+            game_state_serializer.deserialize_game_state(authoritative_state, self.game)
+            
+            # Verify the replacement worked
+            new_checksum = game_state_serializer.generate_checksum(self.game)
+            
+            logger.warning(f"STATE_REPLACEMENT: Recovery verification:")
+            logger.warning(f"  Old checksum: {old_checksum}")
+            logger.warning(f"  Expected: {expected_checksum}")
+            logger.warning(f"  New checksum: {new_checksum}")
+            
+            if new_checksum == expected_checksum:
+                # Restore UI state after successful replacement
+                self.restore_ui_state(ui_state)
+                
+                # Add system message about recovery
+                from boneglaive.utils.message_log import message_log, MessageType as LogMessageType
+                message_log.add_message(
+                    f"Game state synchronized with Player {from_player}",
+                    LogMessageType.SYSTEM
+                )
+                
+                logger.info(f"STATE_REPLACEMENT: ✓ Game state successfully recovered from Player {from_player}")
+                return True
+            else:
+                logger.error(f"STATE_REPLACEMENT: ✗ State recovery failed - checksum mismatch persists")
+                logger.error(f"  Expected: {expected_checksum}, Got: {new_checksum}")
+                
+                # Restore UI state even on failure
+                self.restore_ui_state(ui_state)
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error replacing game state: {str(e)}")
+            # Try to restore UI state on exception
+            try:
+                if 'ui_state' in locals():
+                    self.restore_ui_state(ui_state)
+            except:
+                pass
+            return False
+    
+    def preserve_ui_state(self) -> Dict[str, Any]:
+        """
+        Preserve UI state that should survive game state recovery.
+        Phase 5.5: UI state preservation during recovery.
+        """
+        ui_state = {}
+        
+        try:
+            # Preserve UI reference if available
+            if hasattr(self, 'ui') and self.ui:
+                ui_state['ui_reference'] = self.ui
+                
+                # Preserve current UI mode/state
+                if hasattr(self.ui, 'current_mode'):
+                    ui_state['current_mode'] = self.ui.current_mode
+                
+                # Preserve selected unit/cursor position
+                if hasattr(self.ui, 'selected_unit'):
+                    ui_state['selected_unit_id'] = getattr(self.ui.selected_unit, 'greek_id', None)
+                
+                if hasattr(self.ui, 'cursor_y') and hasattr(self.ui, 'cursor_x'):
+                    ui_state['cursor_position'] = (self.ui.cursor_y, self.ui.cursor_x)
+                
+                # Preserve any active UI indicators
+                if hasattr(self.ui, 'active_indicators'):
+                    ui_state['active_indicators'] = copy.deepcopy(self.ui.active_indicators)
+            
+            # Preserve multiplayer manager state
+            if self.multiplayer_manager:
+                ui_state['multiplayer_manager'] = self.multiplayer_manager
+            
+            logger.debug(f"UI_PRESERVATION: Preserved {len(ui_state)} UI state components")
+            return ui_state
+            
+        except Exception as e:
+            logger.error(f"Error preserving UI state: {str(e)}")
+            return {}
+    
+    def restore_ui_state(self, ui_state: Dict[str, Any]) -> None:
+        """
+        Restore UI state after game state recovery.
+        Phase 5.5: UI state restoration after recovery.
+        """
+        try:
+            if not ui_state:
+                logger.debug("UI_RESTORATION: No UI state to restore")
+                return
+            
+            # Restore UI reference
+            if 'ui_reference' in ui_state and ui_state['ui_reference']:
+                self.ui = ui_state['ui_reference']
+                
+                # Restore UI mode
+                if 'current_mode' in ui_state and hasattr(self.ui, 'current_mode'):
+                    self.ui.current_mode = ui_state['current_mode']
+                
+                # Restore selected unit by ID
+                if 'selected_unit_id' in ui_state and ui_state['selected_unit_id']:
+                    selected_id = ui_state['selected_unit_id']
+                    for unit in self.game.units:
+                        if unit.greek_id == selected_id:
+                            if hasattr(self.ui, 'selected_unit'):
+                                self.ui.selected_unit = unit
+                            break
+                
+                # Restore cursor position
+                if 'cursor_position' in ui_state:
+                    cursor_y, cursor_x = ui_state['cursor_position']
+                    if hasattr(self.ui, 'cursor_y'):
+                        self.ui.cursor_y = cursor_y
+                    if hasattr(self.ui, 'cursor_x'):
+                        self.ui.cursor_x = cursor_x
+                
+                # Restore active indicators
+                if 'active_indicators' in ui_state and hasattr(self.ui, 'active_indicators'):
+                    self.ui.active_indicators = ui_state['active_indicators']
+            
+            # Restore multiplayer manager
+            if 'multiplayer_manager' in ui_state:
+                self.multiplayer_manager = ui_state['multiplayer_manager']
+            
+            logger.debug(f"UI_RESTORATION: Restored {len(ui_state)} UI state components")
+            
+        except Exception as e:
+            logger.error(f"Error restoring UI state: {str(e)}")
+    
+    def detect_and_handle_network_errors(self) -> bool:
+        """
+        Detect and handle various network error conditions.
+        Phase 5.5: Comprehensive network error handling.
+        """
+        try:
+            # Check network interface status
+            if not self.network or not hasattr(self.network, 'connected'):
+                logger.warning("NETWORK_ERROR: No network interface available")
+                return False
+            
+            if not self.network.connected:
+                logger.warning("NETWORK_ERROR: Network connection lost")
+                
+                # Add system message about network issues
+                from boneglaive.utils.message_log import message_log, MessageType as LogMessageType
+                message_log.add_message(
+                    "Network connection lost - attempting to reconnect...",
+                    LogMessageType.SYSTEM
+                )
+                
+                # Attempt reconnection if interface supports it
+                if hasattr(self.network, 'reconnect'):
+                    try:
+                        reconnect_success = self.network.reconnect()
+                        if reconnect_success:
+                            message_log.add_message(
+                                "Network connection restored",
+                                LogMessageType.SYSTEM
+                            )
+                            logger.info("NETWORK_RECOVERY: Connection successfully restored")
+                            return True
+                    except Exception as reconnect_error:
+                        logger.error(f"NETWORK_RECOVERY: Reconnection failed: {str(reconnect_error)}")
+                
+                return False
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error in network error detection: {str(e)}")
+            return False
+    
+    def set_ui_reference(self, ui) -> None:
+        """
+        Set UI reference for recovery operations.
+        Phase 5.5: UI integration for recovery.
+        """
+        self.ui = ui
+        logger.debug("UI_INTEGRATION: UI reference set for game state sync")
+    
+    def update_with_error_handling(self) -> None:
+        """
+        Enhanced update method with comprehensive error handling.
+        Phase 5.5: Integrated error detection and recovery.
+        """
+        try:
+            # Check for network errors
+            network_ok = self.detect_and_handle_network_errors()
+            
+            if network_ok:
+                # Perform regular network message processing
+                if hasattr(self.network, 'receive_messages'):
+                    self.network.receive_messages()
+            
+        except Exception as e:
+            logger.error(f"Error in enhanced update cycle: {str(e)}")
+    
+    def get_recovery_status(self) -> Dict[str, Any]:
+        """
+        Get current recovery and synchronization status.
+        Phase 5.5: Status monitoring for debugging.
+        """
+        try:
+            status = {
+                "network_connected": False,
+                "last_sync_time": self.last_sync_time,
+                "game_checksum": None,
+                "recovery_active": False
+            }
+            
+            if self.network and hasattr(self.network, 'connected'):
+                status["network_connected"] = self.network.connected
+            
+            if self.game:
+                status["game_checksum"] = game_state_serializer.generate_checksum(self.game)
+            
+            return status
+            
+        except Exception as e:
+            logger.error(f"Error getting recovery status: {str(e)}")
+            return {"error": str(e)}
