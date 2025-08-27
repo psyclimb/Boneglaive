@@ -949,30 +949,50 @@ class GameStateSync:
             logger.info(f"GAME_STATE_BATCH DEBUG: Received game state from player {from_player} turn {turn_number}")
             
             if state_data and other_checksum:
-                # Generate our current game state checksum
-                my_checksum = game_state_serializer.generate_checksum(self.game)
+                # Generate our current game state checksum BEFORE applying received state
+                my_checksum_before = game_state_serializer.generate_checksum(self.game)
                 
-                # Compare checksums for parity check
-                parity_match = my_checksum == other_checksum
+                logger.info(f"GAME_STATE_APPLY DEBUG: Applying game state from player {from_player}")
+                logger.info(f"GAME_STATE_APPLY DEBUG: My checksum before: {my_checksum_before}")
+                logger.info(f"GAME_STATE_APPLY DEBUG: Their checksum: {other_checksum}")
                 
-                logger.info(f"GAME_STATE_PARITY DEBUG: My checksum={my_checksum}, Their checksum={other_checksum}, Match={parity_match}")
-                
-                # Send parity check response
-                parity_response = {
-                    "my_checksum": my_checksum,
-                    "their_checksum": other_checksum,
-                    "from_player": self.network.get_player_number(),
-                    "parity_match": parity_match,
-                    "turn_number": turn_number,
-                    "timestamp": time.time()
-                }
-                
-                self.network.send_message(MessageType.GAME_STATE_PARITY_CHECK, parity_response)
-                logger.info(f"GAME_STATE_PARITY DEBUG: Sent parity response (match: {parity_match})")
-                
-                # If there's a mismatch, use structured recovery system
-                if not parity_match:
-                    logger.warning(f"GAME_STATE_RECOVERY: Game state desync detected - using structured recovery")
+                # CRITICAL FIX: Apply the received game state to our game
+                # This was the missing piece - we were only checking parity, not applying state!
+                try:
+                    game_state_serializer.deserialize_game_state(state_data, self.game)
+                    logger.info(f"GAME_STATE_APPLY DEBUG: ✓ Game state successfully applied from player {from_player}")
+                    
+                    # Verify the application worked by checking new checksum
+                    my_checksum_after = game_state_serializer.generate_checksum(self.game)
+                    parity_match = my_checksum_after == other_checksum
+                    
+                    logger.info(f"GAME_STATE_APPLY DEBUG: My checksum after: {my_checksum_after}")
+                    logger.info(f"GAME_STATE_APPLY DEBUG: Parity match after apply: {parity_match}")
+                    
+                    # Send parity check response
+                    parity_response = {
+                        "my_checksum": my_checksum_after,
+                        "their_checksum": other_checksum,
+                        "from_player": self.network.get_player_number(),
+                        "parity_match": parity_match,
+                        "turn_number": turn_number,
+                        "timestamp": time.time()
+                    }
+                    
+                    self.network.send_message(MessageType.GAME_STATE_PARITY_CHECK, parity_response)
+                    logger.info(f"GAME_STATE_APPLY DEBUG: Sent parity response (match: {parity_match})")
+                    
+                    # If there's still a mismatch after applying, use recovery system
+                    if not parity_match:
+                        logger.warning(f"GAME_STATE_RECOVERY: State mismatch persists after apply - using recovery")
+                        self.handle_state_desync(other_checksum, from_player, turn_number)
+                    else:
+                        # Successfully synchronized!
+                        logger.info(f"GAME_STATE_APPLY DEBUG: ✓ Game state successfully synchronized with player {from_player}")
+                        
+                except Exception as apply_error:
+                    logger.error(f"GAME_STATE_APPLY ERROR: Failed to apply game state: {str(apply_error)}")
+                    # Use recovery system if direct application fails
                     self.handle_state_desync(other_checksum, from_player, turn_number)
                 
         except Exception as e:
