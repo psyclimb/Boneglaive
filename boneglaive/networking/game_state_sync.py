@@ -31,9 +31,7 @@ class GameStateSync:
         self.pending_actions = []
         
         # Register message handlers
-        self.network.register_message_handler(
-            MessageType.GAME_STATE, self._handle_game_state
-        )
+        # OLD GAME_STATE handler removed - Phase 5 uses GAME_STATE_BATCH only
         self.network.register_message_handler(
             MessageType.PLAYER_ACTION, self._handle_player_action
         )
@@ -107,11 +105,10 @@ class GameStateSync:
         self._apply_pending_actions()
         
         # Sync game state if host and enough time has passed
-        current_time = time.time()
-        if (self.network.is_host() and 
-            current_time - self.last_sync_time >= self.sync_interval):
-            self._sync_game_state()
-            self.last_sync_time = current_time
+        # OLD GAME STATE SYNC DISABLED - Phase 5 uses batch system only
+        # The old continuous sync system conflicts with Phase 5 batch system
+        # Game state sync now happens only at end-of-turn via GAME_STATE_BATCH messages
+        pass
     
     def _sync_game_state(self) -> None:
         """
@@ -143,39 +140,21 @@ class GameStateSync:
     
     def _serialize_game_state(self) -> Dict[str, Any]:
         """
-        Convert game state to a serializable dictionary.
+        OLD BASIC SERIALIZER - DISABLED for Phase 5
+        This basic serializer conflicts with comprehensive Phase 5 game_state_serializer
+        Phase 5 serializes 50+ properties vs this basic 10-property version
         """
-        state = {
-            "turn": self.game.turn,
-            "current_player": self.game.current_player,
-            "winner": self.game.winner,
-            "units": []
-        }
-        
-        # Serialize units
-        for unit in self.game.units:
-            if unit.is_alive():
-                unit_data = {
-                    "type": unit.type.name,
-                    "player": unit.player,
-                    "position": {"y": unit.y, "x": unit.x},
-                    "hp": unit.hp,
-                    "max_hp": unit.max_hp,
-                    "attack": unit.attack,
-                    "defense": unit.defense,
-                    "move_range": unit.move_range,
-                    "attack_range": unit.attack_range,
-                    "move_target": unit.move_target,
-                    "attack_target": unit.attack_target
-                }
-                state["units"].append(unit_data)
-        
-        return state
+        logger.warning("OLD_SERIALIZER: Called old _serialize_game_state - should use game_state_serializer.serialize_game_state() instead")
+        return {"disabled": "old_system", "use": "game_state_serializer.serialize_game_state()"}
     
     def _deserialize_game_state(self, state: Dict[str, Any]) -> None:
         """
-        Apply a serialized game state to the game.
+        OLD BASIC DESERIALIZER - DISABLED for Phase 5
+        This basic deserializer conflicts with comprehensive Phase 5 system
+        Phase 5 handles 50+ properties, status effects, skills, visual indicators, etc.
         """
+        logger.warning("OLD_DESERIALIZER: Called old _deserialize_game_state - should use game_state_serializer.deserialize_game_state() instead")
+        return  # Disabled - Phase 5 uses comprehensive deserializer
         # Update game state
         self.game.turn = state["turn"]
         self.game.current_player = state["current_player"]
@@ -214,24 +193,11 @@ class GameStateSync:
     
     def _handle_game_state(self, data: Dict[str, Any]) -> None:
         """
-        Handle received game state message.
+        OLD GAME STATE HANDLER - DISABLED for Phase 5
+        This method conflicts with Phase 5 batch system - now using GAME_STATE_BATCH only
         """
-        # Only non-host players should apply received game state
-        if self.network.is_host():
-            return
-        
-        try:
-            state = data.get("state", {})
-            timestamp = data.get("timestamp", 0)
-            
-            # Queue the state to be applied
-            self.received_states.append((state, timestamp))
-            
-            # Sort by timestamp
-            self.received_states.sort(key=lambda x: x[1])
-            
-        except Exception as e:
-            logger.error(f"Error handling game state: {str(e)}")
+        logger.warning("OLD_GAME_STATE_HANDLER: Received old-style GAME_STATE message - ignoring (Phase 5 uses GAME_STATE_BATCH)")
+        return
     
     def send_player_action(self, action_type: str, data: Dict[str, Any]) -> None:
         """
@@ -369,17 +335,16 @@ class GameStateSync:
     def _apply_pending_actions(self) -> None:
         """
         Apply any pending player actions.
+        PHASE 5 NOTE: Old game state application disabled - now using GAME_STATE_BATCH system
         """
-        # Apply received game states (for non-host)
+        # OLD GAME STATE APPLICATION DISABLED - Phase 5 uses batch system
+        # This old code conflicts with Phase 5 game state batch handling
+        # Game states now applied via _handle_game_state_batch() only
         if not self.network.is_host() and self.received_states:
-            # Don't apply game state during setup phase - setup has its own message handling
-            if not self.game.setup_phase:
-                # Apply only the most recent state
-                latest_state, _ = self.received_states[-1]
-                self._deserialize_game_state(latest_state)
-            self.received_states = []
+            logger.warning("OLD_STATE_APPLICATION: Ignoring old received_states queue - using Phase 5 batch system")
+            self.received_states = []  # Clear old queue to prevent interference
         
-        # Apply pending actions (for host)
+        # Apply pending actions (for host) - this part is still used
         if self.network.is_host() and self.pending_actions:
             for action_type, action_data, _ in self.pending_actions:
                 self._apply_action(action_type, action_data)
