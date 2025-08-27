@@ -227,13 +227,41 @@ class GameStateSync:
             self._apply_action(action_type, data)
             return
         
-        # Send action to host
-        logger.info(f"SEND_ACTION DEBUG: Client sending {action_type} to host")
-        self.network.send_message(MessageType.PLAYER_ACTION, {
+        # For end_turn actions, include the client's message batch
+        action_data = {
             "action_type": action_type,
             "data": data,
             "timestamp": time.time()
-        })
+        }
+        
+        if action_type == "end_turn":
+            # Collect client's message batch and include it
+            from boneglaive.utils.message_log import message_log
+            if message_log.is_batching:
+                client_messages = message_log.end_turn_batch()
+                
+                # Include pending chat messages
+                if self.multiplayer_manager and hasattr(self.multiplayer_manager, 'pending_chat_messages'):
+                    pending_chats = self.multiplayer_manager.pending_chat_messages
+                    if pending_chats:
+                        client_messages.extend(pending_chats)
+                        self.multiplayer_manager.pending_chat_messages = []
+                        logger.info(f"CLIENT END_TURN DEBUG: Added {len(pending_chats)} pending chat messages to client batch")
+                
+                # Serialize MessageType enums to strings
+                serialized_messages = []
+                for msg in client_messages:
+                    serialized_msg = msg.copy()
+                    if 'type' in serialized_msg and hasattr(serialized_msg['type'], 'value'):
+                        serialized_msg['type'] = serialized_msg['type'].value
+                    serialized_messages.append(serialized_msg)
+                
+                action_data["client_message_batch"] = serialized_messages
+                logger.info(f"CLIENT END_TURN DEBUG: Sending {len(client_messages)} messages in batch to host")
+        
+        # Send action to host
+        logger.info(f"SEND_ACTION DEBUG: Client sending {action_type} to host")
+        self.network.send_message(MessageType.PLAYER_ACTION, action_data)
     
     def send_setup_action(self, action_type: str, data: Dict[str, Any]) -> None:
         """
@@ -337,12 +365,51 @@ class GameStateSync:
                     break
         
         elif action_type == "end_turn":
-            # Start message batching for turn execution
+            # Check if this is from a client and includes their message batch
             from boneglaive.utils.message_log import message_log
-            try:
-                message_log.start_turn_batch()
+            
+            # First check if client sent their message batch
+            client_message_batch = data.get("client_message_batch", [])
+            
+            if client_message_batch:
+                # Use client's message batch (they already collected their messages)
+                turn_messages = client_message_batch
+                logger.info(f"HOST END_TURN DEBUG: Using client's message batch with {len(turn_messages)} messages")
+            else:
+                # This is a host end_turn, collect host's messages
+                try:
+                    message_log.start_turn_batch()
+                    
+                    # Apply any planned actions from the ending player first
+                    planned_actions = data.get("planned_actions", [])
+                    if planned_actions:
+                        self._apply_planned_actions(planned_actions)
+                    
+                    # Execute turn for all units with animations if UI available
+                    if self.ui:
+                        self.game.execute_turn(self.ui)
+                    else:
+                        self.game.execute_turn()
+                    
+                    # End message batching and collect messages
+                    turn_messages = message_log.end_turn_batch()
+                except Exception as batch_error:
+                    logger.error(f"Error during message batching: {str(batch_error)}")
+                    # Fallback: ensure batching is stopped and continue without messages
+                    if message_log.is_batching:
+                        message_log.end_turn_batch()
+                    turn_messages = []
                 
-                # Apply any planned actions from the ending player first
+                # Include any pending chat messages from the multiplayer manager
+                if self.multiplayer_manager and hasattr(self.multiplayer_manager, 'pending_chat_messages'):
+                    pending_chats = self.multiplayer_manager.pending_chat_messages
+                    if pending_chats:
+                        turn_messages.extend(pending_chats)
+                        self.multiplayer_manager.pending_chat_messages = []  # Clear pending messages
+                        logger.info(f"HOST END_TURN DEBUG: Added {len(pending_chats)} pending chat messages to turn batch")
+            
+            # Apply any planned actions from the ending player if we haven't already
+            if not client_message_batch:
                 planned_actions = data.get("planned_actions", [])
                 if planned_actions:
                     self._apply_planned_actions(planned_actions)
@@ -352,23 +419,6 @@ class GameStateSync:
                     self.game.execute_turn(self.ui)
                 else:
                     self.game.execute_turn()
-                
-                # End message batching and collect messages
-                turn_messages = message_log.end_turn_batch()
-            except Exception as batch_error:
-                logger.error(f"Error during message batching: {str(batch_error)}")
-                # Fallback: ensure batching is stopped and continue without messages
-                if message_log.is_batching:
-                    message_log.end_turn_batch()
-                turn_messages = []
-            
-            # Include any pending chat messages from the multiplayer manager
-            if self.multiplayer_manager and hasattr(self.multiplayer_manager, 'pending_chat_messages'):
-                pending_chats = self.multiplayer_manager.pending_chat_messages
-                if pending_chats:
-                    turn_messages.extend(pending_chats)
-                    self.multiplayer_manager.pending_chat_messages = []  # Clear pending messages
-                    logger.info(f"HOST END_TURN DEBUG: Added {len(pending_chats)} pending chat messages to turn batch")
             
             # Handle turn transition after execution (only host)
             if self.network.is_host():

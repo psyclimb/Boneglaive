@@ -2223,12 +2223,12 @@ class ChatComponent(UIComponent):
                 # Get current player
                 current_player = self.game_ui.multiplayer.get_current_player()
                 
-                # For network multiplayer, add to batch instead of immediate log
+                # For network multiplayer, only add to batch (don't add to local log immediately)
                 if self.game_ui.multiplayer.is_network_multiplayer():
                     # Add message to turn batch (will be sent when turn ends)
                     message_log.add_player_message(current_player, self.chat_input)
                     
-                    # Also send immediate chat message for real-time display
+                    # Send message over network (other player will store in pending)
                     from boneglaive.networking.network_interface import MessageType
                     network_interface = self.game_ui.multiplayer.network_interface
                     if network_interface and network_interface.connected:
@@ -2615,6 +2615,12 @@ class CursorManager(UIComponent):
             # Set appropriate message based on target type
             if is_wall_target:
                 self.game_ui.message = f"Attack set against Marrow Dike wall"
+                # Ensure message batching is active for network multiplayer
+                if self.game_ui.multiplayer.is_network_multiplayer():
+                    if not message_log.is_batching:
+                        logger.warning("Message batching not active during wall attack planning - starting it now")
+                        message_log.start_turn_batch()
+                
                 # Add message to log for planned wall attacks
                 message_log.add_message(
                     f"{self.selected_unit.get_display_name()} readies attack against {wall_owner.get_display_name()}'s Marrow Dike wall",
@@ -2624,6 +2630,12 @@ class CursorManager(UIComponent):
                 )
             elif target_unit:
                 self.game_ui.message = f"Attack set against {target_unit.get_display_name()}"
+                # Ensure message batching is active for network multiplayer
+                if self.game_ui.multiplayer.is_network_multiplayer():
+                    if not message_log.is_batching:
+                        logger.warning("Message batching not active during attack planning - starting it now")
+                        message_log.start_turn_batch()
+                
                 # Add message to log for planned unit attacks
                 message_log.add_message(
                     f"{self.selected_unit.get_display_name()} readies attack against {target_unit.get_display_name()}",
