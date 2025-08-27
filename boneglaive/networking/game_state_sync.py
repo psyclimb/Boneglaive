@@ -244,8 +244,6 @@ class GameStateSync:
                 my_player_num = self.network.get_player_number()
                 my_messages = [msg for msg in client_messages if msg.get('player') == my_player_num]
                 
-                print(f"🔄 CLIENT_DEBUG: Filtered {len(client_messages)} total messages to {len(my_messages)} from Player {my_player_num}")
-                
                 # Serialize MessageType enums to strings
                 serialized_messages = []
                 for msg in my_messages:
@@ -394,8 +392,6 @@ class GameStateSync:
                     all_messages = message_log.end_turn_batch()
                     my_player_num = self.network.get_player_number()
                     turn_messages = [msg for msg in all_messages if msg.get('player') == my_player_num]
-                    
-                    print(f"🔄 HOST_DEBUG: Filtered {len(all_messages)} total messages to {len(turn_messages)} from Player {my_player_num}")
                     
                     # Start new batch for continuing to collect messages
                     message_log.start_turn_batch()
