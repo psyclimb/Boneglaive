@@ -18,9 +18,10 @@ class GameStateSync:
     Handles game state synchronization between network players.
     """
     
-    def __init__(self, game: Game, network: NetworkInterface):
+    def __init__(self, game: Game, network: NetworkInterface, multiplayer_manager=None):
         self.game = game
         self.network = network
+        self.multiplayer_manager = multiplayer_manager  # Reference to multiplayer manager for chat messages
         self.ui = None  # UI reference for animations
         self.last_sync_time = 0
         self.sync_interval = 0.5  # Seconds between state syncs
@@ -49,6 +50,9 @@ class GameStateSync:
         )
         self.network.register_message_handler(
             MessageType.TURN_COMPLETE, self._handle_turn_complete
+        )
+        self.network.register_message_handler(
+            MessageType.MESSAGE_LOG_BATCH, self._handle_message_log_batch
         )
     
     def set_ui_reference(self, ui) -> None:
@@ -333,6 +337,10 @@ class GameStateSync:
                     break
         
         elif action_type == "end_turn":
+            # Start message batching for turn execution
+            from boneglaive.utils.message_log import message_log
+            message_log.start_turn_batch()
+            
             # Apply any planned actions from the ending player first
             planned_actions = data.get("planned_actions", [])
             if planned_actions:
@@ -343,6 +351,17 @@ class GameStateSync:
                 self.game.execute_turn(self.ui)
             else:
                 self.game.execute_turn()
+            
+            # End message batching and collect messages
+            turn_messages = message_log.end_turn_batch()
+            
+            # Include any pending chat messages from the multiplayer manager
+            if self.multiplayer_manager and hasattr(self.multiplayer_manager, 'pending_chat_messages'):
+                pending_chats = self.multiplayer_manager.pending_chat_messages
+                if pending_chats:
+                    turn_messages.extend(pending_chats)
+                    self.multiplayer_manager.pending_chat_messages = []  # Clear pending messages
+                    logger.info(f"HOST END_TURN DEBUG: Added {len(pending_chats)} pending chat messages to turn batch")
             
             # Handle turn transition after execution (only host)
             if self.network.is_host():
@@ -366,6 +385,17 @@ class GameStateSync:
                 # Initialize the new player's turn
                 self.game.initialize_next_player_turn()
                 
+                # Send message batch to client first (if there are messages)
+                if turn_messages:
+                    message_batch_msg = {
+                        "messages": turn_messages,
+                        "from_player": current_player,
+                        "turn_number": self.game.turn,
+                        "timestamp": time.time()
+                    }
+                    self.network.send_message(MessageType.MESSAGE_LOG_BATCH, message_batch_msg)
+                    logger.info(f"HOST END_TURN DEBUG: Sent MESSAGE_LOG_BATCH with {len(turn_messages)} messages from player {current_player}")
+                
                 # Send turn transition to client
                 turn_transition_msg = {
                     "new_player": self.game.current_player,
@@ -376,17 +406,22 @@ class GameStateSync:
                 logger.info(f"HOST END_TURN DEBUG: Sent TURN_TRANSITION message to client - new_player={self.game.current_player}")
                 logger.info(f"HOST END_TURN DEBUG: Full TURN_TRANSITION message: {turn_transition_msg}")
                 
-                # Update UI for host
+                # Update UI for host and handle message batching
                 if self.ui:
                     from boneglaive.utils.message_log import message_log, MessageType as LogMessageType
                     if self.game.current_player == self.network.get_player_number():
+                        # Host's turn again - start message batching
+                        message_log.start_turn_batch()
                         message_log.add_system_message(f"Your turn - Turn {self.game.turn}")
                         self.ui.message = f"Your turn - Turn {self.game.turn}"
-                        logger.info(f"HOST END_TURN DEBUG: Host UI updated - it's host's turn again")
+                        logger.info(f"HOST END_TURN DEBUG: Host UI updated - it's host's turn again, started message batching")
                     else:
+                        # Client's turn - ensure batching is stopped
+                        if message_log.is_batching:
+                            message_log.end_turn_batch()  # Discard any partial batch
                         message_log.add_system_message(f"Player {self.game.current_player}'s turn - Turn {self.game.turn}")  
                         self.ui.message = f"Player {self.game.current_player} is thinking..."
-                        logger.info(f"HOST END_TURN DEBUG: Host UI updated - it's client's turn now")
+                        logger.info(f"HOST END_TURN DEBUG: Host UI updated - it's client's turn now, stopped batching")
         
         # Add more action types as needed
     
@@ -448,11 +483,20 @@ class GameStateSync:
             # End setup phase
             self.game.setup_phase = False
             
-            # Add game start message
+            # Add game start message and initialize batching
             if self.ui:
                 from boneglaive.utils.message_log import message_log, MessageType as LogMessageType
-                message_log.add_system_message(f"Game starting - Player 1's turn")
-                self.ui.message = f"Game starting - Player 1's turn"
+                
+                # Start message batching if I am Player 1
+                if self.network.get_player_number() == 1:
+                    message_log.start_turn_batch()
+                    message_log.add_system_message(f"Game starting - Player 1's turn")
+                    self.ui.message = f"Game starting - Player 1's turn"
+                    logger.info("SETUP_COMPLETE DEBUG: Started message batching for Player 1's first turn")
+                else:
+                    message_log.add_system_message(f"Game starting - Player 1's turn")
+                    self.ui.message = f"Player 1 is thinking..."
+                    logger.info("SETUP_COMPLETE DEBUG: Player 2 waiting, no batching started")
                 
                 # Update the player message in UI
                 self.ui.update_player_message()
@@ -576,17 +620,22 @@ class GameStateSync:
             # Initialize the new player's turn locally
             self.game.initialize_next_player_turn()
             
-            # Update UI
+            # Update UI and start/stop message batching based on turn
             if self.ui:
                 from boneglaive.utils.message_log import message_log, MessageType as LogMessageType
                 if new_player == self.network.get_player_number():
+                    # It's my turn - start message batching
+                    message_log.start_turn_batch()
                     message_log.add_system_message(f"Your turn - Turn {turn_number}")
                     self.ui.message = f"Your turn - Turn {turn_number}"
-                    logger.info(f"TURN_TRANSITION DEBUG: UI updated - it's MY turn now")
+                    logger.info(f"TURN_TRANSITION DEBUG: UI updated - it's MY turn now, started message batching")
                 else:
+                    # Not my turn - ensure batching is stopped
+                    if message_log.is_batching:
+                        message_log.end_turn_batch()  # Discard any partial batch
                     message_log.add_system_message(f"Player {new_player}'s turn - Turn {turn_number}")
                     self.ui.message = f"Player {new_player} is thinking..."
-                    logger.info(f"TURN_TRANSITION DEBUG: UI updated - it's OTHER player's turn")
+                    logger.info(f"TURN_TRANSITION DEBUG: UI updated - it's OTHER player's turn, stopped batching")
                 
                 # Update the player message in UI
                 self.ui.update_player_message()
@@ -616,5 +665,23 @@ class GameStateSync:
             
         except Exception as e:
             logger.error(f"Error handling turn complete: {str(e)}")
+    
+    def _handle_message_log_batch(self, data: Dict[str, Any]) -> None:
+        """
+        Handle received message log batch.
+        Add the batch of messages to the local message log.
+        """
+        try:
+            messages = data.get("messages", [])
+            from_player = data.get("from_player", 0)
+            turn_number = data.get("turn_number", 0)
+            
+            if messages:
+                from boneglaive.utils.message_log import message_log
+                message_log.add_batch_messages(messages)
+                logger.info(f"MESSAGE_LOG_BATCH DEBUG: Added {len(messages)} messages from player {from_player} turn {turn_number}")
+            
+        except Exception as e:
+            logger.error(f"Error handling message log batch: {str(e)}")
         
         # Add more setup action types as needed

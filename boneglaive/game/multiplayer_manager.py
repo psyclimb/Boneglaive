@@ -4,6 +4,7 @@ Manages multiplayer functionality for the game.
 Handles different multiplayer modes and interfaces with the game engine.
 """
 
+import time
 from typing import Optional, Tuple, Dict, Any
 
 from boneglaive.game.engine import Game
@@ -14,7 +15,7 @@ from boneglaive.networking.game_state_sync import GameStateSync
 from boneglaive.ai.ai_interface import AIInterface
 from boneglaive.utils.config import ConfigManager, NetworkMode
 from boneglaive.utils.debug import logger
-from boneglaive.utils.message_log import message_log, MessageType
+from boneglaive.utils.message_log import message_log, MessageType as LogMessageType
 
 class MultiplayerManager:
     """
@@ -29,6 +30,7 @@ class MultiplayerManager:
         self.game_state_sync: Optional[GameStateSync] = None
         self.initialized = False
         self.current_player = 1
+        self.pending_chat_messages = []  # Store chat messages until turn batch is sent
         
         # Initialize appropriate network interface based on config
         self._initialize_network()
@@ -74,7 +76,7 @@ class MultiplayerManager:
                 # Set local_multiplayer = True to prevent game engine from doing its own turn switching
                 self.game.local_multiplayer = True
                 # Initialize game state synchronization
-                self.game_state_sync = GameStateSync(self.game, self.network_interface)
+                self.game_state_sync = GameStateSync(self.game, self.network_interface, self)
                 logger.info(f"MULTIPLAYER INIT DEBUG: LAN host initialized as player {self.current_player}, game.current_player={self.game.current_player}, local_multiplayer={self.game.local_multiplayer} with game state sync")
             self.initialized = result
             return result
@@ -96,7 +98,7 @@ class MultiplayerManager:
                 # Set local_multiplayer = True to prevent game engine from doing its own turn switching
                 self.game.local_multiplayer = True
                 # Initialize game state synchronization
-                self.game_state_sync = GameStateSync(self.game, self.network_interface)
+                self.game_state_sync = GameStateSync(self.game, self.network_interface, self)
                 logger.info(f"MULTIPLAYER INIT DEBUG: LAN client initialized as player {self.current_player}, game.current_player={self.game.current_player}, local_multiplayer={self.game.local_multiplayer} with game state sync")
             self.initialized = result
             return result
@@ -138,9 +140,16 @@ class MultiplayerManager:
             message = data.get('message')
             
             if player and message:
-                # Add the message to the local message log
-                message_log.add_player_message(player, message)
-                logger.info(f"Received chat message from player {player}: {message}")
+                # Store chat message to be included in turn batch (don't add to log immediately)
+                chat_message_data = {
+                    'text': message,
+                    'type': LogMessageType.PLAYER,
+                    'timestamp': time.time(),
+                    'player': player,
+                    'target': None,
+                }
+                self.pending_chat_messages.append(chat_message_data)
+                logger.info(f"Stored chat message from player {player}: {message} (will be added to turn batch)")
             else:
                 logger.warning(f"Invalid chat message format received: {data}")
                 message_log.add_system_message("Received malformed chat message")

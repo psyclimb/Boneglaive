@@ -33,6 +33,10 @@ class MessageLog:
         self.filters: List[MessageType] = [MessageType.DEBUG]  # Always filter out DEBUG messages
         self.player_colors: Dict[int, int] = {1: 3, 2: 4}  # Player number to color mapping
         
+        # Turn-based message batching for network sync
+        self.turn_batch: List[Dict[str, Any]] = []  # Messages accumulated during current turn
+        self.is_batching = False  # Whether to batch messages for network sync
+        
     def add_message(self, text: str, msg_type: MessageType, 
                    player: Optional[int] = None, target: Optional[int] = None,
                    **kwargs) -> None:
@@ -57,6 +61,10 @@ class MessageLog:
         
         # Add any additional data
         message.update(kwargs)
+        
+        # Add to current turn batch if batching is enabled
+        if self.is_batching:
+            self.turn_batch.append(message.copy())
         
         # Add to message list, keeping only the most recent MAX_MESSAGES
         self.messages.append(message)
@@ -311,6 +319,57 @@ class MessageLog:
     def clear_log(self) -> None:
         """Clear all messages from the log."""
         self.messages = []
+    
+    def start_turn_batch(self) -> None:
+        """Start batching messages for the current turn."""
+        self.is_batching = True
+        self.turn_batch = []
+        logger.debug("Started message batching for turn")
+    
+    def end_turn_batch(self) -> List[Dict[str, Any]]:
+        """End turn batching and return accumulated messages."""
+        batch = self.turn_batch.copy()
+        self.is_batching = False
+        self.turn_batch = []
+        logger.debug(f"Ended message batching, collected {len(batch)} messages")
+        return batch
+    
+    def add_batch_messages(self, batch: List[Dict[str, Any]]) -> None:
+        """Add a batch of messages from network (without re-batching them)."""
+        was_batching = self.is_batching
+        self.is_batching = False  # Temporarily disable batching to avoid double-batching
+        
+        for message in batch:
+            # Reconstruct message type from stored value
+            msg_type = message['type']
+            if isinstance(msg_type, str):
+                # Convert string back to enum
+                msg_type = MessageType(msg_type)
+            elif hasattr(msg_type, 'value'):
+                # It's already an enum, use it as-is
+                msg_type = MessageType(msg_type.value)
+            
+            # Add the message directly to avoid calling add_message (which has batching logic)
+            message_entry = {
+                'text': message['text'],
+                'type': msg_type,
+                'timestamp': message.get('timestamp', time.time()),
+                'player': message.get('player'),
+                'target': message.get('target'),
+            }
+            
+            # Add any additional data
+            for k, v in message.items():
+                if k not in ['text', 'type', 'timestamp', 'player', 'target']:
+                    message_entry[k] = v
+            
+            # Add directly to message list, keeping only the most recent MAX_MESSAGES
+            self.messages.append(message_entry)
+            if len(self.messages) > self.MAX_MESSAGES:
+                self.messages.pop(0)
+        
+        self.is_batching = was_batching  # Restore original batching state
+        logger.debug(f"Added batch of {len(batch)} messages from network")
 
 # Create a global message log instance
 message_log = MessageLog()
