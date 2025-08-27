@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 from boneglaive.game.engine import Game
 from boneglaive.networking.network_interface import MessageType, NetworkInterface
+from boneglaive.networking.game_state_serializer import game_state_serializer
 from boneglaive.utils.debug import debug_config, logger
 
 class GameStateSync:
@@ -62,6 +63,19 @@ class GameStateSync:
         )
         self.network.register_message_handler(
             MessageType.MESSAGE_LOG_FULL_SYNC, self._handle_full_sync
+        )
+        # Game state synchronization handlers
+        self.network.register_message_handler(
+            MessageType.GAME_STATE_BATCH, self._handle_game_state_batch
+        )
+        self.network.register_message_handler(
+            MessageType.GAME_STATE_PARITY_CHECK, self._handle_game_state_parity_check
+        )
+        self.network.register_message_handler(
+            MessageType.GAME_STATE_SYNC_REQUEST, self._handle_game_state_sync_request
+        )
+        self.network.register_message_handler(
+            MessageType.GAME_STATE_FULL_SYNC, self._handle_game_state_full_sync
         )
     
     def set_ui_reference(self, ui) -> None:
@@ -272,7 +286,26 @@ class GameStateSync:
                     logger.error(f"CLIENT END_TURN DEBUG: Failed to send turn messages to host")
                     return  # Don't proceed if message batch failed
                 
-                # Small delay to ensure message batch is processed
+                # Send complete game state to host for synchronization
+                game_state = game_state_serializer.serialize_game_state(self.game)
+                state_checksum = game_state_serializer.generate_checksum(self.game)
+                
+                game_state_msg = {
+                    "state": game_state,
+                    "from_player": current_game_player,
+                    "turn_number": self.game.turn,
+                    "checksum": state_checksum,
+                    "timestamp": time.time()
+                }
+                
+                success = self.network.send_message(MessageType.GAME_STATE_BATCH, game_state_msg)
+                if success:
+                    logger.info(f"CLIENT END_TURN DEBUG: Sent complete game state to host with checksum {state_checksum}")
+                else:
+                    logger.error(f"CLIENT END_TURN DEBUG: Failed to send game state to host")
+                    return  # Don't proceed if game state batch failed
+                
+                # Small delay to ensure batches are processed
                 time.sleep(0.05)
         
         # Send action to host
@@ -455,7 +488,26 @@ class GameStateSync:
                         logger.error(f"HOST END_TURN DEBUG: Failed to send turn messages - connection may be lost")
                         return  # Don't proceed with turn transition if message batch failed
                 
-                # Small delay to ensure message batch is processed before turn transition
+                # Send complete game state to client for synchronization  
+                game_state = game_state_serializer.serialize_game_state(self.game)
+                state_checksum = game_state_serializer.generate_checksum(self.game)
+                
+                game_state_msg = {
+                    "state": game_state,
+                    "from_player": current_player,
+                    "turn_number": self.game.turn,
+                    "checksum": state_checksum,
+                    "timestamp": time.time()
+                }
+                
+                success = self.network.send_message(MessageType.GAME_STATE_BATCH, game_state_msg)
+                if success:
+                    logger.info(f"HOST END_TURN DEBUG: Sent complete game state to client with checksum {state_checksum}")
+                else:
+                    logger.error(f"HOST END_TURN DEBUG: Failed to send game state - connection may be lost")
+                    return  # Don't proceed if game state batch failed
+                
+                # Small delay to ensure batches are processed before turn transition
                 time.sleep(0.1)
                 
                 # Send turn transition to client
@@ -882,3 +934,164 @@ class GameStateSync:
             
         except Exception as e:
             logger.error(f"Error handling full sync: {str(e)}")
+    
+    def _handle_game_state_batch(self, data: Dict[str, Any]) -> None:
+        """
+        Handle received game state batch from other player.
+        Verify parity and trigger recovery if needed.
+        """
+        try:
+            state_data = data.get("state", {})
+            from_player = data.get("from_player", 0)
+            turn_number = data.get("turn_number", 0)
+            other_checksum = data.get("checksum", "")
+            
+            logger.info(f"GAME_STATE_BATCH DEBUG: Received game state from player {from_player} turn {turn_number}")
+            
+            if state_data and other_checksum:
+                # Generate our current game state checksum
+                my_checksum = game_state_serializer.generate_checksum(self.game)
+                
+                # Compare checksums for parity check
+                parity_match = my_checksum == other_checksum
+                
+                logger.info(f"GAME_STATE_PARITY DEBUG: My checksum={my_checksum}, Their checksum={other_checksum}, Match={parity_match}")
+                
+                # Send parity check response
+                parity_response = {
+                    "my_checksum": my_checksum,
+                    "their_checksum": other_checksum,
+                    "from_player": self.network.get_player_number(),
+                    "parity_match": parity_match,
+                    "turn_number": turn_number,
+                    "timestamp": time.time()
+                }
+                
+                self.network.send_message(MessageType.GAME_STATE_PARITY_CHECK, parity_response)
+                logger.info(f"GAME_STATE_PARITY DEBUG: Sent parity response (match: {parity_match})")
+                
+                # If there's a mismatch, request full sync
+                if not parity_match:
+                    logger.warning(f"GAME_STATE_RECOVERY: Game state desync detected - requesting full sync from Player {from_player}")
+                    sync_request = {
+                        "from_player": self.network.get_player_number(),
+                        "turn_number": turn_number,
+                        "timestamp": time.time()
+                    }
+                    self.network.send_message(MessageType.GAME_STATE_SYNC_REQUEST, sync_request)
+                
+        except Exception as e:
+            logger.error(f"Error handling game state batch: {str(e)}")
+    
+    def _handle_game_state_parity_check(self, data: Dict[str, Any]) -> None:
+        """
+        Handle parity check response for game state.
+        Trigger recovery if parity mismatch is confirmed.
+        """
+        try:
+            my_checksum = data.get("my_checksum", "")
+            their_checksum = data.get("their_checksum", "")
+            from_player = data.get("from_player", 0)
+            parity_match = data.get("parity_match", False)
+            turn_number = data.get("turn_number", 0)
+            
+            logger.info(f"GAME_STATE_PARITY_RESPONSE DEBUG: From player {from_player} - match: {parity_match}")
+            
+            # Verify parity from our side as well
+            current_checksum = game_state_serializer.generate_checksum(self.game)
+            our_parity_match = current_checksum == their_checksum
+            
+            # Final parity result
+            if parity_match and our_parity_match:
+                logger.info(f"GAME_STATE_PARITY RESULT: ✓ Game states are in perfect sync after turn {turn_number}")
+            else:
+                logger.warning(f"GAME_STATE_PARITY RESULT: ✗ Game state sync issue detected after turn {turn_number}")
+                logger.warning(f"Their verification: {parity_match}, My verification: {our_parity_match}")
+                
+                # Request full sync to fix the issue
+                logger.warning(f"GAME_STATE_RECOVERY: Requesting full game state sync from Player {from_player}")
+                sync_request = {
+                    "from_player": self.network.get_player_number(),
+                    "turn_number": turn_number,
+                    "timestamp": time.time()
+                }
+                self.network.send_message(MessageType.GAME_STATE_SYNC_REQUEST, sync_request)
+                
+        except Exception as e:
+            logger.error(f"Error handling game state parity check: {str(e)}")
+    
+    def _handle_game_state_sync_request(self, data: Dict[str, Any]) -> None:
+        """
+        Handle request for full game state sync.
+        Send our complete game state to the requesting player.
+        """
+        try:
+            from_player = data.get("from_player", 0)
+            turn_number = data.get("turn_number", 0)
+            
+            logger.warning(f"GAME_STATE_SYNC_REQUEST DEBUG: Player {from_player} requested full game state sync")
+            
+            # Serialize our complete game state
+            full_state = game_state_serializer.serialize_game_state(self.game)
+            state_checksum = game_state_serializer.generate_checksum(self.game)
+            
+            # Send the full state back
+            sync_response = {
+                "state": full_state,
+                "checksum": state_checksum,
+                "from_player": self.network.get_player_number(),
+                "turn_number": turn_number,
+                "timestamp": time.time()
+            }
+            
+            success = self.network.send_message(MessageType.GAME_STATE_FULL_SYNC, sync_response)
+            if success:
+                logger.warning(f"GAME_STATE_SYNC_REQUEST DEBUG: Sent full game state to Player {from_player} (checksum: {state_checksum})")
+            else:
+                logger.error(f"GAME_STATE_SYNC_REQUEST DEBUG: Failed to send full game state to Player {from_player}")
+            
+        except Exception as e:
+            logger.error(f"Error handling game state sync request: {str(e)}")
+    
+    def _handle_game_state_full_sync(self, data: Dict[str, Any]) -> None:
+        """
+        Handle full game state sync from another player.
+        Replace our game state with theirs to fix sync issues.
+        """
+        try:
+            state_data = data.get("state", {})
+            other_checksum = data.get("checksum", "")
+            from_player = data.get("from_player", 0)
+            turn_number = data.get("turn_number", 0)
+            
+            logger.warning(f"GAME_STATE_FULL_SYNC DEBUG: Received full game state from Player {from_player}")
+            
+            if state_data and other_checksum:
+                # Store current state for comparison
+                old_checksum = game_state_serializer.generate_checksum(self.game)
+                
+                # Replace our game state with the authoritative version
+                game_state_serializer.deserialize_game_state(state_data, self.game)
+                
+                # Verify the sync worked
+                new_checksum = game_state_serializer.generate_checksum(self.game)
+                
+                logger.warning(f"GAME_STATE_FULL_SYNC DEBUG: State replacement complete")
+                logger.warning(f"Old checksum: {old_checksum}")
+                logger.warning(f"Expected: {other_checksum}")  
+                logger.warning(f"New checksum: {new_checksum}")
+                
+                if new_checksum == other_checksum:
+                    logger.info(f"GAME_STATE_RECOVERY: ✓ Game state successfully synchronized with Player {from_player}")
+                    
+                    # Add system message about recovery
+                    from boneglaive.utils.message_log import message_log, MessageType as LogMessageType
+                    message_log.add_message(
+                        "Game state synchronized with other player",
+                        LogMessageType.SYSTEM
+                    )
+                else:
+                    logger.error(f"GAME_STATE_RECOVERY: ✗ Game state sync failed - checksums still don't match")
+            
+        except Exception as e:
+            logger.error(f"Error handling game state full sync: {str(e)}")
