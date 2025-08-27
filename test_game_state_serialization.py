@@ -55,6 +55,12 @@ class TestGameStateSerializer(unittest.TestCase):
         self.assertEqual(core_data['setup_player'], 2)
         self.assertEqual(core_data['setup_confirmed'], {1: True, 2: False})
         self.assertEqual(core_data['setup_units_remaining'], {1: 1, 2: 2})
+        # Check enhanced properties
+        self.assertEqual(core_data['map_name'], self.game.map_name)
+        self.assertEqual(core_data['local_multiplayer'], self.game.local_multiplayer)
+        self.assertEqual(core_data['test_mode'], self.game.test_mode)
+        self.assertIn('total_units', core_data)
+        self.assertIn('units_per_player', core_data)
         
         # Create new game and deserialize
         new_game = Game(skip_setup=True)
@@ -69,6 +75,9 @@ class TestGameStateSerializer(unittest.TestCase):
         self.assertEqual(new_game.setup_player, 2)
         self.assertEqual(new_game.setup_confirmed, {1: True, 2: False})
         self.assertEqual(new_game.setup_units_remaining, {1: 1, 2: 2})
+        # Verify enhanced properties
+        self.assertEqual(new_game.local_multiplayer, self.game.local_multiplayer)
+        self.assertEqual(new_game.test_mode, self.game.test_mode)
     
     def test_map_state_serialization_round_trip(self):
         """Test map state serializes and deserializes correctly."""
@@ -205,6 +214,35 @@ class TestGameStateSerializer(unittest.TestCase):
             differences = self.serializer.compare_states(state1, state2)
             unit_diffs = [d for d in differences if 'Unit[' in d]
             self.assertGreater(len(unit_diffs), 0)
+    
+    def test_enhanced_core_state_properties(self):
+        """Test Phase 5.2 enhanced core state properties."""
+        # Set various game properties
+        self.game.test_mode = True
+        self.game.local_multiplayer = True
+        self.game.map_name = "test_map"
+        
+        # Serialize state
+        core_data = self.serializer._serialize_core_state(self.game)
+        
+        # Verify enhanced properties are captured
+        self.assertEqual(core_data['test_mode'], True)
+        self.assertEqual(core_data['local_multiplayer'], True)
+        self.assertEqual(core_data['map_name'], "test_map")
+        self.assertIn('total_units', core_data)
+        self.assertIn('units_per_player', core_data)
+        self.assertIn('has_event_manager', core_data)
+        
+        # Verify unit counts
+        expected_total = len(self.game.units)
+        self.assertEqual(core_data['total_units'], expected_total)
+        
+        # Verify units per player count
+        units_per_player = core_data['units_per_player']
+        p1_count = len([u for u in self.game.units if u.player == 1])
+        p2_count = len([u for u in self.game.units if u.player == 2])
+        self.assertEqual(units_per_player[1], p1_count)
+        self.assertEqual(units_per_player[2], p2_count)
     
     def test_version_handling(self):
         """Test version compatibility checking."""
