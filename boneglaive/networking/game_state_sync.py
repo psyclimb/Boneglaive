@@ -57,6 +57,12 @@ class GameStateSync:
         self.network.register_message_handler(
             MessageType.PARITY_CHECK, self._handle_parity_check
         )
+        self.network.register_message_handler(
+            MessageType.MESSAGE_LOG_SYNC_REQUEST, self._handle_sync_request
+        )
+        self.network.register_message_handler(
+            MessageType.MESSAGE_LOG_FULL_SYNC, self._handle_full_sync
+        )
     
     def set_ui_reference(self, ui) -> None:
         """Set the UI reference for animations."""
@@ -763,6 +769,16 @@ class GameStateSync:
                     
                     self.network.send_message(MessageType.PARITY_CHECK, parity_response)
                     logger.info(f"PARITY_CHECK DEBUG: Sent checksum response {my_checksum} (match: {parity_match})")
+                    
+                    # If there's a mismatch, request full sync from the other player
+                    if not parity_match:
+                        logger.warning(f"SYNC RECOVERY: Requesting full message log from Player {from_player}")
+                        sync_request = {
+                            "from_player": self.network.get_player_number(),
+                            "turn_number": turn_number,
+                            "timestamp": time.time()
+                        }
+                        self.network.send_message(MessageType.MESSAGE_LOG_SYNC_REQUEST, sync_request)
             
         except Exception as e:
             logger.error(f"Error handling message log batch: {str(e)}")
@@ -793,12 +809,76 @@ class GameStateSync:
                     logger.warning(f"PARITY_CHECK RESULT: ✗ Message log sync issue detected after turn {turn_number}")
                     logger.warning(f"Their verification: {parity_match}, My verification: {my_parity_match}")
                     
-                    # Add system warning message about sync issue
-                    from boneglaive.utils.message_log import MessageType as LogMessageType
-                    message_log.add_message(
-                        f"Message log sync issue detected with Player {from_player}",
-                        LogMessageType.WARNING
-                    )
+                    # Request full sync from other player to fix the issue
+                    logger.warning(f"SYNC RECOVERY: Requesting full message log from Player {from_player}")
+                    sync_request = {
+                        "from_player": self.network.get_player_number(),
+                        "turn_number": turn_number,
+                        "timestamp": time.time()
+                    }
+                    self.network.send_message(MessageType.MESSAGE_LOG_SYNC_REQUEST, sync_request)
             
         except Exception as e:
             logger.error(f"Error handling parity check: {str(e)}")
+    
+    def _handle_sync_request(self, data: Dict[str, Any]) -> None:
+        """
+        Handle request for full message log sync.
+        Send our complete message log to the requesting player.
+        """
+        try:
+            from_player = data.get("from_player", 0)
+            turn_number = data.get("turn_number", 0)
+            
+            logger.info(f"SYNC_REQUEST DEBUG: Player {from_player} requested full message log sync")
+            
+            from boneglaive.utils.message_log import message_log
+            
+            # Get our complete message log
+            full_log = message_log.get_full_message_log()
+            
+            # Send the full log back
+            sync_response = {
+                "messages": full_log,
+                "from_player": self.network.get_player_number(),
+                "turn_number": turn_number,
+                "message_count": len(full_log),
+                "timestamp": time.time()
+            }
+            
+            success = self.network.send_message(MessageType.MESSAGE_LOG_FULL_SYNC, sync_response)
+            if success:
+                logger.info(f"SYNC_REQUEST DEBUG: Sent full message log ({len(full_log)} messages) to Player {from_player}")
+            else:
+                logger.error(f"SYNC_REQUEST DEBUG: Failed to send full message log to Player {from_player}")
+            
+        except Exception as e:
+            logger.error(f"Error handling sync request: {str(e)}")
+    
+    def _handle_full_sync(self, data: Dict[str, Any]) -> None:
+        """
+        Handle full message log sync from another player.
+        Replace our message log with theirs to fix sync issues.
+        """
+        try:
+            messages = data.get("messages", [])
+            from_player = data.get("from_player", 0)
+            turn_number = data.get("turn_number", 0)
+            message_count = data.get("message_count", 0)
+            
+            logger.warning(f"FULL_SYNC DEBUG: Received full message log ({len(messages)} messages) from Player {from_player}")
+            
+            if messages:
+                from boneglaive.utils.message_log import message_log
+                
+                # Replace our entire message log
+                message_log.replace_message_log(messages)
+                
+                logger.warning(f"FULL_SYNC DEBUG: Successfully replaced message log with {len(messages)} messages")
+                
+                # Verify the sync worked by comparing checksums
+                new_checksum = message_log.get_message_log_checksum()
+                logger.info(f"FULL_SYNC DEBUG: New message log checksum after sync: {new_checksum}")
+            
+        except Exception as e:
+            logger.error(f"Error handling full sync: {str(e)}")

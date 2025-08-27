@@ -422,6 +422,79 @@ class MessageLog:
             )
         
         return parity_match
+    
+    def get_full_message_log(self) -> List[Dict[str, Any]]:
+        """
+        Get the complete message log for syncing purposes.
+        Returns serialized messages without timestamps.
+        """
+        serialized_messages = []
+        for msg in self.messages:
+            serialized_msg = {
+                'text': msg['text'],
+                'type': msg['type'].value if hasattr(msg['type'], 'value') else str(msg['type']),
+                'player': msg.get('player'),
+                'target': msg.get('target'),
+            }
+            # Add other fields except timestamp
+            for key, value in msg.items():
+                if key not in ['text', 'type', 'player', 'target', 'timestamp']:
+                    serialized_msg[key] = value
+            serialized_messages.append(serialized_msg)
+        
+        logger.info(f"Generated full message log for sync: {len(serialized_messages)} messages")
+        return serialized_messages
+    
+    def replace_message_log(self, new_messages: List[Dict[str, Any]]) -> None:
+        """
+        Replace the entire message log with new messages.
+        Used for sync recovery when parity is lost.
+        """
+        logger.warning(f"SYNC RECOVERY: Replacing entire message log with {len(new_messages)} messages")
+        
+        # Clear current messages and turn messages
+        old_count = len(self.messages)
+        self.messages = []
+        
+        # Temporarily disable network mode to avoid re-batching during sync
+        network_was_active = self.network_mode
+        self.network_mode = False
+        
+        # Add all the new messages
+        for message in new_messages:
+            # Reconstruct message type
+            msg_type = message['type']
+            if isinstance(msg_type, str):
+                msg_type = MessageType(msg_type)
+            elif hasattr(msg_type, 'value'):
+                msg_type = MessageType(msg_type.value)
+            
+            # Add message directly to messages list (bypass turn collection)
+            msg_entry = {
+                'text': message['text'],
+                'type': msg_type,
+                'timestamp': time.time(),  # Use current time since we're syncing
+                'player': message.get('player'),
+                'target': message.get('target'),
+            }
+            
+            # Add other fields
+            for key, value in message.items():
+                if key not in ['text', 'type', 'player', 'target']:
+                    msg_entry[key] = value
+                    
+            self.messages.append(msg_entry)
+        
+        # Restore network mode
+        self.network_mode = network_was_active
+        
+        logger.warning(f"SYNC RECOVERY: Replaced {old_count} messages with {len(new_messages)} messages")
+        
+        # Add a system message about the sync recovery
+        self.add_message(
+            "Message log synchronized with other player",
+            MessageType.SYSTEM
+        )
 
 # Create a global message log instance
 message_log = MessageLog()
