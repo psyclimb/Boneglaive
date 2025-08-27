@@ -204,9 +204,16 @@ class LANMultiplayerInterface(NetworkInterface):
             logger.info(f"NETWORK SEND DEBUG: Sending {message_type.value} message: {data}")
             
             # Encode and send the message
-            message_bytes = json.dumps(message).encode('utf-8') + MESSAGE_DELIMITER
-            self.client_socket.sendall(message_bytes)
-            return True
+            try:
+                message_json = json.dumps(message)
+                message_bytes = message_json.encode('utf-8') + MESSAGE_DELIMITER
+                self.client_socket.sendall(message_bytes)
+                return True
+            except (TypeError, ValueError) as json_err:
+                logger.error(f"JSON serialization error for {message_type.value}: {str(json_err)}")
+                logger.error(f"Problem message data: {data}")
+                self.connected = False
+                return False
         except Exception as e:
             logger.error(f"Error sending message: {str(e)}")
             self.connected = False
