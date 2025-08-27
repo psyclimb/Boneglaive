@@ -227,6 +227,41 @@ class GameStateSync:
             self._apply_action(action_type, data)
             return
         
+        # For client end_turn, collect and send turn messages to host first
+        if action_type == "end_turn":
+            from boneglaive.utils.message_log import message_log
+            
+            # Collect turn messages from client
+            turn_messages = message_log.get_turn_messages()
+            
+            # Serialize MessageType enums for network transmission
+            serialized_messages = []
+            for msg in turn_messages:
+                serialized_msg = msg.copy()
+                if 'type' in serialized_msg and hasattr(serialized_msg['type'], 'value'):
+                    serialized_msg['type'] = serialized_msg['type'].value
+                serialized_messages.append(serialized_msg)
+            
+            logger.info(f"CLIENT END_TURN DEBUG: Collected {len(turn_messages)} messages, sending to host")
+            
+            # Send turn messages to host before sending end_turn action
+            if serialized_messages:
+                message_batch_msg = {
+                    "messages": serialized_messages,
+                    "from_player": current_game_player,
+                    "turn_number": self.game.turn,
+                    "timestamp": time.time()
+                }
+                success = self.network.send_message(MessageType.MESSAGE_LOG_BATCH, message_batch_msg)
+                if success:
+                    logger.info(f"CLIENT END_TURN DEBUG: Sent {len(serialized_messages)} turn messages to host")
+                else:
+                    logger.error(f"CLIENT END_TURN DEBUG: Failed to send turn messages to host")
+                    return  # Don't proceed if message batch failed
+                
+                # Small delay to ensure message batch is processed
+                time.sleep(0.05)
+        
         # Send action to host
         action_data = {
             "action_type": action_type,
