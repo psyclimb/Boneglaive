@@ -54,6 +54,9 @@ class GameStateSync:
         self.network.register_message_handler(
             MessageType.MESSAGE_LOG_BATCH, self._handle_message_log_batch
         )
+        self.network.register_message_handler(
+            MessageType.PARITY_CHECK, self._handle_parity_check
+        )
     
     def set_ui_reference(self, ui) -> None:
         """Set the UI reference for animations."""
@@ -246,15 +249,19 @@ class GameStateSync:
             
             # Send turn messages to host before sending end_turn action
             if serialized_messages:
+                # Generate checksum before sending
+                checksum = message_log.get_message_log_checksum()
+                
                 message_batch_msg = {
                     "messages": serialized_messages,
                     "from_player": current_game_player,
                     "turn_number": self.game.turn,
+                    "checksum": checksum,
                     "timestamp": time.time()
                 }
                 success = self.network.send_message(MessageType.MESSAGE_LOG_BATCH, message_batch_msg)
                 if success:
-                    logger.info(f"CLIENT END_TURN DEBUG: Sent {len(serialized_messages)} turn messages to host")
+                    logger.info(f"CLIENT END_TURN DEBUG: Sent {len(serialized_messages)} turn messages to host with checksum {checksum}")
                 else:
                     logger.error(f"CLIENT END_TURN DEBUG: Failed to send turn messages to host")
                     return  # Don't proceed if message batch failed
@@ -425,15 +432,19 @@ class GameStateSync:
                 
                 # Send turn messages to client (if there are any)
                 if serialized_messages:
+                    # Generate checksum after messages are added locally
+                    checksum = message_log.get_message_log_checksum()
+                    
                     message_batch_msg = {
                         "messages": serialized_messages,
                         "from_player": current_player,
                         "turn_number": self.game.turn,
+                        "checksum": checksum,
                         "timestamp": time.time()
                     }
                     success = self.network.send_message(MessageType.MESSAGE_LOG_BATCH, message_batch_msg)
                     if success:
-                        logger.info(f"HOST END_TURN DEBUG: Sent {len(serialized_messages)} turn messages to client")
+                        logger.info(f"HOST END_TURN DEBUG: Sent {len(serialized_messages)} turn messages to client with checksum {checksum}")
                     else:
                         logger.error(f"HOST END_TURN DEBUG: Failed to send turn messages - connection may be lost")
                         return  # Don't proceed with turn transition if message batch failed
@@ -721,12 +732,13 @@ class GameStateSync:
     def _handle_message_log_batch(self, data: Dict[str, Any]) -> None:
         """
         Handle received message log batch from other player.
-        Add the messages to the local log.
+        Add the messages to the local log and perform parity checking.
         """
         try:
             messages = data.get("messages", [])
             from_player = data.get("from_player", 0)
             turn_number = data.get("turn_number", 0)
+            other_checksum = data.get("checksum", "")
             
             logger.info(f"MESSAGE_LOG_BATCH DEBUG: Received {len(messages)} messages from player {from_player} turn {turn_number}")
             
@@ -734,6 +746,59 @@ class GameStateSync:
                 from boneglaive.utils.message_log import message_log
                 message_log.add_network_messages(messages)
                 logger.info(f"MESSAGE_LOG_BATCH DEBUG: Added {len(messages)} network messages to log")
+                
+                # Perform parity check if checksum was provided
+                if other_checksum:
+                    parity_match = message_log.verify_parity(other_checksum, from_player)
+                    
+                    # Send our checksum back for verification
+                    my_checksum = message_log.get_message_log_checksum()
+                    parity_response = {
+                        "checksum": my_checksum,
+                        "from_player": self.network.get_player_number(),
+                        "parity_match": parity_match,
+                        "turn_number": turn_number,
+                        "timestamp": time.time()
+                    }
+                    
+                    self.network.send_message(MessageType.PARITY_CHECK, parity_response)
+                    logger.info(f"PARITY_CHECK DEBUG: Sent checksum response {my_checksum} (match: {parity_match})")
             
         except Exception as e:
             logger.error(f"Error handling message log batch: {str(e)}")
+    
+    def _handle_parity_check(self, data: Dict[str, Any]) -> None:
+        """
+        Handle parity check response from other player.
+        Verify that both players have matching message log checksums.
+        """
+        try:
+            other_checksum = data.get("checksum", "")
+            from_player = data.get("from_player", 0)
+            parity_match = data.get("parity_match", False)
+            turn_number = data.get("turn_number", 0)
+            
+            logger.info(f"PARITY_CHECK DEBUG: Received checksum {other_checksum} from player {from_player} (match: {parity_match})")
+            
+            if other_checksum:
+                from boneglaive.utils.message_log import message_log
+                
+                # Verify parity from our side as well
+                my_parity_match = message_log.verify_parity(other_checksum, from_player)
+                
+                # Log the final parity result
+                if parity_match and my_parity_match:
+                    logger.info(f"PARITY_CHECK RESULT: ✓ Message logs are in perfect sync after turn {turn_number}")
+                else:
+                    logger.warning(f"PARITY_CHECK RESULT: ✗ Message log sync issue detected after turn {turn_number}")
+                    logger.warning(f"Their verification: {parity_match}, My verification: {my_parity_match}")
+                    
+                    # Add system warning message about sync issue
+                    from boneglaive.utils.message_log import MessageType as LogMessageType
+                    message_log.add_message(
+                        f"Message log sync issue detected with Player {from_player}",
+                        LogMessageType.WARNING
+                    )
+            
+        except Exception as e:
+            logger.error(f"Error handling parity check: {str(e)}")
