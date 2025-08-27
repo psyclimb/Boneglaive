@@ -36,6 +36,7 @@ class MessageLog:
         # Turn-based message batching for network sync
         self.turn_batch: List[Dict[str, Any]] = []  # Messages accumulated during current turn
         self.is_batching = False  # Whether to batch messages for network sync
+        self.always_batch_for_network = False  # Always batch in network mode
         
     def add_message(self, text: str, msg_type: MessageType, 
                    player: Optional[int] = None, target: Optional[int] = None,
@@ -62,8 +63,8 @@ class MessageLog:
         # Add any additional data
         message.update(kwargs)
         
-        # Add to current turn batch if batching is enabled
-        if self.is_batching:
+        # Add to current turn batch if batching is enabled OR always batching for network
+        if self.is_batching or self.always_batch_for_network:
             self.turn_batch.append(message.copy())
             print(f"📨 BATCH_DEBUG: Added message to batch: '{text}', batch size: {len(self.turn_batch)}")
         else:
@@ -327,8 +328,15 @@ class MessageLog:
         """Start batching messages for the current turn."""
         self.is_batching = True
         self.turn_batch = []
-        print(f"🟢 BATCH_DEBUG: Started message batching, is_batching={self.is_batching}")
+        print(f"🟢 BATCH_DEBUG: Started turn-specific batching, is_batching={self.is_batching}")
         logger.info("Started message batching for turn")
+    
+    def enable_network_batching(self) -> None:
+        """Enable always-on batching for network multiplayer."""
+        self.always_batch_for_network = True
+        self.turn_batch = []
+        print(f"🌐 BATCH_DEBUG: Enabled always-on network batching")
+        logger.info("Enabled always-on network batching")
     
     def end_turn_batch(self) -> List[Dict[str, Any]]:
         """End turn batching and return accumulated messages."""

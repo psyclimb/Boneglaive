@@ -2220,16 +2220,17 @@ class ChatComponent(UIComponent):
             
         elif key == 10 or key == 13:  # Enter key - send message
             if self.chat_input.strip():  # Only send non-empty messages
-                # Get current player
-                current_player = self.game_ui.multiplayer.get_current_player()
-                
-                # For network multiplayer, add to batch (will sync when turn ends)
+                # Get the NETWORK player number (who is typing), not the game's current turn player
                 if self.game_ui.multiplayer.is_network_multiplayer():
+                    # For network multiplayer, get MY network player number
+                    my_player_number = self.game_ui.multiplayer.network_interface.get_player_number()
                     # Add chat message to local batch only - no network sending
-                    message_log.add_player_message(current_player, self.chat_input)
-                    # Chat will be included in turn batch when turn ends
+                    message_log.add_player_message(my_player_number, self.chat_input)
+                    print(f"💬 CHAT_DEBUG: Player {my_player_number} typed: '{self.chat_input}' (added to batch)")
+                    # Chat will be included in turn batch when MY turn ends
                 else:
-                    # For local multiplayer, add to log immediately
+                    # For local multiplayer, use current game player
+                    current_player = self.game_ui.multiplayer.get_current_player()
                     message_log.add_player_message(current_player, self.chat_input)
                 
                 # Clear input and exit chat mode
