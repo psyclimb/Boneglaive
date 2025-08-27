@@ -76,6 +76,8 @@ class MultiplayerManager:
                 self.game.local_multiplayer = True
                 # Initialize game state synchronization
                 self.game_state_sync = GameStateSync(self.game, self.network_interface, self)
+                # Set game state sync reference on game object for turn-end sync integration
+                self.game.game_state_sync = self.game_state_sync
                 logger.info(f"MULTIPLAYER INIT DEBUG: LAN host initialized as player {self.current_player}, game.current_player={self.game.current_player}, local_multiplayer={self.game.local_multiplayer} with game state sync")
             self.initialized = result
             return result
@@ -98,6 +100,8 @@ class MultiplayerManager:
                 self.game.local_multiplayer = True
                 # Initialize game state synchronization
                 self.game_state_sync = GameStateSync(self.game, self.network_interface, self)
+                # Set game state sync reference on game object for turn-end sync integration
+                self.game.game_state_sync = self.game_state_sync
                 logger.info(f"MULTIPLAYER INIT DEBUG: LAN client initialized as player {self.current_player}, game.current_player={self.game.current_player}, local_multiplayer={self.game.local_multiplayer} with game state sync")
             self.initialized = result
             return result
@@ -163,6 +167,16 @@ class MultiplayerManager:
         if not self.is_multiplayer() and not self.is_vs_ai():
             # In single player (not vs. AI), no need to switch players
             return
+
+        # ===== PHASE 5.4: GAME STATE SYNC AT TURN END (MULTIPLAYER) =====
+        # Perform game state synchronization before switching players
+        if self.game_state_sync and self.is_network_multiplayer():
+            try:
+                sync_success = self.game_state_sync.perform_end_of_turn_sync()
+                if not sync_success:
+                    logger.warning(f"Game state sync failed at end of turn {self.game.turn} player {self.game.current_player}")
+            except Exception as e:
+                logger.error(f"Error during multiplayer end-of-turn game state sync: {str(e)}")
 
         if self.is_local_multiplayer():
             # In local multiplayer, switch players
