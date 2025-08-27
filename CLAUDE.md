@@ -74,6 +74,18 @@ git fetch original      # Fetch from main repository
 5. `utils/config.py` - Configuration management
 6. `game/skills/registry.py` - Skill-to-unit mappings
 
+## Development Rhythm for LAN Networking
+**IMPORTANT**: Follow this exact workflow when working on LAN networking features:
+
+1. **User Request**: User asks for a specific change/feature
+2. **Implementation**: Make the requested changes to the code
+3. **Commit**: Commit changes to `feature/lan-networking` branch with descriptive message
+4. **Push**: Push to GitHub using `git push original feature/lan-networking`
+5. **Testing**: User tests the new version in two FreeBSD jails (Player 1 and Player 2)
+6. **Repeat**: Continue this cycle for each change
+
+This ensures rapid iteration and immediate testing of networking changes in real multiplayer environments.
+
 ## Current Limitations
 - No formal unit testing framework
 - Experience/leveling system disabled

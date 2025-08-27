@@ -365,6 +365,63 @@ class MessageLog:
         
         self.network_mode = network_was_active  # Restore network mode
         logger.debug(f"Added {len(messages)} messages from network player")
+    
+    def get_message_log_checksum(self) -> str:
+        """
+        Generate a checksum of the current message log for parity checking.
+        Uses message text and type to create a reproducible hash.
+        """
+        import hashlib
+        
+        # Create a deterministic representation of all messages
+        message_data = []
+        for msg in self.messages:
+            # Use only the essential fields for checksum (text, type, player)
+            # Skip timestamp as it may vary slightly between players
+            checksum_data = {
+                'text': msg['text'],
+                'type': msg['type'].value if hasattr(msg['type'], 'value') else str(msg['type']),
+                'player': msg.get('player', None)
+            }
+            message_data.append(checksum_data)
+        
+        # Create JSON string and hash it
+        import json
+        json_str = json.dumps(message_data, sort_keys=True, separators=(',', ':'))
+        checksum = hashlib.md5(json_str.encode('utf-8')).hexdigest()
+        
+        logger.debug(f"Generated message log checksum: {checksum} for {len(self.messages)} messages")
+        return checksum
+    
+    def verify_parity(self, other_checksum: str, other_player: int) -> bool:
+        """
+        Verify message log parity with another player.
+        
+        Args:
+            other_checksum: The other player's message log checksum
+            other_player: The other player's number (for logging)
+            
+        Returns:
+            True if message logs are in parity, False otherwise
+        """
+        my_checksum = self.get_message_log_checksum()
+        parity_match = my_checksum == other_checksum
+        
+        if parity_match:
+            logger.info(f"MESSAGE PARITY: ✓ Match with Player {other_player} (checksum: {my_checksum})")
+        else:
+            logger.warning(f"MESSAGE PARITY: ✗ Mismatch with Player {other_player}")
+            logger.warning(f"My checksum: {my_checksum}")
+            logger.warning(f"Their checksum: {other_checksum}")
+            logger.warning(f"Total messages: {len(self.messages)}")
+            
+            # Add a warning message to the log
+            self.add_message(
+                f"Warning: Message log out of sync with Player {other_player}",
+                MessageType.WARNING
+            )
+        
+        return parity_match
 
 # Create a global message log instance
 message_log = MessageLog()
