@@ -34,6 +34,8 @@ class MessageType(Enum):
     TURN_COMPLETE = "turn_complete"
     MESSAGE_LOG_BATCH = "message_log_batch"
     PARITY_CHECK = "parity_check"
+    MESSAGE_LOG_SYNC_REQUEST = "message_log_sync_request"
+    MESSAGE_LOG_FULL_SYNC = "message_log_full_sync"
 
 class NetworkInterface(abc.ABC):
     """Abstract base class for network implementations."""
