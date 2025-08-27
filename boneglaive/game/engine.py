@@ -3141,15 +3141,17 @@ class Game:
                         unit.reset_movement_penalty()
                         
             # ===== PHASE 5.4: GAME STATE SYNC AT TURN END =====
-            # Perform game state synchronization before switching players
-            # This ensures both players have identical state after all turn effects
-            if hasattr(self, 'game_state_sync') and self.game_state_sync:
+            # Only perform engine-level sync in single player mode
+            # In multiplayer modes, the multiplayer manager handles all sync operations
+            if not self.local_multiplayer and hasattr(self, 'game_state_sync') and self.game_state_sync:
                 try:
                     sync_success = self.game_state_sync.perform_end_of_turn_sync()
                     if not sync_success:
                         logger.warning(f"Game state sync failed at end of turn {self.turn} player {self.current_player}")
                 except Exception as e:
                     logger.error(f"Error during end-of-turn game state sync: {str(e)}")
+            elif self.local_multiplayer:
+                logger.debug(f"ENGINE_SYNC DEBUG: Skipping engine sync in multiplayer mode - multiplayer manager handles sync")
             
             # In single player mode, automatically toggle between player 1 and 2
             # In multiplayer modes, the multiplayer manager handles player switching
