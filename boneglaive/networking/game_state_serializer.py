@@ -184,8 +184,8 @@ class GameStateSerializer:
             # Unit count for validation
             'total_units': len(game.units),
             'units_per_player': {
-                1: len([u for u in game.units if u.player == 1]),
-                2: len([u for u in game.units if u.player == 2])
+                "1": len([u for u in game.units if u.player == 1]),
+                "2": len([u for u in game.units if u.player == 2])
             },
             
             # Game events (if event manager exists)
