@@ -313,6 +313,7 @@ class GameStateSync:
     def _handle_player_action(self, data: Dict[str, Any]) -> None:
         """
         Handle received player action message.
+        FIX: Process Player 2 actions immediately instead of queuing them.
         """
         # Only host should process player actions
         if not self.network.is_host():
@@ -323,11 +324,31 @@ class GameStateSync:
             action_data = data.get("data", {})
             timestamp = data.get("timestamp", 0)
             
-            # Queue the action to be applied
-            self.pending_actions.append((action_type, action_data, timestamp))
+            logger.info(f"P2_ACTION_FIX: Host received {action_type} from Player 2")
             
-            # Sort by timestamp
-            self.pending_actions.sort(key=lambda x: x[2])
+            # CRITICAL FIX: Apply Player 2 actions IMMEDIATELY instead of queuing
+            # The old system queued actions and processed them in update() loop,
+            # which caused timing issues and prevented proper turn execution
+            
+            if action_type == "end_turn":
+                logger.info(f"P2_ACTION_FIX: Processing Player 2 end_turn immediately")
+                
+                # Apply any queued actions first (move, attack, etc.)
+                if self.pending_actions:
+                    logger.info(f"P2_ACTION_FIX: Applying {len(self.pending_actions)} queued actions before end_turn")
+                    for queued_action_type, queued_action_data, _ in self.pending_actions:
+                        self._apply_action(queued_action_type, queued_action_data)
+                    self.pending_actions = []  # Clear queue
+                
+                # Now apply the end_turn action
+                self._apply_action(action_type, action_data)
+                logger.info(f"P2_ACTION_FIX: Player 2 turn execution completed")
+            else:
+                # For non-end_turn actions, still queue them to be processed before end_turn
+                logger.info(f"P2_ACTION_FIX: Queuing {action_type} action for batch processing")
+                self.pending_actions.append((action_type, action_data, timestamp))
+                # Sort by timestamp
+                self.pending_actions.sort(key=lambda x: x[2])
             
         except Exception as e:
             logger.error(f"Error handling player action: {str(e)}")
@@ -413,7 +434,9 @@ class GameStateSync:
             logger.info(f"HOST END_TURN DEBUG: Collected {len(turn_messages)} messages after turn execution")
             
             # Handle turn transition after execution (only host)
+            logger.info(f"P2_TURN_FIX: Checking if should handle turn transition - is_host={self.network.is_host()}")
             if self.network.is_host():
+                logger.info(f"P2_TURN_FIX: Host handling turn transition")
                 # Determine next player
                 current_player = self.game.current_player
                 next_player = 2 if current_player == 1 else 1
@@ -423,13 +446,18 @@ class GameStateSync:
                 # Update game state
                 if current_player == 1:
                     # Player 1 finished, switch to Player 2
+                    logger.info(f"P2_TURN_FIX: Player 1 finished, switching to Player 2")
                     self.game.current_player = 2
                 elif current_player == 2:
                     # Player 2 finished, switch to Player 1 and increment turn
+                    logger.info(f"P2_TURN_FIX: Player 2 finished, switching to Player 1 and incrementing turn")
                     self.game.current_player = 1
                     self.game.turn += 1
+                else:
+                    logger.warning(f"P2_TURN_FIX: Unexpected current_player value: {current_player}")
                 
                 logger.info(f"HOST END_TURN DEBUG: After switch - new_current_player={self.game.current_player}, turn={self.game.turn}")
+                logger.info(f"P2_TURN_FIX: Turn transition completed - current_player={self.game.current_player}, turn={self.game.turn}")
                 
                 # Initialize the new player's turn
                 self.game.initialize_next_player_turn()
@@ -459,11 +487,13 @@ class GameStateSync:
                 
                 game_state_msg = {
                     "state": game_state,
-                    "from_player": current_player,
-                    "turn_number": self.game.turn,
+                    "from_player": current_player,  # This is the player who ENDED their turn
+                    "turn_number": self.game.turn,  # Turn number after transition
                     "checksum": state_checksum,
                     "timestamp": time.time()
                 }
+                
+                logger.info(f"P2_TURN_FIX: Sending game state - from_player={current_player}, game.current_player={self.game.current_player}, turn={self.game.turn}")
                 
                 success = self.network.send_message(MessageType.GAME_STATE_BATCH, game_state_msg)
                 if success:
