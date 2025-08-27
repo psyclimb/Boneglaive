@@ -3958,6 +3958,14 @@ class GameModeManager(UIComponent):
     
     def handle_end_turn(self):
         """End the current turn."""
+        # Add debouncing to prevent rapid multiple end_turn calls
+        import time
+        current_time = time.time()
+        if hasattr(self, '_last_end_turn_time') and (current_time - self._last_end_turn_time) < 1.0:
+            logger.warning(f"END_TURN DEBOUNCE: Ignoring rapid end_turn call (last call {current_time - self._last_end_turn_time:.2f}s ago)")
+            return
+        self._last_end_turn_time = current_time
+        
         # Check if it's actually this player's turn
         if not self.game_ui.multiplayer.is_current_player_turn():
             logger.info(f"END_TURN VALIDATION: Not current player's turn - ignoring end_turn request")
@@ -3965,6 +3973,12 @@ class GameModeManager(UIComponent):
             from boneglaive.utils.message_log import message_log, MessageType
             message_log.add_message("Not your turn", MessageType.WARNING)
             return
+        
+        # Additional debug logging
+        my_player_num = self.game_ui.multiplayer.network_interface.get_player_number() if self.game_ui.multiplayer.network_interface else "unknown"
+        game_current_player = self.game_ui.game.current_player
+        is_host = self.game_ui.multiplayer.network_interface.is_host() if self.game_ui.multiplayer.network_interface else False
+        logger.info(f"END_TURN DEBUG: Starting - my_player_num={my_player_num}, game_current_player={game_current_player}, is_host={is_host}, local_multiplayer={getattr(self.game_ui.game, 'local_multiplayer', 'unknown')}")
         
         cursor_manager = self.game_ui.cursor_manager
         
