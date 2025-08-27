@@ -159,60 +159,138 @@ class GameStateSerializer:
         return differences
     
     def _serialize_core_state(self, game) -> Dict[str, Any]:
-        """Serialize core game engine state."""
+        """Serialize complete core game engine state."""
         return {
+            # Basic game state
             'current_player': game.current_player,
             'turn': game.turn,
             'winner': game.winner,
             'action_counter': game.action_counter,
             'is_player2_first_turn': game.is_player2_first_turn,
+            
+            # Game modes and settings
+            'local_multiplayer': game.local_multiplayer,
+            'test_mode': game.test_mode,
+            
+            # Map information
+            'map_name': game.map_name,
+            
+            # Setup phase state
             'setup_phase': game.setup_phase,
             'setup_player': game.setup_player,
             'setup_confirmed': game.setup_confirmed.copy(),
             'setup_units_remaining': game.setup_units_remaining.copy(),
-            'local_multiplayer': game.local_multiplayer,
-            'test_mode': game.test_mode,
+            
+            # Unit count for validation
+            'total_units': len(game.units),
+            'units_per_player': {
+                1: len([u for u in game.units if u.player == 1]),
+                2: len([u for u in game.units if u.player == 2])
+            },
+            
+            # Game events (if event manager exists)
+            'has_event_manager': hasattr(game, 'event_manager') and game.event_manager is not None,
         }
     
     def _deserialize_core_state(self, data: Dict[str, Any], game) -> None:
-        """Restore core game engine state."""
+        """Restore complete core game engine state."""
+        # Basic game state
         game.current_player = data['current_player']
         game.turn = data['turn']
         game.winner = data['winner']
         game.action_counter = data['action_counter']
         game.is_player2_first_turn = data['is_player2_first_turn']
+        
+        # Game modes and settings
+        game.local_multiplayer = data['local_multiplayer']
+        game.test_mode = data['test_mode']
+        
+        # Map information (verify compatibility)
+        expected_map = data.get('map_name', game.map_name)
+        if expected_map != game.map_name:
+            logger.warning(f"Map mismatch: local={game.map_name}, remote={expected_map}")
+        
+        # Setup phase state
         game.setup_phase = data['setup_phase']
         game.setup_player = data['setup_player']
         game.setup_confirmed = data['setup_confirmed'].copy()
         game.setup_units_remaining = data['setup_units_remaining'].copy()
-        game.local_multiplayer = data['local_multiplayer']
-        game.test_mode = data['test_mode']
+        
+        # Validate unit counts (will be fully restored in Phase 5.3)
+        expected_total = data.get('total_units', 0)
+        actual_total = len(game.units)
+        if expected_total != actual_total:
+            logger.warning(f"Unit count mismatch: expected={expected_total}, actual={actual_total}")
+        
+        expected_per_player = data.get('units_per_player', {})
+        for player in [1, 2]:
+            expected = expected_per_player.get(str(player), 0)  # JSON keys are strings
+            actual = len([u for u in game.units if u.player == player])
+            if expected != actual:
+                logger.warning(f"Player {player} unit count mismatch: expected={expected}, actual={actual}")
+        
+        logger.debug(f"Restored core state: turn={game.turn}, player={game.current_player}, "
+                    f"setup={game.setup_phase}, units={len(game.units)}")
     
     def _serialize_map_state(self, game_map) -> Dict[str, Any]:
-        """Serialize map terrain and cosmic values."""
+        """Serialize comprehensive map state including terrain and cosmic values."""
         return {
             'name': game_map.name,
             'height': game_map.height,
             'width': game_map.width,
+            
+            # Serialize all terrain
             'terrain': {f"{y},{x}": terrain.value 
                        for (y, x), terrain in game_map.terrain.items()},
+            
+            # Serialize cosmic values for furniture
             'cosmic_values': {f"{y},{x}": value 
-                             for (y, x), value in game_map.cosmic_values.items()}
+                             for (y, x), value in game_map.cosmic_values.items()},
+            
+            # Map metadata
+            'total_terrain_tiles': len(game_map.terrain),
+            'cosmic_furniture_count': len(game_map.cosmic_values),
+            'terrain_types_present': list(set(terrain.value for terrain in game_map.terrain.values())),
         }
     
     def _deserialize_map_state(self, data: Dict[str, Any], game_map) -> None:
-        """Restore map terrain and cosmic values."""
+        """Restore comprehensive map terrain and cosmic values."""
+        # Validate map compatibility
+        if data.get('name') != game_map.name:
+            logger.warning(f"Map name mismatch: local={game_map.name}, remote={data.get('name')}")
+        if data.get('height') != game_map.height or data.get('width') != game_map.width:
+            logger.warning(f"Map dimensions mismatch: local=({game_map.height},{game_map.width}), "
+                          f"remote=({data.get('height')},{data.get('width')})")
+        
         # Restore terrain
         game_map.terrain = {}
-        for pos_str, terrain_value in data['terrain'].items():
+        terrain_data = data.get('terrain', {})
+        for pos_str, terrain_value in terrain_data.items():
             y, x = map(int, pos_str.split(','))
             game_map.terrain[(y, x)] = TerrainType(terrain_value)
         
         # Restore cosmic values
         game_map.cosmic_values = {}
-        for pos_str, value in data['cosmic_values'].items():
+        cosmic_data = data.get('cosmic_values', {})
+        for pos_str, value in cosmic_data.items():
             y, x = map(int, pos_str.split(','))
             game_map.cosmic_values[(y, x)] = value
+        
+        # Validate restoration
+        expected_terrain_count = data.get('total_terrain_tiles', 0)
+        actual_terrain_count = len(game_map.terrain)
+        if expected_terrain_count != actual_terrain_count:
+            logger.warning(f"Terrain tile count mismatch: expected={expected_terrain_count}, "
+                          f"actual={actual_terrain_count}")
+        
+        expected_cosmic_count = data.get('cosmic_furniture_count', 0)
+        actual_cosmic_count = len(game_map.cosmic_values)
+        if expected_cosmic_count != actual_cosmic_count:
+            logger.warning(f"Cosmic furniture count mismatch: expected={expected_cosmic_count}, "
+                          f"actual={actual_cosmic_count}")
+        
+        logger.debug(f"Restored map state: {actual_terrain_count} terrain tiles, "
+                    f"{actual_cosmic_count} cosmic furniture pieces")
     
     def _serialize_unit(self, unit) -> Dict[str, Any]:
         """
@@ -245,10 +323,34 @@ class GameStateSerializer:
         """Compare core game states and return differences."""
         differences = []
         
-        for key in ['current_player', 'turn', 'winner', 'action_counter', 
-                   'is_player2_first_turn', 'setup_phase', 'setup_player']:
+        # Compare all core state properties
+        core_properties = [
+            'current_player', 'turn', 'winner', 'action_counter', 
+            'is_player2_first_turn', 'local_multiplayer', 'test_mode',
+            'map_name', 'setup_phase', 'setup_player', 'total_units',
+            'has_event_manager'
+        ]
+        
+        for key in core_properties:
             if state1.get(key) != state2.get(key):
                 differences.append(f"Core.{key}: {state1.get(key)} != {state2.get(key)}")
+        
+        # Compare setup dictionaries
+        setup_confirmed1 = state1.get('setup_confirmed', {})
+        setup_confirmed2 = state2.get('setup_confirmed', {})
+        if setup_confirmed1 != setup_confirmed2:
+            differences.append(f"Core.setup_confirmed: {setup_confirmed1} != {setup_confirmed2}")
+            
+        setup_remaining1 = state1.get('setup_units_remaining', {})
+        setup_remaining2 = state2.get('setup_units_remaining', {})
+        if setup_remaining1 != setup_remaining2:
+            differences.append(f"Core.setup_units_remaining: {setup_remaining1} != {setup_remaining2}")
+        
+        # Compare units per player
+        units_per_player1 = state1.get('units_per_player', {})
+        units_per_player2 = state2.get('units_per_player', {})
+        if units_per_player1 != units_per_player2:
+            differences.append(f"Core.units_per_player: {units_per_player1} != {units_per_player2}")
         
         return differences
     
