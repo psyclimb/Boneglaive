@@ -30,7 +30,6 @@ class MultiplayerManager:
         self.game_state_sync: Optional[GameStateSync] = None
         self.initialized = False
         self.current_player = 1
-        self.pending_chat_messages = []  # Store chat messages until turn batch is sent
         
         # Initialize appropriate network interface based on config
         self._initialize_network()
@@ -67,7 +66,7 @@ class MultiplayerManager:
             self.network_interface = LANMultiplayerInterface(host=True, port=server_port)
             result = self.network_interface.initialize()
             if result:
-                self._setup_chat_handler()
+                pass  # Chat is now handled via turn batching
                 # Set current player based on network role (this is your network identity, not turn player)
                 self.current_player = self.network_interface.get_player_number()
                 # Game always starts with Player 1's turn, regardless of which network player you are
@@ -89,7 +88,7 @@ class MultiplayerManager:
             self.network_interface = LANMultiplayerInterface(host=False, server_ip=server_ip, port=server_port)
             result = self.network_interface.initialize()
             if result:
-                self._setup_chat_handler()
+                pass  # Chat is now handled via turn batching
                 # Set current player based on network role (this is your network identity, not turn player)
                 self.current_player = self.network_interface.get_player_number()
                 # Game always starts with Player 1's turn, regardless of which network player you are
@@ -124,21 +123,6 @@ class MultiplayerManager:
             self.initialized = False
             return False
     
-    def _setup_chat_handler(self) -> None:
-        """Set up chat message handler for network multiplayer."""
-        if self.network_interface:
-            from boneglaive.networking.network_interface import MessageType
-            self.network_interface.register_message_handler(
-                MessageType.CHAT, self._handle_chat_message
-            )
-            logger.info("Chat message handler registered")
-    
-    def _handle_chat_message(self, data: Dict[str, Any]) -> None:
-        """Handle incoming chat messages from network."""
-        # Chat messages are now handled via turn batches only
-        # This handler is no longer used but kept for compatibility
-        logger.info(f"Received legacy chat message - ignoring (handled via turn batch)")
-        pass
     
     def is_current_player_turn(self) -> bool:
         """Check if it's the current player's turn."""
