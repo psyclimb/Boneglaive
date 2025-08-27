@@ -33,10 +33,9 @@ class MessageLog:
         self.filters: List[MessageType] = [MessageType.DEBUG]  # Always filter out DEBUG messages
         self.player_colors: Dict[int, int] = {1: 3, 2: 4}  # Player number to color mapping
         
-        # Turn-based message batching for network sync
-        self.turn_batch: List[Dict[str, Any]] = []  # Messages accumulated during current turn
-        self.is_batching = False  # Whether to batch messages for network sync
-        self.always_batch_for_network = False  # Always batch in network mode
+        # Simple turn-based message batching for network sync
+        self.turn_messages: List[Dict[str, Any]] = []  # All messages from current turn
+        self.network_mode = False  # Whether we're in network multiplayer mode
         
     def add_message(self, text: str, msg_type: MessageType, 
                    player: Optional[int] = None, target: Optional[int] = None,
@@ -63,14 +62,14 @@ class MessageLog:
         # Add any additional data
         message.update(kwargs)
         
-        # Add to current turn batch if batching is enabled OR always batching for network
-        if self.is_batching or self.always_batch_for_network:
-            self.turn_batch.append(message.copy())
-        
         # Add to message list, keeping only the most recent MAX_MESSAGES
         self.messages.append(message)
         if len(self.messages) > self.MAX_MESSAGES:
             self.messages.pop(0)
+        
+        # In network mode, also collect for turn batch
+        if self.network_mode:
+            self.turn_messages.append(message.copy())
         
         # Log to debug system if relevant
         if msg_type == MessageType.ERROR:
@@ -321,62 +320,51 @@ class MessageLog:
         """Clear all messages from the log."""
         self.messages = []
     
-    def start_turn_batch(self) -> None:
-        """Start batching messages for the current turn."""
-        self.is_batching = True
-        self.turn_batch = []
-        logger.debug("Started message batching for turn")
+    def enable_network_mode(self) -> None:
+        """Enable network mode - start collecting turn messages."""
+        self.network_mode = True
+        self.turn_messages = []
+        logger.debug("Enabled network message collection")
     
-    def enable_network_batching(self) -> None:
-        """Enable always-on batching for network multiplayer."""
-        self.always_batch_for_network = True
-        self.turn_batch = []
-        logger.debug("Enabled always-on network batching")
+    def start_new_turn(self) -> None:
+        """Start a new turn - clear previous turn's messages."""
+        if self.network_mode:
+            self.turn_messages = []
+            logger.debug("Started new turn message collection")
     
-    def end_turn_batch(self) -> List[Dict[str, Any]]:
-        """End turn batching and return accumulated messages."""
-        batch = self.turn_batch.copy()
-        self.is_batching = False
-        self.turn_batch = []
-        logger.debug(f"Ended message batching, collected {len(batch)} messages")
-        return batch
+    def get_turn_messages(self) -> List[Dict[str, Any]]:
+        """Get all messages from the current turn."""
+        return self.turn_messages.copy()
     
-    def add_batch_messages(self, batch: List[Dict[str, Any]]) -> None:
-        """Add a batch of messages from network (without re-batching them)."""
-        was_batching = self.is_batching
-        self.is_batching = False  # Temporarily disable batching to avoid double-batching
+    def clear_turn_messages(self) -> None:
+        """Clear current turn messages (after sending)."""
+        if self.network_mode:
+            self.turn_messages = []
+    
+    def add_network_messages(self, messages: List[Dict[str, Any]]) -> None:
+        """Add messages received from network player (bypass turn collection)."""
+        network_was_active = self.network_mode
+        self.network_mode = False  # Temporarily disable to avoid re-batching
         
-        for message in batch:
+        for message in messages:
             # Reconstruct message type from stored value
             msg_type = message['type']
             if isinstance(msg_type, str):
-                # Convert string back to enum
                 msg_type = MessageType(msg_type)
             elif hasattr(msg_type, 'value'):
-                # It's already an enum, use it as-is
                 msg_type = MessageType(msg_type.value)
             
-            # Add the message directly to avoid calling add_message (which has batching logic)
-            message_entry = {
-                'text': message['text'],
-                'type': msg_type,
-                'timestamp': message.get('timestamp', time.time()),
-                'player': message.get('player'),
-                'target': message.get('target'),
-            }
-            
-            # Add any additional data
-            for k, v in message.items():
-                if k not in ['text', 'type', 'timestamp', 'player', 'target']:
-                    message_entry[k] = v
-            
-            # Add directly to message list, keeping only the most recent MAX_MESSAGES
-            self.messages.append(message_entry)
-            if len(self.messages) > self.MAX_MESSAGES:
-                self.messages.pop(0)
+            # Add the message using normal add_message (will appear in local log)
+            self.add_message(
+                text=message['text'],
+                msg_type=msg_type,
+                player=message.get('player'),
+                target=message.get('target'),
+                **{k: v for k, v in message.items() if k not in ['text', 'type', 'player', 'target', 'timestamp']}
+            )
         
-        self.is_batching = was_batching  # Restore original batching state
-        logger.debug(f"Added batch of {len(batch)} messages from network")
+        self.network_mode = network_was_active  # Restore network mode
+        logger.debug(f"Added {len(messages)} messages from network player")
 
 # Create a global message log instance
 message_log = MessageLog()

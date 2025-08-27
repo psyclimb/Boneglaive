@@ -2605,12 +2605,6 @@ class CursorManager(UIComponent):
             # Set appropriate message based on target type
             if is_wall_target:
                 self.game_ui.message = f"Attack set against Marrow Dike wall"
-                # Ensure message batching is active for network multiplayer
-                if self.game_ui.multiplayer.is_network_multiplayer():
-                    if not message_log.is_batching:
-                        logger.warning("Message batching not active during wall attack planning - starting it now")
-                        message_log.start_turn_batch()
-                
                 # Add message to log for planned wall attacks
                 message_log.add_message(
                     f"{self.selected_unit.get_display_name()} readies attack against {wall_owner.get_display_name()}'s Marrow Dike wall",
@@ -2620,12 +2614,6 @@ class CursorManager(UIComponent):
                 )
             elif target_unit:
                 self.game_ui.message = f"Attack set against {target_unit.get_display_name()}"
-                # Ensure message batching is active for network multiplayer
-                if self.game_ui.multiplayer.is_network_multiplayer():
-                    if not message_log.is_batching:
-                        logger.warning("Message batching not active during attack planning - starting it now")
-                        message_log.start_turn_batch()
-                
                 # Add message to log for planned unit attacks
                 message_log.add_message(
                     f"{self.selected_unit.get_display_name()} readies attack against {target_unit.get_display_name()}",
