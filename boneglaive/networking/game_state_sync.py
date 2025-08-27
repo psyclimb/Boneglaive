@@ -240,13 +240,8 @@ class GameStateSync:
             if message_log.is_batching:
                 client_messages = message_log.end_turn_batch()
                 
-                # Include pending chat messages
-                if self.multiplayer_manager and hasattr(self.multiplayer_manager, 'pending_chat_messages'):
-                    pending_chats = self.multiplayer_manager.pending_chat_messages
-                    if pending_chats:
-                        client_messages.extend(pending_chats)
-                        self.multiplayer_manager.pending_chat_messages = []
-                        logger.info(f"CLIENT END_TURN DEBUG: Added {len(pending_chats)} pending chat messages to client batch")
+                # Chat messages are already included in client_messages via batching
+                # No need for separate pending chat handling
                 
                 # Serialize MessageType enums to strings
                 serialized_messages = []
@@ -400,13 +395,8 @@ class GameStateSync:
                         message_log.end_turn_batch()
                     turn_messages = []
                 
-                # Include any pending chat messages from the multiplayer manager
-                if self.multiplayer_manager and hasattr(self.multiplayer_manager, 'pending_chat_messages'):
-                    pending_chats = self.multiplayer_manager.pending_chat_messages
-                    if pending_chats:
-                        turn_messages.extend(pending_chats)
-                        self.multiplayer_manager.pending_chat_messages = []  # Clear pending messages
-                        logger.info(f"HOST END_TURN DEBUG: Added {len(pending_chats)} pending chat messages to turn batch")
+                # Chat messages are already included in turn_messages via batching
+                # No need for separate pending chat handling
             
             # Apply any planned actions from the ending player if we haven't already
             if not client_message_batch:

@@ -2223,21 +2223,11 @@ class ChatComponent(UIComponent):
                 # Get current player
                 current_player = self.game_ui.multiplayer.get_current_player()
                 
-                # For network multiplayer, only add to batch (don't add to local log immediately)
+                # For network multiplayer, add to batch (will sync when turn ends)
                 if self.game_ui.multiplayer.is_network_multiplayer():
-                    # Add message to turn batch (will be sent when turn ends)
+                    # Add chat message to local batch only - no network sending
                     message_log.add_player_message(current_player, self.chat_input)
-                    
-                    # Send message over network (other player will store in pending)
-                    from boneglaive.networking.network_interface import MessageType
-                    network_interface = self.game_ui.multiplayer.network_interface
-                    if network_interface and network_interface.connected:
-                        success = network_interface.send_message(MessageType.CHAT, {
-                            "player": current_player,
-                            "message": self.chat_input
-                        })
-                        if not success:
-                            message_log.add_system_message("Failed to send message over network")
+                    # Chat will be included in turn batch when turn ends
                 else:
                     # For local multiplayer, add to log immediately
                     message_log.add_player_message(current_player, self.chat_input)
