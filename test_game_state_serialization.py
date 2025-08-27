@@ -200,20 +200,117 @@ class TestGameStateSerializer(unittest.TestCase):
         terrain_diffs = [d for d in differences if 'Map.terrain' in d]
         self.assertGreater(len(terrain_diffs), 0)
     
-    def test_unit_comparison_basic(self):
-        """Test basic unit comparison (placeholder for Phase 5.3)."""
-        # This is a basic test - will be expanded in Phase 5.3
+    def test_unit_serialization_phase_5_3(self):
+        """Test Phase 5.3 comprehensive unit serialization."""
+        # Get a unit to test with
+        if not self.game.units:
+            self.skipTest("No units available for testing")
+        
+        unit = self.game.units[0]
+        
+        # Serialize the unit
+        serialized_unit = self.serializer._serialize_unit(unit)
+        
+        # Verify all major sections are present
+        expected_sections = [
+            'type', 'player', 'y', 'x', 'greek_id',
+            'max_hp', 'hp', 'attack', 'defense', 'move_range', 'attack_range',
+            'hp_bonus', 'attack_bonus', 'defense_bonus', 'move_range_bonus', 'attack_range_bonus',
+            'action_timestamp', 'move_target', 'attack_target', 'skill_target',
+            'level', 'xp', 'passive_skill', 'active_skills',
+            'status_effects', 'visual_indicators', 'unit_references', 'extended_properties'
+        ]
+        
+        for section in expected_sections:
+            self.assertIn(section, serialized_unit, f"Missing section: {section}")
+        
+        # Verify basic data types
+        self.assertIsInstance(serialized_unit['status_effects'], list)
+        self.assertIsInstance(serialized_unit['visual_indicators'], dict)
+        self.assertIsInstance(serialized_unit['unit_references'], dict)
+        self.assertIsInstance(serialized_unit['extended_properties'], dict)
+        self.assertIsInstance(serialized_unit['active_skills'], list)
+    
+    def test_unit_comparison_comprehensive(self):
+        """Test comprehensive unit comparison with Phase 5.3 features."""
         state1 = self.serializer.serialize_game_state(self.game)
         state2 = self.serializer.serialize_game_state(self.game)
         
         # Modify unit in state2
         if len(state2['units']) > 0:
             state2['units'][0]['hp'] = 999
+            state2['units'][0]['level'] = 5
             
-            # Should detect unit difference
+            # Should detect unit differences
             differences = self.serializer.compare_states(state1, state2)
             unit_diffs = [d for d in differences if 'Unit[' in d]
             self.assertGreater(len(unit_diffs), 0)
+    
+    def test_status_effects_serialization(self):
+        """Test status effects serialization system."""
+        if not self.game.units:
+            self.skipTest("No units available for testing")
+        
+        unit = self.game.units[0]
+        
+        # Set some test status effects
+        unit.jawline_affected = True
+        unit.jawline_duration = 3
+        unit.estranged = True
+        unit.trap_duration = 2
+        
+        # Serialize status effects
+        status_effects = self.serializer._serialize_status_effects(unit)
+        
+        # Should capture active effects
+        effect_names = [effect['name'] for effect in status_effects]
+        self.assertIn('jawline', effect_names)
+        self.assertIn('estranged', effect_names)
+        self.assertIn('trapped', effect_names)
+        
+        # Check duration is captured
+        jawline_effect = next((e for e in status_effects if e['name'] == 'jawline'), None)
+        self.assertIsNotNone(jawline_effect)
+        self.assertEqual(jawline_effect['duration'], 3)
+    
+    def test_visual_indicators_serialization(self):
+        """Test visual indicators serialization system."""
+        if not self.game.units:
+            self.skipTest("No units available for testing")
+        
+        unit = self.game.units[0]
+        
+        # Set some test indicators
+        unit.vault_target_indicator = (5, 10)
+        unit.jawline_indicator = [(3, 4), (3, 5)]
+        
+        # Serialize indicators
+        indicators = self.serializer._serialize_visual_indicators(unit)
+        
+        # Should capture indicators with cleaned names
+        self.assertIn('vault_target', indicators)
+        self.assertIn('jawline', indicators)
+        self.assertEqual(indicators['vault_target'], (5, 10))
+        self.assertEqual(indicators['jawline'], [(3, 4), (3, 5)])
+    
+    def test_unit_references_serialization(self):
+        """Test unit reference serialization system."""
+        if len(self.game.units) < 2:
+            self.skipTest("Need at least 2 units for reference testing")
+        
+        unit1 = self.game.units[0]
+        unit2 = self.game.units[1]
+        
+        # Set up a reference
+        unit1.trapped_by = unit2
+        
+        # Serialize references
+        references = self.serializer._serialize_unit_references(unit1)
+        
+        # Should capture the reference as an ID
+        self.assertIn('trapped_by', references)
+        expected_id = f"{unit2.player}_{unit2.greek_id}"
+        self.assertEqual(references['trapped_by'], expected_id)
     
     def test_enhanced_core_state_properties(self):
         """Test Phase 5.2 enhanced core state properties."""
