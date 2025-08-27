@@ -371,23 +371,12 @@ class GameStateSync:
             client_message_batch = data.get("client_message_batch", [])
             
             if client_message_batch:
-                # Use client's message batch (they already collected their messages)
+                # Client sent their message batch, just use it
                 turn_messages = client_message_batch
                 logger.info(f"HOST END_TURN DEBUG: Using client's message batch with {len(turn_messages)} messages")
             else:
                 # This is a host end_turn, collect host's messages
                 try:
-                    # Apply any planned actions from the ending player first
-                    planned_actions = data.get("planned_actions", [])
-                    if planned_actions:
-                        self._apply_planned_actions(planned_actions)
-                    
-                    # Execute turn for all units with animations if UI available
-                    if self.ui:
-                        self.game.execute_turn(self.ui)
-                    else:
-                        self.game.execute_turn()
-                    
                     # Collect messages from current batch and filter for host's messages
                     all_messages = message_log.end_turn_batch()
                     my_player_num = self.network.get_player_number()
@@ -402,17 +391,16 @@ class GameStateSync:
                     message_log.start_turn_batch()
                     turn_messages = []
             
-            # Apply any planned actions from the ending player if we haven't already
-            if not client_message_batch:
-                planned_actions = data.get("planned_actions", [])
-                if planned_actions:
-                    self._apply_planned_actions(planned_actions)
-                
-                # Execute turn for all units with animations if UI available
-                if self.ui:
-                    self.game.execute_turn(self.ui)
-                else:
-                    self.game.execute_turn()
+            # Apply planned actions and execute turn (for both host and client actions)
+            planned_actions = data.get("planned_actions", [])
+            if planned_actions:
+                self._apply_planned_actions(planned_actions)
+            
+            # Execute turn for all units with animations if UI available
+            if self.ui:
+                self.game.execute_turn(self.ui)
+            else:
+                self.game.execute_turn()
             
             # Handle turn transition after execution (only host)
             if self.network.is_host():
