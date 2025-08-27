@@ -2226,7 +2226,6 @@ class ChatComponent(UIComponent):
                     my_player_number = self.game_ui.multiplayer.network_interface.get_player_number()
                     # Add chat message to local batch only - no network sending
                     message_log.add_player_message(my_player_number, self.chat_input)
-                    print(f"💬 CHAT_DEBUG: Player {my_player_number} typed: '{self.chat_input}' (added to batch)")
                     # Chat will be included in turn batch when MY turn ends
                 else:
                     # For local multiplayer, use current game player

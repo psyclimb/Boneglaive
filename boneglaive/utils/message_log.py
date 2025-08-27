@@ -66,9 +66,6 @@ class MessageLog:
         # Add to current turn batch if batching is enabled OR always batching for network
         if self.is_batching or self.always_batch_for_network:
             self.turn_batch.append(message.copy())
-            print(f"📨 BATCH_DEBUG: Added message to batch: '{text}', batch size: {len(self.turn_batch)}")
-        else:
-            print(f"❌ BATCH_DEBUG: NOT batching, added directly to log: '{text}'")
         
         # Add to message list, keeping only the most recent MAX_MESSAGES
         self.messages.append(message)
@@ -328,24 +325,19 @@ class MessageLog:
         """Start batching messages for the current turn."""
         self.is_batching = True
         self.turn_batch = []
-        print(f"🟢 BATCH_DEBUG: Started turn-specific batching, is_batching={self.is_batching}")
-        logger.info("Started message batching for turn")
+        logger.debug("Started message batching for turn")
     
     def enable_network_batching(self) -> None:
         """Enable always-on batching for network multiplayer."""
         self.always_batch_for_network = True
         self.turn_batch = []
-        print(f"🌐 BATCH_DEBUG: Enabled always-on network batching")
-        logger.info("Enabled always-on network batching")
+        logger.debug("Enabled always-on network batching")
     
     def end_turn_batch(self) -> List[Dict[str, Any]]:
         """End turn batching and return accumulated messages."""
         batch = self.turn_batch.copy()
         self.is_batching = False
         self.turn_batch = []
-        print(f"🔄 BATCH_DEBUG: Ended batching, sending {len(batch)} messages:")
-        for i, msg in enumerate(batch):
-            print(f"  {i+1}. {msg.get('type', 'Unknown')}: '{msg.get('text', 'No text')}'")
         logger.debug(f"Ended message batching, collected {len(batch)} messages")
         return batch
     
@@ -384,9 +376,6 @@ class MessageLog:
                 self.messages.pop(0)
         
         self.is_batching = was_batching  # Restore original batching state
-        print(f"📥 BATCH_DEBUG: Added batch of {len(batch)} messages from network:")
-        for i, msg in enumerate(batch):
-            print(f"  {i+1}. {msg.get('type', 'Unknown')}: '{msg.get('text', 'No text')}'")
         logger.debug(f"Added batch of {len(batch)} messages from network")
 
 # Create a global message log instance
