@@ -903,65 +903,105 @@ class GameStateSync:
     def _handle_game_state_batch(self, data: Dict[str, Any]) -> None:
         """
         Handle received game state batch from other player.
-        Verify parity and trigger recovery if needed.
+        Phase 5.6: BIDIRECTIONAL verification and cross-validation.
+        
+        This implements the same pattern as message log batching:
+        1. Receive and apply the other player's state
+        2. Send our own state back for cross-verification  
+        3. Perform parity checks both ways
+        4. Trigger reconciliation if needed
         """
         try:
             state_data = data.get("state", {})
             from_player = data.get("from_player", 0)
             turn_number = data.get("turn_number", 0)
             other_checksum = data.get("checksum", "")
+            my_player_num = self.network.get_player_number()
+            is_cross_verification = data.get("cross_verification", False)
             
-            logger.info(f"GAME_STATE_BATCH DEBUG: Received game state from player {from_player} turn {turn_number}")
+            logger.info(f"BIDIRECTIONAL_STATE_BATCH: Received game state from player {from_player} turn {turn_number} (cross_verification: {is_cross_verification})")
+            logger.info(f"BIDIRECTIONAL_STATE_BATCH: My player num: {my_player_num}")
             
             if state_data and other_checksum:
                 # Generate our current game state checksum BEFORE applying received state
                 my_checksum_before = game_state_serializer.generate_checksum(self.game)
                 
-                logger.info(f"GAME_STATE_APPLY DEBUG: Applying game state from player {from_player}")
-                logger.info(f"GAME_STATE_APPLY DEBUG: My checksum before: {my_checksum_before}")
-                logger.info(f"GAME_STATE_APPLY DEBUG: Their checksum: {other_checksum}")
+                logger.info(f"BIDIRECTIONAL_STATE_APPLY: Applying game state from player {from_player}")
+                logger.info(f"BIDIRECTIONAL_STATE_APPLY: My checksum before: {my_checksum_before}")
+                logger.info(f"BIDIRECTIONAL_STATE_APPLY: Their checksum: {other_checksum}")
                 
-                # CRITICAL FIX: Apply the received game state to our game
-                # This was the missing piece - we were only checking parity, not applying state!
+                # Apply the received game state to our game
                 try:
                     game_state_serializer.deserialize_game_state(state_data, self.game)
-                    logger.info(f"GAME_STATE_APPLY DEBUG: ✓ Game state successfully applied from player {from_player}")
+                    logger.info(f"BIDIRECTIONAL_STATE_APPLY: ✓ Game state successfully applied from player {from_player}")
                     
                     # Verify the application worked by checking new checksum
                     my_checksum_after = game_state_serializer.generate_checksum(self.game)
                     parity_match = my_checksum_after == other_checksum
                     
-                    logger.info(f"GAME_STATE_APPLY DEBUG: My checksum after: {my_checksum_after}")
-                    logger.info(f"GAME_STATE_APPLY DEBUG: Parity match after apply: {parity_match}")
+                    logger.info(f"BIDIRECTIONAL_STATE_APPLY: My checksum after: {my_checksum_after}")
+                    logger.info(f"BIDIRECTIONAL_STATE_APPLY: Parity match after apply: {parity_match}")
                     
-                    # Send parity check response
+                    # ===== BIDIRECTIONAL CROSS-VERIFICATION =====
+                    # Send our complete game state back for bidirectional verification
+                    # This mirrors the message log pattern where both sides send their data
+                    # ONLY do this if it's not already a cross-verification message to avoid infinite loops
+                    
+                    if not is_cross_verification:
+                        logger.info(f"BIDIRECTIONAL_CROSS_VERIFY: Sending our game state to player {from_player} for cross-verification")
+                        
+                        # Serialize our current game state
+                        our_complete_state = game_state_serializer.serialize_game_state(self.game)
+                        our_state_checksum = game_state_serializer.generate_checksum(self.game)
+                        
+                        # Send our game state back for bidirectional verification
+                        cross_verify_batch = {
+                            "state": our_complete_state,
+                            "checksum": our_state_checksum,
+                            "from_player": my_player_num,
+                            "turn_number": turn_number,
+                            "cross_verification": True,  # Flag to indicate this is cross-verification
+                            "timestamp": time.time()
+                        }
+                        
+                        cross_verify_sent = self.network.send_message(MessageType.GAME_STATE_BATCH, cross_verify_batch)
+                        
+                        if cross_verify_sent:
+                            logger.info(f"BIDIRECTIONAL_CROSS_VERIFY: ✓ Sent our game state for cross-verification (checksum: {our_state_checksum})")
+                        else:
+                            logger.warning(f"BIDIRECTIONAL_CROSS_VERIFY: Failed to send cross-verification batch")
+                    else:
+                        logger.info(f"BIDIRECTIONAL_CROSS_VERIFY: Received cross-verification batch - no further cross-verification needed")
+                    
+                    # Send parity check response with bidirectional info
                     parity_response = {
                         "my_checksum": my_checksum_after,
                         "their_checksum": other_checksum,
-                        "from_player": self.network.get_player_number(),
+                        "from_player": my_player_num,
                         "parity_match": parity_match,
                         "turn_number": turn_number,
+                        "bidirectional_sync": True,  # Flag for bidirectional sync
                         "timestamp": time.time()
                     }
                     
                     self.network.send_message(MessageType.GAME_STATE_PARITY_CHECK, parity_response)
-                    logger.info(f"GAME_STATE_APPLY DEBUG: Sent parity response (match: {parity_match})")
+                    logger.info(f"BIDIRECTIONAL_PARITY: Sent bidirectional parity response (match: {parity_match})")
                     
                     # If there's still a mismatch after applying, use recovery system
                     if not parity_match:
-                        logger.warning(f"GAME_STATE_RECOVERY: State mismatch persists after apply - using recovery")
+                        logger.warning(f"BIDIRECTIONAL_RECOVERY: State mismatch persists after apply - using recovery")
                         self.handle_state_desync(other_checksum, from_player, turn_number)
                     else:
                         # Successfully synchronized!
-                        logger.info(f"GAME_STATE_APPLY DEBUG: ✓ Game state successfully synchronized with player {from_player}")
+                        logger.info(f"BIDIRECTIONAL_STATE_APPLY: ✓ Game state successfully synchronized with player {from_player}")
                         
                 except Exception as apply_error:
-                    logger.error(f"GAME_STATE_APPLY ERROR: Failed to apply game state: {str(apply_error)}")
+                    logger.error(f"BIDIRECTIONAL_STATE_APPLY ERROR: Failed to apply game state: {str(apply_error)}")
                     # Use recovery system if direct application fails
                     self.handle_state_desync(other_checksum, from_player, turn_number)
                 
         except Exception as e:
-            logger.error(f"Error handling game state batch: {str(e)}")
+            logger.error(f"Error handling bidirectional game state batch: {str(e)}")
     
     def _handle_game_state_parity_check(self, data: Dict[str, Any]) -> None:
         """
@@ -1031,6 +1071,7 @@ class GameStateSync:
     def _handle_game_state_full_sync(self, data: Dict[str, Any]) -> None:
         """
         Handle full game state sync from another player.
+        Phase 5.6: Enhanced bidirectional full sync with authority handling.
         Replace our game state with theirs to fix sync issues.
         """
         try:
@@ -1038,21 +1079,24 @@ class GameStateSync:
             other_checksum = data.get("checksum", "")
             from_player = data.get("from_player", 0)
             turn_number = data.get("turn_number", 0)
+            is_authoritative = data.get("authoritative", False)
             
-            logger.warning(f"GAME_STATE_FULL_SYNC DEBUG: Received full game state from Player {from_player}")
+            logger.warning(f"BIDIRECTIONAL_FULL_SYNC DEBUG: Received full game state from Player {from_player} (authoritative: {is_authoritative})")
             
             if state_data and other_checksum:
                 # Use structured recovery system with UI preservation
                 recovery_success = self.replace_game_state_with_recovery(
-                    state_data, other_checksum, from_player
+                    state_data, other_checksum, from_player, is_authoritative
                 )
                 
                 if not recovery_success:
-                    logger.error(f"GAME_STATE_RECOVERY: ✗ Structured recovery failed for Player {from_player}")
+                    logger.error(f"BIDIRECTIONAL_RECOVERY: ✗ Structured recovery failed for Player {from_player}")
                     # Could implement additional fallback mechanisms here if needed
+                else:
+                    logger.warning(f"BIDIRECTIONAL_RECOVERY: ✓ Successfully recovered game state from Player {from_player}")
             
         except Exception as e:
-            logger.error(f"Error handling game state full sync: {str(e)}")
+            logger.error(f"Error handling bidirectional game state full sync: {str(e)}")
     
     # ===== PHASE 5.4: GAME STATE BATCH SENDING METHODS =====
     
@@ -1136,7 +1180,12 @@ class GameStateSync:
     def perform_end_of_turn_sync(self) -> bool:
         """
         Perform complete end-of-turn game state synchronization.
-        Phase 5.4: Turn-end sync integration pattern.
+        Phase 5.6: BIDIRECTIONAL sync integration pattern.
+        
+        This method implements bidirectional game state sync similar to message log:
+        - Both players send their complete game state
+        - Both players receive and verify the other's state
+        - Both perform parity checks and trigger reconciliation if needed
         
         This method should be called after all turn effects are resolved
         but before transitioning to the next player's turn.
@@ -1144,21 +1193,33 @@ class GameStateSync:
         try:
             current_turn = self.game.turn
             current_player = self.game.current_player
+            my_player_num = self.network.get_player_number()
             
-            logger.info(f"END_OF_TURN_SYNC: Starting turn {current_turn} player {current_player} sync")
+            logger.info(f"BIDIRECTIONAL_SYNC: Starting turn {current_turn} player {current_player} bidirectional sync")
+            logger.info(f"BIDIRECTIONAL_SYNC: My network player number: {my_player_num}")
             
-            # Send complete game state to other player
+            # ===== BIDIRECTIONAL GAME STATE EXCHANGE =====
+            # Both players send their complete game state, similar to message log pattern
+            
+            # 1. Send our complete game state to other player
             batch_sent = self.send_game_state_batch(current_turn)
             
             if not batch_sent:
-                logger.warning(f"END_OF_TURN_SYNC: Game state batch failed - sync incomplete")
+                logger.warning(f"BIDIRECTIONAL_SYNC: Failed to send game state batch - sync incomplete")
                 return False
             
-            logger.info(f"END_OF_TURN_SYNC: ✓ Turn {current_turn} sync completed successfully")
+            logger.info(f"BIDIRECTIONAL_SYNC: ✓ Sent our game state batch for turn {current_turn}")
+            
+            # 2. The other player will also send their game state via _handle_game_state_batch
+            #    This creates a bidirectional exchange where both players send and receive states
+            #    and both perform parity verification against each other
+            
+            logger.info(f"BIDIRECTIONAL_SYNC: ✓ Turn {current_turn} bidirectional sync initiated successfully")
+            logger.info(f"BIDIRECTIONAL_SYNC: Waiting for other player's game state batch for cross-verification...")
             return True
             
         except Exception as e:
-            logger.error(f"Error in end-of-turn sync: {str(e)}")
+            logger.error(f"Error in bidirectional end-of-turn sync: {str(e)}")
             return False
     
     # ===== PHASE 5.5: RECOVERY & ERROR HANDLING METHODS =====
@@ -1166,21 +1227,66 @@ class GameStateSync:
     def handle_state_desync(self, other_checksum: str, from_player: int, turn_number: int) -> bool:
         """
         Handle detected game state desync by requesting authoritative state.
-        Phase 5.5: Comprehensive desync detection and recovery.
+        Phase 5.6: Enhanced bidirectional desync detection and recovery.
         """
         try:
             my_checksum = game_state_serializer.generate_checksum(self.game)
+            my_player_num = self.network.get_player_number()
             
-            logger.warning(f"DESYNC_HANDLER: Game state desync detected!")
+            logger.warning(f"BIDIRECTIONAL_DESYNC_HANDLER: Game state desync detected!")
             logger.warning(f"  Turn: {turn_number}, From Player: {from_player}")
+            logger.warning(f"  My player number: {my_player_num}")
             logger.warning(f"  My checksum: {my_checksum}")
             logger.warning(f"  Their checksum: {other_checksum}")
             
-            # Request full game state from the other player
-            return self.request_full_game_state_sync(from_player, turn_number)
+            # In bidirectional sync, determine authority based on network role
+            # Host (Player 1) is typically authoritative, but we implement mutual recovery
+            if self.network.is_host():
+                logger.warning(f"BIDIRECTIONAL_DESYNC: As host, sending our authoritative state to player {from_player}")
+                # Host sends their state as authoritative
+                return self.send_authoritative_game_state_sync(from_player, turn_number)
+            else:
+                logger.warning(f"BIDIRECTIONAL_DESYNC: As client, requesting authoritative state from host (player {from_player})")
+                # Client requests authoritative state from host
+                return self.request_full_game_state_sync(from_player, turn_number)
             
         except Exception as e:
-            logger.error(f"Error handling state desync: {str(e)}")
+            logger.error(f"Error handling bidirectional state desync: {str(e)}")
+            return False
+    
+    def send_authoritative_game_state_sync(self, to_player: int, turn_number: int) -> bool:
+        """
+        Send our game state as the authoritative version for desync resolution.
+        Phase 5.6: Bidirectional authority resolution.
+        """
+        try:
+            logger.warning(f"AUTHORITATIVE_SYNC: Sending authoritative game state to player {to_player}")
+            
+            # Serialize our complete game state as authoritative
+            authoritative_state = game_state_serializer.serialize_game_state(self.game)
+            authoritative_checksum = game_state_serializer.generate_checksum(self.game)
+            
+            # Send as full sync message
+            auth_sync_data = {
+                "state": authoritative_state,
+                "checksum": authoritative_checksum,
+                "from_player": self.network.get_player_number(),
+                "turn_number": turn_number,
+                "authoritative": True,  # Flag this as authoritative
+                "timestamp": time.time()
+            }
+            
+            success = self.network.send_message(MessageType.GAME_STATE_FULL_SYNC, auth_sync_data)
+            
+            if success:
+                logger.warning(f"AUTHORITATIVE_SYNC: ✓ Sent authoritative game state (checksum: {authoritative_checksum})")
+                return True
+            else:
+                logger.error(f"AUTHORITATIVE_SYNC: Failed to send authoritative game state")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error sending authoritative game state sync: {str(e)}")
             return False
     
     def request_full_game_state_sync(self, from_player: int, turn_number: int) -> bool:
@@ -1213,13 +1319,14 @@ class GameStateSync:
             return False
     
     def replace_game_state_with_recovery(self, authoritative_state: Dict[str, Any], 
-                                       expected_checksum: str, from_player: int) -> bool:
+                                       expected_checksum: str, from_player: int, is_authoritative: bool = False) -> bool:
         """
         Replace entire game state with authoritative version, preserving UI state.
-        Phase 5.5: Complete state recovery with UI preservation.
+        Phase 5.6: Enhanced bidirectional state recovery with authority handling.
         """
         try:
-            logger.warning(f"STATE_REPLACEMENT: Starting full game state recovery from Player {from_player}")
+            authority_text = "authoritative" if is_authoritative else "recovery"
+            logger.warning(f"BIDIRECTIONAL_STATE_REPLACEMENT: Starting full game state {authority_text} recovery from Player {from_player}")
             
             # Store current state for rollback if needed
             old_checksum = game_state_serializer.generate_checksum(self.game)
