@@ -135,27 +135,10 @@ class MultiplayerManager:
     
     def _handle_chat_message(self, data: Dict[str, Any]) -> None:
         """Handle incoming chat messages from network."""
-        try:
-            player = data.get('player')
-            message = data.get('message')
-            
-            if player and message:
-                # Store chat message to be included in turn batch (don't add to log immediately)
-                chat_message_data = {
-                    'text': message,
-                    'type': LogMessageType.PLAYER,
-                    'timestamp': time.time(),
-                    'player': player,
-                    'target': None,
-                }
-                self.pending_chat_messages.append(chat_message_data)
-                logger.info(f"Stored chat message from player {player}: {message} (will be added to turn batch)")
-            else:
-                logger.warning(f"Invalid chat message format received: {data}")
-                message_log.add_system_message("Received malformed chat message")
-        except Exception as e:
-            logger.error(f"Error handling chat message: {str(e)}")
-            message_log.add_system_message(f"Error processing chat message: {str(e)}")
+        # Chat messages are now handled via turn batches only
+        # This handler is no longer used but kept for compatibility
+        logger.info(f"Received legacy chat message - ignoring (handled via turn batch)")
+        pass
     
     def is_current_player_turn(self) -> bool:
         """Check if it's the current player's turn."""
