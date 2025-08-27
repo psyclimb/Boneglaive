@@ -1095,3 +1095,110 @@ class GameStateSync:
             
         except Exception as e:
             logger.error(f"Error handling game state full sync: {str(e)}")
+    
+    # ===== PHASE 5.4: GAME STATE BATCH SENDING METHODS =====
+    
+    def send_game_state_batch(self, turn_number: Optional[int] = None) -> bool:
+        """
+        Send complete game state batch to other player at turn end.
+        Phase 5.4: Core game state synchronization pattern.
+        """
+        try:
+            if turn_number is None:
+                turn_number = self.game.turn
+                
+            logger.info(f"GAME_STATE_BATCH_SEND: Sending game state batch for turn {turn_number}")
+            
+            # Serialize complete game state
+            complete_state = game_state_serializer.serialize_game_state(self.game)
+            state_checksum = game_state_serializer.generate_checksum(self.game)
+            
+            # Prepare batch message
+            batch_data = {
+                "state": complete_state,
+                "checksum": state_checksum,
+                "from_player": self.network.get_player_number(),
+                "turn_number": turn_number,
+                "timestamp": time.time()
+            }
+            
+            # Send to other player
+            success = self.network.send_message(MessageType.GAME_STATE_BATCH, batch_data)
+            
+            if success:
+                logger.info(f"GAME_STATE_BATCH_SEND: ✓ Sent game state batch (checksum: {state_checksum})")
+                return True
+            else:
+                logger.error(f"GAME_STATE_BATCH_SEND: ✗ Failed to send game state batch")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error sending game state batch: {str(e)}")
+            return False
+    
+    def send_game_state_parity_check(self, their_checksum: str, turn_number: Optional[int] = None) -> bool:
+        """
+        Send parity check response comparing our checksum with theirs.
+        Phase 5.4: Bidirectional state verification.
+        """
+        try:
+            if turn_number is None:
+                turn_number = self.game.turn
+                
+            logger.info(f"GAME_STATE_PARITY_SEND: Sending parity check for turn {turn_number}")
+            
+            # Generate our current checksum
+            my_checksum = game_state_serializer.generate_checksum(self.game)
+            parity_match = my_checksum == their_checksum
+            
+            # Prepare parity check response
+            parity_data = {
+                "my_checksum": my_checksum,
+                "their_checksum": their_checksum,
+                "parity_match": parity_match,
+                "from_player": self.network.get_player_number(),
+                "turn_number": turn_number,
+                "timestamp": time.time()
+            }
+            
+            # Send parity check
+            success = self.network.send_message(MessageType.GAME_STATE_PARITY_CHECK, parity_data)
+            
+            if success:
+                logger.info(f"GAME_STATE_PARITY_SEND: ✓ Sent parity check (match: {parity_match})")
+                return True
+            else:
+                logger.error(f"GAME_STATE_PARITY_SEND: ✗ Failed to send parity check")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error sending game state parity check: {str(e)}")
+            return False
+    
+    def perform_end_of_turn_sync(self) -> bool:
+        """
+        Perform complete end-of-turn game state synchronization.
+        Phase 5.4: Turn-end sync integration pattern.
+        
+        This method should be called after all turn effects are resolved
+        but before transitioning to the next player's turn.
+        """
+        try:
+            current_turn = self.game.turn
+            current_player = self.game.current_player
+            
+            logger.info(f"END_OF_TURN_SYNC: Starting turn {current_turn} player {current_player} sync")
+            
+            # Send complete game state to other player
+            batch_sent = self.send_game_state_batch(current_turn)
+            
+            if not batch_sent:
+                logger.warning(f"END_OF_TURN_SYNC: Game state batch failed - sync incomplete")
+                return False
+            
+            logger.info(f"END_OF_TURN_SYNC: ✓ Turn {current_turn} sync completed successfully")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error in end-of-turn sync: {str(e)}")
+            return False
