@@ -339,21 +339,28 @@ class GameStateSync:
         elif action_type == "end_turn":
             # Start message batching for turn execution
             from boneglaive.utils.message_log import message_log
-            message_log.start_turn_batch()
-            
-            # Apply any planned actions from the ending player first
-            planned_actions = data.get("planned_actions", [])
-            if planned_actions:
-                self._apply_planned_actions(planned_actions)
-            
-            # Execute turn for all units with animations if UI available
-            if self.ui:
-                self.game.execute_turn(self.ui)
-            else:
-                self.game.execute_turn()
-            
-            # End message batching and collect messages
-            turn_messages = message_log.end_turn_batch()
+            try:
+                message_log.start_turn_batch()
+                
+                # Apply any planned actions from the ending player first
+                planned_actions = data.get("planned_actions", [])
+                if planned_actions:
+                    self._apply_planned_actions(planned_actions)
+                
+                # Execute turn for all units with animations if UI available
+                if self.ui:
+                    self.game.execute_turn(self.ui)
+                else:
+                    self.game.execute_turn()
+                
+                # End message batching and collect messages
+                turn_messages = message_log.end_turn_batch()
+            except Exception as batch_error:
+                logger.error(f"Error during message batching: {str(batch_error)}")
+                # Fallback: ensure batching is stopped and continue without messages
+                if message_log.is_batching:
+                    message_log.end_turn_batch()
+                turn_messages = []
             
             # Include any pending chat messages from the multiplayer manager
             if self.multiplayer_manager and hasattr(self.multiplayer_manager, 'pending_chat_messages'):
@@ -387,14 +394,29 @@ class GameStateSync:
                 
                 # Send message batch to client first (if there are messages)
                 if turn_messages:
+                    # Serialize MessageType enums to strings for JSON transmission
+                    serialized_messages = []
+                    for msg in turn_messages:
+                        serialized_msg = msg.copy()
+                        if 'type' in serialized_msg and hasattr(serialized_msg['type'], 'value'):
+                            serialized_msg['type'] = serialized_msg['type'].value
+                        serialized_messages.append(serialized_msg)
+                    
                     message_batch_msg = {
-                        "messages": turn_messages,
+                        "messages": serialized_messages,
                         "from_player": current_player,
                         "turn_number": self.game.turn,
                         "timestamp": time.time()
                     }
-                    self.network.send_message(MessageType.MESSAGE_LOG_BATCH, message_batch_msg)
-                    logger.info(f"HOST END_TURN DEBUG: Sent MESSAGE_LOG_BATCH with {len(turn_messages)} messages from player {current_player}")
+                    success = self.network.send_message(MessageType.MESSAGE_LOG_BATCH, message_batch_msg)
+                    if success:
+                        logger.info(f"HOST END_TURN DEBUG: Sent MESSAGE_LOG_BATCH with {len(turn_messages)} messages from player {current_player}")
+                    else:
+                        logger.error(f"HOST END_TURN DEBUG: Failed to send MESSAGE_LOG_BATCH - connection may be lost")
+                        return  # Don't proceed with turn transition if message batch failed
+                
+                # Small delay to ensure message batch is processed before turn transition
+                time.sleep(0.1)
                 
                 # Send turn transition to client
                 turn_transition_msg = {
@@ -402,9 +424,12 @@ class GameStateSync:
                     "turn_number": self.game.turn,
                     "timestamp": time.time()
                 }
-                self.network.send_message(MessageType.TURN_TRANSITION, turn_transition_msg)
-                logger.info(f"HOST END_TURN DEBUG: Sent TURN_TRANSITION message to client - new_player={self.game.current_player}")
-                logger.info(f"HOST END_TURN DEBUG: Full TURN_TRANSITION message: {turn_transition_msg}")
+                success = self.network.send_message(MessageType.TURN_TRANSITION, turn_transition_msg)
+                if success:
+                    logger.info(f"HOST END_TURN DEBUG: Sent TURN_TRANSITION message to client - new_player={self.game.current_player}")
+                    logger.info(f"HOST END_TURN DEBUG: Full TURN_TRANSITION message: {turn_transition_msg}")
+                else:
+                    logger.error(f"HOST END_TURN DEBUG: Failed to send TURN_TRANSITION - connection may be lost")
                 
                 # Update UI for host and handle message batching
                 if self.ui:
@@ -676,10 +701,17 @@ class GameStateSync:
             from_player = data.get("from_player", 0)
             turn_number = data.get("turn_number", 0)
             
+            logger.info(f"MESSAGE_LOG_BATCH DEBUG: Received batch with {len(messages)} messages from player {from_player} turn {turn_number}")
+            
             if messages:
                 from boneglaive.utils.message_log import message_log
-                message_log.add_batch_messages(messages)
-                logger.info(f"MESSAGE_LOG_BATCH DEBUG: Added {len(messages)} messages from player {from_player} turn {turn_number}")
+                try:
+                    message_log.add_batch_messages(messages)
+                    logger.info(f"MESSAGE_LOG_BATCH DEBUG: Successfully added {len(messages)} messages to log")
+                except Exception as add_error:
+                    logger.error(f"Error adding messages to log: {str(add_error)}")
+            else:
+                logger.info(f"MESSAGE_LOG_BATCH DEBUG: No messages in batch to add")
             
         except Exception as e:
             logger.error(f"Error handling message log batch: {str(e)}")
