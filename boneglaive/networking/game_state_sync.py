@@ -276,6 +276,13 @@ class GameStateSync:
             if self.ui:
                 from boneglaive.utils.message_log import message_log, MessageType as LogMessageType
                 
+                # CRITICAL FIX: Ensure P2's messages are displayed before any UI state changes
+                # Force immediate UI refresh to display P2's generated messages
+                logger.info(f"P2_MESSAGE_FIX: Ensuring {len(message_log.messages)} messages are visible on P2's screen")
+                
+                # Force a complete UI redraw to ensure P2 sees their messages
+                self.ui.draw_board()
+                
                 # Start collecting messages for the new turn
                 message_log.start_new_turn()
                 
@@ -292,6 +299,10 @@ class GameStateSync:
                 
                 # Update the player message in UI
                 self.ui.update_player_message()
+                
+                # FINAL FIX: Force another UI redraw after all updates to ensure messages remain visible
+                self.ui.draw_board()
+                logger.info(f"P2_MESSAGE_FIX: Final UI redraw completed - P2's messages should now be visible")
             
             # Collect turn messages from client AFTER local execution
             turn_messages = message_log.get_turn_messages()
