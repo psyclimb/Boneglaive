@@ -70,6 +70,7 @@ class MessageLog:
         # In network mode, also collect for turn batch
         if self.network_mode:
             self.turn_messages.append(message.copy())
+            logger.debug(f"MESSAGE_FLOW_DEBUG: Added message to both visible log ({len(self.messages)}) and turn batch ({len(self.turn_messages)}): {text[:50]}...")
         
         # Log to debug system if relevant
         if msg_type == MessageType.ERROR:
@@ -327,10 +328,14 @@ class MessageLog:
         logger.debug("Enabled network message collection")
     
     def start_new_turn(self) -> None:
-        """Start a new turn - clear previous turn's messages."""
+        """Start a new turn - clear previous turn's message collection for network sync."""
         if self.network_mode:
+            # Only clear the turn_messages collection used for network batching
+            # DO NOT clear self.messages as those should remain visible on the player's screen
+            messages_before = len(self.messages)
+            turn_messages_before = len(self.turn_messages)
             self.turn_messages = []
-            logger.debug("Started new turn message collection")
+            logger.info(f"MESSAGE_FLOW_DEBUG: Started new turn - preserving {messages_before} visible messages, cleared {turn_messages_before} turn messages for next collection")
     
     def get_turn_messages(self) -> List[Dict[str, Any]]:
         """Get all messages from the current turn."""
@@ -346,7 +351,17 @@ class MessageLog:
         network_was_active = self.network_mode
         self.network_mode = False  # Temporarily disable to avoid re-batching
         
+        # CRITICAL FIX: Only add messages that don't already exist locally
+        # This prevents duplicate messages when both players generate the same events
+        existing_message_texts = {msg['text'] for msg in self.messages}
+        new_messages_added = 0
+        
         for message in messages:
+            # Skip messages that already exist locally (prevents duplicates)
+            if message['text'] in existing_message_texts:
+                logger.debug(f"Skipping duplicate message: {message['text'][:50]}...")
+                continue
+            
             # Reconstruct message type from stored value
             msg_type = message['type']
             if isinstance(msg_type, str):
@@ -362,9 +377,10 @@ class MessageLog:
                 target=message.get('target'),
                 **{k: v for k, v in message.items() if k not in ['text', 'type', 'player', 'target', 'timestamp']}
             )
+            new_messages_added += 1
         
         self.network_mode = network_was_active  # Restore network mode
-        logger.debug(f"Added {len(messages)} messages from network player")
+        logger.info(f"MESSAGE_FLOW_DEBUG: Added {new_messages_added} new messages from network player ({len(messages) - new_messages_added} duplicates skipped). Total visible messages: {len(self.messages)}")
     
     def get_message_log_checksum(self) -> str:
         """
