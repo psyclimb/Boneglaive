@@ -351,16 +351,7 @@ class MessageLog:
         network_was_active = self.network_mode
         self.network_mode = False  # Temporarily disable to avoid re-batching
         
-        # CRITICAL FIX: Only add messages that don't already exist locally
-        # This prevents duplicate messages when both players generate the same events
-        existing_message_texts = {msg['text'] for msg in self.messages}
-        new_messages_added = 0
-        
         for message in messages:
-            # Skip messages that already exist locally (prevents duplicates)
-            if message['text'] in existing_message_texts:
-                logger.debug(f"Skipping duplicate message: {message['text'][:50]}...")
-                continue
             
             # Reconstruct message type from stored value
             msg_type = message['type']
@@ -377,10 +368,9 @@ class MessageLog:
                 target=message.get('target'),
                 **{k: v for k, v in message.items() if k not in ['text', 'type', 'player', 'target', 'timestamp']}
             )
-            new_messages_added += 1
         
         self.network_mode = network_was_active  # Restore network mode
-        logger.info(f"MESSAGE_FLOW_DEBUG: Added {new_messages_added} new messages from network player ({len(messages) - new_messages_added} duplicates skipped). Total visible messages: {len(self.messages)}")
+        logger.info(f"MESSAGE_FLOW_DEBUG: Added {len(messages)} messages from network player. Total visible messages: {len(self.messages)}")
     
     def get_message_log_checksum(self) -> str:
         """
