@@ -30,6 +30,9 @@ class GameStateSync:
         self.received_states = []
         self.pending_actions = []
         
+        # Track completed turn states to prevent double-processing
+        self.completed_turn_states = {}  # {player_num: turn_number}
+        
         # Register message handlers
         # OLD GAME_STATE handler removed - Phase 5 uses GAME_STATE_BATCH only
         self.network.register_message_handler(
@@ -209,18 +212,49 @@ class GameStateSync:
         
         logger.info(f"SEND_ACTION DEBUG: {action_type} - my_player_num={my_player_num}, is_host={is_host}, current_game_player={current_game_player}")
         
-        # Only non-host players need to send actions
-        if self.network.is_host():
-            # Host can apply actions directly
-            logger.info(f"SEND_ACTION DEBUG: Host applying {action_type} directly")
+        # BIDIRECTIONAL PROCESSING: Both players execute their own actions locally first
+        # This ensures animations and effects play on the acting player's screen
+        logger.info(f"LOCAL_ACTION_PROCESSING: {action_type} - executing locally first")
+        
+        if action_type != "end_turn":
+            # For non-end-turn actions (move, attack), apply locally immediately
+            # This gives instant feedback to the player
             self._apply_action(action_type, data)
+            logger.info(f"LOCAL_ACTION_PROCESSING: Applied {action_type} locally for immediate feedback")
+        
+        # Host processes actions locally and that's it (no network sending to self)
+        if self.network.is_host():
+            logger.info(f"HOST_ACTION_PROCESSING: Host processed {action_type} locally")
+            if action_type == "end_turn":
+                # Host processes end_turn locally too
+                self._apply_action(action_type, data)
             return
         
-        # For client end_turn, collect and send turn messages to host first
+        # For client end_turn, execute turn locally FIRST, then send complete state
         if action_type == "end_turn":
             from boneglaive.utils.message_log import message_log
             
-            # Collect turn messages from client
+            # CLIENT LOCAL EXECUTION: Apply planned actions and execute turn locally first
+            # This ensures Player 2 sees their own animations and effects
+            logger.info(f"CLIENT_LOCAL_EXECUTION: Player 2 executing turn locally first")
+            
+            # Apply planned actions first
+            planned_actions = data.get("planned_actions", [])
+            if planned_actions:
+                logger.info(f"CLIENT_LOCAL_EXECUTION: Applying {len(planned_actions)} planned actions locally")
+                self._apply_planned_actions(planned_actions)
+            
+            # Execute turn locally with animations for Player 2
+            if self.ui:
+                logger.info(f"CLIENT_LOCAL_EXECUTION: Executing turn with animations for Player 2")
+                self.game.execute_turn(self.ui)
+            else:
+                logger.info(f"CLIENT_LOCAL_EXECUTION: Executing turn without UI for Player 2") 
+                self.game.execute_turn()
+            
+            logger.info(f"CLIENT_LOCAL_EXECUTION: Player 2 turn execution completed locally")
+            
+            # Collect turn messages from client AFTER local execution
             turn_messages = message_log.get_turn_messages()
             
             # Serialize MessageType enums for network transmission
@@ -253,6 +287,7 @@ class GameStateSync:
                     return  # Don't proceed if message batch failed
                 
                 # Send complete game state to host for synchronization
+                # This contains the RESULTS of Player 2's local execution
                 game_state = game_state_serializer.serialize_game_state(self.game)
                 state_checksum = game_state_serializer.generate_checksum(self.game)
                 
@@ -261,6 +296,7 @@ class GameStateSync:
                     "from_player": current_game_player,
                     "turn_number": self.game.turn,
                     "checksum": state_checksum,
+                    "already_executed": True,  # Flag that this turn was already executed locally
                     "timestamp": time.time()
                 }
                 
@@ -332,6 +368,18 @@ class GameStateSync:
             
             if action_type == "end_turn":
                 logger.info(f"P2_ACTION_FIX: Processing Player 2 end_turn immediately")
+                
+                # RACE CONDITION FIX: Check if this player's turn was already completed via state batch
+                current_turn = self.game.turn
+                from_player = self.game.current_player  # Use the actual current player from game state
+                
+                if from_player in self.completed_turn_states and self.completed_turn_states[from_player] >= current_turn:
+                    logger.info(f"RACE_CONDITION_FIX: Player {from_player} turn {current_turn} already completed via state batch - skipping action processing")
+                    # Clear any pending actions since the turn is already complete
+                    if self.pending_actions:
+                        logger.info(f"RACE_CONDITION_FIX: Clearing {len(self.pending_actions)} pending actions (already processed via state)")
+                        self.pending_actions = []
+                    return  # Skip processing the individual actions
                 
                 # Apply any queued actions first (move, attack, etc.)
                 if self.pending_actions:
@@ -453,6 +501,9 @@ class GameStateSync:
                     logger.info(f"P2_TURN_FIX: Player 2 finished, switching to Player 1 and incrementing turn")
                     self.game.current_player = 1
                     self.game.turn += 1
+                    
+                    # RACE CONDITION FIX: Clean up old completed turn states when turn advances
+                    self.cleanup_completed_turn_states(self.game.turn)
                 else:
                     logger.warning(f"P2_TURN_FIX: Unexpected current_player value: {current_player}")
                 
@@ -490,6 +541,7 @@ class GameStateSync:
                     "from_player": current_player,  # This is the player who ENDED their turn
                     "turn_number": self.game.turn,  # Turn number after transition
                     "checksum": state_checksum,
+                    "already_executed": True,  # Host also executes locally first
                     "timestamp": time.time()
                 }
                 
@@ -732,6 +784,9 @@ class GameStateSync:
             
             logger.info(f"TURN_TRANSITION DEBUG: Updated local state - old_current_player={old_current_player} -> new_current_player={self.game.current_player}")
             
+            # RACE CONDITION FIX: Clean up old completed turn states when turn transitions
+            self.cleanup_completed_turn_states(turn_number)
+            
             # Initialize the new player's turn locally
             self.game.initialize_next_player_turn()
             
@@ -948,8 +1003,9 @@ class GameStateSync:
             other_checksum = data.get("checksum", "")
             my_player_num = self.network.get_player_number()
             is_cross_verification = data.get("cross_verification", False)
+            already_executed = data.get("already_executed", False)
             
-            logger.info(f"BIDIRECTIONAL_STATE_BATCH: Received game state from player {from_player} turn {turn_number} (cross_verification: {is_cross_verification})")
+            logger.info(f"BIDIRECTIONAL_STATE_BATCH: Received game state from player {from_player} turn {turn_number} (cross_verification: {is_cross_verification}, already_executed: {already_executed})")
             logger.info(f"BIDIRECTIONAL_STATE_BATCH: My player num: {my_player_num}")
             
             if state_data and other_checksum:
@@ -964,6 +1020,18 @@ class GameStateSync:
                 try:
                     game_state_serializer.deserialize_game_state(state_data, self.game)
                     logger.info(f"BIDIRECTIONAL_STATE_APPLY: ✓ Game state successfully applied from player {from_player}")
+                    
+                    # RACE CONDITION FIX: Mark this player's turn as completed via state batch
+                    # This prevents double-processing when the corresponding PLAYER_ACTION arrives
+                    self.completed_turn_states[from_player] = turn_number
+                    logger.info(f"RACE_CONDITION_FIX: Marked Player {from_player} turn {turn_number} as completed via state batch")
+                    
+                    # BIDIRECTIONAL EXECUTION FLAG: If the sender already executed locally, 
+                    # we don't need to handle turn transitions on our side
+                    if already_executed:
+                        logger.info(f"BIDIRECTIONAL_EXECUTION: Player {from_player} already executed locally - applying final state only")
+                        # The turn was fully executed by the sender, we just apply the final result
+                        # No need to do turn transitions or execution logic on our side
                     
                     # Verify the application worked by checking new checksum
                     my_checksum_after = game_state_serializer.generate_checksum(self.game)
@@ -1543,6 +1611,24 @@ class GameStateSync:
         """
         self.ui = ui
         logger.debug("UI_INTEGRATION: UI reference set for game state sync")
+    
+    def cleanup_completed_turn_states(self, current_turn: int) -> None:
+        """
+        Clean up old completed turn state tracking.
+        Called during turn transitions to prevent stale state.
+        """
+        # Remove entries for turns that are now old
+        to_remove = []
+        for player, completed_turn in self.completed_turn_states.items():
+            if completed_turn < current_turn:
+                to_remove.append(player)
+        
+        for player in to_remove:
+            del self.completed_turn_states[player]
+            logger.debug(f"CLEANUP: Removed completed turn state for Player {player}")
+        
+        if to_remove:
+            logger.info(f"CLEANUP: Cleaned up {len(to_remove)} old completed turn states")
     
     def update_with_error_handling(self) -> None:
         """
