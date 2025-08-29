@@ -254,6 +254,44 @@ class GameStateSync:
             
             logger.info(f"CLIENT_LOCAL_EXECUTION: Player 2 turn execution completed locally")
             
+            # CLIENT LOCAL TURN TRANSITION: Handle turn transition locally after execution
+            current_player = self.game.current_player
+            logger.info(f"CLIENT_LOCAL_TRANSITION: Before transition - current_player={current_player}, turn={self.game.turn}")
+            
+            if current_player == 1:
+                # Player 1 finished, switch to Player 2
+                self.game.current_player = 2
+            elif current_player == 2:
+                # Player 2 finished, switch to Player 1 and increment turn
+                self.game.current_player = 1
+                self.game.turn += 1
+            
+            # Initialize the new player's turn
+            self.game.initialize_next_player_turn()
+            
+            logger.info(f"CLIENT_LOCAL_TRANSITION: After transition - current_player={self.game.current_player}, turn={self.game.turn}")
+            
+            # Update UI for the client after local turn transition
+            if self.ui:
+                from boneglaive.utils.message_log import message_log, MessageType as LogMessageType
+                
+                # Start collecting messages for the new turn
+                message_log.start_new_turn()
+                
+                if self.game.current_player == self.network.get_player_number():
+                    # Still my turn (shouldn't happen normally)
+                    message_log.add_system_message(f"Your turn - Turn {self.game.turn}")
+                    self.ui.message = f"Your turn - Turn {self.game.turn}"
+                    logger.info(f"CLIENT_LOCAL_TRANSITION: UI updated - still my turn")
+                else:
+                    # Other player's turn
+                    message_log.add_system_message(f"Player {self.game.current_player}'s turn - Turn {self.game.turn}")
+                    self.ui.message = f"Player {self.game.current_player} is thinking..."
+                    logger.info(f"CLIENT_LOCAL_TRANSITION: UI updated - other player's turn")
+                
+                # Update the player message in UI
+                self.ui.update_player_message()
+            
             # Collect turn messages from client AFTER local execution
             turn_messages = message_log.get_turn_messages()
             
@@ -293,10 +331,11 @@ class GameStateSync:
                 
                 game_state_msg = {
                     "state": game_state,
-                    "from_player": current_game_player,
-                    "turn_number": self.game.turn,
+                    "from_player": current_game_player,  # The player who just finished their turn
+                    "turn_number": self.game.turn,  # Turn number after local transition
                     "checksum": state_checksum,
                     "already_executed": True,  # Flag that this turn was already executed locally
+                    "turn_transitioned": True,  # Flag that turn transition was handled locally
                     "timestamp": time.time()
                 }
                 
@@ -1004,8 +1043,9 @@ class GameStateSync:
             my_player_num = self.network.get_player_number()
             is_cross_verification = data.get("cross_verification", False)
             already_executed = data.get("already_executed", False)
+            turn_transitioned = data.get("turn_transitioned", False)
             
-            logger.info(f"BIDIRECTIONAL_STATE_BATCH: Received game state from player {from_player} turn {turn_number} (cross_verification: {is_cross_verification}, already_executed: {already_executed})")
+            logger.info(f"BIDIRECTIONAL_STATE_BATCH: Received game state from player {from_player} turn {turn_number} (cross_verification: {is_cross_verification}, already_executed: {already_executed}, turn_transitioned: {turn_transitioned})")
             logger.info(f"BIDIRECTIONAL_STATE_BATCH: My player num: {my_player_num}")
             
             if state_data and other_checksum:
@@ -1032,6 +1072,29 @@ class GameStateSync:
                         logger.info(f"BIDIRECTIONAL_EXECUTION: Player {from_player} already executed locally - applying final state only")
                         # The turn was fully executed by the sender, we just apply the final result
                         # No need to do turn transitions or execution logic on our side
+                        
+                        if turn_transitioned:
+                            logger.info(f"BIDIRECTIONAL_TRANSITION: Player {from_player} already handled turn transition - updating UI only")
+                            # Update our UI to match the new turn state
+                            if self.ui:
+                                from boneglaive.utils.message_log import message_log, MessageType as LogMessageType
+                                
+                                # Start collecting messages for the new turn
+                                message_log.start_new_turn()
+                                
+                                if self.game.current_player == my_player_num:
+                                    # It's now our turn
+                                    message_log.add_system_message(f"Your turn - Turn {self.game.turn}")
+                                    self.ui.message = f"Your turn - Turn {self.game.turn}"
+                                    logger.info(f"BIDIRECTIONAL_TRANSITION: UI updated - now my turn")
+                                else:
+                                    # Still other player's turn
+                                    message_log.add_system_message(f"Player {self.game.current_player}'s turn - Turn {self.game.turn}")
+                                    self.ui.message = f"Player {self.game.current_player} is thinking..."
+                                    logger.info(f"BIDIRECTIONAL_TRANSITION: UI updated - other player's turn")
+                                
+                                # Update the player message in UI
+                                self.ui.update_player_message()
                     
                     # Verify the application worked by checking new checksum
                     my_checksum_after = game_state_serializer.generate_checksum(self.game)
