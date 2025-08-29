@@ -351,26 +351,39 @@ class MessageLog:
         network_was_active = self.network_mode
         self.network_mode = False  # Temporarily disable to avoid re-batching
         
+        messages_added = 0
         for message in messages:
-            
             # Reconstruct message type from stored value
             msg_type = message['type']
             if isinstance(msg_type, str):
-                msg_type = MessageType(msg_type)
+                try:
+                    msg_type = MessageType(msg_type)
+                except ValueError:
+                    logger.warning(f"Unknown message type: {msg_type}, defaulting to SYSTEM")
+                    msg_type = MessageType.SYSTEM
             elif hasattr(msg_type, 'value'):
                 msg_type = MessageType(msg_type.value)
             
             # Add the message using normal add_message (will appear in local log)
-            self.add_message(
-                text=message['text'],
-                msg_type=msg_type,
-                player=message.get('player'),
-                target=message.get('target'),
-                **{k: v for k, v in message.items() if k not in ['text', 'type', 'player', 'target', 'timestamp']}
-            )
+            try:
+                self.add_message(
+                    text=message['text'],
+                    msg_type=msg_type,
+                    player=message.get('player'),
+                    target=message.get('target'),
+                    **{k: v for k, v in message.items() if k not in ['text', 'type', 'player', 'target', 'timestamp']}
+                )
+                messages_added += 1
+                logger.debug(f"NETWORK_MESSAGE_ADD: Successfully added message: {message['text'][:50]}...")
+            except Exception as e:
+                logger.error(f"NETWORK_MESSAGE_ERROR: Failed to add message: {str(e)}")
+                logger.error(f"NETWORK_MESSAGE_ERROR: Problem message: {message}")
         
         self.network_mode = network_was_active  # Restore network mode
-        logger.info(f"MESSAGE_FLOW_DEBUG: Added {len(messages)} messages from network player. Total visible messages: {len(self.messages)}")
+        logger.info(f"MESSAGE_FLOW_DEBUG: Added {messages_added}/{len(messages)} messages from network player. Total visible messages: {len(self.messages)}")
+        
+        if messages_added != len(messages):
+            logger.warning(f"MESSAGE_DELIVERY_ISSUE: Only {messages_added} out of {len(messages)} messages were successfully added")
     
     def get_message_log_checksum(self) -> str:
         """
