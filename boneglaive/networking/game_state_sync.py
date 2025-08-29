@@ -934,6 +934,12 @@ class GameStateSync:
                 
                 if messages_added == 0 and len(messages) > 0:
                     logger.warning(f"MESSAGE_BATCH_ISSUE: Received {len(messages)} messages but none were added - possible duplicates or errors")
+                
+                # CRITICAL FIX: Mirror P2's UI refresh logic - force UI redraw when P1 receives P2's messages
+                if self.ui and messages_added > 0:
+                    logger.info(f"P1_MESSAGE_DISPLAY_FIX: Forcing UI refresh to display {messages_added} messages from Player {from_player}")
+                    self.ui.draw_board()
+                    
             else:
                 logger.info(f"MESSAGE_LOG_BATCH: No messages to process from Player {from_player}")
                 
