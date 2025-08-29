@@ -32,6 +32,7 @@ class GameStateSync:
         
         # Track completed turn states to prevent double-processing
         self.completed_turn_states = {}  # {player_num: turn_number}
+        self.processed_turn_transitions = {}  # {turn_number: True} - track which turns had transitions processed
         
         # Register message handlers
         # OLD GAME_STATE handler removed - Phase 5 uses GAME_STATE_BATCH only
@@ -408,12 +409,14 @@ class GameStateSync:
             if action_type == "end_turn":
                 logger.info(f"P2_ACTION_FIX: Processing Player 2 end_turn immediately")
                 
-                # RACE CONDITION FIX: Check if this player's turn was already completed via state batch
+                # RACE CONDITION FIX: Check if the sender's turn was already completed via state batch
                 current_turn = self.game.turn
-                from_player = self.game.current_player  # Use the actual current player from game state
+                # The sender is the non-host player (Player 2)
+                sending_player = 2  # Since only Player 2 sends actions to host
                 
-                if from_player in self.completed_turn_states and self.completed_turn_states[from_player] >= current_turn:
-                    logger.info(f"RACE_CONDITION_FIX: Player {from_player} turn {current_turn} already completed via state batch - skipping action processing")
+                # Check if this specific player's turn for this turn number was already completed
+                if sending_player in self.completed_turn_states and self.completed_turn_states[sending_player] >= current_turn:
+                    logger.info(f"RACE_CONDITION_FIX: Player {sending_player} turn {current_turn} already completed via state batch - skipping action processing")
                     # Clear any pending actions since the turn is already complete
                     if self.pending_actions:
                         logger.info(f"RACE_CONDITION_FIX: Clearing {len(self.pending_actions)} pending actions (already processed via state)")
@@ -523,6 +526,13 @@ class GameStateSync:
             # Handle turn transition after execution (only host)
             logger.info(f"P2_TURN_FIX: Checking if should handle turn transition - is_host={self.network.is_host()}")
             if self.network.is_host():
+                current_turn = self.game.turn
+                
+                # DOUBLE TRANSITION PREVENTION: Check if this turn's transition was already processed
+                if current_turn in self.processed_turn_transitions:
+                    logger.info(f"DOUBLE_TRANSITION_PREVENTION: Turn {current_turn} transition already processed - skipping host transition")
+                    return  # Don't process turn transition again
+                
                 logger.info(f"P2_TURN_FIX: Host handling turn transition")
                 # Determine next player
                 current_player = self.game.current_player
@@ -1075,6 +1085,11 @@ class GameStateSync:
                         
                         if turn_transitioned:
                             logger.info(f"BIDIRECTIONAL_TRANSITION: Player {from_player} already handled turn transition - updating UI only")
+                            
+                            # Mark this turn as having had its transition processed
+                            self.processed_turn_transitions[turn_number] = True
+                            logger.info(f"TURN_TRANSITION_TRACKING: Marked turn {turn_number} as having processed transition")
+                            
                             # Update our UI to match the new turn state
                             if self.ui:
                                 from boneglaive.utils.message_log import message_log, MessageType as LogMessageType
@@ -1692,6 +1707,19 @@ class GameStateSync:
         
         if to_remove:
             logger.info(f"CLEANUP: Cleaned up {len(to_remove)} old completed turn states")
+        
+        # Clean up old processed turn transitions
+        transitions_to_remove = []
+        for turn_num in self.processed_turn_transitions.keys():
+            if turn_num < current_turn - 1:  # Keep current and previous turn
+                transitions_to_remove.append(turn_num)
+        
+        for turn_num in transitions_to_remove:
+            del self.processed_turn_transitions[turn_num]
+            logger.debug(f"CLEANUP: Removed processed transition for turn {turn_num}")
+        
+        if transitions_to_remove:
+            logger.info(f"CLEANUP: Cleaned up {len(transitions_to_remove)} old processed turn transitions")
     
     def update_with_error_handling(self) -> None:
         """
