@@ -32,7 +32,7 @@ class GameStateSync:
         
         # Track completed turn states to prevent double-processing
         self.completed_turn_states = {}  # {player_num: turn_number}
-        self.processed_turn_transitions = {}  # {turn_number: True} - track which turns had transitions processed
+        self.processed_turn_transitions = {}  # {(turn_number, player): True} - track which player/turn combos had transitions processed
         
         # Register message handlers
         # OLD GAME_STATE handler removed - Phase 5 uses GAME_STATE_BATCH only
@@ -527,10 +527,12 @@ class GameStateSync:
             logger.info(f"P2_TURN_FIX: Checking if should handle turn transition - is_host={self.network.is_host()}")
             if self.network.is_host():
                 current_turn = self.game.turn
+                current_player = self.game.current_player
+                transition_key = (current_turn, current_player)
                 
-                # DOUBLE TRANSITION PREVENTION: Check if this turn's transition was already processed
-                if current_turn in self.processed_turn_transitions:
-                    logger.info(f"DOUBLE_TRANSITION_PREVENTION: Turn {current_turn} transition already processed - skipping host transition")
+                # DOUBLE TRANSITION PREVENTION: Only skip if THIS SPECIFIC player's turn transition was already processed via batch
+                if transition_key in self.processed_turn_transitions:
+                    logger.info(f"DOUBLE_TRANSITION_PREVENTION: Player {current_player} turn {current_turn} transition already processed via batch - skipping host transition")
                     return  # Don't process turn transition again
                 
                 logger.info(f"P2_TURN_FIX: Host handling turn transition")
@@ -1086,9 +1088,10 @@ class GameStateSync:
                         if turn_transitioned:
                             logger.info(f"BIDIRECTIONAL_TRANSITION: Player {from_player} already handled turn transition - updating UI only")
                             
-                            # Mark this turn as having had its transition processed
-                            self.processed_turn_transitions[turn_number] = True
-                            logger.info(f"TURN_TRANSITION_TRACKING: Marked turn {turn_number} as having processed transition")
+                            # Mark this specific player's turn transition as processed
+                            transition_key = (turn_number, from_player)
+                            self.processed_turn_transitions[transition_key] = True
+                            logger.info(f"TURN_TRANSITION_TRACKING: Marked Player {from_player} turn {turn_number} transition as processed via batch")
                             
                             # Update our UI to match the new turn state
                             if self.ui:
@@ -1710,13 +1713,14 @@ class GameStateSync:
         
         # Clean up old processed turn transitions
         transitions_to_remove = []
-        for turn_num in self.processed_turn_transitions.keys():
+        for (turn_num, player) in self.processed_turn_transitions.keys():
             if turn_num < current_turn - 1:  # Keep current and previous turn
-                transitions_to_remove.append(turn_num)
+                transitions_to_remove.append((turn_num, player))
         
-        for turn_num in transitions_to_remove:
-            del self.processed_turn_transitions[turn_num]
-            logger.debug(f"CLEANUP: Removed processed transition for turn {turn_num}")
+        for transition_key in transitions_to_remove:
+            del self.processed_turn_transitions[transition_key]
+            turn_num, player = transition_key
+            logger.debug(f"CLEANUP: Removed processed transition for Player {player} turn {turn_num}")
         
         if transitions_to_remove:
             logger.info(f"CLEANUP: Cleaned up {len(transitions_to_remove)} old processed turn transitions")
