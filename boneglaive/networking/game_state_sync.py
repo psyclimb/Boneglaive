@@ -937,41 +937,43 @@ class GameStateSync:
             else:
                 logger.info(f"MESSAGE_LOG_BATCH: No messages to process from Player {from_player}")
                 
-                # Perform parity check if checksum was provided
-                if other_checksum:
-                    # ROBUST PARITY CHECK: Compare checksums AFTER both sides have the same messages
-                    # The other player's checksum represents their state BEFORE sending messages
-                    # Our checksum represents our state AFTER receiving their messages
-                    # These should only match if we had all their messages before receiving the batch
-                    
-                    # Calculate what our checksum SHOULD be after adding their messages
-                    my_checksum = message_log.get_message_log_checksum()
-                    
-                    # For merge-based sync, we expect temporary mismatches during message exchange
-                    # Only trigger full sync recovery if we detect major inconsistencies
-                    parity_match = message_log.verify_parity(other_checksum, from_player)
-                    
-                    logger.info(f"PARITY_ANALYSIS: Received checksum {other_checksum} from Player {from_player}")
-                    logger.info(f"PARITY_ANALYSIS: Our checksum after adding messages: {my_checksum}")
-                    logger.info(f"PARITY_ANALYSIS: Temporary mismatch is expected in merge-based sync")
-                    
-                    # Send our current checksum back for bidirectional verification
-                    parity_response = {
-                        "checksum": my_checksum,
-                        "from_player": self.network.get_player_number(),
-                        "parity_match": parity_match,
-                        "turn_number": turn_number,
-                        "timestamp": time.time()
-                    }
-                    
-                    self.network.send_message(MessageType.PARITY_CHECK, parity_response)
-                    logger.info(f"PARITY_CHECK DEBUG: Sent checksum response {my_checksum}")
-                    
-                    # CRITICAL CHANGE: Don't immediately trigger sync recovery on mismatch
-                    # Let the bidirectional parity system handle verification
-                    if not parity_match:
-                        logger.info(f"EXPECTED_MISMATCH: Checksum difference is normal during message exchange")
-                        logger.info(f"PARITY_FLOW: Waiting for other player's parity response to complete verification")
+            # CRITICAL FIX: Perform parity check AFTER processing messages, regardless of whether there were messages
+            if other_checksum:
+                from boneglaive.utils.message_log import message_log
+                
+                # ROBUST PARITY CHECK: Compare checksums AFTER both sides have the same messages
+                # The other player's checksum represents their state BEFORE sending messages
+                # Our checksum represents our state AFTER receiving their messages
+                # These should only match if we had all their messages before receiving the batch
+                
+                # Calculate what our checksum SHOULD be after adding their messages
+                my_checksum = message_log.get_message_log_checksum()
+                
+                # For merge-based sync, we expect temporary mismatches during message exchange
+                # Only trigger full sync recovery if we detect major inconsistencies
+                parity_match = message_log.verify_parity(other_checksum, from_player)
+                
+                logger.info(f"PARITY_ANALYSIS: Received checksum {other_checksum} from Player {from_player}")
+                logger.info(f"PARITY_ANALYSIS: Our checksum after adding messages: {my_checksum}")
+                logger.info(f"PARITY_ANALYSIS: Temporary mismatch is expected in merge-based sync")
+                
+                # Send our current checksum back for bidirectional verification
+                parity_response = {
+                    "checksum": my_checksum,
+                    "from_player": self.network.get_player_number(),
+                    "parity_match": parity_match,
+                    "turn_number": turn_number,
+                    "timestamp": time.time()
+                }
+                
+                self.network.send_message(MessageType.PARITY_CHECK, parity_response)
+                logger.info(f"PARITY_CHECK DEBUG: Sent checksum response {my_checksum}")
+                
+                # CRITICAL CHANGE: Don't immediately trigger sync recovery on mismatch
+                # Let the bidirectional parity system handle verification
+                if not parity_match:
+                    logger.info(f"EXPECTED_MISMATCH: Checksum difference is normal during message exchange")
+                    logger.info(f"PARITY_FLOW: Waiting for other player's parity response to complete verification")
             
         except Exception as e:
             logger.error(f"Error handling message log batch: {str(e)}")
