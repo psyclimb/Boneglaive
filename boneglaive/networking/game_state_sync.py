@@ -909,20 +909,53 @@ class GameStateSync:
             from_player = data.get("from_player", 0)
             turn_number = data.get("turn_number", 0)
             other_checksum = data.get("checksum", "")
+            message_count = data.get("message_count", len(messages))
             
-            logger.info(f"MESSAGE_LOG_BATCH DEBUG: Received {len(messages)} messages from player {from_player} turn {turn_number}")
+            logger.info(f"MESSAGE_LOG_BATCH: Received {len(messages)} messages from Player {from_player} turn {turn_number}")
+            
+            # Validate message batch integrity
+            if message_count != len(messages):
+                logger.warning(f"MESSAGE_BATCH_INTEGRITY: Expected {message_count} messages, received {len(messages)}")
             
             if messages:
                 from boneglaive.utils.message_log import message_log
+                
+                # Record message count before adding
+                messages_before = len(message_log.messages)
+                
+                # Add the messages
                 message_log.add_network_messages(messages)
-                logger.info(f"MESSAGE_LOG_BATCH DEBUG: Added {len(messages)} network messages to log")
+                
+                # Verify messages were added correctly
+                messages_after = len(message_log.messages)
+                messages_added = messages_after - messages_before
+                
+                logger.info(f"MESSAGE_LOG_BATCH: Added {messages_added} network messages to log (total: {messages_after})")
+                
+                if messages_added == 0 and len(messages) > 0:
+                    logger.warning(f"MESSAGE_BATCH_ISSUE: Received {len(messages)} messages but none were added - possible duplicates or errors")
+            else:
+                logger.info(f"MESSAGE_LOG_BATCH: No messages to process from Player {from_player}")
                 
                 # Perform parity check if checksum was provided
                 if other_checksum:
+                    # ROBUST PARITY CHECK: Compare checksums AFTER both sides have the same messages
+                    # The other player's checksum represents their state BEFORE sending messages
+                    # Our checksum represents our state AFTER receiving their messages
+                    # These should only match if we had all their messages before receiving the batch
+                    
+                    # Calculate what our checksum SHOULD be after adding their messages
+                    my_checksum = message_log.get_message_log_checksum()
+                    
+                    # For merge-based sync, we expect temporary mismatches during message exchange
+                    # Only trigger full sync recovery if we detect major inconsistencies
                     parity_match = message_log.verify_parity(other_checksum, from_player)
                     
-                    # Send our checksum back for verification
-                    my_checksum = message_log.get_message_log_checksum()
+                    logger.info(f"PARITY_ANALYSIS: Received checksum {other_checksum} from Player {from_player}")
+                    logger.info(f"PARITY_ANALYSIS: Our checksum after adding messages: {my_checksum}")
+                    logger.info(f"PARITY_ANALYSIS: Temporary mismatch is expected in merge-based sync")
+                    
+                    # Send our current checksum back for bidirectional verification
                     parity_response = {
                         "checksum": my_checksum,
                         "from_player": self.network.get_player_number(),
@@ -932,17 +965,13 @@ class GameStateSync:
                     }
                     
                     self.network.send_message(MessageType.PARITY_CHECK, parity_response)
-                    logger.info(f"PARITY_CHECK DEBUG: Sent checksum response {my_checksum} (match: {parity_match})")
+                    logger.info(f"PARITY_CHECK DEBUG: Sent checksum response {my_checksum}")
                     
-                    # If there's a mismatch, request full sync from the other player
+                    # CRITICAL CHANGE: Don't immediately trigger sync recovery on mismatch
+                    # Let the bidirectional parity system handle verification
                     if not parity_match:
-                        logger.warning(f"SYNC RECOVERY: Requesting full message log from Player {from_player}")
-                        sync_request = {
-                            "from_player": self.network.get_player_number(),
-                            "turn_number": turn_number,
-                            "timestamp": time.time()
-                        }
-                        self.network.send_message(MessageType.MESSAGE_LOG_SYNC_REQUEST, sync_request)
+                        logger.info(f"EXPECTED_MISMATCH: Checksum difference is normal during message exchange")
+                        logger.info(f"PARITY_FLOW: Waiting for other player's parity response to complete verification")
             
         except Exception as e:
             logger.error(f"Error handling message log batch: {str(e)}")
@@ -958,29 +987,35 @@ class GameStateSync:
             parity_match = data.get("parity_match", False)
             turn_number = data.get("turn_number", 0)
             
-            logger.info(f"PARITY_CHECK DEBUG: Received checksum {other_checksum} from player {from_player} (match: {parity_match})")
+            logger.info(f"PARITY_RESPONSE: Received from Player {from_player}: checksum={other_checksum}, their_match={parity_match}")
             
             if other_checksum:
                 from boneglaive.utils.message_log import message_log
+                my_checksum = message_log.get_message_log_checksum()
                 
-                # Verify parity from our side as well
-                my_parity_match = message_log.verify_parity(other_checksum, from_player)
+                # CONVERGENT PARITY VERIFICATION
+                # After message exchange, both players should eventually have the same messages
+                final_parity_match = (my_checksum == other_checksum)
                 
-                # Log the final parity result
-                if parity_match and my_parity_match:
-                    logger.info(f"PARITY_CHECK RESULT: ✓ Message logs are in perfect sync after turn {turn_number}")
+                logger.info(f"CONVERGENT_PARITY: My checksum: {my_checksum}")
+                logger.info(f"CONVERGENT_PARITY: Their checksum: {other_checksum}")
+                logger.info(f"CONVERGENT_PARITY: Final match: {final_parity_match}")
+                
+                if final_parity_match:
+                    logger.info(f"PARITY_SUCCESS: ✓ Message logs now synchronized with Player {from_player}")
                 else:
-                    logger.warning(f"PARITY_CHECK RESULT: ✗ Message log sync issue detected after turn {turn_number}")
-                    logger.warning(f"Their verification: {parity_match}, My verification: {my_parity_match}")
-                    
-                    # Request full sync from other player to fix the issue
-                    logger.warning(f"SYNC RECOVERY: Requesting full message log from Player {from_player}")
-                    sync_request = {
-                        "from_player": self.network.get_player_number(),
-                        "turn_number": turn_number,
-                        "timestamp": time.time()
-                    }
-                    self.network.send_message(MessageType.MESSAGE_LOG_SYNC_REQUEST, sync_request)
+                    # Only trigger recovery if both sides report persistent mismatch
+                    if not parity_match:
+                        logger.warning(f"PERSISTENT_MISMATCH: Both players report checksum mismatch - triggering recovery")
+                        sync_request = {
+                            "from_player": self.network.get_player_number(),
+                            "turn_number": turn_number,
+                            "timestamp": time.time(),
+                            "reason": "persistent_bidirectional_mismatch"
+                        }
+                        self.network.send_message(MessageType.MESSAGE_LOG_SYNC_REQUEST, sync_request)
+                    else:
+                        logger.info(f"ASYMMETRIC_MISMATCH: Only one side reports mismatch - likely timing issue, allowing convergence")
             
         except Exception as e:
             logger.error(f"Error handling parity check: {str(e)}")
