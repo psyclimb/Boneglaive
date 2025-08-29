@@ -4802,6 +4802,13 @@ class ActionMenuComponent(UIComponent):
         self.subscribe_to_event(EventType.UNIT_SELECTED, self._on_unit_selected)
         self.subscribe_to_event(EventType.UNIT_DESELECTED, self._on_unit_deselected)
         
+        # Subscribe to action planning events
+        self.subscribe_to_event(EventType.MOVE_PLANNED, self._on_move_planned)
+        self.subscribe_to_event(EventType.ATTACK_PLANNED, self._on_turn_ending_action_planned)
+        
+        # Subscribe to mode changes to handle skill planning
+        self.subscribe_to_event(EventType.MODE_CHANGED, self._on_mode_changed)
+        
     def _on_unit_selected(self, event_type, event_data):
         """Handle unit selection events."""
         unit = event_data.unit
@@ -4822,6 +4829,60 @@ class ActionMenuComponent(UIComponent):
         self.actions = []
         self.selected_index = 0
         
+    def _on_move_planned(self, event_type, event_data):
+        """Handle move planning events."""
+        # When a move is planned, refresh the menu to disable move action but keep menu visible
+        # so the unit can still attack or use skills
+        if self.visible and hasattr(event_data, 'unit'):
+            cursor_manager = self.game_ui.cursor_manager
+            if cursor_manager.selected_unit == event_data.unit:
+                # Refresh the menu to show move as disabled, but keep attack/skill available
+                self.populate_actions(event_data.unit)
+                # Request UI redraw
+                self.publish_event(
+                    EventType.UI_REDRAW_REQUESTED,
+                    UIRedrawEventData()
+                )
+    
+    def _on_turn_ending_action_planned(self, event_type, event_data):
+        """Handle action planning events that end the unit's turn (ATTACK_PLANNED, etc.)."""
+        # If the menu is visible and the action involves the currently selected unit,
+        # hide the menu since the unit has now taken a turn-ending action
+        if self.visible and hasattr(event_data, 'unit'):
+            cursor_manager = self.game_ui.cursor_manager
+            if cursor_manager.selected_unit == event_data.unit:
+                # Hide the menu completely since turn-ending action is confirmed
+                self.visible = False
+                self.actions = []
+                self.selected_index = 0
+                # Request UI redraw
+                self.publish_event(
+                    EventType.UI_REDRAW_REQUESTED,
+                    UIRedrawEventData()
+                )
+    
+    def _on_mode_changed(self, event_type, event_data):
+        """Handle mode change events to detect skill planning."""
+        # Check if we're transitioning from skill mode to select mode, which often indicates
+        # a skill has been planned
+        if (self.visible and 
+            hasattr(event_data, 'previous_mode') and event_data.previous_mode == "skill" and
+            hasattr(event_data, 'new_mode') and event_data.new_mode == "select"):
+            
+            cursor_manager = self.game_ui.cursor_manager
+            if (cursor_manager.selected_unit and 
+                cursor_manager.selected_unit.skill_target is not None and
+                cursor_manager.selected_unit.selected_skill is not None):
+                # Skill has been planned - hide the menu
+                self.visible = False
+                self.actions = []
+                self.selected_index = 0
+                # Request UI redraw
+                self.publish_event(
+                    EventType.UI_REDRAW_REQUESTED,
+                    UIRedrawEventData()
+                )
+        
     def populate_actions(self, unit):
         """
         Populate available actions for the selected unit.
@@ -4836,14 +4897,16 @@ class ActionMenuComponent(UIComponent):
         self.menu_mode = "standard"
         
         # Check if unit has already taken an action this turn
+        # Note: moves don't end a unit's turn - they can move + attack/skill
         unit_has_action = (unit.attack_target or unit.skill_target or unit.selected_skill)
         
         # Add standard actions with consistent labeling
-        # Disable move for trapped units, Jawline-affected units, charging units, Neural Shunt, echoes, or units with actions
+        # Disable move for trapped units, Jawline-affected units, charging units, Neural Shunt, echoes, or if already moved
+        # Note: units CAN move even if they have attack/skill planned (move executes first)
         unit_can_move = (unit is not None and
                         unit.trapped_by is None and
                         not unit.is_echo and
-                        not unit_has_action and
+                        not unit.move_target and  # Can't move if already planned a move
                         not (hasattr(unit, 'jawline_affected') and unit.jawline_affected) and
                         not (hasattr(unit, 'charging_status') and unit.charging_status) and
                         not (hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected))
