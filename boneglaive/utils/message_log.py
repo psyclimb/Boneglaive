@@ -453,21 +453,25 @@ class MessageLog:
     
     def replace_message_log(self, new_messages: List[Dict[str, Any]]) -> None:
         """
-        Replace the entire message log with new messages.
+        Merge new messages with existing ones instead of replacing.
         Used for sync recovery when parity is lost.
         """
-        logger.warning(f"SYNC RECOVERY: Replacing entire message log with {len(new_messages)} messages")
+        logger.warning(f"SYNC RECOVERY: Merging {len(new_messages)} messages with existing {len(self.messages)} messages")
         
-        # Clear current messages and turn messages
+        # CRITICAL FIX: Don't clear existing messages - merge them instead
         old_count = len(self.messages)
-        self.messages = []
+        existing_texts = {msg['text'] for msg in self.messages}
         
         # Temporarily disable network mode to avoid re-batching during sync
         network_was_active = self.network_mode
         self.network_mode = False
         
-        # Add all the new messages
+        # Add only new messages that don't already exist
+        added_count = 0
         for message in new_messages:
+            # Skip messages that already exist (prevent duplicates)
+            if message['text'] in existing_texts:
+                continue
             # Reconstruct message type
             msg_type = message['type']
             if isinstance(msg_type, str):
@@ -490,11 +494,16 @@ class MessageLog:
                     msg_entry[key] = value
                     
             self.messages.append(msg_entry)
+            if len(self.messages) > self.MAX_MESSAGES:
+                self.messages.pop(0)
+            added_count += 1
         
         # Restore network mode
         self.network_mode = network_was_active
         
-        logger.warning(f"SYNC RECOVERY: Replaced {old_count} messages with {len(new_messages)} messages")
+        new_count = len(self.messages)
+        logger.warning(f"SYNC RECOVERY: Added {added_count} new messages. Message log updated from {old_count} to {new_count} total messages")
+        
         
         # Add a system message about the sync recovery
         self.add_message(
