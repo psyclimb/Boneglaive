@@ -253,7 +253,8 @@ class MessageLog:
                  ("penalty" in text.lower() and "due to Stasiality" not in text) or 
                  "displaced from" in text or "collides with" in text or
                  ("immobilized" in text and "immune to" not in text) or
-                 ("trapped in" in text and "due to Stasiality" not in text)):
+                 ("trapped in" in text and "due to Stasiality" not in text) or
+                 "slogs through" in text):
                 color = 7  # Yellow for debuffs/negative effects and displacements
             # Otherwise, use player color for messages with attacker/target info or ability messages
             elif ('attacker_name' in msg and msg['player'] is not None) or (msg['type'] == MessageType.ABILITY and msg['player'] is not None):

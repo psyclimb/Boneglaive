@@ -1162,106 +1162,85 @@ class UIRenderer:
             hp_info = f"HP: {unit.hp}/{unit.max_hp}"
             self.renderer.draw_text(info_line, len(type_info) + 4, hp_info, hp_color)
             
-            # Draw combat stats with effective values that include bonuses
-            effective_stats = unit.get_effective_stats()
-            effective_attack = effective_stats['attack']
-            effective_defense = effective_stats['defense']
-            
-            # Show bonuses in the display if they exist
-            attack_display = f"{effective_attack}"
+            # Draw combat stats with base+modifier format
+            # ATK stat
+            atk_label = "ATK: "
             if unit.attack_bonus != 0:
-                attack_display = f"{unit.attack}+{unit.attack_bonus}" if unit.attack_bonus > 0 else f"{unit.attack}{unit.attack_bonus}"
-                
-            defense_display = f"{effective_defense}"
-            if unit.defense_bonus != 0:
-                defense_display = f"{unit.defense}+{unit.defense_bonus}" if unit.defense_bonus > 0 else f"{unit.defense}{unit.defense_bonus}"
-            
-            # Split combat stats for individual coloring
-            atk_text = f"ATK: {attack_display}"
-            def_text = f" | DEF: {defense_display}"
-            
-            # Determine colors based on bonuses and Estrange effect
-            atk_color = 2 if unit.attack_bonus > 0 else (6 if unit.attack_bonus < 0 or (hasattr(unit, 'estranged') and unit.estranged) else 1)  # Green for bonus, red for penalty or if estranged
-            def_color = 2 if unit.defense_bonus > 0 else (6 if unit.defense_bonus < 0 or (hasattr(unit, 'estranged') and unit.estranged) else 1)  # Green for bonus, red for penalty or if estranged
-            
-            # Draw with appropriate coloring
-            pos = len(type_info) + len(hp_info) + 6
-            self.renderer.draw_text(info_line, pos, atk_text, atk_color)
-            self.renderer.draw_text(info_line, pos + len(atk_text), def_text, def_color)
-            
-            # Draw movement stats
-            effective_stats = unit.get_effective_stats()
-            effective_move = effective_stats['move_range']
-            effective_attack = effective_stats['attack_range']
-            
-            # Split the movement and range display so we can color only MOVE red when penalized
-            # Check for first turn movement bonus
-            if hasattr(unit, 'first_turn_move_bonus') and unit.first_turn_move_bonus:
-                move_part = f"MOVE: {effective_move}+"  # Add + to show boost
-                move_color = 3  # Green color for the boost
-            elif unit.move_range_bonus < 0:
-                move_part = f"MOVE: {effective_move}"
-                move_color = 1  # Red for penalty
+                atk_value = f"{unit.attack}+{unit.attack_bonus}" if unit.attack_bonus > 0 else f"{unit.attack}{unit.attack_bonus}"
+                atk_value_color = 3 if unit.attack_bonus > 0 else 25  # Green for +, red for -
             else:
-                move_part = f"MOVE: {effective_move}"
-                move_color = 7  # Normal color
-
-            range_part = f"RANGE: {effective_attack}"
+                atk_value = f"{unit.attack}"
+                atk_value_color = 8  # Gray for no modifier
             
-            # Add a separator between DEF and MOVE stats
-            stats_separator = " | "
-            
-            # Calculate position for each part - use the combined length of atk_text and def_text + separator
-            move_pos = len(type_info) + len(hp_info) + len(atk_text) + len(def_text) + len(stats_separator) + 6
-            
-            # Draw the separator between DEF and MOVE
-            sep_pos = len(type_info) + len(hp_info) + len(atk_text) + len(def_text) + 6
-            self.renderer.draw_text(info_line, sep_pos, stats_separator, 1)
-            range_pos = move_pos + len(move_part) + 3  # +3 for the " | " separator
-            
-            # Determine if there's a movement penalty, bonus, or Estrange for display purposes
-            move_color = 1  # Default color
-            move_attr = 0   # Default attribute
-
-            # Check for first turn movement bonus - highest priority
-            if hasattr(unit, 'first_turn_move_bonus') and unit.first_turn_move_bonus:
-                # Show the first turn bonus with a different color without the + symbol
-                move_part = f"MOVE: {effective_move}"  # No + symbol, just use color to show the boost
-                move_color = 3  # Green color for the boost
-                move_attr = curses.A_BOLD  # Make it bold for emphasis
-            # Regular penalties or Estrange effect
-            elif unit.move_range_bonus < 0 or (hasattr(unit, 'estranged') and unit.estranged):
-                # Show negative MOVE bonus in red to indicate penalty
-                move_color = 6  # Red for penalty
-                move_attr = curses.A_BOLD  # Make it bold for emphasis
-            # Other movement bonuses
-            elif unit.move_range_bonus > 0:
-                # Show positive MOVE bonus in green
-                move_color = 2  # Green for bonus
-            
-            # Determine range color based on estranged status
-            range_color = 1  # Default color
-            range_attr = 0   # Default attribute
+            # Handle Estrange effect (all stats red)
             if hasattr(unit, 'estranged') and unit.estranged:
-                # Show RANGE in red if affected by Estrange
-                range_color = 6  # Red for penalty
-                range_attr = curses.A_BOLD  # Make it bold for emphasis
-            elif unit.attack_range_bonus > 0:
-                # Show positive RANGE bonus in green
-                range_color = 2  # Green for bonus
-            elif unit.attack_range_bonus < 0:
-                # Show negative RANGE bonus in red
-                range_color = 6  # Red for penalty
-                range_attr = curses.A_BOLD  # Make it bold for emphasis
+                atk_value_color = 25  # Red if estranged
             
-            # Draw MOVE part with appropriate color
-            self.renderer.draw_text(info_line, move_pos, move_part, move_color, move_attr)
+            # DEF stat  
+            def_label = " | DEF: "
+            if unit.defense_bonus != 0:
+                def_value = f"{unit.defense}+{unit.defense_bonus}" if unit.defense_bonus > 0 else f"{unit.defense}{unit.defense_bonus}"
+                def_value_color = 3 if unit.defense_bonus > 0 else 25  # Green for +, red for -
+            else:
+                def_value = f"{unit.defense}"
+                def_value_color = 8  # Gray for no modifier
+                
+            # Handle Estrange effect (all stats red)
+            if hasattr(unit, 'estranged') and unit.estranged:
+                def_value_color = 25  # Red if estranged
             
-            # Draw separator
-            self.renderer.draw_text(info_line, move_pos + len(move_part), " | ", 1)
+            # Draw ATK stat (label in gray, value in appropriate color)
+            pos = len(type_info) + len(hp_info) + 6
+            self.renderer.draw_text(info_line, pos, atk_label, 8)  # Gray label
+            self.renderer.draw_text(info_line, pos + len(atk_label), atk_value, atk_value_color)  # Colored value
             
-            # Draw RANGE part with appropriate color
-            self.renderer.draw_text(info_line, range_pos, range_part, range_color, range_attr)
+            # Draw DEF stat (label in gray, value in appropriate color) 
+            def_pos = pos + len(atk_label) + len(atk_value)
+            self.renderer.draw_text(info_line, def_pos, def_label, 8)  # Gray label
+            self.renderer.draw_text(info_line, def_pos + len(def_label), def_value, def_value_color)  # Colored value
+            
+            # MOVE stat with base+modifier format
+            move_label = " | MOVE: "
+            
+            # Calculate total move bonus (including first turn bonus)
+            total_move_bonus = unit.move_range_bonus
+            if hasattr(unit, 'first_turn_move_bonus') and unit.first_turn_move_bonus:
+                # The first_turn_move_bonus is already included in move_range_bonus, so we show it properly
+                pass  # total_move_bonus already includes this
+            
+            if total_move_bonus != 0:
+                move_value = f"{unit.move_range}+{total_move_bonus}" if total_move_bonus > 0 else f"{unit.move_range}{total_move_bonus}"
+                move_value_color = 3 if total_move_bonus > 0 else 25  # Green for +, red for -
+            else:
+                move_value = f"{unit.move_range}"
+                move_value_color = 8  # Gray for no modifier
+            
+            # Handle Estrange effect (all stats red)
+            if hasattr(unit, 'estranged') and unit.estranged:
+                move_value_color = 25  # Red if estranged
+            
+            # RANGE stat with base+modifier format  
+            range_label = " | RANGE: "
+            if unit.attack_range_bonus != 0:
+                range_value = f"{unit.attack_range}+{unit.attack_range_bonus}" if unit.attack_range_bonus > 0 else f"{unit.attack_range}{unit.attack_range_bonus}"
+                range_value_color = 3 if unit.attack_range_bonus > 0 else 25  # Green for +, red for -
+            else:
+                range_value = f"{unit.attack_range}"
+                range_value_color = 8  # Gray for no modifier
+                
+            # Handle Estrange effect (all stats red)
+            if hasattr(unit, 'estranged') and unit.estranged:
+                range_value_color = 25  # Red if estranged
+            
+            # Calculate positions and draw MOVE stat
+            move_pos = def_pos + len(def_label) + len(def_value)
+            self.renderer.draw_text(info_line, move_pos, move_label, 8)  # Gray label
+            self.renderer.draw_text(info_line, move_pos + len(move_label), move_value, move_value_color)  # Colored value
+            
+            # Calculate positions and draw RANGE stat
+            range_pos = move_pos + len(move_label) + len(move_value)
+            self.renderer.draw_text(info_line, range_pos, range_label, 8)  # Gray label
+            self.renderer.draw_text(info_line, range_pos + len(range_label), range_value, range_value_color)  # Colored value
             
             # Draw status effects on a new line
             status_line = info_line + 1
@@ -1339,6 +1318,12 @@ class UIRenderer:
                     negative_effects.append(f"Trapped({unit.trap_duration})")
                 else:
                     negative_effects.append("Trapped")
+            if hasattr(unit, 'mired') and unit.mired:
+                # Check if it has duration, otherwise just show boolean
+                if hasattr(unit, 'mired_duration') and unit.mired_duration > 0:
+                    negative_effects.append(f"Mired({unit.mired_duration})")
+                else:
+                    negative_effects.append("Mired")
             
             # Display status effects if any exist
             if positive_effects or negative_effects:

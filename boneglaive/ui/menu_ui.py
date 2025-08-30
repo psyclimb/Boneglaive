@@ -6,6 +6,7 @@ Handles main menu, settings, and multiplayer lobby.
 
 import curses
 import sys
+import random
 from typing import Dict, List, Optional, Tuple, Callable
 
 from boneglaive.utils.config import ConfigManager, NetworkMode, DisplayMode
@@ -304,28 +305,83 @@ class MenuUI:
         self.running = False
         return ("quit", None)
     
+
+    def _draw_title_art(self, start_row: int) -> int:
+        """Draw the ASCII art title and return the next available row."""
+        if hasattr(self.renderer, 'grid_height'):
+            width = self.renderer.grid_width
+        else:
+            width = self.renderer.width
+        
+        # ASCII art for BONEGLAIVE
+        title_art = [
+            "██████╗  ██████╗ ███╗   ██╗███████╗ ██████╗ ██╗      █████╗ ██╗██╗   ██╗███████╗",
+            "██╔══██╗██╔═══██╗████╗  ██║██╔════╝██╔════╝ ██║     ██╔══██╗██║██║   ██║██╔════╝",
+            "██████╔╝██║   ██║██╔██╗ ██║█████╗  ██║  ███╗██║     ███████║██║██║   ██║█████╗  ",
+            "██╔══██╗██║   ██║██║╚██╗██║██╔══╝  ██║   ██║██║     ██╔══██║██║╚██╗ ██╔╝██╔══╝  ",
+            "██████╔╝╚██████╔╝██║ ╚████║███████╗╚██████╔╝███████╗██║  ██║██║ ╚████╔╝ ███████╗",
+            "╚═════╝  ╚═════╝ ╚═╝  ╚═══╝╚══════╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝  ╚═══╝  ╚══════╝"
+        ]
+        
+        # Center and draw each line of the title
+        for i, line in enumerate(title_art):
+            col = max(0, (width - len(line)) // 2)
+            self.renderer.draw_text(start_row + i, col, line, 1, 0)
+        
+        # Add subtitle
+        subtitle = "v0.7.4 BETA"
+        subtitle_col = max(0, (width - len(subtitle)) // 2)
+        self.renderer.draw_text(start_row + len(title_art) + 1, subtitle_col, subtitle, 1, 0)
+        
+        return start_row + len(title_art) + 2
+
     def draw(self):
         """Draw the current menu."""
         menu = self.current_menu
         self.renderer.clear_screen()
         
-        # Draw title
-        title_text = f"{menu.title}"
-        self.renderer.draw_text(1, 2, title_text, 1, curses.A_BOLD)
+        # Get screen dimensions
+        if hasattr(self.renderer, 'grid_height'):
+            height = self.renderer.grid_height
+            width = self.renderer.grid_width
+        else:
+            height = self.renderer.height
+            width = self.renderer.width
         
-        # Draw menu items
+        # Draw title art only for main menu
+        if menu.title == "Boneglaive":
+            # Draw the ASCII art title
+            current_row = self._draw_title_art(2)
+            
+            # Add some spacing before menu items
+            menu_start_row = current_row + 2
+        else:
+            # For submenus, draw simple title
+            title_text = f"=== {menu.title} ==="
+            title_col = max(0, (width - len(title_text)) // 2)
+            self.renderer.draw_text(2, title_col, title_text, 1, curses.A_BOLD)
+            menu_start_row = 4
+        
+        # Calculate menu block centering - find the widest menu item
+        max_item_width = max(len(item.label) for item in menu.items)
+        menu_left_col = max(2, (width - max_item_width) // 2)
+        
+        # Draw menu items left-aligned within the centered block
         for i, item in enumerate(menu.items):
-            # Create more visually distinct selection indicator
+            row = menu_start_row + i
+            
             if i == menu.selected_index:
-                # Draw selection indicator for selected item
-                self.renderer.draw_text(3 + i, 2, "> ", 2, curses.A_BOLD)
-                self.renderer.draw_text(3 + i, 4, item.label, 2, curses.A_BOLD)
+                # Left-align within the centered menu block with bold styling
+                self.renderer.draw_text(row, menu_left_col, item.label, 2, curses.A_BOLD)
             else:
-                self.renderer.draw_text(3 + i, 4, item.label, 1, 0)
+                # Left-align within the centered menu block
+                self.renderer.draw_text(row, menu_left_col, item.label, 1, 0)
         
-        # Draw navigation help
-        self.renderer.draw_text(3 + len(menu.items) + 2, 2, 
-                              "↑↓: Navigate | Enter: Select | Esc/c: Cancel", 1)
+        # Draw navigation help at bottom
+        help_text = "↑↓: Navigate | Enter: Select | Esc/c: Back | q: Quit"
+        help_col = max(0, (width - len(help_text)) // 2)
+        help_row = height - 3
+        self.renderer.draw_text(help_row, help_col, help_text, 1, curses.A_DIM)
         
         # Refresh the display
         self.renderer.refresh()

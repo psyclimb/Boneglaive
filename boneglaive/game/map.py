@@ -141,7 +141,11 @@ class GameMap:
         # Check if the position has furniture
         terrain = self.get_terrain_at(y, x)
         if terrain not in [TerrainType.FURNITURE, TerrainType.COAT_RACK,
-                          TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE]:
+                          TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE, 
+                          TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE, 
+                          TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
+                          TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
+                          TerrainType.COT, TerrainType.CONVEYOR]:
             return False
 
         # Set the cosmic value

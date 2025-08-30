@@ -784,7 +784,11 @@ class DivineDrepreciationSkill(ActiveSkill):
             if pos != target_pos:  # Skip the target furniture
                 terrain = game.map.get_terrain_at(pos[0], pos[1])
                 if terrain in [TerrainType.FURNITURE, TerrainType.COAT_RACK,
-                             TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE]:
+                             TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE, 
+                             TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE, 
+                             TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
+                             TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
+                             TerrainType.COT, TerrainType.CONVEYOR]:
                     other_furniture.append(pos)
                     # Ensure cosmic value exists for all furniture
                     game.map.get_cosmic_value(pos[0], pos[1], player=user.player, game=game)
@@ -804,6 +808,9 @@ class DivineDrepreciationSkill(ActiveSkill):
                 import math
                 avg_cosmic_value = math.ceil(total_value / count)
 
+        # Store the original cosmic value BEFORE setting it to 1
+        original_target_cosmic_value = original_cosmic_value
+        
         # Set target furniture's cosmic value to 1
         game.map.set_cosmic_value(target_pos[0], target_pos[1], 1)
 
@@ -826,6 +833,7 @@ class DivineDrepreciationSkill(ActiveSkill):
             'creator': user,
             'cosmic_value': 1,  # Now fixed at 1
             'avg_cosmic_value': avg_cosmic_value,  # Store for reference
+            'original_cosmic_value': original_target_cosmic_value,  # Store original for reference
             'duration': 2  # Effects last 2 turns
         }
 
@@ -839,17 +847,8 @@ class DivineDrepreciationSkill(ActiveSkill):
             if unit.player != user.player:  # Enemy
                 enemies_in_area.append(unit)
 
-        # Calculate average move value of enemies (if any)
-        avg_move_value = 0
-        if enemies_in_area:
-            total_move = sum(enemy.get_effective_stats()['move_range'] for enemy in enemies_in_area)
-            import math
-            avg_move_value = math.ceil(total_move / len(enemies_in_area))
-
-        # Calculate pull distance based on difference between average move value and cosmic value (1)
-        pull_distance = max(1, avg_move_value - 1)  # Ensure at least 1 space pull
-
         # Store damage and pull calculations for later application (after animation)
+        # Calculate pull distance PER UNIT based on original cosmic value
         effects_to_apply = []
         for unit in enemies_in_area:
             # Calculate pull effect (move toward center)
@@ -863,6 +862,12 @@ class DivineDrepreciationSkill(ActiveSkill):
             # Normalize the direction
             distance = max(1, abs(dir_y) + abs(dir_x))  # Manhattan distance
 
+            # Calculate pull distance per unit: (original_cosmic_value - 1) - unit_move_value
+            # Bigger cosmic values = greater pull distance
+            # Units with higher move can resist pull better
+            unit_move_value = unit.get_effective_stats()['move_range']
+            pull_distance = max(1, (original_target_cosmic_value - 1) - unit_move_value)
+            
             # Calculate how far to pull the unit (not exceeding distance to center)
             actual_pull = min(pull_distance, distance)
 
@@ -1015,51 +1020,17 @@ class DivineDrepreciationSkill(ActiveSkill):
                         player=unit.player  # Use unit's player color for correct display
                     )
                 else:
-                    # Calculate pull vector (respecting terrain and other units)
-                    pull_y = int(dir_y * actual_pull / distance) if dir_y != 0 else 0
-                    pull_x = int(dir_x * actual_pull / distance) if dir_x != 0 else 0
-
-                    # Try to move the unit as close as possible to the target direction
-                    new_y, new_x = unit.y, unit.x
-                    steps_taken = 0
-
-                    # Try to move the unit step by step
-                    for step in range(actual_pull):
-                        # Calculate step direction (prioritize largest component)
-                        if abs(dir_y) > abs(dir_x):
-                            step_y = 1 if dir_y > 0 else -1 if dir_y < 0 else 0
-                            step_x = 0
-                        else:
-                            step_y = 0
-                            step_x = 1 if dir_x > 0 else -1 if dir_x < 0 else 0
-
-                        # Check if the next position is valid and empty
-                        next_y, next_x = new_y + step_y, new_x + step_x
-                        if (game.is_valid_position(next_y, next_x) and
-                            game.map.is_passable(next_y, next_x) and
-                            game.get_unit_at(next_y, next_x) is None):
-                            # Move to the next position
-                            new_y, new_x = next_y, next_x
-                            steps_taken += 1
-                        else:
-                            # Try the other direction component
-                            if step_y != 0:  # Was trying vertical, try horizontal
-                                step_y = 0
-                                step_x = 1 if dir_x > 0 else -1 if dir_x < 0 else 0
-                            else:  # Was trying horizontal, try vertical
-                                step_y = 1 if dir_y > 0 else -1 if dir_y < 0 else 0
-                                step_x = 0
-
-                            next_y, next_x = new_y + step_y, new_x + step_x
-                            if (game.is_valid_position(next_y, next_x) and
-                                game.map.is_passable(next_y, next_x) and
-                                game.get_unit_at(next_y, next_x) is None):
-                                # Move to the alternative position
-                                new_y, new_x = next_y, next_x
-                                steps_taken += 1
-                            else:
-                                # Can't move further in either direction
-                                break
+                    # Use comprehensive pull algorithm for reliable movement toward center
+                    final_position = self._find_best_pull_path(unit, target_pos, actual_pull, game)
+                    
+                    if final_position and (final_position[0] != unit.y or final_position[1] != unit.x):
+                        # Calculate how far the unit actually moved
+                        steps_taken = abs(final_position[0] - unit.y) + abs(final_position[1] - unit.x)
+                        new_y, new_x = final_position
+                    else:
+                        # No valid path found
+                        steps_taken = 0
+                        new_y, new_x = unit.y, unit.x
 
                     # Update unit position if it moved
                     if steps_taken > 0:
@@ -1081,3 +1052,89 @@ class DivineDrepreciationSkill(ActiveSkill):
                 unit.hp = 0
 
         return True
+
+    def _find_best_pull_path(self, unit, center_pos, pull_distance, game):
+        """
+        Find the best path to pull a unit toward the center using comprehensive search.
+        
+        Args:
+            unit: The unit to be pulled
+            center_pos: (y, x) tuple of the pull center
+            pull_distance: Maximum distance to pull the unit
+            game: Game instance for checking positions
+            
+        Returns:
+            (y, x) tuple of final position, or None if no movement possible
+        """
+        current_y, current_x = unit.y, unit.x
+        center_y, center_x = center_pos
+        
+        # Try to move step by step toward center, using best available position each step
+        for step in range(pull_distance):
+            best_position = self._find_best_adjacent_position_toward_center(
+                current_y, current_x, center_y, center_x, game
+            )
+            
+            if best_position:
+                current_y, current_x = best_position
+            else:
+                # No more valid moves possible
+                break
+        
+        return (current_y, current_x)
+    
+    def _find_best_adjacent_position_toward_center(self, unit_y, unit_x, center_y, center_x, game):
+        """
+        Find the best adjacent position that moves the unit closer to center.
+        
+        Args:
+            unit_y, unit_x: Current unit position
+            center_y, center_x: Target center position
+            game: Game instance for validation
+            
+        Returns:
+            (y, x) tuple of best adjacent position, or None if no valid moves
+        """
+        # All 8 possible adjacent directions
+        directions = [
+            (-1, -1), (-1, 0), (-1, 1),  # up-left, up, up-right
+            ( 0, -1),          ( 0, 1),  # left, right
+            ( 1, -1), ( 1, 0), ( 1, 1)   # down-left, down, down-right
+        ]
+        
+        current_distance = abs(unit_y - center_y) + abs(unit_x - center_x)
+        candidates = []
+        
+        # Check each adjacent position
+        for dy, dx in directions:
+            new_y = unit_y + dy
+            new_x = unit_x + dx
+            
+            # Check if position is valid
+            if (new_y < 0 or new_y >= game.map.height or 
+                new_x < 0 or new_x >= game.map.width):
+                continue  # Out of bounds
+                
+            # Check if terrain is passable
+            if not game.map.is_passable(new_y, new_x):
+                continue  # Impassable terrain
+                
+            # Check if position is already occupied by another unit
+            if game.get_unit_at(new_y, new_x):
+                continue  # Occupied
+            
+            # Calculate distance to center from this position
+            distance_to_center = abs(new_y - center_y) + abs(new_x - center_x)
+            
+            # Only consider positions that get us closer to center
+            if distance_to_center < current_distance:
+                candidates.append(((new_y, new_x), distance_to_center))
+        
+        if not candidates:
+            return None  # No valid positions that move closer to center
+            
+        # Sort by distance to center (closer is better, so smaller distance first)
+        candidates.sort(key=lambda x: x[1])
+        
+        # Return the position closest to center
+        return candidates[0][0]

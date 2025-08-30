@@ -50,6 +50,58 @@ class NeutronIlluminant(PassiveSkill):
         """Check if the passive can trigger (not on cooldown)."""
         return self.current_cooldown == 0
     
+    def trigger_flash_effect(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> None:
+        """Trigger the neutron flash animation effect that always plays on INTERFERER attacks."""
+        # Always show the flash effect regardless of radiation sickness application
+        if ui and hasattr(ui, 'renderer'):
+            # Flash animation at the INTERFERER's position
+            flash_animation = ['*', '✦', '※', '✦', '*']
+            ui.renderer.animate_attack_sequence(
+                user.y, user.x,
+                flash_animation,
+                7,  # White/bright color for the flash
+                0.04  # Faster flash duration
+            )
+            
+            # Additional radiating flash effect around the INTERFERER
+            radiation_positions = self._get_radiation_positions(user, target_pos)
+            flash_radiation_animation = ['*', '+', '.']
+            for pos in radiation_positions:
+                y, x = pos
+                if game.is_valid_position(y, x):
+                    ui.renderer.animate_attack_sequence(
+                        y, x,
+                        flash_radiation_animation,
+                        6,  # Yellow color for radiation flash
+                        0.03  # Faster radiating flash
+                    )
+
+    def _get_radiation_positions(self, user: 'Unit', target_pos: tuple) -> list:
+        """Get radiation positions based on attack direction."""
+        # Calculate attack direction
+        dy = target_pos[0] - user.y
+        dx = target_pos[1] - user.x
+        
+        # Normalize direction for pattern determination
+        is_cardinal = (dy == 0 or dx == 0)
+        
+        if is_cardinal:
+            # Cardinal attack -> radiate diagonally around INTERFERER
+            return [
+                (user.y - 1, user.x - 1),  # Up-left of INTERFERER
+                (user.y - 1, user.x + 1),  # Up-right of INTERFERER
+                (user.y + 1, user.x - 1),  # Down-left of INTERFERER
+                (user.y + 1, user.x + 1)   # Down-right of INTERFERER
+            ]
+        else:
+            # Diagonal attack -> radiate cardinally around INTERFERER
+            return [
+                (user.y - 1, user.x),      # Up from INTERFERER
+                (user.y + 1, user.x),      # Down from INTERFERER
+                (user.y, user.x - 1),      # Left from INTERFERER
+                (user.y, user.x + 1)       # Right from INTERFERER
+            ]
+
     def trigger_radiation(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> None:
         """Trigger radiation sickness in directional pattern around the INTERFERER."""
         if not self.can_trigger():
@@ -58,32 +110,8 @@ class NeutronIlluminant(PassiveSkill):
         # Set cooldown (0, so always triggers)
         self.current_cooldown = self.cooldown
         
-        # Calculate attack direction
-        dy = target_pos[0] - user.y
-        dx = target_pos[1] - user.x
-        
-        # Determine radiation pattern based on attack direction, radiating around the INTERFERER
-        radiation_positions = []
-        
-        # Normalize direction for pattern determination
-        is_cardinal = (dy == 0 or dx == 0)
-        
-        if is_cardinal:
-            # Cardinal attack -> radiate diagonally around INTERFERER
-            radiation_positions = [
-                (user.y - 1, user.x - 1),  # Up-left of INTERFERER
-                (user.y - 1, user.x + 1),  # Up-right of INTERFERER
-                (user.y + 1, user.x - 1),  # Down-left of INTERFERER
-                (user.y + 1, user.x + 1)   # Down-right of INTERFERER
-            ]
-        else:
-            # Diagonal attack -> radiate cardinally around INTERFERER
-            radiation_positions = [
-                (user.y - 1, user.x),      # Up from INTERFERER
-                (user.y + 1, user.x),      # Down from INTERFERER
-                (user.y, user.x - 1),      # Left from INTERFERER
-                (user.y, user.x + 1)       # Right from INTERFERER
-            ]
+        # Get radiation positions
+        radiation_positions = self._get_radiation_positions(user, target_pos)
         
         # Apply radiation to valid positions
         affected_units = []
@@ -102,21 +130,8 @@ class NeutronIlluminant(PassiveSkill):
                 target.radiation_stacks.append(2)
                 affected_units.append(target)
         
+        # Log radiation effect only if units were affected
         if affected_units:
-            # Show radiation animation
-            if ui and hasattr(ui, 'renderer'):
-                radiation_animation = ['r', '*', '+', '.']
-                for pos in radiation_positions:
-                    y, x = pos
-                    if game.is_valid_position(y, x):
-                        ui.renderer.animate_attack_sequence(
-                            y, x,
-                            radiation_animation,
-                            6,  # Yellow color for radiation
-                            0.1
-                        )
-            
-            # Log radiation effect
             message_log.add_message(
                 f"Neutron radiation spreads from the impact",
                 MessageType.ABILITY,
@@ -265,8 +280,11 @@ class NeuralShuntSkill(ActiveSkill):
                     target_name=target.get_display_name()
                 )
         
-        # Trigger Neutron Illuminant
+        # Trigger Neutron Illuminant flash and radiation effects
         if user.passive_skill and user.passive_skill.name == "Neutron Illuminant":
+            # Always trigger flash effect for Neural Shunt attacks
+            user.passive_skill.trigger_flash_effect(user, target_pos, game, ui)
+            # Also trigger radiation effect (only applies if enemies are in range)
             user.passive_skill.trigger_radiation(user, target_pos, game, ui)
         
         return True

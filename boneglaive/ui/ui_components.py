@@ -83,7 +83,7 @@ class MessageLogComponent(UIComponent):
     def __init__(self, renderer, game_ui):
         super().__init__(renderer, game_ui)
         self.show_log = True  # Whether to show the message log
-        self.log_height = 7   # Number of log lines to display
+        self.log_height = 6   # Number of log lines to display
         self.show_log_history = False  # Whether to show the full log history screen
         self.log_history_scroll = 0    # Scroll position in log history
     
@@ -963,7 +963,7 @@ class UnitHelpComponent(UIComponent):
                     'Role: Tank / Frontline Fighter / Area Controller'
                 ],
                 'stats': [
-                    'HP: 24',
+                    'HP: 20',
                     'Attack: 4',
                     'Defense: 2',
                     'Movement: 3',
@@ -1304,7 +1304,7 @@ class UnitHelpComponent(UIComponent):
                             'Pierce: Yes',
                             'Effects: None',
                             'Cooldown: 6 turns',
-                            'Special: Sets target furniture to cosmic value 1. Damage equals average cosmic value of other furniture minus1. Pull distance equals average enemy movement minus 1. Rerolls all other furniture cosmic values'
+                            'Special: Sets target furniture to cosmic value 1. Damage equals average cosmic value of other furniture minus 1. Pull distance per unit equals (original cosmic value - 1) minus unit move value (minimum 1). Rerolls all other furniture cosmic values'
                         ]
                     }
                 ],
@@ -3175,17 +3175,6 @@ class GameModeManager(UIComponent):
                     )
                     return
                 
-                # Check if unit has already planned a skill use
-                if cursor_manager.selected_unit.skill_target and cursor_manager.selected_unit.selected_skill:
-                    # Use event system for message
-                    self.publish_event(
-                        EventType.MESSAGE_DISPLAY_REQUESTED,
-                        MessageDisplayEventData(
-                            message="Unit has already planned a skill use and cannot move",
-                            message_type=MessageType.WARNING
-                        )
-                    )
-                    return
                 
                 # Check if unit is trapped
                 if cursor_manager.selected_unit.trapped_by is not None:
@@ -4750,6 +4739,7 @@ class ActionMenuComponent(UIComponent):
                         unit.trapped_by is None and
                         not unit.is_echo and
                         not unit.move_target and  # Can't move if already planned a move
+                        not (unit.skill_target and unit.selected_skill) and  # Can't move if already planned a skill
                         not (hasattr(unit, 'jawline_affected') and unit.jawline_affected) and
                         not (hasattr(unit, 'charging_status') and unit.charging_status) and
                         not (hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected))

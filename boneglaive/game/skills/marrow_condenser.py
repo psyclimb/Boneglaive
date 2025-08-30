@@ -232,30 +232,7 @@ class MarrowDikeSkill(ActiveSkill):
         if not game:
             return False
             
-        # Check if player already has an active Marrow Dike (keep this check)
-        from boneglaive.utils.message_log import message_log, MessageType
-        
-        # 1. Check if this player already has an active Marrow Dike (wall tiles)
-        if hasattr(game, 'marrow_dike_tiles') and len(game.marrow_dike_tiles) > 0:
-            for tile_info in game.marrow_dike_tiles.values():
-                if tile_info.get('owner') and tile_info['owner'].player == user.player:
-                    message_log.add_message(
-                        f"Cannot use Marrow Dike - you already have an active dike.",
-                        MessageType.WARNING,
-                        player=user.player
-                    )
-                    return False
-        
-        # 2. Also check interior tiles
-        if hasattr(game, 'marrow_dike_interior') and len(game.marrow_dike_interior) > 0:
-            for tile_info in game.marrow_dike_interior.values():
-                if tile_info.get('owner') and tile_info['owner'].player == user.player:
-                    message_log.add_message(
-                        f"Cannot use Marrow Dike - you already have an active dike.",
-                        MessageType.WARNING,
-                        player=user.player
-                    )
-                    return False
+# Removed prevention check - existing dikes will auto-expire when creating new ones
         
         return True
             
@@ -294,6 +271,67 @@ class MarrowDikeSkill(ActiveSkill):
         self.current_cooldown = self.cooldown
                         
         return True
+    
+    def _expire_existing_player_dikes(self, user: 'Unit', game: 'Game') -> None:
+        """Auto-expire any existing dikes owned by the same player to allow new dike creation."""
+        from boneglaive.game.map import TerrainType
+        from boneglaive.utils.message_log import message_log, MessageType
+        
+        # Find all wall tiles owned by this player
+        tiles_to_remove = []
+        if hasattr(game, 'marrow_dike_tiles'):
+            for (tile_y, tile_x), dike_info in list(game.marrow_dike_tiles.items()):
+                if dike_info.get('owner') and dike_info['owner'].player == user.player:
+                    tiles_to_remove.append((tile_y, tile_x))
+        
+        # Find all interior tiles owned by this player  
+        interior_to_remove = []
+        if hasattr(game, 'marrow_dike_interior'):
+            for (tile_y, tile_x), dike_info in list(game.marrow_dike_interior.items()):
+                if dike_info.get('owner') and dike_info['owner'].player == user.player:
+                    interior_to_remove.append((tile_y, tile_x))
+        
+        # Clean up mired status from units in expiring dike interiors
+        for tile_y, tile_x in interior_to_remove:
+            unit_at_pos = game.get_unit_at(tile_y, tile_x)
+            if unit_at_pos and unit_at_pos.is_alive():
+                # Remove mired status if it was applied by this dike
+                if hasattr(unit_at_pos, 'mired') and unit_at_pos.mired:
+                    unit_at_pos.mired = False
+                    unit_at_pos.mired_duration = 0
+                    # Restore movement penalty that was applied by mired effect
+                    if hasattr(unit_at_pos, 'move_range_bonus'):
+                        unit_at_pos.move_range_bonus += 1  # Remove the -1 penalty
+        
+        # Process wall tile removals and restore terrain
+        for tile_y, tile_x in tiles_to_remove:
+            tile = (tile_y, tile_x)
+            
+            # Restore original terrain only if current terrain is still MARROW_WALL
+            if tile in game.marrow_dike_tiles and 'original_terrain' in game.marrow_dike_tiles[tile]:
+                current_terrain = game.map.get_terrain_at(tile_y, tile_x)
+                if current_terrain == TerrainType.MARROW_WALL:
+                    original_terrain = game.marrow_dike_tiles[tile]['original_terrain']
+                    game.map.set_terrain_at(tile_y, tile_x, original_terrain)
+            
+            # Remove from tracking and add crumbling message
+            if tile in game.marrow_dike_tiles:
+                dike_info = game.marrow_dike_tiles[tile]
+                owner = dike_info['owner']
+                del game.marrow_dike_tiles[tile]
+                
+                # Add crumbling message (same as natural expiration)
+                message_log.add_message(
+                    f"A section of {owner.get_display_name()}'s Marrow Dike crumbles away...",
+                    MessageType.ABILITY,
+                    player=owner.player
+                )
+        
+        # Remove interior tiles from tracking
+        for tile_y, tile_x in interior_to_remove:
+            tile = (tile_y, tile_x)
+            if tile in game.marrow_dike_interior:
+                del game.marrow_dike_interior[tile]
         
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Marrow Dike skill during turn resolution."""
@@ -304,6 +342,8 @@ class MarrowDikeSkill(ActiveSkill):
         # Clear the indicator since we're executing
         user.marrow_dike_indicator = None
 
+        # Auto-expire any existing dikes owned by this player
+        self._expire_existing_player_dikes(user, game)
         
         # Determine if this is upgraded version
         if hasattr(user, 'passive_skill') and hasattr(user.passive_skill, 'marrow_dike_upgraded'):
@@ -347,9 +387,10 @@ class MarrowDikeSkill(ActiveSkill):
         if not hasattr(game, 'previous_terrain'):
             game.previous_terrain = {}
         
-        # First, identify and move units on the perimeter
+        # First, identify and move units on the perimeter with improved pull logic
         units_to_move = []
         unit_movements = []  # Store original and new positions for animation
+        reserved_positions = set()  # Track positions that are already claimed
         
         for tile_y, tile_x in dike_tiles:
             unit_at_tile = game.get_unit_at(tile_y, tile_x)
@@ -366,37 +407,32 @@ class MarrowDikeSkill(ActiveSkill):
                     # Skip this unit - it won't be moved and the wall won't be placed here
                     continue
                 
-                # Add to list of units to be moved inside
-                units_to_move.append(unit_at_tile)
+                # Find the best available interior position for this unit
+                best_position = self._find_best_interior_position(
+                    unit_at_tile, tile_y, tile_x, center_y, center_x, 
+                    dike_interior, game, reserved_positions
+                )
                 
-                # Calculate direction toward center from unit
-                dy = 1 if tile_y < center_y else (-1 if tile_y > center_y else 0)
-                dx = 1 if tile_x < center_x else (-1 if tile_x > center_x else 0)
-                
-                # Calculate new position (just one step inward)
-                new_y = tile_y + dy
-                new_x = tile_x + dx
-                
-                # Check if the target position is passable terrain
-                if not game.map.is_passable(new_y, new_x):
-                    # Cannot pull onto impassable terrain - skip silently
-                    continue
-                
-                # Store the movement info for animation
-                unit_movements.append({
-                    'unit': unit_at_tile,
-                    'from': (tile_y, tile_x),
-                    'to': (new_y, new_x),
-                    'dy': dy,
-                    'dx': dx
-                })
+                if best_position:
+                    new_y, new_x = best_position
+                    # Reserve this position so other units can't claim it
+                    reserved_positions.add((new_y, new_x))
+                    
+                    # Store the movement info for animation
+                    unit_movements.append({
+                        'unit': unit_at_tile,
+                        'from': (tile_y, tile_x),
+                        'to': (new_y, new_x),
+                        'dy': new_y - tile_y,
+                        'dx': new_x - tile_x
+                    })
         
-        # Move units to inside the dike (toward center)
+        # Move units to inside the dike
         for movement in unit_movements:
             unit = movement['unit']
             new_y, new_x = movement['to']
             
-            # Make sure new position is not already occupied
+            # Double-check the position is still available (should be due to reservation system)
             if not game.get_unit_at(new_y, new_x):
                 # Log the movement
                 message_log.add_message(
@@ -419,8 +455,19 @@ class MarrowDikeSkill(ActiveSkill):
                 # This should be rare, but skip if still occupied
                 continue
                 
+            # Check if current terrain is passable - only place walls on passable terrain
+            current_terrain = game.map.get_terrain_at(tile_y, tile_x)
+            if not game.map.is_passable(tile_y, tile_x):
+                # Skip placing wall on impassable terrain (furniture, walls, etc.)
+                continue
+                
+            # Check if this tile already has a marrow dike wall (overlapping dike prevention)
+            if current_terrain == TerrainType.MARROW_WALL:
+                # Skip placing wall on existing wall to prevent overlap bug
+                continue
+                
             # Store original terrain to restore later
-            original_terrain = game.map.get_terrain_at(tile_y, tile_x)
+            original_terrain = current_terrain
             game.previous_terrain[tile] = original_terrain
             
             # Set the tile to MARROW_WALL terrain (special terrain for dike)
@@ -584,6 +631,72 @@ class MarrowDikeSkill(ActiveSkill):
                 ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
         
         return True
+
+    def _find_best_interior_position(self, unit, perimeter_y, perimeter_x, center_y, center_x, dike_interior, game, reserved_positions):
+        """
+        Find the best available interior position for a unit on the perimeter.
+        
+        Args:
+            unit: The unit to be moved
+            perimeter_y, perimeter_x: Current position of the unit (on perimeter)
+            center_y, center_x: Center position of the dike
+            dike_interior: Set of (y, x) tuples representing interior positions
+            game: Game instance for checking occupancy and terrain
+            reserved_positions: Set of positions already claimed by other units in this pull operation
+            
+        Returns:
+            (y, x) tuple of best position, or None if no valid position found
+        """
+        # All 8 possible adjacent directions
+        directions = [
+            (-1, -1), (-1, 0), (-1, 1),  # up-left, up, up-right
+            ( 0, -1),          ( 0, 1),  # left, right
+            ( 1, -1), ( 1, 0), ( 1, 1)   # down-left, down, down-right
+        ]
+        
+        candidates = []
+        
+        # Check each adjacent position
+        for dy, dx in directions:
+            new_y = perimeter_y + dy
+            new_x = perimeter_x + dx
+            candidate_pos = (new_y, new_x)
+            
+            # Check if position is valid
+            if (new_y < 0 or new_y >= game.map.height or 
+                new_x < 0 or new_x >= game.map.width):
+                continue  # Out of bounds
+            
+            # Check if position is in the interior area
+            if candidate_pos not in dike_interior:
+                continue  # Not in interior
+                
+            # Check if terrain is passable
+            if not game.map.is_passable(new_y, new_x):
+                continue  # Impassable terrain
+                
+            # Check if position is already occupied by another unit
+            if game.get_unit_at(new_y, new_x):
+                continue  # Occupied by existing unit
+                
+            # Check if position is already reserved by another unit in this pull operation
+            if candidate_pos in reserved_positions:
+                continue  # Already claimed
+            
+            # This is a valid candidate - calculate its priority
+            # Distance to center (prefer closer to center)
+            distance_to_center = abs(new_y - center_y) + abs(new_x - center_x)
+            
+            candidates.append((candidate_pos, distance_to_center))
+        
+        if not candidates:
+            return None  # No valid positions found
+            
+        # Sort by distance to center (closer is better, so smaller distance first)
+        candidates.sort(key=lambda x: x[1])
+        
+        # Return the best position (closest to center)
+        return candidates[0][0]
 
 
 class BoneTitheSkill(ActiveSkill):
