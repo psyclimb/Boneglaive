@@ -250,13 +250,8 @@ class NeuralShuntSkill(ActiveSkill):
                 sleep_with_animation_speed(0.1)
         
         if target.hp <= 0:
-            message_log.add_message(
-                f"{target.get_display_name()} perishes",
-                MessageType.COMBAT,
-                player=user.player,
-                target=target.player,
-                target_name=target.get_display_name()
-            )
+            # Use centralized death handling to ensure all systems (like DOMINION) are notified
+            game.handle_unit_death(target, user, cause="neural_shunt", ui=ui)
         else:
             # Check for critical health
             game.check_critical_health(target, user, previous_hp, ui)

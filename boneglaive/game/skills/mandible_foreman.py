@@ -295,15 +295,10 @@ class DischargeSkill(ActiveSkill):
                             ui.renderer.refresh()
                             sleep_with_animation_speed(0.1)
                     
-                    # Check if enemy was defeated
+                    # Check if enemy was defeated and handle death properly
                     if enemy_hit.hp <= 0:
-                        message_log.add_message(
-                            f"{enemy_hit.get_display_name()} perishes",
-                            MessageType.COMBAT,
-                            player=user.player,
-                            target=enemy_hit.player,
-                            target_name=enemy_hit.get_display_name()
-                        )
+                        # Use centralized death handling to ensure all systems (like DOMINION) are notified
+                        game.handle_unit_death(enemy_hit, user, cause="clamp", ui=ui)
                     else:
                         # Check for critical health (retching) using centralized logic
                         game.check_critical_health(enemy_hit, user, previous_hp, ui)
@@ -463,15 +458,10 @@ class DischargeSkill(ActiveSkill):
                         ui.renderer.refresh()
                         sleep_with_animation_speed(0.1)
                 
-                # Check if enemy was defeated
+                # Check if enemy was defeated and handle death properly
                 if enemy_hit.hp <= 0:
-                    message_log.add_message(
-                        f"{enemy_hit.get_display_name()} perishes",
-                        MessageType.COMBAT,
-                        player=user.player,
-                        target=enemy_hit.player,
-                        target_name=enemy_hit.get_display_name()
-                    )
+                    # Use centralized death handling to ensure all systems (like DOMINION) are notified
+                    game.handle_unit_death(enemy_hit, user, cause="viseroy", ui=ui)
                 # Otherwise check critical health
                 else:
                     # Check for critical health (retching) using centralized logic
@@ -1092,15 +1082,10 @@ class JawlineSkill(ActiveSkill):
                         target_player=target.player
                     )
                     
-                    # Check if target was defeated
+                    # Check if target was defeated and handle death properly
                     if target.hp <= 0:
-                        message_log.add_message(
-                            f"{target.get_display_name()} perishes",
-                            MessageType.COMBAT,
-                            player=user.player,
-                            target=target.player,
-                            target_name=target.get_display_name()
-                        )
+                        # Use centralized death handling to ensure all systems (like DOMINION) are notified
+                        game.handle_unit_death(target, user, cause="discharge", ui=ui)
                     # If not defeated, check for critical health and apply Jawline effect if not immune
                     else:
                         # Check for critical health (retching) using centralized logic
@@ -1182,15 +1167,10 @@ class JawlineSkill(ActiveSkill):
                         target_player=target.player
                     )
                     
-                    # Check if target was defeated
+                    # Check if target was defeated and handle death properly
                     if target.hp <= 0:
-                        message_log.add_message(
-                            f"{target.get_display_name()} perishes",
-                            MessageType.COMBAT,
-                            player=user.player,
-                            target=target.player,
-                            target_name=target.get_display_name()
-                        )
+                        # Use centralized death handling to ensure all systems (like DOMINION) are notified
+                        game.handle_unit_death(target, user, cause="discharge", ui=ui)
                     # If not defeated, check for critical health and apply Jawline effect if not immune
                     else:
                         # Check for critical health (retching) using centralized logic

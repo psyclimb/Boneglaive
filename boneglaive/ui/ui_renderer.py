@@ -1162,32 +1162,37 @@ class UIRenderer:
             hp_info = f"HP: {unit.hp}/{unit.max_hp}"
             self.renderer.draw_text(info_line, len(type_info) + 4, hp_info, hp_color)
             
-            # Draw combat stats with base+modifier format
+            # Draw combat stats with effective values only
+            # Get effective stats and base stats for comparison
+            effective_stats = unit.get_effective_stats()
+            
             # ATK stat
             atk_label = "ATK: "
-            if unit.attack_bonus != 0:
-                atk_value = f"{unit.attack}+{unit.attack_bonus}" if unit.attack_bonus > 0 else f"{unit.attack}{unit.attack_bonus}"
-                atk_value_color = 3 if unit.attack_bonus > 0 else 25  # Green for +, red for -
-            else:
-                atk_value = f"{unit.attack}"
-                atk_value_color = 8  # Gray for no modifier
+            effective_atk = effective_stats['attack']
+            base_atk = unit.attack
+            atk_value = f"{effective_atk}"
             
-            # Handle Estrange effect (all stats red)
-            if hasattr(unit, 'estranged') and unit.estranged:
-                atk_value_color = 25  # Red if estranged
+            # Color based on effective vs base comparison
+            if effective_atk < base_atk:
+                atk_value_color = 25  # Red for lower than base
+            elif effective_atk > base_atk:
+                atk_value_color = 3   # Green for higher than base
+            else:
+                atk_value_color = 8   # Gray for equal to base
             
             # DEF stat  
             def_label = " | DEF: "
-            if unit.defense_bonus != 0:
-                def_value = f"{unit.defense}+{unit.defense_bonus}" if unit.defense_bonus > 0 else f"{unit.defense}{unit.defense_bonus}"
-                def_value_color = 3 if unit.defense_bonus > 0 else 25  # Green for +, red for -
+            effective_def = effective_stats['defense']
+            base_def = unit.defense
+            def_value = f"{effective_def}"
+            
+            # Color based on effective vs base comparison
+            if effective_def < base_def:
+                def_value_color = 25  # Red for lower than base
+            elif effective_def > base_def:
+                def_value_color = 3   # Green for higher than base
             else:
-                def_value = f"{unit.defense}"
-                def_value_color = 8  # Gray for no modifier
-                
-            # Handle Estrange effect (all stats red)
-            if hasattr(unit, 'estranged') and unit.estranged:
-                def_value_color = 25  # Red if estranged
+                def_value_color = 8   # Gray for equal to base
             
             # Draw ATK stat (label in gray, value in appropriate color)
             pos = len(type_info) + len(hp_info) + 6
@@ -1199,38 +1204,33 @@ class UIRenderer:
             self.renderer.draw_text(info_line, def_pos, def_label, 8)  # Gray label
             self.renderer.draw_text(info_line, def_pos + len(def_label), def_value, def_value_color)  # Colored value
             
-            # MOVE stat with base+modifier format
+            # MOVE stat with effective values only
             move_label = " | MOVE: "
+            effective_move = effective_stats['move_range']
+            base_move = unit.move_range
+            move_value = f"{effective_move}"
             
-            # Calculate total move bonus (including first turn bonus)
-            total_move_bonus = unit.move_range_bonus
-            if hasattr(unit, 'first_turn_move_bonus') and unit.first_turn_move_bonus:
-                # The first_turn_move_bonus is already included in move_range_bonus, so we show it properly
-                pass  # total_move_bonus already includes this
-            
-            if total_move_bonus != 0:
-                move_value = f"{unit.move_range}+{total_move_bonus}" if total_move_bonus > 0 else f"{unit.move_range}{total_move_bonus}"
-                move_value_color = 3 if total_move_bonus > 0 else 25  # Green for +, red for -
+            # Color based on effective vs base comparison
+            if effective_move < base_move:
+                move_value_color = 25  # Red for lower than base
+            elif effective_move > base_move:
+                move_value_color = 3   # Green for higher than base
             else:
-                move_value = f"{unit.move_range}"
-                move_value_color = 8  # Gray for no modifier
+                move_value_color = 8   # Gray for equal to base
             
-            # Handle Estrange effect (all stats red)
-            if hasattr(unit, 'estranged') and unit.estranged:
-                move_value_color = 25  # Red if estranged
-            
-            # RANGE stat with base+modifier format  
+            # RANGE stat with effective values only
             range_label = " | RANGE: "
-            if unit.attack_range_bonus != 0:
-                range_value = f"{unit.attack_range}+{unit.attack_range_bonus}" if unit.attack_range_bonus > 0 else f"{unit.attack_range}{unit.attack_range_bonus}"
-                range_value_color = 3 if unit.attack_range_bonus > 0 else 25  # Green for +, red for -
+            effective_range = effective_stats['attack_range']
+            base_range = unit.attack_range
+            range_value = f"{effective_range}"
+            
+            # Color based on effective vs base comparison
+            if effective_range < base_range:
+                range_value_color = 25  # Red for lower than base
+            elif effective_range > base_range:
+                range_value_color = 3   # Green for higher than base
             else:
-                range_value = f"{unit.attack_range}"
-                range_value_color = 8  # Gray for no modifier
-                
-            # Handle Estrange effect (all stats red)
-            if hasattr(unit, 'estranged') and unit.estranged:
-                range_value_color = 25  # Red if estranged
+                range_value_color = 8   # Gray for equal to base
             
             # Calculate positions and draw MOVE stat
             move_pos = def_pos + len(def_label) + len(def_value)
