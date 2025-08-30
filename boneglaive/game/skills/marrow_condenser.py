@@ -486,12 +486,21 @@ class MarrowDikeSkill(ActiveSkill):
         for tile_y, tile_x in dike_interior:
             tile = (tile_y, tile_x)
             
-            # Associate this interior tile with the dike (no terrain change needed)
-            game.marrow_dike_interior[tile] = {
-                'owner': user,
-                'duration': self.duration,
-                'upgraded': self.upgraded
-            }
+            # Check if this tile was pre-established during turn resolution
+            if tile in game.marrow_dike_interior and game.marrow_dike_interior[tile].get('pre_established', False):
+                # Update the pre-established tracking with final values - DOMINION tracking officially begins now
+                game.marrow_dike_interior[tile].update({
+                    'duration': self.duration,
+                    'upgraded': self.upgraded,
+                    'pre_established': False  # Mark as no longer pre-established - now "real" tracking
+                })
+            else:
+                # Associate this interior tile with the dike - DOMINION tracking begins now
+                game.marrow_dike_interior[tile] = {
+                    'owner': user,
+                    'duration': self.duration,
+                    'upgraded': self.upgraded
+                }
         
         # Log the skill activation
         if self.upgraded:

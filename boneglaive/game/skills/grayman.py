@@ -441,15 +441,10 @@ class EstrangeSkill(ActiveSkill):
                     0.1  # duration
                 )
         
-        # Check if target was defeated
+        # Check if target was defeated and handle death properly
         if target.hp <= 0:
-            message_log.add_message(
-                f"{target.get_display_name()} perishes",
-                MessageType.COMBAT,
-                player=user.player,
-                target=target.player,
-                target_name=target.get_display_name()
-            )
+            # Use centralized death handling to ensure all systems (like DOMINION) are notified
+            game.handle_unit_death(target, user, cause="estrange", ui=ui)
         
         # Redraw board after animations
         if ui and hasattr(ui, 'draw_board'):

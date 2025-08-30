@@ -1041,15 +1041,10 @@ class DivineDrepreciationSkill(ActiveSkill):
                             player=user.player
                         )
 
-            # Handle unit death
+            # Handle unit death properly through centralized system
             if unit.hp <= 0:
-                message_log.add_message(
-                    f"{unit.get_display_name()} perishes",
-                    MessageType.COMBAT,
-                    player=user.player
-                )
-                # Units are not removed from the game, just marked as dead by setting hp to 0
-                unit.hp = 0
+                # Use centralized death handling to ensure all systems (like DOMINION) are notified
+                game.handle_unit_death(unit, user, cause="divine_depreciation", ui=ui)
 
         return True
 

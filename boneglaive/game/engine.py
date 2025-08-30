@@ -2127,6 +2127,10 @@ class Game:
         
         logger.info(f"Executing {len(units_with_actions)} actions in timestamp order")
         
+        # Pre-establish Marrow Dike interior tracking for skills that will execute this turn
+        # This ensures kills from attacks can be counted by DOMINION even if they happen before skill execution
+        self._pre_establish_marrow_dike_tracking(units_with_actions)
+        
         # Display actions visually with UI but don't add to message log
         if (units_with_actions or any(unit.trapped_by is not None for unit in self.units)) and ui:
             # Start the spinner animation
@@ -4471,3 +4475,72 @@ class Game:
                     
                     unit.can_use_anchor = True
                     break
+    
+    def _pre_establish_marrow_dike_tracking(self, units_with_actions):
+        """
+        Pre-establish Marrow Dike interior tracking for skills that will execute this turn.
+        This ensures kills from attacks can be counted by DOMINION even if they happen
+        before the Marrow Dike skill is executed.
+        
+        Args:
+            units_with_actions: List of units that have actions queued for this turn
+        """
+        from boneglaive.utils.constants import UnitType
+        from boneglaive.utils.debug import logger
+        
+        # Initialize tracking dictionaries if they don't exist
+        if not hasattr(self, 'marrow_dike_interior'):
+            self.marrow_dike_interior = {}
+        if not hasattr(self, 'marrow_dike_tiles'):
+            self.marrow_dike_tiles = {}
+        
+        # Look for MARROW_CONDENSER units with MarrowDikeSkill queued
+        for unit in units_with_actions:
+            if (unit.type == UnitType.MARROW_CONDENSER and 
+                unit.skill_target and unit.selected_skill and 
+                unit.selected_skill.name == "Marrow Dike"):
+                
+                logger.debug(f"Pre-establishing Marrow Dike tracking for {unit.get_display_name()}")
+                
+                # Calculate where the dike will be created (account for movement like MarrowDikeSkill.use)
+                if unit.move_target:
+                    center_y, center_x = unit.move_target
+                else:
+                    center_y, center_x = unit.y, unit.x
+                
+                # Check if this is upgraded version
+                upgraded = False
+                if hasattr(unit, 'passive_skill') and hasattr(unit.passive_skill, 'marrow_dike_upgraded'):
+                    upgraded = unit.passive_skill.marrow_dike_upgraded
+                
+                # Calculate interior tiles (same logic as MarrowDikeSkill.execute)
+                dike_interior = []
+                for dy in range(-2, 3):  # -2, -1, 0, 1, 2
+                    for dx in range(-2, 3):  # -2, -1, 0, 1, 2
+                        # Skip the center tile (unit's position)
+                        if dy == 0 and dx == 0:
+                            continue
+                            
+                        tile_y, tile_x = center_y + dy, center_x + dx
+                        
+                        # Check if position is valid
+                        if self.is_valid_position(tile_y, tile_x):
+                            # Interior positions (not on the perimeter)
+                            if abs(dy) != 2 and abs(dx) != 2:
+                                dike_interior.append((tile_y, tile_x))
+                
+                # Pre-establish interior tile tracking
+                for tile_y, tile_x in dike_interior:
+                    tile = (tile_y, tile_x)
+                    
+                    # Only pre-establish if this tile isn't already tracked
+                    if tile not in self.marrow_dike_interior:
+                        self.marrow_dike_interior[tile] = {
+                            'owner': unit,
+                            'duration': 3,  # Default duration
+                            'upgraded': upgraded,
+                            'pre_established': True  # Mark as pre-established
+                        }
+                        logger.debug(f"Pre-established Marrow Dike interior tracking at ({tile_y}, {tile_x})")
+                
+                logger.debug(f"Pre-established {len(dike_interior)} interior tiles for {unit.get_display_name()}'s Marrow Dike")

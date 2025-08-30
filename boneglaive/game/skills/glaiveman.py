@@ -218,15 +218,10 @@ class Autoclave(PassiveSkill):
                         ui.renderer.refresh()
                         sleep_with_animation_speed(0.2)
                     
-                    # Check if target was defeated
+                    # Check if target was defeated and handle death properly
                     if target.hp <= 0:
-                        message_log.add_message(
-                            f"{target.get_display_name()} perishes",
-                            MessageType.COMBAT,
-                            player=user.player,
-                            target=target.player,
-                            target_name=target.get_display_name()
-                        )
+                        # Use centralized death handling to ensure all systems (like DOMINION) are notified
+                        game.handle_unit_death(target, user, cause="autoclave", ui=ui)
             
             # Store targets for animation
             if targets_in_direction:
@@ -624,15 +619,10 @@ class PrySkill(ActiveSkill):
                     # Add to affected units list for animation
                     affected_adjacents.append((adjacent_unit, splash_damage))
                     
-                    # Check if the adjacent unit was defeated
+                    # Check if the adjacent unit was defeated and handle death properly
                     if adjacent_unit.hp <= 0:
-                        message_log.add_message(
-                            f"{adjacent_unit.get_display_name()} perishes",
-                            MessageType.COMBAT,
-                            player=user.player,
-                            target=adjacent_unit.player,
-                            target_name=adjacent_unit.get_display_name()
-                        )
+                        # Use centralized death handling to ensure all systems (like DOMINION) are notified
+                        game.handle_unit_death(adjacent_unit, user, cause="pry_splash", ui=ui)
         
         # Show splash damage numbers for adjacent units if UI is available
         if ui and hasattr(ui, 'renderer') and affected_adjacents:
@@ -730,15 +720,10 @@ class PrySkill(ActiveSkill):
                 target_name=target.get_display_name()
             )
             
-        # Check if primary target was defeated
+        # Check if primary target was defeated and handle death properly
         if target.hp <= 0:
-            message_log.add_message(
-                f"{target.get_display_name()} perishes",
-                MessageType.COMBAT,
-                player=user.player,
-                target=target.player,
-                target_name=target.get_display_name()
-            )
+            # Use centralized death handling to ensure all systems (like DOMINION) are notified
+            game.handle_unit_death(target, user, cause="vault", ui=ui)
         
         return True
 
@@ -1289,15 +1274,10 @@ class JudgementSkill(ActiveSkill):
                 ui.renderer.refresh()
                 sleep_with_animation_speed(0.1)
         
-        # Check if target was defeated
+        # Check if target was defeated and handle death properly
         if target.hp <= 0:
-            message_log.add_message(
-                f"{target.get_display_name()} perishes",
-                MessageType.COMBAT,
-                player=user.player,
-                target=target.player,
-                target_name=target.get_display_name()
-            )
+            # Use centralized death handling to ensure all systems (like DOMINION) are notified
+            game.handle_unit_death(target, user, cause="judgement", ui=ui)
             
         # Redraw the board after animations
         if ui and hasattr(ui, 'draw_board'):
