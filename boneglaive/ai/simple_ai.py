@@ -3173,7 +3173,7 @@ class SimpleAI:
     
     def _evaluate_marrow_dike(self, unit: 'Unit', target: 'Unit', nearby_enemies: int) -> Tuple[float, Optional[Tuple[int, int]]]:
         """
-        Evaluate the value of using Marrow Dike for area denial.
+        Evaluate the value of using Marrow Dike for area denial with team coordination.
         
         Args:
             unit: The Marrow Condenser unit
@@ -3202,19 +3202,198 @@ class SimpleAI:
         if distance_to_target <= 3:  # Target would be affected by 5x5 dike
             score += 25
         
-        # Check if we already have a Marrow Dike active
-        if hasattr(self.game, 'marrow_dike_tiles') and self.game.marrow_dike_tiles:
-            for tile_info in self.game.marrow_dike_tiles.values():
-                if tile_info.get('owner') and tile_info['owner'].player == unit.player:
-                    score = 0  # Can't use if already have one
-                    break
+        # NEW: Team coordination for staggered dike usage
+        coordination_modifier = self._evaluate_dike_coordination(unit)
+        score += coordination_modifier
+        
+        # If coordination completely blocks usage, set score to 0
+        if coordination_modifier <= -1000:
+            score = 0
         
         # Target position is self (center of dike)
         target_pos = (unit.y, unit.x) if score > 0 else None
         
-        logger.debug(f"Marrow Dike evaluation: score={score}, nearby_enemies={nearby_enemies}, distance_to_target={distance_to_target}")
+        logger.debug(f"Marrow Dike evaluation: score={score}, nearby_enemies={nearby_enemies}, distance_to_target={distance_to_target}, coordination_modifier={coordination_modifier}")
         
         return score, target_pos
+    
+    def _evaluate_dike_coordination(self, unit: 'Unit') -> float:
+        """
+        Evaluate coordination with teammate Marrow Condensers for staggered dike usage.
+        
+        Args:
+            unit: The Marrow Condenser unit considering using Marrow Dike
+            
+        Returns:
+            Coordination modifier score (+/- to add to base dike score)
+            Returns -1000+ to completely block usage if poor timing
+        """
+        # Find teammate Marrow Condensers
+        teammate_condensers = []
+        for game_unit in self.game.units:
+            if (game_unit.player == unit.player and 
+                game_unit.is_alive() and 
+                game_unit.type == UnitType.MARROW_CONDENSER and 
+                game_unit != unit):
+                teammate_condensers.append(game_unit)
+        
+        # If no teammates, use normal evaluation (no coordination needed)
+        if not teammate_condensers:
+            logger.debug("No teammate Marrow Condensers found - normal dike evaluation")
+            return 0
+        
+        # Check for active teammate dikes
+        active_teammate_dikes = []
+        if hasattr(self.game, 'marrow_dike_tiles') and self.game.marrow_dike_tiles:
+            for tile_info in self.game.marrow_dike_tiles.values():
+                if tile_info.get('owner') and tile_info['owner'].player == unit.player:
+                    # This is a dike owned by our team
+                    dike_owner = tile_info['owner']
+                    if dike_owner != unit:  # It's a teammate's dike
+                        remaining_duration = tile_info.get('duration', 0)
+                        active_teammate_dikes.append({
+                            'owner': dike_owner,
+                            'remaining_duration': remaining_duration,
+                            'upgraded': tile_info.get('upgraded', False)
+                        })
+        
+        logger.debug(f"Found {len(active_teammate_dikes)} active teammate dikes")
+        
+        # No active teammate dikes - can use normally
+        if not active_teammate_dikes:
+            # Bonus for good coordination (first dike in chain)
+            logger.debug("No active teammate dikes - can start dike chain")
+            return 10
+        
+        # There is an active teammate dike - evaluate stagger timing
+        teammate_dike = active_teammate_dikes[0]  # Should only be one due to auto-expire
+        remaining_turns = teammate_dike['remaining_duration']
+        
+        logger.debug(f"Teammate dike has {remaining_turns} turns remaining")
+        
+        # Calculate spatial chaining bonus for area coverage
+        spatial_bonus = self._evaluate_dike_spatial_chaining(unit, active_teammate_dikes)
+        logger.debug(f"Spatial chaining bonus: {spatial_bonus}")
+        
+        # Staggering logic based on remaining duration
+        if remaining_turns >= 3:
+            # Teammate's dike just started - wait for better timing
+            logger.debug("Teammate dike too fresh - blocking usage for better staggering")
+            return -1000  # Block usage
+            
+        elif remaining_turns == 2:
+            # Good timing - use dike so it starts as teammate's expires
+            logger.debug("Good stagger timing - teammate dike expires soon")
+            return 50 + spatial_bonus  # Strong bonus for good timing + spatial bonus
+            
+        elif remaining_turns == 1:
+            # Excellent timing - perfect stagger
+            logger.debug("Excellent stagger timing - teammate dike expires next turn")
+            return 75 + spatial_bonus  # Very strong bonus for perfect timing + spatial bonus
+            
+        else:  # remaining_turns <= 0 (shouldn't happen, but handle gracefully)
+            # Teammate's dike expired or expiring - normal usage
+            logger.debug("Teammate dike expired - normal usage")
+            return 0 + spatial_bonus
+    
+    def _evaluate_dike_spatial_chaining(self, unit: 'Unit', active_teammate_dikes: list) -> float:
+        """
+        Evaluate spatial positioning bonus for chaining dikes with teammates.
+        
+        Args:
+            unit: The Marrow Condenser unit considering dike placement
+            active_teammate_dikes: List of active teammate dike information
+            
+        Returns:
+            Spatial bonus score for area coverage optimization
+        """
+        if not active_teammate_dikes:
+            return 0
+            
+        # Get positions of existing teammate dike walls
+        teammate_dike_positions = set()
+        if hasattr(self.game, 'marrow_dike_tiles') and self.game.marrow_dike_tiles:
+            for (tile_y, tile_x), tile_info in self.game.marrow_dike_tiles.items():
+                if (tile_info.get('owner') and 
+                    tile_info['owner'].player == unit.player and 
+                    tile_info['owner'] != unit):
+                    teammate_dike_positions.add((tile_y, tile_x))
+        
+        if not teammate_dike_positions:
+            return 0
+        
+        # Calculate where our dike would place walls (5x5 perimeter around unit)
+        our_dike_positions = set()
+        center_y, center_x = unit.y, unit.x
+        
+        # Generate 5x5 perimeter positions (same logic as MarrowDikeSkill)
+        for dy in range(-2, 3):
+            for dx in range(-2, 3):
+                if abs(dy) == 2 or abs(dx) == 2:  # Edge positions only
+                    tile_y, tile_x = center_y + dy, center_x + dx
+                    if self.game.is_valid_position(tile_y, tile_x):
+                        our_dike_positions.add((tile_y, tile_x))
+        
+        # Calculate spatial relationship benefits
+        spatial_bonus = 0
+        
+        # 1. Proximity bonus - reward positioning near teammate dikes for concentrated area control
+        min_distance = float('inf')
+        for our_pos in our_dike_positions:
+            for teammate_pos in teammate_dike_positions:
+                distance = self.game.chess_distance(our_pos[0], our_pos[1], teammate_pos[0], teammate_pos[1])
+                min_distance = min(min_distance, distance)
+        
+        if min_distance <= 3:
+            # Very close positioning - excellent for concentrated area denial
+            spatial_bonus += 25
+            logger.debug(f"Close dike positioning bonus: {25}")
+        elif min_distance <= 5:
+            # Moderate distance - good for extended area coverage
+            spatial_bonus += 15
+            logger.debug(f"Moderate dike positioning bonus: {15}")
+        elif min_distance <= 8:
+            # Extended positioning - some strategic value
+            spatial_bonus += 5
+            logger.debug(f"Extended dike positioning bonus: {5}")
+        
+        # 2. Coverage area bonus - reward positioning that covers new strategic areas
+        # Count enemy units that would be newly affected by our dike
+        newly_covered_enemies = 0
+        for enemy_unit in self.game.units:
+            if (enemy_unit.player != unit.player and enemy_unit.is_alive()):
+                enemy_pos = (enemy_unit.y, enemy_unit.x)
+                
+                # Check if enemy would be in our dike's interior (trapped)
+                distance_to_our_center = self.game.chess_distance(enemy_pos[0], enemy_pos[1], center_y, center_x)
+                if distance_to_our_center <= 2:  # Inside our 5x5 dike area
+                    # Check if enemy is NOT already covered by teammate dike
+                    covered_by_teammate = False
+                    for teammate_pos in teammate_dike_positions:
+                        # Estimate teammate's dike center (approximate)
+                        teammate_distance = self.game.chess_distance(enemy_pos[0], enemy_pos[1], teammate_pos[0], teammate_pos[1])
+                        if teammate_distance <= 3:  # Rough estimate of being affected by teammate dike
+                            covered_by_teammate = True
+                            break
+                    
+                    if not covered_by_teammate:
+                        newly_covered_enemies += 1
+        
+        # Bonus for covering new enemies
+        spatial_bonus += newly_covered_enemies * 10
+        logger.debug(f"New enemy coverage bonus: {newly_covered_enemies * 10} (covering {newly_covered_enemies} new enemies)")
+        
+        # 3. Strategic corridor control - bonus for controlling key map areas
+        # This is a simplified version - could be enhanced with map-specific logic
+        map_center_y, map_center_x = self.game.map.height // 2, self.game.map.width // 2
+        distance_to_map_center = self.game.chess_distance(center_y, center_x, map_center_y, map_center_x)
+        
+        if distance_to_map_center <= 3:
+            spatial_bonus += 10
+            logger.debug(f"Map center control bonus: 10")
+        
+        logger.debug(f"Total spatial bonus: {spatial_bonus}")
+        return spatial_bonus
     
     def _evaluate_bone_tithe(self, unit: 'Unit', adjacent_enemies: int, is_low_health: bool) -> Tuple[float, Optional[Tuple[int, int]]]:
         """

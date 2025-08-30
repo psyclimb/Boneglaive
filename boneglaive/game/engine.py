@@ -1641,6 +1641,10 @@ class Game:
             if dike_owner.type == UnitType.MARROW_CONDENSER and hasattr(dike_owner, 'passive_skill'):
                 passive = dike_owner.passive_skill
                 
+                # Check if it's Dominion passive and increment kill count for ANY death in dike
+                if passive.name == "Dominion":
+                    passive.kills += 1
+                
                 # Apply the stat bonus based on upgrade tier
                 # Instead of granting all bonuses at once, apply them progressively based on upgrade level
                 if not passive.marrow_dike_upgraded and not passive.ossify_upgraded and not passive.bone_tithe_upgraded:
@@ -2464,6 +2468,11 @@ class Game:
                         if unit.type == UnitType.INTERFERER:
                             # Check for Carrier Rave triple strike (active during phasing)
                             if hasattr(unit, 'carrier_rave_active') and unit.carrier_rave_active:
+                                # Trigger flash effect for the first strike of Karrier Rave
+                                if unit.passive_skill and unit.passive_skill.name == "Neutron Illuminant":
+                                    unit.passive_skill.trigger_flash_effect(unit, (target.y, target.x), self, ui)
+                                    unit.passive_skill.trigger_radiation(unit, (target.y, target.x), self, ui)
+                                
                                 # Apply two additional strikes
                                 for strike in range(2):
                                     if target.hp > 0:  # Only continue if target is still alive
@@ -2482,6 +2491,11 @@ class Game:
                                         # Show additional damage animation
                                         if ui:
                                             ui.show_attack_animation(unit, target)
+                                            
+                                        # Trigger flash effect immediately after each additional strike
+                                        if unit.passive_skill and unit.passive_skill.name == "Neutron Illuminant":
+                                            unit.passive_skill.trigger_flash_effect(unit, (target.y, target.x), self, ui)
+                                            unit.passive_skill.trigger_radiation(unit, (target.y, target.x), self, ui)
                                 
                                 # End Carrier Rave effect after using triple strike
                                 unit.carrier_rave_active = False
@@ -2492,14 +2506,12 @@ class Game:
                                     MessageType.ABILITY,
                                     player=unit.player
                                 )
-                                
-                                # Trigger Neutron Illuminant for each strike (ignoring cooldown during Carrier Rave)
-                                if unit.passive_skill and unit.passive_skill.name == "Neutron Illuminant":
-                                    for _ in range(3):  # Once for each strike
-                                        unit.passive_skill.trigger_radiation(unit, (target.y, target.x), self, ui)
                             else:
                                 # Normal single attack - trigger Neutron Illuminant if available
                                 if unit.passive_skill and unit.passive_skill.name == "Neutron Illuminant":
+                                    # Always trigger flash effect for regular attacks
+                                    unit.passive_skill.trigger_flash_effect(unit, (target.y, target.x), self, ui)
+                                    # Also trigger radiation effect (only applies if enemies are in range)  
                                     unit.passive_skill.trigger_radiation(unit, (target.y, target.x), self, ui)
                         
                         # Handle removal of Market Futures effect after attack if it's expiring
@@ -3010,10 +3022,13 @@ class Game:
             # Process removals and restore original terrain
             for tile_y, tile_x in tiles_to_remove:
                 tile = (tile_y, tile_x)
-                # Restore original terrain
+                # Restore original terrain only if current terrain is still MARROW_WALL
+                # This prevents restoring incorrect terrain if overlapping occurred
                 if tile in self.marrow_dike_tiles and 'original_terrain' in self.marrow_dike_tiles[tile]:
-                    original_terrain = self.marrow_dike_tiles[tile]['original_terrain']
-                    self.map.set_terrain_at(tile_y, tile_x, original_terrain)
+                    current_terrain = self.map.get_terrain_at(tile_y, tile_x)
+                    if current_terrain == TerrainType.MARROW_WALL:
+                        original_terrain = self.marrow_dike_tiles[tile]['original_terrain']
+                        self.map.set_terrain_at(tile_y, tile_x, original_terrain)
                 
                 # Remove from marrow_dike_tiles
                 if tile in self.marrow_dike_tiles:
