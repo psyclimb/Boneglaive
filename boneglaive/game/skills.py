@@ -155,7 +155,7 @@ class Autoclave(PassiveSkill):
         super().__init__(
             name="Autoclave",
             key="A",
-            description="When wretched or damaged while at critical health, unleashes a cross-shaped attack in four directions (range 3) and heals for half the damage dealt. One-time use. Requires enemy in range."
+            description="When retched or damaged while at critical health, unleashes a cross-shaped attack in four directions (range 3) and heals for half the damage dealt. One-time use. Requires an enemy in range."
         )
         self.activated = False  # Track if this skill has been used
         
@@ -986,7 +986,7 @@ class EstrangeSkill(ActiveSkill):
         super().__init__(
             name="Estrange",
             key="E",
-            description="Fire a beam that phases target out of normal spacetime. Target receives -1 to all actions.",
+            description="Fires a beam that phases target out of normal spacetime. Target receives -1 to all actions.",
             target_type=TargetType.ENEMY,
             cooldown=3,
             range_=5

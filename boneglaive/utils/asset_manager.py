@@ -156,13 +156,13 @@ class AssetManager:
             # FOWL CONTRIVANCE reworked skills animations
             'gaussian_dusk_charging': ['~', '=', '≡', '*', '+', 'Φ', 'Θ', 'Ω'],  # Steam and energy buildup
             'gaussian_dusk_firing': ['*', '#', '@', '~', '.', ' '],  # Beam trail
-            'big_arc_launch': ['o', 'O', '0', '*'],  # Mortar shells ascending  
-            'big_arc_impact': ['*', '#', '@', '%', '~', '.'],  # Explosions and smoke
+            'parabol_launch': ['o', 'O', '0', '*'],  # Mortar shells ascending  
+            'parabol_impact': ['*', '#', '@', '%', '~', '.'],  # Explosions and smoke
             'fragcrest_burst': ['.', ':', '*', '+', '#', 'x'],  # Fragmentation spread
             
             # FOWL CONTRIVANCE enemy impact animations
             'gaussian_dusk_impact': ['>', '!', '*', '#', '%', '~', '.'],  # Hypersonic projectile impact
-            'big_arc_unit_impact': ['*', '@', '#', '%', '&', '+', '.'],  # Mortar shell impact on unit
+            'parabol_unit_impact': ['*', '@', '#', '%', '&', '+', '.'],  # Mortar shell impact on unit
             'fragcrest_unit_impact': ['x', '+', '*', '#', '.'],  # Fragmentation impact on unit
             'rail_explosion_impact': ['!', '@', '#', '*', '+', '.'],  # Rail network death explosion impact
             
@@ -302,8 +302,8 @@ class AssetManager:
             'fowl_contrivance_attack': ['fowl_attack_1.png', 'fowl_attack_2.png', 'fowl_attack_3.png'],
             'gaussian_dusk_charging': ['gaussian_charge_1.png', 'gaussian_charge_2.png', 'gaussian_charge_3.png'],
             'gaussian_dusk_firing': ['gaussian_fire_1.png', 'gaussian_fire_2.png', 'gaussian_fire_3.png'],
-            'big_arc_launch': ['arc_launch_1.png', 'arc_launch_2.png', 'arc_launch_3.png'],
-            'big_arc_impact': ['arc_impact_1.png', 'arc_impact_2.png', 'arc_impact_3.png'],
+            'parabol_launch': ['arc_launch_1.png', 'arc_launch_2.png', 'arc_launch_3.png'],
+            'parabol_impact': ['arc_impact_1.png', 'arc_impact_2.png', 'arc_impact_3.png'],
             'fragcrest_burst': ['frag_burst_1.png', 'frag_burst_2.png', 'frag_burst_3.png'],
             'wretch': ['wretch_1.png', 'wretch_2.png', 'wretch_3.png', 'wretch_4.png', 'wretch_5.png', 'wretch_6.png']
         }

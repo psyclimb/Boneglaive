@@ -964,7 +964,7 @@ class UnitHelpComponent(UIComponent):
                 ],
                 'stats': [
                     'HP: 20',
-                    'Attack: 4',
+                    'Attack: 3',
                     'Defense: 2',
                     'Movement: 3',
                     'Range: 1',
@@ -1094,7 +1094,7 @@ class UnitHelpComponent(UIComponent):
                         ]
                     },
                     {
-                        'name': 'BIG ARC (Active) [Key: B]',
+                        'name': 'PARABOL (Active) [Key: P]',
                         'description': 'Launches explosive mortar shells in a 3x3 area.',
                         'details': [
                             'Type: Active',
@@ -1126,7 +1126,7 @@ class UnitHelpComponent(UIComponent):
                 ],
                 'tips': [
                     '- Use Gaussian Dusk for maximum damage output but plan the charging turn carefully',
-                    '- Big Arc excels against clustered enemies and ignores line of sight restrictions',
+                    '- Parabol excels against clustered enemies and ignores line of sight restrictions',
                     '- Fragcrest provides crowd control through knockback and area denial via shrapnel',
                     '- High movement allows for repositioning between artillery strikes'
                 ],
@@ -1795,6 +1795,10 @@ class UnitHelpComponent(UIComponent):
             self.help_scroll = 0
             self.game_ui.draw_board()
             return True
+        elif key == ord('c'):  # c - close help page
+            self.toggle_unit_help()
+            self.game_ui.draw_board()
+            return True
                 
         return False
     
@@ -2387,6 +2391,16 @@ class CursorManager(UIComponent):
                 # Check terrain type - we don't need to check for units again since that's handled in the 'if unit:' case above
                 terrain = self.game_ui.game.map.get_terrain_at(y, x)
                 terrain_name = terrain.name.lower().replace('_', ' ')
+
+                # Check if this position is inside an upgraded Marrow Dike interior (viscous plasma)
+                pos_tuple = (y, x)
+                if (hasattr(self.game_ui.game, 'marrow_dike_interior') and 
+                    pos_tuple in self.game_ui.game.marrow_dike_interior):
+                    dike_info = self.game_ui.game.marrow_dike_interior[pos_tuple]
+                    # If this is an upgraded Marrow Dike on passable terrain, show plasma label
+                    if (dike_info.get('upgraded', False) and 
+                        self.game_ui.game.map.is_passable(y, x)):
+                        terrain_name = "viscous plasma"
 
                 # Check if terrain is furniture and player has DELPHIC_APPRAISER
                 message = f"Tile: {terrain_name}"
@@ -3825,7 +3839,7 @@ class GameModeManager(UIComponent):
             # Check if there's an enemy unit at this position and within range
             target = self.game_ui.game.get_unit_at(target_pos[0], target_pos[1])
             if target and target.player != unit.player:
-                # Check if target is under CARRIER_RAVE (untargetable)
+                # Check if target is under KARRIER_RAVE (untargetable)
                 if hasattr(target, 'carrier_rave_active') and target.carrier_rave_active:
                     self.game_ui.message = "Invalid target"
                     return False
@@ -4942,14 +4956,14 @@ class ActionMenuComponent(UIComponent):
                 'skill': gaussian_dusk_skill
             })
             
-            # Add Big Arc skill - disabled when charging
-            big_arc_skill = next((skill for skill in available_skills if skill.name == "Big Arc"), None)
+            # Add Parabol skill - disabled when charging
+            parabol_skill = next((skill for skill in available_skills if skill.name == "Parabol"), None)
             self.actions.append({
-                'key': 'b',
-                'label': 'ig Arc',  # Will be displayed as [B]ig Arc
-                'action': 'big_arc_skill',
-                'enabled': big_arc_skill is not None and not is_charging,
-                'skill': big_arc_skill
+                'key': 'p',
+                'label': 'arabol',  # Will be displayed as [P]arabol
+                'action': 'parabol_skill',
+                'enabled': parabol_skill is not None and not is_charging,
+                'skill': parabol_skill
             })
             
             # Add Fragcrest skill - disabled when charging
@@ -5671,7 +5685,10 @@ class InputManager(UIComponent):
 
         # Handle 'c' key to remove last placed unit during setup phase
         if key == ord('c') and self.game_ui.game.setup_phase:
-            # Remove the last unit placed by the current player
+            # First check if unit help is open - if so, close it instead of removing units
+            if self.game_ui.unit_help_component.handle_input(key):
+                return True
+            # If unit help didn't handle it, proceed with removing last placed unit
             removed = self.game_ui.game.remove_last_setup_unit()
             if removed:
                 self.game_ui.message = "Last placed unit removed"

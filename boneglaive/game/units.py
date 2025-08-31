@@ -91,7 +91,7 @@ class Unit:
         self.charging_status = False  # Whether this unit has "charging" status effect
         self.gaussian_charge_direction = None  # Direction for Gaussian Dusk charging
         self.gaussian_dusk_indicator = None  # Visual indicator for Gaussian Dusk charging
-        self.big_arc_indicator = None  # Visual indicator for Big Arc area
+        self.parabol_indicator = None  # Visual indicator for Parabol area
         self.fragcrest_indicator = None  # Visual indicator for Fragcrest cone
         self.shrapnel_duration = 0  # Number of turns remaining for shrapnel damage
         
@@ -111,8 +111,8 @@ class Unit:
         self.radiation_stacks = []  # List of radiation durations (each stack lasts 2 turns)
         self.neural_shunt_affected = False  # Whether affected by Neural Shunt
         self.neural_shunt_duration = 0  # Duration of Neural Shunt effect
-        self.carrier_rave_active = False  # Whether in Carrier Rave phased state
-        self.carrier_rave_duration = 0  # Duration of Carrier Rave effect
+        self.carrier_rave_active = False  # Whether in Karrier Rave phased state
+        self.carrier_rave_duration = 0  # Duration of Karrier Rave effect
         self.carrier_rave_strikes_ready = False  # Whether next attack will strike 3 times
         
         # DELPHIC APPRAISER properties
@@ -986,7 +986,7 @@ class Unit:
     
     def is_untargetable(self) -> bool:
         """Check if this unit is untargetable due to status effects."""
-        # Units under Carrier Rave are untargetable
+        # Units under Karrier Rave are untargetable
         if hasattr(self, 'carrier_rave_active') and self.carrier_rave_active:
             return True
             
@@ -998,7 +998,7 @@ class Unit:
         if self.is_untargetable():
             return False
         
-        # Units under CARRIER_RAVE cannot be targeted by enemy units
+        # Units under KARRIER_RAVE cannot be targeted by enemy units
         if (hasattr(self, 'carrier_rave_active') and self.carrier_rave_active and 
             attacker.player != self.player):
             return False
@@ -1007,7 +1007,7 @@ class Unit:
     
     def process_interferer_effects(self, game: 'Game') -> None:
         """Process INTERFERER-specific status effects at end of turn."""
-        # Process Carrier Rave duration
+        # Process Karrier Rave duration
         if hasattr(self, 'carrier_rave_duration') and self.carrier_rave_duration > 0:
             self.carrier_rave_duration -= 1
             if self.carrier_rave_duration <= 0:

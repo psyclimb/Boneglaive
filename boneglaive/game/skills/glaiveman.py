@@ -35,7 +35,7 @@ class Autoclave(PassiveSkill):
         super().__init__(
             name="Autoclave",
             key="A",
-            description="When wretched or damaged while at critical health, unleashes a cross-shaped attack in four directions (range 3) and heals for half the damage dealt. One-time use. Requires enemy in range."
+            description="When retched or damaged while at critical health, unleashes a cross-shaped attack in four directions (range 3) and heals for half the damage dealt. One-time use. Requires an enemy in range."
         )
         self.activated = False  # Track if this skill has been used
         
@@ -318,7 +318,7 @@ class PrySkill(ActiveSkill):
         super().__init__(
             name="Pry",
             key="P",
-            description="Pries enemy up to range 1, damaging them and adjacent enemies with falling debris. Reduces target's movement by 1.",
+            description="Pries an enemy up to range 1, damaging them and adjacent enemies with falling debris. Reduces target's movement by 1.",
             target_type=TargetType.ENEMY,
             cooldown=3,
             range_=1

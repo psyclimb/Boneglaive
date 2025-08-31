@@ -4084,15 +4084,15 @@ class SimpleAI:
         """
         # Look for available skills
         gaussian_dusk = None
-        big_arc = None
+        parabol = None
         fragcrest = None
         
         for skill in available_skills:
             if hasattr(skill, 'name'):
                 if skill.name == "Gaussian Dusk":
                     gaussian_dusk = skill
-                elif skill.name == "Big Arc":
-                    big_arc = skill
+                elif skill.name == "Parabol":
+                    parabol = skill
                 elif skill.name == "Fragcrest":
                     fragcrest = skill
         
@@ -4114,21 +4114,21 @@ class SimpleAI:
             else:
                 logger.debug("Fragcrest use() failed - likely on cooldown or invalid target")
         
-        # Fallback to Big Arc if available and enemies are clustered
-        if big_arc:
+        # Fallback to Parabol if available and enemies are clustered
+        if parabol:
             # Check if there are multiple enemies in range
             enemies_in_range = 0
             for enemy in self.game.units:
                 if (enemy.player != unit.player and enemy.is_alive() and
-                    self.game.chess_distance(unit.y, unit.x, enemy.y, enemy.x) <= 6):  # Big Arc range
+                    self.game.chess_distance(unit.y, unit.x, enemy.y, enemy.x) <= 6):  # Parabol range
                     enemies_in_range += 1
             
-            if enemies_in_range >= 2:  # Use Big Arc if hitting multiple enemies
-                if big_arc.use(unit, (target.y, target.x), self.game):
-                    logger.info(f"FOWL_CONTRIVANCE using Big Arc on clustered enemies")
-                    return big_arc
+            if enemies_in_range >= 2:  # Use Parabol if hitting multiple enemies
+                if parabol.use(unit, (target.y, target.x), self.game):
+                    logger.info(f"FOWL_CONTRIVANCE using Parabol on clustered enemies")
+                    return parabol
                 else:
-                    logger.debug("Big Arc use() failed - likely on cooldown or invalid target")
+                    logger.debug("Parabol use() failed - likely on cooldown or invalid target")
         
         return None
 
@@ -4499,7 +4499,7 @@ class SimpleAI:
         # Priority when other skills unavailable
         other_skills_available = 0
         for skill in unit.get_available_skills():
-            if hasattr(skill, 'name') and skill.name in ["Gaussian Dusk", "Big Arc"]:
+            if hasattr(skill, 'name') and skill.name in ["Gaussian Dusk", "Parabol"]:
                 other_skills_available += 1
                 
         if other_skills_available == 0:
