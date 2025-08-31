@@ -445,8 +445,8 @@ class BigArcSkill(ActiveSkill):
     
     def __init__(self):
         super().__init__(
-            name="Big Arc",
-            key="B",
+            name="Parabol",
+            key="P",
             description="Launches explosive mortar shells in a 3x3 area. Indirect fire ignores line of sight.",
             target_type=TargetType.AREA,
             cooldown=4,
@@ -490,15 +490,15 @@ class BigArcSkill(ActiveSkill):
         return True
             
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
-        """Queue the Big Arc skill for execution."""
+        """Queue the Parabol skill for execution."""
         if not self.can_use(user, target_pos, game):
             return False
 
         user.skill_target = target_pos
         user.selected_skill = self
 
-        # Set the big arc indicator to show the area of effect
-        user.big_arc_indicator = target_pos
+        # Set the parabol indicator to show the area of effect
+        user.parabol_indicator = target_pos
 
         # Log that the skill has been queued
         message_log.add_message(
@@ -511,14 +511,14 @@ class BigArcSkill(ActiveSkill):
         return True
         
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
-        """Execute the Big Arc skill during turn resolution."""
+        """Execute the Parabol skill during turn resolution."""
         # Validate target position
         target_y, target_x = target_pos
         if not game.is_valid_position(target_y, target_x):
             return False
 
-        # Clear the big arc indicator when skill is executed
-        user.big_arc_indicator = None
+        # Clear the parabol indicator when skill is executed
+        user.parabol_indicator = None
             
         # Generate the area of effect (3x3 area centered on target_pos)
         affected_positions = []
@@ -572,7 +572,7 @@ class BigArcSkill(ActiveSkill):
                     attacker_name=user.get_display_name(),
                     target_name=unit.get_display_name(),
                     damage=damage,
-                    ability=f"Big Arc ({damage_type})",
+                    ability=f"Parabol ({damage_type})",
                     attacker_player=user.player,
                     target_player=unit.player
                 )
@@ -601,12 +601,12 @@ class BigArcSkill(ActiveSkill):
         # Play mortar barrage animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
             # Get launch animation
-            launch_animation = ui.asset_manager.get_skill_animation_sequence('big_arc_launch')
+            launch_animation = ui.asset_manager.get_skill_animation_sequence('parabol_launch')
             if not launch_animation:
                 launch_animation = ['o', 'O', '0', '*']
             
             # Get impact animation
-            impact_animation = ui.asset_manager.get_skill_animation_sequence('big_arc_impact')
+            impact_animation = ui.asset_manager.get_skill_animation_sequence('parabol_impact')
             if not impact_animation:
                 impact_animation = ['*', '#', '@', '%', '~', '.']
             
@@ -637,7 +637,7 @@ class BigArcSkill(ActiveSkill):
                 if unit.is_alive():  # Only show for living units
                     # Play impact animation first
                     if hasattr(ui, 'asset_manager'):
-                        impact_animation = ui.asset_manager.get_skill_animation_sequence('big_arc_unit_impact')
+                        impact_animation = ui.asset_manager.get_skill_animation_sequence('parabol_unit_impact')
                         if not impact_animation:
                             impact_animation = ['*', '@', '#', '%', '&', '+', '.']  # Fallback
                         

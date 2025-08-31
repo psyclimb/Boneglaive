@@ -519,9 +519,11 @@ class UIRenderer:
                     dike_info = self.game_ui.game.marrow_dike_interior[pos_tuple]
                     # If this is an upgraded Marrow Dike, apply blood plasma overlay
                     if dike_info.get('upgraded', False):
-                        # Override all ground tiles with red ~ to show viscous plasma
-                        tile = "~"  # Blood plasma appearance
-                        color_id = 20  # Red color for blood
+                        # Only show plasma on passable terrain (floor tiles)
+                        if self.game_ui.game.map.is_passable(y, x):
+                            # Override all ground tiles with red ~ to show viscous plasma
+                            tile = "~"  # Blood plasma appearance
+                            color_id = 20  # Red color for blood
                 
                 # Check if there's a unit at this position
                 unit = self.game_ui.game.get_unit_at(y, x)
@@ -835,9 +837,9 @@ class UIRenderer:
                 for u in self.game_ui.game.units:
                     if u.is_alive() and u.selected_skill and hasattr(u.selected_skill, 'name'):
                         
-                        # Big Arc AOE indicator
-                        if u.selected_skill.name == "Big Arc" and hasattr(u, 'big_arc_indicator') and u.big_arc_indicator is not None:
-                            target_y, target_x = u.big_arc_indicator
+                        # Parabol AOE indicator
+                        if u.selected_skill.name == "Parabol" and hasattr(u, 'parabol_indicator') and u.parabol_indicator is not None:
+                            target_y, target_x = u.parabol_indicator
                             # Check if this position is within the 3x3 area
                             in_area = (abs(y - target_y) <= 1 and abs(x - target_x) <= 1)
                             if in_area:

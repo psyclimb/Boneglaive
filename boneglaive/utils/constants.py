@@ -112,5 +112,5 @@ STATUS_EFFECT_SYMBOLS = {
     'MIRED': '≈',             # Movement reduction from upgraded marrow dike
     'RADIATION_SICKNESS': 'r', # Radiation damage over time
     'NEURAL_SHUNT': '?',      # Random action control
-    'CARRIER_RAVE': 'φ',      # Phased/untargetable state
+    'KARRIER_RAVE': 'φ',      # Phased/untargetable state
 }

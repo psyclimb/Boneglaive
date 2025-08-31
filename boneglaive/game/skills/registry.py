@@ -34,7 +34,7 @@ from boneglaive.game.skills.delphic_appraiser import (
 )
 
 from boneglaive.game.skills.interferer import (
-    NeutronIlluminant, NeuralShuntSkill, CarrierRaveSkill, ScalarNodeSkill
+    NeutronIlluminant, NeuralShuntSkill, KarrierRaveSkill, ScalarNodeSkill
 )
 
 # Define the skills available for each unit type
@@ -69,6 +69,6 @@ UNIT_SKILLS = {
     },
     "INTERFERER": {
         "passive": NeutronIlluminant(),
-        "active": [NeuralShuntSkill(), CarrierRaveSkill(), ScalarNodeSkill()]
+        "active": [NeuralShuntSkill(), KarrierRaveSkill(), ScalarNodeSkill()]
     }
 }

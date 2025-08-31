@@ -55,7 +55,7 @@ class Skill:
         Check if the skill can be used.
         
         For skills that target enemy units, use game.can_target_unit(user, target) 
-        to check universal targeting restrictions (Carrier Rave, untargetable status, etc.)
+        to check universal targeting restrictions (Karrier Rave, untargetable status, etc.)
         """
         # Check cooldown
         if self.current_cooldown > 0:

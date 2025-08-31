@@ -285,7 +285,7 @@ class NeuralShuntSkill(ActiveSkill):
         return True
 
 
-class CarrierRaveSkill(ActiveSkill):
+class KarrierRaveSkill(ActiveSkill):
     """
     Active skill for INTERFERER.
     Becomes untargetable and next attack strikes 3 times.
@@ -325,7 +325,7 @@ class CarrierRaveSkill(ActiveSkill):
             game.action_counter += 1
         
         message_log.add_message(
-            f"{user.get_display_name()} synchronizes with carrier wave transmission",
+            f"{user.get_display_name()} synchronizes with the karrier wave transmission",
             MessageType.ABILITY,
             player=user.player
         )
@@ -334,9 +334,9 @@ class CarrierRaveSkill(ActiveSkill):
         return True
     
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
-        """Execute Carrier Rave skill."""
+        """Execute Karrier Rave skill."""
         message_log.add_message(
-            f"{user.get_display_name()} rides the carrier wave out of phase",
+            f"{user.get_display_name()} rides the karrier wave out of phase",
             MessageType.ABILITY,
             player=user.player
         )
@@ -351,7 +351,7 @@ class CarrierRaveSkill(ActiveSkill):
                 0.2
             )
         
-        # Apply carrier rave effect
+        # Apply karrier rave effect
         user.carrier_rave_active = True
         user.carrier_rave_duration = self.effect_duration
         user.carrier_rave_strikes_ready = False  # Will be set to True when effect ends

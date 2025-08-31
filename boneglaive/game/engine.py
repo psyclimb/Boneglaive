@@ -1598,7 +1598,7 @@ class Game:
         
         # Log the death with appropriate message
         message_log.add_message(
-            f"{dying_unit.get_display_name()} perishes",
+            f"{dying_unit.get_display_name()} perishes!",
             MessageType.COMBAT,
             player=killer_unit.player if killer_unit else None,
             target_name=dying_unit.get_display_name()
@@ -2039,7 +2039,7 @@ class Game:
                 if hasattr(unit, 'radiation_stacks') and unit.radiation_stacks:
                     unit.apply_radiation_damage(self, ui)
                 
-                # Process INTERFERER-specific effects (Carrier Rave, Neural Shunt)
+                # Process INTERFERER-specific effects (Karrier Rave, Neural Shunt)
                 if hasattr(unit, 'process_interferer_effects'):
                     unit.process_interferer_effects(self)
             
@@ -2470,7 +2470,7 @@ class Game:
                         
                         # Handle INTERFERER attack mechanics
                         if unit.type == UnitType.INTERFERER:
-                            # Check for Carrier Rave triple strike (active during phasing)
+                            # Check for Karrier Rave triple strike (active during phasing)
                             if hasattr(unit, 'carrier_rave_active') and unit.carrier_rave_active:
                                 # Trigger flash effect for the first strike of Karrier Rave
                                 if unit.passive_skill and unit.passive_skill.name == "Neutron Illuminant":
@@ -2501,7 +2501,7 @@ class Game:
                                             unit.passive_skill.trigger_flash_effect(unit, (target.y, target.x), self, ui)
                                             unit.passive_skill.trigger_radiation(unit, (target.y, target.x), self, ui)
                                 
-                                # End Carrier Rave effect after using triple strike
+                                # End Karrier Rave effect after using triple strike
                                 unit.carrier_rave_active = False
                                 unit.carrier_rave_duration = 0
                                 
@@ -2746,7 +2746,7 @@ class Game:
                 if unit.hp <= 0:
                     # Use consistent format for death messages
                     message_log.add_message(
-                        f"{unit.get_display_name()} perishes",
+                        f"{unit.get_display_name()} perishes!",
                         MessageType.COMBAT,
                         player=unit.player
                     )
@@ -3262,13 +3262,6 @@ class Game:
         if roll <= trigger_chance:
             # Success! Wretched Decension triggers
             logger.debug("TRIGGERING WRETCHED DECENSION!")
-            
-            message_log.add_message(
-                f"The flocks descends to claim the wretched",
-                MessageType.ABILITY,
-                player=attacker.player,
-                target_name=target.get_display_name()
-            )
             
             # Show animation if UI is available
             if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
