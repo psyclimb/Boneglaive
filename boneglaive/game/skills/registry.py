@@ -37,6 +37,10 @@ from boneglaive.game.skills.interferer import (
     NeutronIlluminant, NeuralShuntSkill, KarrierRaveSkill, ScalarNodeSkill
 )
 
+from boneglaive.game.skills.derelist import (
+    Severance, VagalRunSkill, DerelictSkill, PartitionSkill
+)
+
 # Define the skills available for each unit type
 UNIT_SKILLS = {
     "GLAIVEMAN": {
@@ -70,5 +74,9 @@ UNIT_SKILLS = {
     "INTERFERER": {
         "passive": NeutronIlluminant(),
         "active": [NeuralShuntSkill(), KarrierRaveSkill(), ScalarNodeSkill()]
+    },
+    "DERELIST": {
+        "passive": Severance(),
+        "active": [VagalRunSkill(), DerelictSkill(), PartitionSkill()]
     }
 }

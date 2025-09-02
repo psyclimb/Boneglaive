@@ -31,6 +31,10 @@ class UIRenderer:
         if hasattr(unit, 'jawline_affected') and unit.jawline_affected:
             effects.append(('jawline', 'Ξ', curses.A_DIM))
             
+        # DERELIST status effects
+        if hasattr(unit, 'derelicted') and unit.derelicted:
+            effects.append(('derelicted', '∅', curses.A_BOLD))
+            
         if hasattr(unit, 'shrapnel_duration') and unit.shrapnel_duration > 0:
             effects.append(('shrapnel', 'x', curses.A_DIM))
             
@@ -61,6 +65,10 @@ class UIRenderer:
         # DELPHIC APPRAISER status effects
         if hasattr(unit, 'can_use_anchor') and unit.can_use_anchor:
             effects.append(('anchor', 'Π', curses.A_BOLD))
+            
+        # DERELIST positive status effects
+        if hasattr(unit, 'severance_active') and unit.severance_active:
+            effects.append(('severance', '↗', curses.A_BOLD))
             
         # Medium priority effects
         if hasattr(unit, 'status_site_inspection') and unit.status_site_inspection:
@@ -1272,6 +1280,12 @@ class UIRenderer:
                     negative_effects.append("Jawline")
             if hasattr(unit, 'estranged') and unit.estranged:
                 negative_effects.append("Estranged")
+            if hasattr(unit, 'derelicted') and unit.derelicted:
+                # Check if it has duration, otherwise just show boolean
+                if hasattr(unit, 'derelicted_duration') and unit.derelicted_duration > 0:
+                    negative_effects.append(f"Derelicted({unit.derelicted_duration})")
+                else:
+                    negative_effects.append("Derelicted")
             if hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected:
                 # Check if it has duration, otherwise just show boolean
                 if hasattr(unit, 'neural_shunt_duration') and unit.neural_shunt_duration > 0:
@@ -1310,6 +1324,8 @@ class UIRenderer:
                 positive_effects.append("Valuation Oracle")
             if hasattr(unit, 'can_use_anchor') and unit.can_use_anchor:
                 positive_effects.append("Parallax")
+            if hasattr(unit, 'severance_active') and unit.severance_active:
+                positive_effects.append("Severance")
             
             # Movement/action penalties and traps (negative)
             if hasattr(unit, 'was_pried') and unit.was_pried and unit.move_range_bonus < 0:

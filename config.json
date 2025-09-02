@@ -6,7 +6,7 @@
   "animation_speed": 1.4,
   "show_grid": true,
   "selected_map": "stained_stones",
-  "network_mode": "vs_ai",
+  "network_mode": "local",
   "server_ip": "192.168.1.100",
   "server_port": 7777,
   "player_name": "Player",

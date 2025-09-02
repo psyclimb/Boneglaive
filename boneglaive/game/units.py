@@ -118,6 +118,26 @@ class Unit:
         # DELPHIC APPRAISER properties
         self.can_use_anchor = False  # Whether this unit can use Market Futures teleport anchors
         
+        # DERELIST properties
+        self.trauma_processing_active = False  # Whether affected by Trauma Processing
+        self.trauma_processing_caster = None  # Reference to DERELIST who cast Trauma Processing
+        self.trauma_debt = 0  # Stored damage amount for abreaction
+        self.derelicted = False  # Whether affected by Derelicted status (immobilization)
+        self.derelicted_duration = 0  # Duration of Derelicted effect
+        self.partition_shield_active = False  # Whether protected by Partition shield
+        self.partition_shield_caster = None  # Reference to DERELIST who cast Partition
+        self.partition_shield_strength = 0  # Current shield strength
+        self.partition_shield_duration = 0  # Duration of Partition shield
+        
+        # DERELIST movement tracking (for skill-then-move mechanics)
+        self.has_moved_first = False  # Whether DERELIST has moved before using a skill
+        self.used_skill_this_turn = False  # Whether DERELIST has used a skill this turn
+        self.can_move_post_skill = False  # Whether DERELIST can move after using a skill
+        
+        # DERELIST Severance status effect
+        self.severance_active = False  # Whether DERELIST has Severance status (+1 movement)
+        self.severance_duration = 0  # Duration of Severance status (until movement is issued)
+        
         # Experience and leveling
         self.level = 1
         self.xp = 0
@@ -188,15 +208,25 @@ class Unit:
             'attack_range': max(1, self.attack_range + self.attack_range_bonus + estrange_penalty)
         }
         
-        # Special handling for move_range - allow it to be 0 for Jawline effect and charging status
+        # Calculate base movement with bonuses
+        base_movement = self.move_range + self.move_range_bonus + estrange_penalty
+        
+        # Add SEVERANCE status effect bonus (+1 movement)
+        if hasattr(self, 'severance_active') and self.severance_active:
+            base_movement += 1
+        
+        # Special handling for move_range - allow it to be 0 for Jawline effect, charging status, and derelicted status
         # This ensures full immobilization when affected by these status effects
-        if ((hasattr(self, 'jawline_affected') and self.jawline_affected) or 
-            (hasattr(self, 'charging_status') and self.charging_status)):
+        if (hasattr(self, 'derelicted') and self.derelicted):
+            # Derelicted units are completely immobilized (movement = 0)
+            stats['move_range'] = 0
+        elif ((hasattr(self, 'jawline_affected') and self.jawline_affected) or 
+              (hasattr(self, 'charging_status') and self.charging_status)):
             # When Jawline or charging is active, movement can be reduced to 0
-            stats['move_range'] = max(0, self.move_range + self.move_range_bonus + estrange_penalty)
+            stats['move_range'] = max(0, base_movement)
         else:
             # Normal minimum of 1 for all other cases
-            stats['move_range'] = max(1, self.move_range + self.move_range_bonus + estrange_penalty)
+            stats['move_range'] = max(1, base_movement)
         
         
         # If unit is an echo (from Græ Exchange), set its attack to at least 2
@@ -1053,24 +1083,238 @@ class Unit:
         Returns:
             The actual amount of damage dealt
         """
+        from boneglaive.utils.debug import logger
+        from boneglaive.utils.message_log import message_log, MessageType
+        from boneglaive.game.skills.derelist import calculate_distance
+        
         # Check for invulnerability directly
         if self.type == UnitType.HEINOUS_VAPOR and hasattr(self, 'is_invulnerable') and self.is_invulnerable and damage > 0:
-            from boneglaive.utils.debug import logger
-            
             # Only log to debug, don't add a message to the game log
             attacker_name = source_unit.get_display_name() if source_unit else (ability_name or "Attack")
             logger.debug(f"Invulnerable {self.get_display_name()} ignored {damage} damage from {attacker_name}")
-            
             return 0
         
-        # Store previous HP for damage calculation
-        previous_hp = self.hp
+        if damage <= 0:
+            return 0
         
-        # Apply damage (the hp property setter will handle invulnerability)
-        self.hp = max(0, self.hp - damage)
+        original_damage = damage
+        actual_damage_taken = 0
         
-        # Calculate actual damage dealt
-        actual_damage = previous_hp - self.hp
+        # Step 1: Handle Partition shield if active
+        if hasattr(self, 'partition_shield_active') and self.partition_shield_active and self.partition_shield_strength > 0:
+            caster = getattr(self, 'partition_shield_caster', None)
+            if caster and caster.is_alive():
+                # Recalculate shield strength based on current distance
+                distance = calculate_distance(caster, self)
+                current_shield_strength = 3 + (distance // 2)
+                self.partition_shield_strength = current_shield_strength
+                
+                # Check if this damage would bring unit to critical health (≤30% max HP)
+                critical_threshold = int(self.max_hp * 0.3)
+                damage_after_shield = max(0, damage - self.partition_shield_strength)
+                would_be_critical = (self.hp - damage_after_shield) <= critical_threshold
+                
+                if would_be_critical and self.hp > critical_threshold:
+                    # Dissociation trigger: nullify damage AND reflect it back
+                    message_log.add_message(
+                        f"{self.get_display_name()}'s partition dissociates! Damage nullified and reflected!",
+                        MessageType.ABILITY
+                    )
+                    
+                    # Reflect damage back to source
+                    if source_unit and source_unit.is_alive():
+                        reflected_damage = source_unit.take_damage(original_damage, self, "Partition Reflection")
+                        logger.info(f"PARTITION: Reflected {reflected_damage} damage to {source_unit.get_display_name()}")
+                    
+                    # Teleport DERELIST to random position 3+ tiles away
+                    if hasattr(self, '_game') and self._game:
+                        self._teleport_derelist_away(caster)
+                    
+                    # Apply derelicted status to protected unit
+                    self.derelicted = True
+                    self.derelicted_duration = 1
+                    
+                    # Remove shield
+                    self.partition_shield_active = False
+                    self.partition_shield_strength = 0
+                    self.partition_shield_duration = 0
+                    
+                    return 0  # No damage taken due to dissociation
+                
+                # Normal shield absorption
+                absorbed = min(damage, self.partition_shield_strength)
+                damage -= absorbed
+                self.partition_shield_strength = max(0, self.partition_shield_strength - absorbed)
+                
+                if absorbed > 0:
+                    message_log.add_message(
+                        f"{self.get_display_name()}'s shield absorbs {absorbed} damage!",
+                        MessageType.ABILITY
+                    )
+                
+                # Remove shield if strength reaches 0
+                if self.partition_shield_strength <= 0:
+                    self.partition_shield_active = False
+                    self.partition_shield_duration = 0
         
-        # Return actual damage dealt
-        return actual_damage
+        # Step 2: Handle trauma processing if active and there's remaining damage
+        trauma_stored = 0
+        if (hasattr(self, 'trauma_processing_active') and self.trauma_processing_active and 
+            damage > 0):
+            # Store 50% of remaining damage as trauma debt
+            trauma_stored = damage // 2
+            self.trauma_debt += trauma_stored
+            logger.info(f"TRAUMA: {self.get_display_name()} stores {trauma_stored} trauma debt (total: {self.trauma_debt})")
+        
+        # Step 3: Apply remaining damage
+        if damage > 0:
+            previous_hp = self.hp
+            self.hp = max(0, self.hp - damage)
+            actual_damage_taken = previous_hp - self.hp
+        
+        # Step 4: Trigger abreaction if trauma processing was active and any damage was taken
+        if (hasattr(self, 'trauma_processing_active') and self.trauma_processing_active and 
+            (actual_damage_taken > 0 or trauma_stored > 0)):
+            self._trigger_abreaction()
+        
+        return actual_damage_taken
+    
+    def _teleport_derelist_away(self, derelist):
+        """Helper method to teleport DERELIST to random valid position 3+ tiles away."""
+        if not hasattr(self, '_game') or not self._game:
+            return
+            
+        game = self._game
+        valid_positions = []
+        
+        # Find all valid positions 3+ tiles away
+        for y in range(game.map.height):
+            for x in range(game.map.width):
+                if (game.is_valid_position(y, x) and 
+                    game.map.is_passable(y, x) and
+                    game.get_unit_at(y, x) is None):
+                    
+                    # Calculate distance from protected unit
+                    distance = abs(y - self.y) + abs(x - self.x)
+                    if distance >= 3:
+                        valid_positions.append((y, x))
+        
+        if valid_positions:
+            import random
+            new_y, new_x = random.choice(valid_positions)
+            derelist.y = new_y
+            derelist.x = new_x
+            
+            from boneglaive.utils.message_log import message_log, MessageType
+            message_log.add_message(
+                f"{derelist.get_display_name()} dissociates away from the trauma!",
+                MessageType.ABILITY
+            )
+    
+    def _trigger_abreaction(self):
+        """Trigger trauma processing abreaction - deal trauma debt, heal, cleanse."""
+        if not hasattr(self, 'trauma_processing_active') or not self.trauma_processing_active:
+            return
+            
+        from boneglaive.utils.debug import logger
+        from boneglaive.utils.message_log import message_log, MessageType
+        from boneglaive.game.skills.derelist import calculate_distance
+        
+        caster = getattr(self, 'trauma_processing_caster', None)
+        trauma_damage = self.trauma_debt
+        
+        # Deal stored trauma damage
+        if trauma_damage > 0:
+            previous_hp = self.hp
+            self.hp = max(0, self.hp - trauma_damage)
+            actual_trauma_damage = previous_hp - self.hp
+            
+            message_log.add_message(
+                f"{self.get_display_name()} experiences abreaction ({actual_trauma_damage} trauma damage)!",
+                MessageType.COMBAT
+            )
+        
+        # Calculate healing based on distance from DERELIST
+        heal_amount = trauma_damage  # Base healing equals trauma damage
+        if caster and caster.is_alive():
+            distance = calculate_distance(caster, self)
+            heal_amount += distance  # Add distance bonus
+        
+        # Apply healing
+        if heal_amount > 0 and self.hp < self.max_hp:
+            old_hp = self.hp
+            self.hp = min(self.max_hp, self.hp + heal_amount)
+            actual_heal = self.hp - old_hp
+            
+            message_log.add_message(
+                f"{self.get_display_name()} heals for {actual_heal} HP from processed trauma!",
+                MessageType.ABILITY
+            )
+            
+            # Show healing effect on map if UI is available (via game reference)
+            if actual_heal > 0 and hasattr(self, '_game') and self._game and hasattr(self._game, 'ui'):
+                ui = self._game.ui
+                if ui and hasattr(ui, 'renderer'):
+                    import curses
+                    import time
+                    from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+                    
+                    healing_text = f"+{actual_heal}"
+                    
+                    # Make healing text prominent with flashing effect (green color)
+                    for i in range(3):
+                        # First clear the area
+                        ui.renderer.draw_damage_text(self.y-1, self.x*2, " " * len(healing_text), 7)
+                        # Draw with alternating bold/normal for a flashing effect
+                        attrs = curses.A_BOLD if i % 2 == 0 else 0
+                        ui.renderer.draw_damage_text(self.y-1, self.x*2, healing_text, 3, attrs)  # Green color
+                        ui.renderer.refresh()
+                        sleep_with_animation_speed(0.1)
+                    
+                    # Final healing display (stays on screen slightly longer)
+                    ui.renderer.draw_damage_text(self.y-1, self.x*2, healing_text, 3, curses.A_BOLD)
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.3)
+        
+        # Remove ALL negative status effects (cleanse)
+        self._cleanse_all_negative_effects()
+        
+        # Remove trauma processing status and attack bonus
+        self.trauma_processing_active = False
+        self.trauma_processing_caster = None
+        self.trauma_debt = 0
+        self.attack_bonus -= 3  # Remove the +3 attack bonus
+        
+        message_log.add_message(
+            f"{self.get_display_name()}'s trauma processing ends - all ailments cleansed!",
+            MessageType.ABILITY
+        )
+        
+        logger.info(f"ABREACTION: {self.get_display_name()} healed {heal_amount}, cleansed, lost attack bonus")
+    
+    def _cleanse_all_negative_effects(self):
+        """Remove all negative status effects from the unit."""
+        # List of negative status effects to cleanse
+        negative_effects = [
+            'estranged', 'mired', 'jawline_affected', 'neural_shunt_affected',
+            'derelicted'  # Include derelicted in cleanse
+        ]
+        
+        # Reset negative status effects
+        for effect in negative_effects:
+            if hasattr(self, effect):
+                setattr(self, effect, False)
+        
+        # Reset duration counters
+        duration_counters = [
+            'mired_duration', 'jawline_duration', 'neural_shunt_duration',
+            'derelicted_duration'
+        ]
+        
+        for counter in duration_counters:
+            if hasattr(self, counter):
+                setattr(self, counter, 0)
+        
+        # Clear radiation stacks
+        if hasattr(self, 'radiation_stacks'):
+            self.radiation_stacks = []
