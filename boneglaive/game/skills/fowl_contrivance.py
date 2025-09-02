@@ -39,9 +39,16 @@ class RailGenesis(PassiveSkill):
     def apply_passive(self, user: 'Unit', game=None) -> None:
         """
         Generate rail network when first FOWL_CONTRIVANCE enters the map.
+        Rails are hidden during setup phase to prevent strategic information leakage.
         """
         if game and not game.map.has_rails():
-            # First FOWL_CONTRIVANCE generates the rail network
+            # Check if we're in setup phase - if so, delay rail creation until game starts
+            if hasattr(game, 'setup_phase') and game.setup_phase:
+                # During setup, don't create rails yet to prevent revealing FOWL_CONTRIVANCE presence
+                # Rails will be created when the game starts (see engine.py setup completion)
+                return
+            
+            # First FOWL_CONTRIVANCE generates the rail network (only when game is active)
             game.map.generate_rail_network()
             
             message_log.add_message(

@@ -919,6 +919,8 @@ class Game:
                 self._place_default_units_for_player(2)
                 # End setup phase
                 self.setup_phase = False
+                # Trigger rail creation now that setup is complete (prevents info leak during setup)
+                self._create_rails_for_fowl_contrivances()
                 # Assign Greek identification letters to units
                 self._assign_greek_identifiers()
                 # Move FOWL_CONTRIVANCE units to nearest rails
@@ -942,6 +944,9 @@ class Game:
             self._assign_greek_identifiers()
             
             self.setup_phase = False
+            
+            # Trigger rail creation now that setup is complete (prevents info leak during setup)
+            self._create_rails_for_fowl_contrivances()
             
             # Move FOWL_CONTRIVANCE units to nearest rails
             self._move_fowl_contrivances_to_rails()
@@ -2563,7 +2568,12 @@ class Game:
             # EXECUTE SKILL if unit has a skill target
             if unit.skill_target and unit.selected_skill:
                 # Mark that this unit took an action (won't regenerate HP)
-                unit.took_no_actions = False
+                # Exception: INTERFERER using SCALAR NODE can still regenerate to obscure deployment
+                if unit.type == UnitType.INTERFERER and unit.selected_skill.name == "Scalar Node":
+                    # Allow INTERFERER to regenerate after using SCALAR NODE for stealth
+                    pass  # Don't set took_no_actions = False
+                else:
+                    unit.took_no_actions = False
                 
                 # Execute the skill
                 skill = unit.selected_skill
@@ -3673,11 +3683,17 @@ class Game:
                     # Apply pierce damage (ignores defense)
                     unit.hp = max(0, unit.hp - damage)
                     
-                    # Log scalar node activation
+                    # Log scalar node activation with custom message format and proper damage coloring
+                    custom_message = f"{unit.get_display_name()} stands in {owner.get_display_name()}'s standing wave for {damage} damage!"
                     message_log.add_message(
-                        f"Standing wave resonance overloads {unit.get_display_name()}",
-                        MessageType.ABILITY,
-                        player=owner.player
+                        text=custom_message,
+                        msg_type=MessageType.COMBAT,
+                        player=owner.player,
+                        target=unit.player,
+                        damage=damage,
+                        ability="Scalar Node",
+                        attacker_name=owner.get_display_name(),
+                        target_name=unit.get_display_name()
                     )
                     
                     # Show scalar node detonation animation
@@ -4380,6 +4396,22 @@ class Game:
                     MessageType.SYSTEM,
                     player=unit.player
                 )
+    
+    def _create_rails_for_fowl_contrivances(self):
+        """Create rails for all FOWL_CONTRIVANCE units when the setup phase ends."""
+        fowl_units = [unit for unit in self.units if unit.is_alive() and unit.type == UnitType.FOWL_CONTRIVANCE]
+        
+        if not fowl_units:
+            return
+            
+        for unit in fowl_units:
+            # Check if this unit has the Rail Genesis passive skill
+            if unit.passive_skill and unit.passive_skill.__class__.__name__ == 'RailGenesis':
+                # Manually trigger the skill's rail creation logic
+                unit.passive_skill.apply_passive(unit, self)
+                logger.debug(f"Created rails for {unit.get_display_name()}")
+                # Only need one FOWL_CONTRIVANCE to create the rail network
+                break
     
     def _check_and_remove_rails_if_no_fowl_remaining(self, ui=None):
         """Check if any FOWL_CONTRIVANCE units remain alive, and if not, explode and remove all rails."""

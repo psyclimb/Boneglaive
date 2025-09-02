@@ -36,6 +36,9 @@ class EffluviumLathe(PassiveSkill):
         # Initialize with 1 charge instead of 0
         self.charges = 1
         self.max_charges = 4  # Increased from 3 to 4
+        # Track which turn we last generated a charge to prevent multiple charges per turn
+        # Initialize to 1 so we don't generate a charge during game initialization
+        self.last_charge_turn = 1
         
     def apply_passive(self, user: 'Unit', game: Optional['Game'] = None) -> None:
         """
@@ -44,6 +47,10 @@ class EffluviumLathe(PassiveSkill):
         """
         # If this is a new turn for the unit's player, generate a charge
         if game and game.current_player == user.player:
+            # Check if we've already generated a charge for this turn
+            if self.last_charge_turn >= game.turn:
+                return
+                
             # Check if the user is in the diverged state (not on the board)
             # Gas Machinist is considered diverged when removed from the board (y, x set to -999, -999)
             is_diverged = hasattr(user, 'diverge_return_position') and getattr(user, 'diverge_return_position', False)
@@ -57,6 +64,8 @@ class EffluviumLathe(PassiveSkill):
             # Generate a new charge if not at max
             if self.charges < self.max_charges:
                 self.charges += 1
+                # Mark that we've generated a charge for this turn
+                self.last_charge_turn = game.turn
                 
                 # Log the charge generation
                 if old_charges != self.charges:  # Only log if charges actually changed

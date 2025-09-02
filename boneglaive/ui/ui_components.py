@@ -3819,7 +3819,13 @@ class GameModeManager(UIComponent):
             # Set the ally target via the set_ally_target method
             if skill.set_ally_target(unit, target_pos, self.game_ui.game):
                 # Mark that this unit is taking an action (won't regenerate HP)
-                unit.took_no_actions = False
+                # Exception: INTERFERER using SCALAR NODE can still regenerate to obscure deployment
+                from boneglaive.utils.constants import UnitType
+                if unit.type == UnitType.INTERFERER and skill.name == "Scalar Node":
+                    # Allow INTERFERER to regenerate after using SCALAR NODE for stealth
+                    pass  # Don't set took_no_actions = False
+                else:
+                    unit.took_no_actions = False
                 # Targets set successfully
                 cursor_manager.highlighted_positions = []
                 return True
@@ -3862,7 +3868,13 @@ class GameModeManager(UIComponent):
             # Use the skill with the pre-set target
             if skill.use(unit, unit.skill_target, self.game_ui.game):
                 # Mark that this unit is taking an action (won't regenerate HP)
-                unit.took_no_actions = False
+                # Exception: INTERFERER using SCALAR NODE can still regenerate to obscure deployment
+                from boneglaive.utils.constants import UnitType
+                if unit.type == UnitType.INTERFERER and skill.name == "Scalar Node":
+                    # Allow INTERFERER to regenerate after using SCALAR NODE for stealth
+                    pass  # Don't set took_no_actions = False
+                else:
+                    unit.took_no_actions = False
                 # Clear selection
                 cursor_manager.highlighted_positions = []
 
@@ -3896,7 +3908,13 @@ class GameModeManager(UIComponent):
         # Use the skill
         if skill.use(unit, target_pos, self.game_ui.game):
             # Mark that this unit is taking an action (won't regenerate HP)
-            unit.took_no_actions = False
+            # Exception: INTERFERER using SCALAR NODE can still regenerate to obscure deployment
+            from boneglaive.utils.constants import UnitType
+            if unit.type == UnitType.INTERFERER and skill.name == "Scalar Node":
+                # Allow INTERFERER to regenerate after using SCALAR NODE for stealth
+                pass  # Don't set took_no_actions = False
+            else:
+                unit.took_no_actions = False
             # For Auction Curse, if we now need to select an ally, don't clear the selection
             if skill.name == "Auction Curse" and hasattr(unit, 'awaiting_ally_target') and unit.awaiting_ally_target:
                 # Update highlighted positions to show valid allies (all allies within range 3)
@@ -4764,10 +4782,11 @@ class ActionMenuComponent(UIComponent):
             'enabled': unit_can_move  # Enabled only if unit can move
         })
         
-        # Disable attack for charging units, Neural Shunt, or units with actions
+        # Disable attack for charging units, Neural Shunt, units with actions, or HEINOUS_VAPOR units
         unit_can_attack = (not unit_has_action and
                           not (hasattr(unit, 'charging_status') and unit.charging_status) and
-                          not (hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected))
+                          not (hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected) and
+                          unit.type != UnitType.HEINOUS_VAPOR)
         self.actions.append({
             'key': 'a',
             'label': 'ttack',  # Will be displayed as [A]ttack without space

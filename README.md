@@ -1,6 +1,6 @@
 # Boneglaive
 
-**BETA VERSION 0.7.6** - Core gameplay complete, some features in development
+**BETA VERSION 0.7.7** - Core gameplay complete, some features in development
 
 **Linux & BSD Terminal Gaming** - A tactical turn-based combat game designed for *nix terminal environments using ncurses.
 

@@ -154,7 +154,7 @@ class NeuralShuntSkill(ActiveSkill):
             cooldown=4,
             range_=1
         )
-        self.damage = 8
+        self.damage = 7
         self.effect_duration = 2
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
@@ -297,7 +297,7 @@ class KarrierRaveSkill(ActiveSkill):
             key="K",
             description="Phase out of reality for 1 turn. Become untargetable, but cannot attack. Next attack after phasing strikes 3 times.",
             target_type=TargetType.SELF,
-            cooldown=5,
+            cooldown=6,
             range_=0
         )
         self.effect_duration = 2

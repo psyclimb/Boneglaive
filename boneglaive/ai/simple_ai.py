@@ -1769,7 +1769,7 @@ class SimpleAI:
         else:
             # Fallback to basic attack if in range
             distance = self.game.chess_distance(unit.y, unit.x, target.y, target.x)
-            if distance <= unit.get_effective_attack_range():
+            if distance <= unit.attack_range:
                 unit.attack_target = (target.y, target.x)
                 logger.info(f"FOWL_CONTRIVANCE attacking with basic attack")
 
@@ -4150,7 +4150,7 @@ class SimpleAI:
         best_score = 0
         
         # Check positions within movement range
-        move_range = unit.get_effective_move_range()
+        move_range = unit.move_range
         
         for dy in range(-move_range, move_range + 1):
             for dx in range(-move_range, move_range + 1):
@@ -4683,7 +4683,7 @@ class SimpleAI:
             nearest_enemy = self._find_nearest_enemy(unit)
             if nearest_enemy:
                 distance = self.game.chess_distance(unit.y, unit.x, nearest_enemy.y, nearest_enemy.x)
-                if distance <= unit.get_effective_attack_range():
+                if distance <= unit.attack_range:
                     unit.attack_target = (nearest_enemy.y, nearest_enemy.x)
                     logger.info(f"Trapped GAS_MACHINIST attacking {nearest_enemy.get_display_name()}")
             return
@@ -4711,27 +4711,62 @@ class SimpleAI:
             logger.info("No enemies found for GAS_MACHINIST")
             return
             
-        # Priority 1: Use Diverge if we have vapor or are in critical situation
-        if self._should_use_diverge(unit, allies, enemies, available_skills, effluvium_charges):
+        # NEW PRIORITY SYSTEM: Position first, then act
+        
+        # Priority 1: Emergency Diverge for critically wounded allies in range
+        if self._should_use_emergency_diverge(unit, allies, enemies, available_skills, effluvium_charges):
             return
             
-        # Priority 2: Place tactical vapors
+        # Priority 2: Move to optimal support position if current position is poor
+        current_position_score = self._evaluate_support_position(unit, unit.y, unit.x, allies, enemies)
+        best_position = self._find_best_support_position(unit, allies, enemies)
+        
+        if best_position:
+            best_position_score = self._evaluate_support_position(unit, best_position[0], best_position[1], allies, enemies)
+            # Move if the new position is better (at least 15 points better)
+            if best_position_score > current_position_score + 15:
+                unit.move_target = best_position
+                logger.info(f"GAS_MACHINIST moving from score {current_position_score} to {best_position_score} at {best_position}")
+                return
+        
+        # Priority 3: Use Diverge tactically from current/planned position
+        if self._should_use_tactical_diverge(unit, allies, enemies, available_skills, effluvium_charges):
+            return
+            
+        # Priority 4: Place tactical vapors from good position
         if self._try_place_tactical_vapor(unit, allies, enemies, available_skills):
             return
             
-        # Priority 3: Move to better position
-        best_position = self._find_best_support_position(unit, allies, enemies)
-        if best_position:
+        # Priority 5: Attack if in good position and have target
+        nearest_enemy = self._find_nearest_enemy(unit)
+        if nearest_enemy and current_position_score >= 15:  # Attack from reasonable positions
+            distance = self.game.chess_distance(unit.y, unit.x, nearest_enemy.y, nearest_enemy.x)
+            if distance <= unit.attack_range:
+                unit.attack_target = (nearest_enemy.y, nearest_enemy.x)
+                logger.info(f"GAS_MACHINIST attacking {nearest_enemy.get_display_name()} from good position")
+                return
+        
+        # Priority 6: Move to any better position if we didn't move yet
+        if best_position and best_position_score > current_position_score + 5:
             unit.move_target = best_position
-            logger.info(f"GAS_MACHINIST moving to support position {best_position}")
-        else:
-            # Fallback: Basic attack if in range
-            nearest_enemy = self._find_nearest_enemy(unit)
-            if nearest_enemy:
-                distance = self.game.chess_distance(unit.y, unit.x, nearest_enemy.y, nearest_enemy.x)
-                if distance <= unit.get_effective_attack_range():
-                    unit.attack_target = (nearest_enemy.y, nearest_enemy.x)
-                    logger.info(f"GAS_MACHINIST attacking {nearest_enemy.get_display_name()}")
+            logger.info(f"GAS_MACHINIST making fallback move to {best_position}")
+            return
+        
+        # Priority 7: Basic fallback - attack nearest enemy or move towards allies
+        if nearest_enemy:
+            distance = self.game.chess_distance(unit.y, unit.x, nearest_enemy.y, nearest_enemy.x)
+            if distance <= unit.attack_range:
+                unit.attack_target = (nearest_enemy.y, nearest_enemy.x)
+                logger.info(f"GAS_MACHINIST fallback attack on {nearest_enemy.get_display_name()}")
+                return
+        
+        # Last resort: move to any better position at all
+        if best_position and best_position_score > current_position_score:
+            unit.move_target = best_position
+            logger.info(f"GAS_MACHINIST last resort move to {best_position}")
+            return
+            
+        logger.info("GAS_MACHINIST has no valid actions - staying put")
 
     def _process_heinous_vapor(self, unit: 'Unit', use_coordination: bool = False) -> None:
         """
@@ -4776,23 +4811,10 @@ class SimpleAI:
         else:
             logger.info(f"HEINOUS_VAPOR {vapor_type} staying in current position")
 
-    def _should_use_diverge(self, unit: 'Unit', allies: list, enemies: list, available_skills: list, charges: int) -> bool:
+    def _should_use_emergency_diverge(self, unit: 'Unit', allies: list, enemies: list, available_skills: list, charges: int) -> bool:
         """
-        Determine if Diverge should be used.
-        Real players use Diverge when:
-        - Multiple allies need urgent healing
-        - Need burst damage on clustered enemies
-        - Have existing vapor to split for better coverage
-        
-        Args:
-            unit: The GAS_MACHINIST unit
-            allies: List of allied units
-            enemies: List of enemy units
-            available_skills: Available skills
-            charges: Current Effluvium charges
-            
-        Returns:
-            True if Diverge was used, False otherwise
+        Use Diverge only in emergency situations with critically wounded allies in effective range.
+        This prevents wasteful Diverge usage in isolation.
         """
         # Find Diverge skill
         diverge_skill = None
@@ -4804,70 +4826,202 @@ class SimpleAI:
         if not diverge_skill:
             return False
             
-        # Check if we have a vapor to split
+        # Use in emergencies: allies below 60% health within effective range
+        critically_wounded = []
+        for ally in allies:
+            if ally.hp <= ally.max_hp * 0.6:  # Below 60% health
+                distance = self.game.chess_distance(unit.y, unit.x, ally.y, ally.x)
+                if distance <= 4:  # Within Diverge effective range
+                    critically_wounded.append(ally)
+        
+        # Need at least 2 critically wounded allies to justify emergency Diverge
+        if len(critically_wounded) >= 2:
+            target_pos = (unit.y, unit.x)  # Always self-diverge in emergencies
+            if diverge_skill.use(unit, target_pos, self.game):
+                logger.info(f"GAS_MACHINIST using emergency Diverge for {len(critically_wounded)} critical allies")
+                return True
+                
+        return False
+
+    def _should_use_tactical_diverge(self, unit: 'Unit', allies: list, enemies: list, available_skills: list, charges: int) -> bool:
+        """
+        Use Diverge tactically when positioned well and it provides significant value.
+        """
+        # Find Diverge skill
+        diverge_skill = None
+        for skill in available_skills:
+            if hasattr(skill, 'name') and skill.name == "Diverge":
+                diverge_skill = skill
+                break
+                
+        if not diverge_skill:
+            return False
+            
+        # Check if we have vapors to potentially split
         player_vapors = [u for u in self.game.units 
                         if u.player == unit.player and u.is_alive() and 
                         u.type == UnitType.HEINOUS_VAPOR]
         
+        # Evaluate tactical value
         score = 0
         
-        # High priority: Multiple wounded allies
-        wounded_allies = [ally for ally in allies if ally.hp < ally.max_hp]
-        if len(wounded_allies) >= 2:
-            score += 40
-            logger.debug(f"Multiple wounded allies (+40 points)")
-            
-        # Medium priority: Have vapor to split for better coverage
-        if player_vapors:
-            score += 25
-            logger.debug(f"Have vapor to split (+25 points)")
-            
-        # Medium priority: Multiple enemies clustered (for cutting gas)
-        clustered_enemies = 0
-        for enemy in enemies:
-            nearby_enemies = sum(1 for e in enemies 
-                               if self.game.chess_distance(enemy.y, enemy.x, e.y, e.x) <= 2)
-            if nearby_enemies >= 2:
-                clustered_enemies += 1
-        if clustered_enemies >= 2:
-            score += 20
-            logger.debug(f"Clustered enemies for cutting gas (+20 points)")
-            
-        # Bonus for having charges to extend duration
-        if charges >= 2:
-            score += 15
-            logger.debug(f"Good charge count (+15 points)")
-            
-        # Use if score is high enough
-        threshold = 35 if self.difficulty == AIDifficulty.HARD else 50
-        logger.debug(f"Diverge score: {score} (threshold: {threshold})")
+        # Count allies that would benefit from healing within range
+        wounded_in_range = 0
+        for ally in allies:
+            if ally.hp < ally.max_hp * 0.8:  # Less than 80% health
+                distance = self.game.chess_distance(unit.y, unit.x, ally.y, ally.x)
+                if distance <= 3:  # Within coolant gas effective range
+                    wounded_in_range += 1
+                    score += 20
         
-        if score >= threshold:
-            # Choose best target (vapor or self)
+        # Count enemies that would be threatened by cutting gas
+        enemies_in_range = 0
+        for enemy in enemies:
+            distance = self.game.chess_distance(unit.y, unit.x, enemy.y, enemy.x)
+            if distance <= 3:  # Within cutting gas effective range
+                enemies_in_range += 1
+                score += 10
+        
+        # Bonus for having charges to extend duration
+        if charges >= 3:
+            score += 20
+        elif charges >= 2:
+            score += 10
+        
+        # Penalty for splitting well-positioned vapors
+        if player_vapors:
+            for vapor in player_vapors:
+                # Check if vapor is well-positioned (near allies/enemies as appropriate)
+                vapor_value = self._evaluate_vapor_position(vapor, allies, enemies)
+                if vapor_value > 30:  # Well positioned vapor
+                    score -= 15  # Penalty for potentially splitting it
+        
+        # Only use if we have reasonable tactical value and positioning  
+        threshold = 30 if hasattr(self, 'difficulty') and self.difficulty == 'HARD' else 40
+        logger.debug(f"Tactical Diverge score: {score} (threshold: {threshold})")
+        
+        if score >= threshold and (wounded_in_range >= 2 or enemies_in_range >= 2):
+            # Choose best target - prefer splitting distant vapors over self
             target_pos = None
-            if player_vapors and len(wounded_allies) < 3:  # Split vapor if not too many wounded
-                # Target the vapor farthest from wounded allies
+            
+            if player_vapors and wounded_in_range >= 3:
+                # Find vapor farthest from wounded allies to split
                 best_vapor = None
                 best_distance = 0
                 for vapor in player_vapors:
-                    avg_distance = sum(self.game.chess_distance(vapor.y, vapor.x, ally.y, ally.x) 
-                                     for ally in wounded_allies)
-                    if len(wounded_allies) > 0:
-                        avg_distance /= len(wounded_allies)
-                    if avg_distance > best_distance:
-                        best_distance = avg_distance
+                    min_distance_to_wounded = min([self.game.chess_distance(vapor.y, vapor.x, ally.y, ally.x) 
+                                                  for ally in allies if ally.hp < ally.max_hp], default=999)
+                    if min_distance_to_wounded > best_distance:
+                        best_distance = min_distance_to_wounded
                         best_vapor = vapor
-                if best_vapor:
+                        
+                if best_vapor and best_distance >= 4:  # Only split if vapor is distant
                     target_pos = (best_vapor.y, best_vapor.x)
             
-            if not target_pos:  # Target self
+            if not target_pos:  # Self-diverge
                 target_pos = (unit.y, unit.x)
                 
             if diverge_skill.use(unit, target_pos, self.game):
-                logger.info(f"GAS_MACHINIST using Diverge at {target_pos}")
+                logger.info(f"GAS_MACHINIST using tactical Diverge at {target_pos} (score: {score})")
                 return True
                 
         return False
+    
+    def _evaluate_support_position(self, unit: 'Unit', pos_y: int, pos_x: int, allies: list, enemies: list) -> int:
+        """
+        Evaluate how good a position is for GAS_MACHINIST support role.
+        Returns a numerical score where higher is better.
+        """
+        score = 0
+        
+        # Core principle: Position to maximize vapor effectiveness
+        
+        # Distance to wounded allies (closer is better, but not too close)
+        for ally in allies:
+            if ally.hp < ally.max_hp:
+                distance = self.game.chess_distance(pos_y, pos_x, ally.y, ally.x)
+                if distance <= 2:  # Optimal support range
+                    score += 25
+                elif distance <= 4:  # Good support range  
+                    score += 15
+                elif distance <= 6:  # Acceptable range
+                    score += 5
+        
+        # Distance to all allies for general support
+        for ally in allies:
+            distance = self.game.chess_distance(pos_y, pos_x, ally.y, ally.x)
+            if distance <= 3:  # Within vapor placement range
+                score += 10
+                
+        # Distance to enemies - prefer positions that can threaten but aren't too exposed
+        enemy_threat = 0
+        for enemy in enemies:
+            distance = self.game.chess_distance(pos_y, pos_x, enemy.y, enemy.x)
+            if distance == 1:  # Too close - very dangerous
+                score -= 30
+            elif distance == 2:  # Close but manageable
+                score -= 10
+                enemy_threat += 1
+            elif distance <= 4:  # Good tactical distance
+                score += 5
+                enemy_threat += 1
+        
+        # Bonus for being able to threaten multiple enemies without being overwhelmed
+        if enemy_threat >= 2 and enemy_threat <= 4:
+            score += 20
+            
+        # Terrain considerations
+        if not self.game.is_valid_position(pos_y, pos_x) or not self.game.map.is_passable(pos_y, pos_x):
+            return -999
+            
+        # Check for other units at position (excluding the unit being evaluated)
+        unit_at_position = self.game.get_unit_at(pos_y, pos_x)
+        if unit_at_position and unit_at_position != unit:
+            return -999
+            
+        # Bonus for central positioning
+        map_center_y = self.game.map.height // 2
+        map_center_x = self.game.map.width // 2
+        distance_from_center = self.game.chess_distance(pos_y, pos_x, map_center_y, map_center_x)
+        if distance_from_center <= 3:
+            score += 15
+        elif distance_from_center <= 6:
+            score += 5
+            
+        return score
+    
+    def _evaluate_vapor_position(self, vapor_unit: 'Unit', allies: list, enemies: list) -> int:
+        """
+        Evaluate how well-positioned a vapor is for its role.
+        """
+        score = 0
+        vapor_type = getattr(vapor_unit, 'vapor_type', 'UNKNOWN')
+        
+        if vapor_type == "COOLANT":
+            # Healing vapor should be near wounded allies
+            for ally in allies:
+                if ally.hp < ally.max_hp:
+                    distance = self.game.chess_distance(vapor_unit.y, vapor_unit.x, ally.y, ally.x)
+                    if distance <= 1:
+                        score += 25
+                    elif distance <= 2:
+                        score += 10
+        elif vapor_type == "CUTTING":
+            # Damage vapor should be near enemies
+            for enemy in enemies:
+                distance = self.game.chess_distance(vapor_unit.y, vapor_unit.x, enemy.y, enemy.x)
+                if distance <= 1:
+                    score += 25
+                elif distance <= 2:
+                    score += 10
+        else:
+            # Generic support vapor
+            for ally in allies:
+                distance = self.game.chess_distance(vapor_unit.y, vapor_unit.x, ally.y, ally.x)
+                if distance <= 1:
+                    score += 15
+                    
+        return score
 
     def _try_place_tactical_vapor(self, unit: 'Unit', allies: list, enemies: list, available_skills: list) -> bool:
         """
@@ -4894,37 +5048,126 @@ class SimpleAI:
                 elif skill.name == "Saft-E-Gas":
                     safety_skill = skill
         
-        # Determine which vapor to use based on situation
+        # Improved vapor selection based on comprehensive threat assessment
         wounded_allies = [ally for ally in allies if ally.hp < ally.max_hp]
-        allies_under_threat = self._count_allies_under_threat(allies, enemies)
+        critically_wounded = [ally for ally in allies if ally.hp < ally.max_hp * 0.5]
+        allies_under_threat = self._count_allies_under_comprehensive_threat(allies, enemies)
         
-        # Prefer Safety Gas if allies are under ranged threat
+        # Decision tree for vapor selection
+        vapor_choice = None
+        target_pos = None
+        
+        # Priority 1: Safety Gas for allies under significant threat
         if safety_skill and allies_under_threat >= 2:
-            target_pos = self._find_best_safety_gas_position(unit, allies, enemies)
-            if target_pos and safety_skill.use(unit, target_pos, self.game):
-                logger.info(f"GAS_MACHINIST placing Saft-E-Gas at {target_pos}")
-                return True
-                
-        # Use Broaching Gas for general support
-        if broaching_skill:
-            target_pos = self._find_best_broaching_gas_position(unit, allies, enemies)
-            if target_pos and broaching_skill.use(unit, target_pos, self.game):
-                logger.info(f"GAS_MACHINIST placing Broaching Gas at {target_pos}")
+            safety_pos = self._find_best_safety_gas_position(unit, allies, enemies)
+            if safety_pos:
+                safety_score = self._evaluate_vapor_placement(unit, safety_pos, allies, enemies, "SAFETY")
+                if safety_score >= 30:  # Good position found
+                    vapor_choice = (safety_skill, safety_pos, "Saft-E-Gas")
+        
+        # Priority 2: Broaching Gas if multiple wounded allies or mixed situation
+        if broaching_skill and (not vapor_choice or len(wounded_allies) >= 2):
+            broaching_pos = self._find_best_broaching_gas_position(unit, allies, enemies)
+            if broaching_pos:
+                broaching_score = self._evaluate_vapor_placement(unit, broaching_pos, allies, enemies, "BROACHING")
+                # Choose broaching if it's significantly better or no safety option
+                if not vapor_choice or broaching_score > 35:
+                    vapor_choice = (broaching_skill, broaching_pos, "Broaching Gas")
+        
+        # Execute the chosen vapor placement
+        if vapor_choice:
+            skill, pos, skill_name = vapor_choice
+            if skill.use(unit, pos, self.game):
+                logger.info(f"GAS_MACHINIST placing {skill_name} at {pos}")
                 return True
                 
         return False
 
-    def _count_allies_under_threat(self, allies: list, enemies: list) -> int:
-        """Count allies that are threatened by enemy ranged attacks."""
+    def _count_allies_under_comprehensive_threat(self, allies: list, enemies: list) -> int:
+        """Count allies under various types of threats (ranged, melee, abilities)."""
         threatened = 0
         for ally in allies:
+            under_threat = False
             for enemy in enemies:
                 distance = self.game.chess_distance(ally.y, ally.x, enemy.y, enemy.x)
-                enemy_range = enemy.get_effective_attack_range()
-                if distance <= enemy_range and enemy_range > 1:  # Ranged threat
-                    threatened += 1
+                
+                # Ranged threat
+                enemy_range = enemy.attack_range
+                if distance <= enemy_range and enemy_range > 1:
+                    under_threat = True
                     break
+                    
+                # Immediate melee threat (next turn)
+                if distance <= 2 and enemy.move_range >= 1:
+                    under_threat = True
+                    break
+                    
+                # Special ability threats (skills with range)
+                if hasattr(enemy, 'active_skills'):
+                    for skill in enemy.get_available_skills() if hasattr(enemy, 'get_available_skills') else []:
+                        if hasattr(skill, 'range') and distance <= getattr(skill, 'range', 0) + 1:
+                            under_threat = True
+                            break
+                    if under_threat:
+                        break
+                        
+            if under_threat:
+                threatened += 1
         return threatened
+    
+    def _evaluate_vapor_placement(self, unit: 'Unit', pos: Tuple[int, int], allies: list, enemies: list, vapor_type: str) -> int:
+        """Evaluate the quality of a vapor placement position."""
+        pos_y, pos_x = pos
+        score = 0
+        
+        if vapor_type == "SAFETY":
+            # Safety gas should protect threatened allies
+            for ally in allies:
+                distance = self.game.chess_distance(pos_y, pos_x, ally.y, ally.x)
+                if distance <= 1:  # Within protection range
+                    # Check if ally is actually threatened
+                    ally_threatened = False
+                    for enemy in enemies:
+                        enemy_distance = self.game.chess_distance(ally.y, ally.x, enemy.y, enemy.x)
+                        if enemy_distance <= enemy.attack_range:
+                            ally_threatened = True
+                            break
+                    
+                    if ally_threatened:
+                        score += 30  # High value for protecting threatened allies
+                    else:
+                        score += 10  # Some value for general protection
+        
+        elif vapor_type == "BROACHING":
+            # Broaching gas should support allies and clear debuffs
+            for ally in allies:
+                distance = self.game.chess_distance(pos_y, pos_x, ally.y, ally.x)
+                if distance <= 1:  # Within cleansing range
+                    if ally.hp < ally.max_hp:
+                        score += 20  # Value for wounded allies who benefit from cleansing
+                    else:
+                        score += 10  # General support value
+                        
+            # Also consider damage potential to enemies
+            for enemy in enemies:
+                distance = self.game.chess_distance(pos_y, pos_x, enemy.y, enemy.x)
+                if distance <= 1:  # Within damage range
+                    score += 15  # Value for damaging enemies
+        
+        # Penalty for dangerous positions (too close to multiple enemies)
+        nearby_enemies = sum(1 for enemy in enemies 
+                            if self.game.chess_distance(pos_y, pos_x, enemy.y, enemy.x) <= 2)
+        if nearby_enemies >= 3:
+            score -= 20  # Penalty for very dangerous positions
+        
+        # Bonus for central positioning
+        ally_center_y = sum(ally.y for ally in allies) // max(len(allies), 1)
+        ally_center_x = sum(ally.x for ally in allies) // max(len(allies), 1)
+        distance_from_ally_center = self.game.chess_distance(pos_y, pos_x, ally_center_y, ally_center_x)
+        if distance_from_ally_center <= 2:
+            score += 10
+            
+        return score
 
     def _find_best_safety_gas_position(self, unit: 'Unit', allies: list, enemies: list) -> Optional[Tuple[int, int]]:
         """Find the best position for Saft-E-Gas to protect allies."""
@@ -5007,56 +5250,70 @@ class SimpleAI:
         return best_pos
 
     def _find_best_support_position(self, unit: 'Unit', allies: list, enemies: list) -> Optional[Tuple[int, int]]:
-        """Find the best position for GAS_MACHINIST to support allies."""
+        """Find the best position for GAS_MACHINIST to support allies using improved evaluation."""
         best_pos = None
-        best_score = 0
+        best_score = -999
         
-        move_range = unit.get_effective_move_range()
+        move_range = unit.move_range
         
         for dy in range(-move_range, move_range + 1):
             for dx in range(-move_range, move_range + 1):
                 new_y = unit.y + dy
                 new_x = unit.x + dx
                 
-                if not self.game.is_valid_position(new_y, new_x):
-                    continue
-                if not self.game.map.is_passable(new_y, new_x):
-                    continue
-                if self.game.get_unit_at(new_y, new_x):
-                    continue
-                    
                 distance = self.game.chess_distance(unit.y, unit.x, new_y, new_x)
                 if distance > move_range:
                     continue
-                    
-                # Score based on support potential
-                score = 0
                 
-                # Closer to wounded allies
-                for ally in allies:
-                    if ally.hp < ally.max_hp:
-                        ally_distance = self.game.chess_distance(new_y, new_x, ally.y, ally.x)
-                        if ally_distance <= 3:  # Within vapor range
-                            score += 20 - ally_distance * 3
-                            
-                # Not too close to enemies
-                for enemy in enemies:
-                    enemy_distance = self.game.chess_distance(new_y, new_x, enemy.y, enemy.x)
-                    if enemy_distance <= 2:
-                        score -= 15
-                        
-                if score > best_score:
+                # CRITICAL: Pre-validate position before scoring to prevent invalid moves
+                if not self._is_position_valid_for_movement(unit, new_y, new_x):
+                    continue
+                    
+                # Use the comprehensive evaluation function
+                score = self._evaluate_support_position(unit, new_y, new_x, allies, enemies)
+                
+                # Only consider positions with positive scores (valid positions)
+                if score > best_score and score > 0:
                     best_score = score
                     best_pos = (new_y, new_x)
                     
-        return best_pos if best_score > 10 else None
+        return best_pos if best_score > 15 else None  # Reasonable threshold for positioning
+    
+    def _is_position_valid_for_movement(self, unit: 'Unit', y: int, x: int) -> bool:
+        """
+        Validate that a position is actually reachable for movement.
+        This prevents the infinite loop bug where AI tries to move to invalid positions.
+        """
+        # Basic bounds check
+        if not self.game.is_valid_position(y, x):
+            return False
+        
+        # Terrain passability check
+        if not self.game.map.is_passable(y, x):
+            return False
+            
+        # Unit collision check (excluding the moving unit itself)
+        unit_at_position = self.game.get_unit_at(y, x)
+        if unit_at_position and unit_at_position != unit:
+            return False
+            
+        # Distance check (should already be done, but double-check)
+        distance = self.game.chess_distance(unit.y, unit.x, y, x)
+        if distance > unit.move_range:
+            return False
+            
+        # Additional check: make sure it's not the same position (no point moving to same spot)
+        if y == unit.y and x == unit.x:
+            return False
+            
+        return True
 
     def _find_best_support_vapor_position(self, unit: 'Unit', allies: list, vapor_type: str) -> Optional[Tuple[int, int]]:
         """Find the best position for a support vapor to help allies."""
         best_pos = None
         best_score = 0
         
-        move_range = unit.get_effective_move_range()
+        move_range = unit.move_range
         
         # Special pursuit logic for COOLANT gas - actively chase wounded allies
         if vapor_type == "COOLANT":
@@ -5151,7 +5408,7 @@ class SimpleAI:
         best_pos = None
         best_score = 0
         
-        move_range = unit.get_effective_move_range()
+        move_range = unit.move_range
         
         # Special pursuit logic for CUTTING gas - actively chase enemies
         vapor_type = getattr(unit, 'vapor_type', None)

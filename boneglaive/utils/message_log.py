@@ -241,7 +241,7 @@ class MessageLog:
             
             # Check for critical event messages
             if " perishes!" in text:
-                color = 18  # Dark red for death messages
+                color = 20  # Dark red for death messages (correct color pair)
             elif " retches!" in text:
                 color = 17  # Bright red for retching messages
             # Dominion upgrade messages should be very visible
@@ -260,6 +260,9 @@ class MessageLog:
             elif ('attacker_name' in msg and msg['player'] is not None) or (msg['type'] == MessageType.ABILITY and msg['player'] is not None):
                 player_num = msg['player']
                 color = self.player_colors.get(player_num, 8)  # Use player color (green/blue) instead of gray
+            else:
+                # Default: keep the initial color (8 - gray) for messages that don't match any special criteria
+                pass  # color remains as initialized (8)
                 
             # Special handling for damage numbers - highlight them in magenta
             # Look for combat messages containing damage info (typical format: "X hits Y for Z damage")
