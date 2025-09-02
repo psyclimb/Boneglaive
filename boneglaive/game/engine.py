@@ -1228,6 +1228,7 @@ class Game:
         distance = self.chess_distance(unit.y, unit.x, y, x)
         effective_stats = unit.get_effective_stats()
         effective_move_range = effective_stats['move_range']
+        
         if distance > effective_move_range:
             return False
             
@@ -2000,6 +2001,47 @@ class Game:
                         player=unit.player
                     )
 
+            # Process DERELIST status effects
+            # Process Derelicted status effect (immobilization)
+            if hasattr(unit, 'derelicted') and unit.derelicted and hasattr(unit, 'derelicted_duration'):
+                # Decrement the duration
+                unit.derelicted_duration -= 1
+                logger.debug(f"{unit.get_display_name()}'s Derelicted duration: {unit.derelicted_duration}")
+                
+                # Check if the status effect has expired
+                if unit.derelicted_duration <= 0:
+                    # Remove the status effect
+                    unit.derelicted = False
+                    unit.derelicted_duration = 0
+                    
+                    # Log the expiration
+                    message_log.add_message(
+                        f"{unit.get_display_name()} recovers from abandonment trauma and can move again",
+                        MessageType.ABILITY,
+                        player=unit.player
+                    )
+            
+            # Process Partition Shield duration
+            if hasattr(unit, 'partition_shield_active') and unit.partition_shield_active and hasattr(unit, 'partition_shield_duration'):
+                # Decrement the duration
+                unit.partition_shield_duration -= 1
+                logger.debug(f"{unit.get_display_name()}'s Partition shield duration: {unit.partition_shield_duration}")
+                
+                # Check if the shield has expired
+                if unit.partition_shield_duration <= 0:
+                    # Remove the shield
+                    unit.partition_shield_active = False
+                    unit.partition_shield_strength = 0
+                    unit.partition_shield_duration = 0
+                    unit.partition_shield_caster = None
+                    
+                    # Log the expiration
+                    message_log.add_message(
+                        f"{unit.get_display_name()}'s partition shield fades away",
+                        MessageType.ABILITY,
+                        player=unit.player
+                    )
+
             # Process Valuation Oracle buff
             if hasattr(unit, 'valuation_oracle_buff') and unit.valuation_oracle_buff:
                 if hasattr(unit, 'valuation_oracle_duration') and unit.valuation_oracle_duration > 0:
@@ -2206,13 +2248,32 @@ class Game:
                     unit.took_no_actions = False
                     logger.debug(f"Moving {unit.get_display_name()} from ({unit.y},{unit.x}) to ({y},{x})")
                     
+                    # Save original position
+                    start_y, start_x = unit.y, unit.x
+                    
+                    # DERELIST Severance: Remove SEVERANCE status when movement is executed
+                    if (unit.type == UnitType.DERELIST and 
+                        hasattr(unit, 'severance_active') and unit.severance_active):
+                        
+                        # Remove SEVERANCE status effect when movement is used
+                        unit.severance_active = False
+                        unit.severance_duration = 0
+                        unit.can_move_post_skill = False  # Consumed the post-skill move
+                        
+                        logger.info(f"SEVERANCE: {unit.get_display_name()} consumes enhanced movement - Severance status expires")
+                        
+                        from boneglaive.utils.message_log import message_log, MessageType
+                        message_log.add_message(
+                            f"{unit.get_display_name()}'s Severance expires after movement",
+                            MessageType.ABILITY,
+                            player=unit.player
+                        )
+                    
+                    # Update unit position
+                    unit.y, unit.x = y, x
+                    
                     # Show movement animation if UI is provided
                     if ui:
-                        # Save original position
-                        start_y, start_x = unit.y, unit.x
-                        
-                        # Update unit position
-                        unit.y, unit.x = y, x
                         
                         # Update anchor status effects after position change
                         self.update_anchor_status_effects()
@@ -3193,6 +3254,17 @@ class Game:
                 unit.apply_passive_skills(self)
                 # Initialize the flag for health regeneration
                 unit.took_no_actions = True
+                
+                # Reset DERELIST movement/skill flags at start of turn (Severance passive)
+                if unit.type == UnitType.DERELIST:
+                    unit.has_moved_first = False
+                    unit.used_skill_this_turn = False
+                    unit.can_move_post_skill = False
+                    # Reset SEVERANCE status at start of new turn
+                    unit.severance_active = False
+                    unit.severance_duration = 0
+                    # Always reset movement bonus to 0 at start of turn
+                    unit.move_range_bonus = 0
     
     
     def try_trigger_wretched_decension(self, attacker, target, ui=None):

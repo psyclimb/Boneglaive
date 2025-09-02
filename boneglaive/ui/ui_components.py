@@ -2477,6 +2477,21 @@ class CursorManager(UIComponent):
         
         # Check if the position is a valid move target
         if cursor_position in self.highlighted_positions:
+            # Special DERELIST movement validation (Severance passive restrictions)
+            if self.selected_unit.type == UnitType.DERELIST:
+                # Check if DERELIST has already moved after using a skill (cannot move again)
+                if (hasattr(self.selected_unit, 'has_moved_first') and self.selected_unit.has_moved_first and
+                    hasattr(self.selected_unit, 'used_skill_this_turn') and self.selected_unit.used_skill_this_turn):
+                    self.game_ui.message = "DERELIST cannot move twice in one turn"
+                    return False
+                
+                # Track movement state for DERELIST
+                if not hasattr(self.selected_unit, 'has_moved_first'):
+                    self.selected_unit.has_moved_first = False
+                
+                # Mark that DERELIST has moved (regardless of skill state)
+                self.selected_unit.has_moved_first = True
+            
             # Store the original position before changing it
             from_position = Position(self.selected_unit.y, self.selected_unit.x)
             to_position = cursor_position
@@ -4053,6 +4068,9 @@ class GameModeManager(UIComponent):
         elif self.setup_unit_type == UnitType.DELPHIC_APPRAISER:
             self.setup_unit_type = UnitType.INTERFERER
             self.game_ui.message = "Setup unit type: INTERFERER"
+        elif self.setup_unit_type == UnitType.INTERFERER:
+            self.setup_unit_type = UnitType.DERELIST
+            self.game_ui.message = "Setup unit type: DERELIST"
         else:
             self.setup_unit_type = UnitType.GLAIVEMAN
             self.game_ui.message = "Setup unit type: GLAIVEMAN"
@@ -4072,7 +4090,7 @@ class GameModeManager(UIComponent):
         unit_types = [
             UnitType.GLAIVEMAN, UnitType.MANDIBLE_FOREMAN, UnitType.GRAYMAN,
             UnitType.MARROW_CONDENSER, UnitType.FOWL_CONTRIVANCE, UnitType.GAS_MACHINIST,
-            UnitType.DELPHIC_APPRAISER, UnitType.INTERFERER
+            UnitType.DELPHIC_APPRAISER, UnitType.INTERFERER, UnitType.DERELIST
         ]
         
         try:
@@ -4099,7 +4117,7 @@ class GameModeManager(UIComponent):
         unit_types = [
             UnitType.GLAIVEMAN, UnitType.MANDIBLE_FOREMAN, UnitType.GRAYMAN,
             UnitType.MARROW_CONDENSER, UnitType.FOWL_CONTRIVANCE, UnitType.GAS_MACHINIST,
-            UnitType.DELPHIC_APPRAISER, UnitType.INTERFERER
+            UnitType.DELPHIC_APPRAISER, UnitType.INTERFERER, UnitType.DERELIST
         ]
         
         try:
@@ -4150,7 +4168,8 @@ class GameModeManager(UIComponent):
             UnitType.FOWL_CONTRIVANCE: "FOWL CONTRIVANCE",
             UnitType.GAS_MACHINIST: "GAS MACHINIST",
             UnitType.DELPHIC_APPRAISER: "DELPHIC APPRAISER",
-            UnitType.INTERFERER: "INTERFERER"
+            UnitType.INTERFERER: "INTERFERER",
+            UnitType.DERELIST: "DERELIST"
         }.get(self.setup_unit_type, "UNKNOWN")
 
         # Check specific error cases based on return value
@@ -4301,7 +4320,8 @@ class GameModeManager(UIComponent):
                 UnitType.FOWL_CONTRIVANCE: "FOWL CONTRIVANCE",
                 UnitType.GAS_MACHINIST: "GAS MACHINIST",
                 UnitType.DELPHIC_APPRAISER: "DELPHIC APPRAISER",
-                UnitType.INTERFERER: "INTERFERER"
+                UnitType.INTERFERER: "INTERFERER",
+                UnitType.DERELIST: "DERELIST"
             }
             current_unit_type = unit_type_display.get(self.setup_unit_type, "UNKNOWN")
             
@@ -4767,14 +4787,22 @@ class ActionMenuComponent(UIComponent):
         # Add standard actions with consistent labeling
         # Disable move for trapped units, Jawline-affected units, charging units, Neural Shunt, echoes, or if already moved
         # Note: units CAN move even if they have attack/skill planned (move executes first)
+        # EXCEPTION: DERELIST can move after using a skill (Severance passive)
+        
+        # DERELIST Severance exception: Can queue movement even after queuing a skill
+        derelist_severance_exception = (unit.type == UnitType.DERELIST and 
+                                       unit.skill_target is not None and 
+                                       unit.selected_skill is not None)
+        
         unit_can_move = (unit is not None and
                         unit.trapped_by is None and
                         not unit.is_echo and
                         not unit.move_target and  # Can't move if already planned a move
-                        not (unit.skill_target and unit.selected_skill) and  # Can't move if already planned a skill
+                        (not (unit.skill_target and unit.selected_skill) or derelist_severance_exception) and  # Severance exception
                         not (hasattr(unit, 'jawline_affected') and unit.jawline_affected) and
                         not (hasattr(unit, 'charging_status') and unit.charging_status) and
-                        not (hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected))
+                        not (hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected) and
+                        not (hasattr(unit, 'derelicted') and unit.derelicted))  # Derelicted units cannot move
         self.actions.append({
             'key': 'm',
             'label': 'ove',  # Will be displayed as [M]ove without space
@@ -5092,6 +5120,36 @@ class ActionMenuComponent(UIComponent):
                 'action': 'scalar_node_skill',
                 'enabled': scalar_node_skill is not None,
                 'skill': scalar_node_skill
+            })
+        
+        # DERELIST skills
+        elif unit.type == self.UnitType.DERELIST:
+            # Add Vagal Run skill
+            vagal_run_skill = next((skill for skill in available_skills if skill.name == "Vagal Run"), None)
+            self.actions.append({
+                'key': 'v',
+                'label': 'agal Run',  # Will be displayed as [V]agal Run
+                'action': 'vagal_run_skill',
+                'enabled': vagal_run_skill is not None,
+                'skill': vagal_run_skill
+            })
+            # Add Derelict skill
+            derelict_skill = next((skill for skill in available_skills if skill.name == "Derelict"), None)
+            self.actions.append({
+                'key': 'd',
+                'label': 'erelict',  # Will be displayed as [D]erelict
+                'action': 'derelict_skill',
+                'enabled': derelict_skill is not None,
+                'skill': derelict_skill
+            })
+            # Add Partition skill
+            partition_skill = next((skill for skill in available_skills if skill.name == "Partition"), None)
+            self.actions.append({
+                'key': 'p',
+                'label': 'artition',  # Will be displayed as [P]artition
+                'action': 'partition_skill',
+                'enabled': partition_skill is not None,
+                'skill': partition_skill
             })
         
         # Reset selected index
@@ -5482,6 +5540,25 @@ class ActionMenuComponent(UIComponent):
                                     else:
                                         targets.append((y, x))
             
+            elif skill.target_type == TargetType.ALLY:
+                # For ally-targeted skills, highlight allied units in range (DERELIST skills)
+                for y in range(HEIGHT):
+                    for x in range(WIDTH):
+                        # Check if there's an allied unit at this position
+                        target = game.get_unit_at(y, x)
+                        if target and target.player == cursor_manager.selected_unit.player:
+                            # Skip self-targeting for ally skills (unless skill allows it)
+                            if target == cursor_manager.selected_unit:
+                                continue
+                                
+                            # Check if target is within skill range
+                            distance = game.chess_distance(from_y, from_x, y, x)
+                            
+                            if distance <= skill.range:
+                                # Check if skill can be used on this target
+                                if skill.can_use(cursor_manager.selected_unit, (y, x), game):
+                                    targets.append((y, x))
+            
             elif skill.target_type == TargetType.AREA:
                 # For area-targeted skills like Vault, highlight all valid positions
                 for y in range(HEIGHT):
@@ -5623,6 +5700,10 @@ class InputManager(UIComponent):
             elif unit_type == UnitType.INTERFERER:
                 # Show INTERFERER unit help
                 self.game_ui.unit_help_component.toggle_unit_help(UnitType.INTERFERER)
+                return
+            elif unit_type == UnitType.DERELIST:
+                # Show DERELIST unit help
+                self.game_ui.unit_help_component.toggle_unit_help(UnitType.DERELIST)
                 return
             elif unit_type == UnitType.HEINOUS_VAPOR:
                 # Check what type of vapor this is by symbol
@@ -5798,7 +5879,8 @@ class UnitSelectionMenuComponent(UIComponent):
             UnitType.FOWL_CONTRIVANCE,
             UnitType.GAS_MACHINIST,
             UnitType.DELPHIC_APPRAISER,
-            UnitType.INTERFERER
+            UnitType.INTERFERER,
+            UnitType.DERELIST
         ]
         self.unit_names = {
             UnitType.GLAIVEMAN: "GLAIVEMAN",
@@ -5808,7 +5890,8 @@ class UnitSelectionMenuComponent(UIComponent):
             UnitType.FOWL_CONTRIVANCE: "FOWL CONTRIVANCE",
             UnitType.GAS_MACHINIST: "GAS MACHINIST",
             UnitType.DELPHIC_APPRAISER: "DELPHIC APPRAISER",
-            UnitType.INTERFERER: "INTERFERER"
+            UnitType.INTERFERER: "INTERFERER",
+            UnitType.DERELIST: "DERELIST"
         }
         
     def _setup_event_handlers(self):
