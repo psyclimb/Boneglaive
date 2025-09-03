@@ -32,6 +32,20 @@ class MessageLog:
         self.messages: List[Dict[str, Any]] = []
         self.filters: List[MessageType] = [MessageType.DEBUG]  # Always filter out DEBUG messages
         self.player_colors: Dict[int, int] = {1: 3, 2: 4}  # Player number to color mapping
+        self.game_instance = None  # Reference to current game for PRT lookups
+    
+    def set_game_reference(self, game):
+        """Set reference to game instance for PRT damage calculations."""
+        self.game_instance = game
+        
+    def _find_unit_by_name(self, unit_name: str):
+        """Find a unit in the game by its display name."""
+        if not self.game_instance:
+            return None
+        for unit in self.game_instance.units:
+            if unit.get_display_name() == unit_name:
+                return unit
+        return None
         
     def add_message(self, text: str, msg_type: MessageType, 
                    player: Optional[int] = None, target: Optional[int] = None,
@@ -80,15 +94,27 @@ class MessageLog:
                           **kwargs) -> None:
         """
         Add a combat-specific message with a consistent format.
+        Automatically adjusts damage display based on target's PRT value.
         
         Args:
             attacker_name: Name of the attacking unit (should include Greek identifier)
             target_name: Name of the target unit (should include Greek identifier)
-            damage: Amount of damage dealt
+            damage: Amount of damage attempted (will be adjusted for PRT automatically)
             ability: Name of ability used (optional)
             attacker_player: Player number of attacker (optional)
             target_player: Player number of target (optional)
         """
+        # Automatically adjust damage display based on target's PRT value
+        display_damage = damage
+        target_unit = self._find_unit_by_name(target_name)
+        if target_unit and hasattr(target_unit, 'prt') and target_unit.prt > 0:
+            # Reduce displayed damage by target's PRT value
+            display_damage = max(0, damage - target_unit.prt)
+            from boneglaive.utils.debug import logger
+            logger.info(f"AUTO-PRT MESSAGE: Adjusted {target_name} damage display from {damage} to {display_damage}")
+        
+        # Use adjusted damage for message display
+        damage = display_damage
         # Simple message format without player prefixes
         # The get_formatted_messages method will color the unit names appropriately
         if ability == "Viseroy Trap":

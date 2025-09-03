@@ -56,14 +56,14 @@ class Severance(PassiveSkill):
 class VagalRunSkill(ActiveSkill):
     """
     Active skill: VAGAL RUN
-    Applies flat attack bonus with distance-scaled abreaction damage.
+    Immediate cleansing trauma therapy with delayed abreaction.
     """
     
     def __init__(self):
         super().__init__(
             name="Vagal Run",
             key="V", 
-            description="Ally gains +3 attack. When effect expires, ally takes piercing damage equal to damage taken while buffed, reduced by 10% per tile of distance from DERELIST.",
+            description="Immediately deals piercing damage (3 at range 1, reduced by distance) and clears all status effects. After 3 turns, abreaction deals same damage and clears status effects again.",
             target_type=TargetType.ALLY,
             cooldown=4,
             range_=3
@@ -147,18 +147,31 @@ class VagalRunSkill(ActiveSkill):
         if not target:
             return
             
-        # Apply vagal run status
+        # Calculate distance-based piercing damage
+        distance = calculate_distance(user, target)
+        piercing_damage = min(3, max(0, 4 - distance))  # Max 3 at distance 1, reduced by distance
+        
+        # Store the damage amount for abreaction
         target.vagal_run_active = True
         target.vagal_run_caster = user  # Reference to DERELIST who cast this
-        target.vagal_run_damage_taken = 0  # Track damage taken while buffed
+        target.vagal_run_abreaction_damage = piercing_damage  # Store original damage for abreaction
         target.vagal_run_duration = 3  # Effect lasts 3 turns
         
-        # Apply +3 attack bonus
-        target.attack_bonus += 3
+        # Apply immediate piercing damage (ignores defense, can't kill)
+        if piercing_damage > 0:
+            actual_damage = target.apply_damage_with_protection(piercing_damage, can_kill=False, damage_source="Vagal Run trauma processing")
+            
+            message_log.add_message(
+                f"{target.get_display_name()} takes {actual_damage} trauma processing damage",
+                MessageType.COMBAT
+            )
+        
+        # Clear ALL status effects immediately
+        cleared_effects = self._clear_all_status_effects(target)
         
         # Show execution animation if UI available
         if ui and hasattr(ui, 'renderer'):
-            # Vagal run animation - energy waves from DERELIST to target
+            # Vagal run animation - cleansing waves
             vagal_animation = ['~', '≈', '∿', '≈', '~']
             ui.renderer.animate_attack_sequence(
                 target_pos[0], target_pos[1],
@@ -167,14 +180,159 @@ class VagalRunSkill(ActiveSkill):
                 0.1
             )
         
-        message_log.add_message(
-            f"{target.get_display_name()} gains Vagal Run!",
-            MessageType.ABILITY
-        )
+        # Generate message about cleared effects
+        if cleared_effects:
+            effects_text = ", ".join(cleared_effects)
+            message_log.add_message(
+                f"{target.get_display_name()}'s Vagal Run sloughs off {effects_text}",
+                MessageType.ABILITY
+            )
+        else:
+            message_log.add_message(
+                f"{target.get_display_name()} undergoes trauma processing",
+                MessageType.ABILITY
+            )
         
-        logger.info(f"VAGAL RUN EXECUTED: {user.get_display_name()} applies Vagal Run to {target.get_display_name()}")
+        logger.info(f"VAGAL RUN EXECUTED: {user.get_display_name()} applies trauma processing to {target.get_display_name()} (damage: {piercing_damage}, distance: {distance})")
         
         # Note: Severance passive bonus already applied during planning phase
+    
+    def _clear_all_status_effects(self, target: 'Unit') -> list:
+        """Clear all status effects from a unit and return list of cleared effects."""
+        cleared_effects = []
+        
+        # DON'T clear vagal_run_active - that would remove itself!
+        
+        # Clear negative status effects (based on UI renderer attribute names)
+        if hasattr(target, 'derelicted') and target.derelicted:
+            target.derelicted = False
+            if hasattr(target, 'derelicted_duration'):
+                target.derelicted_duration = 0
+            cleared_effects.append("Derelicted")
+            
+        if hasattr(target, 'trapped_by') and target.trapped_by:
+            target.trapped_by = None
+            if hasattr(target, 'trap_duration'):
+                target.trap_duration = 0
+            cleared_effects.append("Trapped")
+            
+        if hasattr(target, 'mired') and target.mired:
+            target.mired = False
+            if hasattr(target, 'mired_duration'):
+                target.mired_duration = 0
+            cleared_effects.append("Mired")
+            
+        if hasattr(target, 'was_pried') and target.was_pried:
+            target.was_pried = False
+            target.move_range_bonus = max(0, target.move_range_bonus)
+            cleared_effects.append("Pried")
+            
+        if hasattr(target, 'jawline_affected') and target.jawline_affected:
+            target.jawline_affected = False
+            if hasattr(target, 'jawline_duration'):
+                target.jawline_duration = 0
+            cleared_effects.append("Jawline")
+            
+        if hasattr(target, 'neural_shunt_affected') and target.neural_shunt_affected:
+            target.neural_shunt_affected = False
+            if hasattr(target, 'neural_shunt_duration'):
+                target.neural_shunt_duration = 0
+            cleared_effects.append("Neural Shunt")
+            
+        if hasattr(target, 'auction_curse_dot') and target.auction_curse_dot:
+            target.auction_curse_dot = False
+            cleared_effects.append("Auction Curse")
+            
+        if hasattr(target, 'radiation_stacks') and target.radiation_stacks:
+            if isinstance(target.radiation_stacks, list):
+                if len(target.radiation_stacks) > 0:
+                    target.radiation_stacks = []
+                    cleared_effects.append("Radiation Sickness")
+            else:
+                if target.radiation_stacks > 0:
+                    target.radiation_stacks = 0
+                    cleared_effects.append("Radiation Sickness")
+        
+        # Clear positive status effects (but not permanent abilities or vagal run)
+        if hasattr(target, 'carrier_rave_active') and target.carrier_rave_active:
+            target.carrier_rave_active = False
+            if hasattr(target, 'carrier_rave_duration'):
+                target.carrier_rave_duration = 0
+            cleared_effects.append("Karrier Rave")
+            
+        if hasattr(target, 'ossify_active') and target.ossify_active:
+            target.ossify_active = False
+            if hasattr(target, 'ossify_duration'):
+                target.ossify_duration = 0
+            cleared_effects.append("Ossify")
+            
+        if hasattr(target, 'status_site_inspection') and target.status_site_inspection:
+            target.status_site_inspection = False
+            if hasattr(target, 'status_site_inspection_duration'):
+                target.status_site_inspection_duration = 0
+            cleared_effects.append("Site Inspection")
+            
+        if hasattr(target, 'status_site_inspection_partial') and target.status_site_inspection_partial:
+            target.status_site_inspection_partial = False
+            if hasattr(target, 'status_site_inspection_partial_duration'):
+                target.status_site_inspection_partial_duration = 0
+            cleared_effects.append("Site Inspection (Partial)")
+            
+        if hasattr(target, 'valuation_oracle_buff') and target.valuation_oracle_buff:
+            target.valuation_oracle_buff = False
+            if hasattr(target, 'valuation_oracle_duration'):
+                target.valuation_oracle_duration = 0
+            target.defense_bonus = 0
+            target.attack_range_bonus = 0
+            cleared_effects.append("Valuation Oracle")
+            
+        if hasattr(target, 'slough_def_duration') and target.slough_def_duration > 0:
+            target.slough_def_duration = 0
+            cleared_effects.append("Slough Defense")
+            
+        if hasattr(target, 'has_investment_effect') and target.has_investment_effect:
+            target.has_investment_effect = False
+            if hasattr(target, 'market_futures_duration'):
+                target.market_futures_duration = 0
+            if hasattr(target, 'market_futures_maturity'):
+                target.attack_bonus = max(0, target.attack_bonus - target.market_futures_maturity)
+                target.market_futures_maturity = 0
+            cleared_effects.append("Investment")
+            
+        if hasattr(target, 'partition_shield_active') and target.partition_shield_active:
+            target.partition_shield_active = False
+            if hasattr(target, 'partition_shield_duration'):
+                target.partition_shield_duration = 0
+            if hasattr(target, 'partition_shield_damage_reduction'):
+                target.partition_shield_damage_reduction = 0
+            if hasattr(target, 'partition_shield_emergency_active'):
+                target.partition_shield_emergency_active = False
+            if hasattr(target, 'partition_shield_blocked_fatal'):
+                target.partition_shield_blocked_fatal = False
+            if hasattr(target, 'partition_shield_caster'):
+                target.partition_shield_caster = None
+            cleared_effects.append("Partition Shield")
+            
+        if hasattr(target, 'charging_status') and target.charging_status:
+            target.charging_status = False
+            cleared_effects.append("Charging")
+            
+        if hasattr(target, 'first_turn_move_bonus') and target.first_turn_move_bonus:
+            target.first_turn_move_bonus = False
+            cleared_effects.append("First Turn Bonus")
+            
+        # Don't clear severance_active as it's related to DERELIST's own passive
+        
+        # Reset stat bonuses carefully (don't interfere with vagal run's own tracking)
+        if not (hasattr(target, 'vagal_run_active') and target.vagal_run_active):
+            target.attack_bonus = 0
+            target.defense_bonus = 0
+            target.move_range_bonus = 0
+            target.attack_range_bonus = 0
+        
+        logger.info(f"Cleared {len(cleared_effects)} status effects from {target.get_display_name()}: {cleared_effects}")
+        return cleared_effects
+    
 
 
 class DerelictSkill(ActiveSkill):
@@ -401,14 +559,14 @@ class DerelictSkill(ActiveSkill):
 class PartitionSkill(ActiveSkill):
     """
     Active skill: PARTITION
-    Apply distance-scaled shield with damage reflection emergency trigger.
+    Protective barrier with emergency intervention capability.
     """
     
     def __init__(self):
         super().__init__(
             name="Partition",
             key="P",
-            description="Grant ally shield for 3 turns. Shield strength scales with distance (3 + 1 per 2 tiles). If shield would prevent critical damage, reflects it back and teleports DERELIST away.",
+            description="Grant ally shield that blocks 1 damage from all sources for 3 turns. If unit would take fatal damage, completely blocks all damage that turn, then ends effect, teleports DERELIST 4 tiles away, and applies Derelicted.",
             target_type=TargetType.ALLY,
             cooldown=5,
             range_=3
@@ -499,21 +657,19 @@ class PartitionSkill(ActiveSkill):
                 0.12
             )
         
-        # Apply partition shield
+        # Apply new partition shield system
         target.partition_shield_active = True
         target.partition_shield_caster = user  # Reference to DERELIST who cast this
         target.partition_shield_duration = 3
-        
-        # Calculate initial shield strength based on current distance
-        distance = calculate_distance(user, target)
-        shield_strength = 3 + (distance // 2)  # 3 + 1 per 2 tiles
-        target.partition_shield_strength = shield_strength
+        target.partition_shield_emergency_active = False  # Not in emergency mode yet
+        target.partition_shield_blocked_fatal = False  # Haven't blocked fatal damage yet
+        target.prt = 1  # Set partition stat to 1 for universal damage reduction
         
         message_log.add_message(
-            f"{target.get_display_name()} gains partition shield ({shield_strength} strength) for 3 turns!",
+            f"{target.get_display_name()} gains partition shield (blocks 1 damage) for 3 turns!",
             MessageType.ABILITY
         )
         
-        logger.info(f"PARTITION EXECUTED: {user.get_display_name()} applies shield ({shield_strength}) to {target.get_display_name()}")
+        logger.info(f"PARTITION EXECUTED: {user.get_display_name()} applies partition shield to {target.get_display_name()}")
         
         # Note: Severance passive bonus already applied during planning phase
