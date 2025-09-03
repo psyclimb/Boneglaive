@@ -2022,10 +2022,20 @@ class Game:
                         actual_damage = unit.deal_damage(abreaction_damage, can_kill=False)
                         
                         message_log.add_message(
-                            f"{unit.get_display_name()} suffers {actual_damage} abreaction damage!",
-                            MessageType.COMBAT,
+                            f"{unit.get_display_name()} suffers #DAMAGE_{actual_damage}# abreaction damage",
+                            MessageType.ABILITY,
                             player=unit.player
                         )
+                        
+                        # Show abreaction animation - final nerve pathway fracture
+                        if ui and hasattr(ui, 'renderer'):
+                            abreaction_animation = ['╬', '╫', '╪', 'χ', 'Χ', '*', '#', '@', '!']  # Complete neural fracture
+                            ui.renderer.animate_attack_sequence(
+                                unit.y, unit.x,
+                                abreaction_animation,
+                                6,  # Yellow color matching initial effect
+                                0.4  # Same timing as initial animation
+                            )
                         
                         logger.info(f"ABREACTION: {unit.get_display_name()} takes {actual_damage} damage")
                     
@@ -2048,12 +2058,6 @@ class Game:
                             MessageType.ABILITY,
                             player=unit.player
                         )
-                    else:
-                        message_log.add_message(
-                            f"{unit.get_display_name()}'s Vagal Run abreaction completes",
-                            MessageType.ABILITY,
-                            player=unit.player
-                        )
             
             # Process Derelicted status effect (immobilization)
             if hasattr(unit, 'derelicted') and unit.derelicted and hasattr(unit, 'derelicted_duration'):
@@ -2067,12 +2071,6 @@ class Game:
                     unit.derelicted = False
                     unit.derelicted_duration = 0
                     
-                    # Log the expiration
-                    message_log.add_message(
-                        f"{unit.get_display_name()} recovers from abandonment trauma and can move again",
-                        MessageType.ABILITY,
-                        player=unit.player
-                    )
             
             # Process Partition Shield duration
             if hasattr(unit, 'partition_shield_active') and unit.partition_shield_active and hasattr(unit, 'partition_shield_duration'):
@@ -3328,6 +3326,12 @@ class Game:
         # Apply derelicted status to protected unit
         protected_unit.derelicted = True
         protected_unit.derelicted_duration = 1  # Standard derelict duration
+        
+        message_log.add_message(
+            f"{protected_unit.get_display_name()} becomes anchored by abandonment",
+            MessageType.WARNING,
+            player=protected_unit.player
+        )
         
         # Remove partition shield
         protected_unit.partition_shield_active = False
