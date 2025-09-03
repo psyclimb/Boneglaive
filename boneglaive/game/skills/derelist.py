@@ -43,7 +43,7 @@ class Severance(PassiveSkill):
         super().__init__(
             name="Severance",
             key="S",
-            description="After using a skill, can move with +1 range (4 instead of 3). Cannot move twice in one turn."
+            description="After using a skill, can move with +1 range. Cannot move twice in one turn."
         )
     
     def apply_passive(self, user: 'Unit', game: Optional['Game'] = None) -> None:
@@ -63,7 +63,7 @@ class VagalRunSkill(ActiveSkill):
         super().__init__(
             name="Vagal Run",
             key="V", 
-            description="Immediately deals piercing damage (3 at range 1, reduced by distance) and clears all status effects. After 3 turns, abreaction deals same damage and clears status effects again.",
+            description="Immediately deals piercing damage and clears all status effects. After 3 turns, abreaction deals same damage and clears status effects again.",
             target_type=TargetType.ALLY,
             cooldown=4,
             range_=3
@@ -123,7 +123,7 @@ class VagalRunSkill(ActiveSkill):
         target_name = target.get_display_name() if target else "ally"
         
         message_log.add_message(
-            f"{user.get_display_name()} prepares to enhance {target_name} with Vagal Run",
+            f"{user.get_display_name()} prepares to cleanse {target_name}",
             MessageType.ABILITY,
             player=user.player
         )
@@ -162,8 +162,9 @@ class VagalRunSkill(ActiveSkill):
             actual_damage = target.deal_damage(piercing_damage, can_kill=False)
             
             message_log.add_message(
-                f"{target.get_display_name()} takes {actual_damage} trauma processing damage",
-                MessageType.COMBAT
+                f"{user.get_display_name()} rocks {target.get_display_name()}'s vagus nerve for #DAMAGE_{actual_damage}# damage",
+                MessageType.ABILITY,
+                player=target.player
             )
         
         # Clear ALL status effects immediately
@@ -171,13 +172,13 @@ class VagalRunSkill(ActiveSkill):
         
         # Show execution animation if UI available
         if ui and hasattr(ui, 'renderer'):
-            # Vagal run animation - cleansing waves
-            vagal_animation = ['~', '≈', '∿', '≈', '~']
+            # Vagal run animation - trauma cracking through the nerve pathway
+            vagal_animation = ['┃', '╎', '╏', '╿', '╽', '/', '\\', '~', '≈', '∼']  # Nerve pathway fracturing
             ui.renderer.animate_attack_sequence(
                 target_pos[0], target_pos[1],
                 vagal_animation,
-                6,  # Yellow color for vagal run
-                0.1
+                6,  # Yellow color for trauma processing  
+                0.4  # Much slower for visibility
             )
         
         # Generate message about cleared effects
@@ -185,11 +186,6 @@ class VagalRunSkill(ActiveSkill):
             effects_text = ", ".join(cleared_effects)
             message_log.add_message(
                 f"{target.get_display_name()}'s Vagal Run sloughs off {effects_text}",
-                MessageType.ABILITY
-            )
-        else:
-            message_log.add_message(
-                f"{target.get_display_name()} undergoes trauma processing",
                 MessageType.ABILITY
             )
         
@@ -276,7 +272,7 @@ class VagalRunSkill(ActiveSkill):
             target.status_site_inspection_partial = False
             if hasattr(target, 'status_site_inspection_partial_duration'):
                 target.status_site_inspection_partial_duration = 0
-            cleared_effects.append("Site Inspection (Partial)")
+            cleared_effects.append("Site Inspection Partial")
             
         if hasattr(target, 'valuation_oracle_buff') and target.valuation_oracle_buff:
             target.valuation_oracle_buff = False
@@ -345,7 +341,7 @@ class DerelictSkill(ActiveSkill):
         super().__init__(
             name="Derelict",
             key="D",
-            description="Push ally 4 tiles away in straight line. Ally heals for 3 HP + distance from DERELIST and becomes immobilized for 1 turn.",
+            description="Push ally 4 tiles away in straight line. Ally heals for 3 HP + distance from DERELIST and becomes immobilized for 1 turn",
             target_type=TargetType.ALLY,
             cooldown=4,
             range_=3
@@ -417,7 +413,7 @@ class DerelictSkill(ActiveSkill):
         target_name = target.get_display_name() if target else "ally"
         
         message_log.add_message(
-            f"{user.get_display_name()} prepares to convey {target_name} away",
+            f"{user.get_display_name()} prepares to derelict {target_name}",
             MessageType.ABILITY,
             player=user.player
         )
@@ -458,15 +454,15 @@ class DerelictSkill(ActiveSkill):
             
             logger.warning(f"No stored push direction, using fallback: ({dy},{dx})")
         
-        # Show abandonment animation if UI available
+        # Show conveyance animation if UI available
         if ui and hasattr(ui, 'renderer'):
-            # Abandonment animation - pushing effect
-            abandon_animation = ['>', '>>', '>>>', '>>', '>']
+            # Conveyance animation - abstract transportation/displacement
+            conveyance_animation = ['•', 'o', 'O', '~', '≈', '∼', '*', '+', '=', '∅']  # Being conveyed away
             ui.renderer.animate_attack_sequence(
                 target_pos[0], target_pos[1],
-                abandon_animation,
-                3,  # Red color for abandonment
-                0.15
+                conveyance_animation,
+                3,  # Red color for therapeutic displacement
+                0.4  # Same timing as other animations
             )
         
         # Try to push 4 tiles in that direction
@@ -502,48 +498,68 @@ class DerelictSkill(ActiveSkill):
             
         heal_amount = 3 + distance_to_derelist
         
-        # Apply healing
+        # Show push result message with coordinates
+        message_log.add_message(
+            f"{target.get_display_name()} was pushed {push_distance} tiles to ({final_y}, {final_x})",
+            MessageType.ABILITY,
+            player=target.player
+        )
+        
+        # Apply healing if needed
         if target.hp < target.max_hp:
             old_hp = target.hp
             target.hp = min(target.max_hp, target.hp + heal_amount)
             actual_heal = target.hp - old_hp
             
-            message_log.add_message(
-                f"{target.get_display_name()} pushed {push_distance} tiles and healed for {actual_heal} HP!",
-                MessageType.ABILITY
-            )
-            
-            # Show healing effect on map if UI is available
-            if ui and hasattr(ui, 'renderer') and actual_heal > 0:
-                import curses
-                import time
-                from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+            if actual_heal > 0:
+                message_log.add_message(
+                    f"{target.get_display_name()} heals for {actual_heal} HP",
+                    MessageType.ABILITY,
+                    player=target.player
+                )
                 
-                healing_text = f"+{actual_heal}"
-                
-                # Make healing text prominent with flashing effect (green color)
-                for i in range(3):
-                    # First clear the area
-                    ui.renderer.draw_damage_text(target.y-1, target.x*2, " " * len(healing_text), 7)
-                    # Draw with alternating bold/normal for a flashing effect
-                    attrs = curses.A_BOLD if i % 2 == 0 else 0
-                    ui.renderer.draw_damage_text(target.y-1, target.x*2, healing_text, 3, attrs)  # Green color
+                # Show healing effect on map if UI is available
+                if ui and hasattr(ui, 'renderer'):
+                    import curses
+                    import time
+                    from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+                    
+                    healing_text = f"+{actual_heal}"
+                    
+                    # Make healing text prominent with flashing effect (green color)
+                    for i in range(3):
+                        # First clear the area
+                        ui.renderer.draw_damage_text(target.y-1, target.x*2, " " * len(healing_text), 7)
+                        # Draw with alternating bold/normal for a flashing effect
+                        attrs = curses.A_BOLD if i % 2 == 0 else 0
+                        ui.renderer.draw_damage_text(target.y-1, target.x*2, healing_text, 3, attrs)  # Green color
+                        ui.renderer.refresh()
+                        sleep_with_animation_speed(0.1)
+                    
+                    # Final healing display (stays on screen slightly longer)
+                    ui.renderer.draw_damage_text(target.y-1, target.x*2, healing_text, 3, curses.A_BOLD)
                     ui.renderer.refresh()
-                    sleep_with_animation_speed(0.1)
-                
-                # Final healing display (stays on screen slightly longer)
-                ui.renderer.draw_damage_text(target.y-1, target.x*2, healing_text, 3, curses.A_BOLD)
-                ui.renderer.refresh()
-                sleep_with_animation_speed(0.3)  # Match the 0.3s delay used in other healing
-        else:
-            message_log.add_message(
-                f"{target.get_display_name()} pushed {push_distance} tiles (already at full health)!",
-                MessageType.ABILITY
-            )
+                    sleep_with_animation_speed(0.3)  # Match the 0.3s delay used in other healing
         
         # Apply Derelicted status (immobilization for 1 turn)
         target.derelicted = True
         target.derelicted_duration = 1
+        
+        message_log.add_message(
+            f"{target.get_display_name()} becomes anchored by abandonment",
+            MessageType.WARNING,
+            player=target.player
+        )
+        
+        # Show dereliction animation - becoming anchored/bolted down
+        if ui and hasattr(ui, 'renderer'):
+            derelict_animation = ['|', 'T', '+', '#', '╬', '╫', '╪', 'H', 'X', '∅']  # Structure forming, then abandonment
+            ui.renderer.animate_attack_sequence(
+                target.y, target.x,
+                derelict_animation,
+                1,  # Red color for abandonment trauma
+                0.6  # Slower for heavy, deliberate immobilization
+            )
         
         # Clean up stored direction data
         if hasattr(target, 'derelict_push_direction'):
@@ -566,7 +582,7 @@ class PartitionSkill(ActiveSkill):
         super().__init__(
             name="Partition",
             key="P",
-            description="Grant ally shield that blocks 1 damage from all sources for 3 turns. If unit would take fatal damage, completely blocks all damage that turn, then ends effect, teleports DERELIST 4 tiles away, and applies Derelicted.",
+            description="Grant ally shield that blocks 1 damage from all sources for 3 turns. If unit would take fatal damage, completely blocks all damage that turn, then ends effect, teleports DERELIST 4 tiles away, and applies Derelicted",
             target_type=TargetType.ALLY,
             cooldown=4,
             range_=3
@@ -648,13 +664,13 @@ class PartitionSkill(ActiveSkill):
             
         # Show partition animation if UI available
         if ui and hasattr(ui, 'renderer'):
-            # Partition animation - protective barrier forming
-            partition_animation = ['[', '[[', '[[[', '[[', '[']
+            # Partition animation - mental barriers forming around the mind
+            partition_animation = ['(', '[', '{', '|', '||', '#', 'Ω', 'θ', ')', ']']  # Mental barriers solidifying
             ui.renderer.animate_attack_sequence(
                 target_pos[0], target_pos[1],
                 partition_animation,
                 4,  # Blue color for protection
-                0.12
+                0.4  # Slow, deliberate barrier formation
             )
         
         # Apply new partition shield system
@@ -666,7 +682,7 @@ class PartitionSkill(ActiveSkill):
         target.prt = 1  # Set partition stat to 1 for universal damage reduction
         
         message_log.add_message(
-            f"{target.get_display_name()} gains partition shield (blocks 1 damage) for 3 turns!",
+            f"{target.get_display_name()} gains partition shield",
             MessageType.ABILITY
         )
         

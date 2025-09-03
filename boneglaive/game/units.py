@@ -542,6 +542,13 @@ class Unit:
                 self.derelicted = True
                 self.derelicted_duration = 1
                 
+                from boneglaive.utils.message_log import message_log, MessageType
+                message_log.add_message(
+                    f"{self.get_display_name()} becomes anchored by abandonment",
+                    MessageType.WARNING,
+                    player=self.player
+                )
+                
                 # Remove partition shield status (but keep prt=999 until end of turn)
                 self.partition_shield_active = False
                 self.partition_shield_duration = 0
@@ -557,6 +564,16 @@ class Unit:
                 
                 self.partition_shield_caster = None
                 self.partition_shield_emergency_active = False
+                
+                # Show dissociation animation - eyes rolling back, complete mental separation  
+                if self._game and hasattr(self._game, 'ui') and self._game.ui and hasattr(self._game.ui, 'renderer'):
+                    dissociation_animation = ['o', 'O', '0', '^', '_', '-', '=', '≡', '∅', 'Φ']  # Eyes rolling back into skull
+                    self._game.ui.renderer.animate_attack_sequence(
+                        self.y, self.x,
+                        dissociation_animation,
+                        7,  # White/bright for dissociation
+                        0.8  # Much slower for dramatic eye rolling effect
+                    )
                 
                 from boneglaive.utils.message_log import message_log, MessageType
                 message_log.add_message(
