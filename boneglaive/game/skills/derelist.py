@@ -159,7 +159,7 @@ class VagalRunSkill(ActiveSkill):
         
         # Apply immediate piercing damage (ignores defense, can't kill)
         if piercing_damage > 0:
-            actual_damage = target.apply_damage_with_protection(piercing_damage, can_kill=False, damage_source="Vagal Run trauma processing")
+            actual_damage = target.deal_damage(piercing_damage, can_kill=False)
             
             message_log.add_message(
                 f"{target.get_display_name()} takes {actual_damage} trauma processing damage",
@@ -568,7 +568,7 @@ class PartitionSkill(ActiveSkill):
             key="P",
             description="Grant ally shield that blocks 1 damage from all sources for 3 turns. If unit would take fatal damage, completely blocks all damage that turn, then ends effect, teleports DERELIST 4 tiles away, and applies Derelicted.",
             target_type=TargetType.ALLY,
-            cooldown=5,
+            cooldown=4,
             range_=3
         )
     

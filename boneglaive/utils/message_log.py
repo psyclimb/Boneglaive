@@ -104,17 +104,7 @@ class MessageLog:
             attacker_player: Player number of attacker (optional)
             target_player: Player number of target (optional)
         """
-        # Automatically adjust damage display based on target's PRT value
-        display_damage = damage
-        target_unit = self._find_unit_by_name(target_name)
-        if target_unit and hasattr(target_unit, 'prt') and target_unit.prt > 0:
-            # Reduce displayed damage by target's PRT value
-            display_damage = max(0, damage - target_unit.prt)
-            from boneglaive.utils.debug import logger
-            logger.info(f"AUTO-PRT MESSAGE: Adjusted {target_name} damage display from {damage} to {display_damage}")
-        
-        # Use adjusted damage for message display
-        damage = display_damage
+        # Engine now passes actual damage dealt (after PRT reduction), so no adjustment needed
         # Simple message format without player prefixes
         # The get_formatted_messages method will color the unit names appropriately
         if ability == "Viseroy Trap":

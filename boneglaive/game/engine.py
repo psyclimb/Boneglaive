@@ -2018,8 +2018,8 @@ class Game:
                     abreaction_damage = getattr(unit, 'vagal_run_abreaction_damage', 0)
                     
                     if abreaction_damage > 0:
-                        # Apply abreaction damage using centralized method (can't kill)
-                        actual_damage = unit.apply_damage_with_protection(abreaction_damage, can_kill=False, damage_source="Vagal Run abreaction")
+                        # Apply abreaction damage (can't kill)
+                        actual_damage = unit.deal_damage(abreaction_damage, can_kill=False)
                         
                         message_log.add_message(
                             f"{unit.get_display_name()} suffers {actual_damage} abreaction damage!",
@@ -2505,40 +2505,13 @@ class Game:
                         effective_attack = effective_stats['attack']
                         effective_defense = target.get_effective_stats()['defense']
                         
-                        # Universal damage calculation: PRT → DEF → HP
+                        # Calculate damage with defense (PRT handled automatically by HP setter)
                         raw_damage = effective_attack
                         
-                        # Step 1: Apply PRT (partition) reduction first
-                        prt_absorbed = 0
-                        if target.prt > 0:
-                            prt_absorbed = min(raw_damage, target.prt)
-                            raw_damage = max(0, raw_damage - prt_absorbed)
-                            if prt_absorbed > 0:
-                                message_log.add_message(
-                                    f"{target.get_display_name()}'s partition takes {prt_absorbed} damage",
-                                    MessageType.ABILITY
-                                )
-                                logger.info(f"PRT REDUCTION: Absorbed {prt_absorbed} damage, {raw_damage} remains")
-                        
-                        # Step 2: Check for fatal damage emergency intervention (only if partition shield active)
-                        if (hasattr(target, 'partition_shield_active') and target.partition_shield_active and 
-                            target.prt > 0 and (target.hp - raw_damage) <= 0 and 
-                            not getattr(target, 'partition_shield_blocked_fatal', False)):
-                            # Emergency intervention - block ALL remaining damage
-                            raw_damage = 0
-                            target.partition_shield_emergency_active = True
-                            target.partition_shield_blocked_fatal = True
-                            
-                            message_log.add_message(
-                                f"{target.get_display_name()}'s partition shield blocks fatal damage!",
-                                MessageType.ABILITY
-                            )
-                            logger.info(f"PARTITION EMERGENCY: Blocked fatal damage to {target.get_display_name()}")
-                        
-                        # Step 3: Apply defense to remaining damage (after PRT absorption)
+                        # Apply defense to damage
                         # GRAYMAN's attacks bypass defense (both original and echo)
                         if unit.type == UnitType.GRAYMAN or (hasattr(unit, 'is_echo') and unit.is_echo and unit.type == UnitType.GRAYMAN):
-                            damage = raw_damage  # Bypass defense, but partition already absorbed 1
+                            damage = raw_damage  # Bypass defense (PRT handled by HP setter)
                             
                             from boneglaive.utils.message_log import message_log, MessageType
                             # Different messages for original GRAYMAN vs echo
@@ -2557,8 +2530,8 @@ class Game:
                                     target_name=target.get_display_name()
                                 )
                         else:
-                            # Normal defense calculation on remaining damage
-                            damage = max(1, raw_damage - effective_defense) if raw_damage > 0 else 0
+                            # Normal defense calculation
+                            damage = max(1, raw_damage - effective_defense)
                         
                         # Store previous HP to check for status changes
                         previous_hp = target.hp
@@ -2635,12 +2608,14 @@ class Game:
                                 for strike in range(2):
                                     if target.hp > 0:  # Only continue if target is still alive
                                         additional_damage = max(1, effective_attack - effective_defense)
+                                        old_target_hp = target.hp
                                         target.hp = max(0, target.hp - additional_damage)
+                                        actual_additional_damage = old_target_hp - target.hp
                                         
                                         message_log.add_combat_message(
                                             attacker_name=unit.get_display_name(),
                                             target_name=target.get_display_name(),
-                                            damage=additional_damage,
+                                            damage=actual_additional_damage,
                                             ability=f"Karrier Rave Strike {strike + 2}",
                                             attacker_player=unit.player,
                                             target_player=target.player
@@ -3430,6 +3405,12 @@ class Game:
                 
                 # Reset partition message flag for new turn
                 unit._prt_absorbed_this_action = False
+                
+                # Reset dissociation PRT boost (from prt=999 back to 0)
+                if unit.prt > 1:  # If boosted from dissociation
+                    unit.prt = 0
+                    from boneglaive.utils.debug import logger
+                    logger.info(f"DISSOCIATION RESET: {unit.get_display_name()} prt reset to 0")
                 
                 # Reset DERELIST movement/skill flags at start of turn (Severance passive)
                 if unit.type == UnitType.DERELIST:
