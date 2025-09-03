@@ -49,6 +49,10 @@ class Game:
         self.event_manager = get_event_manager()
         self.event_manager.subscribe(EventType.EFFECT_EXPIRED, self._handle_effect_expired)
         
+        # Set game reference in message log for PRT calculations
+        from boneglaive.utils.message_log import message_log
+        message_log.set_game_reference(self)
+        
         # Apply passive skills for current player's units
         for unit in self.units:
             if unit.is_alive() and unit.player == self.current_player:
@@ -2010,45 +2014,46 @@ class Game:
                 
                 # Check if the status effect has expired
                 if unit.vagal_run_duration <= 0:
-                    # Calculate abreaction damage
-                    damage_taken = getattr(unit, 'vagal_run_damage_taken', 0)
-                    caster = getattr(unit, 'vagal_run_caster', None)
+                    # Apply abreaction damage (same amount as original trauma processing)
+                    abreaction_damage = getattr(unit, 'vagal_run_abreaction_damage', 0)
                     
-                    if damage_taken > 0 and caster:
-                        # Calculate distance from original caster
-                        distance = abs(unit.y - caster.y) + abs(unit.x - caster.x)
+                    if abreaction_damage > 0:
+                        # Apply abreaction damage using centralized method (can't kill)
+                        actual_damage = unit.apply_damage_with_protection(abreaction_damage, can_kill=False, damage_source="Vagal Run abreaction")
                         
-                        # Abreaction damage = damage taken, reduced by 10% per tile of distance
-                        reduction_percent = min(distance * 10, 100)  # Cap at 100% reduction
-                        abreaction_damage = int(damage_taken * (100 - reduction_percent) / 100)
+                        message_log.add_message(
+                            f"{unit.get_display_name()} suffers {actual_damage} abreaction damage!",
+                            MessageType.COMBAT,
+                            player=unit.player
+                        )
                         
-                        if abreaction_damage > 0:
-                            # Apply piercing damage (ignores defense)
-                            old_hp = unit.hp
-                            unit.hp = max(1, unit.hp - abreaction_damage)  # Can't kill with abreaction
-                            actual_damage = old_hp - unit.hp
-                            
-                            message_log.add_message(
-                                f"{unit.get_display_name()} suffers {actual_damage} abreaction damage!",
-                                MessageType.COMBAT,
-                                player=unit.player
-                            )
-                            
-                            logger.info(f"ABREACTION: {unit.get_display_name()} takes {actual_damage} damage (distance: {distance}, reduction: {reduction_percent}%)")
+                        logger.info(f"ABREACTION: {unit.get_display_name()} takes {actual_damage} damage")
                     
-                    # Remove the vagal run effect and attack bonus
+                    # Clear ALL status effects again during abreaction
+                    from boneglaive.game.skills.derelist import VagalRunSkill
+                    vagal_skill = VagalRunSkill()
+                    cleared_effects = vagal_skill._clear_all_status_effects(unit)
+                    
+                    # Remove the vagal run effect
                     unit.vagal_run_active = False
                     unit.vagal_run_duration = 0
-                    unit.vagal_run_damage_taken = 0
+                    unit.vagal_run_abreaction_damage = 0
                     unit.vagal_run_caster = None
-                    unit.attack_bonus -= 3
                     
-                    # Log the expiration
-                    message_log.add_message(
-                        f"{unit.get_display_name()}'s Vagal Run effect ends",
-                        MessageType.ABILITY,
-                        player=unit.player
-                    )
+                    # Log the expiration with cleared effects
+                    if cleared_effects:
+                        effects_text = ", ".join(cleared_effects)
+                        message_log.add_message(
+                            f"{unit.get_display_name()}'s Vagal Run abreaction sloughs off {effects_text}",
+                            MessageType.ABILITY,
+                            player=unit.player
+                        )
+                    else:
+                        message_log.add_message(
+                            f"{unit.get_display_name()}'s Vagal Run abreaction completes",
+                            MessageType.ABILITY,
+                            player=unit.player
+                        )
             
             # Process Derelicted status effect (immobilization)
             if hasattr(unit, 'derelicted') and unit.derelicted and hasattr(unit, 'derelicted_duration'):
@@ -2079,9 +2084,11 @@ class Game:
                 if unit.partition_shield_duration <= 0:
                     # Remove the shield
                     unit.partition_shield_active = False
-                    unit.partition_shield_strength = 0
                     unit.partition_shield_duration = 0
                     unit.partition_shield_caster = None
+                    unit.partition_shield_emergency_active = False
+                    unit.partition_shield_blocked_fatal = False
+                    unit.prt = 0  # Reset partition stat
                     
                     # Log the expiration
                     message_log.add_message(
@@ -2493,15 +2500,45 @@ class Game:
                         if ui:
                             ui.show_attack_animation(unit, target)
                         
-                        # Calculate damage using effective stats (including bonuses)
-                        # Defense acts as flat damage reduction
+                        # Calculate base attack damage
                         effective_stats = unit.get_effective_stats()
                         effective_attack = effective_stats['attack']
                         effective_defense = target.get_effective_stats()['defense']
                         
+                        # Universal damage calculation: PRT → DEF → HP
+                        raw_damage = effective_attack
+                        
+                        # Step 1: Apply PRT (partition) reduction first
+                        prt_absorbed = 0
+                        if target.prt > 0:
+                            prt_absorbed = min(raw_damage, target.prt)
+                            raw_damage = max(0, raw_damage - prt_absorbed)
+                            if prt_absorbed > 0:
+                                message_log.add_message(
+                                    f"{target.get_display_name()}'s partition takes {prt_absorbed} damage",
+                                    MessageType.ABILITY
+                                )
+                                logger.info(f"PRT REDUCTION: Absorbed {prt_absorbed} damage, {raw_damage} remains")
+                        
+                        # Step 2: Check for fatal damage emergency intervention (only if partition shield active)
+                        if (hasattr(target, 'partition_shield_active') and target.partition_shield_active and 
+                            target.prt > 0 and (target.hp - raw_damage) <= 0 and 
+                            not getattr(target, 'partition_shield_blocked_fatal', False)):
+                            # Emergency intervention - block ALL remaining damage
+                            raw_damage = 0
+                            target.partition_shield_emergency_active = True
+                            target.partition_shield_blocked_fatal = True
+                            
+                            message_log.add_message(
+                                f"{target.get_display_name()}'s partition shield blocks fatal damage!",
+                                MessageType.ABILITY
+                            )
+                            logger.info(f"PARTITION EMERGENCY: Blocked fatal damage to {target.get_display_name()}")
+                        
+                        # Step 3: Apply defense to remaining damage (after PRT absorption)
                         # GRAYMAN's attacks bypass defense (both original and echo)
                         if unit.type == UnitType.GRAYMAN or (hasattr(unit, 'is_echo') and unit.is_echo and unit.type == UnitType.GRAYMAN):
-                            damage = effective_attack  # Bypass defense completely
+                            damage = raw_damage  # Bypass defense, but partition already absorbed 1
                             
                             from boneglaive.utils.message_log import message_log, MessageType
                             # Different messages for original GRAYMAN vs echo
@@ -2520,20 +2557,17 @@ class Game:
                                     target_name=target.get_display_name()
                                 )
                         else:
-                            damage = max(1, effective_attack - effective_defense)
+                            # Normal defense calculation on remaining damage
+                            damage = max(1, raw_damage - effective_defense) if raw_damage > 0 else 0
                         
                         # Store previous HP to check for status changes
                         previous_hp = target.hp
                         critical_threshold = int(target.max_hp * CRITICAL_HEALTH_PERCENT)
                         
-                        # Apply damage
+                        # Apply final damage to HP (PRT reduction happens automatically in hp setter)
+                        old_hp = target.hp
                         target.hp = max(0, target.hp - damage)
-                        
-                        # Track damage for Vagal Run abreaction
-                        if hasattr(target, 'vagal_run_active') and target.vagal_run_active:
-                            if not hasattr(target, 'vagal_run_damage_taken'):
-                                target.vagal_run_damage_taken = 0
-                            target.vagal_run_damage_taken += damage
+                        actual_damage = old_hp - target.hp
                     
                     # Check if attacker is a MANDIBLE_FOREMAN with the Viseroy passive
                     # If so, trap the target unit
@@ -2562,7 +2596,7 @@ class Game:
                     
                     # Award XP to the attacker based on damage dealt
                     from boneglaive.utils.constants import XP_DAMAGE_FACTOR, XP_KILL_REWARD
-                    xp_gained = int(damage * XP_DAMAGE_FACTOR)
+                    xp_gained = int(actual_damage * XP_DAMAGE_FACTOR)
                     
                     # Additional XP for killing the target (only applicable when target is a unit, not a wall)
                     if target and target.hp <= 0:
@@ -2579,11 +2613,11 @@ class Game:
                     
                     # Only log combat messages and handle unit death for unit targets (not walls)
                     if target:
-                        # Log combat message
+                        # Log combat message with actual damage dealt
                         message_log.add_combat_message(
                             attacker_name=unit.get_display_name(),
                             target_name=target.get_display_name(),
-                            damage=damage,
+                            damage=actual_damage,
                             attacker_player=unit.player,
                             target_player=target.player
                         )
@@ -2745,11 +2779,13 @@ class Game:
                 
                 # Apply the damage
                 damage = 1
+                old_hp = unit.hp
                 unit.hp = max(0, unit.hp - damage)
+                actual_damage = old_hp - unit.hp
                 
                 # Show damage number if UI is available
                 if ui and hasattr(ui, 'renderer'):
-                    damage_text = f"-{damage}"
+                    damage_text = f"-{actual_damage}"
                     
                     # Make damage text more prominent with flashing effect (like FOWL_CONTRIVANCE)
                     for i in range(3):
@@ -3284,6 +3320,12 @@ class Game:
                     if not unit.was_pried:
                         unit.reset_movement_penalty()
                         
+            # Process Partition Shield emergency cleanup for ALL units (regardless of player)
+            for unit in self.units:
+                if (unit.is_alive() and hasattr(unit, 'partition_shield_blocked_fatal') and 
+                    unit.partition_shield_blocked_fatal):
+                    self._handle_partition_emergency_cleanup(unit)
+                        
             # In single player mode, automatically toggle between player 1 and 2
             # In multiplayer modes, the multiplayer manager handles player switching
             if not self.local_multiplayer:
@@ -3296,6 +3338,83 @@ class Game:
                 # Initialize the new player's turn
                 self.initialize_next_player_turn()
             
+    def _handle_partition_emergency_cleanup(self, protected_unit):
+        """Handle the cleanup when a partition shield blocks fatal damage."""
+        if not hasattr(protected_unit, 'partition_shield_caster'):
+            return
+            
+        caster = protected_unit.partition_shield_caster
+        if not caster or not caster.is_alive():
+            return
+            
+        # Teleport DERELIST 4 tiles away
+        self._teleport_derelist_away(caster, protected_unit, distance=4)
+        
+        # Apply derelicted status to protected unit
+        protected_unit.derelicted = True
+        protected_unit.derelicted_duration = 1  # Standard derelict duration
+        
+        # Remove partition shield
+        protected_unit.partition_shield_active = False
+        protected_unit.partition_shield_duration = 0
+        protected_unit.partition_shield_damage_reduction = 0
+        protected_unit.partition_shield_emergency_active = False
+        protected_unit.partition_shield_blocked_fatal = False
+        protected_unit.partition_shield_caster = None
+        
+        message_log.add_message(
+            f"{protected_unit.get_display_name()}'s partition emergency ends - {caster.get_display_name()} teleports away and abandonment trauma sets in",
+            MessageType.ABILITY
+        )
+        
+        logger.info(f"PARTITION EMERGENCY CLEANUP: {caster.get_display_name()} teleported away, {protected_unit.get_display_name()} derelicted")
+    
+    def _teleport_derelist_away(self, derelist, protected_unit, distance=4):
+        """Teleport DERELIST away from the protected unit."""
+        # Find a valid position at exactly 'distance' tiles away
+        start_y, start_x = derelist.y, derelist.x
+        protected_y, protected_x = protected_unit.y, protected_unit.x
+        
+        # Try positions at the specified distance
+        possible_positions = []
+        for dy in range(-distance, distance + 1):
+            for dx in range(-distance, distance + 1):
+                manhattan_dist = abs(dy) + abs(dx)
+                if manhattan_dist == distance:  # Exactly at the specified distance
+                    new_y = protected_y + dy
+                    new_x = protected_x + dx
+                    
+                    if (self.is_valid_position(new_y, new_x) and 
+                        self.map.is_passable(new_y, new_x) and
+                        self.get_unit_at(new_y, new_x) is None):
+                        possible_positions.append((new_y, new_x))
+        
+        # If no positions at exact distance, try closer
+        if not possible_positions:
+            for check_distance in range(distance - 1, 0, -1):
+                for dy in range(-check_distance, check_distance + 1):
+                    for dx in range(-check_distance, check_distance + 1):
+                        manhattan_dist = abs(dy) + abs(dx)
+                        if manhattan_dist == check_distance:
+                            new_y = protected_y + dy
+                            new_x = protected_x + dx
+                            
+                            if (self.is_valid_position(new_y, new_x) and 
+                                self.map.is_passable(new_y, new_x) and
+                                self.get_unit_at(new_y, new_x) is None):
+                                possible_positions.append((new_y, new_x))
+                if possible_positions:
+                    break
+        
+        # Move DERELIST to the closest available position
+        if possible_positions:
+            import random
+            chosen_pos = random.choice(possible_positions)
+            derelist.y, derelist.x = chosen_pos
+            logger.info(f"DERELIST teleported from ({start_y},{start_x}) to ({chosen_pos[0]},{chosen_pos[1]})")
+        else:
+            logger.warning(f"Could not find valid teleport position for DERELIST")
+
     def initialize_next_player_turn(self):
         """
         Initialize the next player's turn by applying passive skills and resetting flags.
@@ -3308,6 +3427,9 @@ class Game:
                 unit.apply_passive_skills(self)
                 # Initialize the flag for health regeneration
                 unit.took_no_actions = True
+                
+                # Reset partition message flag for new turn
+                unit._prt_absorbed_this_action = False
                 
                 # Reset DERELIST movement/skill flags at start of turn (Severance passive)
                 if unit.type == UnitType.DERELIST:

@@ -21,6 +21,8 @@ class Unit:
         # Use private attributes for position to enable property setters
         self._y = y
         self._x = x
+        self._applying_damage = False  # Flag to prevent infinite recursion
+        self._prt_absorbed_this_action = False  # Flag to prevent duplicate partition messages
         
         # Game reference for trap checks (will be set by engine)
         self._game = None
@@ -45,6 +47,7 @@ class Unit:
         self.defense_bonus = 0
         self.move_range_bonus = 0
         self.attack_range_bonus = 0
+        self.prt = 0  # Partition stat - reduces damage before defense
         
         # Action targets
         self.move_target = None
@@ -389,6 +392,16 @@ class Unit:
         # All other units can move normally
         return game.map.is_passable(y, x)
     
+
+    def deal_damage(self, damage: int, can_kill: bool = True) -> int:
+        """Apply damage and return actual damage dealt (after PRT reduction)."""
+        old_hp = self.hp
+        if can_kill:
+            self.hp = max(0, self.hp - damage)
+        else:
+            self.hp = max(1, self.hp - damage)
+        return old_hp - self.hp
+
     def apply_shrapnel_damage(self, game=None) -> int:
         """
         Apply shrapnel damage at the start of turn if unit has embedded shrapnel.
@@ -398,17 +411,17 @@ class Unit:
             return 0
             
         damage = 1  # Shrapnel always deals 1 damage
-        self.hp = max(0, self.hp - damage)
+        actual_damage = self.deal_damage(damage)
         self.shrapnel_duration -= 1
         
         from boneglaive.utils.message_log import message_log, MessageType
         message_log.add_message(
-            f"{self.get_display_name()} takes {damage} damage from embedded shrapnel!",
+            f"{self.get_display_name()} takes {actual_damage} damage from embedded shrapnel!",
             MessageType.ABILITY,
             player=self.player
         )
         
-        return damage
+        return actual_damage
     
     def add_xp(self, amount: int) -> bool:
         """
@@ -486,6 +499,11 @@ class Unit:
         
     @hp.setter
     def hp(self, value):
+        # Prevent infinite recursion during PRT damage processing
+        if hasattr(self, '_applying_damage') and self._applying_damage:
+            self._hp = value
+            return
+            
         # For HEINOUS_VAPOR with invulnerability flag, prevent HP reduction
         if self.type == UnitType.HEINOUS_VAPOR and hasattr(self, 'is_invulnerable') and self.is_invulnerable:
             # Only allow HP to increase, not decrease
@@ -500,8 +518,52 @@ class Unit:
                 if attempted_damage > 0:
                     # Only log to debug, don't add a message to the log
                     logger.debug(f"Invulnerable {self.get_display_name()} ignored {attempted_damage} damage")
+            return
+        
+        # Check if this is damage (HP reduction) and apply PRT
+        if value < self._hp and self.prt > 0:
+            # Calculate raw damage being attempted
+            raw_damage = self._hp - value
+            
+            # Apply PRT reduction
+            prt_absorbed = min(raw_damage, self.prt)
+            actual_damage = max(0, raw_damage - prt_absorbed)
+            
+            # Only show partition message once per action
+            if prt_absorbed > 0 and not self._prt_absorbed_this_action:
+                from boneglaive.utils.message_log import message_log, MessageType
+                message_log.add_message(
+                    f"{self.get_display_name()}'s partition takes {prt_absorbed} damage",
+                    MessageType.ABILITY
+                )
+                from boneglaive.utils.debug import logger
+                logger.info(f"PRT AUTO: {self.get_display_name()}'s partition absorbed {prt_absorbed} damage")
+                self._prt_absorbed_this_action = True
+            
+            # Check for emergency intervention
+            final_hp = self._hp - actual_damage
+            if (hasattr(self, 'partition_shield_active') and self.partition_shield_active and 
+                self.prt > 0 and final_hp <= 0 and 
+                not getattr(self, 'partition_shield_blocked_fatal', False)):
+                # Emergency intervention - block ALL remaining damage
+                actual_damage = 0
+                self.partition_shield_emergency_active = True
+                self.partition_shield_blocked_fatal = True
+                
+                from boneglaive.utils.message_log import message_log, MessageType
+                message_log.add_message(
+                    f"{self.get_display_name()}'s partition shield blocks fatal damage!",
+                    MessageType.ABILITY
+                )
+                from boneglaive.utils.debug import logger
+                logger.info(f"PARTITION EMERGENCY: Blocked fatal damage to {self.get_display_name()}")
+            
+            # Set flag to prevent recursion and apply final damage
+            self._applying_damage = True
+            self._hp = max(0, self._hp - actual_damage)
+            self._applying_damage = False
         else:
-            # Normal HP setting for all other units
+            # Normal HP setting (healing or non-damage changes)
             self._hp = value
             
     def expire(self):
