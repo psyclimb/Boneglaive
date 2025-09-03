@@ -521,47 +521,82 @@ class Unit:
             return
         
         # Check if this is damage (HP reduction) and apply PRT
-        if value < self._hp and self.prt > 0:
+        if value < self._hp:
             # Calculate raw damage being attempted
             raw_damage = self._hp - value
             
-            # Apply PRT reduction
-            prt_absorbed = min(raw_damage, self.prt)
-            actual_damage = max(0, raw_damage - prt_absorbed)
-            
-            # Only show partition message once per action
-            if prt_absorbed > 0 and not self._prt_absorbed_this_action:
-                from boneglaive.utils.message_log import message_log, MessageType
-                message_log.add_message(
-                    f"{self.get_display_name()}'s partition takes {prt_absorbed} damage",
-                    MessageType.ABILITY
-                )
-                from boneglaive.utils.debug import logger
-                logger.info(f"PRT AUTO: {self.get_display_name()}'s partition absorbed {prt_absorbed} damage")
-                self._prt_absorbed_this_action = True
-            
-            # Check for emergency intervention
-            final_hp = self._hp - actual_damage
+            # CHECK FOR DISSOCIATION FIRST - before any damage processing
             if (hasattr(self, 'partition_shield_active') and self.partition_shield_active and 
-                self.prt > 0 and final_hp <= 0 and 
+                self.prt > 0 and (self._hp - raw_damage) <= 0 and 
                 not getattr(self, 'partition_shield_blocked_fatal', False)):
-                # Emergency intervention - block ALL remaining damage
-                actual_damage = 0
-                self.partition_shield_emergency_active = True
-                self.partition_shield_blocked_fatal = True
+                
+                # DISSOCIATION TRIGGERED: Boost PRT to 999 for this turn
+                self.prt = 999  # All damage this turn absorbed by partition
+                self.partition_shield_blocked_fatal = True  # Mark for cleanup
+                
+                # Teleport DERELIST immediately
+                if hasattr(self, 'partition_shield_caster') and self.partition_shield_caster and self._game:
+                    self._game._teleport_derelist_away(self.partition_shield_caster, self, distance=4)
+                
+                # Apply derelicted immediately
+                self.derelicted = True
+                self.derelicted_duration = 1
+                
+                # Remove partition shield status (but keep prt=999 until end of turn)
+                self.partition_shield_active = False
+                self.partition_shield_duration = 0
+                
+                # Increase PARTITION cooldown to 8 turns as penalty for dissociation
+                if self.partition_shield_caster:
+                    for skill in self.partition_shield_caster.active_skills:
+                        if hasattr(skill, 'name') and skill.name == "Partition":
+                            skill.current_cooldown = 8
+                            from boneglaive.utils.debug import logger
+                            logger.info(f"DISSOCIATION PENALTY: {self.partition_shield_caster.get_display_name()}'s Partition cooldown set to 8")
+                            break
+                
+                self.partition_shield_caster = None
+                self.partition_shield_emergency_active = False
                 
                 from boneglaive.utils.message_log import message_log, MessageType
                 message_log.add_message(
-                    f"{self.get_display_name()}'s partition shield blocks fatal damage!",
-                    MessageType.ABILITY
+                    f"{self.get_display_name()} dissociates from reality!",
+                    MessageType.ABILITY,
+                    player=self.player
                 )
                 from boneglaive.utils.debug import logger
-                logger.info(f"PARTITION EMERGENCY: Blocked fatal damage to {self.get_display_name()}")
+                logger.info(f"DISSOCIATION: {self.get_display_name()} prt boosted to 999, DERELIST teleported, unit derelicted")
+                
+                # Block this damage and all subsequent damage will be absorbed by prt=999
+                self._applying_damage = True
+                self._hp = self._hp  # No damage applied
+                self._applying_damage = False
+                return
             
-            # Set flag to prevent recursion and apply final damage
-            self._applying_damage = True
-            self._hp = max(0, self._hp - actual_damage)
-            self._applying_damage = False
+            # Normal PRT processing if not fatal
+            if self.prt > 0:
+                # Apply PRT reduction
+                prt_absorbed = min(raw_damage, self.prt)
+                actual_damage = max(0, raw_damage - prt_absorbed)
+                
+                # Show partition message for each attack (not just once per turn)
+                if prt_absorbed > 0:
+                    from boneglaive.utils.message_log import message_log, MessageType
+                    message_log.add_message(
+                        f"{self.get_display_name()}'s partition takes #DAMAGE_{prt_absorbed}# damage",
+                        MessageType.ABILITY,
+                        player=self.player
+                    )
+                    from boneglaive.utils.debug import logger
+                    logger.info(f"PRT AUTO: {self.get_display_name()}'s partition absorbed {prt_absorbed} damage")
+                
+                # Apply final damage
+                self._applying_damage = True
+                self._hp = max(0, self._hp - actual_damage)
+                self._applying_damage = False
+            else:
+                # No PRT - apply damage normally
+                self._hp = value
         else:
             # Normal HP setting (healing or non-damage changes)
             self._hp = value
@@ -1133,113 +1168,6 @@ class Unit:
                 return skill
         return None
         
-    def take_damage(self, damage: int, source_unit=None, ability_name=None) -> int:
-        """
-        Apply damage to the unit and return the actual damage dealt.
-        
-        Args:
-            damage: Amount of damage to apply
-            source_unit: Unit causing the damage (for logging)
-            ability_name: Name of the ability causing the damage (for logging)
-            
-        Returns:
-            The actual amount of damage dealt
-        """
-        from boneglaive.utils.debug import logger
-        from boneglaive.utils.message_log import message_log, MessageType
-        from boneglaive.game.skills.derelist import calculate_distance
-        
-        # Check for invulnerability directly
-        if self.type == UnitType.HEINOUS_VAPOR and hasattr(self, 'is_invulnerable') and self.is_invulnerable and damage > 0:
-            # Only log to debug, don't add a message to the game log
-            attacker_name = source_unit.get_display_name() if source_unit else (ability_name or "Attack")
-            logger.debug(f"Invulnerable {self.get_display_name()} ignored {damage} damage from {attacker_name}")
-            return 0
-        
-        if damage <= 0:
-            return 0
-        
-        original_damage = damage
-        actual_damage_taken = 0
-        
-        # Step 1: Handle Partition shield if active
-        if hasattr(self, 'partition_shield_active') and self.partition_shield_active and self.partition_shield_strength > 0:
-            caster = getattr(self, 'partition_shield_caster', None)
-            if caster and caster.is_alive():
-                # Recalculate shield strength based on current distance
-                distance = calculate_distance(caster, self)
-                current_shield_strength = 3 + (distance // 2)
-                self.partition_shield_strength = current_shield_strength
-                
-                # Check if this damage would bring unit to critical health (≤30% max HP)
-                critical_threshold = int(self.max_hp * 0.3)
-                damage_after_shield = max(0, damage - self.partition_shield_strength)
-                would_be_critical = (self.hp - damage_after_shield) <= critical_threshold
-                
-                if would_be_critical and self.hp > critical_threshold:
-                    # Dissociation trigger: nullify damage AND reflect it back
-                    message_log.add_message(
-                        f"{self.get_display_name()}'s partition dissociates! Damage nullified and reflected!",
-                        MessageType.ABILITY
-                    )
-                    
-                    # Reflect damage back to source
-                    if source_unit and source_unit.is_alive():
-                        reflected_damage = source_unit.take_damage(original_damage, self, "Partition Reflection")
-                        logger.info(f"PARTITION: Reflected {reflected_damage} damage to {source_unit.get_display_name()}")
-                    
-                    # Teleport DERELIST to random position 3+ tiles away
-                    if hasattr(self, '_game') and self._game:
-                        self._teleport_derelist_away(caster)
-                    
-                    # Apply derelicted status to protected unit
-                    self.derelicted = True
-                    self.derelicted_duration = 1
-                    
-                    # Remove shield
-                    self.partition_shield_active = False
-                    self.partition_shield_strength = 0
-                    self.partition_shield_duration = 0
-                    
-                    return 0  # No damage taken due to dissociation
-                
-                # Normal shield absorption
-                absorbed = min(damage, self.partition_shield_strength)
-                damage -= absorbed
-                self.partition_shield_strength = max(0, self.partition_shield_strength - absorbed)
-                
-                if absorbed > 0:
-                    message_log.add_message(
-                        f"{self.get_display_name()}'s shield absorbs {absorbed} damage!",
-                        MessageType.ABILITY
-                    )
-                
-                # Remove shield if strength reaches 0
-                if self.partition_shield_strength <= 0:
-                    self.partition_shield_active = False
-                    self.partition_shield_duration = 0
-        
-        # Step 2: Handle trauma processing if active and there's remaining damage
-        trauma_stored = 0
-        if (hasattr(self, 'trauma_processing_active') and self.trauma_processing_active and 
-            damage > 0):
-            # Store 50% of remaining damage as trauma debt
-            trauma_stored = damage // 2
-            self.trauma_debt += trauma_stored
-            logger.info(f"TRAUMA: {self.get_display_name()} stores {trauma_stored} trauma debt (total: {self.trauma_debt})")
-        
-        # Step 3: Apply remaining damage
-        if damage > 0:
-            previous_hp = self.hp
-            self.hp = max(0, self.hp - damage)
-            actual_damage_taken = previous_hp - self.hp
-        
-        # Step 4: Trigger abreaction if trauma processing was active and any damage was taken
-        if (hasattr(self, 'trauma_processing_active') and self.trauma_processing_active and 
-            (actual_damage_taken > 0 or trauma_stored > 0)):
-            self._trigger_abreaction()
-        
-        return actual_damage_taken
     
     def _teleport_derelist_away(self, derelist):
         """Helper method to teleport DERELIST to random valid position 3+ tiles away."""
