@@ -1326,6 +1326,8 @@ class UIRenderer:
                 positive_effects.append("Parallax")
             if hasattr(unit, 'severance_active') and unit.severance_active:
                 positive_effects.append("Severance")
+            if hasattr(unit, 'vagal_run_active') and unit.vagal_run_active:
+                positive_effects.append(f"Vagal Run({unit.vagal_run_duration})")
             
             # Movement/action penalties and traps (negative)
             if hasattr(unit, 'was_pried') and unit.was_pried and unit.move_range_bonus < 0:

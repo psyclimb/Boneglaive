@@ -56,14 +56,14 @@ class Severance(PassiveSkill):
 class VagalRunSkill(ActiveSkill):
     """
     Active skill: VAGAL RUN
-    Creates strategic dilemma for enemies - permanent +3 attack or trigger heal/cleanse.
+    Applies flat attack bonus with distance-scaled abreaction damage.
     """
     
     def __init__(self):
         super().__init__(
             name="Vagal Run",
             key="V", 
-            description="Ally gains +3 attack and trauma processing status. When ally takes damage, they receive stored trauma damage then heal based on distance from DERELIST and lose all negative status effects.",
+            description="Ally gains +3 attack. When effect expires, ally takes piercing damage equal to damage taken while buffed, reduced by 10% per tile of distance from DERELIST.",
             target_type=TargetType.ALLY,
             cooldown=4,
             range_=3
@@ -95,8 +95,8 @@ class VagalRunSkill(ActiveSkill):
         if target == user:
             return False
             
-        # Check if target already has trauma processing
-        if hasattr(target, 'trauma_processing_active') and target.trauma_processing_active:
+        # Check if target already has vagal run effect
+        if hasattr(target, 'vagal_run_active') and target.vagal_run_active:
             return False
             
         return True
@@ -123,7 +123,7 @@ class VagalRunSkill(ActiveSkill):
         target_name = target.get_display_name() if target else "ally"
         
         message_log.add_message(
-            f"{user.get_display_name()} prepares to guide {target_name} through trauma processing",
+            f"{user.get_display_name()} prepares to enhance {target_name} with Vagal Run",
             MessageType.ABILITY,
             player=user.player
         )
@@ -147,31 +147,32 @@ class VagalRunSkill(ActiveSkill):
         if not target:
             return
             
-        # Apply trauma processing status
-        target.trauma_processing_active = True
-        target.trauma_processing_caster = user  # Reference to DERELIST who cast this
-        target.trauma_debt = 0  # Stored damage amount
+        # Apply vagal run status
+        target.vagal_run_active = True
+        target.vagal_run_caster = user  # Reference to DERELIST who cast this
+        target.vagal_run_damage_taken = 0  # Track damage taken while buffed
+        target.vagal_run_duration = 3  # Effect lasts 3 turns
         
         # Apply +3 attack bonus
         target.attack_bonus += 3
         
         # Show execution animation if UI available
         if ui and hasattr(ui, 'renderer'):
-            # Trauma processing animation - waves from DERELIST to target
-            trauma_animation = ['~', '≈', '∿', '≈', '~']
+            # Vagal run animation - energy waves from DERELIST to target
+            vagal_animation = ['~', '≈', '∿', '≈', '~']
             ui.renderer.animate_attack_sequence(
                 target_pos[0], target_pos[1],
-                trauma_animation,
-                6,  # Yellow color for trauma processing
+                vagal_animation,
+                6,  # Yellow color for vagal run
                 0.1
             )
         
         message_log.add_message(
-            f"{target.get_display_name()} enters trauma processing (+3 attack until resolved)!",
+            f"{target.get_display_name()} gains Vagal Run!",
             MessageType.ABILITY
         )
         
-        logger.info(f"VAGAL RUN EXECUTED: {user.get_display_name()} applies trauma processing to {target.get_display_name()}")
+        logger.info(f"VAGAL RUN EXECUTED: {user.get_display_name()} applies Vagal Run to {target.get_display_name()}")
         
         # Note: Severance passive bonus already applied during planning phase
 
