@@ -2002,6 +2002,54 @@ class Game:
                     )
 
             # Process DERELIST status effects
+            # Process Vagal Run status effect
+            if hasattr(unit, 'vagal_run_active') and unit.vagal_run_active and hasattr(unit, 'vagal_run_duration'):
+                # Decrement the duration
+                unit.vagal_run_duration -= 1
+                logger.debug(f"{unit.get_display_name()}'s Vagal Run duration: {unit.vagal_run_duration}")
+                
+                # Check if the status effect has expired
+                if unit.vagal_run_duration <= 0:
+                    # Calculate abreaction damage
+                    damage_taken = getattr(unit, 'vagal_run_damage_taken', 0)
+                    caster = getattr(unit, 'vagal_run_caster', None)
+                    
+                    if damage_taken > 0 and caster:
+                        # Calculate distance from original caster
+                        distance = abs(unit.y - caster.y) + abs(unit.x - caster.x)
+                        
+                        # Abreaction damage = damage taken, reduced by 10% per tile of distance
+                        reduction_percent = min(distance * 10, 100)  # Cap at 100% reduction
+                        abreaction_damage = int(damage_taken * (100 - reduction_percent) / 100)
+                        
+                        if abreaction_damage > 0:
+                            # Apply piercing damage (ignores defense)
+                            old_hp = unit.hp
+                            unit.hp = max(1, unit.hp - abreaction_damage)  # Can't kill with abreaction
+                            actual_damage = old_hp - unit.hp
+                            
+                            message_log.add_message(
+                                f"{unit.get_display_name()} suffers {actual_damage} abreaction damage!",
+                                MessageType.COMBAT,
+                                player=unit.player
+                            )
+                            
+                            logger.info(f"ABREACTION: {unit.get_display_name()} takes {actual_damage} damage (distance: {distance}, reduction: {reduction_percent}%)")
+                    
+                    # Remove the vagal run effect and attack bonus
+                    unit.vagal_run_active = False
+                    unit.vagal_run_duration = 0
+                    unit.vagal_run_damage_taken = 0
+                    unit.vagal_run_caster = None
+                    unit.attack_bonus -= 3
+                    
+                    # Log the expiration
+                    message_log.add_message(
+                        f"{unit.get_display_name()}'s Vagal Run effect ends",
+                        MessageType.ABILITY,
+                        player=unit.player
+                    )
+            
             # Process Derelicted status effect (immobilization)
             if hasattr(unit, 'derelicted') and unit.derelicted and hasattr(unit, 'derelicted_duration'):
                 # Decrement the duration
@@ -2480,6 +2528,12 @@ class Game:
                         
                         # Apply damage
                         target.hp = max(0, target.hp - damage)
+                        
+                        # Track damage for Vagal Run abreaction
+                        if hasattr(target, 'vagal_run_active') and target.vagal_run_active:
+                            if not hasattr(target, 'vagal_run_damage_taken'):
+                                target.vagal_run_damage_taken = 0
+                            target.vagal_run_damage_taken += damage
                     
                     # Check if attacker is a MANDIBLE_FOREMAN with the Viseroy passive
                     # If so, trap the target unit
