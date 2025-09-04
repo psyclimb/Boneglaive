@@ -171,9 +171,9 @@ class MenuUI:
     def _create_map_selection_menu(self) -> Menu:
         """Create the map selection menu."""
         menu = Menu("Select Map", [
-            MenuItem("The Lime Foyer", lambda: self._select_map("lime_foyer")),
             MenuItem("Stained Stones", lambda: self._select_map("stained_stones")),
             MenuItem("Edge Case", lambda: self._select_map("edgecase")),
+            MenuItem("The Lime Foyer", lambda: self._select_map("lime_foyer")),
             MenuItem("Back", lambda: ("submenu", None))
         ])
         menu.parent = self._find_menu_by_title("Play Game")
