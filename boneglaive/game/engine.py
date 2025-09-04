@@ -2014,12 +2014,12 @@ class Game:
                 
                 # Check if the status effect has expired
                 if unit.vagal_run_duration <= 0:
-                    # Apply abreaction damage (same amount as original trauma processing)
-                    abreaction_damage = getattr(unit, 'vagal_run_abreaction_damage', 0)
+                    # Apply abreaction effect (damage or healing based on stored value)
+                    abreaction_amount = getattr(unit, 'vagal_run_abreaction_damage', 0)
                     
-                    if abreaction_damage > 0:
-                        # Apply abreaction damage (can't kill)
-                        actual_damage = unit.deal_damage(abreaction_damage, can_kill=False)
+                    if abreaction_amount > 0:
+                        # Positive value: Apply abreaction damage (can't kill)
+                        actual_damage = unit.deal_damage(abreaction_amount, can_kill=False)
                         
                         message_log.add_message(
                             f"{unit.get_display_name()} suffers #DAMAGE_{actual_damage}# abreaction damage",
@@ -2038,6 +2038,56 @@ class Game:
                             )
                         
                         logger.info(f"ABREACTION: {unit.get_display_name()} takes {actual_damage} damage")
+                        
+                    elif abreaction_amount < 0:
+                        # Negative value: Apply abreaction healing
+                        heal_amount = -abreaction_amount  # Convert negative to positive
+                        if unit.hp < unit.max_hp:
+                            old_hp = unit.hp
+                            unit.hp = min(unit.max_hp, unit.hp + heal_amount)
+                            actual_heal = unit.hp - old_hp
+                            
+                            if actual_heal > 0:
+                                message_log.add_message(
+                                    f"{unit.get_display_name()} experiences abreaction healing for {actual_heal} HP",
+                                    MessageType.ABILITY,
+                                    player=unit.player
+                                )
+                                
+                                # Show healing effect on map if UI is available
+                                if ui and hasattr(ui, 'renderer'):
+                                    import curses
+                                    import time
+                                    from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+                                    
+                                    healing_text = f"+{actual_heal}"
+                                    
+                                    # Make healing text prominent with flashing effect (green color)
+                                    for i in range(3):
+                                        # First clear the area
+                                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(healing_text), 7)
+                                        # Draw with alternating bold/normal for a flashing effect
+                                        attrs = curses.A_BOLD if i % 2 == 0 else 0
+                                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, healing_text, 3, attrs)  # Green color
+                                        ui.renderer.refresh()
+                                        sleep_with_animation_speed(0.1)
+                                    
+                                    # Final healing display (stays on screen slightly longer)
+                                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, healing_text, 3, curses.A_BOLD)
+                                    ui.renderer.refresh()
+                                    sleep_with_animation_speed(0.3)  # Match the 0.3s delay used in other healing
+                        
+                        # Show healing abreaction animation - reverse of fracture (mending/restoration)
+                        if ui and hasattr(ui, 'renderer'):
+                            healing_abreaction_animation = ['!', '@', '#', '*', 'Χ', 'χ', '╪', '╫', '╬']  # Neural pathway restoration
+                            ui.renderer.animate_attack_sequence(
+                                unit.y, unit.x,
+                                healing_abreaction_animation,
+                                3,  # Green color for healing
+                                0.4  # Same timing as damage animation
+                            )
+                        
+                        logger.info(f"ABREACTION HEAL: {unit.get_display_name()} heals for {actual_heal} HP")
                     
                     # Clear ALL status effects again during abreaction
                     from boneglaive.game.skills.derelictionist import VagalRunSkill

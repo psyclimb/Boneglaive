@@ -33,7 +33,7 @@ class UIRenderer:
             
         # DERELICTIONIST status effects
         if hasattr(unit, 'derelicted') and unit.derelicted:
-            effects.append(('derelicted', '∅', curses.A_BOLD))
+            effects.append(('derelicted', 'd', curses.A_BOLD))
             
         if hasattr(unit, 'shrapnel_duration') and unit.shrapnel_duration > 0:
             effects.append(('shrapnel', 'x', curses.A_DIM))
@@ -68,7 +68,7 @@ class UIRenderer:
             
         # DERELICTIONIST positive status effects
         if hasattr(unit, 'severance_active') and unit.severance_active:
-            effects.append(('severance', '↗', curses.A_BOLD))
+            effects.append(('severance', '\\', curses.A_BOLD))
             
         if hasattr(unit, 'partition_shield_active') and unit.partition_shield_active:
             effects.append(('partition', ')', curses.A_BOLD))
