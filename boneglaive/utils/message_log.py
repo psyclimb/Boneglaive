@@ -281,16 +281,67 @@ class MessageLog:
                 pass  # color remains as initialized (8)
                 
             # Special handling for damage numbers - highlight them in magenta
-            # Look for combat messages containing damage info (typical format: "X hits Y for Z damage")
-            if msg['type'] == MessageType.COMBAT and 'damage' in msg:
+            # Look for combat or ability messages containing damage info (typical format: "X hits Y for Z damage")
+            if (msg['type'] == MessageType.COMBAT or msg['type'] == MessageType.ABILITY) and 'damage' in text:
                 # Find the damage number in the text
                 import re
                 # Pattern to match "for X damage" where X is a number
                 damage_match = re.search(r'for (\d+) damage', text)
                 if damage_match:
-                    damage_num = damage_match.group(1)
-                    # Replace the damage number with a placeholder
-                    text = text.replace(f"for {damage_num} damage", f"for #DAMAGE_{damage_num}# damage")
+                    original_damage = int(damage_match.group(1))
+                    adjusted_damage = original_damage
+                    
+                    # Check if this is a damage message to a unit with recent PRT absorption
+                    # Try various patterns to find the target unit name
+                    target_match = None
+                    target_name = None
+                    
+                    # Pattern 1: "X hits Y for Z damage"
+                    target_match = re.search(r'hits ([^f]+) for \d+ damage', text)
+                    if target_match:
+                        target_name = target_match.group(1).strip()
+                    
+                    # Pattern 2: "X attacks Y for Z damage with ABILITY"
+                    if not target_match:
+                        target_match = re.search(r'attacks ([^f]+) for \d+ damage', text)
+                        if target_match:
+                            target_name = target_match.group(1).strip()
+                    
+                    # Pattern 3: "X's jaws tighten on Y for Z damage"
+                    if not target_match:
+                        target_match = re.search(r"tighten on ([^f]+) for \d+ damage", text)
+                        if target_match:
+                            target_name = target_match.group(1).strip()
+                    
+                    # Pattern 4: "X deals Y for Z damage" (skill messages)
+                    if not target_match:
+                        target_match = re.search(r'deals ([^f]+) for \d+ damage', text)
+                        if target_match:
+                            target_name = target_match.group(1).strip()
+                    
+                    # Pattern 5: "Y takes Z damage" (damage notification messages)
+                    if not target_match:
+                        target_match = re.search(r'(.+) takes \d+ damage', text)
+                        if target_match:
+                            target_name = target_match.group(1).strip()
+                    
+                    # Pattern 6: "Y suffers Z damage" (abreaction and other effects)
+                    if not target_match:
+                        target_match = re.search(r'(.+) suffers.* (\d+) damage', text)
+                        if target_match:
+                            target_name = target_match.group(1).strip()
+                    
+                    if target_name:
+                        # Find the target unit and check for recent PRT absorption
+                        target_unit = self._find_unit_by_name(target_name)
+                        if target_unit and hasattr(target_unit, 'last_prt_absorbed') and target_unit.last_prt_absorbed > 0:
+                            # Adjust damage by subtracting PRT absorbed
+                            adjusted_damage = max(0, original_damage - target_unit.last_prt_absorbed)
+                            from boneglaive.utils.debug import logger
+                            logger.debug(f"PRT MESSAGE ADJUST: {target_name} damage {original_damage} -> {adjusted_damage} (PRT absorbed {target_unit.last_prt_absorbed})")
+                    
+                    # Replace with the adjusted damage number
+                    text = text.replace(f"for {original_damage} damage", f"for #DAMAGE_{adjusted_damage}# damage")
                     # We'll process this special placeholder in the UI component
 
             # Special handling for healing numbers - highlight them in white

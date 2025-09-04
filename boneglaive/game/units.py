@@ -47,7 +47,14 @@ class Unit:
         self.defense_bonus = 0
         self.move_range_bonus = 0
         self.attack_range_bonus = 0
-        self.prt = 0  # Partition stat - reduces damage before defense
+        # Set PRT (Partition) stat - reduces damage before defense
+        if unit_type == UnitType.HEINOUS_VAPOR:
+            self.prt = 999  # HEINOUS VAPOR units have massive damage reduction
+        else:
+            self.prt = 0
+        
+        # Track recent PRT applications for message log correction
+        self.last_prt_absorbed = 0  # Amount of damage absorbed by PRT in the most recent attack
         
         # Action targets
         self.move_target = None
@@ -105,7 +112,7 @@ class Unit:
         self.vapor_creator = None  # Reference to the GAS_MACHINIST that created this vapor
         self.vapor_skill = None  # Reference to the skill that created this vapor
         self.diverged_user = None  # Reference to the GAS_MACHINIST if this vapor is from a diverged user
-        self.is_invulnerable = False  # Flag to make Heinous Vapor units invulnerable
+        # Note: HEINOUS VAPOR units use PRT for effective invulnerability
         
         # GAS_MACHINIST properties
         self.diverge_return_position = False  # Whether this unit is returning from a diverge
@@ -504,24 +511,12 @@ class Unit:
             self._hp = value
             return
             
-        # For HEINOUS_VAPOR with invulnerability flag, prevent HP reduction
-        if self.type == UnitType.HEINOUS_VAPOR and hasattr(self, 'is_invulnerable') and self.is_invulnerable:
-            # Only allow HP to increase, not decrease
-            if value > self._hp:
-                self._hp = value
-            # Otherwise, log and ignore damage without adding a message
-            else:
-                from boneglaive.utils.debug import logger
-                
-                # Calculate attempted damage
-                attempted_damage = self._hp - value
-                if attempted_damage > 0:
-                    # Only log to debug, don't add a message to the log
-                    logger.debug(f"Invulnerable {self.get_display_name()} ignored {attempted_damage} damage")
-            return
+        # HEINOUS VAPOR units use PRT for effective invulnerability
         
         # Check if this is damage (HP reduction) and apply PRT
         if value < self._hp:
+            # Reset PRT tracking at the start of damage processing
+            self.last_prt_absorbed = 0
             # Calculate raw damage being attempted
             raw_damage = self._hp - value
             
@@ -584,6 +579,9 @@ class Unit:
                 from boneglaive.utils.debug import logger
                 logger.info(f"DISSOCIATION: {self.get_display_name()} prt boosted to 999, DERELICTIONIST teleported, unit derelicted")
                 
+                # Track PRT absorbed for message log correction (all damage absorbed by dissociation)
+                self.last_prt_absorbed = raw_damage
+                
                 # Block this damage and all subsequent damage will be absorbed by prt=999
                 self._applying_damage = True
                 self._hp = self._hp  # No damage applied
@@ -596,16 +594,35 @@ class Unit:
                 prt_absorbed = min(raw_damage, self.prt)
                 actual_damage = max(0, raw_damage - prt_absorbed)
                 
-                # Show partition message for each attack (not just once per turn)
+                # Track PRT absorbed for message log correction
+                self.last_prt_absorbed = prt_absorbed
+                
+                # Show partition message and animation for each attack (not just once per turn)
                 if prt_absorbed > 0:
-                    from boneglaive.utils.message_log import message_log, MessageType
-                    message_log.add_message(
-                        f"{self.get_display_name()}'s partition takes #DAMAGE_{prt_absorbed}# damage",
-                        MessageType.ABILITY,
-                        player=self.player
-                    )
                     from boneglaive.utils.debug import logger
-                    logger.info(f"PRT AUTO: {self.get_display_name()}'s partition absorbed {prt_absorbed} damage")
+                    # Only show partition damage messages for non-HEINOUS VAPOR units
+                    if self.type != UnitType.HEINOUS_VAPOR:
+                        from boneglaive.utils.message_log import message_log, MessageType
+                        message_log.add_message(
+                            f"{self.get_display_name()}'s partition takes #DAMAGE_{prt_absorbed}# damage",
+                            MessageType.ABILITY,
+                            player=self.player
+                        )
+                        logger.info(f"PRT AUTO: {self.get_display_name()}'s partition absorbed {prt_absorbed} damage")
+                        
+                        # Show partition shield reverberation animation
+                        if self._game and hasattr(self._game, 'ui') and self._game.ui and hasattr(self._game.ui, 'renderer'):
+                            # Partition reverberation animation - shield flickering and reverberating from impact
+                            partition_reverberation = [')', ']', '|', '#', '|', ']', ')', '(', '[', '|']  # Shield flickering/reverberating
+                            self._game.ui.renderer.animate_attack_sequence(
+                                self.y, self.x,
+                                partition_reverberation,
+                                4,  # Blue color matching partition application
+                                0.6  # Slower animation to show deliberate reverberation
+                            )
+                    else:
+                        # HEINOUS VAPOR units silently absorb damage as gas entities
+                        logger.debug(f"HEINOUS VAPOR: {self.get_display_name()} silently absorbed {prt_absorbed} damage")
                 
                 # Apply final damage
                 self._applying_damage = True
@@ -613,9 +630,11 @@ class Unit:
                 self._applying_damage = False
             else:
                 # No PRT - apply damage normally
+                self.last_prt_absorbed = 0  # No PRT was applied
                 self._hp = value
         else:
             # Normal HP setting (healing or non-damage changes)
+            self.last_prt_absorbed = 0  # Clear PRT tracking for non-damage changes
             self._hp = value
             
     def expire(self):

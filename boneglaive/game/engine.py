@@ -3441,6 +3441,13 @@ class Game:
             chosen_pos = random.choice(possible_positions)
             derelictionist.y, derelictionist.x = chosen_pos
             logger.info(f"DERELICTIONIST teleported from ({start_y},{start_x}) to ({chosen_pos[0]},{chosen_pos[1]})")
+            
+            # Add message log entry for teleportation
+            message_log.add_message(
+                f"{derelictionist.get_display_name()} defects to ({chosen_pos[0]},{chosen_pos[1]})",
+                MessageType.ABILITY,
+                player=derelictionist.player
+            )
         else:
             logger.warning(f"Could not find valid teleport position for DERELICTIONIST")
 
