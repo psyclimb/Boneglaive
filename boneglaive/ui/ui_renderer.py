@@ -31,7 +31,7 @@ class UIRenderer:
         if hasattr(unit, 'jawline_affected') and unit.jawline_affected:
             effects.append(('jawline', 'Ξ', curses.A_DIM))
             
-        # DERELIST status effects
+        # DERELICTIONIST status effects
         if hasattr(unit, 'derelicted') and unit.derelicted:
             effects.append(('derelicted', '∅', curses.A_BOLD))
             
@@ -66,7 +66,7 @@ class UIRenderer:
         if hasattr(unit, 'can_use_anchor') and unit.can_use_anchor:
             effects.append(('anchor', 'Π', curses.A_BOLD))
             
-        # DERELIST positive status effects
+        # DERELICTIONIST positive status effects
         if hasattr(unit, 'severance_active') and unit.severance_active:
             effects.append(('severance', '↗', curses.A_BOLD))
             

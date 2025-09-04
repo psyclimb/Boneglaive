@@ -2477,19 +2477,19 @@ class CursorManager(UIComponent):
         
         # Check if the position is a valid move target
         if cursor_position in self.highlighted_positions:
-            # Special DERELIST movement validation (Severance passive restrictions)
-            if self.selected_unit.type == UnitType.DERELIST:
-                # Check if DERELIST has already moved after using a skill (cannot move again)
+            # Special DERELICTIONIST movement validation (Severance passive restrictions)
+            if self.selected_unit.type == UnitType.DERELICTIONIST:
+                # Check if DERELICTIONIST has already moved after using a skill (cannot move again)
                 if (hasattr(self.selected_unit, 'has_moved_first') and self.selected_unit.has_moved_first and
                     hasattr(self.selected_unit, 'used_skill_this_turn') and self.selected_unit.used_skill_this_turn):
-                    self.game_ui.message = "DERELIST cannot move twice in one turn"
+                    self.game_ui.message = "DERELICTIONIST cannot move twice in one turn"
                     return False
                 
-                # Track movement state for DERELIST
+                # Track movement state for DERELICTIONIST
                 if not hasattr(self.selected_unit, 'has_moved_first'):
                     self.selected_unit.has_moved_first = False
                 
-                # Mark that DERELIST has moved (regardless of skill state)
+                # Mark that DERELICTIONIST has moved (regardless of skill state)
                 self.selected_unit.has_moved_first = True
             
             # Store the original position before changing it
@@ -4069,8 +4069,8 @@ class GameModeManager(UIComponent):
             self.setup_unit_type = UnitType.INTERFERER
             self.game_ui.message = "Setup unit type: INTERFERER"
         elif self.setup_unit_type == UnitType.INTERFERER:
-            self.setup_unit_type = UnitType.DERELIST
-            self.game_ui.message = "Setup unit type: DERELIST"
+            self.setup_unit_type = UnitType.DERELICTIONIST
+            self.game_ui.message = "Setup unit type: DERELICTIONIST"
         else:
             self.setup_unit_type = UnitType.GLAIVEMAN
             self.game_ui.message = "Setup unit type: GLAIVEMAN"
@@ -4090,7 +4090,7 @@ class GameModeManager(UIComponent):
         unit_types = [
             UnitType.GLAIVEMAN, UnitType.MANDIBLE_FOREMAN, UnitType.GRAYMAN,
             UnitType.MARROW_CONDENSER, UnitType.FOWL_CONTRIVANCE, UnitType.GAS_MACHINIST,
-            UnitType.DELPHIC_APPRAISER, UnitType.INTERFERER, UnitType.DERELIST
+            UnitType.DELPHIC_APPRAISER, UnitType.INTERFERER, UnitType.DERELICTIONIST
         ]
         
         try:
@@ -4117,7 +4117,7 @@ class GameModeManager(UIComponent):
         unit_types = [
             UnitType.GLAIVEMAN, UnitType.MANDIBLE_FOREMAN, UnitType.GRAYMAN,
             UnitType.MARROW_CONDENSER, UnitType.FOWL_CONTRIVANCE, UnitType.GAS_MACHINIST,
-            UnitType.DELPHIC_APPRAISER, UnitType.INTERFERER, UnitType.DERELIST
+            UnitType.DELPHIC_APPRAISER, UnitType.INTERFERER, UnitType.DERELICTIONIST
         ]
         
         try:
@@ -4169,7 +4169,7 @@ class GameModeManager(UIComponent):
             UnitType.GAS_MACHINIST: "GAS MACHINIST",
             UnitType.DELPHIC_APPRAISER: "DELPHIC APPRAISER",
             UnitType.INTERFERER: "INTERFERER",
-            UnitType.DERELIST: "DERELIST"
+            UnitType.DERELICTIONIST: "DERELICTIONIST"
         }.get(self.setup_unit_type, "UNKNOWN")
 
         # Check specific error cases based on return value
@@ -4321,7 +4321,7 @@ class GameModeManager(UIComponent):
                 UnitType.GAS_MACHINIST: "GAS MACHINIST",
                 UnitType.DELPHIC_APPRAISER: "DELPHIC APPRAISER",
                 UnitType.INTERFERER: "INTERFERER",
-                UnitType.DERELIST: "DERELIST"
+                UnitType.DERELICTIONIST: "DERELICTIONIST"
             }
             current_unit_type = unit_type_display.get(self.setup_unit_type, "UNKNOWN")
             
@@ -4787,10 +4787,10 @@ class ActionMenuComponent(UIComponent):
         # Add standard actions with consistent labeling
         # Disable move for trapped units, Jawline-affected units, charging units, Neural Shunt, echoes, or if already moved
         # Note: units CAN move even if they have attack/skill planned (move executes first)
-        # EXCEPTION: DERELIST can move after using a skill (Severance passive)
+        # EXCEPTION: DERELICTIONIST can move after using a skill (Severance passive)
         
-        # DERELIST Severance exception: Can queue movement even after queuing a skill
-        derelist_severance_exception = (unit.type == UnitType.DERELIST and 
+        # DERELICTIONIST Severance exception: Can queue movement even after queuing a skill
+        derelictionist_severance_exception = (unit.type == UnitType.DERELICTIONIST and 
                                        unit.skill_target is not None and 
                                        unit.selected_skill is not None)
         
@@ -4798,7 +4798,7 @@ class ActionMenuComponent(UIComponent):
                         unit.trapped_by is None and
                         not unit.is_echo and
                         not unit.move_target and  # Can't move if already planned a move
-                        (not (unit.skill_target and unit.selected_skill) or derelist_severance_exception) and  # Severance exception
+                        (not (unit.skill_target and unit.selected_skill) or derelictionist_severance_exception) and  # Severance exception
                         not (hasattr(unit, 'jawline_affected') and unit.jawline_affected) and
                         not (hasattr(unit, 'charging_status') and unit.charging_status) and
                         not (hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected) and
@@ -5122,8 +5122,8 @@ class ActionMenuComponent(UIComponent):
                 'skill': scalar_node_skill
             })
         
-        # DERELIST skills
-        elif unit.type == self.UnitType.DERELIST:
+        # DERELICTIONIST skills
+        elif unit.type == self.UnitType.DERELICTIONIST:
             # Add Vagal Run skill
             vagal_run_skill = next((skill for skill in available_skills if skill.name == "Vagal Run"), None)
             self.actions.append({
@@ -5541,7 +5541,7 @@ class ActionMenuComponent(UIComponent):
                                         targets.append((y, x))
             
             elif skill.target_type == TargetType.ALLY:
-                # For ally-targeted skills, highlight allied units in range (DERELIST skills)
+                # For ally-targeted skills, highlight allied units in range (DERELICTIONIST skills)
                 for y in range(HEIGHT):
                     for x in range(WIDTH):
                         # Check if there's an allied unit at this position
@@ -5701,9 +5701,9 @@ class InputManager(UIComponent):
                 # Show INTERFERER unit help
                 self.game_ui.unit_help_component.toggle_unit_help(UnitType.INTERFERER)
                 return
-            elif unit_type == UnitType.DERELIST:
-                # Show DERELIST unit help
-                self.game_ui.unit_help_component.toggle_unit_help(UnitType.DERELIST)
+            elif unit_type == UnitType.DERELICTIONIST:
+                # Show DERELICTIONIST unit help
+                self.game_ui.unit_help_component.toggle_unit_help(UnitType.DERELICTIONIST)
                 return
             elif unit_type == UnitType.HEINOUS_VAPOR:
                 # Check what type of vapor this is by symbol
@@ -5880,7 +5880,7 @@ class UnitSelectionMenuComponent(UIComponent):
             UnitType.GAS_MACHINIST,
             UnitType.DELPHIC_APPRAISER,
             UnitType.INTERFERER,
-            UnitType.DERELIST
+            UnitType.DERELICTIONIST
         ]
         self.unit_names = {
             UnitType.GLAIVEMAN: "GLAIVEMAN",
@@ -5891,7 +5891,7 @@ class UnitSelectionMenuComponent(UIComponent):
             UnitType.GAS_MACHINIST: "GAS MACHINIST",
             UnitType.DELPHIC_APPRAISER: "DELPHIC APPRAISER",
             UnitType.INTERFERER: "INTERFERER",
-            UnitType.DERELIST: "DERELIST"
+            UnitType.DERELICTIONIST: "DERELICTIONIST"
         }
         
     def _setup_event_handlers(self):

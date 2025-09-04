@@ -121,24 +121,24 @@ class Unit:
         # DELPHIC APPRAISER properties
         self.can_use_anchor = False  # Whether this unit can use Market Futures teleport anchors
         
-        # DERELIST properties
+        # DERELICTIONIST properties
         self.trauma_processing_active = False  # Whether affected by Trauma Processing
-        self.trauma_processing_caster = None  # Reference to DERELIST who cast Trauma Processing
+        self.trauma_processing_caster = None  # Reference to DERELICTIONIST who cast Trauma Processing
         self.trauma_debt = 0  # Stored damage amount for abreaction
         self.derelicted = False  # Whether affected by Derelicted status (immobilization)
         self.derelicted_duration = 0  # Duration of Derelicted effect
         self.partition_shield_active = False  # Whether protected by Partition shield
-        self.partition_shield_caster = None  # Reference to DERELIST who cast Partition
+        self.partition_shield_caster = None  # Reference to DERELICTIONIST who cast Partition
         self.partition_shield_strength = 0  # Current shield strength
         self.partition_shield_duration = 0  # Duration of Partition shield
         
-        # DERELIST movement tracking (for skill-then-move mechanics)
-        self.has_moved_first = False  # Whether DERELIST has moved before using a skill
-        self.used_skill_this_turn = False  # Whether DERELIST has used a skill this turn
-        self.can_move_post_skill = False  # Whether DERELIST can move after using a skill
+        # DERELICTIONIST movement tracking (for skill-then-move mechanics)
+        self.has_moved_first = False  # Whether DERELICTIONIST has moved before using a skill
+        self.used_skill_this_turn = False  # Whether DERELICTIONIST has used a skill this turn
+        self.can_move_post_skill = False  # Whether DERELICTIONIST can move after using a skill
         
-        # DERELIST Severance status effect
-        self.severance_active = False  # Whether DERELIST has Severance status (+1 movement)
+        # DERELICTIONIST Severance status effect
+        self.severance_active = False  # Whether DERELICTIONIST has Severance status (+1 movement)
         self.severance_duration = 0  # Duration of Severance status (until movement is issued)
         
         # Experience and leveling
@@ -534,9 +534,9 @@ class Unit:
                 self.prt = 999  # All damage this turn absorbed by partition
                 self.partition_shield_blocked_fatal = True  # Mark for cleanup
                 
-                # Teleport DERELIST immediately
+                # Teleport DERELICTIONIST immediately
                 if hasattr(self, 'partition_shield_caster') and self.partition_shield_caster and self._game:
-                    self._game._teleport_derelist_away(self.partition_shield_caster, self, distance=4)
+                    self._game._teleport_derelictionist_away(self.partition_shield_caster, self, distance=4)
                 
                 # Apply derelicted immediately
                 self.derelicted = True
@@ -582,7 +582,7 @@ class Unit:
                     player=self.player
                 )
                 from boneglaive.utils.debug import logger
-                logger.info(f"DISSOCIATION: {self.get_display_name()} prt boosted to 999, DERELIST teleported, unit derelicted")
+                logger.info(f"DISSOCIATION: {self.get_display_name()} prt boosted to 999, DERELICTIONIST teleported, unit derelicted")
                 
                 # Block this damage and all subsequent damage will be absorbed by prt=999
                 self._applying_damage = True
@@ -1186,8 +1186,8 @@ class Unit:
         return None
         
     
-    def _teleport_derelist_away(self, derelist):
-        """Helper method to teleport DERELIST to random valid position 3+ tiles away."""
+    def _teleport_derelictionist_away(self, derelictionist):
+        """Helper method to teleport DERELICTIONIST to random valid position 3+ tiles away."""
         if not hasattr(self, '_game') or not self._game:
             return
             
@@ -1209,12 +1209,12 @@ class Unit:
         if valid_positions:
             import random
             new_y, new_x = random.choice(valid_positions)
-            derelist.y = new_y
-            derelist.x = new_x
+            derelictionist.y = new_y
+            derelictionist.x = new_x
             
             from boneglaive.utils.message_log import message_log, MessageType
             message_log.add_message(
-                f"{derelist.get_display_name()} dissociates away from the trauma!",
+                f"{derelictionist.get_display_name()} dissociates away from the trauma!",
                 MessageType.ABILITY
             )
     
@@ -1225,7 +1225,7 @@ class Unit:
             
         from boneglaive.utils.debug import logger
         from boneglaive.utils.message_log import message_log, MessageType
-        from boneglaive.game.skills.derelist import calculate_distance
+        from boneglaive.game.skills.derelictionist import calculate_distance
         
         caster = getattr(self, 'trauma_processing_caster', None)
         trauma_damage = self.trauma_debt
@@ -1241,7 +1241,7 @@ class Unit:
                 MessageType.COMBAT
             )
         
-        # Calculate healing based on distance from DERELIST
+        # Calculate healing based on distance from DERELICTIONIST
         heal_amount = trauma_damage  # Base healing equals trauma damage
         if caster and caster.is_alive():
             distance = calculate_distance(caster, self)

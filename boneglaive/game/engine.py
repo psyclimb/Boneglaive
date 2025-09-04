@@ -2005,7 +2005,7 @@ class Game:
                         player=unit.player
                     )
 
-            # Process DERELIST status effects
+            # Process DERELICTIONIST status effects
             # Process Vagal Run status effect
             if hasattr(unit, 'vagal_run_active') and unit.vagal_run_active and hasattr(unit, 'vagal_run_duration'):
                 # Decrement the duration
@@ -2040,7 +2040,7 @@ class Game:
                         logger.info(f"ABREACTION: {unit.get_display_name()} takes {actual_damage} damage")
                     
                     # Clear ALL status effects again during abreaction
-                    from boneglaive.game.skills.derelist import VagalRunSkill
+                    from boneglaive.game.skills.derelictionist import VagalRunSkill
                     vagal_skill = VagalRunSkill()
                     cleared_effects = vagal_skill._clear_all_status_effects(unit)
                     
@@ -2304,8 +2304,8 @@ class Game:
                     # Save original position
                     start_y, start_x = unit.y, unit.x
                     
-                    # DERELIST Severance: Remove SEVERANCE status when movement is executed
-                    if (unit.type == UnitType.DERELIST and 
+                    # DERELICTIONIST Severance: Remove SEVERANCE status when movement is executed
+                    if (unit.type == UnitType.DERELICTIONIST and 
                         hasattr(unit, 'severance_active') and unit.severance_active):
                         
                         # Remove SEVERANCE status effect when movement is used
@@ -3320,8 +3320,8 @@ class Game:
         if not caster or not caster.is_alive():
             return
             
-        # Teleport DERELIST 4 tiles away
-        self._teleport_derelist_away(caster, protected_unit, distance=4)
+        # Teleport DERELICTIONIST 4 tiles away
+        self._teleport_derelictionist_away(caster, protected_unit, distance=4)
         
         # Apply derelicted status to protected unit
         protected_unit.derelicted = True
@@ -3348,10 +3348,10 @@ class Game:
         
         logger.info(f"PARTITION EMERGENCY CLEANUP: {caster.get_display_name()} teleported away, {protected_unit.get_display_name()} derelicted")
     
-    def _teleport_derelist_away(self, derelist, protected_unit, distance=4):
-        """Teleport DERELIST away from the protected unit."""
+    def _teleport_derelictionist_away(self, derelictionist, protected_unit, distance=4):
+        """Teleport DERELICTIONIST away from the protected unit."""
         # Find a valid position at exactly 'distance' tiles away
-        start_y, start_x = derelist.y, derelist.x
+        start_y, start_x = derelictionist.y, derelictionist.x
         protected_y, protected_x = protected_unit.y, protected_unit.x
         
         # Try positions at the specified distance
@@ -3385,14 +3385,14 @@ class Game:
                 if possible_positions:
                     break
         
-        # Move DERELIST to the closest available position
+        # Move DERELICTIONIST to the closest available position
         if possible_positions:
             import random
             chosen_pos = random.choice(possible_positions)
-            derelist.y, derelist.x = chosen_pos
-            logger.info(f"DERELIST teleported from ({start_y},{start_x}) to ({chosen_pos[0]},{chosen_pos[1]})")
+            derelictionist.y, derelictionist.x = chosen_pos
+            logger.info(f"DERELICTIONIST teleported from ({start_y},{start_x}) to ({chosen_pos[0]},{chosen_pos[1]})")
         else:
-            logger.warning(f"Could not find valid teleport position for DERELIST")
+            logger.warning(f"Could not find valid teleport position for DERELICTIONIST")
 
     def initialize_next_player_turn(self):
         """
@@ -3416,8 +3416,8 @@ class Game:
                     from boneglaive.utils.debug import logger
                     logger.info(f"DISSOCIATION RESET: {unit.get_display_name()} prt reset to 0")
                 
-                # Reset DERELIST movement/skill flags at start of turn (Severance passive)
-                if unit.type == UnitType.DERELIST:
+                # Reset DERELICTIONIST movement/skill flags at start of turn (Severance passive)
+                if unit.type == UnitType.DERELICTIONIST:
                     unit.has_moved_first = False
                     unit.used_skill_this_turn = False
                     unit.can_move_post_skill = False

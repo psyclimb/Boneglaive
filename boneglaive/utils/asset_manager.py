@@ -47,7 +47,7 @@ class AssetManager:
             UnitType.GAS_MACHINIST: 'M',
             UnitType.HEINOUS_VAPOR: 'V',  # Base symbol, will be replaced by vapor_symbol in display code
             UnitType.DELPHIC_APPRAISER: 'A',  # A for Appraiser
-            UnitType.DERELIST: 'D',  # D for DERELIST
+            UnitType.DERELICTIONIST: 'D',  # D for DERELICTIONIST
             UnitType.INTERFERER: 'R'  # R for Radioactive interference
         }
         
@@ -225,7 +225,7 @@ class AssetManager:
             UnitType.GAS_MACHINIST: 'assets/sprites/gas_machinist.png',
             UnitType.HEINOUS_VAPOR: 'assets/sprites/heinous_vapor.png',
             UnitType.DELPHIC_APPRAISER: 'assets/sprites/delphic_appraiser.png',
-            UnitType.DERELIST: 'assets/sprites/derelist.png',
+            UnitType.DERELICTIONIST: 'assets/sprites/derelictionist.png',
             UnitType.INTERFERER: 'assets/sprites/interferer.png'
         }
         
