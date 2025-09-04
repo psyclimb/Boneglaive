@@ -430,13 +430,14 @@ class MarrowDikeSkill(ActiveSkill):
         # Move units to inside the dike
         for movement in unit_movements:
             unit = movement['unit']
+            from_y, from_x = movement['from']
             new_y, new_x = movement['to']
             
             # Double-check the position is still available (should be due to reservation system)
             if not game.get_unit_at(new_y, new_x):
                 # Log the movement
                 message_log.add_message(
-                    f"{unit.get_display_name()} is pulled inside the Marrow Dike.",
+                    f"{unit.get_display_name()} is pulled from ({from_y}, {from_x}) inside the Marrow Dike to ({new_y}, {new_x}).",
                     MessageType.ABILITY,
                     player=user.player,
                     target_name=unit.get_display_name()

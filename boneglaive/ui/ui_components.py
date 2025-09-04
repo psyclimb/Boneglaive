@@ -1287,8 +1287,8 @@ class UnitHelpComponent(UIComponent):
                             'Line of Sight: Yes',
                             'Damage: 1 per turn (based on cosmic values)',
                             'Pierce: No',
-                            'Effects: Auction Curse, each tick inflates nearby furniture by +1, heals allies within 2 tiles by 1 HP, and prevents healing',
-                            'Cooldown: 4 turns',
+                            'Effects: Auction Curse, each tick inflates nearby furniture by +1 and prevents healing',
+                            'Cooldown: 3 turns',
                             'Special: Duration equals average cosmic value of furniture within 2 tiles'
                         ]
                     },
@@ -3850,11 +3850,14 @@ class GameModeManager(UIComponent):
                 self.set_mode("select")
                 return False
 
+            # Capture original position before teleport
+            original_pos = (unit.y, unit.x)
+            
             # Activate the teleport
             if market_futures_skill.activate_teleport(unit, anchor_pos, destination_pos, game, self.game_ui):
                 # Teleport successful
                 message_log.add_message(
-                    f"{unit.get_display_name()} teleports via Market Futures to ({destination_pos[0]}, {destination_pos[1]})",
+                    f"{unit.get_display_name()} teleports via Market Futures from ({original_pos[0]}, {original_pos[1]}) to ({destination_pos[0]}, {destination_pos[1]})",
                     MessageType.ABILITY,
                     player=unit.player
                 )

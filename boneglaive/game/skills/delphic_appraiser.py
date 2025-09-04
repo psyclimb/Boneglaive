@@ -399,11 +399,10 @@ class AuctionCurseSkill(ActiveSkill):
             key="A", 
             description=("Curse target enemy with a twisted auction. Each turn, they take "
                         "damage equal to total cosmic value of furniture within 2 tiles. "
-                        "Each damage tick inflates cosmic values of nearby furniture by +1, "
-                        "prevents all healing for the cursed unit, and heals allied units "
-                        "within 2 tiles by 1 HP with twisted energy."),
+                        "Each damage tick inflates cosmic values of nearby furniture by +1 "
+                        "and prevents all healing for the cursed unit."),
             target_type=TargetType.ENEMY,
-            cooldown=4,
+            cooldown=3,
             range_=3
         )
 
@@ -1020,6 +1019,9 @@ class DivineDrepreciationSkill(ActiveSkill):
                         player=unit.player  # Use unit's player color for correct display
                     )
                 else:
+                    # Store original position before movement
+                    original_y, original_x = unit.y, unit.x
+                    
                     # Use comprehensive pull algorithm for reliable movement toward center
                     final_position = self._find_best_pull_path(unit, target_pos, actual_pull, game)
                     
@@ -1036,7 +1038,7 @@ class DivineDrepreciationSkill(ActiveSkill):
                     if steps_taken > 0:
                         unit.y, unit.x = new_y, new_x
                         message_log.add_message(
-                            f"{unit.get_display_name()} is pulled {steps_taken} spaces by the {furniture_name.lower()}'s reality distortion",
+                            f"{unit.get_display_name()} is pulled {steps_taken} spaces from ({original_y}, {original_x}) to ({new_y}, {new_x}) by the {furniture_name.lower()}'s reality distortion",
                             MessageType.ABILITY,
                             player=user.player
                         )

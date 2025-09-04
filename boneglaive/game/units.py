@@ -936,9 +936,10 @@ class Unit:
                     self in game_unit.protected_by_safety_gas and
                     game_unit not in affected_units):
                     
-                    # Unit is no longer affected by this vapor - remove protection
+                    # Unit is no longer affected by this vapor - remove protection and defense bonus
                     game_unit.protected_by_safety_gas.remove(self)
-                    logger.debug(f"{game_unit.get_display_name()} is no longer protected by {self.get_display_name()} (moved out of range)")
+                    game_unit.defense_bonus -= 1
+                    logger.debug(f"{game_unit.get_display_name()} loses +1 defense from {self.get_display_name()} (moved out of range)")
                     
                     # If there are no more protecting vapors, clean up the attribute
                     if not game_unit.protected_by_safety_gas:
@@ -948,22 +949,24 @@ class Unit:
                     elif hasattr(game, 'units') and self not in game.units:
                         if self in game_unit.protected_by_safety_gas:
                             game_unit.protected_by_safety_gas.remove(self)
-                            logger.debug(f"{game_unit.get_display_name()} is no longer protected by removed vapor")
+                            game_unit.defense_bonus -= 1
+                            logger.debug(f"{game_unit.get_display_name()} loses +1 defense from removed vapor")
                             # If there are no more protecting vapors after this, clean up the attribute
                             if not game_unit.protected_by_safety_gas:
                                 delattr(game_unit, 'protected_by_safety_gas')
             
-            # PROTECTION EFFECT: Mark all allied units in the cloud as "protected by safety gas"
-            # This allows the targeting code to know which units are protected
+            # DEFENSE EFFECT: Grant +1 defense to all allied units in the cloud
             for unit in affected_units:
                 if unit.player == self.player and unit != self:
-                    # Set a property on the unit to mark it as protected
+                    # Set a property on the unit to mark it as protected by safety gas
                     if not hasattr(unit, 'protected_by_safety_gas'):
                         unit.protected_by_safety_gas = []
-                        logger.debug(f"{unit.get_display_name()} is now protected by first safety gas")
+                        logger.debug(f"{unit.get_display_name()} gains +1 defense from first safety gas")
                     if self not in unit.protected_by_safety_gas:
                         unit.protected_by_safety_gas.append(self)
-                        logger.debug(f"{unit.get_display_name()} is now protected by safety gas from {self.get_display_name()}")
+                        # Apply defense bonus
+                        unit.defense_bonus += 1
+                        logger.debug(f"{unit.get_display_name()} gains +1 defense from safety gas from {self.get_display_name()}")
             
             # HEALING EFFECT: Heal allied units in the cloud
             for unit in affected_units:

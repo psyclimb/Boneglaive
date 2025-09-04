@@ -234,7 +234,7 @@ class DischargeSkill(ActiveSkill):
             # Instead of animating every position, simulate FOREMAN flying through with jaws open
             # First, determine start and end point for animation
             start_pos = (user.y, user.x)
-            end_pos = enemy_pos if enemy_hit else path_positions[-1]
+            end_pos = enemy_pos if enemy_hit else (path_positions[-1] if path_positions else start_pos)
             
             # Get all positions between start and end for drawing FOREMAN
             animation_positions = []
@@ -470,7 +470,7 @@ class DischargeSkill(ActiveSkill):
                 # Move FOREMAN to final position BEFORE applying trap effect to prevent auto-release
                 # Stop before the enemy position
                 new_foreman_pos = None
-                if len(path_positions) > 1:
+                if len(path_positions) > 1 and enemy_pos in path_positions:
                     # Find position just before enemy
                     index = path_positions.index(enemy_pos)
                     if index > 0:
@@ -536,9 +536,12 @@ class DischargeSkill(ActiveSkill):
             # No UI, just set position without animations
             if enemy_hit:
                 # Find position just before enemy
-                index = path_positions.index(enemy_pos)
-                if index > 0:
-                    user.y, user.x = path_positions[index - 1]
+                if enemy_pos in path_positions:
+                    index = path_positions.index(enemy_pos)
+                    if index > 0:
+                        user.y, user.x = path_positions[index - 1]
+                    else:
+                        user.y, user.x = original_pos
                 else:
                     user.y, user.x = original_pos
             else:

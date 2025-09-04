@@ -234,7 +234,7 @@ class EnbroachmentGasSkill(ActiveSkill):
         vapor_unit.vapor_duration = total_duration
         vapor_unit.vapor_creator = user
         vapor_unit.vapor_skill = self
-        vapor_unit.is_invulnerable = True  # Set invulnerability flag
+        # HEINOUS VAPOR uses PRT for effective invulnerability
         # Note: HEINOUS_VAPOR units are automatically immune to status effects via is_immune_to_effects() method
 
         # Add vapor to the game units
@@ -266,7 +266,7 @@ class SaftEGasSkill(ActiveSkill):
         super().__init__(
             name="Saft-E-Gas",
             key="S",
-            description="Summons a HEINOUS VAPOR that blocks enemy ranged attacks and heals allies by 1 HP.",
+            description="Summons a HEINOUS VAPOR that grants +1 defense to allies and heals allies by 1 HP.",
             target_type=TargetType.AREA,
             cooldown=3,
             range_=3
@@ -404,7 +404,7 @@ class SaftEGasSkill(ActiveSkill):
         vapor_unit.vapor_duration = total_duration
         vapor_unit.vapor_creator = user
         vapor_unit.vapor_skill = self
-        vapor_unit.is_invulnerable = True  # Set invulnerability flag
+        # HEINOUS VAPOR uses PRT for effective invulnerability
         # Note: HEINOUS_VAPOR units are automatically immune to status effects via is_immune_to_effects() method
 
         # Add vapor to the game units
