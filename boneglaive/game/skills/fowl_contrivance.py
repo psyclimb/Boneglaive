@@ -134,12 +134,7 @@ class RailGenesis(PassiveSkill):
                     # Check for critical health using centralized logic
                     game.check_critical_health(unit, user, previous_hp, ui)
         
-        if units_hit > 0:
-            message_log.add_message(
-                f"{user.get_display_name()}'s death explosion strikes {units_hit} {'unit' if units_hit == 1 else 'units'} on rails for {total_damage} damage",
-                MessageType.ABILITY,
-                player=user.player
-            )
+        # Note: Individual unit damage messages are already shown above, no summary needed
         else:
             message_log.add_message(
                 f"{user.get_display_name()}'s rail network remains intact despite its destruction",
@@ -598,12 +593,7 @@ class BigArcSkill(ActiveSkill):
                 MessageType.ABILITY,
                 player=user.player
             )
-        else:
-            message_log.add_message(
-                f"Mortar shells strike {units_hit} {'unit' if units_hit == 1 else 'units'} for {total_damage} damage",
-                MessageType.ABILITY,
-                player=user.player
-            )
+        # Note: Individual unit damage messages are already shown above, no summary needed
         
         # Play mortar barrage animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
