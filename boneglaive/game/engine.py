@@ -3857,17 +3857,17 @@ class Game:
                     logger.debug(f"SCALAR NODE TRIGGERED! Triggering animation for unit {unit.get_display_name()}")
                     damage = node_info['damage']
                     
-                    # Apply pierce damage (ignores defense)
-                    unit.hp = max(0, unit.hp - damage)
+                    # Apply regular damage (respects defense)
+                    actual_damage = unit.take_damage(damage, owner, "Scalar Node")
                     
                     # Log scalar node activation with custom message format and proper damage coloring
-                    custom_message = f"{unit.get_display_name()} stands in {owner.get_display_name()}'s standing wave for {damage} damage!"
+                    custom_message = f"{unit.get_display_name()} stands in {owner.get_display_name()}'s standing wave for {actual_damage} damage!"
                     message_log.add_message(
                         text=custom_message,
                         msg_type=MessageType.COMBAT,
                         player=owner.player,
                         target=unit.player,
-                        damage=damage,
+                        damage=actual_damage,
                         ability="Scalar Node",
                         attacker_name=owner.get_display_name(),
                         target_name=unit.get_display_name()

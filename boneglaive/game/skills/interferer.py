@@ -440,14 +440,14 @@ class KarrierRaveSkill(ActiveSkill):
 class ScalarNodeSkill(ActiveSkill):
     """
     Active skill for INTERFERER.
-    Places invisible traps that deal pierce damage when triggered.
+    Places invisible traps that deal damage when triggered.
     """
     
     def __init__(self):
         super().__init__(
             name="Scalar Node",
             key="S",
-            description="Place invisible trap on empty terrain (range 3). Triggers when enemy ends turn on tile, dealing 12 pierce damage. Silent deployment and activation.",
+            description="Place invisible trap on empty terrain (range 3). Triggers when enemy ends turn on tile, dealing 12 damage. Silent deployment and activation.",
             target_type=TargetType.AREA,
             cooldown=3,
             range_=3
