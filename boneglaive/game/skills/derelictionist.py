@@ -23,14 +23,8 @@ if TYPE_CHECKING:
     from boneglaive.game.engine import Game
 
 
-def calculate_distance(unit1: 'Unit', unit2: 'Unit') -> int:
-    """Calculate Manhattan distance between two units."""
-    return abs(unit1.y - unit2.y) + abs(unit1.x - unit2.x)
-
-
-def calculate_distance_coords(y1: int, x1: int, y2: int, x2: int) -> int:
-    """Calculate Manhattan distance between two coordinates."""
-    return abs(y1 - y2) + abs(x1 - x2)
+# NOTE: These functions are deprecated in favor of game.chess_distance()
+# Left for potential legacy compatibility, but should not be used in new code
 
 
 class Severance(PassiveSkill):
@@ -148,17 +142,59 @@ class VagalRunSkill(ActiveSkill):
             return
             
         # Calculate distance-based piercing damage
-        distance = calculate_distance(user, target)
-        piercing_damage = min(3, max(0, 4 - distance))  # Max 3 at distance 1, reduced by distance
+        distance = game.chess_distance(user.y, user.x, target.y, target.x)
+        piercing_damage = min(3, max(0, 6 - distance))  # Max 3 at distance 3, reduced by distance, 0 at distance 7+
         
-        # Store the damage amount for abreaction
+        # Store the damage/healing amount for abreaction
         target.vagal_run_active = True
         target.vagal_run_caster = user  # Reference to DERELICTIONIST who cast this
-        target.vagal_run_abreaction_damage = piercing_damage  # Store original damage for abreaction
         target.vagal_run_duration = 3  # Effect lasts 3 turns
         
-        # Apply immediate piercing damage (ignores defense, can't kill)
-        if piercing_damage > 0:
+        # Apply immediate effect and store abreaction amount
+        if distance >= 7:
+            # At distance 7+: Heal now and store healing amount for future abreaction heal
+            heal_amount = distance - 6
+            target.vagal_run_abreaction_damage = -heal_amount  # Negative value indicates healing for abreaction
+            
+            if target.hp < target.max_hp:
+                old_hp = target.hp
+                target.hp = min(target.max_hp, target.hp + heal_amount)
+                actual_heal = target.hp - old_hp
+                
+                if actual_heal > 0:
+                    message_log.add_message(
+                        f"{target.get_display_name()} heals for #HEAL_{actual_heal}# HP",
+                        MessageType.ABILITY,
+                        player=target.player
+                    )
+                    
+                    # Show healing effect on map if UI is available
+                    if ui and hasattr(ui, 'renderer'):
+                        import curses
+                        import time
+                        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+                        
+                        healing_text = f"+{actual_heal}"
+                        
+                        # Make healing text prominent with flashing effect (green color)
+                        for i in range(3):
+                            # First clear the area
+                            ui.renderer.draw_damage_text(target.y-1, target.x*2, " " * len(healing_text), 7)
+                            # Draw with alternating bold/normal for a flashing effect
+                            attrs = curses.A_BOLD if i % 2 == 0 else 0
+                            ui.renderer.draw_damage_text(target.y-1, target.x*2, healing_text, 3, attrs)  # Green color
+                            ui.renderer.refresh()
+                            sleep_with_animation_speed(0.1)
+                        
+                        # Final healing display (stays on screen slightly longer)
+                        ui.renderer.draw_damage_text(target.y-1, target.x*2, healing_text, 3, curses.A_BOLD)
+                        ui.renderer.refresh()
+                        sleep_with_animation_speed(0.3)  # Match the 0.3s delay used in other healing
+            
+        elif piercing_damage > 0:
+            # At close range: Damage now and store damage amount for future abreaction damage
+            target.vagal_run_abreaction_damage = piercing_damage  # Positive value indicates damage for abreaction
+            
             actual_damage = target.deal_damage(piercing_damage, can_kill=False)
             
             message_log.add_message(
@@ -166,9 +202,33 @@ class VagalRunSkill(ActiveSkill):
                 MessageType.ABILITY,
                 player=target.player
             )
+        else:
+            # Medium range (distance 6): No immediate effect, no abreaction
+            target.vagal_run_abreaction_damage = 0
         
         # Clear ALL status effects immediately
         cleared_effects = self._clear_all_status_effects(target)
+        
+        # Apply derelicted status AFTER clearing effects (only at distance 7+)
+        if distance >= 7:
+            target.derelicted = True
+            target.derelicted_duration = 1
+            
+            message_log.add_message(
+                f"{target.get_display_name()} becomes anchored by distant abandonment",
+                MessageType.WARNING,
+                player=target.player
+            )
+            
+            # Show dereliction animation - becoming anchored/bolted down
+            if ui and hasattr(ui, 'renderer'):
+                derelict_animation = ['|', 'T', '+', '#', '╬', '╫', '╪', 'H', 'X', '&']  # Structure forming, then anchored abandonment
+                ui.renderer.animate_attack_sequence(
+                    target.y, target.x,
+                    derelict_animation,
+                    1,  # Red color for abandonment trauma
+                    0.6  # Slower for heavy, deliberate immobilization
+                )
         
         # Show execution animation if UI available
         if ui and hasattr(ui, 'renderer'):
@@ -341,7 +401,7 @@ class DerelictSkill(ActiveSkill):
         super().__init__(
             name="Derelict",
             key="D",
-            description="Push ally 4 tiles away in straight line. Ally heals for 3 HP + distance from DERELICTIONIST and becomes immobilized for 1 turn",
+            description="Push ally 4 tiles away in straight line. Ally heals for distance from DERELICTIONIST and becomes immobilized for 1 turn",
             target_type=TargetType.ALLY,
             cooldown=4,
             range_=3
@@ -395,7 +455,6 @@ class DerelictSkill(ActiveSkill):
             
             # Store push direction on the target unit for execution phase
             target.derelict_push_direction = (dy, dx)
-            target.derelict_caster_position = (user.y, user.x)  # Store original DERELICTIONIST position
             
         # Queue the skill for execution during combat phase
         user.skill_target = target_pos
@@ -487,16 +546,11 @@ class DerelictSkill(ActiveSkill):
             target.y = final_y
             target.x = final_x
         
-        # Calculate healing based on final distance from DERELICTIONIST's ORIGINAL position
-        # (Use stored position from planning phase to maintain consistent healing)
-        if hasattr(target, 'derelict_caster_position'):
-            orig_derelictionist_y, orig_derelictionist_x = target.derelict_caster_position
-            distance_to_derelictionist = calculate_distance_coords(final_y, final_x, orig_derelictionist_y, orig_derelictionist_x)
-        else:
-            # Fallback to current position
-            distance_to_derelictionist = calculate_distance_coords(final_y, final_x, user.y, user.x)
+        # Calculate healing based on final distance from DERELICTIONIST's CURRENT position
+        # (Distance between target's final position and DERELICTIONIST's current position)
+        distance_to_derelictionist = game.chess_distance(final_y, final_x, user.y, user.x)
             
-        heal_amount = 3 + distance_to_derelictionist
+        heal_amount = distance_to_derelictionist
         
         # Show push result message with coordinates
         message_log.add_message(
@@ -513,7 +567,7 @@ class DerelictSkill(ActiveSkill):
             
             if actual_heal > 0:
                 message_log.add_message(
-                    f"{target.get_display_name()} heals for {actual_heal} HP",
+                    f"{target.get_display_name()} heals for #HEAL_{actual_heal}# HP",
                     MessageType.ABILITY,
                     player=target.player
                 )
@@ -553,7 +607,7 @@ class DerelictSkill(ActiveSkill):
         
         # Show dereliction animation - becoming anchored/bolted down
         if ui and hasattr(ui, 'renderer'):
-            derelict_animation = ['|', 'T', '+', '#', '╬', '╫', '╪', 'H', 'X', '∅']  # Structure forming, then abandonment
+            derelict_animation = ['|', 'T', '+', '#', '╬', '╫', '╪', 'H', 'X', '&']  # Structure forming, then anchored abandonment
             ui.renderer.animate_attack_sequence(
                 target.y, target.x,
                 derelict_animation,
@@ -564,10 +618,8 @@ class DerelictSkill(ActiveSkill):
         # Clean up stored direction data
         if hasattr(target, 'derelict_push_direction'):
             delattr(target, 'derelict_push_direction')
-        if hasattr(target, 'derelict_caster_position'):
-            delattr(target, 'derelict_caster_position')
         
-        logger.info(f"DERELICT EXECUTED: {user.get_display_name()} pushed {target.get_display_name()} {push_distance} tiles, healed {heal_amount}, applied immobilization")
+        logger.info(f"DERELICT EXECUTED: {user.get_display_name()} pushed {target.get_display_name()} {push_distance} tiles, healed {heal_amount} (distance: {distance_to_derelictionist}), applied immobilization")
         
         # Note: Severance passive bonus already applied during planning phase
 

@@ -577,7 +577,7 @@ class Unit:
                 
                 from boneglaive.utils.message_log import message_log, MessageType
                 message_log.add_message(
-                    f"{self.get_display_name()} dissociates from reality!",
+                    f"{self.get_display_name()} dissociates from battle",
                     MessageType.ABILITY,
                     player=self.player
                 )
