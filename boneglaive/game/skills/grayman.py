@@ -194,7 +194,7 @@ class DeltaConfigSkill(ActiveSkill):
         
         # Log the completion of teleportation
         message_log.add_message(
-            f"{user.get_display_name()} teleports to position ({target_pos[0]}, {target_pos[1]})",
+            f"{user.get_display_name()} teleports from ({original_pos[0]}, {original_pos[1]}) to position ({target_pos[0]}, {target_pos[1]})",
             MessageType.ABILITY,
             player=user.player
         )
@@ -672,7 +672,7 @@ class GraeExchangeSkill(ActiveSkill):
         
         # Log the completion
         message_log.add_message(
-            f"{user.get_display_name()} creates an echo and teleports to ({target_pos[0]}, {target_pos[1]})",
+            f"{user.get_display_name()} creates an echo and teleports from ({original_pos[0]}, {original_pos[1]}) to ({target_pos[0]}, {target_pos[1]})",
             MessageType.ABILITY,
             player=user.player
         )

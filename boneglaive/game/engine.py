@@ -1162,8 +1162,7 @@ class Game:
         - Solid terrain like pillars and limestone
         - Units in the line of sight
         
-        Note: Saft-E-Gas no longer blocks line of sight but instead prevents targeting
-        units inside its cloud (handled in can_attack)
+        Note: Saft-E-Gas grants +1 defense to units inside its cloud
         
         Args:
             from_y, from_x: Starting position coordinates
@@ -1271,55 +1270,7 @@ class Game:
             bool: True if target is protected, False if not
         """
         
-        # Check if target is protected by any Saft-E-Gas cloud
-        if hasattr(target_unit, 'protected_by_safety_gas') and target_unit.protected_by_safety_gas:
-            # Target is protected by at least one Saft-E-Gas cloud
-            # Check if attacker is inside ANY of the protecting clouds
-            attacker_in_protecting_cloud = False
-            
-            # Clean up any dead vapors from the protection list
-            active_vapors = []
-            for vapor in target_unit.protected_by_safety_gas[:]:  # Create a copy of the list to avoid modification issues
-                # First verify vapor exists and is actually in the game's units list
-                if vapor not in self.units:
-                    logger.debug(f"Vapor not found in game units - removing from protection list")
-                    continue
-                    
-                if vapor.is_alive():  # Only keep active vapors
-                    # Double check that the vapor is still a SAFETY type (in case it was changed)
-                    if hasattr(vapor, 'vapor_type') and vapor.vapor_type == "SAFETY":
-                        active_vapors.append(vapor)
-                    else:
-                        logger.debug(f"Vapor type has changed - removing from protection list")
-                else:
-                    logger.debug(f"Dead vapor - removing from protection list")
-            
-            # Update the protection list with only live vapors
-            target_unit.protected_by_safety_gas = active_vapors
-            
-            # If all protecting vapors are gone, remove the protection
-            if not active_vapors:
-                logger.debug(f"{target_unit.get_display_name()} is no longer protected (all protecting vapors are gone)")
-                delattr(target_unit, 'protected_by_safety_gas')
-                return False
-            
-            # Now check if any of the active vapors actually protect against this attacker
-            # For each protecting cloud, check if attacker is also in it
-            for vapor in active_vapors:
-                # Calculate distance from attacker to this vapor
-                attacker_distance = self.chess_distance(vapor.y, vapor.x, attacker_unit.y, attacker_unit.x)
-                if attacker_distance <= 1:  # Attacker is inside this protecting cloud
-                    attacker_in_protecting_cloud = True
-                    logger.debug(f"Attacker {attacker_unit.get_display_name()} is inside a protecting cloud")
-                    break
-            
-            # If attacker isn't in any of the protecting clouds, target is protected
-            is_protected = not attacker_in_protecting_cloud
-            if is_protected:
-                logger.debug(f"{target_unit.get_display_name()} is protected from {attacker_unit.get_display_name()}")
-            return is_protected
-            
-        # Target is not protected by any cloud
+        # Saft-E-Gas no longer provides targeting protection, only +1 defense bonus
         return False
     
     def can_target_unit(self, attacker, target):
@@ -1465,26 +1416,8 @@ class Game:
                 # Check if there's an enemy unit at this position
                 target = self.get_unit_at(y, x)
                 if target and target.player != unit.player:
-                    # Check if target is protected by any Saft-E-Gas
-                    if hasattr(target, 'protected_by_safety_gas') and target.protected_by_safety_gas:
-                        # Target is under protection - check if attacker would be in the same cloud
-                        attacker_in_protecting_cloud = False
-                        
-                        # Check each protecting vapor
-                        for vapor in target.protected_by_safety_gas:
-                            if vapor.is_alive():  # Only check active vapors
-                                # Calculate distance from the attack position to this vapor
-                                attacker_distance = self.chess_distance(vapor.y, vapor.x, y_pos, x_pos)
-                                if attacker_distance <= 1:  # Attacker would be in this cloud
-                                    attacker_in_protecting_cloud = True
-                                    break
-                        
-                        # Only add as valid target if attacker would be in a protecting cloud
-                        if attacker_in_protecting_cloud:
-                            attacks.append((y, x))
-                    else:
-                        # Target is not protected - add as valid target
-                        attacks.append((y, x))
+                    # Add as valid target (SAFT-E-GAS now only provides +1 defense instead of protection)
+                    attacks.append((y, x))
                     
                     continue  # Skip wall check
                 
@@ -2875,52 +2808,6 @@ class Game:
                         player=caster_player
                     )
                 
-                # Heal caster's allies within 2 tiles of cursed unit by 1 HP
-                allies_healed = 0
-                for dy in range(-2, 3):  # -2 to +2
-                    for dx in range(-2, 3):  # -2 to +2
-                        heal_y = unit.y + dy
-                        heal_x = unit.x + dx
-                        
-                        # Skip if out of bounds
-                        if not self.is_valid_position(heal_y, heal_x):
-                            continue
-                        
-                        # Check if there's a caster's ally at this position
-                        ally_unit = self.get_unit_at(heal_y, heal_x)
-                        if (ally_unit and ally_unit.is_alive() and 
-                            ally_unit.player == caster_player and ally_unit.hp < ally_unit.max_hp):
-                            # Heal ally by 1 HP
-                            ally_unit.hp += 1
-                            allies_healed += 1
-                            logger.debug(f"Auction Curse healed ally {ally_unit.get_display_name()} by 1 HP")
-                            
-                            # Show healing number if UI is available
-                            if ui and hasattr(ui, 'renderer'):
-                                healing_text = "+1"
-                                
-                                # Make healing text prominent with flashing effect (green color)
-                                for i in range(3):
-                                    # First clear the area
-                                    ui.renderer.draw_damage_text(ally_unit.y-1, ally_unit.x*2, " " * len(healing_text), 7)
-                                    # Draw with alternating bold/normal for a flashing effect
-                                    attrs = curses.A_BOLD if i % 2 == 0 else 0
-                                    ui.renderer.draw_damage_text(ally_unit.y-1, ally_unit.x*2, healing_text, 3, attrs)  # Green color
-                                    ui.renderer.refresh()
-                                    sleep_with_animation_speed(0.1)
-                                
-                                # Final healing display (stays on screen slightly longer)
-                                ui.renderer.draw_damage_text(ally_unit.y-1, ally_unit.x*2, healing_text, 3, curses.A_BOLD)
-                                ui.renderer.refresh()
-                                sleep_with_animation_speed(0.3)
-                
-                # Log ally healing if any occurred
-                if allies_healed > 0:
-                    message_log.add_message(
-                        f"Auction Curse's twisted energy heals {allies_healed} allied units near {unit.get_display_name()}",
-                        MessageType.ABILITY,
-                        player=caster_player
-                    )
                 
                 # Decrement the duration
                 unit.auction_curse_dot_duration -= 1
@@ -3444,7 +3331,7 @@ class Game:
             
             # Add message log entry for teleportation
             message_log.add_message(
-                f"{derelictionist.get_display_name()} defects to ({chosen_pos[0]},{chosen_pos[1]})",
+                f"{derelictionist.get_display_name()} defects from ({start_y},{start_x}) to ({chosen_pos[0]},{chosen_pos[1]})",
                 MessageType.ABILITY,
                 player=derelictionist.player
             )
@@ -3999,17 +3886,32 @@ class Game:
                         
                         # Fallback animation if asset manager doesn't have it
                         if not detonation_animation:
-                            detonation_animation = ['~', '≈', '*', '#', '@', '+', '*', '~', '.']
+                            detonation_animation = ['∼', '~', '≈', '∼', '~', '*', '+', '*', '+', 'X', '#', '╬', '+', '*', '∼', '.']  # Standing wave builds to geyser of sparks from vaporization
                             logger.debug(f"Using fallback animation: {detonation_animation}")
                         
                         logger.debug(f"About to play animation at position ({unit.y}, {unit.x})")
-                        ui.renderer.animate_attack_sequence(
-                            unit.y, unit.x,
-                            detonation_animation,
-                            6,  # Yellow color for energy explosion
-                            0.12  # Slightly faster for dramatic effect
-                        )
-                        logger.debug("Animation call completed")
+                        
+                        # Create flashing scalar node detonation effect similar to JUDGEMENT's critical animation
+                        # Flash with alternating colors and vaporization frames
+                        tile_ids = []
+                        color_ids = []
+                        durations = []
+                        
+                        for frame in detonation_animation:
+                            tile_ids.append(frame)
+                            # Alternate between red (energy/damage), yellow (sparks), and white (vaporization)
+                            if frame in ['∼', '~', '≈']:  # Wave frames - red energy
+                                color_ids.append(1)  # Red
+                            elif frame in ['*', '+']:  # Spark frames - yellow
+                                color_ids.append(6)  # Yellow  
+                            elif frame in ['X', '#', '╬']:  # Vaporization frames - white/bright
+                                color_ids.append(7)  # White
+                            else:  # Final dissipation - dim
+                                color_ids.append(8)  # Dark grey
+                            durations.append(0.05)  # Quick flashing frames
+                        
+                        ui.renderer.flash_tile(unit.y, unit.x, tile_ids, color_ids, durations)
+                        logger.debug("Flash animation completed")
                         
                         # Show damage number
                         logger.debug("Showing damage number")

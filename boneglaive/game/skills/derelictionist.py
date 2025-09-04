@@ -145,16 +145,25 @@ class VagalRunSkill(ActiveSkill):
         distance = game.chess_distance(user.y, user.x, target.y, target.x)
         piercing_damage = min(3, max(0, 6 - distance))  # Max 3 at distance 3, reduced by distance, 0 at distance 7+
         
-        # Store the damage/healing amount for abreaction
-        target.vagal_run_active = True
-        target.vagal_run_caster = user  # Reference to DERELICTIONIST who cast this
-        target.vagal_run_duration = 3  # Effect lasts 3 turns
+        # Store the damage/healing amount for abreaction (only if not immune to status effects)
+        if target.is_immune_to_effects():
+            message_log.add_message(
+                f"{target.get_display_name()} is immune to Vagal Run's abreaction effect due to Stasiality",
+                MessageType.ABILITY,
+                player=target.player
+            )
+            # Don't apply the vagal run status effect, but continue with immediate effects
+        else:
+            target.vagal_run_active = True
+            target.vagal_run_caster = user  # Reference to DERELICTIONIST who cast this
+            target.vagal_run_duration = 3  # Effect lasts 3 turns
         
-        # Apply immediate effect and store abreaction amount
+        # Apply immediate effect and store abreaction amount (if not immune)
         if distance >= 7:
             # At distance 7+: Heal now and store healing amount for future abreaction heal
             heal_amount = distance - 6
-            target.vagal_run_abreaction_damage = -heal_amount  # Negative value indicates healing for abreaction
+            if not target.is_immune_to_effects():
+                target.vagal_run_abreaction_damage = -heal_amount  # Negative value indicates healing for abreaction
             
             if target.hp < target.max_hp:
                 old_hp = target.hp
@@ -193,7 +202,8 @@ class VagalRunSkill(ActiveSkill):
             
         elif piercing_damage > 0:
             # At close range: Damage now and store damage amount for future abreaction damage
-            target.vagal_run_abreaction_damage = piercing_damage  # Positive value indicates damage for abreaction
+            if not target.is_immune_to_effects():
+                target.vagal_run_abreaction_damage = piercing_damage  # Positive value indicates damage for abreaction
             
             actual_damage = target.deal_damage(piercing_damage, can_kill=False)
             
@@ -204,13 +214,14 @@ class VagalRunSkill(ActiveSkill):
             )
         else:
             # Medium range (distance 6): No immediate effect, no abreaction
-            target.vagal_run_abreaction_damage = 0
+            if not target.is_immune_to_effects():
+                target.vagal_run_abreaction_damage = 0
         
-        # Clear ALL status effects immediately
+        # Clear ALL status effects immediately (even for immune units - this is therapeutic)
         cleared_effects = self._clear_all_status_effects(target)
         
-        # Apply derelicted status AFTER clearing effects (only at distance 7+)
-        if distance >= 7:
+        # Apply derelicted status AFTER clearing effects (only at distance 7+ and not immune)
+        if distance >= 7 and not target.is_immune_to_effects():
             target.derelicted = True
             target.derelicted_duration = 1
             
@@ -526,6 +537,7 @@ class DerelictSkill(ActiveSkill):
         
         # Try to push 4 tiles in that direction
         push_distance = 0
+        original_y, original_x = target.y, target.x  # Store original position
         final_y, final_x = target.y, target.x
         
         for distance in range(1, 5):  # Try 1-4 tiles
@@ -541,23 +553,35 @@ class DerelictSkill(ActiveSkill):
             else:
                 break
         
-        # Move target to final position
-        if push_distance > 0:
-            target.y = final_y
-            target.x = final_x
+        # Check if target is immune to displacement effects (GRAYMAN with Stasiality)
+        if target.is_immune_to_effects():
+            # Immune to push, so stay at original position
+            final_y, final_x = target.y, target.x
+            push_distance = 0
+            message_log.add_message(
+                f"{target.get_display_name()} is immune to Derelict's displacement due to Stasiality",
+                MessageType.ABILITY,
+                player=target.player
+            )
+        else:
+            # Move target to final position
+            if push_distance > 0:
+                target.y = final_y
+                target.x = final_x
+            
+            # Show push result message with coordinates
+            if push_distance > 0:
+                message_log.add_message(
+                    f"{target.get_display_name()} was pushed {push_distance} tiles from ({original_y}, {original_x}) to ({final_y}, {final_x})",
+                    MessageType.ABILITY,
+                    player=target.player
+                )
         
         # Calculate healing based on final distance from DERELICTIONIST's CURRENT position
         # (Distance between target's final position and DERELICTIONIST's current position)
         distance_to_derelictionist = game.chess_distance(final_y, final_x, user.y, user.x)
             
         heal_amount = distance_to_derelictionist
-        
-        # Show push result message with coordinates
-        message_log.add_message(
-            f"{target.get_display_name()} was pushed {push_distance} tiles to ({final_y}, {final_x})",
-            MessageType.ABILITY,
-            player=target.player
-        )
         
         # Apply healing if needed
         if target.hp < target.max_hp:
@@ -595,25 +619,32 @@ class DerelictSkill(ActiveSkill):
                     ui.renderer.refresh()
                     sleep_with_animation_speed(0.3)  # Match the 0.3s delay used in other healing
         
-        # Apply Derelicted status (immobilization for 1 turn)
-        target.derelicted = True
-        target.derelicted_duration = 1
-        
-        message_log.add_message(
-            f"{target.get_display_name()} becomes anchored by abandonment",
-            MessageType.WARNING,
-            player=target.player
-        )
-        
-        # Show dereliction animation - becoming anchored/bolted down
-        if ui and hasattr(ui, 'renderer'):
-            derelict_animation = ['|', 'T', '+', '#', '╬', '╫', '╪', 'H', 'X', '&']  # Structure forming, then anchored abandonment
-            ui.renderer.animate_attack_sequence(
-                target.y, target.x,
-                derelict_animation,
-                1,  # Red color for abandonment trauma
-                0.6  # Slower for heavy, deliberate immobilization
+        # Apply Derelicted status (immobilization for 1 turn) - only if not immune
+        if target.is_immune_to_effects():
+            message_log.add_message(
+                f"{target.get_display_name()} is immune to Derelict's dereliction due to Stasiality",
+                MessageType.ABILITY,
+                player=target.player
             )
+        else:
+            target.derelicted = True
+            target.derelicted_duration = 1
+            
+            message_log.add_message(
+                f"{target.get_display_name()} becomes anchored by abandonment",
+                MessageType.WARNING,
+                player=target.player
+            )
+            
+            # Show dereliction animation - becoming anchored/bolted down
+            if ui and hasattr(ui, 'renderer'):
+                derelict_animation = ['|', 'T', '+', '#', '╬', '╫', '╪', 'H', 'X', '&']  # Structure forming, then anchored abandonment
+                ui.renderer.animate_attack_sequence(
+                    target.y, target.x,
+                    derelict_animation,
+                    1,  # Red color for abandonment trauma
+                    0.6  # Slower for heavy, deliberate immobilization
+                )
         
         # Clean up stored direction data
         if hasattr(target, 'derelict_push_direction'):
@@ -712,6 +743,15 @@ class PartitionSkill(ActiveSkill):
         """Execute Partition during combat phase."""
         target = game.get_unit_at(target_pos[0], target_pos[1])
         if not target:
+            return
+        
+        # Check if target is immune to effects (GRAYMAN with Stasiality)
+        if target.is_immune_to_effects():
+            message_log.add_message(
+                f"{target.get_display_name()} is immune to Partition due to Stasiality",
+                MessageType.ABILITY,
+                player=target.player
+            )
             return
             
         # Show partition animation if UI available

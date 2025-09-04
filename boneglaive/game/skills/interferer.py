@@ -194,7 +194,7 @@ class NeuralShuntSkill(ActiveSkill):
         
         target = game.get_unit_at(target_pos[0], target_pos[1])
         message_log.add_message(
-            f"{user.get_display_name()} coordinates neural interference transmission",
+            f"{user.get_display_name()} coordinates a neural interference triangulation",
             MessageType.ABILITY,
             player=user.player
         )
@@ -208,22 +208,94 @@ class NeuralShuntSkill(ActiveSkill):
         if not target:
             return False
         
-        # Log activation
-        message_log.add_message(
-            f"Tower array hijacks {target.get_display_name()}'s neural signals",
-            MessageType.ABILITY,
-            player=user.player
-        )
         
-        # Show animation
+        # Show complex neural shunt animation
         if ui and hasattr(ui, 'renderer'):
-            neural_animation = ['?', '!', '*', '+', '~']
-            ui.renderer.animate_attack_sequence(
-                target.y, target.x,
-                neural_animation,
-                5,  # Red color
-                0.15
-            )
+            # Stage 1: Three radio wave streams converge on target from different directions
+            # Get three positions around the target (avoiding the INTERFERER's position)
+            convergence_positions = []
+            directions = [(-1, -1), (-1, 1), (1, 0), (0, -1), (0, 1), (1, -1), (1, 1)]  # All 8 directions except up
+            
+            # Pick 3 directions that don't have the INTERFERER
+            for dy, dx in directions:
+                wave_y = target.y + dy * 2  # Position 2 tiles away from target
+                wave_x = target.x + dx * 2
+                # Skip if this would be the INTERFERER's position or invalid
+                if ((wave_y, wave_x) != (user.y, user.x) and 
+                    game.is_valid_position(wave_y, wave_x) and 
+                    len(convergence_positions) < 3):
+                    convergence_positions.append((wave_y, wave_x, dy, dx))
+            
+            # Stage 1: Show radio waves building at the three positions
+            wave_buildup = ['~', '≈', '∼']
+            for i, frame in enumerate(wave_buildup):
+                for pos_y, pos_x, _, _ in convergence_positions:
+                    ui.renderer.draw_tile(pos_y, pos_x, frame, 6)  # Yellow for radio waves
+                ui.renderer.refresh()
+                sleep_with_animation_speed(0.08)
+                
+                # Clear the wave positions
+                for pos_y, pos_x, _, _ in convergence_positions:
+                    # Restore original terrain
+                    terrain_type = game.map.get_terrain_at(pos_y, pos_x)
+                    terrain_name = terrain_type.name.lower() if hasattr(terrain_type, 'name') else 'empty'
+                    if hasattr(ui, 'asset_manager'):
+                        terrain_tile = ui.asset_manager.get_terrain_tile(terrain_name)
+                        terrain_color = 1 if terrain_name == 'empty' else 11  # Simple color scheme
+                        ui.renderer.draw_tile(pos_y, pos_x, terrain_tile, terrain_color)
+            
+            # Stage 2: Waves converge toward target
+            convergence_frames = ['*', '+', '>', '<', '^', 'v']
+            for i, frame_char in enumerate(convergence_frames):
+                for pos_y, pos_x, dy, dx in convergence_positions:
+                    # Calculate intermediate position closer to target
+                    progress = (i + 1) / len(convergence_frames)
+                    inter_y = int(pos_y + dy * progress)
+                    inter_x = int(pos_x + dx * progress)
+                    
+                    if game.is_valid_position(inter_y, inter_x) and (inter_y, inter_x) != (target.y, target.x):
+                        ui.renderer.draw_tile(inter_y, inter_x, frame_char, 6)  # Yellow
+                
+                ui.renderer.refresh()
+                sleep_with_animation_speed(0.05)
+                
+                # Clear intermediate positions
+                for pos_y, pos_x, dy, dx in convergence_positions:
+                    progress = (i + 1) / len(convergence_frames)
+                    inter_y = int(pos_y + dy * progress)
+                    inter_x = int(pos_x + dx * progress)
+                    
+                    if game.is_valid_position(inter_y, inter_x) and (inter_y, inter_x) != (target.y, target.x):
+                        terrain_type = game.map.get_terrain_at(inter_y, inter_x)
+                        terrain_name = terrain_type.name.lower() if hasattr(terrain_type, 'name') else 'empty'
+                        if hasattr(ui, 'asset_manager'):
+                            terrain_tile = ui.asset_manager.get_terrain_tile(terrain_name)
+                            terrain_color = 1 if terrain_name == 'empty' else 11
+                            ui.renderer.draw_tile(inter_y, inter_x, terrain_tile, terrain_color)
+            
+            # Stage 3: Neural surge flash down nervous system
+            if hasattr(ui, 'asset_manager'):
+                original_unit_tile = ui.asset_manager.get_unit_tile(target.type)
+                
+                # Neural surge effect - rapid flashing through the nervous system
+                surge_frames = ['|', '\\', '/', '-', '|', '\\', '/', '-']
+                surge_colors = [1, 5, 6, 7, 1, 5, 6, 7]  # Red, yellow, white alternating
+                
+                for i, (frame, color) in enumerate(zip(surge_frames, surge_colors)):
+                    ui.renderer.draw_tile(target.y, target.x, frame, color)
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.03)  # Very fast neural surge
+            
+            # Stage 4: Confusion flashing
+            confusion_frames = ['?', original_unit_tile, '?', original_unit_tile, '?']
+            confusion_colors = [6, 3 if target.player == 1 else 4, 6, 3 if target.player == 1 else 4, 6]
+            confusion_durations = [0.1, 0.1, 0.1, 0.1, 0.1]
+            
+            ui.renderer.flash_tile(target.y, target.x, confusion_frames, confusion_colors, confusion_durations)
+            
+            # Final restoration
+            ui.renderer.draw_tile(target.y, target.x, original_unit_tile, 3 if target.player == 1 else 4)
+            ui.renderer.refresh()
         
         # Apply damage
         damage = max(1, self.damage - target.defense)
