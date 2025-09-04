@@ -34,7 +34,7 @@ class UnitType(Enum):
     HEINOUS_VAPOR = 8  # Vapor entity controlled by GAS_MACHINIST
     DELPHIC_APPRAISER = 9  # The furniture evaluator with cosmic value perception
     INTERFERER = 10  # The telecommunications engineer turned assassin
-    DERELIST = 11  # The psychological abandonment therapist
+    DERELICTIONIST = 11  # The psychological abandonment therapist
 
 # Unit stats: (hp, attack, defense, move_range, attack_range)
 UNIT_STATS = {
@@ -49,7 +49,7 @@ UNIT_STATS = {
     UnitType.HEINOUS_VAPOR: (10, 0, 0, 3, 1),
     UnitType.DELPHIC_APPRAISER: (20, 4, 0, 3, 1),
     UnitType.INTERFERER: (18, 4, 0, 2, 1),
-    UnitType.DERELIST: (18, 2, 0, 3, 1)
+    UnitType.DERELICTIONIST: (18, 2, 0, 3, 1)
 }
 
 UNIT_SYMBOLS = {
@@ -64,7 +64,7 @@ UNIT_SYMBOLS = {
     UnitType.HEINOUS_VAPOR: 'V',  # Generic vapor symbol, actual symbols set in skills
     UnitType.DELPHIC_APPRAISER: 'A',  # A for Appraiser
     UnitType.INTERFERER: 'R',  # R for Radioactive interference
-    UnitType.DERELIST: 'D'  # D for DERELIST
+    UnitType.DERELICTIONIST: 'D'  # D for DERELICTIONIST
 }
 
 # Attack visual effects
@@ -80,7 +80,7 @@ ATTACK_EFFECTS = {
     UnitType.HEINOUS_VAPOR: "~",    # Vapor effect (area)
     UnitType.DELPHIC_APPRAISER: "$",  # Currency symbol (evaluation)
     UnitType.INTERFERER: "x",  # Plutonium carabiner cross (melee)
-    UnitType.DERELIST: "•"  # Psychological void (melee)
+    UnitType.DERELICTIONIST: "•"  # Psychological void (melee)
 }
 
 # Greek alphabet for unit identification

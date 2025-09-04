@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Skills specific to the DERELIST unit type.
-This module contains all passive and active abilities for DERELIST units.
+Skills specific to the DERELICTIONIST unit type.
+This module contains all passive and active abilities for DERELICTIONIST units.
 
-The DERELIST is a support/healer unit focused on psychological abandonment therapy,
+The DERELICTIONIST is a support/healer unit focused on psychological abandonment therapy,
 trauma processing, and distance-based healing mechanics.
 """
 
@@ -35,7 +35,7 @@ def calculate_distance_coords(y1: int, x1: int, y2: int, x2: int) -> int:
 
 class Severance(PassiveSkill):
     """
-    Passive skill for DERELIST.
+    Passive skill for DERELICTIONIST.
     Allows skill-then-move capability with enhanced range after using skills.
     """
     
@@ -131,7 +131,7 @@ class VagalRunSkill(ActiveSkill):
         logger.info(f"VAGAL RUN QUEUED: {user.get_display_name()} targeting {target_name}")
         
         # Severance passive: Apply SEVERANCE status effect for enhanced movement
-        if user.type == UnitType.DERELIST:
+        if user.type == UnitType.DERELICTIONIST:
             user.can_move_post_skill = True
             user.used_skill_this_turn = True
             # Apply SEVERANCE status effect (+1 movement until move is issued)
@@ -153,7 +153,7 @@ class VagalRunSkill(ActiveSkill):
         
         # Store the damage amount for abreaction
         target.vagal_run_active = True
-        target.vagal_run_caster = user  # Reference to DERELIST who cast this
+        target.vagal_run_caster = user  # Reference to DERELICTIONIST who cast this
         target.vagal_run_abreaction_damage = piercing_damage  # Store original damage for abreaction
         target.vagal_run_duration = 3  # Effect lasts 3 turns
         
@@ -317,7 +317,7 @@ class VagalRunSkill(ActiveSkill):
             target.first_turn_move_bonus = False
             cleared_effects.append("First Turn Bonus")
             
-        # Don't clear severance_active as it's related to DERELIST's own passive
+        # Don't clear severance_active as it's related to DERELICTIONIST's own passive
         
         # Reset stat bonuses carefully (don't interfere with vagal run's own tracking)
         if not (hasattr(target, 'vagal_run_active') and target.vagal_run_active):
@@ -341,7 +341,7 @@ class DerelictSkill(ActiveSkill):
         super().__init__(
             name="Derelict",
             key="D",
-            description="Push ally 4 tiles away in straight line. Ally heals for 3 HP + distance from DERELIST and becomes immobilized for 1 turn",
+            description="Push ally 4 tiles away in straight line. Ally heals for 3 HP + distance from DERELICTIONIST and becomes immobilized for 1 turn",
             target_type=TargetType.ALLY,
             cooldown=4,
             range_=3
@@ -383,7 +383,7 @@ class DerelictSkill(ActiveSkill):
         # Calculate and store push direction NOW (during planning) to avoid position change issues
         target = game.get_unit_at(target_pos[0], target_pos[1])
         if target:
-            # Calculate push direction from current DERELIST position
+            # Calculate push direction from current DERELICTIONIST position
             dy = target.y - user.y
             dx = target.x - user.x
             
@@ -395,7 +395,7 @@ class DerelictSkill(ActiveSkill):
             
             # Store push direction on the target unit for execution phase
             target.derelict_push_direction = (dy, dx)
-            target.derelict_caster_position = (user.y, user.x)  # Store original DERELIST position
+            target.derelict_caster_position = (user.y, user.x)  # Store original DERELICTIONIST position
             
         # Queue the skill for execution during combat phase
         user.skill_target = target_pos
@@ -421,7 +421,7 @@ class DerelictSkill(ActiveSkill):
         logger.info(f"DERELICT QUEUED: {user.get_display_name()} targeting {target_name} with direction ({dy},{dx})")
         
         # Severance passive: Apply SEVERANCE status effect for enhanced movement
-        if user.type == UnitType.DERELIST:
+        if user.type == UnitType.DERELICTIONIST:
             user.can_move_post_skill = True
             user.used_skill_this_turn = True
             # Apply SEVERANCE status effect (+1 movement until move is issued)
@@ -487,16 +487,16 @@ class DerelictSkill(ActiveSkill):
             target.y = final_y
             target.x = final_x
         
-        # Calculate healing based on final distance from DERELIST's ORIGINAL position
+        # Calculate healing based on final distance from DERELICTIONIST's ORIGINAL position
         # (Use stored position from planning phase to maintain consistent healing)
         if hasattr(target, 'derelict_caster_position'):
-            orig_derelist_y, orig_derelist_x = target.derelict_caster_position
-            distance_to_derelist = calculate_distance_coords(final_y, final_x, orig_derelist_y, orig_derelist_x)
+            orig_derelictionist_y, orig_derelictionist_x = target.derelict_caster_position
+            distance_to_derelictionist = calculate_distance_coords(final_y, final_x, orig_derelictionist_y, orig_derelictionist_x)
         else:
             # Fallback to current position
-            distance_to_derelist = calculate_distance_coords(final_y, final_x, user.y, user.x)
+            distance_to_derelictionist = calculate_distance_coords(final_y, final_x, user.y, user.x)
             
-        heal_amount = 3 + distance_to_derelist
+        heal_amount = 3 + distance_to_derelictionist
         
         # Show push result message with coordinates
         message_log.add_message(
@@ -582,7 +582,7 @@ class PartitionSkill(ActiveSkill):
         super().__init__(
             name="Partition",
             key="P",
-            description="Grant ally shield that blocks 1 damage from all sources for 3 turns. If unit would take fatal damage, completely blocks all damage that turn, then ends effect, teleports DERELIST 4 tiles away, and applies Derelicted",
+            description="Grant ally shield that blocks 1 damage from all sources for 3 turns. If unit would take fatal damage, completely blocks all damage that turn, then ends effect, teleports DERELICTIONIST 4 tiles away, and applies Derelicted",
             target_type=TargetType.ALLY,
             cooldown=4,
             range_=3
@@ -646,7 +646,7 @@ class PartitionSkill(ActiveSkill):
         logger.info(f"PARTITION QUEUED: {user.get_display_name()} targeting {target_name}")
         
         # Severance passive: Apply SEVERANCE status effect for enhanced movement
-        if user.type == UnitType.DERELIST:
+        if user.type == UnitType.DERELICTIONIST:
             user.can_move_post_skill = True
             user.used_skill_this_turn = True
             # Apply SEVERANCE status effect (+1 movement until move is issued)
@@ -675,7 +675,7 @@ class PartitionSkill(ActiveSkill):
         
         # Apply new partition shield system
         target.partition_shield_active = True
-        target.partition_shield_caster = user  # Reference to DERELIST who cast this
+        target.partition_shield_caster = user  # Reference to DERELICTIONIST who cast this
         target.partition_shield_duration = 3
         target.partition_shield_emergency_active = False  # Not in emergency mode yet
         target.partition_shield_blocked_fatal = False  # Haven't blocked fatal damage yet

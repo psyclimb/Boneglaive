@@ -37,7 +37,7 @@ from boneglaive.game.skills.interferer import (
     NeutronIlluminant, NeuralShuntSkill, KarrierRaveSkill, ScalarNodeSkill
 )
 
-from boneglaive.game.skills.derelist import (
+from boneglaive.game.skills.derelictionist import (
     Severance, VagalRunSkill, DerelictSkill, PartitionSkill
 )
 
@@ -75,7 +75,7 @@ UNIT_SKILLS = {
         "passive": NeutronIlluminant(),
         "active": [NeuralShuntSkill(), KarrierRaveSkill(), ScalarNodeSkill()]
     },
-    "DERELIST": {
+    "DERELICTIONIST": {
         "passive": Severance(),
         "active": [VagalRunSkill(), DerelictSkill(), PartitionSkill()]
     }
