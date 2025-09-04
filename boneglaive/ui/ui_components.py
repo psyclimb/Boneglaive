@@ -619,7 +619,8 @@ class UnitHelpComponent(UIComponent):
                     'and area control. The GLAIVEMAN serves as a reliable frontline fighter with powerful',
                     'retaliatory abilities.',
                     '',
-                    'Role: Frontline Fighter / Area Controller'
+                    'Role: Frontline Fighter / Area Controller',
+                    'Difficulty: **'
                 ],
                 'stats': [
                     'HP: 22',
@@ -709,7 +710,8 @@ class UnitHelpComponent(UIComponent):
                     'enemies while providing tactical support to allies in open terrain. The MANDIBLE FOREMAN serves',
                     'as a close-range specialist focused on movement denial and crowd control.',
                     '',
-                    'Role: Frontline Fighter / Area Controller / Disabler'
+                    'Role: Frontline Fighter / Area Controller / Disabler',
+                    'Difficulty: **'
                 ],
                 'stats': [
                     'HP: 22',
@@ -805,7 +807,8 @@ class UnitHelpComponent(UIComponent):
                     'GRAYMAN serves as an elusive skirmisher that phases in and out of combat while weakening foes',
                     'through reality distortion and defense piercing attacks.',
                     '',
-                    'Role: Reality Manipulator / Disabler'
+                    'Role: Reality Manipulator / Disabler / Summoner',
+                    'Difficulty: *'
                 ],
                 'stats': [
                     'HP: 18',
@@ -960,7 +963,8 @@ class UnitHelpComponent(UIComponent):
                     'The MARROW CONDENSER serves as a defensive anchor that transforms the battlefield through',
                     'bone manipulation.',
                     '',
-                    'Role: Tank / Frontline Fighter / Area Controller'
+                    'Role: Tank / Frontline Fighter / Area Controller',
+                    'Difficulty: ***'
                 ],
                 'stats': [
                     'HP: 20',
@@ -1052,11 +1056,12 @@ class UnitHelpComponent(UIComponent):
                     'long-range devastation and battlefield control. This unit excels at indirect fire support',
                     'while establishing an explosive rail network.',
                     '',
-                    'Role: Artillery / Glass Cannon'
+                    'Role: Artillery / Glass Cannon',
+                    'Difficulty: ***'
                 ],
                 'stats': [
                     'HP: 18',
-                    'Attack: 5',
+                    'Attack: 4',
                     'Defense: 0',
                     'Movement: 4',
                     'Range: 2',
@@ -1143,7 +1148,8 @@ class UnitHelpComponent(UIComponent):
                     'manipulation through chemical entities. This support unit excels at creating HEINOUS VAPOR',
                     'minions that provide area control, healing, and damage over time.',
                     '',
-                    'Role: Summoner / Utility / Area Controller'
+                    'Role: Summoner / Utility / Area Controller / Healer',
+                    'Difficulty: *****'
                 ],
                 'stats': [
                     'HP: 18',
@@ -1236,7 +1242,8 @@ class UnitHelpComponent(UIComponent):
                     'at creating tactical advantages through furniture manipulation, teleportation networks,',
                     'and reality distortion effects.',
                     '',
-                    'Role: Utility / Reality Manipulator / Gambler'
+                    'Role: Utility / Reality Manipulator / Gambler',
+                    'Difficulty: ****'
                 ],
                 'stats': [
                     'HP: 20',
@@ -1328,11 +1335,12 @@ class UnitHelpComponent(UIComponent):
                     'precise strikes, neural interference, and electromagnetic warfare through triangulated',
                     'transmissions from the tower network. Also attacks with plutonium tipped carabiners.',
                     '',
-                    'Role: Glass Cannon / Disabler'
+                    'Role: Glass Cannon / Disabler',
+                    'Difficulty: **'
                 ],
                 'stats': [
                     'HP: 18',
-                    'Attack: 4', 
+                    'Attack: 3', 
                     'Defense: 0',
                     'Movement: 2',
                     'Range: 1 (Melee)',
@@ -1390,8 +1398,8 @@ class UnitHelpComponent(UIComponent):
                             'Range: 3',
                             'Target: Empty tile',
                             'Line of Sight: Yes',
-                            'Damage: 12 pierce',
-                            'Pierce: Yes',
+                            'Damage: 12',
+                            'Pierce: No',
                             'Effects: Invisible trap, silent warfare',
                             'Cooldown: 3 turns',
                             'Special: No message log entries, triggers when enemies end turn on trap'
@@ -1418,7 +1426,8 @@ class UnitHelpComponent(UIComponent):
                     'protective partitioning, and abandonment therapy through controlled dissociation.',
                     'Manipulates interpersonal distance for healing effects and status management.',
                     '',
-                    'Role: Utility'
+                    'Role: Utility / Healer',
+                    'Difficulty: ***'
                 ],
                 'stats': [
                     'HP: 18',
@@ -5457,14 +5466,6 @@ class ActionMenuComponent(UIComponent):
                                 if game.is_valid_position(tile_y, tile_x):
                                     area_targets.append(Position(tile_y, tile_x))
                     
-                    # Also display a special message
-                    self.publish_event(
-                        EventType.MESSAGE_DISPLAY_REQUESTED,
-                        MessageDisplayEventData(
-                            message=f"Marrow Dike will create walls around the perimeter.",
-                            message_type=MessageType.ABILITY
-                        )
-                    )
                 # For Bone Tithe, we want to show all adjacent tiles
                 elif skill.name == "Bone Tithe":
                     # Bone Tithe affects all tiles in a 3x3 area (area=1)

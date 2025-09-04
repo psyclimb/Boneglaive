@@ -484,8 +484,8 @@ class BigArcSkill(ActiveSkill):
         if max(y_dist, x_dist) > self.range:
             return False
 
-        # Cannot target own tile or adjacent tiles (self-damage protection)
-        if max(abs(target_pos[0] - source_y), abs(target_pos[1] - source_x)) <= 1:
+        # Cannot target within radius 3 of self (self-damage protection)
+        if max(abs(target_pos[0] - source_y), abs(target_pos[1] - source_x)) <= 3:
             return False
 
         # Indirect fire - no line of sight required

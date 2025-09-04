@@ -48,7 +48,7 @@ UNIT_STATS = {
     UnitType.GAS_MACHINIST: (18, 4, 1, 3, 1),
     UnitType.HEINOUS_VAPOR: (1, 0, 0, 3, 1),
     UnitType.DELPHIC_APPRAISER: (20, 4, 0, 3, 1),
-    UnitType.INTERFERER: (18, 4, 0, 2, 1),
+    UnitType.INTERFERER: (18, 3, 0, 2, 1),
     UnitType.DERELICTIONIST: (18, 2, 0, 3, 1)
 }
 
