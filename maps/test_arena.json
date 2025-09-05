@@ -1,0 +1,29 @@
+{
+  "format_version": "1.0",
+  "name": "Test Arena",
+  "width": 20,
+  "height": 10,
+  "terrain": {
+    "5,10": "PILLAR",
+    "4,9": "LIMESTONE",
+    "4,10": "LIMESTONE",
+    "4,11": "LIMESTONE",
+    "6,9": "LIMESTONE",
+    "6,10": "LIMESTONE", 
+    "6,11": "LIMESTONE",
+    "2,5": "FURNITURE",
+    "2,14": "FURNITURE",
+    "7,5": "FURNITURE",
+    "7,14": "FURNITURE",
+    "1,1": "RAIL",
+    "1,18": "RAIL",
+    "8,1": "RAIL",
+    "8,18": "RAIL"
+  },
+  "cosmic_values": {
+    "2,5": 7,
+    "2,14": 3,
+    "7,5": 9,
+    "7,14": 1
+  }
+}

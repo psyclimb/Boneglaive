@@ -169,13 +169,22 @@ class MenuUI:
         return ("submenu", self._create_map_selection_menu())
     
     def _create_map_selection_menu(self) -> Menu:
-        """Create the map selection menu."""
-        menu = Menu("Select Map", [
-            MenuItem("Stained Stones", lambda: self._select_map("stained_stones")),
-            MenuItem("Edge Case", lambda: self._select_map("edgecase")),
-            MenuItem("The Lime Foyer", lambda: self._select_map("lime_foyer")),
-            MenuItem("Back", lambda: ("submenu", None))
-        ])
+        """Create the map selection menu with all available maps."""
+        # Get all available maps (both JSON and hardcoded)
+        from boneglaive.game.map import MapFactory
+        available_maps = MapFactory.list_available_maps()
+        
+        # Create menu items for each map
+        menu_items = []
+        for map_name in available_maps:
+            # Create a display name (capitalize and replace underscores)
+            display_name = map_name.replace('_', ' ').title()
+            menu_items.append(MenuItem(display_name, lambda mn=map_name: self._select_map(mn)))
+        
+        # Add back button
+        menu_items.append(MenuItem("Back", lambda: ("submenu", None)))
+        
+        menu = Menu("Select Map", menu_items)
         menu.parent = self._find_menu_by_title("Play Game")
         return menu
     
