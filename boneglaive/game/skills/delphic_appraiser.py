@@ -978,8 +978,8 @@ class DivineDrepreciationSkill(ActiveSkill):
             # Deal damage based on cosmic value difference, bypassing defense
             old_hp = unit.hp
             
-            # Use take_damage to apply damage directly (bypassing defense)
-            actual_damage = unit.take_damage(damage_value, user, "Divine Depreciation")
+            # Use deal_damage to apply damage directly (bypassing defense)
+            actual_damage = unit.deal_damage(damage_value)
 
             message_log.add_combat_message(
                 attacker_name=user.get_display_name(),
