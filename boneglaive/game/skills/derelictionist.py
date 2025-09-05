@@ -77,6 +77,10 @@ class VagalRunSkill(ActiveSkill):
         if distance > self.range:
             return False
             
+        # Check line of sight
+        if not game.has_line_of_sight(source_y, source_x, target_pos[0], target_pos[1]):
+            return False
+            
         # Find target unit at position
         target = game.get_unit_at(target_pos[0], target_pos[1])
         if not target:
@@ -435,6 +439,10 @@ class DerelictSkill(ActiveSkill):
         if distance > self.range:
             return False
             
+        # Check line of sight
+        if not game.has_line_of_sight(source_y, source_x, target_pos[0], target_pos[1]):
+            return False
+            
         # Find target unit at position
         target = game.get_unit_at(target_pos[0], target_pos[1])
         if not target:
@@ -688,6 +696,10 @@ class PartitionSkill(ActiveSkill):
         source_y, source_x = (user.move_target[0], user.move_target[1]) if user.move_target else (user.y, user.x)
         distance = game.chess_distance(source_y, source_x, target_pos[0], target_pos[1])
         if distance > self.range:
+            return False
+            
+        # Check line of sight
+        if not game.has_line_of_sight(source_y, source_x, target_pos[0], target_pos[1]):
             return False
             
         # Find target unit at position
