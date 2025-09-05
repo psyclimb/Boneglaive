@@ -5,6 +5,8 @@ Map system for Boneglaive - includes map generation and terrain effects.
 
 from enum import Enum
 from typing import Dict, List, Optional, Tuple, Set
+import json
+import os
 
 from boneglaive.utils.constants import HEIGHT, WIDTH
 from boneglaive.utils.coordinates import Position
@@ -238,6 +240,128 @@ class GameMap:
             if terrain == TerrainType.RAIL:
                 rail_positions.append((y, x))
         return rail_positions
+
+    @classmethod
+    def from_json(cls, file_path: str) -> 'GameMap':
+        """
+        Create a GameMap from a JSON file.
+        
+        Args:
+            file_path: Path to the JSON map file
+            
+        Returns:
+            GameMap instance loaded from JSON
+            
+        Raises:
+            FileNotFoundError: If the map file doesn't exist
+            ValueError: If the JSON format is invalid
+        """
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"Map file not found: {file_path}")
+        
+        try:
+            with open(file_path, 'r') as f:
+                data = json.load(f)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON in map file: {e}")
+        
+        # Validate required fields
+        required_fields = ['format_version', 'name', 'width', 'height']
+        for field in required_fields:
+            if field not in data:
+                raise ValueError(f"Missing required field: {field}")
+        
+        # Validate format version
+        if data['format_version'] != '1.0':
+            raise ValueError(f"Unsupported format version: {data['format_version']}")
+        
+        # Create GameMap instance
+        game_map = cls(height=data['height'], width=data['width'])
+        game_map.name = data['name']
+        
+        # Load terrain data
+        terrain_data = data.get('terrain', {})
+        for coord_str, terrain_name in terrain_data.items():
+            try:
+                # Parse coordinate string "y,x"
+                y_str, x_str = coord_str.split(',')
+                y, x = int(y_str), int(x_str)
+                
+                # Validate coordinates
+                if not (0 <= y < game_map.height and 0 <= x < game_map.width):
+                    raise ValueError(f"Coordinate out of bounds: ({y}, {x})")
+                
+                # Get terrain type
+                try:
+                    terrain_type = TerrainType[terrain_name]
+                except KeyError:
+                    raise ValueError(f"Unknown terrain type: {terrain_name}")
+                
+                game_map.set_terrain_at(y, x, terrain_type)
+                
+            except ValueError as e:
+                raise ValueError(f"Invalid coordinate or terrain in '{coord_str}': {terrain_name} - {e}")
+        
+        # Load cosmic values
+        cosmic_data = data.get('cosmic_values', {})
+        for coord_str, value in cosmic_data.items():
+            try:
+                # Parse coordinate string "y,x"
+                y_str, x_str = coord_str.split(',')
+                y, x = int(y_str), int(x_str)
+                
+                # Validate coordinates
+                if not (0 <= y < game_map.height and 0 <= x < game_map.width):
+                    raise ValueError(f"Cosmic value coordinate out of bounds: ({y}, {x})")
+                
+                # Validate value range
+                if not (1 <= value <= 9):
+                    raise ValueError(f"Cosmic value must be 1-9, got: {value}")
+                
+                # Check if terrain supports cosmic values
+                if not game_map.set_cosmic_value(y, x, value):
+                    terrain = game_map.get_terrain_at(y, x)
+                    raise ValueError(f"Cannot set cosmic value on terrain {terrain.name} at ({y}, {x})")
+                
+            except ValueError as e:
+                raise ValueError(f"Invalid cosmic value at '{coord_str}': {value} - {e}")
+        
+        return game_map
+
+    def to_json(self, file_path: str) -> None:
+        """
+        Save the GameMap to a JSON file.
+        
+        Args:
+            file_path: Path where to save the JSON map file
+        """
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        
+        # Build terrain data (only non-empty tiles)
+        terrain_data = {}
+        for (y, x), terrain_type in self.terrain.items():
+            if terrain_type != TerrainType.EMPTY:
+                terrain_data[f"{y},{x}"] = terrain_type.name
+        
+        # Build cosmic values data
+        cosmic_data = {}
+        for (y, x), value in self.cosmic_values.items():
+            cosmic_data[f"{y},{x}"] = value
+        
+        # Create JSON data
+        data = {
+            'format_version': '1.0',
+            'name': self.name,
+            'width': self.width,
+            'height': self.height,
+            'terrain': terrain_data,
+            'cosmic_values': cosmic_data
+        }
+        
+        # Write to file
+        with open(file_path, 'w') as f:
+            json.dump(data, f, indent=2)
 
 
 class LimeFoyerMap(GameMap):
@@ -713,6 +837,17 @@ class MapFactory:
         from boneglaive.utils.debug import logger
         logger.info(f"MapFactory.create_map called with map_name: '{map_name}'")
         
+        # First, try to load from JSON file
+        json_path = os.path.join("maps", f"{map_name.lower()}.json")
+        if os.path.exists(json_path):
+            logger.info(f"Loading map from JSON file: {json_path}")
+            try:
+                return GameMap.from_json(json_path)
+            except (FileNotFoundError, ValueError) as e:
+                logger.error(f"Failed to load JSON map '{json_path}': {e}")
+                logger.info("Falling back to hardcoded maps")
+        
+        # Fall back to hardcoded maps
         if map_name.lower() == "lime_foyer":
             logger.info("Creating NewLimeFoyerMap (arena version)")
             return NewLimeFoyerMap()
@@ -729,3 +864,24 @@ class MapFactory:
             logger.warning(f"Unknown map name '{map_name}', defaulting to empty GameMap")
             # Default to empty map
             return GameMap()
+
+    @staticmethod
+    def list_available_maps() -> List[str]:
+        """List all available maps (both JSON and hardcoded)."""
+        maps = []
+        
+        # Check for JSON maps
+        maps_dir = "maps"
+        if os.path.exists(maps_dir):
+            for filename in os.listdir(maps_dir):
+                if filename.endswith(".json"):
+                    map_name = filename[:-5]  # Remove .json extension
+                    maps.append(map_name)
+        
+        # Add hardcoded maps (only if not already found as JSON)
+        hardcoded_maps = ["lime_foyer", "lime_foyer_arena", "stained_stones", "edgecase"]
+        for map_name in hardcoded_maps:
+            if map_name not in maps:
+                maps.append(map_name)
+        
+        return sorted(maps)
