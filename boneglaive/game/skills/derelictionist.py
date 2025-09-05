@@ -71,8 +71,9 @@ class VagalRunSkill(ActiveSkill):
         if not target_pos or not game:
             return False
             
-        # Check range first
-        distance = game.chess_distance(user.y, user.x, target_pos[0], target_pos[1])
+        # Check range first (use move_target if DERELICTIONIST moved first due to Severance)
+        source_y, source_x = (user.move_target[0], user.move_target[1]) if user.move_target else (user.y, user.x)
+        distance = game.chess_distance(source_y, source_x, target_pos[0], target_pos[1])
         if distance > self.range:
             return False
             
@@ -141,8 +142,10 @@ class VagalRunSkill(ActiveSkill):
         if not target:
             return
             
-        # Calculate distance-based piercing damage
-        distance = game.chess_distance(user.y, user.x, target.y, target.x)
+        # Calculate distance-based piercing damage from DERELICTIONIST's effective position
+        # (Use move_target if the DERELICTIONIST moved first due to Severance)
+        source_y, source_x = (user.move_target[0], user.move_target[1]) if user.move_target else (user.y, user.x)
+        distance = game.chess_distance(source_y, source_x, target.y, target.x)
         piercing_damage = min(3, max(0, 6 - distance))  # Max 3 at distance 3, reduced by distance, 0 at distance 7+
         
         # Store the damage/healing amount for abreaction (only if not immune to status effects)
@@ -426,8 +429,9 @@ class DerelictSkill(ActiveSkill):
         if not target_pos or not game:
             return False
             
-        # Check range first
-        distance = game.chess_distance(user.y, user.x, target_pos[0], target_pos[1])
+        # Check range first (use move_target if DERELICTIONIST moved first due to Severance)
+        source_y, source_x = (user.move_target[0], user.move_target[1]) if user.move_target else (user.y, user.x)
+        distance = game.chess_distance(source_y, source_x, target_pos[0], target_pos[1])
         if distance > self.range:
             return False
             
@@ -577,9 +581,10 @@ class DerelictSkill(ActiveSkill):
                     player=target.player
                 )
         
-        # Calculate healing based on final distance from DERELICTIONIST's CURRENT position
-        # (Distance between target's final position and DERELICTIONIST's current position)
-        distance_to_derelictionist = game.chess_distance(final_y, final_x, user.y, user.x)
+        # Calculate healing based on final distance from DERELICTIONIST's effective position
+        # (Use move_target if the DERELICTIONIST moved first due to Severance)
+        source_y, source_x = (user.move_target[0], user.move_target[1]) if user.move_target else (user.y, user.x)
+        distance_to_derelictionist = game.chess_distance(final_y, final_x, source_y, source_x)
             
         heal_amount = distance_to_derelictionist
         
@@ -679,8 +684,9 @@ class PartitionSkill(ActiveSkill):
         if not target_pos or not game:
             return False
             
-        # Check range first
-        distance = game.chess_distance(user.y, user.x, target_pos[0], target_pos[1])
+        # Check range first (use move_target if DERELICTIONIST moved first due to Severance)
+        source_y, source_x = (user.move_target[0], user.move_target[1]) if user.move_target else (user.y, user.x)
+        distance = game.chess_distance(source_y, source_x, target_pos[0], target_pos[1])
         if distance > self.range:
             return False
             
