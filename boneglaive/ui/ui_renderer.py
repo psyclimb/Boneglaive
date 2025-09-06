@@ -519,6 +519,38 @@ class UIRenderer:
                         color_id = teleport_anchor_color  # Player-specific color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
                         
+                # Seasonal terrain types (autumn)
+                elif terrain == TerrainType.LEAF_PIT:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("leaf_pit")
+                    color_id = 21  # Canyon floor color (tan/brown) for autumn leaves
+                    tile_attr = curses.A_DIM  # Dim to show they're mulchy/soft
+                elif terrain == TerrainType.MINI_PUMPKIN:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("mini_pumpkin")
+                    color_id = 21  # Canyon floor color (tan/brown) for pumpkin orange
+                    tile_attr = curses.A_BOLD  # Bold to make pumpkins stand out
+                    
+                    # Override if this has a teleport anchor
+                    if has_teleport_anchor:
+                        tile = "¥"  # Replace with yen/yuan symbol
+                        color_id = teleport_anchor_color  # Player-specific color for imbued furniture
+                        tile_attr = curses.A_BOLD  # Make it bold
+                        
+                elif terrain == TerrainType.POTPOURRI_BOWL:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("potpourri_bowl")
+                    color_id = 14  # White for furniture
+                    tile_attr = curses.A_DIM  # Dim white/gray via dim attribute
+                    
+                    # Override if this has a teleport anchor
+                    if has_teleport_anchor:
+                        tile = "¥"  # Replace with yen/yuan symbol
+                        color_id = teleport_anchor_color  # Player-specific color for imbued furniture
+                        tile_attr = curses.A_BOLD  # Make it bold
+                        
+                elif terrain == TerrainType.MELANGE_FUME:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("melange_fume")
+                    color_id = 21  # Canyon floor color (tan/brown) same as leaf pits
+                    tile_attr = curses.A_DIM  # Dim to show fumes are translucent
+                        
                 else:
                     # Fallback for any new terrain types
                     tile = self.game_ui.asset_manager.get_terrain_tile("empty")

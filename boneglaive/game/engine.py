@@ -923,6 +923,8 @@ class Game:
                 self._place_default_units_for_player(2)
                 # End setup phase
                 self.setup_phase = False
+                # Apply seasonal bonuses now that the game is starting
+                self._apply_seasonal_bonuses()
                 # Trigger rail creation now that setup is complete (prevents info leak during setup)
                 self._create_rails_for_fowl_contrivances()
                 # Assign Greek identification letters to units
@@ -948,6 +950,9 @@ class Game:
             self._assign_greek_identifiers()
             
             self.setup_phase = False
+            
+            # Apply seasonal bonuses now that the game is starting
+            self._apply_seasonal_bonuses()
             
             # Trigger rail creation now that setup is complete (prevents info leak during setup)
             self._create_rails_for_fowl_contrivances()
@@ -2116,6 +2121,25 @@ class Game:
                         # Restore movement bonus that was removed by the mired effect
                         unit.move_range_bonus += 1
             
+            # Process Pumped Up status effect from mini pumpkins
+            if hasattr(unit, 'pumped_up_active') and unit.pumped_up_active:
+                if hasattr(unit, 'pumped_up_duration') and unit.pumped_up_duration > 0:
+                    # Decrement duration
+                    unit.pumped_up_duration -= 1
+                    logger.debug(f"{unit.get_display_name()}'s Pumped Up duration: {unit.pumped_up_duration}")
+                    
+                    # Check if the status effect has expired
+                    if unit.pumped_up_duration <= 0:
+                        # Remove the status effect
+                        unit.pumped_up_active = False
+                        
+                        # Log the expiration
+                        message_log.add_message(
+                            f"{unit.get_display_name()}'s Pumped Up effect wears off",
+                            MessageType.ABILITY,
+                            player=unit.player
+                        )
+            
             # Process INTERFERER status effects
             if unit.player == self.current_player:
                 # Process radiation damage
@@ -2125,6 +2149,10 @@ class Game:
                 # Process INTERFERER-specific effects (Karrier Rave, Neural Shunt)
                 if hasattr(unit, 'process_interferer_effects'):
                     unit.process_interferer_effects(self)
+            
+            # Process potpourri bowl healing aura (only for current player's units)
+            if unit.player == self.current_player:
+                self._process_potpourri_bowl_healing(unit, ui)
             
             # Health regeneration is now processed after all actions are complete
     
@@ -2307,6 +2335,36 @@ class Game:
                     
                     # Update unit position
                     unit.y, unit.x = y, x
+                    
+                    # Check for terrain-specific interactions
+                    from boneglaive.game.map import TerrainType
+                    current_terrain = self.map.get_terrain_at(y, x)
+                    
+                    # Leaf pit rustling message
+                    if current_terrain == TerrainType.LEAF_PIT:
+                        from boneglaive.utils.message_log import message_log, MessageType
+                        message_log.add_message(
+                            f"{unit.get_display_name()} rustles through the cold mulchy pit",
+                            MessageType.ABILITY,
+                            player=unit.player
+                        )
+                    
+                    # Mini pumpkin collection
+                    elif current_terrain == TerrainType.MINI_PUMPKIN:
+                        from boneglaive.utils.message_log import message_log, MessageType
+                        # Apply Pumped Up status effect
+                        unit.pumped_up_active = True
+                        unit.pumped_up_duration = 3
+                        
+                        # Remove the mini pumpkin from the map (replace with canyon floor)
+                        self.map.set_terrain_at(y, x, TerrainType.CANYON_FLOOR)
+                        
+                        # Show collection message
+                        message_log.add_message(
+                            f"{unit.get_display_name()} snatches up the mini pumpkin",
+                            MessageType.ABILITY,
+                            player=unit.player
+                        )
                     
                     # Show movement animation if UI is provided
                     if ui:
@@ -4761,3 +4819,97 @@ class Game:
                         logger.debug(f"Pre-established Marrow Dike interior tracking at ({tile_y}, {tile_x})")
                 
                 logger.debug(f"Pre-established {len(dike_interior)} interior tiles for {unit.get_display_name()}'s Marrow Dike")
+
+    def _apply_seasonal_bonuses(self):
+        """Apply seasonal bonuses when the game starts (after setup phase)."""
+        # Check if this is an autumn map
+        if "autumn" in self.map.name.lower():
+            from boneglaive.utils.message_log import message_log, MessageType
+            
+            # Apply Crisp Air bonus (+1 movement to all units)
+            crisp_air_applied = 0
+            for unit in self.units:
+                if unit.is_alive():
+                    unit.move_range_bonus += 1
+                    crisp_air_applied += 1
+            
+            # Show the seasonal message
+            message_log.add_system_message("The cool autumn air crisps up all units")
+            
+            logger.info(f"Crisp Air bonus applied to {crisp_air_applied} units")
+    
+    def _process_potpourri_bowl_healing(self, unit, ui=None):
+        """Process potpourri bowl aura healing for a unit."""
+        from boneglaive.game.map import TerrainType
+        from boneglaive.utils.message_log import message_log, MessageType
+        
+        # Check if unit is at max health
+        if unit.hp >= unit.get_effective_stats()['hp']:
+            return
+            
+        # Find all adjacent positions
+        adjacent_positions = [
+            (unit.y - 1, unit.x - 1),  # NW
+            (unit.y - 1, unit.x),      # N
+            (unit.y - 1, unit.x + 1),  # NE
+            (unit.y, unit.x - 1),      # W
+            (unit.y, unit.x + 1),      # E
+            (unit.y + 1, unit.x - 1),  # SW
+            (unit.y + 1, unit.x),      # S
+            (unit.y + 1, unit.x + 1)   # SE
+        ]
+        
+        # Check if unit is on melange fume OR adjacent to potpourri bowl
+        should_heal = False
+        current_terrain = self.map.get_terrain_at(unit.y, unit.x)
+        
+        # Heal if standing on melange fume
+        if current_terrain == TerrainType.MELANGE_FUME:
+            should_heal = True
+        else:
+            # Check if any adjacent position has a potpourri bowl
+            for y, x in adjacent_positions:
+                if self.is_valid_position(y, x):
+                    terrain = self.map.get_terrain_at(y, x)
+                    if terrain == TerrainType.POTPOURRI_BOWL:
+                        should_heal = True
+                        break
+        
+        # If unit should heal, heal for 1 HP
+        if should_heal:
+            # Heal the unit
+            max_hp = unit.get_effective_stats()['hp']
+            heal_amount = min(1, max_hp - unit.hp)  # Heal 1 HP but don't exceed max
+            
+            if heal_amount > 0:
+                unit.hp += heal_amount
+                
+                # Show healing message
+                message_log.add_message(
+                    f"{unit.get_display_name()} sucks up the melange fume and heals for {heal_amount} HP",
+                    MessageType.ABILITY,
+                    player=unit.player
+                )
+                
+                # Show healing animation if UI is available
+                if ui and hasattr(ui, 'renderer'):
+                    import curses
+                    import time
+                    from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+                    
+                    healing_text = f"+{heal_amount}"
+                    
+                    # Make healing text prominent with flashing effect (green color)
+                    for i in range(3):
+                        # First clear the area
+                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(healing_text), 7)
+                        # Draw with alternating bold/normal for a flashing effect
+                        attrs = curses.A_BOLD if i % 2 == 0 else 0
+                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, healing_text, 3, attrs)  # Green color
+                        ui.renderer.refresh()
+                        sleep_with_animation_speed(0.1)
+                    
+                    # Final healing display (stays on screen slightly longer)
+                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, healing_text, 3, curses.A_BOLD)
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.3)

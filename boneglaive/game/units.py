@@ -148,6 +148,10 @@ class Unit:
         self.severance_active = False  # Whether DERELICTIONIST has Severance status (+1 movement)
         self.severance_duration = 0  # Duration of Severance status (until movement is issued)
         
+        # Pumped Up status effect (from mini pumpkins)
+        self.pumped_up_active = False  # Whether unit has Pumped Up status (+1 all stats)
+        self.pumped_up_duration = 0  # Duration of Pumped Up effect (3 turns)
+        
         # Experience and leveling
         self.level = 1
         self.xp = 0
@@ -210,12 +214,21 @@ class Unit:
         # Apply Estrange effect (-1 to all stats) if unit is estranged
         estrange_penalty = -1 if self.estranged else 0
         
+        # Calculate terrain-based bonuses
+        terrain_defense_bonus = 0
+        # Terrain bonuses removed - leaf pits no longer provide defense bonus
+        
+        # Apply Pumped Up status effect bonuses (+1 to all stats including PRT)
+        pumped_up_bonus = 0
+        if hasattr(self, 'pumped_up_active') and self.pumped_up_active:
+            pumped_up_bonus = 1
+
         # Calculate base stats with bonuses
         stats = {
-            'hp': self.max_hp + self.hp_bonus,
-            'attack': max(1, self.attack + self.attack_bonus + estrange_penalty),
-            'defense': max(0, self.defense + self.defense_bonus + estrange_penalty),
-            'attack_range': max(1, self.attack_range + self.attack_range_bonus + estrange_penalty)
+            'hp': self.max_hp + self.hp_bonus + pumped_up_bonus,
+            'attack': max(1, self.attack + self.attack_bonus + estrange_penalty + pumped_up_bonus),
+            'defense': max(0, self.defense + self.defense_bonus + terrain_defense_bonus + estrange_penalty + pumped_up_bonus),
+            'attack_range': max(1, self.attack_range + self.attack_range_bonus + estrange_penalty + pumped_up_bonus)
         }
         
         # Calculate base movement with bonuses
@@ -224,6 +237,13 @@ class Unit:
         # Add SEVERANCE status effect bonus (+1 movement)
         if hasattr(self, 'severance_active') and self.severance_active:
             base_movement += 1
+        
+        # Add Pumped Up status effect bonus to movement
+        if hasattr(self, 'pumped_up_active') and self.pumped_up_active:
+            base_movement += 1  # +1 movement
+        
+        # Seasonal bonuses are now applied as permanent bonuses when the game starts
+        # (see _apply_seasonal_bonuses in engine.py)
         
         # Special handling for move_range - allow it to be 0 for Jawline effect, charging status, and derelicted status
         # This ensures full immobilization when affected by these status effects
@@ -248,6 +268,16 @@ class Unit:
             stats['move_range'] = 0
             
         return stats
+    
+    def get_effective_prt(self):
+        """Get effective PRT including bonuses from status effects."""
+        effective_prt = self.prt
+        
+        # Add Pumped Up status effect bonus (+1 PRT)
+        if hasattr(self, 'pumped_up_active') and self.pumped_up_active:
+            effective_prt += 1
+            
+        return effective_prt
         
     def get_display_name(self, shortened=False) -> str:
         """Get the unit's display name including the Greek identifier.
@@ -589,9 +619,10 @@ class Unit:
                 return
             
             # Normal PRT processing if not fatal
-            if self.prt > 0:
+            effective_prt = self.get_effective_prt()
+            if effective_prt > 0:
                 # Apply PRT reduction
-                prt_absorbed = min(raw_damage, self.prt)
+                prt_absorbed = min(raw_damage, effective_prt)
                 actual_damage = max(0, raw_damage - prt_absorbed)
                 
                 # Track PRT absorbed for message log correction

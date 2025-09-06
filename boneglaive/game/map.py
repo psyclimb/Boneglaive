@@ -41,6 +41,10 @@ class TerrainType(Enum):
     COT = 23       # Temporary sleeping cot, blocks movement but not line of sight
     CONVEYOR = 24  # Industrial conveyor belt, blocks movement but not line of sight
     CONCRETE_FLOOR = 25 # Industrial concrete floor, visual only (passable)
+    LEAF_PIT = 26       # Mulchy autumn leaves, passable with concealment bonus
+    MINI_PUMPKIN = 27   # Mini decorative pumpkin, blocks movement but not line of sight
+    POTPOURRI_BOWL = 28 # Decorative potpourri bowl, blocks movement but not line of sight
+    MELANGE_FUME = 29   # Aromatic fumes from potpourri bowl, passable, provides healing aura
 
 
 class GameMap:
@@ -54,6 +58,9 @@ class GameMap:
 
         # Dictionary to store cosmic values for furniture
         self.cosmic_values: Dict[Tuple[int, int], int] = {}
+        
+        # Dictionary to store lighting effects
+        self.lighting_effects: Dict[Tuple[int, int], Dict] = {}
 
         # Generate an empty map by default
         self.reset_to_empty()
@@ -65,8 +72,9 @@ class GameMap:
             for x in range(self.width):
                 self.terrain[(y, x)] = TerrainType.EMPTY
 
-        # Reset cosmic values
+        # Reset cosmic values and lighting effects
         self.cosmic_values = {}
+        self.lighting_effects = {}
     
     def get_terrain_at(self, y: int, x: int) -> TerrainType:
         """Get terrain type at the given coordinates."""
@@ -80,14 +88,14 @@ class GameMap:
         """Check if a position is passable (can be moved through)."""
         terrain = self.get_terrain_at(y, x)
         # All furniture types, pillars, limestone, stained stone, and marrow walls are impassable
-        # Rails, canyon floor, and concrete floor are passable by all units
-        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.CONCRETE_FLOOR, TerrainType.RAIL]
+        # Rails, canyon floor, concrete floor, leaf pits, melange fumes, and mini pumpkins are passable by all units
+        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.CONCRETE_FLOOR, TerrainType.RAIL, TerrainType.LEAF_PIT, TerrainType.MELANGE_FUME, TerrainType.MINI_PUMPKIN]
     
     def can_place_unit(self, y: int, x: int) -> bool:
         """Check if a unit can be placed at this position."""
         terrain = self.get_terrain_at(y, x)
-        # Units can be placed on empty, dusty, canyon floor, concrete floor, or rail tiles
-        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.CONCRETE_FLOOR, TerrainType.RAIL]
+        # Units can be placed on empty, dusty, canyon floor, concrete floor, rail tiles, leaf pits, melange fumes, or mini pumpkins
+        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.CONCRETE_FLOOR, TerrainType.RAIL, TerrainType.LEAF_PIT, TerrainType.MELANGE_FUME, TerrainType.MINI_PUMPKIN]
         
     def blocks_line_of_sight(self, y: int, x: int) -> bool:
         """Check if a position blocks line of sight for ranged attacks."""
@@ -109,7 +117,8 @@ class GameMap:
                           TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE, 
                           TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                           TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
-                          TerrainType.COT, TerrainType.CONVEYOR]:
+                          TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
+                          TerrainType.POTPOURRI_BOWL]:
             return None
 
         # Check if player has DELPHIC_APPRAISER
@@ -147,7 +156,8 @@ class GameMap:
                           TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE, 
                           TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                           TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
-                          TerrainType.COT, TerrainType.CONVEYOR]:
+                          TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
+                          TerrainType.POTPOURRI_BOWL]:
             return False
 
         # Set the cosmic value
@@ -162,7 +172,65 @@ class GameMap:
                           TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE, 
                           TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                           TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
-                          TerrainType.COT, TerrainType.CONVEYOR]
+                          TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN, 
+                          TerrainType.POTPOURRI_BOWL]
+
+    def set_lighting_effect(self, y: int, x: int, light_type: str, color: str = "white", radius: int = 1) -> None:
+        """
+        Set a lighting effect at the given coordinates.
+        
+        Args:
+            y, x: Coordinates of the light source
+            light_type: Type of lighting (e.g., "glow", "lamp", "fire")
+            color: Color of the light (e.g., "orange", "white", "blue")
+            radius: How far the light reaches (in tiles)
+        """
+        self.lighting_effects[(y, x)] = {
+            "type": light_type,
+            "color": color,
+            "radius": radius
+        }
+    
+    def get_lighting_at(self, y: int, x: int) -> Optional[Dict]:
+        """Get lighting effect at the given coordinates."""
+        return self.lighting_effects.get((y, x))
+    
+    def is_illuminated(self, y: int, x: int) -> bool:
+        """Check if a position is illuminated by any light source."""
+        # Check all light sources to see if this position is within range
+        for (light_y, light_x), light_info in self.lighting_effects.items():
+            distance = max(abs(light_y - y), abs(light_x - x))  # Chess distance (Chebyshev)
+            if distance <= light_info.get("radius", 1):
+                return True
+        return False
+    
+    def get_illumination_color(self, y: int, x: int) -> Optional[str]:
+        """Get the color of illumination at a position (if illuminated)."""
+        for (light_y, light_x), light_info in self.lighting_effects.items():
+            distance = max(abs(light_y - y), abs(light_x - x))  # Chess distance (Chebyshev)
+            if distance <= light_info.get("radius", 1):
+                return light_info.get("color", "white")
+        return None
+    
+    def setup_tiffany_lamp_lighting(self) -> None:
+        """Setup lighting effects for all Tiffany lamps on the map."""
+        for (y, x), terrain in self.terrain.items():
+            if terrain == TerrainType.TIFFANY_LAMP:
+                # Regular maps get white light, seasonal maps can override
+                light_color = "white"
+                
+                # Check if this is a seasonal map with special lighting
+                if "autumn" in self.name.lower() or "harvest" in self.name.lower():
+                    light_color = "orange"
+                elif "winter" in self.name.lower():
+                    light_color = "blue"
+                elif "spring" in self.name.lower():
+                    light_color = "green"
+                elif "summer" in self.name.lower():
+                    light_color = "yellow"
+                
+                # Tiffany lamps illuminate a radius of 2 tiles
+                self.set_lighting_effect(y, x, "lamp_glow", light_color, radius=2)
 
     def has_rails(self) -> bool:
         """Check if the map currently has any rail tiles."""
@@ -325,6 +393,9 @@ class GameMap:
                 
             except ValueError as e:
                 raise ValueError(f"Invalid cosmic value at '{coord_str}': {value} - {e}")
+        
+        # Setup lighting effects for Tiffany lamps
+        game_map.setup_tiffany_lamp_lighting()
         
         return game_map
 
@@ -835,9 +906,24 @@ class MapFactory:
     def create_map(map_name: str) -> GameMap:
         """Create a map based on the given name."""
         from boneglaive.utils.debug import logger
+        from boneglaive.utils.seasonal_events import get_active_season, get_seasonal_map_path
+        
         logger.info(f"MapFactory.create_map called with map_name: '{map_name}'")
         
-        # First, try to load from JSON file
+        # First, check for active seasonal event and try seasonal map
+        active_season = get_active_season()
+        if active_season:
+            seasonal_path = get_seasonal_map_path(map_name.lower(), active_season)
+            if seasonal_path:
+                logger.info(f"Loading seasonal map: {seasonal_path}")
+                try:
+                    seasonal_map = GameMap.from_json(seasonal_path)
+                    return seasonal_map
+                except (FileNotFoundError, ValueError) as e:
+                    logger.warning(f"Failed to load seasonal map '{seasonal_path}': {e}")
+                    logger.info("Falling back to regular map")
+        
+        # Second, try to load from regular JSON file
         json_path = os.path.join("maps", f"{map_name.lower()}.json")
         if os.path.exists(json_path):
             logger.info(f"Loading map from JSON file: {json_path}")

@@ -113,6 +113,8 @@ class GameUI:
                 EventData(game=self.game, map_name=self.game.map.name)
             )
         
+        # Seasonal messages are now handled when the game starts (after setup phase)
+        
         # Only show game mode message when not in setup phase
         if not self.game.setup_phase:
             # Show multiplayer mode information in UI message only
@@ -289,6 +291,9 @@ class GameUI:
 
         # Add a welcome message to the cleared log
         message_log.add_system_message(f"New game started. Entering {self.game.map.name}")
+        
+        # Seasonal messages are now handled when the game starts (after setup phase)
+        
         message_log.add_system_message(f"Player {self.game.current_player} - Setup Phase")
 
         # Reset cursor position to center of board
