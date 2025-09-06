@@ -255,7 +255,7 @@ class MenuUI:
         
         # About screen content
         lines = [
-            "Boneglaive v0.8.0c BETA",
+            "Boneglaive v0.8.1 BETA",
             "Tactical Turn-Based Combat Game",
             "Beta Release",
             "",
