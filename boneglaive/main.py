@@ -10,6 +10,13 @@ import sys
 import logging
 from typing import Optional, Tuple
 
+# TEMPORARY: Force autumn season for testing
+# Force autumn mode disabled - seasonal maps only active on actual dates
+# try:
+#     from boneglaive.utils.force_autumn import *
+# except ImportError:
+#     pass  # Normal operation if force_autumn doesn't exist
+
 from boneglaive.ui.game_ui import GameUI
 from boneglaive.ui.menu_ui import MenuUI
 from boneglaive.utils.debug import debug_config, logger, LogLevel

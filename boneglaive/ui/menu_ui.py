@@ -172,19 +172,33 @@ class MenuUI:
         """Create the map selection menu with all available maps."""
         # Get all available maps (both JSON and hardcoded)
         from boneglaive.game.map import MapFactory
+        from boneglaive.utils.seasonal_events import get_active_season, seasonal_manager
+        
         available_maps = MapFactory.list_available_maps()
+        
+        # Check for active seasonal event
+        active_season = get_active_season()
+        menu_title = "Select Map"
+        if active_season:
+            seasonal_info = seasonal_manager.get_seasonal_info(active_season)
+            menu_title = f"Select Map - {seasonal_info['name']} Active"
         
         # Create menu items for each map
         menu_items = []
         for map_name in available_maps:
             # Create a display name (capitalize and replace underscores)
             display_name = map_name.replace('_', ' ').title()
+            
+            # Add seasonal indicator if seasonal map exists
+            if active_season and seasonal_manager.get_seasonal_map_path(map_name, active_season):
+                display_name += " ☀"  # Seasonal indicator (sun symbol)
+            
             menu_items.append(MenuItem(display_name, lambda mn=map_name: self._select_map(mn)))
         
         # Add back button
         menu_items.append(MenuItem("Back", lambda: ("submenu", None)))
         
-        menu = Menu("Select Map", menu_items)
+        menu = Menu(menu_title, menu_items)
         menu.parent = self._find_menu_by_title("Play Game")
         return menu
     
@@ -255,7 +269,7 @@ class MenuUI:
         
         # About screen content
         lines = [
-            "Boneglaive v0.8.1 BETA",
+            "Boneglaive v0.8.2 BETA",
             "Tactical Turn-Based Combat Game",
             "Beta Release",
             "",
@@ -338,7 +352,7 @@ class MenuUI:
             self.renderer.draw_text(start_row + i, col, line, 1, 0)
         
         # Add subtitle
-        subtitle = "v0.8.0c BETA"
+        subtitle = "v0.8.2 BETA"
         subtitle_col = max(0, (width - len(subtitle)) // 2)
         self.renderer.draw_text(start_row + len(title_art) + 1, subtitle_col, subtitle, 1, 0)
         

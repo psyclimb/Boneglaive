@@ -83,7 +83,12 @@ class AssetManager:
             'toolbox': '&',    # Ampersand for complex toolbox shape
             'cot': '=',      # Equals sign for flat elevated sleeping surface
             'conveyor': '~',   # Tilde for moving conveyor belt
-            'concrete_floor': '.'  # Concrete warehouse floor
+            'concrete_floor': '.',  # Concrete warehouse floor
+            # Seasonal terrain types (autumn)
+            'leaf_pit': '≋',       # Wave-like symbol for mulchy autumn leaves
+            'mini_pumpkin': 'o',   # Lowercase o for small round pumpkin
+            'potpourri_bowl': 'u', # Lowercase u for bowl shape
+            'melange_fume': '~'    # Tilde for aromatic fumes
         }
         
         # UI symbols
