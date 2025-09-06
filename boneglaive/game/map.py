@@ -851,9 +851,7 @@ class MapFactory:
         if map_name.lower() == "lime_foyer":
             logger.info("Creating NewLimeFoyerMap (arena version)")
             return NewLimeFoyerMap()
-        elif map_name.lower() == "lime_foyer_arena":
-            logger.info("Creating NewLimeFoyerMap (arena)")
-            return NewLimeFoyerMap()
+        # Removed lime_foyer_arena map reference
         elif map_name.lower() == "stained_stones":
             logger.info("Creating StainedStonesMap")
             return StainedStonesMap()
@@ -879,7 +877,7 @@ class MapFactory:
                     maps.append(map_name)
         
         # Add hardcoded maps (only if not already found as JSON)
-        hardcoded_maps = ["lime_foyer", "lime_foyer_arena", "stained_stones", "edgecase"]
+        hardcoded_maps = ["lime_foyer", "stained_stones", "edgecase"]
         for map_name in hardcoded_maps:
             if map_name not in maps:
                 maps.append(map_name)
