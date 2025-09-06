@@ -1,2 +1,2 @@
 # Boneglaive package
-__version__ = "0.8.0c"
+__version__ = "0.8.1"
