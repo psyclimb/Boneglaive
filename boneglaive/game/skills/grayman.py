@@ -325,12 +325,23 @@ class EstrangeSkill(ActiveSkill):
             )
             
             # Animate the beam along the path
+            beam_tiles = []
             for i, pos in enumerate(path[1:-1]):  # Skip first (user) and last (target) positions
-                # Use middle portion of animation for beam travel
-                beam_frame = estrange_animation[3 % len(estrange_animation)]
+                frame_index = (i + 3) % len(estrange_animation)  # Start from frame 3 and cycle
+                beam_frame = estrange_animation[frame_index]
                 ui.renderer.draw_tile(pos.y, pos.x, beam_frame, 6)
+                beam_tiles.append((pos.y, pos.x, beam_frame))
                 ui.renderer.refresh()
                 sleep_with_animation_speed(0.05)
+            
+            # Animate each tile cycling through frames
+            for cycle in range(len(estrange_animation)):
+                for i, (tile_y, tile_x, _) in enumerate(beam_tiles):
+                    frame_index = (i + 3 + cycle) % len(estrange_animation)
+                    beam_frame = estrange_animation[frame_index]
+                    ui.renderer.draw_tile(tile_y, tile_x, beam_frame, 6)
+                ui.renderer.refresh()
+                sleep_with_animation_speed(0.1)
             
             # Show impact at target position
             ui.renderer.animate_attack_sequence(

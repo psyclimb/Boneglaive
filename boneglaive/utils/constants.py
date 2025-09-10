@@ -42,7 +42,7 @@ UNIT_STATS = {
     UnitType.ARCHER: (15, 5, 2, 2, 3),
     UnitType.MAGE: (12, 6, 1, 1, 2),
     UnitType.MANDIBLE_FOREMAN: (22, 3, 1, 2, 1),
-    UnitType.GRAYMAN: (18, 3, 0, 2, 5),
+    UnitType.GRAYMAN: (18, 3, 0, 3, 5),
     UnitType.MARROW_CONDENSER: (20, 3, 2, 3, 1),
     UnitType.FOWL_CONTRIVANCE: (18, 4, 0, 4, 2),
     UnitType.GAS_MACHINIST: (18, 4, 1, 3, 1),

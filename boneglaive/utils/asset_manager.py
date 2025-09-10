@@ -144,7 +144,7 @@ class AssetManager:
             'delta_config': ['Ψ', '░', '▒', '▓', ' ', '▓', '▒', '░', 'Ψ'],  # Teleportation effect
             'teleport_out': ['Ψ', '░', '▒', '▓', ' '],  # Teleport out animation
             'teleport_in': [' ', '▓', '▒', '░', 'Ψ'],  # Teleport in animation
-            'estrange': ['≡', '≢', '⋍', '≈', '~', '≈', '⋍', '≢', '≡'],  # Phasing effect
+            'estrange': ['~', '=', '=', '~', '-', '-', '~', '='],  # Dramatic pulsing beam
             'grae_exchange': ['/', '_', '*', 'ψ', 'Ψ'],  # Echo creation effect
             'marrow_healing': ['♥', '❤', '♡', '❤', '♥', '✚', '+', '*'],  # Blood plasma healing animation
             

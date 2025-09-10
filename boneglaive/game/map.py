@@ -963,9 +963,9 @@ class MapFactory:
                     maps.append(map_name)
         
         # Add hardcoded maps (only if not already found as JSON)
-        hardcoded_maps = ["lime_foyer", "stained_stones", "edgecase"]
+        hardcoded_maps = ["stained_stones", "edgecase", "lime_foyer"]
         for map_name in hardcoded_maps:
             if map_name not in maps:
                 maps.append(map_name)
         
-        return sorted(maps)
+        return maps
