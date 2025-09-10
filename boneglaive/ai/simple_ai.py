@@ -3185,17 +3185,27 @@ class SimpleAI:
         """
         score = 0
         
+        # Only consider Marrow Dike if there are enemies that would be trapped
+        enemies_in_dike_area = 0
+        for enemy in self.game.units:
+            if enemy.player != unit.player and enemy.is_alive():
+                enemy_distance = self.game.chess_distance(unit.y, unit.x, enemy.y, enemy.x)
+                if enemy_distance <= 2:  # Would be inside the 5x5 dike area
+                    enemies_in_dike_area += 1
+        
+        # Don't use Marrow Dike if no enemies would be trapped
+        if enemies_in_dike_area == 0:
+            return 0, None
+        
         # Base score for area denial
         score += 15
         
         # High value when multiple enemies nearby (can trap them)
-        if nearby_enemies >= 2:
+        if enemies_in_dike_area >= 2:
             score += 40
-            score += (nearby_enemies - 2) * 15  # Bonus for each additional enemy
-        elif nearby_enemies == 1:
+            score += (enemies_in_dike_area - 2) * 15  # Bonus for each additional enemy
+        elif enemies_in_dike_area == 1:
             score += 20  # Still good for single enemy trap
-        else:
-            score -= 10  # Less valuable with no nearby enemies
         
         # Bonus if target is close enough to be affected
         distance_to_target = self.game.chess_distance(unit.y, unit.x, target.y, target.x)
@@ -5619,6 +5629,10 @@ class SimpleAI:
             estimated_avg_cosmic_value = len(furniture_in_area) * 4.5  # Average of 1-9
             estimated_damage = max(1, int(estimated_avg_cosmic_value / max(1, len(furniture_in_area))) - 1) if furniture_in_area else 1
             
+            # Don't use Divine Depreciation if no enemies would be hit
+            if len(enemies_in_area) == 0:
+                continue
+                
             # Score this target
             score = 0
             

@@ -129,7 +129,8 @@ class MarketFuturesSkill(ActiveSkill):
                          TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE, 
                          TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                          TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
-                         TerrainType.COT, TerrainType.CONVEYOR]:
+                         TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
+                         TerrainType.POTPOURRI_BOWL]:
             return False
 
         # If the unit has a move_target, use that position for range calculation
@@ -165,9 +166,13 @@ class MarketFuturesSkill(ActiveSkill):
             user.action_timestamp = game.action_counter
             game.action_counter += 1
 
+        # Get the furniture name for the message
+        target_terrain = game.map.get_terrain_at(target_pos[0], target_pos[1])
+        furniture_name = self._get_furniture_name(target_terrain)
+        
         # Log that the skill has been queued
         message_log.add_message(
-            f"{user.get_display_name()} prepares to infuse furniture with Market Futures",
+            f"{user.get_display_name()} prepares to infuse the {furniture_name} with Market Futures",
             MessageType.ABILITY,
             player=user.player
         )
@@ -187,6 +192,10 @@ class MarketFuturesSkill(ActiveSkill):
         cosmic_value = game.map.get_cosmic_value(target_pos[0], target_pos[1], player=user.player, game=game)
         if cosmic_value is None:
             cosmic_value = random.randint(1, 9)  # Fallback
+            
+        # Get the furniture name for messages
+        target_terrain = game.map.get_terrain_at(target_pos[0], target_pos[1])
+        furniture_name = self._get_furniture_name(target_terrain)
         
         # Create teleportation anchor
         if not hasattr(game, 'teleport_anchors'):
@@ -204,7 +213,7 @@ class MarketFuturesSkill(ActiveSkill):
         
         # Log the skill activation
         message_log.add_message(
-            f"{user.get_display_name()} infuses furniture with Market Futures. Cosmic value: {cosmic_value}",
+            f"{user.get_display_name()} infuses the {furniture_name} with Market Futures",
             MessageType.ABILITY,
             player=user.player
         )
@@ -385,6 +394,30 @@ class MarketFuturesSkill(ActiveSkill):
         game.update_anchor_status_effects()
         
         return True
+    
+    def _get_furniture_name(self, terrain_type) -> str:
+        """Convert TerrainType enum to readable furniture name."""
+        terrain_names = {
+            TerrainType.FURNITURE: "Furniture",
+            TerrainType.COAT_RACK: "Coat Rack", 
+            TerrainType.OTTOMAN: "Ottoman",
+            TerrainType.CONSOLE: "Console",
+            TerrainType.DEC_TABLE: "Decorative Table",
+            TerrainType.TIFFANY_LAMP: "Tiffany Lamp",
+            TerrainType.EASEL: "Easel",
+            TerrainType.SCULPTURE: "Sculpture", 
+            TerrainType.BENCH: "Bench",
+            TerrainType.PODIUM: "Podium",
+            TerrainType.VASE: "Vase",
+            TerrainType.WORKBENCH: "Workbench",
+            TerrainType.COUCH: "Couch",
+            TerrainType.TOOLBOX: "Toolbox",
+            TerrainType.COT: "Cot",
+            TerrainType.CONVEYOR: "Conveyor Belt",
+            TerrainType.MINI_PUMPKIN: "Mini Pumpkin",
+            TerrainType.POTPOURRI_BOWL: "Potpourri Bowl"
+        }
+        return terrain_names.get(terrain_type, "Furniture")
 
 
 class AuctionCurseSkill(ActiveSkill):
@@ -482,7 +515,8 @@ class AuctionCurseSkill(ActiveSkill):
                              TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE, 
                              TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                              TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
-                             TerrainType.COT, TerrainType.CONVEYOR]:
+                             TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
+                         TerrainType.POTPOURRI_BOWL]:
                     nearby_furniture.append((y, x))
 
                     # Get cosmic value (will be generated if it doesn't exist yet)
@@ -511,7 +545,7 @@ class AuctionCurseSkill(ActiveSkill):
 
         # Log the skill activation
         message_log.add_message(
-            f"{user.get_display_name()} casts Auction Curse on {target_unit.get_display_name()}",
+            f"{user.get_display_name()} opens a twisted auction for {target_unit.get_display_name()}",
             MessageType.ABILITY,
             player=user.player
         )
@@ -519,7 +553,7 @@ class AuctionCurseSkill(ActiveSkill):
         # Special message for maximum duration (9 turns)
         if dot_duration == 9:
             message_log.add_message(
-                f"DELPHIC APPRAISER {user.get_display_name()} rolls deftly",
+                f"DELPHIC APPRAISER {user.get_display_name()} rolls deftly!",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -542,7 +576,7 @@ class AuctionCurseSkill(ActiveSkill):
                 
                 # Log the DOT application
                 message_log.add_message(
-                    f"Auction Curse applied. {target_unit.get_display_name()} will take 1 damage per turn for {dot_duration} turns",
+                    f"{user.get_display_name()} curses {target_unit.get_display_name()} for {dot_duration} turns",
                     MessageType.ABILITY,
                     player=user.player
                 )
@@ -679,7 +713,9 @@ class DivineDrepreciationSkill(ActiveSkill):
             TerrainType.COUCH: "Couch",
             TerrainType.TOOLBOX: "Toolbox",
             TerrainType.COT: "Cot",
-            TerrainType.CONVEYOR: "Conveyor Belt"
+            TerrainType.CONVEYOR: "Conveyor Belt",
+            TerrainType.MINI_PUMPKIN: "Mini Pumpkin",
+            TerrainType.POTPOURRI_BOWL: "Potpourri Bowl"
         }
         return terrain_names.get(terrain_type, "Furniture")
 
@@ -702,7 +738,8 @@ class DivineDrepreciationSkill(ActiveSkill):
                          TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE, 
                          TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                          TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
-                         TerrainType.COT, TerrainType.CONVEYOR]:
+                         TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
+                         TerrainType.POTPOURRI_BOWL]:
             return False
 
         # If the unit has a move_target, use that position for range calculation
@@ -787,7 +824,8 @@ class DivineDrepreciationSkill(ActiveSkill):
                              TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE, 
                              TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                              TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
-                             TerrainType.COT, TerrainType.CONVEYOR]:
+                             TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
+                         TerrainType.POTPOURRI_BOWL]:
                     other_furniture.append(pos)
                     # Ensure cosmic value exists for all furniture
                     game.map.get_cosmic_value(pos[0], pos[1], player=user.player, game=game)
@@ -819,7 +857,7 @@ class DivineDrepreciationSkill(ActiveSkill):
         # Special message for maximum damage (8 damage)
         if effect_value == 8:
             message_log.add_message(
-                f"DELPHIC APPRAISER {user.get_display_name()} rolls deftly",
+                f"DELPHIC APPRAISER {user.get_display_name()} rolls deftly!",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -888,14 +926,14 @@ class DivineDrepreciationSkill(ActiveSkill):
 
         # Log the skill activation with details about the cosmic values
         message_log.add_message(
-            f"{user.get_display_name()} casts Divine Depreciation on the furniture",
+            f"{user.get_display_name()} casts Divine Depreciation on the {furniture_name}",
             MessageType.ABILITY,
             player=user.player
         )
 
         if other_furniture:
             message_log.add_message(
-                f"The furniture's value drops to 1, creating a reality distortion",
+                f"The {furniture_name}'s value plummets, creating a cascading sinkhole",
                 MessageType.ABILITY,
                 player=user.player
             )

@@ -2337,7 +2337,6 @@ class Game:
                     unit.y, unit.x = y, x
                     
                     # Check for terrain-specific interactions
-                    from boneglaive.game.map import TerrainType
                     current_terrain = self.map.get_terrain_at(y, x)
                     
                     # Leaf pit rustling message

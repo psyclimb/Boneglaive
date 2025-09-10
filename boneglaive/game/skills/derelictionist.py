@@ -739,7 +739,7 @@ class PartitionSkill(ActiveSkill):
         target_name = target.get_display_name() if target else "ally"
         
         message_log.add_message(
-            f"{user.get_display_name()} prepares to partition {target_name} from harm",
+            f"{user.get_display_name()} prepares to partition {target_name}",
             MessageType.ABILITY,
             player=user.player
         )
@@ -792,8 +792,9 @@ class PartitionSkill(ActiveSkill):
         target.prt = 1  # Set partition stat to 1 for universal damage reduction
         
         message_log.add_message(
-            f"{target.get_display_name()} gains partition shield",
-            MessageType.ABILITY
+            f"{target.get_display_name()} is partitioned from battle",
+            MessageType.ABILITY,
+            player=target.player
         )
         
         logger.info(f"PARTITION EXECUTED: {user.get_display_name()} applies partition shield to {target.get_display_name()}")
