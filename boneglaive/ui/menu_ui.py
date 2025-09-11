@@ -269,7 +269,7 @@ class MenuUI:
         
         # About screen content
         lines = [
-            "Boneglaive v0.8.4 BETA",
+            "Boneglaive v0.8.5 BETA",
             "Tactical Turn-Based Combat Game",
             "Beta Release",
             "",
@@ -352,7 +352,7 @@ class MenuUI:
             self.renderer.draw_text(start_row + i, col, line, 1, 0)
         
         # Add subtitle
-        subtitle = "v0.8.4 BETA"
+        subtitle = "v0.8.5 BETA"
         subtitle_col = max(0, (width - len(subtitle)) // 2)
         self.renderer.draw_text(start_row + len(title_art) + 1, subtitle_col, subtitle, 1, 0)
         
