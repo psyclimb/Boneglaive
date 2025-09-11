@@ -2666,6 +2666,7 @@ class CursorManager(UIComponent):
             target_position = (self.cursor_pos.y, self.cursor_pos.x)
             self.selected_unit.attack_target = target_position
             
+            
             # Mark that this unit is taking an action (won't regenerate HP)
             self.selected_unit.took_no_actions = False
             

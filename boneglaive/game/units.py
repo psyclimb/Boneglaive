@@ -68,6 +68,7 @@ class Unit:
         self.teleport_target_indicator = None  # Visual indicator for Delta Config destination
         self.expedite_path_indicator = None  # Visual indicator for Expedite path
         self.jawline_indicator = None  # Visual indicator for Jawline network area
+        
         # Old indicator removed - new skills have their own indicators
         # Old emetic flange indicator removed
         self.broaching_gas_indicator = None  # Visual indicator for Broaching Gas target
@@ -528,12 +529,24 @@ class Unit:
         
         self.action_timestamp = 0  # Reset the action timestamp
         
-    def has_commands_issued(self) -> bool:
-        """Check if this unit has any commands queued (move, attack, or skill)."""
-        return (self.move_target is not None or 
-                self.attack_target is not None or 
-                self.skill_target is not None)
-        # No Recalibrate tracking
+    def is_done_acting(self) -> bool:
+        """Check if this unit has used an action that ends their turn (attack or skill)."""
+        from boneglaive.utils.constants import UnitType
+        
+        # Attack always makes a unit done
+        if self.attack_target is not None:
+            return True
+            
+        # For skills, check unit type
+        if self.skill_target is not None:
+            # DERELICTIONIST can move after using a skill, so only done if they also have a move
+            if self.type == UnitType.DERELICTIONIST:
+                return self.move_target is not None  # Done only if skill + move
+            else:
+                return True  # All other units are done after skill
+                
+        return False  # No attack or skill = not done
+    
         
     # HP property with invulnerability check
     @property
