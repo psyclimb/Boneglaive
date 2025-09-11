@@ -70,7 +70,7 @@ class EffluviumLathe(PassiveSkill):
                 # Log the charge generation
                 if old_charges != self.charges:  # Only log if charges actually changed
                     message_log.add_message(
-                        f"{user.get_display_name()}'s Effluvium Lathe generates a charge ({self.charges}/{self.max_charges})",
+                        f"{user.get_display_name()}'s Effluvium Lathe generates a charge of gas ({self.charges}/{self.max_charges})",
                         MessageType.ABILITY,
                         player=user.player
                     )
@@ -99,7 +99,7 @@ class EnbroachmentGasSkill(ActiveSkill):
             description="Summons a HEINOUS VAPOR that deals 2 damage to enemies and cleanses allies of negative status effects.",
             target_type=TargetType.AREA,
             cooldown=2,
-            range_=3
+            range_=4
         )
         self.vapor_type = "BROACHING"
         self.vapor_symbol = "Φ"  # Phi symbol for Broaching Gas
@@ -135,6 +135,10 @@ class EnbroachmentGasSkill(ActiveSkill):
         if distance > self.range:
             return False
 
+        # Check line of sight
+        if not game.has_line_of_sight(source_y, source_x, target_pos[0], target_pos[1]):
+            return False
+
         return True
             
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
@@ -155,7 +159,7 @@ class EnbroachmentGasSkill(ActiveSkill):
 
         # Log that the skill has been queued
         message_log.add_message(
-            f"{user.get_display_name()} prepares to summon a Broaching Gas vapor",
+            f"{user.get_display_name()} prepares to spin out a Broaching Gas",
             MessageType.ABILITY,
             player=user.player
         )
@@ -193,19 +197,7 @@ class EnbroachmentGasSkill(ActiveSkill):
             else:
                 total_duration = base_duration + charges_consumed - 1  # Adjust formula
 
-        # Log the skill activation
-        message_log.add_message(
-            f"{user.get_display_name()} summons a Broaching Gas vapor",
-            MessageType.ABILITY,
-            player=user.player
-        )
-
-        if charges_consumed > 0:
-            message_log.add_message(
-                f"Using {charges_consumed} Effluvium charges to extend duration to {total_duration} turns",
-                MessageType.ABILITY,
-                player=user.player
-            )
+        # Skill activation message removed - only show expulsion message
 
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
@@ -248,7 +240,7 @@ class EnbroachmentGasSkill(ActiveSkill):
         
         # Log the successful summoning with proper Greek letter
         message_log.add_message(
-            f"{vapor_unit.get_display_name()} appears at position ({target_pos[0]}, {target_pos[1]})",
+            f"{vapor_unit.get_display_name()} is expelled to position ({target_pos[0]}, {target_pos[1]})",
             MessageType.ABILITY,
             player=user.player
         )
@@ -269,7 +261,7 @@ class SaftEGasSkill(ActiveSkill):
             description="Summons a HEINOUS VAPOR that grants +1 defense to allies and heals allies by 1 HP.",
             target_type=TargetType.AREA,
             cooldown=3,
-            range_=3
+            range_=4
         )
         self.vapor_type = "SAFETY"
         self.vapor_symbol = "Θ"  # Theta symbol for Safety Gas
@@ -305,6 +297,10 @@ class SaftEGasSkill(ActiveSkill):
         if distance > self.range:
             return False
 
+        # Check line of sight
+        if not game.has_line_of_sight(source_y, source_x, target_pos[0], target_pos[1]):
+            return False
+
         return True
             
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
@@ -325,7 +321,7 @@ class SaftEGasSkill(ActiveSkill):
 
         # Log that the skill has been queued
         message_log.add_message(
-            f"{user.get_display_name()} prepares to summon a Saft-E-Gas vapor",
+            f"{user.get_display_name()} prepares to spin out a Saft-E-Gas",
             MessageType.ABILITY,
             player=user.player
         )
@@ -363,19 +359,7 @@ class SaftEGasSkill(ActiveSkill):
             else:
                 total_duration = base_duration + charges_consumed - 1  # Adjust formula
 
-        # Log the skill activation
-        message_log.add_message(
-            f"{user.get_display_name()} summons a Saft-E-Gas vapor",
-            MessageType.ABILITY,
-            player=user.player
-        )
-
-        if charges_consumed > 0:
-            message_log.add_message(
-                f"Using {charges_consumed} Effluvium charges to extend duration to {total_duration} turns",
-                MessageType.ABILITY,
-                player=user.player
-            )
+        # Skill activation message removed - only show expulsion message
 
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
@@ -418,7 +402,7 @@ class SaftEGasSkill(ActiveSkill):
         
         # Log the successful summoning with proper Greek letter
         message_log.add_message(
-            f"{vapor_unit.get_display_name()} appears at position ({target_pos[0]}, {target_pos[1]})",
+            f"{vapor_unit.get_display_name()} is expelled to position ({target_pos[0]}, {target_pos[1]})",
             MessageType.ABILITY,
             player=user.player
         )
@@ -439,7 +423,7 @@ class DivergeSkill(ActiveSkill):
             description="Splits an existing HEINOUS VAPOR or self into Coolant Gas (heals allies) and Cutting Gas (damages enemies). Consumes all Effluvium charges to extend duration.",
             target_type=TargetType.SELF,  # Changed to SELF to enable self-targeting
             cooldown=4,
-            range_=5
+            range_=4
         )
         self.coolant_symbol = "Σ"  # Sigma symbol for Coolant Gas
         self.cutting_symbol = "%"  # Percent symbol for Cutting Gas
@@ -461,6 +445,10 @@ class DivergeSkill(ActiveSkill):
 
         distance = game.chess_distance(source_y, source_x, target_pos[0], target_pos[1])
         if distance > self.range:
+            return False
+
+        # Check line of sight
+        if not game.has_line_of_sight(source_y, source_x, target_pos[0], target_pos[1]):
             return False
 
         # Target must be either self or a HEINOUS VAPOR owned by the player
@@ -516,7 +504,7 @@ class DivergeSkill(ActiveSkill):
         else:
             target_unit = game.get_unit_at(target_pos[0], target_pos[1])
             message_log.add_message(
-                f"{user.get_display_name()} prepares to diverge a vapor at ({target_pos[0]}, {target_pos[1]})",
+                f"{user.get_display_name()} prepares to diverge {target_unit.get_display_name()}",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -560,26 +548,7 @@ class DivergeSkill(ActiveSkill):
             else:
                 total_duration = base_duration + charges_consumed - 1  # Adjust formula
         
-        # Log the skill activation
-        if is_self_target:
-            message_log.add_message(
-                f"{user.get_display_name()} diverges into two vapor entities",
-                MessageType.ABILITY,
-                player=user.player
-            )
-        else:
-            message_log.add_message(
-                f"{user.get_display_name()} causes the vapor to diverge into two specialized entities",
-                MessageType.ABILITY,
-                player=user.player
-            )
-            
-        if charges_consumed > 0:
-            message_log.add_message(
-                f"Using {charges_consumed} Effluvium charges to extend duration to {total_duration} turns",
-                MessageType.ABILITY,
-                player=user.player
-            )
+        # Skill activation messages removed - will show splitting message later
         
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
@@ -768,7 +737,7 @@ class DivergeSkill(ActiveSkill):
         else:
             # Log the vapor being split with proper Greek letters
             message_log.add_message(
-                f"The vapor splits into {coolant_gas.get_display_name()} and {cutting_gas.get_display_name()}",
+                f"{user.get_display_name()} splits {target_unit.get_display_name()} {coolant_gas.get_display_name()} and {cutting_gas.get_display_name()}",
                 MessageType.ABILITY,
                 player=user.player
             )

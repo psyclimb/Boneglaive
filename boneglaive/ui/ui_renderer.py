@@ -233,7 +233,11 @@ class UIRenderer:
             self.renderer.draw_text(header_y, 2, player_text, player_color, curses.A_BOLD)
             
             # Draw action mode (select/move/attack)
-            mode_text = f"MODE: {mode_manager.mode.upper()}"
+            # Convert internal mode names to display names
+            display_mode = mode_manager.mode
+            if display_mode == "target_vapor":
+                display_mode = "diverge"
+            mode_text = f"MODE: {display_mode.upper()}"
             self.renderer.draw_text(header_y, len(player_text) + 4, mode_text, 1)
             
             # Draw multiplayer info

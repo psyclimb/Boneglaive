@@ -1146,16 +1146,16 @@ class UnitHelpComponent(UIComponent):
                 'overview': [
                     'The GAS MACHINIST is a vapor-controlling technician that specializes in battlefield',
                     'manipulation through chemical entities. This support unit excels at creating HEINOUS VAPOR',
-                    'minions that provide area control, healing, and damage over time.',
+                    'minions that provide area control, healing, status removal, and damage over time.',
                     '',
-                    'Role: Summoner / Utility / Area Controller / Healer',
+                    'Role: Summoner / Area Controller / Utility / Healer',
                     'Difficulty: *****'
                 ],
                 'stats': [
-                    'HP: 18',
+                    'HP: 20',
                     'Attack: 4',
                     'Defense: 1',
-                    'Movement: 3',
+                    'Movement: 2',
                     'Range: 1',
                     'Symbol: M'
                 ],
@@ -1180,9 +1180,9 @@ class UnitHelpComponent(UIComponent):
                         'description': 'Summons a HEINOUS VAPOR (Φ) that deals damage to enemies and cleanses allies of negative status effects.',
                         'details': [
                             'Type: Active',
-                            'Range: 3',
+                            'Range: 4',
                             'Target: Empty tile',
-                            'Line of Sight: No',
+                            'Line of Sight: Yes',
                             'Damage: 2',
                             'Pierce: No',
                             'Effects: None',
@@ -1195,9 +1195,9 @@ class UnitHelpComponent(UIComponent):
                         'description': 'Summons a HEINOUS VAPOR (Θ) that blocks enemy targeting and heals allies.',
                         'details': [
                             'Type: Active',
-                            'Range: 3',
+                            'Range: 4',
                             'Target: Empty tile',
-                            'Line of Sight: No',
+                            'Line of Sight: Yes',
                             'Damage: None',
                             'Pierce: No',
                             'Effects: None',
@@ -1210,9 +1210,9 @@ class UnitHelpComponent(UIComponent):
                         'description': 'Splits an existing HEINOUS VAPOR or self into Coolant Gas and Cutting Gas.',
                         'details': [
                             'Type: Active',
-                            'Range: 5',
+                            'Range: 4',
                             'Target: Self or owned HEINOUS VAPOR',
-                            'Line of Sight: No',
+                            'Line of Sight: Yes',
                             'Damage: 3',
                             'Pierce: Yes',
                             'Effects: None',
@@ -3135,16 +3135,22 @@ class GameModeManager(UIComponent):
             self.game_ui.draw_board()
             return
             
-        # If in attack, move or skill mode, cancel the mode but keep unit selected
-        if self.mode in ["attack", "move", "skill"] and cursor_manager.selected_unit:
+        # If in attack, move, skill or target_vapor mode, cancel the mode but keep unit selected
+        if self.mode in ["attack", "move", "skill", "target_vapor"] and cursor_manager.selected_unit:
             cursor_manager.highlighted_positions = []
             # Reset selected skill if it was being used
-            if self.mode == "skill" and cursor_manager.selected_unit.selected_skill:
+            if self.mode in ["skill", "target_vapor"] and cursor_manager.selected_unit.selected_skill:
                 cursor_manager.selected_unit.selected_skill = None
                 cursor_manager.selected_unit.skill_target = None
+                cursor_manager.selected_unit.action_timestamp = 0  # Reset action timestamp
+                self.targeting_vapor = False  # Reset vapor targeting flag
+            # Convert internal mode names to display names for message
+            display_mode = self.mode
+            if display_mode == "target_vapor":
+                display_mode = "diverge"
             # Change to select mode (will publish mode changed event)
             self.set_mode("select")
-            self.game_ui.message = f"{self.mode.capitalize()} mode cancelled, unit still selected"
+            self.game_ui.message = f"{display_mode.capitalize()} mode cancelled, unit still selected"
             self.game_ui.draw_board()
             return
             
@@ -3154,6 +3160,7 @@ class GameModeManager(UIComponent):
             if cursor_manager.selected_unit.selected_skill:
                 cursor_manager.selected_unit.selected_skill = None
                 cursor_manager.selected_unit.skill_target = None
+                cursor_manager.selected_unit.action_timestamp = 0  # Reset action timestamp
             # Return to standard menu
             self.set_mode("select")
             # Reset action menu to standard mode
@@ -3743,13 +3750,6 @@ class GameModeManager(UIComponent):
                 return False
         else:
             # Invalid target
-            self.publish_event(
-                EventType.MESSAGE_DISPLAY_REQUESTED,
-                MessageDisplayEventData(
-                    message="Select yourself or a HEINOUS VAPOR to use Diverge",
-                    message_type=MessageType.WARNING
-                )
-            )
             return False
 
     def handle_select_in_teleport_mode(self):
@@ -5558,13 +5558,6 @@ class ActionMenuComponent(UIComponent):
                         )
                                     
                     # Display a message about targeting options
-                    self.publish_event(
-                        EventType.MESSAGE_DISPLAY_REQUESTED,
-                        MessageDisplayEventData(
-                            message="Select self or a HEINOUS VAPOR to diverge",
-                            message_type=MessageType.ABILITY
-                        )
-                    )
                     # Exit early to allow targeting
                     return
                 

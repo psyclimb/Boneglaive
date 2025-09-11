@@ -1008,7 +1008,7 @@ class Unit:
                     
                     # Log healing
                     message_log.add_message(
-                        f"{self.get_display_name()} heals {unit.get_display_name()} for {healing} HP!",
+                        f"{self.get_display_name()} heals {unit.get_display_name()} for {healing} HP",
                         MessageType.ABILITY,
                         player=self.player
                     )
@@ -1050,7 +1050,7 @@ class Unit:
                     
                     # Log healing
                     message_log.add_message(
-                        f"{self.get_display_name()} heals {unit.get_display_name()} for {healing} HP!",
+                        f"{self.get_display_name()} heals {unit.get_display_name()} for {healing} HP",
                         MessageType.ABILITY,
                         player=self.player
                     )

@@ -1596,14 +1596,14 @@ class Game:
                 # Apply the stat bonus based on upgrade tier
                 # Instead of granting all bonuses at once, apply them progressively based on upgrade level
                 if not passive.marrow_dike_upgraded and not passive.ossify_upgraded and not passive.bone_tithe_upgraded:
-                    # First upgrade: +1 defense
-                    dike_owner.defense_bonus += 1
+                    # First upgrade: +1 movement
+                    dike_owner.move_range_bonus += 1
                 elif passive.marrow_dike_upgraded and not passive.ossify_upgraded and not passive.bone_tithe_upgraded:
                     # Second upgrade: +1 attack
                     dike_owner.attack_bonus += 1
                 elif passive.marrow_dike_upgraded and passive.ossify_upgraded and not passive.bone_tithe_upgraded:
-                    # Third upgrade: +1 movement
-                    dike_owner.move_range_bonus += 1
+                    # Third upgrade: +1 defense
+                    dike_owner.defense_bonus += 1
                 
                 # Check if it's Dominion and can upgrade skills
                 if passive.name == "Dominion" and passive.can_upgrade():

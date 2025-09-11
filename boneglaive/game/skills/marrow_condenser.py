@@ -27,7 +27,7 @@ class Dominion(PassiveSkill):
         super().__init__(
             name="Dominion",
             key="D",
-            description="When a unit dies inside Marrow Dike: first death adds +1 defense, second adds +1 attack, third adds +1 movement. Deaths also upgrade skills."
+            description="When a unit dies inside Marrow Dike: first death adds +1 movement, second adds +1 attack, third adds +1 defense. Deaths also upgrade skills."
         )
         self.ossify_upgraded = False
         self.marrow_dike_upgraded = False
