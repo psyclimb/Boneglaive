@@ -527,6 +527,12 @@ class Unit:
         self.jawline_indicator = None
         
         self.action_timestamp = 0  # Reset the action timestamp
+        
+    def has_commands_issued(self) -> bool:
+        """Check if this unit has any commands queued (move, attack, or skill)."""
+        return (self.move_target is not None or 
+                self.attack_target is not None or 
+                self.skill_target is not None)
         # No Recalibrate tracking
         
     # HP property with invulnerability check

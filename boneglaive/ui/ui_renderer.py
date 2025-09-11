@@ -1185,6 +1185,9 @@ class UIRenderer:
             # Draw action menu if visible and not in resolving phase
             self.game_ui.action_menu_component.draw()
         
+        # Draw unit status indicators before unit info
+        self._draw_unit_status_bar()
+        
         # Draw unit info with improved formatting
         # Add +2 to ensure a blank line between map and info
         info_line = HEIGHT+2
@@ -1502,3 +1505,42 @@ class UIRenderer:
             self.game_ui.unit_selection_menu.draw()
         
         self.renderer.refresh()
+    
+    def _draw_unit_status_bar(self):
+        """Draw a status bar showing which units have commands issued."""
+        # Don't draw during setup phase
+        if self.game_ui.game.setup_phase:
+            return
+            
+        from boneglaive.utils.constants import UNIT_SYMBOLS
+        
+        current_player = self.game_ui.game.current_player
+        player_units = [unit for unit in self.game_ui.game.units 
+                       if unit.is_alive() and unit.player == current_player]
+        
+        if not player_units:
+            return
+            
+        # Sort units by their greek_id for consistent display order
+        player_units.sort(key=lambda u: getattr(u, 'greek_id', 'ω'))  # ω is last in alphabet
+        
+        # Build status string
+        status_parts = []
+        for unit in player_units:
+            symbol = UNIT_SYMBOLS.get(unit.type, '?')
+            
+            # Use filled circle for commands issued, empty circle for pending
+            pip = '●' if unit.has_commands_issued() else '○'
+            
+            status_parts.append(f"{symbol}{pip}")
+        
+        status_text = f"Player {current_player}: {' '.join(status_parts)}"
+        
+        # Draw the status bar above the unit info (HEIGHT+1)
+        status_line = HEIGHT + 1
+        player_color = 3 if current_player == 1 else 4
+        
+        # Clear the line first
+        self.renderer.draw_text(status_line, 0, " " * self.renderer.width, 1)
+        # Draw the status text
+        self.renderer.draw_text(status_line, 2, status_text, player_color)
