@@ -1507,11 +1507,12 @@ class UIRenderer:
         self.renderer.refresh()
     
     def _draw_unit_status_bar(self):
-        """Draw a status bar showing which units have commands issued."""
+        """Draw a status bar showing which units are done acting (used attack/skill)."""
         # Don't draw during setup phase
         if self.game_ui.game.setup_phase:
             return
             
+        import curses
         from boneglaive.utils.constants import UNIT_SYMBOLS
         
         current_player = self.game_ui.game.current_player
@@ -1524,23 +1525,47 @@ class UIRenderer:
         # Sort units by their greek_id for consistent display order
         player_units.sort(key=lambda u: getattr(u, 'greek_id', 'ω'))  # ω is last in alphabet
         
-        # Build status string
-        status_parts = []
-        for unit in player_units:
-            symbol = UNIT_SYMBOLS.get(unit.type, '?')
-            
-            # Use filled circle for commands issued, empty circle for pending
-            pip = '●' if unit.has_commands_issued() else '○'
-            
-            status_parts.append(f"{symbol}{pip}")
-        
-        status_text = f"Player {current_player}: {' '.join(status_parts)}"
-        
-        # Draw the status bar above the unit info (HEIGHT+1)
+        # Build status string and draw each unit symbol with appropriate color
         status_line = HEIGHT + 1
         player_color = 3 if current_player == 1 else 4
         
         # Clear the line first
         self.renderer.draw_text(status_line, 0, " " * self.renderer.width, 1)
-        # Draw the status text
-        self.renderer.draw_text(status_line, 2, status_text, player_color)
+        
+        # Draw the player label
+        label = f"Player {current_player}: "
+        self.renderer.draw_text(status_line, 2, label, player_color)
+        current_pos = 2 + len(label)
+        
+        # Draw each unit symbol + greek letter with color based on status
+        cursor_manager = self.game_ui.cursor_manager
+        selected_unit = cursor_manager.selected_unit
+        
+        for i, unit in enumerate(player_units):
+            # Special handling for echo units
+            if hasattr(unit, 'is_echo') and unit.is_echo:
+                symbol = 'ψ'  # Lowercase psi for echoes
+            # Special handling for HEINOUS_VAPOR - use their specific symbol
+            elif unit.type == UnitType.HEINOUS_VAPOR and hasattr(unit, 'vapor_symbol') and unit.vapor_symbol:
+                symbol = unit.vapor_symbol  # Φ, Θ, Σ, % etc.
+            else:
+                symbol = UNIT_SYMBOLS.get(unit.type, '?')
+            greek_letter = getattr(unit, 'greek_id', '?')
+            
+            # Determine color based on unit state
+            if unit == selected_unit:
+                symbol_color = 6  # Yellow for selected unit
+            elif unit.is_done_acting():
+                symbol_color = 7  # White for done units
+            else:
+                symbol_color = player_color  # Player color for active units
+            
+            # Display as "Gα" (unit symbol + greek letter)
+            unit_display = f"{symbol}{greek_letter}"
+            self.renderer.draw_text(status_line, current_pos, unit_display, symbol_color)
+            current_pos += len(unit_display)
+            
+            # Add space between units (except for last one)
+            if i < len(player_units) - 1:
+                self.renderer.draw_text(status_line, current_pos, " ", 1)
+                current_pos += 1

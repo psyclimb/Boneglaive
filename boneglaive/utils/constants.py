@@ -59,7 +59,7 @@ UNIT_SYMBOLS = {
     UnitType.MANDIBLE_FOREMAN: 'F',
     UnitType.GRAYMAN: 'Ψ',  # Greek psi symbol represents the anomalous nature
     UnitType.MARROW_CONDENSER: 'C',  # C for Condenser
-    UnitType.FOWL_CONTRIVANCE: '^',  # Birds in flight
+    UnitType.FOWL_CONTRIVANCE: 'T',  # T for Turret/artillery (matches help page)
     UnitType.GAS_MACHINIST: 'M',  # M for Machinist
     UnitType.HEINOUS_VAPOR: 'V',  # Generic vapor symbol, actual symbols set in skills
     UnitType.DELPHIC_APPRAISER: 'A',  # A for Appraiser
