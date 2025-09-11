@@ -36,9 +36,10 @@ class EffluviumLathe(PassiveSkill):
         # Initialize with 1 charge instead of 0
         self.charges = 1
         self.max_charges = 4  # Increased from 3 to 4
-        # Track which turn we last generated a charge to prevent multiple charges per turn
-        # Initialize to 1 so we don't generate a charge during game initialization
+        # Track which turn and player we last generated a charge for to prevent multiple charges per turn
+        # Initialize values to prevent charge generation during game initialization
         self.last_charge_turn = 1
+        self.last_charge_player = None  # Track the player for whom we last generated a charge
         
     def apply_passive(self, user: 'Unit', game: Optional['Game'] = None) -> None:
         """
@@ -47,8 +48,12 @@ class EffluviumLathe(PassiveSkill):
         """
         # If this is a new turn for the unit's player, generate a charge
         if game and game.current_player == user.player:
-            # Check if we've already generated a charge for this turn
-            if self.last_charge_turn >= game.turn:
+            # Check if we've already generated a charge for this turn and player combination
+            # This prevents multiple charges if apply_passive is called multiple times per turn
+            # Special case: if last_charge_player is None (initialization), don't generate on turn 1
+            if (self.last_charge_turn >= game.turn and 
+                (self.last_charge_player == user.player or 
+                 (self.last_charge_player is None and game.turn == 1))):
                 return
                 
             # Check if the user is in the diverged state (not on the board)
@@ -64,8 +69,9 @@ class EffluviumLathe(PassiveSkill):
             # Generate a new charge if not at max
             if self.charges < self.max_charges:
                 self.charges += 1
-                # Mark that we've generated a charge for this turn
+                # Mark that we've generated a charge for this turn and player
                 self.last_charge_turn = game.turn
+                self.last_charge_player = user.player
                 
                 # Log the charge generation
                 if old_charges != self.charges:  # Only log if charges actually changed
