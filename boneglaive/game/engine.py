@@ -242,7 +242,7 @@ class Game:
         if is_vs_ai_mode and player == 2:
             # In VS_AI mode, use random unit types for player 2 with max 2 of each type
             logger.info("VS_AI mode detected - using random unit types for player 2 with max 2 of each type")
-            
+
             # Make sure we have the expected number of positions
             if len(valid_positions) >= 3:
                 # Available unit types for random selection
@@ -254,27 +254,32 @@ class Game:
                     UnitType.FOWL_CONTRIVANCE,
                     UnitType.GAS_MACHINIST,
                     UnitType.DELPHIC_APPRAISER,
-                    UnitType.INTERFERER
+                    UnitType.INTERFERER,
+                    UnitType.DERELICTIONIST
                 ]
-                
+
                 # Track unit counts to enforce max 2 of each type
                 unit_counts = {}
-                
+
                 import random
-                
+
                 # Add units with random selection
                 for i, (y, x) in enumerate(valid_positions[:3]):
                     # Filter available types to those with count < 2
                     valid_types = [t for t in available_types if unit_counts.get(t, 0) < 2]
-                    
+
+                    # Special AI composition rules: Only allow 1 DERELICTIONIST per team
+                    if unit_counts.get(UnitType.DERELICTIONIST, 0) >= 1:
+                        valid_types = [t for t in valid_types if t != UnitType.DERELICTIONIST]
+
                     if valid_types:
                         # Random selection from valid types
                         unit_type = random.choice(valid_types)
                         unit_counts[unit_type] = unit_counts.get(unit_type, 0) + 1
-                        
+
                         self.add_unit(unit_type, player, y, x)
                         logger.info(f"Added VS_AI mode {unit_type.name} for player {player} at ({y}, {x})")
-                
+
                 # Return early since we've added all units
                 return
         
@@ -927,6 +932,8 @@ class Game:
                 self._apply_seasonal_bonuses()
                 # Trigger rail creation now that setup is complete (prevents info leak during setup)
                 self._create_rails_for_fowl_contrivances()
+                # Trigger cosmic value perception now that setup is complete (prevents info leak during setup)
+                self._trigger_valuation_oracle_for_delphic_appraisers()
                 # Assign Greek identification letters to units
                 self._assign_greek_identifiers()
                 # Move FOWL_CONTRIVANCE units to nearest rails
@@ -956,7 +963,9 @@ class Game:
             
             # Trigger rail creation now that setup is complete (prevents info leak during setup)
             self._create_rails_for_fowl_contrivances()
-            
+            # Trigger cosmic value perception now that setup is complete (prevents info leak during setup)
+            self._trigger_valuation_oracle_for_delphic_appraisers()
+
             # Move FOWL_CONTRIVANCE units to nearest rails
             self._move_fowl_contrivances_to_rails()
             
@@ -1212,55 +1221,55 @@ class Game:
             from boneglaive.utils.debug import logger
             logger.debug(f"{unit.get_display_name()} cannot move because it is an echo")
             return False
-            
+
         # If unit is trapped by a MANDIBLE_FOREMAN, it cannot move
         if unit.trapped_by is not None:
             from boneglaive.utils.debug import logger
             logger.debug(f"{unit.get_display_name()} cannot move because it is trapped by {unit.trapped_by.get_display_name()}")
             return False
-            
+
         # Check if position is in bounds
         if not self.is_valid_position(y, x):
             return False
-        
+
         # Check if position is occupied by another unit
         if self.get_unit_at(y, x):
             return False
-        
+
         # Check if terrain is passable and unit-specific movement restrictions
         # Use unit's can_move_to method which handles FOWL_CONTRIVANCE rail restrictions
         if not unit.can_move_to(y, x, self):
             return False
-        
+
         # Check if position is within effective move range (using chess distance for diagonals)
         distance = self.chess_distance(unit.y, unit.x, y, x)
         effective_stats = unit.get_effective_stats()
         effective_move_range = effective_stats['move_range']
-        
+
         if distance > effective_move_range:
             return False
-            
+
         # Check if path passes through any units (both enemy and allied)
         # We only need to check this for moves that aren't adjacent
         if distance > 1:
             from boneglaive.utils.coordinates import Position, get_line
-            
+
             # Get all positions along the path
             start_pos = Position(unit.y, unit.x)
             end_pos = Position(y, x)
             path = get_line(start_pos, end_pos)
-            
+
             # Skip the first position (the unit's current position)
             for pos in path[1:-1]:  # Skip start and end positions
                 # Check if there's ANY unit at this position
                 blocking_unit = self.get_unit_at(pos.y, pos.x)
                 if blocking_unit:
                     return False
-                    
+
                 # Check if terrain along the path is passable
                 if not self.map.is_passable(pos.y, pos.x):
                     return False
-        
+
         return True
     
     def is_protected_from(self, target_unit, attacker_unit):
@@ -4631,11 +4640,6 @@ class Game:
                 old_pos = (unit.y, unit.x)
                 unit.y, unit.x = nearest_rail
                 
-                message_log.add_message(
-                    f"{unit.get_display_name()} moves to the rail network for optimal positioning",
-                    MessageType.SYSTEM,
-                    player=unit.player
-                )
                 
                 logger.debug(f"Moved {unit.get_display_name()} from {old_pos} to {nearest_rail} (nearest rail)")
             else:
@@ -4661,7 +4665,21 @@ class Game:
                 logger.debug(f"Created rails for {unit.get_display_name()}")
                 # Only need one FOWL_CONTRIVANCE to create the rail network
                 break
-    
+
+    def _trigger_valuation_oracle_for_delphic_appraisers(self):
+        """Trigger cosmic value perception for all DELPHIC_APPRAISER units when the setup phase ends."""
+        delphic_units = [unit for unit in self.units if unit.is_alive() and unit.type == UnitType.DELPHIC_APPRAISER]
+
+        if not delphic_units:
+            return
+
+        for unit in delphic_units:
+            # Check if this unit has the Valuation Oracle passive skill
+            if unit.passive_skill and unit.passive_skill.__class__.__name__ == 'ValuationOracle':
+                # Manually trigger the skill's cosmic value perception logic
+                unit.passive_skill.apply_passive(unit, self)
+                logger.debug(f"Triggered Valuation Oracle for {unit.get_display_name()}")
+
     def _check_and_remove_rails_if_no_fowl_remaining(self, ui=None):
         """Check if any FOWL_CONTRIVANCE units remain alive, and if not, explode and remove all rails."""
         # Check if any FOWL_CONTRIVANCE units are still alive

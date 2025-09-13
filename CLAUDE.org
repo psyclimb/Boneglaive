@@ -1,0 +1,109 @@
+#+TITLE: Boneglaive2 Development Guide
+#+AUTHOR: Claude
+#+DATE: 2025-09-10
+
+* Project Overview
+Tactical turn-based combat game in Python using curses terminal UI. Features complex skill systems, multiplayer networking, and modular architecture.
+
+*IMPORTANT*: Work with current codebase state only. Do not reference git history, past commits, or previous code versions unless explicitly requested by the user.
+
+* Essential Architecture
+
+** Core Structure
+- =main.py= - Entry point with CLI args for different game modes
+- =game/engine.py= - Central Game class managing state, turns, combat
+- =game/units.py= - Unit class with stats, skills, status effects
+- =game/skills/= - Modular skill system with registry pattern
+- =networking/= - Abstract multiplayer interfaces with concrete implementations
+- =ui/= - Component-based UI system with event-driven updates
+- =renderers/curses_renderer.py= - Terminal rendering backend
+- =utils/= - Config, events, assets, debugging utilities
+
+** Key Patterns
+- *Skills*: Base classes in =skills/core.py=, unit-specific modules, registry in =skills/registry.py=
+- *UI Components*: Modular components in =ui/ui_components.py= with clear separation
+- *Networking*: Abstract =NetworkInterface= with mode-specific implementations
+- *Configuration*: JSON-based config with dataclasses in =utils/config.py=
+
+* Development Workflows
+
+** Running the Game
+#+begin_src bash
+PYTHONPATH=/path/to/boneglaive2 python3 boneglaive/main.py [--single-player|--local-mp|--lan-host|--lan-client|--vs-ai]
+#+end_src
+
+** Testing
+#+begin_src bash
+python3 boneglaive_test.py  # Integration tests for maps and game mechanics
+#+end_src
+
+** Common Tasks
+- *Add new unit type*: Create skill module in =game/skills/=, update =registry.py=, add to =units.py=
+- *Add new skill*: Inherit from =ActiveSkill=/=PassiveSkill= in appropriate unit module
+- *Modify UI*: Extend components in =ui/ui_components.py= or create new component
+- *Add terrain*: Update =map.py= with new terrain type and behaviors
+- *Debug*: Use logging in =utils/debug.py=, enable debug overlays with CLI flags
+
+* Key Design Decisions
+- *Turn-based engine*: Players alternate, actions resolved in sequence
+- *Greek letter unit IDs*: Alpha, Beta, Gamma, etc. for unit identification
+- *Status effects*: Complex system with timers, immunities, interactions
+- *Event system*: Decoupled communication via =utils/event_system.py=
+- *Double-buffered rendering*: Reduces terminal flicker in curses
+- *JSON serialization*: For network messages and save data
+
+* Dependencies
+- Python 3.x with curses, json, socket, threading (standard library only)
+- No external package dependencies
+
+* Git Repository Management
+*IMPORTANT*: This project has been merged into the original boneglaive repository. All future commits should be pushed to:
+- Repository: https://github.com/psyclimb/Boneglaive.git
+- Remote name: =original=
+- *DO NOT* push to the boneglaive2 repository anymore
+
+Use these commands for git operations:
+#+begin_src bash
+git push original main  # Push to main boneglaive repository
+git fetch original      # Fetch from main repository
+#+end_src
+
+* File Priorities for AI Development
+1. =game/engine.py= - Core game logic
+2. =game/skills/core.py= - Skill base classes
+3. =game/units.py= - Unit behavior and stats
+4. =ui/ui_components.py= - UI component system
+5. =utils/config.py= - Configuration management
+6. =game/skills/registry.py= - Skill-to-unit mappings
+
+* Current Limitations
+- No formal unit testing framework
+- Experience/leveling system disabled
+- AI implementation is basic (=ai/simple_ai.py=)
+- Limited animation system
+
+* Character Set Guidelines
+*CRITICAL*: Boneglaive uses ASCII-ified character set exclusively. Only use:
+- ASCII characters (A-Z, a-z, 0-9, basic punctuation and symbols)
+- Greek characters (α, β, γ, δ, ε, ζ, η, θ, ι, κ, λ, μ, ν, ξ, ο, π, ρ, σ, τ, υ, φ, χ, ψ, ω, Α, Β, Γ, Δ, Ε, Ζ, Η, Θ, Ι, Κ, Λ, Μ, Ν, Ξ, Ο, Π, Ρ, Σ, Τ, Υ, Φ, Χ, Ψ, Ω)
+- Currency symbols (£, €, ¥, ¢, $, ¤)
+- Box drawing characters for UI borders (┌┐└┘│─├┤)
+
+*DO NOT USE*: Emojis, Unicode symbols, special characters, or non-ASCII art unless specifically from the approved list above.
+
+This applies to:
+- All code files and comments
+- UI text and messages
+- Help documentation
+- Log messages
+- Development conversations and responses
+
+* Communication Style Guidelines
+*IMPORTANT*: Avoid using the phrase "You're absolutely right!" in responses. Use alternative acknowledgments like:
+- "That's correct"
+- "Good point"
+- "I agree"
+- "That makes sense"
+- Or simply proceed with the requested action
+
+Keep responses concise and direct without unnecessary validation phrases.

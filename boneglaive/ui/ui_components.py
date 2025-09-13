@@ -236,8 +236,8 @@ class MessageLogComponent(UIComponent):
                     attributes = curses.A_BOLD
                 
                 # Format the message with timestamp prefix if not already formatted
-                if not text.startswith("[") and not text.startswith("»"):
-                    text = "» " + text
+                if not text.startswith("[") and not text.startswith(">"):
+                    text = "> " + text
 
                 # Process special placeholders to highlight damage/heal numbers
                 damage_num = None
@@ -377,7 +377,7 @@ class MessageLogComponent(UIComponent):
             # Draw navigation instructions in a bar
             nav_bar = "│ " + "─" * (term_width - 4) + " │"
             self.renderer.draw_text(1, 0, nav_bar, 1)
-            nav_text = "↑/↓: Scroll | g/G: Start/End | ESC: Close | L: Toggle regular log"
+            nav_text = "Up/Down: Scroll | g/G: Start/End | ESC: Close | L: Toggle regular log"
             self.renderer.draw_text(1, 2, nav_text, 1, curses.A_BOLD)
             
             # Draw a separator below the navigation
@@ -403,8 +403,8 @@ class MessageLogComponent(UIComponent):
                     attributes = curses.A_BOLD
                 
                 # Format the message with timestamp prefix if not already formatted
-                if not text.startswith("[") and not text.startswith("»"):
-                    text = "» " + text
+                if not text.startswith("[") and not text.startswith(">"):
+                    text = "> " + text
 
                 # Process special placeholders to highlight damage/heal numbers
                 damage_num = None
@@ -763,9 +763,9 @@ class UnitHelpComponent(UIComponent):
                             'Damage: None',
                             'Pierce: No',
                             'Effects: Scaled bonuses to allies in area for 3 turns:',
-                            '  • 0 terrain: +1 attack & +1 movement (full effect)',
-                            '  • 1 terrain: +1 attack only (partial effect)',
-                            '  • 2+ terrain: No effect',
+                            '  - 0 terrain: +1 attack & +1 movement (full effect)',
+                            '  - 1 terrain: +1 attack only (partial effect)',
+                            '  - 2+ terrain: No effect',
                             'Cooldown: 3 turns',
                             'Special: Reveals hidden traps, effect strength depends on terrain count'
                         ]
@@ -882,8 +882,8 @@ class UnitHelpComponent(UIComponent):
                 ],
                 'tips': [
                     '- Use Stasiality immunity to ignore enemy control abilities and debuffs',
-                    '- Delta Config provides unmatched repositioning - use for flanking or escaping danger',
-                    '- Estrange permanently weakens key enemy units - prioritize high-value targets',
+                    '- Delta Config provides unmatched repositioning; use for flanking or escaping danger',
+                    '- Estrange permanently weakens key enemy units; prioritize high-value targets',
                     '- Græ Exchange allows attacking from two positions simultaneously',
                     '- Stay at maximum range (5) to avoid retaliation due to 0 defense'
                 ],
@@ -1070,7 +1070,7 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'RAIL GENESIS (Passive)',
-                        'description': 'The first FOWL_CONTRIVANCE to deploy establishes a permanent rail network.',
+                        'description': 'Establishes a rail network when the game starts that explodes upon death.',
                         'details': [
                             'Type: Passive',
                             'Range: Map-wide',
@@ -1087,7 +1087,7 @@ class UnitHelpComponent(UIComponent):
                         'name': 'GAUSSIAN DUSK (Active) [Key: G]',
                         'description': 'Charges a devastating rail gun shot that pierces everything in its path.',
                         'details': [
-                            'Type: Active (Two-phase: Charging → Firing)',
+                            'Type: Active (Two-phase: Charging -> Firing)',
                             'Range: Entire map',
                             'Target: Line of destruction',
                             'Line of Sight: No',
@@ -1187,7 +1187,7 @@ class UnitHelpComponent(UIComponent):
                             'Pierce: No',
                             'Effects: None',
                             'Cooldown: 2 turns',
-                            'Special: Vapor cleanses ally status effects, invulnerable unit'
+                            'Special: Vapor cleanses ally status effects; vapor is invulnerable'
                         ]
                     },
                     {
@@ -1256,7 +1256,7 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'VALUATION ORACLE (Passive)',
-                        'description': 'Perceives the \'cosmic value\' of furniture at spawn.',
+                        'description': 'Perceives the \'cosmic value\' of furniture when the game starts.',
                         'details': [
                             'Type: Passive',
                             'Range: Adjacent tiles',
@@ -1301,11 +1301,11 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'DIVINE DEPRECIATION (Active) [Key: D]',
-                        'description': 'Dramatically reappraises a furniture piece as cosmically worthless, creating a 7×7 reality sinkhole.',
+                        'description': 'Dramatically reappraises a furniture piece as cosmically worthless, creating a 7x7 reality sinkhole.',
                         'details': [
                             'Type: Active',
                             'Range: 3',
-                            'Target: Furniture piece (7×7 area effect)',
+                            'Target: Furniture piece (7x7 area effect)',
                             'Line of Sight: Yes',
                             'Damage: Based on cosmic value difference',
                             'Pierce: Yes',
@@ -1424,7 +1424,7 @@ class UnitHelpComponent(UIComponent):
                     'The DERELICTIONIST is a psychological abandonment therapist who weaponized distance-based',
                     'therapeutic techniques into a support system. This healer specializes in trauma processing,',
                     'protective partitioning, and abandonment therapy through controlled dissociation.',
-                    'Manipulates interpersonal distance for healing effects and status management.',
+                    'Manipulates interpersonal distance to create healing effects and manage status conditions.',
                     '',
                     'Role: Utility / Healer',
                     'Difficulty: ***'
@@ -1436,7 +1436,6 @@ class UnitHelpComponent(UIComponent):
                     'Movement: 3',
                     'Range: 1',
                     'Symbol: D',
-                    'Attack Symbol: •'
                 ],
                 'skills': [
                     {
@@ -1511,7 +1510,7 @@ class UnitHelpComponent(UIComponent):
                 'overview': [
                     'BROACHING GAS is a HEINOUS VAPOR entity summoned by the GAS MACHINIST using the Broaching',
                     'Gas skill. This vapor specializes in dual-purpose area control, dealing 2 damage to enemies',
-                    'while cleansing allies of negative status effects within its 3×3 area of influence.',
+                    'while cleansing allies of negative status effects within its 3x3 area of influence.',
                     '',
                     'Role: Utility / Area Controller'
                 ],
@@ -1541,10 +1540,10 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'ENEMY DAMAGE (Area Damage)',
-                        'description': 'Deals 2 damage to all enemy units within the 3×3 area each turn.',
+                        'description': 'Deals 2 damage to all enemy units within the 3x3 area each turn.',
                         'details': [
                             'Type: Area Damage',
-                            'Range: 3×3 centered on vapor',
+                            'Range: 3x3 centered on vapor',
                             'Target: Enemy units in area',
                             'Line of Sight: No',
                             'Damage: 2 per turn',
@@ -1559,7 +1558,7 @@ class UnitHelpComponent(UIComponent):
                         'description': 'Removes negative status effects from allied units within the area.',
                         'details': [
                             'Type: Status Cleansing',
-                            'Range: 3×3 centered on vapor',
+                            'Range: 3x3 centered on vapor',
                             'Target: Allied units in area',
                             'Line of Sight: No',
                             'Damage: None',
@@ -1587,7 +1586,7 @@ class UnitHelpComponent(UIComponent):
                 'overview': [
                     'SAFT-E-GAS is a HEINOUS VAPOR entity summoned by the GAS MACHINIST using the Saft-E-Gas',
                     'skill. This vapor specializes in defensive area control, blocking ranged attacks while',
-                    'healing allied units within its 3×3 protective area.',
+                    'healing allied units within its 3x3 protective area.',
                     '',
                     'Role: Utility / Area Controller'
                 ],
@@ -1620,7 +1619,7 @@ class UnitHelpComponent(UIComponent):
                         'description': 'Prevents enemies outside the vapor cloud from targeting allies within the protected area.',
                         'details': [
                             'Type: Defensive Barrier',
-                            'Range: 3×3 centered on vapor',
+                            'Range: 3x3 centered on vapor',
                             'Target: Allied units in area',
                             'Line of Sight: No',
                             'Damage: None',
@@ -1635,7 +1634,7 @@ class UnitHelpComponent(UIComponent):
                         'description': 'Heals allied units within the area for 1 HP per turn.',
                         'details': [
                             'Type: Area Healing',
-                            'Range: 3×3 centered on vapor',
+                            'Range: 3x3 centered on vapor',
                             'Target: Allied units below max HP',
                             'Line of Sight: No',
                             'Damage: None',
@@ -1663,7 +1662,7 @@ class UnitHelpComponent(UIComponent):
                 'overview': [
                     'COOLANT GAS is a HEINOUS VAPOR entity created by the GAS MACHINIST using the Diverge',
                     'skill. This vapor specializes in healing, providing 3 HP healing per turn to allies',
-                    'within its 3×3 area of influence.',
+                    'within its 3x3 area of influence.',
                     '',
                     'Role: Utility / Area Controller'
                 ],
@@ -1696,7 +1695,7 @@ class UnitHelpComponent(UIComponent):
                         'description': 'Heals allied units within the area for 3 HP per turn.',
                         'details': [
                             'Type: Area Healing',
-                            'Range: 3×3 centered on vapor',
+                            'Range: 3x3 centered on vapor',
                             'Target: Allied units below max HP',
                             'Line of Sight: No',
                             'Damage: None',
@@ -1724,7 +1723,7 @@ class UnitHelpComponent(UIComponent):
                 'overview': [
                     'CUTTING GAS is a HEINOUS VAPOR entity created by the GAS MACHINIST using the Diverge',
                     'skill. This vapor specializes in offensive area control, dealing 3 piercing damage per',
-                    'turn to all enemies within its 3×3 area of influence.',
+                    'turn to all enemies within its 3x3 area of influence.',
                     '',
                     'Role: Utility / Area Controller'
                 ],
@@ -1757,7 +1756,7 @@ class UnitHelpComponent(UIComponent):
                         'description': 'Deals 3 piercing damage per turn to all enemy units in the area.',
                         'details': [
                             'Type: Area Damage',
-                            'Range: 3×3 centered on vapor',
+                            'Range: 3x3 centered on vapor',
                             'Target: Enemy units in area',
                             'Line of Sight: No',
                             'Damage: 3 piercing per turn',
@@ -1936,7 +1935,7 @@ class UnitHelpComponent(UIComponent):
             # Draw navigation instructions in a bar
             nav_bar = "│ " + "─" * (term_width - 4) + " │"
             self.renderer.draw_text(1, 0, nav_bar, 1)
-            nav_text = "↑/↓: Scroll | g/G: Start/End | ESC/?: Close"
+            nav_text = "Up/Down: Scroll | g/G: Start/End | ESC/?: Close"
             self.renderer.draw_text(1, 2, nav_text, 1, curses.A_BOLD)
             
             # Draw a separator below the navigation
@@ -1968,7 +1967,7 @@ class UnitHelpComponent(UIComponent):
             content_lines.append('')
             for skill in unit_data['skills']:
                 # Skill name
-                content_lines.append(f"● {skill['name']}")
+                content_lines.append(f"* {skill['name']}")
                 
                 # Skill description with wrapping
                 wrapped_desc = self._wrap_text(skill['description'], max_text_width)
@@ -2031,7 +2030,7 @@ class UnitHelpComponent(UIComponent):
                 attributes = 0
                 color_id = 1
                 
-                if line.startswith('●'):  # Skill names
+                if line.startswith('*'):  # Skill names
                     attributes = curses.A_BOLD
                     color_id = 3  # Green
                 elif line.startswith('BASE STATS') or line.startswith('SKILLS') or line.startswith('COMBAT TIPS') or line.startswith('TACTICAL NOTES'):
@@ -2159,7 +2158,7 @@ class HelpComponent(UIComponent):
                 self.renderer.draw_text(y, term_width - 1, "│", 1)
             
             # Bottom border with controls
-            controls_text = "ESC/? to close | ↑/↓ to scroll | g/G to start/end"
+            controls_text = "ESC/? to close | Up/Down to scroll | g/G to start/end"
             border_bottom = "└─ " + controls_text + " " + "─" * (term_width - len(controls_text) - 5) + "┘"
             self.renderer.draw_text(term_height - 1, 0, border_bottom, 1, curses.A_BOLD)
             
@@ -2195,11 +2194,11 @@ class HelpComponent(UIComponent):
             
             # Game Information section
             content_lines.append(("GAME INFORMATION:", 1, curses.A_BOLD))
-            content_lines.append(("• Select a unit and press a key to see detailed help for that unit type", 7, 0))
-            content_lines.append(("• Units have unique skills - experiment with 's' key when units are selected", 7, 0))
-            content_lines.append(("• Some units have multiple skills - check unit help for complete abilities", 7, 0))
-            content_lines.append(("• Game mode: VS AI - defeat all enemy units to win", 7, 0))
-            content_lines.append(("• Turn-based: complete your moves and actions, then press 't' to end turn", 7, 0))
+            content_lines.append(("- Select a unit and press a key to see detailed help for that unit type", 7, 0))
+            content_lines.append(("- Units have unique skills - experiment with 's' key when units are selected", 7, 0))
+            content_lines.append(("- Some units have multiple skills - check unit help for complete abilities", 7, 0))
+            content_lines.append(("- Game mode: VS AI - defeat all enemy units to win", 7, 0))
+            content_lines.append(("- Turn-based: complete your moves and actions, then press 't' to end turn", 7, 0))
             
             # Calculate content display area
             content_start_y = 2
@@ -4684,7 +4683,7 @@ class AnimationComponent(UIComponent):
                 time.sleep(0.04)  # Fast projectile movement
             
             # Final impact animation directly at target (rail shot impact)
-            final_frames = ['*', '#', '@', 'X', '※']  # Explosive impact sequence
+            final_frames = ['*', '#', '@', 'X', '*']  # Explosive impact sequence
             for i, frame in enumerate(final_frames):
                 color = 1 if i % 2 == 0 else 7  # Alternate between red and white
                 self.renderer.draw_tile(end_pos.y, end_pos.x, frame, color)
@@ -4705,7 +4704,7 @@ class AnimationComponent(UIComponent):
         if attacker.type == UnitType.MAGE:
             impact_animation = ['!', '*', '!']  # Magic impact
         elif attacker.type == UnitType.MANDIBLE_FOREMAN:
-            impact_animation = ['>', '<', '}', '{', '≡']  # Mandible crushing impact
+            impact_animation = ['>', '<', '}', '{', '=']  # Mandible crushing impact
         elif attacker.type == UnitType.FOWL_CONTRIVANCE:
             impact_animation = ['*', '#', '@', 'X', '*']  # Rail artillery explosive impact
         else:

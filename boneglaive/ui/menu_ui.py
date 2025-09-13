@@ -191,7 +191,7 @@ class MenuUI:
             
             # Add seasonal indicator if seasonal map exists
             if active_season and seasonal_manager.get_seasonal_map_path(map_name, active_season):
-                display_name += " ☀"  # Seasonal indicator (sun symbol)
+                display_name += " *"  # Seasonal indicator (asterisk)
             
             menu_items.append(MenuItem(display_name, lambda mn=map_name: self._select_map(mn)))
         
@@ -269,7 +269,7 @@ class MenuUI:
         
         # About screen content
         lines = [
-            "Boneglaive v0.8.5 BETA",
+            "Boneglaive v0.8.6 BETA",
             "Tactical Turn-Based Combat Game",
             "Beta Release",
             "",
@@ -401,7 +401,7 @@ class MenuUI:
                 self.renderer.draw_text(row, menu_left_col, item.label, 1, 0)
         
         # Draw navigation help at bottom
-        help_text = "↑↓: Navigate | Enter: Select | Esc/c: Back | q: Quit"
+        help_text = "Up/Down: Navigate | Enter: Select | Esc/c: Back | q: Quit"
         help_col = max(0, (width - len(help_text)) // 2)
         help_row = height - 3
         self.renderer.draw_text(help_row, help_col, help_text, 1, curses.A_DIM)
