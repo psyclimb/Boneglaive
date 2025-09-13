@@ -57,7 +57,7 @@ UNIT_SYMBOLS = {
     UnitType.ARCHER: 'A',
     UnitType.MAGE: 'M',
     UnitType.MANDIBLE_FOREMAN: 'F',
-    UnitType.GRAYMAN: 'Ψ',  # Greek psi symbol represents the anomalous nature
+    UnitType.GRAYMAN: 'P',  # P for Psi/anomalous nature
     UnitType.MARROW_CONDENSER: 'C',  # C for Condenser
     UnitType.FOWL_CONTRIVANCE: 'T',  # T for Turret/artillery (matches help page)
     UnitType.GAS_MACHINIST: 'M',  # M for Machinist
@@ -70,53 +70,55 @@ UNIT_SYMBOLS = {
 # Attack visual effects
 ATTACK_EFFECTS = {
     UnitType.GLAIVEMAN: "/",  # Glaive (melee)
-    UnitType.ARCHER: "→",      # Arrow (ranged)
+    UnitType.ARCHER: ">",      # Arrow (ranged)
     UnitType.MAGE: "*",        # Magic star (ranged)
-    UnitType.GRAYMAN: "≈",     # Reality distortion (ranged)
-    UnitType.MANDIBLE_FOREMAN: "Ξ",  # Mandible jaws (melee)
-    UnitType.MARROW_CONDENSER: "Ø",  # Bone (melee)
-    UnitType.FOWL_CONTRIVANCE: "Λ",   # Bird dive attack (ranged)
+    UnitType.GRAYMAN: "~",     # Reality distortion (ranged)
+    UnitType.MANDIBLE_FOREMAN: "{",  # { for mandible jaws (melee)
+    UnitType.MARROW_CONDENSER: "O",  # Bone (melee)
+    UnitType.FOWL_CONTRIVANCE: "|",   # Artillery shell (ranged)
     UnitType.GAS_MACHINIST: "o",   # Gas bubble (melee)
     UnitType.HEINOUS_VAPOR: "~",    # Vapor effect (area)
     UnitType.DELPHIC_APPRAISER: "$",  # Currency symbol (evaluation)
     UnitType.INTERFERER: "x",  # Plutonium carabiner cross (melee)
-    UnitType.DERELICTIONIST: "•"  # Psychological void (melee)
+    UnitType.DERELICTIONIST: "o"  # Psychological void (melee)
 }
 
-# Greek alphabet for unit identification
+# ASCII alphabet for unit identification
 GREEK_ALPHABET = [
-    'α',  # alpha
-    'β',  # beta
-    'γ',  # gamma
-    'δ',  # delta
-    'ε',  # epsilon
-    'ζ',  # zeta
-    'η',  # eta
-    'θ',  # theta
-    'ι',  # iota
-    'κ',  # kappa
-    'λ',  # lambda
-    'μ',  # mu
-    'ν',  # nu
-    'ξ',  # xi
-    'ο',  # omicron
-    'π',  # pi
-    'ρ',  # rho
-    'σ',  # sigma
-    'τ',  # tau
-    'υ',  # upsilon
-    'φ',  # phi
-    'χ',  # chi
-    'ψ',  # psi
-    'ω'   # omega
+    'a',  # a
+    'b',  # b
+    'c',  # c
+    'd',  # d
+    'e',  # e
+    'f',  # f
+    'g',  # g
+    'h',  # h
+    'i',  # i
+    'j',  # j
+    'k',  # k
+    'l',  # l
+    'm',  # m
+    'n',  # n
+    'o',  # o
+    'p',  # p
+    'q',  # q
+    'r',  # r
+    's',  # s
+    't',  # t
+    'u',  # u
+    'v',  # v
+    'w',  # w
+    'x',  # x
+    'y',  # y
+    'z'   # z
 ]
 
 # Status effect symbols
 STATUS_EFFECT_SYMBOLS = {
-    'MIRED': '≈',             # Movement reduction from upgraded marrow dike
-    'RADIATION_SICKNESS': 'r', # Radiation damage over time
+    'MIRED': 'm',             # Movement reduction from upgraded marrow dike
+    'RADIATION_SICKNESS': '*', # Radiation damage over time
     'NEURAL_SHUNT': '?',      # Random action control
-    'KARRIER_RAVE': 'φ',      # Phased/untargetable state
-    'DERELICTED': '∅',        # Immobilization from psychological abandonment (empty set symbol)
-    'SEVERANCE': '↗',         # Enhanced movement from skill usage (up-right arrow)
+    'KARRIER_RAVE': '!',      # Phased/untargetable state
+    'DERELICTED': '&',        # Immobilization from psychological abandonment
+    'SEVERANCE': 's',         # Enhanced movement from skill usage
 }

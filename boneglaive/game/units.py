@@ -108,7 +108,7 @@ class Unit:
         
         # HEINOUS VAPOR properties (for GAS_MACHINIST)
         self.vapor_type = None  # Type of vapor ("ENBROACHMENT", "SAFETY", "COOLANT", or "CUTTING")
-        self.vapor_symbol = None  # Symbol to display for this vapor (Φ, Θ, Σ, %)
+        self.vapor_symbol = None  # Symbol to display for this vapor (1, 0, 2, 3)
         self.vapor_duration = 0  # Number of turns the vapor remains
         self.vapor_creator = None  # Reference to the GAS_MACHINIST that created this vapor
         self.vapor_skill = None  # Reference to the skill that created this vapor
@@ -611,7 +611,7 @@ class Unit:
                 
                 # Show dissociation animation - eyes rolling back, complete mental separation  
                 if self._game and hasattr(self._game, 'ui') and self._game.ui and hasattr(self._game.ui, 'renderer'):
-                    dissociation_animation = ['o', 'O', '0', '^', '_', '-', '=', '≡', '∅', 'Φ']  # Eyes rolling back into skull
+                    dissociation_animation = ['o', 'O', '0', '^', '_', '-', '=', '=', 'O', '1']  # Eyes rolling back into skull
                     self._game.ui.renderer.animate_attack_sequence(
                         self.y, self.x,
                         dissociation_animation,

@@ -547,7 +547,7 @@ class PrySkill(ActiveSkill):
                 # Extended range prying animation (extending glaive as lever)
                 extended_animation = ui.asset_manager.get_skill_animation_sequence('pry_range2')
                 if not extended_animation:
-                    extended_animation = ['/', '―', '\\', '|', '─', '─', '═', '→', '↗']  # Fallback if animation not found
+                    extended_animation = ['/', '-', '\\', '|', '-', '-', '=', '>', '^']  # Fallback if animation not found
                 
                 # Show initial animation at user's position (first part of the sequence)
                 ui.renderer.animate_attack_sequence(
@@ -588,7 +588,7 @@ class PrySkill(ActiveSkill):
             # Now animate the target being launched upward - ONLY on the target's position
             launch_sequence = ui.asset_manager.get_skill_animation_sequence('pry_launch')
             if not launch_sequence:
-                launch_sequence = ['↑', '↟', '⇑', ' ']  # Fallback (single character symbols)
+                launch_sequence = ['^', '^', '^', ' ']  # Fallback (single character symbols)
             
             # Store original position to ensure proper placement later
             temp_y, temp_x = target.y, target.x
@@ -614,7 +614,7 @@ class PrySkill(ActiveSkill):
             # Show impact animation - unit falling straight down on SAME tile
             impact_animation = ui.asset_manager.get_skill_animation_sequence('pry_impact')
             if not impact_animation:
-                impact_animation = ['↓', 'V', '@', '*', '.']  # Fallback
+                impact_animation = ['v', 'V', '@', '*', '.']  # Fallback
             
             ui.renderer.animate_attack_sequence(
                 target.y, target.x,

@@ -1976,7 +1976,7 @@ class Game:
                         
                         # Show abreaction animation - final nerve pathway fracture
                         if ui and hasattr(ui, 'renderer'):
-                            abreaction_animation = ['╬', '╫', '╪', 'χ', 'Χ', '*', '#', '@', '!']  # Complete neural fracture
+                            abreaction_animation = ['#', '+', '*', 'x', 'X', '*', '#', '@', '!']  # Complete neural fracture
                             ui.renderer.animate_attack_sequence(
                                 unit.y, unit.x,
                                 abreaction_animation,
@@ -2026,7 +2026,7 @@ class Game:
                         
                         # Show healing abreaction animation - reverse of fracture (mending/restoration)
                         if ui and hasattr(ui, 'renderer'):
-                            healing_abreaction_animation = ['!', '@', '#', '*', 'Χ', 'χ', '╪', '╫', '╬']  # Neural pathway restoration
+                            healing_abreaction_animation = ['!', '@', '#', '*', 'X', 'x', '*', '+', '#']  # Neural pathway restoration
                             ui.renderer.animate_attack_sequence(
                                 unit.y, unit.x,
                                 healing_abreaction_animation,
@@ -2789,7 +2789,7 @@ class Game:
                 # Show DOT animation if UI is available
                 if ui and hasattr(ui, 'renderer'):
                     # Create curse damage animation
-                    curse_animation = ['¢', '$', '%', '*', '!']
+                    curse_animation = ['$', '$', '%', '*', '!']
                     
                     # Show animation at the affected unit's position
                     ui.renderer.animate_attack_sequence(
@@ -3952,7 +3952,7 @@ class Game:
                         
                         # Fallback animation if asset manager doesn't have it
                         if not detonation_animation:
-                            detonation_animation = ['∼', '~', '≈', '∼', '~', '*', '+', '*', '+', 'X', '#', '╬', '+', '*', '∼', '.']  # Standing wave builds to geyser of sparks from vaporization
+                            detonation_animation = ['~', '~', '~', '~', '~', '*', '+', '*', '+', 'X', '#', '#', '+', '*', '~', '.']  # Standing wave builds to geyser of sparks from vaporization
                             logger.debug(f"Using fallback animation: {detonation_animation}")
                         
                         logger.debug(f"About to play animation at position ({unit.y}, {unit.x})")
@@ -3970,7 +3970,7 @@ class Game:
                                 color_ids.append(1)  # Red
                             elif frame in ['*', '+']:  # Spark frames - yellow
                                 color_ids.append(6)  # Yellow  
-                            elif frame in ['X', '#', '╬']:  # Vaporization frames - white/bright
+                            elif frame in ['X', '#', '#']:  # Vaporization frames - white/bright
                                 color_ids.append(7)  # White
                             else:  # Final dissipation - dim
                                 color_ids.append(8)  # Dark grey
@@ -4208,7 +4208,7 @@ class Game:
             import time
 
             # Center explosion animation at echo position
-            center_animation = ['Ψ', '*', 'O', '0', '~', 'Φ', '#', 'θ', '.']
+            center_animation = ['P', '*', 'O', '0', '~', 'O', '#', ',', '.']
             ui.renderer.animate_attack_sequence(
                 echo_unit.y, echo_unit.x,
                 center_animation,
@@ -4404,7 +4404,7 @@ class Game:
             ui.renderer.animate_projectile(
                 (start_pos.y, start_pos.x),
                 (end_pos.y, end_pos.x),
-                'Ξ',  # Mandible symbol
+                '{',  # Mandible symbol
                 7,    # color ID
                 0.2   # quick connection
             )
@@ -4460,7 +4460,7 @@ class Game:
             # Get animation sequence for bird attacks
             fowl_sequence = ui.asset_manager.animation_sequences.get('fowl_contrivance_attack', [])
             if not fowl_sequence:
-                fowl_sequence = ['^', 'v', '>', '<', '^', 'v', 'Λ', 'V']  # Fallback bird animation
+                fowl_sequence = ['^', 'v', '>', '<', '^', 'v', '^', 'V']  # Fallback bird animation
             
             # Use alternating colors for a more dynamic bird flock appearance
             color_sequence = [1, 4, 1, 4, 6, 7, 6, 7]  # Red, blue, yellow, white alternating
@@ -4509,7 +4509,7 @@ class Game:
         elif unit.type == UnitType.MANDIBLE_FOREMAN:
             impact_animation = ['>', '<', '}', '{', '≡']  # Mandible crushing impact
         elif unit.type == UnitType.FOWL_CONTRIVANCE:
-            impact_animation = ['^', 'v', '^', 'V', 'Λ']  # Bird dive impact
+            impact_animation = ['^', 'v', '^', 'V', '^']  # Bird dive impact
         else:
             # Use the wall cracking animation for other units
             impact_animation = wall_attack_animation

@@ -415,7 +415,7 @@ class KarrierRaveSkill(ActiveSkill):
         
         # Show animation
         if ui and hasattr(ui, 'renderer'):
-            phase_animation = ['φ', '~', '*', '·', ' ']
+            phase_animation = ['o', '~', '*', '.', ' ']
             ui.renderer.animate_attack_sequence(
                 user.y, user.x,
                 phase_animation,

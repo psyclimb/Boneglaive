@@ -240,7 +240,7 @@ class VagalRunSkill(ActiveSkill):
             
             # Show dereliction animation - becoming anchored/bolted down
             if ui and hasattr(ui, 'renderer'):
-                derelict_animation = ['|', 'T', '+', '#', '╬', '╫', '╪', 'H', 'X', '&']  # Structure forming, then anchored abandonment
+                derelict_animation = ['|', 'T', '+', '#', '#', '+', '*', 'H', 'X', '&']  # Structure forming, then anchored abandonment
                 ui.renderer.animate_attack_sequence(
                     target.y, target.x,
                     derelict_animation,
@@ -251,7 +251,7 @@ class VagalRunSkill(ActiveSkill):
         # Show execution animation if UI available
         if ui and hasattr(ui, 'renderer'):
             # Vagal run animation - trauma cracking through the nerve pathway
-            vagal_animation = ['┃', '╎', '╏', '╿', '╽', '/', '\\', '~', '≈', '∼']  # Nerve pathway fracturing
+            vagal_animation = ['|', '|', '|', '|', '|', '/', '\\', '~', '~', '~']  # Nerve pathway fracturing
             ui.renderer.animate_attack_sequence(
                 target_pos[0], target_pos[1],
                 vagal_animation,
@@ -539,7 +539,7 @@ class DerelictSkill(ActiveSkill):
         # Show conveyance animation if UI available
         if ui and hasattr(ui, 'renderer'):
             # Conveyance animation - abstract transportation/displacement
-            conveyance_animation = ['•', 'o', 'O', '~', '≈', '∼', '*', '+', '=', '∅']  # Being conveyed away
+            conveyance_animation = ['o', 'o', 'O', '~', '~', '~', '*', '+', '=', '0']  # Being conveyed away
             ui.renderer.animate_attack_sequence(
                 target_pos[0], target_pos[1],
                 conveyance_animation,
@@ -651,7 +651,7 @@ class DerelictSkill(ActiveSkill):
             
             # Show dereliction animation - becoming anchored/bolted down
             if ui and hasattr(ui, 'renderer'):
-                derelict_animation = ['|', 'T', '+', '#', '╬', '╫', '╪', 'H', 'X', '&']  # Structure forming, then anchored abandonment
+                derelict_animation = ['|', 'T', '+', '#', '#', '+', '*', 'H', 'X', '&']  # Structure forming, then anchored abandonment
                 ui.renderer.animate_attack_sequence(
                     target.y, target.x,
                     derelict_animation,
@@ -775,7 +775,7 @@ class PartitionSkill(ActiveSkill):
         # Show partition animation if UI available
         if ui and hasattr(ui, 'renderer'):
             # Partition animation - mental barriers forming around the mind
-            partition_animation = ['(', '[', '{', '|', '||', '#', 'Ω', 'θ', ')', ']']  # Mental barriers solidifying
+            partition_animation = ['(', '[', '{', '|', '||', '#', 'W', ',', ')', ']']  # Mental barriers solidifying
             ui.renderer.animate_attack_sequence(
                 target_pos[0], target_pos[1],
                 partition_animation,

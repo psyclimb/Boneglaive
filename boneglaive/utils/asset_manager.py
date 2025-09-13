@@ -41,7 +41,7 @@ class AssetManager:
             UnitType.ARCHER: 'A',
             UnitType.MAGE: 'M',
             UnitType.MANDIBLE_FOREMAN: 'F',
-            UnitType.GRAYMAN: 'Ψ',
+            UnitType.GRAYMAN: 'P',
             UnitType.MARROW_CONDENSER: 'C',
             UnitType.FOWL_CONTRIVANCE: 'T',
             UnitType.GAS_MACHINIST: 'M',
@@ -57,23 +57,23 @@ class AssetManager:
             'wall': '#',
             'water': '~',
             'forest': '^',
-            'limestone': '▒',  # Limestone powder piles use a medium shade block
+            'limestone': '#',  # Limestone powder piles use hash symbol
             'dust': ',',       # Light limestone dusting use a comma
             'pillar': 'O',     # Pillars use capital O
             'furniture': '#',  # Generic furniture uses hash symbol
-            'coat_rack': 'ł',  # Coat rack uses slashed l
+            'coat_rack': 'Y',  # Coat rack uses Y
             'ottoman': '=',    # Ottoman uses equals sign
-            'console': 'ε',    # Console table uses epsilon
-            'dec_table': 'Π',  # Decorative table uses Pi symbol
+            'console': '=',    # Console table (flat surface)
+            'dec_table': '=',  # Decorative table (flat surface)
             'marrow_wall': '#',  # Marrow Dike wall uses hash character
-            'rail': '┼',      # Rail track uses cross symbol for intersections
+            'rail': '+',      # Rail track uses cross symbol for intersections
             # Stained Stones map terrain
-            'tiffany_lamp': 'φ',  # Phi symbol for Tiffany lamp
-            'stained_stone': '█',  # Full block for stained stone formations  
+            'tiffany_lamp': 'i',  # Tiffany lamp (lamp post shape)
+            'stained_stone': '#',  # Full block for stained stone formations  
             'easel': 'h',      # Lowercase h resembles easel frame with crossbar
-            'sculpture': 'Δ',   # Delta triangle for sculpture pedestal
+            'sculpture': '*',   # Sculpture (decorative art piece)
             'bench': 'n',      # Lowercase n resembles bench with legs
-            'podium': 'Γ',     # Gamma symbol for elevated podium platform
+            'podium': '^',     # Elevated podium platform
             'vase': 'v',       # Lowercase v resembles vase shape
             'canyon_floor': '.',  # Canyon floor sediment
             # Edge Case map terrain - Industrial warehouse converted to home
@@ -85,7 +85,7 @@ class AssetManager:
             'conveyor': '~',   # Tilde for moving conveyor belt
             'concrete_floor': '.',  # Concrete warehouse floor
             # Seasonal terrain types (autumn)
-            'leaf_pit': '≋',       # Wave-like symbol for mulchy autumn leaves
+            'leaf_pit': '*',       # Asterisk for scattered leaves
             'mini_pumpkin': 'o',   # Lowercase o for small round pumpkin
             'potpourri_bowl': 'u', # Lowercase u for bowl shape
             'melange_fume': '~'    # Tilde for aromatic fumes
@@ -97,8 +97,8 @@ class AssetManager:
             'selected': '**',
             'health': 'HP',
             'vault_target': 'X',  # X marker for vault landing spot
-            'site_inspection': 'Θ',  # Greek theta for Site Inspection target
-            'teleport_target': 'Δ'  # Greek delta for teleport landing spot
+            'site_inspection': '#',  # Site Inspection target
+            'teleport_target': 'T'  # Teleport landing spot
         }
         
         # Effect symbols - enhanced ASCII for attacks
@@ -106,7 +106,7 @@ class AssetManager:
             'glaiveman_attack': '⚔',      # Crossed swords for melee
             'archer_attack': '→',         # Arrow for ranged
             'mage_attack': '*',           # Star for magic
-            'mandible_foreman_attack': 'Ξ', # Mandible jaws (melee)
+            'mandible_foreman_attack': '{', # Mandible jaws (melee)
             'grayman_attack': '≈',        # Reality distortion (ranged)
             'marrow_condenser_attack': 'Ø', # Bone symbol for melee
             'fowl_contrivance_attack': '>', # Rail artillery projectile symbol
@@ -117,36 +117,36 @@ class AssetManager:
         # Add animation sequence tiles for each attack type (using simple ASCII)
         self.animation_sequences = {
             'glaiveman_attack': ['-', '\\', '|', '/', '\\', '-', '/', '|', '\\', '-'],  # Melee range 1 attack
-            'glaiveman_extended_attack': ['\\', '|', '/', '-', '-', '-', '=', '→', 'x'],  # Extended range 2 attack
+            'glaiveman_extended_attack': ['\\', '|', '/', '-', '-', '-', '=', '>', 'x'],  # Extended range 2 attack
             'archer_attack': ['.', '>', '-', '>', '->'],
             'mage_attack': ['.', '*', '*', '*', '*'],
-            'mandible_foreman_attack': ['<', '[', '{', 'Ξ', '{', 'Ξ'],  # Jaws opening and closing animation
-            'grayman_attack': ['·', ':', '≈', '≋', '≈', ':', '·'],  # Reality distortion wave
+            'mandible_foreman_attack': ['<', '[', '{', '{', '{', '{'],  # Jaws opening and closing animation
+            'grayman_attack': ['.', ':', '~', '~', '~', ':', '.'],  # Reality distortion wave
             'autoclave': ['*', '+', 'x', '#', 'X', '#', 'x', '+', '*'],  # Intense cross pattern for Autoclave
-            'pry_range1': ['/', '|', '\\', '_', '-', '↑'],  # Close-range prying motion with similar visual language to extended range
+            'pry_range1': ['/', '|', '\\', '_', '-', '^'],  # Close-range prying motion with similar visual language to extended range
             'pry_range2': ['-', '\\', '_', '_', '_', '/'],  # Extended range prying motion - similar to extended attack
             'pry_launch': ['-', '/', '|', 'I', 'i', '^', '.', ' '],  # Unit being pried from horizontal to vertical, then diminishing as it launches upward
-            'pry_impact': ['↓', 'V', '@', '*', '.'],  # Unit falling back down with heavy impact
+            'pry_impact': ['v', 'V', '@', '*', '.'],  # Unit falling back down with heavy impact
             'pry_debris': ['@', '#', '*', '+', '.'],  # Large chunks of debris falling straight down
-            'vault': ['^', 'Λ', '↑', '↟', '↑'],  # Vault initiation animation - upward movement
-            'vault_impact': ['↓', 'v', 'V', '*', '.'],  # Vault landing animation
+            'vault': ['^', '^', '^', '^', '^'],  # Vault initiation animation - upward movement
+            'vault_impact': ['v', 'v', 'V', '*', '.'],  # Vault landing animation
             'judgement': ['*', '+', 'X', '#', 'O', '#', 'X', '+', '*'],  # Circular spinning Krull glaive animation - ASCII only
             'judgement_critical': ['X', '!', 'Z', '#', 'Z', '#', '*', '!', 'Z', '!', '*', '!'],  # Lightning striking the glaive at moment of critical impact - ASCII only
-            'viseroy_trap': ['Ξ', '{', 'Ξ', '#', '%', '&', 'Ξ'],  # Animation for Viseroy trap crushing effect
+            'viseroy_trap': ['{', '{', '{', '#', '%', '&', '{'],  # Animation for Viseroy trap crushing effect
             # MARROW CONDENSER animations
-            'marrow_condenser_attack': ['/', '|', '\\', '-', '8', '$', 'Ø', '#', '*'],  # Swinging and striking with bone chunks
+            'marrow_condenser_attack': ['/', '|', '\\', '-', '8', '$', 'O', '#', '*'],  # Swinging and striking with bone chunks
             'ossify': ['#', '%', '@', '*', '+', '=', '&', '$', '#', '/', '\\', '|', '-', '.'],  # ASCII bone hardening animation
-            'marrow_dike': ['╎', '╏', '┃', '┆', '┇', '┊', '┋', '#', '#'],  # Marrow wall forming - hash wall animation
+            'marrow_dike': ['|', '|', '|', '|', '|', '|', '|', '#', '#'],  # Marrow wall forming - hash wall animation
             'slough': ['#', '*', '+', 'X', '*', '.'],  # Bone shards launching outward
-            'site_inspection': ['Θ', 'Φ', 'Θ', 'Φ', 'Θ'],  # Animation for Site Inspection with eye-like Greek letters
-            'expedite_rush': ['Ξ', '<', '[', '{'],  # Animation for Expedite rush movement
+            'site_inspection': ['#', 'O', '#', 'O', '#'],  # Animation for Site Inspection with eye-like symbols
+            'expedite_rush': ['{', '<', '[', '{'],  # Animation for Expedite rush movement
             'expedite_impact': ['!', '!', '#', 'X', '*', '.'],  # Animation for Expedite impact
-            'delta_config': ['Ψ', '░', '▒', '▓', ' ', '▓', '▒', '░', 'Ψ'],  # Teleportation effect
-            'teleport_out': ['Ψ', '░', '▒', '▓', ' '],  # Teleport out animation
-            'teleport_in': [' ', '▓', '▒', '░', 'Ψ'],  # Teleport in animation
+            'delta_config': ['P', '.', ':', '=', ' ', '=', ':', '.', 'P'],  # Teleportation effect
+            'teleport_out': ['P', '.', ':', '=', ' '],  # Teleport out animation
+            'teleport_in': [' ', '=', ':', '.', 'P'],  # Teleport in animation
             'estrange': ['~', '=', '=', '~', '-', '-', '~', '='],  # Dramatic pulsing beam
-            'grae_exchange': ['/', '_', '*', 'ψ', 'Ψ'],  # Echo creation effect
-            'marrow_healing': ['♥', '❤', '♡', '❤', '♥', '✚', '+', '*'],  # Blood plasma healing animation
+            'grae_exchange': ['/', '_', '*', 'p', 'P'],  # Echo creation effect
+            'marrow_healing': ['<', '3', '<', '3', '<', '+', '+', '*'],  # Blood plasma healing animation
             
             # FOWL_CONTRIVANCE reworked animations - rail artillery platform
             'fowl_contrivance_attack': ['T', '=', '-', '>', '*', '#', '@'],  # Rail cannon charging and firing
@@ -160,7 +160,7 @@ class AssetManager:
             ],
             
             # FOWL CONTRIVANCE reworked skills animations
-            'gaussian_dusk_charging': ['~', '=', '≡', '*', '+', 'Φ', 'Θ', 'Ω'],  # Steam and energy buildup
+            'gaussian_dusk_charging': ['~', '=', '=', '*', '+', 'O', '#', 'W'],  # Steam and energy buildup
             'gaussian_dusk_firing': ['*', '#', '@', '~', '.', ' '],  # Beam trail
             'parabol_launch': ['o', 'O', '0', '*'],  # Mortar shells ascending  
             'parabol_impact': ['*', '#', '@', '%', '~', '.'],  # Explosions and smoke
@@ -174,43 +174,43 @@ class AssetManager:
             
             # GAS_MACHINIST animations
             'gas_machinist_attack': ['o', 'O', 'o'],  # Gas bubble attack
-            'summon_vapor': ['~', 'o', 'O', 'Φ'],  # Generic vapor formation
-            'broaching_gas': ['~', '*', 'Φ'],  # Broaching Gas animation
-            'saft_e_gas': ['~', 'o', 'Θ'],  # Saft-E-Gas animation
+            'summon_vapor': ['~', 'o', 'O', 'O'],  # Generic vapor formation
+            'broaching_gas': ['~', '*', 'O'],  # Broaching Gas animation
+            'saft_e_gas': ['~', 'o', '#'],  # Saft-E-Gas animation
             'diverge': ['*', '+', 'x', '#', '@'],  # Diverge animation
             'vapor_broaching': ['~', '*', '+'],  # Broaching Gas effect
             'vapor_safety': ['~', 'o', 'O'],  # Safety Gas effect
             'vapor_coolant': ['~', '*', '+'],  # Coolant Gas effect
             'vapor_cutting': ['~', '%', '#'],  # Cutting Gas effect
-            'coolant_gas': ['~', '*', 'Σ'],  # Coolant Gas formation from Diverge
+            'coolant_gas': ['~', '*', 'S'],  # Coolant Gas formation from Diverge
             'cutting_gas': ['~', '*', '%'],  # Cutting Gas formation from Diverge
             'cleanse': ['*', '+', 'o', '.'],  # Status effect cleansing animation
             'reform': [' ', '.', ':', 'o', 'O', 'M'],  # Gas Machinist reformation
 
             # DELPHIC_APPRAISER animations
-            'delphic_appraiser_attack': ['$', '¢', '$'],  # Basic attack with currency symbols
+            'delphic_appraiser_attack': ['$', '$', '$'],  # Basic attack with currency symbols
             'interferer_attack': ['x', '+', '*', 'x'],  # Plutonium carabiner cross attack
 
             # Valuation Oracle: Ancient numerical glyphs materializing, furniture transforms showing ornate details
-            'valuation_oracle': ['?', '1', '3', '5', '7', '9', '$', '£', '€'],
+            'valuation_oracle': ['?', '1', '3', '5', '7', '9', '$', '#', '@'],
 
             # Market Futures: Appraiser touches furniture, temporal projections spiral, furniture transforms
-            'market_futures': ['A', 'T', '$', '£', '€', '¥', 'Φ', 'Ψ', 'Ω'],
+            'market_futures': ['A', 'T', '$', '#', '@', '%', 'O', 'P', 'W'],
 
             # Market Teleport: Ally converted to golden arrows arcing through air
-            'market_teleport': ['$', '↗', '→', '↘', '↓', '*', 'A'],
+            'market_teleport': ['$', '^', '>', 'v', 'v', '*', 'A'],
 
             # Auction Curse: Creates podium, bidders raising paddles, stats transfer as tokens
-            'auction_curse': ['A', '=', 'π', 'Γ', '$', '¢', '£', '|', '+'],
+            'auction_curse': ['A', '=', 'p', 'G', '$', '$', '#', '|', '+'],
 
             # Bid Token: Glowing tokens transferring from Appraiser to ally
-            'bid_token': ['$', '*', '+', '¢', '£', '€', 'A'],
+            'bid_token': ['$', '*', '+', '$', '#', '@', 'A'],
 
             # Divine Depreciation: Downward valuation, furniture value drops, floor sinks
-            'divine_depreciation': ['A', '↓', '9', '6', '3', '0', '_', '.', ' '],
+            'divine_depreciation': ['A', 'v', '9', '6', '3', '0', '_', '.', ' '],
             
             # INTERFERER animations
-            'scalar_node_detonation': ['~', '≈', '*', '#', '@', '+', '*', '~', '.']  # Standing wave collapse
+            'scalar_node_detonation': ['~', '~', '*', '#', '@', '+', '*', '~', '.']  # Standing wave collapse
         }
     
     def _initialize_graphical_assets(self) -> None:

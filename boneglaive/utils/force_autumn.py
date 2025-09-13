@@ -15,6 +15,6 @@ import boneglaive.utils.seasonal_events as seasonal_events
 seasonal_events.get_active_season = get_active_season
 seasonal_events.seasonal_manager.get_active_season = get_active_season
 
-print("🍂 AUTUMN MODE ACTIVATED - Autumn Equinox forced active!")
+print("*** AUTUMN MODE ACTIVATED - Autumn Equinox forced active!")
 print("   Stained Stones will now load as autumn variant")
-print("   Look for 'Stained Stones ☀' in map selection")
+print("   Look for 'Stained Stones *' in map selection")

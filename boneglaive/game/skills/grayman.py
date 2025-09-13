@@ -134,12 +134,12 @@ class DeltaConfigSkill(ActiveSkill):
             # Get teleport out animation sequence
             teleport_out = ui.asset_manager.get_skill_animation_sequence('teleport_out')
             if not teleport_out:
-                teleport_out = ['Ψ', '░', '▒', '▓', ' ']  # Fallback
+                teleport_out = ['P', '.', ':', '=', ' ']  # Fallback
                 
             # Get teleport in animation sequence
             teleport_in = ui.asset_manager.get_skill_animation_sequence('teleport_in')
             if not teleport_in:
-                teleport_in = [' ', '▓', '▒', '░', 'Ψ']  # Fallback
+                teleport_in = [' ', '=', ':', '.', 'P']  # Fallback
                 
             # Play teleport out animation at original position
             ui.renderer.animate_attack_sequence(
@@ -583,7 +583,7 @@ class GraeExchangeSkill(ActiveSkill):
             # Get the animation sequence
             exchange_animation = ui.asset_manager.get_skill_animation_sequence('grae_exchange')
             if not exchange_animation:
-                exchange_animation = ['/', '_', '*', 'ψ', 'Ψ']  # Fallback
+                exchange_animation = ['/', '_', '*', 'p', 'P']  # Fallback
             
             # Play initial animation at user's position
             ui.renderer.animate_attack_sequence(
@@ -629,12 +629,12 @@ class GraeExchangeSkill(ActiveSkill):
             # Get teleport out animation sequence
             teleport_out = ui.asset_manager.get_skill_animation_sequence('teleport_out')
             if not teleport_out:
-                teleport_out = ['Ψ', '░', '▒', '▓', ' ']  # Fallback
+                teleport_out = ['P', '.', ':', '=', ' ']  # Fallback
             
             # Get teleport in animation sequence
             teleport_in = ui.asset_manager.get_skill_animation_sequence('teleport_in')
             if not teleport_in:
-                teleport_in = [' ', '▓', '▒', '░', 'Ψ']  # Fallback
+                teleport_in = [' ', '=', ':', '.', 'P']  # Fallback
             
             # Temporarily hide the real unit
             temp_y, temp_x = user.y, user.x
