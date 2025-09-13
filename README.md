@@ -1,14 +1,10 @@
 # Boneglaive
 
-**BETA VERSION 0.8.5** - Core gameplay complete, some features in development
+**BETA VERSION 0.8.6** - Core gameplay complete, some features in development
 
 **Linux & BSD Terminal Gaming** - A tactical turn-based combat game designed for *nix terminal environments using ncurses.
 
 > **Platform Support**: Boneglaive is designed for Linux and BSD systems, taking full advantage of native terminal capabilities.
-
-> **For Developers & Testers**: See [Contributing](#-contributing) section below for development setup and testing guidelines.
-
-## Installation
 
 ### Linux & BSD Setup
 Boneglaive requires Python 3.8+ and uses the native curses library available on Linux and BSD systems:

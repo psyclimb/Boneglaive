@@ -422,6 +422,8 @@ class SimpleAI:
             self._process_heinous_vapor(unit, use_coordination=self.difficulty == AIDifficulty.HARD)
         elif unit.type == UnitType.DELPHIC_APPRAISER:
             self._process_delphic_appraiser(unit, use_coordination=self.difficulty == AIDifficulty.HARD)
+        elif unit.type == UnitType.DERELICTIONIST:
+            self._process_derelictionist(unit, use_coordination=self.difficulty == AIDifficulty.HARD)
         else:
             # Default behavior for other unit types
             logger.info(f"No specific AI logic for {unit.type.name}, using default behavior")
@@ -6100,3 +6102,449 @@ class SimpleAI:
                 if distance <= attack_range:
                     unit.attack_target = (target.y, target.x)
                     logger.info(f"DELPHIC_APPRAISER attacking {target.get_display_name()} from current position")
+
+    def _process_derelictionist(self, unit: 'Unit', use_coordination: bool = False) -> None:
+        """
+        Process actions for a DERELICTIONIST unit with ultra-strategic thinking.
+
+        The DERELICTIONIST is a pure support unit that:
+        - NEVER attacks (too weak, focus is pure support)
+        - Uses distance-based mechanics optimally
+        - Leverages Severance passive for skill-then-move combos
+        - Prioritizes ally survival and positioning
+
+        Strategic priorities:
+        1. Emergency intervention (save dying allies)
+        2. Optimal distance healing/cleansing
+        3. Strategic ally repositioning
+        4. Preventive protection
+        5. Positioning for future turns
+
+        Args:
+            unit: The DERELICTIONIST unit to process
+            use_coordination: Whether to use group coordination tactics
+        """
+        # Reset all targets
+        unit.move_target = None
+        unit.attack_target = None  # NEVER attack - pure support
+        unit.skill_target = None
+        unit.selected_skill = None
+
+        logger.info(f"DERELICTIONIST {unit.get_display_name()} beginning ultra-strategic analysis")
+
+        # Check constraints
+        is_trapped = hasattr(unit, 'trapped_by') and unit.trapped_by is not None
+
+        # Get allies and enemies for analysis
+        allies = [u for u in self.game.units
+                 if u.player == unit.player and u.is_alive() and u != unit]
+        enemies = [u for u in self.game.units
+                  if u.player != unit.player and u.is_alive() and u.type != UnitType.HEINOUS_VAPOR]
+
+        if not allies:
+            logger.info("DERELICTIONIST has no allies - positioning defensively")
+            self._derelictionist_defensive_positioning(unit, enemies, is_trapped)
+            return
+
+        # Get available skills
+        available_skills = unit.get_available_skills()
+
+        # ULTRA-STRATEGIC DECISION TREE
+
+        # Priority 1: CRITICAL INTERVENTION - Save dying allies with Partition
+        if self._derelictionist_emergency_save(unit, allies, enemies, available_skills):
+            return
+
+        # Priority 2: OPTIMAL DISTANCE HEALING - Use Vagal Run at distance 7+ for max benefit
+        if self._derelictionist_distance_healing(unit, allies, available_skills):
+            return
+
+        # Priority 3: STRATEGIC REPOSITIONING - Use Derelict to move allies optimally
+        if self._derelictionist_strategic_push(unit, allies, enemies, available_skills):
+            return
+
+        # Priority 4: STATUS CLEANSING - Clear negative effects from allies
+        if self._derelictionist_status_cleansing(unit, allies, available_skills):
+            return
+
+        # Priority 5: PREVENTIVE PROTECTION - Shield vulnerable allies
+        if self._derelictionist_preventive_shield(unit, allies, enemies, available_skills):
+            return
+
+        # Priority 6: OPTIMAL POSITIONING - Use Severance for tactical positioning
+        self._derelictionist_optimal_positioning(unit, allies, enemies, is_trapped)
+
+    def _derelictionist_emergency_save(self, unit: 'Unit', allies: list, enemies: list, available_skills: list) -> bool:
+        """Emergency intervention to save critically endangered allies."""
+        partition_skill = next((s for s in available_skills if hasattr(s, 'name') and s.name == "Partition"), None)
+        if not partition_skill:
+            return False
+
+        # Find allies in mortal danger
+        critical_allies = []
+
+        for ally in allies:
+            # Check if ally is critically low on health
+            if ally.hp <= ally.max_hp * 0.3:
+                # Calculate imminent threat level
+                threat_level = 0
+                for enemy in enemies:
+                    enemy_distance = self.game.chess_distance(enemy.y, enemy.x, ally.y, ally.x)
+                    enemy_stats = enemy.get_effective_stats()
+                    can_reach = enemy_distance <= enemy_stats['move_range'] + enemy_stats['attack_range']
+
+                    if can_reach and enemy_stats['attack'] >= ally.hp:
+                        threat_level += 10  # Can kill next turn
+                    elif can_reach:
+                        threat_level += 5   # Can damage next turn
+
+                if threat_level >= 10:  # Mortal danger
+                    ally_distance = self.game.chess_distance(unit.y, unit.x, ally.y, ally.x)
+                    if (ally_distance <= partition_skill.range and
+                        not (hasattr(ally, 'partition_shield_active') and ally.partition_shield_active)):
+                        critical_allies.append((ally, threat_level, ally_distance))
+
+        if critical_allies:
+            # Save the most threatened ally that's closest
+            critical_allies.sort(key=lambda x: (-x[1], x[2]))  # Most threat, then closest
+            target_ally = critical_allies[0][0]
+
+            logger.info(f"EMERGENCY: Saving {target_ally.get_display_name()} from mortal danger")
+            unit.skill_target = (target_ally.y, target_ally.x)
+            unit.selected_skill = partition_skill
+            unit.action_timestamp = self.game.action_counter
+            self.game.action_counter += 1
+            return True
+
+        return False
+
+    def _derelictionist_distance_healing(self, unit: 'Unit', allies: list, available_skills: list) -> bool:
+        """Use Vagal Run at optimal distance (7+) for maximum healing benefit."""
+        vagal_skill = next((s for s in available_skills if hasattr(s, 'name') and s.name == "Vagal Run"), None)
+        if not vagal_skill:
+            return False
+
+        # Find damaged allies at optimal healing distance (7+)
+        healing_targets = []
+
+        for ally in allies:
+            ally_distance = self.game.chess_distance(unit.y, unit.x, ally.y, ally.x)
+
+            # Check if already has vagal run active
+            if hasattr(ally, 'vagal_run_active') and ally.vagal_run_active:
+                continue
+
+            if ally_distance >= 7 and ally_distance <= vagal_skill.range:
+                # Calculate healing benefit
+                potential_healing = ally_distance - 6
+                needed_healing = max(0, ally.max_hp - ally.hp)
+                healing_value = min(potential_healing, needed_healing)
+
+                # Also consider status cleansing value
+                status_count = self._count_negative_effects(ally)
+
+                total_value = healing_value + status_count * 2
+
+                if total_value > 0:  # Only if there's actual benefit
+                    healing_targets.append((ally, total_value, ally_distance))
+
+        if healing_targets:
+            # Prioritize highest value targets
+            healing_targets.sort(key=lambda x: x[1], reverse=True)
+            target_ally = healing_targets[0][0]
+
+            logger.info(f"DISTANCE HEALING: Vagal Run on {target_ally.get_display_name()} at distance {healing_targets[0][2]} (value: {healing_targets[0][1]})")
+            unit.skill_target = (target_ally.y, target_ally.x)
+            unit.selected_skill = vagal_skill
+            unit.action_timestamp = self.game.action_counter
+            self.game.action_counter += 1
+            return True
+
+        return False
+
+    def _derelictionist_strategic_push(self, unit: 'Unit', allies: list, enemies: list, available_skills: list) -> bool:
+        """Use Derelict to strategically reposition allies for tactical advantage."""
+        derelict_skill = next((s for s in available_skills if hasattr(s, 'name') and s.name == "Derelict"), None)
+        if not derelict_skill:
+            return False
+
+        # Analyze each ally for strategic repositioning potential
+        push_candidates = []
+
+        for ally in allies:
+            ally_distance = self.game.chess_distance(unit.y, unit.x, ally.y, ally.x)
+
+            if ally_distance <= derelict_skill.range:
+                # Calculate push direction
+                dy = ally.y - unit.y
+                dx = ally.x - unit.x
+                if dy != 0:
+                    dy = 1 if dy > 0 else -1
+                if dx != 0:
+                    dx = 1 if dx > 0 else -1
+
+                # Simulate push outcome
+                push_benefit = self._calculate_derelict_value(unit, ally, enemies, dy, dx)
+
+                if push_benefit > 3:  # Meaningful benefit threshold
+                    push_candidates.append((ally, push_benefit))
+
+        if push_candidates:
+            # Use the highest value push
+            push_candidates.sort(key=lambda x: x[1], reverse=True)
+            target_ally = push_candidates[0][0]
+
+            logger.info(f"STRATEGIC PUSH: Derelict on {target_ally.get_display_name()} (benefit: {push_candidates[0][1]})")
+            unit.skill_target = (target_ally.y, target_ally.x)
+            unit.selected_skill = derelict_skill
+            unit.action_timestamp = self.game.action_counter
+            self.game.action_counter += 1
+            return True
+
+        return False
+
+    def _derelictionist_status_cleansing(self, unit: 'Unit', allies: list, available_skills: list) -> bool:
+        """Use Vagal Run to cleanse status effects from heavily debuffed allies."""
+        vagal_skill = next((s for s in available_skills if hasattr(s, 'name') and s.name == "Vagal Run"), None)
+        if not vagal_skill:
+            return False
+
+        # Find allies with multiple negative effects
+        cleansing_targets = []
+
+        for ally in allies:
+            ally_distance = self.game.chess_distance(unit.y, unit.x, ally.y, ally.x)
+
+            if (ally_distance <= vagal_skill.range and
+                not (hasattr(ally, 'vagal_run_active') and ally.vagal_run_active)):
+
+                status_count = self._count_negative_effects(ally)
+
+                if status_count >= 2:  # Multiple negative effects
+                    # Consider damage vs benefit
+                    if ally_distance <= 5:
+                        # Would deal damage - only worth it if ally is already damaged
+                        damage = max(0, 6 - ally_distance)
+                        if ally.hp > damage and ally.hp <= ally.max_hp * 0.6:
+                            cleansing_value = status_count * 3
+                            cleansing_targets.append((ally, cleansing_value))
+                    else:
+                        # Safe cleansing
+                        cleansing_value = status_count * 4
+                        cleansing_targets.append((ally, cleansing_value))
+
+        if cleansing_targets:
+            # Cleanse the most affected ally
+            cleansing_targets.sort(key=lambda x: x[1], reverse=True)
+            target_ally = cleansing_targets[0][0]
+
+            logger.info(f"STATUS CLEANSING: Cleansing {target_ally.get_display_name()} (value: {cleansing_targets[0][1]})")
+            unit.skill_target = (target_ally.y, target_ally.x)
+            unit.selected_skill = vagal_skill
+            unit.action_timestamp = self.game.action_counter
+            self.game.action_counter += 1
+            return True
+
+        return False
+
+    def _derelictionist_preventive_shield(self, unit: 'Unit', allies: list, enemies: list, available_skills: list) -> bool:
+        """Use Partition to proactively protect vulnerable allies."""
+        partition_skill = next((s for s in available_skills if hasattr(s, 'name') and s.name == "Partition"), None)
+        if not partition_skill:
+            return False
+
+        # Find vulnerable allies who would benefit from protection
+        protection_targets = []
+
+        for ally in allies:
+            ally_distance = self.game.chess_distance(unit.y, unit.x, ally.y, ally.x)
+
+            if (ally_distance <= partition_skill.range and
+                not (hasattr(ally, 'partition_shield_active') and ally.partition_shield_active)):
+
+                # Calculate vulnerability score
+                vulnerability = self._calculate_vulnerability(ally, enemies)
+
+                if vulnerability >= 4:  # Meaningfully vulnerable
+                    protection_targets.append((ally, vulnerability))
+
+        if protection_targets:
+            # Protect the most vulnerable ally
+            protection_targets.sort(key=lambda x: x[1], reverse=True)
+            target_ally = protection_targets[0][0]
+
+            logger.info(f"PREVENTIVE SHIELD: Protecting {target_ally.get_display_name()} (vulnerability: {protection_targets[0][1]})")
+            unit.skill_target = (target_ally.y, target_ally.x)
+            unit.selected_skill = partition_skill
+            unit.action_timestamp = self.game.action_counter
+            self.game.action_counter += 1
+            return True
+
+        return False
+
+    def _derelictionist_optimal_positioning(self, unit: 'Unit', allies: list, enemies: list, is_trapped: bool) -> None:
+        """Position optimally, potentially using Severance enhanced movement."""
+        if is_trapped:
+            return
+
+        # Determine movement range (potentially enhanced by Severance)
+        base_move = unit.get_effective_stats()['move_range']
+        # Severance gives +1 movement after using a skill
+        enhanced_move = base_move + (1 if hasattr(unit, 'used_skill_this_turn') and unit.used_skill_this_turn else 0)
+
+        best_position = None
+        best_score = self._evaluate_position(unit.y, unit.x, unit, allies, enemies)
+
+        # Evaluate all possible positions
+        for dy in range(-enhanced_move, enhanced_move + 1):
+            for dx in range(-enhanced_move, enhanced_move + 1):
+                new_y = unit.y + dy
+                new_x = unit.x + dx
+
+                if (self.game.is_valid_position(new_y, new_x) and
+                    self.game.map.is_passable(new_y, new_x) and
+                    not self.game.get_unit_at(new_y, new_x) and
+                    self.game.chess_distance(unit.y, unit.x, new_y, new_x) <= enhanced_move):
+
+                    score = self._evaluate_position(new_y, new_x, unit, allies, enemies)
+                    if score > best_score:
+                        best_score = score
+                        best_position = (new_y, new_x)
+
+        if best_position:
+            unit.move_target = best_position
+            logger.info(f"POSITIONING: Moving to {best_position} for tactical advantage")
+
+    def _calculate_derelict_value(self, unit: 'Unit', ally: 'Unit', enemies: list, dy: int, dx: int) -> float:
+        """Calculate the strategic value of using Derelict on an ally."""
+        value = 0
+
+        # Simulate push outcome
+        final_y, final_x = ally.y, ally.x
+        push_distance = 0
+
+        for distance in range(1, 5):
+            test_y = ally.y + (dy * distance)
+            test_x = ally.x + (dx * distance)
+
+            if (self.game.is_valid_position(test_y, test_x) and
+                self.game.map.is_passable(test_y, test_x) and
+                not self.game.get_unit_at(test_y, test_x)):
+                final_y, final_x = test_y, test_x
+                push_distance = distance
+            else:
+                break
+
+        if push_distance > 0:
+            # Calculate healing value
+            final_distance = self.game.chess_distance(final_y, final_x, unit.y, unit.x)
+            healing_value = final_distance if ally.hp < ally.max_hp else 0
+
+            # Calculate safety improvement
+            current_danger = sum(1 for enemy in enemies
+                               if self.game.chess_distance(ally.y, ally.x, enemy.y, enemy.x) <= 3)
+            new_danger = sum(1 for enemy in enemies
+                           if self.game.chess_distance(final_y, final_x, enemy.y, enemy.x) <= 3)
+            safety_value = max(0, current_danger - new_danger) * 3
+
+            value = healing_value + safety_value
+
+        return value
+
+    def _count_negative_effects(self, ally: 'Unit') -> int:
+        """Count negative status effects on an ally."""
+        count = 0
+        effects = ['derelicted', 'mired', 'jawline_affected', 'neural_shunt_affected', 'auction_curse_dot']
+
+        for effect in effects:
+            if hasattr(ally, effect) and getattr(ally, effect):
+                count += 1
+
+        # Special handling for radiation
+        if hasattr(ally, 'radiation_stacks'):
+            stacks = ally.radiation_stacks
+            if (isinstance(stacks, list) and len(stacks) > 0) or (isinstance(stacks, int) and stacks > 0):
+                count += 1
+
+        if hasattr(ally, 'trapped_by') and ally.trapped_by:
+            count += 1
+
+        return count
+
+    def _calculate_vulnerability(self, ally: 'Unit', enemies: list) -> float:
+        """Calculate how vulnerable an ally is to enemy attacks."""
+        vulnerability = 0
+
+        # Health factor
+        if ally.hp <= ally.max_hp * 0.4:
+            vulnerability += 3
+        elif ally.hp <= ally.max_hp * 0.7:
+            vulnerability += 1
+
+        # Threat proximity
+        close_enemies = sum(1 for enemy in enemies
+                          if self.game.chess_distance(ally.y, ally.x, enemy.y, enemy.x) <= 4)
+        vulnerability += close_enemies
+
+        # Unit type - support units are more valuable to protect
+        if ally.type in [UnitType.DELPHIC_APPRAISER, UnitType.GAS_MACHINIST]:
+            vulnerability += 2
+
+        return vulnerability
+
+    def _evaluate_position(self, y: int, x: int, unit: 'Unit', allies: list, enemies: list) -> float:
+        """Evaluate the strategic value of a position."""
+        score = 0
+
+        # Distance to allies (want to be in support range)
+        for ally in allies:
+            distance = self.game.chess_distance(y, x, ally.y, ally.x)
+            if distance <= 3:
+                score += 3  # Perfect support range
+            elif distance <= 6:
+                score += 1  # Decent range
+            else:
+                score -= 0.5  # Too far
+
+        # Safety from enemies
+        for enemy in enemies:
+            distance = self.game.chess_distance(y, x, enemy.y, enemy.x)
+            if distance <= 2:
+                score -= 5  # Too close
+            elif distance <= 4:
+                score -= 2  # Somewhat dangerous
+            else:
+                score += 0.5  # Good distance
+
+        return score
+
+    def _derelictionist_defensive_positioning(self, unit: 'Unit', enemies: list, is_trapped: bool) -> None:
+        """Position defensively when no allies are present."""
+        if is_trapped:
+            return
+
+        # Find safest position away from enemies
+        best_position = None
+        best_safety = 0
+        move_range = unit.get_effective_stats()['move_range']
+
+        for dy in range(-move_range, move_range + 1):
+            for dx in range(-move_range, move_range + 1):
+                new_y = unit.y + dy
+                new_x = unit.x + dx
+
+                if (self.game.is_valid_position(new_y, new_x) and
+                    self.game.map.is_passable(new_y, new_x) and
+                    not self.game.get_unit_at(new_y, new_x) and
+                    self.game.chess_distance(unit.y, unit.x, new_y, new_x) <= move_range):
+
+                    # Calculate safety score
+                    safety = sum(self.game.chess_distance(new_y, new_x, enemy.y, enemy.x) for enemy in enemies)
+
+                    if safety > best_safety:
+                        best_safety = safety
+                        best_position = (new_y, new_x)
+
+        if best_position:
+            unit.move_target = best_position
+            logger.info(f"DEFENSIVE: Moving to safe position {best_position}")
