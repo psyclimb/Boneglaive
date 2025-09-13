@@ -816,7 +816,7 @@ class UnitHelpComponent(UIComponent):
                     'Defense: 0',
                     'Movement: 2',
                     'Range: 5',
-                    'Symbol: Ψ'
+                    'Symbol: P'
                 ],
                 'skills': [
                     {
@@ -908,7 +908,7 @@ class UnitHelpComponent(UIComponent):
                     'Defense: 0',
                     'Movement: 0',
                     'Range: 1',
-                    'Symbol: ψ'
+                    'Symbol: p'
                 ],
                 'skills': [
                     {
@@ -1177,7 +1177,7 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'BROACHING GAS (Active) [Key: B]',
-                        'description': 'Summons a HEINOUS VAPOR (Φ) that deals damage to enemies and cleanses allies of negative status effects.',
+                        'description': 'Summons a HEINOUS VAPOR (1) that deals damage to enemies and cleanses allies of negative status effects.',
                         'details': [
                             'Type: Active',
                             'Range: 4',
@@ -1192,7 +1192,7 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'SAFT-E-GAS (Active) [Key: S]',
-                        'description': 'Summons a HEINOUS VAPOR (Θ) that blocks enemy targeting and heals allies.',
+                        'description': 'Summons a HEINOUS VAPOR (0) that blocks enemy targeting and heals allies.',
                         'details': [
                             'Type: Active',
                             'Range: 4',
@@ -1506,7 +1506,7 @@ class UnitHelpComponent(UIComponent):
                 ]
             },
             'HEINOUS_VAPOR_BROACHING': {
-                'title': 'BROACHING GAS (Φ)',
+                'title': 'BROACHING GAS (1)',
                 'overview': [
                     'BROACHING GAS is a HEINOUS VAPOR entity summoned by the GAS MACHINIST using the Broaching',
                     'Gas skill. This vapor specializes in dual-purpose area control, dealing 2 damage to enemies',
@@ -1520,7 +1520,7 @@ class UnitHelpComponent(UIComponent):
                     'Defense: 0',
                     'Movement: 3',
                     'Range: 1',
-                    'Symbol: Φ'
+                    'Symbol: 1'
                 ],
                 'skills': [
                     {
@@ -1582,7 +1582,7 @@ class UnitHelpComponent(UIComponent):
                 ]
             },
             'HEINOUS_VAPOR_SAFT_E': {
-                'title': 'SAFT-E-GAS (Θ)',
+                'title': 'SAFT-E-GAS (0)',
                 'overview': [
                     'SAFT-E-GAS is a HEINOUS VAPOR entity summoned by the GAS MACHINIST using the Saft-E-Gas',
                     'skill. This vapor specializes in defensive area control, blocking ranged attacks while',
@@ -1596,7 +1596,7 @@ class UnitHelpComponent(UIComponent):
                     'Defense: 0',
                     'Movement: 3',
                     'Range: 1',
-                    'Symbol: Θ'
+                    'Symbol: 0'
                 ],
                 'skills': [
                     {
@@ -1658,7 +1658,7 @@ class UnitHelpComponent(UIComponent):
                 ]
             },
             'HEINOUS_VAPOR_COOLANT': {
-                'title': 'COOLANT GAS (Σ)',
+                'title': 'COOLANT GAS (2)',
                 'overview': [
                     'COOLANT GAS is a HEINOUS VAPOR entity created by the GAS MACHINIST using the Diverge',
                     'skill. This vapor specializes in healing, providing 3 HP healing per turn to allies',
@@ -1672,7 +1672,7 @@ class UnitHelpComponent(UIComponent):
                     'Defense: 0',
                     'Movement: 3',
                     'Range: 1',
-                    'Symbol: Σ'
+                    'Symbol: 2'
                 ],
                 'skills': [
                     {
@@ -4583,7 +4583,7 @@ class AnimationComponent(UIComponent):
             self.renderer.animate_projectile(
                 (start_pos.y, start_pos.x),
                 (end_pos.y, end_pos.x),
-                'Ξ',  # Mandible symbol
+                '{',  # Mandible symbol
                 7,    # color ID
                 0.2   # quick connection
             )
@@ -5792,15 +5792,15 @@ class InputManager(UIComponent):
             elif unit_type == UnitType.HEINOUS_VAPOR:
                 # Check what type of vapor this is by symbol
                 if hasattr(cursor_manager.selected_unit, 'vapor_symbol'):
-                    if cursor_manager.selected_unit.vapor_symbol == 'Φ':
+                    if cursor_manager.selected_unit.vapor_symbol == '1':
                         # Show BROACHING GAS help
                         self.game_ui.unit_help_component.toggle_unit_help('HEINOUS_VAPOR_BROACHING')
                         return
-                    elif cursor_manager.selected_unit.vapor_symbol == 'Θ':
+                    elif cursor_manager.selected_unit.vapor_symbol == '0':
                         # Show SAFT-E-GAS help
                         self.game_ui.unit_help_component.toggle_unit_help('HEINOUS_VAPOR_SAFT_E')
                         return
-                    elif cursor_manager.selected_unit.vapor_symbol == 'Σ':
+                    elif cursor_manager.selected_unit.vapor_symbol == '2':
                         # Show COOLANT GAS help
                         self.game_ui.unit_help_component.toggle_unit_help('HEINOUS_VAPOR_COOLANT')
                         return

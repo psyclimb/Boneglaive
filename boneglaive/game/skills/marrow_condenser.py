@@ -162,7 +162,7 @@ class OssifySkill(ActiveSkill):
             # Get the animation sequence
             ossify_animation = ui.asset_manager.get_skill_animation_sequence('ossify')
             if not ossify_animation:
-                ossify_animation = ['|', '#', '█', '▓', '▒']  # Fallback animation
+                ossify_animation = ['|', '#', '#', '+', '.']  # Fallback animation
                 
             # Show animation at user's position
             ui.renderer.animate_attack_sequence(
@@ -557,18 +557,18 @@ class MarrowDikeSkill(ActiveSkill):
                     dy, dx = movement['dy'], movement['dx']
                     
                     # Show animation of unit being pulled in
-                    pull_animation = ['→', '↓', '←', '↑']  # Direction indicators
-                    
+                    pull_animation = ['>', 'v', '<', '^']  # Direction indicators
+
                     # Choose the right direction indicator based on direction
                     direction_idx = 0
                     if dx > 0:
-                        direction_idx = 0  # →
+                        direction_idx = 0  # >
                     elif dy > 0:
-                        direction_idx = 1  # ↓
+                        direction_idx = 1  # v
                     elif dx < 0:
-                        direction_idx = 2  # ←
+                        direction_idx = 2  # <
                     elif dy < 0:
-                        direction_idx = 3  # ↑
+                        direction_idx = 3  # ^
                         
                     # Draw directional indicator
                     ui.renderer.draw_tile(
@@ -612,7 +612,7 @@ class MarrowDikeSkill(ActiveSkill):
                     
                     # If upgraded, add a reinforced wall effect
                     if self.upgraded:
-                        prison_animation = ['#', '≡', '■', '≡', '#']
+                        prison_animation = ['#', '=', '#', '=', '#']
                         # Draw upgraded walls with reinforced elements
                         ui.renderer.animate_attack_sequence(
                             tile_y, tile_x,

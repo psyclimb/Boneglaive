@@ -23,17 +23,17 @@ class UIRenderer:
         
         # High priority debuffs (should be shown first)
         if hasattr(unit, 'mired') and unit.mired:
-            effects.append(('mired', '≈', curses.A_DIM))
+            effects.append(('mired', '~', curses.A_DIM))
         
         if unit.trapped_by is not None:
-            effects.append(('trapped', 'Ξ', curses.A_BOLD))
+            effects.append(('trapped', '{', curses.A_BOLD))
             
         if hasattr(unit, 'jawline_affected') and unit.jawline_affected:
-            effects.append(('jawline', 'Ξ', curses.A_DIM))
+            effects.append(('jawline', '=', curses.A_DIM))
             
         # DERELICTIONIST status effects
         if hasattr(unit, 'derelicted') and unit.derelicted:
-            effects.append(('derelicted', 'd', curses.A_BOLD))
+            effects.append(('derelicted', '&', curses.A_BOLD))
             
         if hasattr(unit, 'shrapnel_duration') and unit.shrapnel_duration > 0:
             effects.append(('shrapnel', 'x', curses.A_DIM))
@@ -47,24 +47,24 @@ class UIRenderer:
             effects.append(('estranged', '~', curses.A_DIM, 19))  # Special gray color
             
         if hasattr(unit, 'auction_curse_dot') and unit.auction_curse_dot:
-            effects.append(('auction_curse', '¢', curses.A_BOLD))
+            effects.append(('auction_curse', '|', curses.A_BOLD))
             
         if hasattr(unit, 'charging_status') and unit.charging_status:
-            effects.append(('charging', 'Ω', curses.A_BOLD))
+            effects.append(('charging', '^', curses.A_BOLD))
             
         # INTERFERER status effects
         if hasattr(unit, 'radiation_stacks') and unit.radiation_stacks:
-            effects.append(('radiation_sickness', 'r', curses.A_BOLD))
+            effects.append(('radiation_sickness', '*', curses.A_BOLD))
             
         if hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected:
             effects.append(('neural_shunt', '?', curses.A_BOLD))
             
         if hasattr(unit, 'carrier_rave_active') and unit.carrier_rave_active:
-            effects.append(('carrier_rave', 'φ', curses.A_DIM))
+            effects.append(('carrier_rave', '!', curses.A_DIM))
             
         # DELPHIC APPRAISER status effects
         if hasattr(unit, 'can_use_anchor') and unit.can_use_anchor:
-            effects.append(('anchor', 'Π', curses.A_BOLD))
+            effects.append(('anchor', '%', curses.A_BOLD))
             
         # DERELICTIONIST positive status effects
         if hasattr(unit, 'severance_active') and unit.severance_active:
@@ -75,12 +75,12 @@ class UIRenderer:
             
         # Medium priority effects
         if hasattr(unit, 'status_site_inspection') and unit.status_site_inspection:
-            effects.append(('site_inspection', 'Θ', curses.A_BOLD))
+            effects.append(('site_inspection', '#', curses.A_BOLD))
         elif hasattr(unit, 'status_site_inspection_partial') and unit.status_site_inspection_partial:
-            effects.append(('site_inspection_partial', 'θ', curses.A_BOLD))
+            effects.append(('site_inspection_partial', ',', curses.A_BOLD))
             
         if hasattr(unit, 'has_investment_effect') and unit.has_investment_effect:
-            effects.append(('investment', '£', curses.A_BOLD))
+            effects.append(('investment', '$', curses.A_BOLD))
             
         # Positive effects (lower priority, shown last)
         if hasattr(unit, 'ossify_active') and unit.ossify_active:
@@ -93,7 +93,7 @@ class UIRenderer:
             effects.append(('move_bonus', '+', curses.A_BOLD))
             
         if hasattr(unit, 'valuation_oracle_buff') and unit.valuation_oracle_buff:
-            effects.append(('valuation_oracle', '¤', curses.A_BOLD))
+            effects.append(('valuation_oracle', '@', curses.A_BOLD))
             
         return effects
     
@@ -207,7 +207,7 @@ class UIRenderer:
             player_color = chat_component.player_colors.get(setup_player, 1)
             
             # Draw player indicator with box drawing chars
-            player_text = f"■ PLAYER {setup_player} ■"
+            player_text = f"[ PLAYER {setup_player} ]"
             self.renderer.draw_text(header_y, 2, player_text, player_color, curses.A_BOLD)
             
             # Draw setup phase info
@@ -229,7 +229,7 @@ class UIRenderer:
             player_color = chat_component.player_colors.get(current_player, 1)
             
             # Draw player indicator with box drawing chars 
-            player_text = f"■ PLAYER {current_player} ■"
+            player_text = f"[ PLAYER {current_player} ]"
             self.renderer.draw_text(header_y, 2, player_text, player_color, curses.A_BOLD)
             
             # Draw action mode (select/move/attack)
@@ -323,7 +323,7 @@ class UIRenderer:
 
                     # Override if this has a teleport anchor
                     if has_teleport_anchor:
-                        tile = "¥"  # Replace with yen/yuan symbol
+                        tile = "@"  # Market Futures portal anchor
                         color_id = teleport_anchor_color  # Player-specific color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
 
@@ -334,7 +334,7 @@ class UIRenderer:
 
                     # Override if this has a teleport anchor
                     if has_teleport_anchor:
-                        tile = "¥"  # Replace with yen/yuan symbol
+                        tile = "@"  # Market Futures portal anchor
                         color_id = teleport_anchor_color  # Player-specific color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
 
@@ -345,7 +345,7 @@ class UIRenderer:
 
                     # Override if this has a teleport anchor
                     if has_teleport_anchor:
-                        tile = "¥"  # Replace with yen/yuan symbol
+                        tile = "@"  # Market Futures portal anchor
                         color_id = teleport_anchor_color  # Player-specific color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
 
@@ -356,7 +356,7 @@ class UIRenderer:
 
                     # Override if this has a teleport anchor
                     if has_teleport_anchor:
-                        tile = "¥"  # Replace with yen/yuan symbol
+                        tile = "@"  # Market Futures portal anchor
                         color_id = teleport_anchor_color  # Player-specific color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
 
@@ -367,7 +367,7 @@ class UIRenderer:
 
                     # Override if this has a teleport anchor
                     if has_teleport_anchor:
-                        tile = "¥"  # Replace with yen/yuan symbol
+                        tile = "@"  # Market Futures portal anchor
                         color_id = teleport_anchor_color  # Player-specific color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
 
@@ -404,7 +404,7 @@ class UIRenderer:
                     
                     # Override if this has a teleport anchor
                     if has_teleport_anchor:
-                        tile = "¥"  # Replace with yen/yuan symbol
+                        tile = "@"  # Market Futures portal anchor
                         color_id = teleport_anchor_color  # Player-specific color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
                         
@@ -415,7 +415,7 @@ class UIRenderer:
                     
                     # Override if this has a teleport anchor
                     if has_teleport_anchor:
-                        tile = "¥"  # Replace with yen/yuan symbol
+                        tile = "@"  # Market Futures portal anchor
                         color_id = teleport_anchor_color  # Player-specific color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
                         
@@ -426,7 +426,7 @@ class UIRenderer:
                     
                     # Override if this has a teleport anchor
                     if has_teleport_anchor:
-                        tile = "¥"  # Replace with yen/yuan symbol
+                        tile = "@"  # Market Futures portal anchor
                         color_id = teleport_anchor_color  # Player-specific color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
                         
@@ -437,7 +437,7 @@ class UIRenderer:
                     
                     # Override if this has a teleport anchor
                     if has_teleport_anchor:
-                        tile = "¥"  # Replace with yen/yuan symbol
+                        tile = "@"  # Market Futures portal anchor
                         color_id = teleport_anchor_color  # Player-specific color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
                         
@@ -448,7 +448,7 @@ class UIRenderer:
                     
                     # Override if this has a teleport anchor
                     if has_teleport_anchor:
-                        tile = "¥"  # Replace with yen/yuan symbol
+                        tile = "@"  # Market Futures portal anchor
                         color_id = teleport_anchor_color  # Player-specific color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
                         
@@ -459,7 +459,7 @@ class UIRenderer:
                     
                     # Override if this has a teleport anchor
                     if has_teleport_anchor:
-                        tile = "¥"  # Replace with yen/yuan symbol
+                        tile = "@"  # Market Futures portal anchor
                         color_id = teleport_anchor_color  # Player-specific color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
                         
@@ -475,7 +475,7 @@ class UIRenderer:
                     
                     # Override if this has a teleport anchor
                     if has_teleport_anchor:
-                        tile = "¥"  # Replace with yen/yuan symbol
+                        tile = "@"  # Market Futures portal anchor
                         color_id = teleport_anchor_color  # Player-specific color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
                         
@@ -486,7 +486,7 @@ class UIRenderer:
                     
                     # Override if this has a teleport anchor
                     if has_teleport_anchor:
-                        tile = "¥"  # Replace with yen/yuan symbol
+                        tile = "@"  # Market Futures portal anchor
                         color_id = teleport_anchor_color  # Player-specific color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
                         
@@ -497,7 +497,7 @@ class UIRenderer:
                     
                     # Override if this has a teleport anchor
                     if has_teleport_anchor:
-                        tile = "¥"  # Replace with yen/yuan symbol
+                        tile = "@"  # Market Futures portal anchor
                         color_id = teleport_anchor_color  # Player-specific color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
                         
@@ -508,7 +508,7 @@ class UIRenderer:
                     
                     # Override if this has a teleport anchor
                     if has_teleport_anchor:
-                        tile = "¥"  # Replace with yen/yuan symbol
+                        tile = "@"  # Market Futures portal anchor
                         color_id = teleport_anchor_color  # Player-specific color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
                         
@@ -519,7 +519,7 @@ class UIRenderer:
                     
                     # Override if this has a teleport anchor
                     if has_teleport_anchor:
-                        tile = "¥"  # Replace with yen/yuan symbol
+                        tile = "@"  # Market Futures portal anchor
                         color_id = teleport_anchor_color  # Player-specific color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
                         
@@ -535,7 +535,7 @@ class UIRenderer:
                     
                     # Override if this has a teleport anchor
                     if has_teleport_anchor:
-                        tile = "¥"  # Replace with yen/yuan symbol
+                        tile = "@"  # Market Futures portal anchor
                         color_id = teleport_anchor_color  # Player-specific color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
                         
@@ -546,7 +546,7 @@ class UIRenderer:
                     
                     # Override if this has a teleport anchor
                     if has_teleport_anchor:
-                        tile = "¥"  # Replace with yen/yuan symbol
+                        tile = "@"  # Market Futures portal anchor
                         color_id = teleport_anchor_color  # Player-specific color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
                         
@@ -621,8 +621,8 @@ class UIRenderer:
                             
                         # Check for echo units (priority over estranged)
                         if hasattr(unit, 'is_echo') and unit.is_echo:
-                            # Use lowercase psi (ψ) symbol to show it's an echo of GRAYMAN's Ψ
-                            tile = f"ψ"
+                            # Use lowercase p symbol to show it's an echo of GRAYMAN's P
+                            tile = f"p"
                             # Use dim attribute for echo units to make them appear faint
                             attributes = curses.A_DIM
                         # Check for estranged units
@@ -701,7 +701,7 @@ class UIRenderer:
                                 trap_y = min(y + 1, HEIGHT - 1)
                                 trap_x = x
                                 if trap_y < HEIGHT and not self.game_ui.game.get_unit_at(trap_y, trap_x):
-                                    trap_symbol = "Ξ"
+                                    trap_symbol = "{"
                                     jaw_color = 7  # Yellow
                                     self.renderer.draw_tile(trap_y, trap_x, trap_symbol, jaw_color, curses.A_BOLD)
                         else:
@@ -770,10 +770,10 @@ class UIRenderer:
                         
                         # Different visualization for different parts of the path
                         if path_index == path_length - 1:  # End position (destination)
-                            tile = "→"  # Arrow pointing forward for final position
+                            tile = ">"  # Arrow pointing forward for final position
                         else:
                             # For intermediate positions, show a subtle path indicator
-                            tile = "·"  # Dot for intermediate positions
+                            tile = "."  # Dot for intermediate positions
                         
                         color_id = 3 if u.player == 1 else 4  # Color based on player
                         
@@ -799,8 +799,8 @@ class UIRenderer:
                         
                         # Different visualization based on skill type
                         if u.selected_skill.name == "Græ Exchange":
-                            # For Grae Exchange, show a gray Ψ
-                            tile = "Ψ"
+                            # For Grae Exchange, show a gray P
+                            tile = "P"
                             color_id = 8  # Gray color
                         else:
                             # For other teleport skills, use the standard indicator
@@ -834,7 +834,7 @@ class UIRenderer:
                                 tile = self.game_ui.asset_manager.get_ui_tile("site_inspection")
                             else:
                                 # Edge of inspection area - use a dotted border
-                                tile = "·"
+                                tile = "."
                             
                             color_id = 3 if u.player == 1 else 4  # Color based on player
                             
@@ -865,7 +865,7 @@ class UIRenderer:
 
                         if in_area:
                             # Draw jawline indicator - use mandible symbol for surrounding tiles
-                            tile = "Ξ"  # Mandible symbol for jawline network
+                            tile = "{"  # Mandible symbol for jawline network
                             color_id = 3 if u.player == 1 else 4  # Color based on player
 
                             # Check if cursor is here
@@ -890,7 +890,7 @@ class UIRenderer:
                             # Check if this position is within the 3x3 area
                             in_area = (abs(y - target_y) <= 1 and abs(x - target_x) <= 1)
                             if in_area:
-                                tile = "*" if (y, x) == (target_y, target_x) else "·"
+                                tile = "*" if (y, x) == (target_y, target_x) else "."
                                 color_id = 3 if u.player == 1 else 4
                                 
                         # Gaussian Dusk charging indicator
@@ -901,23 +901,23 @@ class UIRenderer:
                                 # Show direction arrow based on charge direction
                                 dy, dx = direction
                                 if dy < 0 and dx == 0:  # Up
-                                    tile = "↑"
+                                    tile = "^"
                                 elif dy < 0 and dx > 0:  # Up-right
-                                    tile = "↗"
+                                    tile = "^"
                                 elif dy == 0 and dx > 0:  # Right
-                                    tile = "→"
+                                    tile = ">"
                                 elif dy > 0 and dx > 0:  # Down-right
-                                    tile = "↘"
+                                    tile = "v"
                                 elif dy > 0 and dx == 0:  # Down
-                                    tile = "↓"
+                                    tile = "v"
                                 elif dy > 0 and dx < 0:  # Down-left
-                                    tile = "↙"
+                                    tile = "v"
                                 elif dy == 0 and dx < 0:  # Left
-                                    tile = "←"
+                                    tile = "<"
                                 elif dy < 0 and dx < 0:  # Up-left
-                                    tile = "↖"
+                                    tile = "^"
                                 else:
-                                    tile = "•"  # Default marker
+                                    tile = "o"  # Default marker
                                 color_id = 3 if u.player == 1 else 4
                                 
                         # Fragcrest cone indicator
@@ -948,7 +948,7 @@ class UIRenderer:
 
                         if (y, x) == (target_y, target_x):
                             # Draw broaching gas indicator
-                            tile = "Φ"  # Phi symbol for Broaching Gas
+                            tile = "1"  # 1 symbol for Broaching Gas
                             color_id = 3 if u.player == 1 else 4  # Color based on player
 
                             # Check if cursor is here
@@ -970,7 +970,7 @@ class UIRenderer:
 
                         if (y, x) == (target_y, target_x):
                             # Draw saft-e-gas indicator
-                            tile = "Θ"  # Theta symbol for Safety Gas
+                            tile = "0"  # 0 symbol for Safety Gas
                             color_id = 3 if u.player == 1 else 4  # Color based on player
 
                             # Check if cursor is here
@@ -997,7 +997,7 @@ class UIRenderer:
                         # Check if within 5x5 area and on the perimeter (where walls form)
                         if abs(dy) <= 2 and abs(dx) <= 2 and (abs(dy) == 2 or abs(dx) == 2):
                             # Draw marrow dike wall indicator
-                            tile = "═"  # Double horizontal line for wall
+                            tile = "="  # Double horizontal line for wall
                             color_id = 3 if u.player == 1 else 4  # Color based on player
                             
                             # Check if cursor is here
@@ -1078,10 +1078,10 @@ class UIRenderer:
                             # Draw divine depreciation indicator
                             if (y, x) == (target_y, target_x):
                                 # Center of depreciation area - use down arrow symbol
-                                tile = "↓"  # Down arrow for value depreciation
+                                tile = "v"  # Down arrow for value depreciation
                             else:
                                 # Edge of depreciation area - use a dotted border
-                                tile = "·"  # Dots for surrounding area
+                                tile = "."  # Dots for surrounding area
 
                             color_id = 3 if u.player == 1 else 4  # Color based on player
 
@@ -1200,7 +1200,7 @@ class UIRenderer:
             
             # Draw unit type with player color
             player_color = 3 if unit.player == 1 else 4
-            type_info = f"▶ UNIT: {unit.get_display_name()} ◀"
+            type_info = f"> UNIT: {unit.get_display_name()} <"
             self.renderer.draw_text(info_line, 2, type_info, player_color, curses.A_BOLD)
             
             # Draw HP with color based on health percentage
@@ -1476,7 +1476,7 @@ class UIRenderer:
             winner_line = HEIGHT+5
             self.renderer.draw_text(winner_line, 0, " " * self.renderer.width, 1)  # Clear line
             winner_color = 3 if self.game_ui.game.winner == 1 else 4
-            winner_text = f"★★★ PLAYER {self.game_ui.game.winner} WINS ★★★"
+            winner_text = f"*** PLAYER {self.game_ui.game.winner} WINS ***"
             # Center the winner text
             center_pos = (self.renderer.width - len(winner_text)) // 2
             self.renderer.draw_text(winner_line, center_pos, winner_text, winner_color, curses.A_BOLD)
@@ -1523,7 +1523,7 @@ class UIRenderer:
             return
             
         # Sort units by their greek_id for consistent display order
-        player_units.sort(key=lambda u: getattr(u, 'greek_id', 'ω'))  # ω is last in alphabet
+        player_units.sort(key=lambda u: getattr(u, 'greek_id', 'z'))  # z is last in alphabet
         
         # Build status string and draw each unit symbol with appropriate color
         status_line = HEIGHT + 1
@@ -1544,10 +1544,10 @@ class UIRenderer:
         for i, unit in enumerate(player_units):
             # Special handling for echo units
             if hasattr(unit, 'is_echo') and unit.is_echo:
-                symbol = 'ψ'  # Lowercase psi for echoes
+                symbol = 'p'  # Lowercase p for echoes
             # Special handling for HEINOUS_VAPOR - use their specific symbol
             elif unit.type == UnitType.HEINOUS_VAPOR and hasattr(unit, 'vapor_symbol') and unit.vapor_symbol:
-                symbol = unit.vapor_symbol  # Φ, Θ, Σ, % etc.
+                symbol = unit.vapor_symbol  # 1, 0, 2, 3 etc.
             else:
                 symbol = UNIT_SYMBOLS.get(unit.type, '?')
             greek_letter = getattr(unit, 'greek_id', '?')
@@ -1560,7 +1560,7 @@ class UIRenderer:
             else:
                 symbol_color = player_color  # Player color for active units
             
-            # Display as "Gα" (unit symbol + greek letter)
+            # Display as "Ga" (unit symbol + letter)
             unit_display = f"{symbol}{greek_letter}"
             self.renderer.draw_text(status_line, current_pos, unit_display, symbol_color)
             current_pos += len(unit_display)

@@ -229,7 +229,7 @@ class DischargeSkill(ActiveSkill):
             rush_animation = ui.asset_manager.get_skill_animation_sequence('expedite_rush')
             
             if not rush_animation:
-                rush_animation = ['Ξ', '<', '[', '{']  # Fallback
+                rush_animation = ['{', '<', '[', '{']  # Fallback
             
             # Instead of animating every position, simulate FOREMAN flying through with jaws open
             # First, determine start and end point for animation
@@ -666,7 +666,7 @@ class SiteInspectionSkill(ActiveSkill):
             # Get the animation sequence
             inspection_animation = ui.asset_manager.get_skill_animation_sequence('site_inspection')
             if not inspection_animation:
-                inspection_animation = ['Θ', 'Φ', 'Θ', 'Φ', 'Θ']  # Fallback with eye-like Greek letters
+                inspection_animation = ['#', 'O', '#', 'O', '#']  # Fallback with eye-like symbols
             
             # Show scanning effect over the area
             for dy in [-1, 0, 1]:
@@ -1041,7 +1041,7 @@ class JawlineSkill(ActiveSkill):
                         continue
                         
                     # Draw the ripple tile and refresh
-                    ripple_char = ['░', '▒', '█'][ripple_size - 1]  # Different density for each ripple
+                    ripple_char = ['.', ':', '#'][ripple_size - 1]  # Different density for each ripple
                     ui.renderer.draw_tile(y, x, ripple_char, 7)  # White color, matching MANDIBLE_FOREMAN's attack animation
                     
                 ui.renderer.refresh()

@@ -108,7 +108,7 @@ class EnbroachmentGasSkill(ActiveSkill):
             range_=4
         )
         self.vapor_type = "BROACHING"
-        self.vapor_symbol = "Φ"  # Phi symbol for Broaching Gas
+        self.vapor_symbol = "1"  # 1 symbol for Broaching Gas
         
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Check if Broaching Gas can be used."""
@@ -210,7 +210,7 @@ class EnbroachmentGasSkill(ActiveSkill):
             # Get vapor summoning animation
             vapor_animation = ui.asset_manager.get_skill_animation_sequence('summon_vapor')
             if not vapor_animation:
-                vapor_animation = ['~', 'o', 'O', 'Φ']  # Fallback animation
+                vapor_animation = ['~', 'o', 'O', '1']  # Fallback animation
 
             # Show summoning animation at target position
             ui.renderer.animate_attack_sequence(
@@ -270,7 +270,7 @@ class SaftEGasSkill(ActiveSkill):
             range_=4
         )
         self.vapor_type = "SAFETY"
-        self.vapor_symbol = "Θ"  # Theta symbol for Safety Gas
+        self.vapor_symbol = "0"  # 0 symbol for Safety Gas
         
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Check if Saft-E-Gas can be used."""
@@ -372,7 +372,7 @@ class SaftEGasSkill(ActiveSkill):
             # Get vapor summoning animation
             vapor_animation = ui.asset_manager.get_skill_animation_sequence('summon_vapor')
             if not vapor_animation:
-                vapor_animation = ['~', 'o', 'O', 'Θ']  # Fallback animation
+                vapor_animation = ['~', 'o', 'O', '0']  # Fallback animation
 
             # Show summoning animation at target position
             ui.renderer.animate_attack_sequence(
@@ -431,8 +431,8 @@ class DivergeSkill(ActiveSkill):
             cooldown=4,
             range_=4
         )
-        self.coolant_symbol = "Σ"  # Sigma symbol for Coolant Gas
-        self.cutting_symbol = "%"  # Percent symbol for Cutting Gas
+        self.coolant_symbol = "2"  # 2 symbol for Coolant Gas
+        self.cutting_symbol = "3"  # 3 symbol for Cutting Gas
         
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Check if Diverge can be used."""

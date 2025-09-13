@@ -42,6 +42,12 @@ class ValuationOracle(PassiveSkill):
         if not game:
             return
 
+        # Check if we're in setup phase - if so, delay cosmic value perception until game starts
+        if hasattr(game, 'setup_phase') and game.setup_phase:
+            # During setup, don't perceive cosmic values yet to prevent revealing DELPHIC_APPRAISER presence
+            # Cosmic values will be perceived when the game starts (see engine.py setup completion)
+            return
+
         # Check if adjacent to any furniture
         adjacent_to_furniture = False
         furniture_positions = []
@@ -239,7 +245,7 @@ class MarketFuturesSkill(ActiveSkill):
                 )
 
             # Step 2: Temporal market projections spiral around the furniture
-            spiral_animation = ['$', '£', '€', '¥', '§']
+            spiral_animation = ['$', '#', '@', '%', '&']
             ui.renderer.animate_attack_sequence(
                 target_pos[0], target_pos[1],
                 spiral_animation,
@@ -249,7 +255,7 @@ class MarketFuturesSkill(ActiveSkill):
             sleep_with_animation_speed(0.1)  # Pause between animation phases
 
             # Step 3: The furniture transforms into a more valuable future version
-            transform_animation = ['#', 'Φ', 'Ψ', 'Ω', '¥']
+            transform_animation = ['#', 'O', 'P', 'W', '@']
             ui.renderer.animate_attack_sequence(
                 target_pos[0], target_pos[1],
                 transform_animation,
@@ -278,7 +284,7 @@ class MarketFuturesSkill(ActiveSkill):
             # Final anchor marker on furniture
             ui.renderer.animate_attack_sequence(
                 target_pos[0], target_pos[1],
-                ['¤', 'T', '*'],
+                ['@', 'T', '*'],
                 3,  # Green color for established anchor
                 0.2  # Duration for final state
             )
@@ -366,7 +372,7 @@ class MarketFuturesSkill(ActiveSkill):
             # Get teleport animation - ally transforms into golden market arrows
             teleport_animation = ui.asset_manager.get_skill_animation_sequence('market_teleport')
             if not teleport_animation:
-                teleport_animation = ['$', '↗', '→', '↘', '↓', '*', 'A']
+                teleport_animation = ['$', '^', '>', 'v', 'v', '*', 'A']
                 
             # Show animation from old position to new position
             if hasattr(ui.renderer, 'animate_path'):
@@ -615,7 +621,7 @@ class AuctionCurseSkill(ActiveSkill):
             if nearby_furniture:
                 # Show bidding animation from furniture positions
                 for i, pos in enumerate(nearby_furniture[:3]):  # Limit to 3 pieces of furniture for clarity
-                    bidder_animations = ['π', 'Γ', '|', '!']
+                    bidder_animations = ['p', 'G', '|', '!']
                     ui.renderer.animate_attack_sequence(
                         pos[0], pos[1],
                         bidder_animations,
@@ -628,7 +634,7 @@ class AuctionCurseSkill(ActiveSkill):
             # Step 4: Show target being afflicted with the DOT effect
             if average_value > 0:
                 # Animate curse application
-                curse_symbols = ['$', '¢', '%', '-', '.']
+                curse_symbols = ['$', '$', '%', '-', '.']
                 ui.renderer.animate_attack_sequence(
                     target_pos[0], target_pos[1],
                     curse_symbols,
@@ -951,7 +957,7 @@ class DivineDrepreciationSkill(ActiveSkill):
             ui.renderer.animate_attack_sequence(
                 target_pos[0], target_pos[1],
                 value_collapse_animation,
-                7,  # White→Yellow showing instability  
+                7,  # White->Yellow showing instability  
                 0.08  # Quick duration
             )
 
