@@ -173,10 +173,9 @@ class VagalRunSkill(ActiveSkill):
                 target.vagal_run_abreaction_damage = -heal_amount  # Negative value indicates healing for abreaction
             
             if target.hp < target.max_hp:
-                old_hp = target.hp
-                target.hp = min(target.max_hp, target.hp + heal_amount)
-                actual_heal = target.hp - old_hp
-                
+                # Apply healing using universal heal method
+                actual_heal = target.heal(heal_amount, "Vagal Run healing")
+
                 if actual_heal > 0:
                     message_log.add_message(
                         f"{target.get_display_name()} heals for #HEAL_{actual_heal}# HP",
@@ -598,39 +597,38 @@ class DerelictSkill(ActiveSkill):
         
         # Apply healing if needed
         if target.hp < target.max_hp:
-            old_hp = target.hp
-            target.hp = min(target.max_hp, target.hp + heal_amount)
-            actual_heal = target.hp - old_hp
-            
+            # Apply healing using universal heal method (it handles curse prevention)
+            actual_heal = target.heal(heal_amount, "Derelict distance healing")
+
             if actual_heal > 0:
-                message_log.add_message(
-                    f"{target.get_display_name()} heals for #HEAL_{actual_heal}# HP",
-                    MessageType.ABILITY,
-                    player=target.player
-                )
-                
-                # Show healing effect on map if UI is available
-                if ui and hasattr(ui, 'renderer'):
-                    import curses
-                    import time
-                    from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-                    
-                    healing_text = f"+{actual_heal}"
-                    
-                    # Make healing text prominent with flashing effect (green color)
-                    for i in range(3):
-                        # First clear the area
-                        ui.renderer.draw_damage_text(target.y-1, target.x*2, " " * len(healing_text), 7)
-                        # Draw with alternating bold/normal for a flashing effect
-                        attrs = curses.A_BOLD if i % 2 == 0 else 0
-                        ui.renderer.draw_damage_text(target.y-1, target.x*2, healing_text, 3, attrs)  # Green color
+                    message_log.add_message(
+                        f"{target.get_display_name()} heals for #HEAL_{actual_heal}# HP",
+                        MessageType.ABILITY,
+                        player=target.player
+                    )
+
+                    # Show healing effect on map if UI is available
+                    if ui and hasattr(ui, 'renderer'):
+                        import curses
+                        import time
+                        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+
+                        healing_text = f"+{actual_heal}"
+
+                        # Make healing text prominent with flashing effect (green color)
+                        for i in range(3):
+                            # First clear the area
+                            ui.renderer.draw_damage_text(target.y-1, target.x*2, " " * len(healing_text), 7)
+                            # Draw with alternating bold/normal for a flashing effect
+                            attrs = curses.A_BOLD if i % 2 == 0 else 0
+                            ui.renderer.draw_damage_text(target.y-1, target.x*2, healing_text, 3, attrs)  # Green color
+                            ui.renderer.refresh()
+                            sleep_with_animation_speed(0.1)
+
+                        # Final healing display (stays on screen slightly longer)
+                        ui.renderer.draw_damage_text(target.y-1, target.x*2, healing_text, 3, curses.A_BOLD)
                         ui.renderer.refresh()
-                        sleep_with_animation_speed(0.1)
-                    
-                    # Final healing display (stays on screen slightly longer)
-                    ui.renderer.draw_damage_text(target.y-1, target.x*2, healing_text, 3, curses.A_BOLD)
-                    ui.renderer.refresh()
-                    sleep_with_animation_speed(0.3)  # Match the 0.3s delay used in other healing
+                        sleep_with_animation_speed(0.3)  # Match the 0.3s delay used in other healing
         
         # Apply Derelicted status (immobilization for 1 turn) - only if not immune
         if target.is_immune_to_effects():

@@ -356,18 +356,19 @@ class Autoclave(PassiveSkill):
         # Calculate healing (half of total damage dealt)
         healing = total_damage // 2
         if healing > 0:
-            # Apply healing (don't exceed max HP)
-            user.hp = min(user.max_hp, user.hp + healing)
+            # Apply healing using universal heal method
+            actual_heal = user.heal(healing, "life essence absorption")
+
+            # Log the healing only if it actually occurred
+            if actual_heal > 0:
+                message_log.add_message(
+                    f"{user.get_display_name()} absorbs life essence, healing for {actual_heal} HP!",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
             
-            # Log the healing
-            message_log.add_message(
-                f"{user.get_display_name()} absorbs life essence, healing for {healing} HP!",
-                MessageType.ABILITY,
-                player=user.player
-            )
-            
-            # Show healing animation if UI is available
-            if ui and hasattr(ui, 'renderer'):
+            # Show healing animation if UI is available and healing occurred
+            if ui and hasattr(ui, 'renderer') and actual_heal > 0:
                 # Flash the unit with green to indicate healing
                 if hasattr(ui, 'asset_manager'):
                     tile_ids = [ui.asset_manager.get_unit_tile(user.type)] * 4
@@ -1032,7 +1033,7 @@ class EstrangeSkill(ActiveSkill):
             target.estranged = True
             message_log.add_message(
                 f"{target.get_display_name()} is phased out of normal spacetime!",
-                MessageType.ABILITY,
+                MessageType.WARNING,
                 player=user.player
             )
         else:

@@ -1990,10 +1990,9 @@ class Game:
                         # Negative value: Apply abreaction healing
                         heal_amount = -abreaction_amount  # Convert negative to positive
                         if unit.hp < unit.max_hp:
-                            old_hp = unit.hp
-                            unit.hp = min(unit.max_hp, unit.hp + heal_amount)
-                            actual_heal = unit.hp - old_hp
-                            
+                            # Apply healing using universal heal method
+                            actual_heal = unit.heal(heal_amount, "abreaction healing")
+
                             if actual_heal > 0:
                                 message_log.add_message(
                                     f"{unit.get_display_name()} experiences abreaction healing for {actual_heal} HP",
@@ -2853,28 +2852,43 @@ class Game:
                     for dx in range(-2, 3):  # -2 to +2
                         check_y = unit.y + dy
                         check_x = unit.x + dx
-                        
+
                         # Skip if out of bounds
                         if not self.is_valid_position(check_y, check_x):
                             continue
-                        
+
                         # Check if this position has furniture
                         if self.map.is_furniture(check_y, check_x):
+                            # Get furniture type name
+                            furniture_terrain = self.map.get_terrain_at(check_y, check_x)
+                            furniture_name = furniture_terrain.name.replace('_', ' ').title()
+
                             # Get current cosmic value (defaulting to 1 if none exists)
                             current_value = self.map.cosmic_values.get((check_y, check_x), 1)
                             # Increase by 1
-                            self.map.cosmic_values[(check_y, check_x)] = current_value + 1
+                            new_value = current_value + 1
+                            self.map.cosmic_values[(check_y, check_x)] = new_value
                             furniture_inflated += 1
-                
+
+                            # Show cycling numbers animation on this furniture
+                            if hasattr(self, 'ui') and self.ui and hasattr(self.ui, 'renderer'):
+                                # Create animation with rapidly ascending numbers 0-9
+                                inflation_animation = [str(i) for i in range(10)]  # 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
+                                self.ui.renderer.animate_attack_sequence(
+                                    check_y, check_x,
+                                    inflation_animation,
+                                    7,  # Yellow/white flashing
+                                    0.08  # Fast flashing
+                                )
+
                 # Log furniture value inflation if any occurred
                 if furniture_inflated > 0:
                     message_log.add_message(
-                        f"Auction Curse inflates {furniture_inflated} furniture cosmic values near {unit.get_display_name()}",
-                        MessageType.ABILITY,
+                        f"{unit.get_display_name()}'s Auction Curse inflates the cosmic value of nearby furniture",
+                        MessageType.WARNING,
                         player=caster_player
                     )
-                
-                
+
                 # Decrement the duration
                 unit.auction_curse_dot_duration -= 1
                 logger.debug(f"{unit.get_display_name()}'s Auction Curse DOT duration: {unit.auction_curse_dot_duration}")
@@ -3240,17 +3254,17 @@ class Game:
                             logger.debug(f"{unit.get_display_name()} cannot regenerate due to Auction Curse")
                             message_log.add_message(
                                 f"{unit.get_display_name()}'s healing is prevented by the curse.",
-                                MessageType.ABILITY,
+                                MessageType.WARNING,
                                 player=unit.player
                             )
                         else:
-                            # Regenerate 1 HP
-                            unit.hp += 1
-                            logger.debug(f"{unit.get_display_name()} regenerated 1 HP from resting")
+                            # Regenerate 1 HP using universal heal method
+                            actual_heal = unit.heal(1, "resting regeneration")
+                            logger.debug(f"{unit.get_display_name()} regenerated {actual_heal} HP from resting")
                             
                             # Show healing number if UI is available
-                            if ui and hasattr(ui, 'renderer'):
-                                healing_text = f"+1"
+                            if ui and hasattr(ui, 'renderer') and actual_heal > 0:
+                                healing_text = f"+{actual_heal}"
                                 
                                 # Make healing text prominent with flashing effect (green color)
                                 for i in range(3):
@@ -4870,22 +4884,24 @@ class Game:
             heal_amount = min(1, max_hp - unit.hp)  # Heal 1 HP but don't exceed max
             
             if heal_amount > 0:
-                unit.hp += heal_amount
+                # Apply healing using universal heal method
+                actual_heal = unit.heal(heal_amount, "melange fume")
+
+                # Show healing message only if healing actually occurred
+                if actual_heal > 0:
+                    message_log.add_message(
+                        f"{unit.get_display_name()} sucks up the melange fume and heals for {actual_heal} HP",
+                        MessageType.ABILITY,
+                        player=unit.player
+                    )
                 
-                # Show healing message
-                message_log.add_message(
-                    f"{unit.get_display_name()} sucks up the melange fume and heals for {heal_amount} HP",
-                    MessageType.ABILITY,
-                    player=unit.player
-                )
-                
-                # Show healing animation if UI is available
-                if ui and hasattr(ui, 'renderer'):
+                # Show healing animation if UI is available and healing occurred
+                if ui and hasattr(ui, 'renderer') and actual_heal > 0:
                     import curses
                     import time
                     from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-                    
-                    healing_text = f"+{heal_amount}"
+
+                    healing_text = f"+{actual_heal}"
                     
                     # Make healing text prominent with flashing effect (green color)
                     for i in range(3):

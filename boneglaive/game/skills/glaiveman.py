@@ -257,8 +257,9 @@ class Autoclave(PassiveSkill):
         # Calculate healing (half of total damage dealt)
         healing = total_damage // 2
         if healing > 0:
-            # Apply healing (don't exceed max HP)
-            user.hp = min(user.max_hp, user.hp + healing)
+            # Apply healing using universal heal method
+            actual_healing = user.heal(healing, "Autoclave life essence")
+            healing = actual_healing  # Update healing variable for display purposes
             
             # Show healing number if UI is available
             if ui and hasattr(ui, 'renderer') and healing > 0:

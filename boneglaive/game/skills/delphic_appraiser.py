@@ -533,9 +533,9 @@ class AuctionCurseSkill(ActiveSkill):
                 
                 # Log the DOT application
                 message_log.add_message(
-                    f"{user.get_display_name()} curses {target_unit.get_display_name()} for {dot_duration} turns",
-                    MessageType.ABILITY,
-                    player=user.player
+                    f"{target_unit.get_display_name()} has his vitality stunted",
+                    MessageType.WARNING,
+                    player=target_unit.player
                 )
 
         # Play Auction Curse animation - astral auctioneers appear at furniture locations
@@ -842,6 +842,17 @@ class DivineDrepreciationSkill(ActiveSkill):
 
         # Reroll cosmic values for all other furniture in the AOE
         for pos in other_furniture:
+            # Show flashing random numbers animation on this furniture before setting final value
+            if ui and hasattr(ui, 'renderer'):
+                # Create animation with random numbers cycling
+                reroll_animation = [str(random.randint(1, 9)) for _ in range(12)]  # 12 frames of random numbers
+                ui.renderer.animate_attack_sequence(
+                    pos[0], pos[1],
+                    reroll_animation,
+                    7,  # Yellow/white flashing
+                    0.1  # Fast flashing
+                )
+
             # Generate a new random cosmic value (1-9)
             new_value = random.randint(1, 9)
             game.map.set_cosmic_value(pos[0], pos[1], new_value)

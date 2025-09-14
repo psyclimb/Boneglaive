@@ -899,12 +899,15 @@ class BoneTitheSkill(ActiveSkill):
             if hasattr(user, 'auction_curse_no_heal') and user.auction_curse_no_heal:
                 message_log.add_message(
                     f"{user.get_display_name()}'s bone marrow gain is prevented by the curse.",
-                    MessageType.ABILITY,
+                    MessageType.WARNING,
                     player=user.player
                 )
+                hp_gained = 0  # No healing occurred
             else:
+                # Increase max HP first, then heal using universal method
                 user.max_hp += hp_gained
-                user.hp += hp_gained
+                actual_heal = user.heal(hp_gained, "bone marrow gain")
+                hp_gained = actual_heal  # Update for display purposes
                 
                 # Show healing number if UI is available
                 if ui and hasattr(ui, 'renderer') and hp_gained > 0:
