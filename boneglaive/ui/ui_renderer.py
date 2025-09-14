@@ -1522,7 +1522,7 @@ class UIRenderer:
         if not player_units:
             return
             
-        # Sort units by their greek_id for consistent display order
+        # Sort units by their letter identifier for consistent display order
         player_units.sort(key=lambda u: getattr(u, 'greek_id', 'z'))  # z is last in alphabet
         
         # Build status string and draw each unit symbol with appropriate color

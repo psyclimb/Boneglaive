@@ -4723,7 +4723,7 @@ class AnimationComponent(UIComponent):
         
         # Flash the target to show it was hit
         tile_ids = [self.game_ui.asset_manager.get_unit_tile(target.type)] * 4
-        color_ids = [6 if target.player == 1 else 5, 3 if target.player == 1 else 4] * 2
+        color_ids = [6 if target.player == 1 else 10, 3 if target.player == 1 else 4] * 2  # Use red background for player 2
         durations = [0.1] * 4
         
         # Use renderer's flash tile method

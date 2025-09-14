@@ -135,12 +135,6 @@ class RailGenesis(PassiveSkill):
                     game.check_critical_health(unit, user, previous_hp, ui)
         
         # Note: Individual unit damage messages are already shown above, no summary needed
-        else:
-            message_log.add_message(
-                f"{user.get_display_name()}'s rail network remains intact despite its destruction",
-                MessageType.ABILITY,
-                player=user.player
-            )
 
 
 class GaussianDuskSkill(ActiveSkill):
@@ -302,10 +296,35 @@ class GaussianDuskSkill(ActiveSkill):
                 TerrainType.COAT_RACK,     # Coat racks
                 TerrainType.OTTOMAN,       # Ottoman seating
                 TerrainType.CONSOLE,       # Console tables
-                TerrainType.DEC_TABLE      # Decorative tables
+                TerrainType.DEC_TABLE,     # Decorative tables
+                TerrainType.TIFFANY_LAMP,  # Tiffany-style decorative lamp
+                TerrainType.STAINED_STONE, # Stained stone formation
+                TerrainType.EASEL,         # Artist's easel with canvas
+                TerrainType.SCULPTURE,     # Stone sculpture pedestal
+                TerrainType.BENCH,         # Viewing bench for art gallery
+                TerrainType.PODIUM,        # Display podium
+                TerrainType.VASE,          # Decorative pottery vase
+                TerrainType.HYDRAULIC_PRESS, # Industrial hydraulic press
+                TerrainType.WORKBENCH,     # Industrial workbench
+                TerrainType.COUCH,         # Household couch
+                TerrainType.TOOLBOX,       # Industrial toolbox
+                TerrainType.COT,           # Temporary sleeping cot
+                TerrainType.CONVEYOR,      # Industrial conveyor belt
+                TerrainType.MINI_PUMPKIN,  # Mini decorative pumpkin
+                TerrainType.POTPOURRI_BOWL # Decorative potpourri bowl
             ]
             
             if terrain in destructible_terrain:
+                # Get terrain name for message
+                terrain_name = terrain.name.lower().replace('_', ' ')
+
+                # Log individual terrain destruction
+                message_log.add_message(
+                    f"The hypersonic projectile obliterates the {terrain_name} at ({pos_y},{pos_x})",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
+
                 game.map.set_terrain_at(pos_y, pos_x, TerrainType.EMPTY)
                 terrain_destroyed += 1
             
@@ -336,30 +355,36 @@ class GaussianDuskSkill(ActiveSkill):
                     attacker_player=user.player,
                     target_player=unit.player
                 )
-                
+
                 # Handle death if unit was killed
                 if unit.hp <= 0:
                     game.handle_unit_death(unit, user, cause="ability", ui=ui)
                 else:
                     # Check for critical health using centralized logic
                     game.check_critical_health(unit, user, previous_hp, ui)
-        
+
+        # Place rails along the firing path after all damage and terrain destruction
+        # Since terrain has already been destroyed, we can now place an unbroken rail path
+        rails_placed = 0
+        for pos_y, pos_x in positions_in_line:
+            current_terrain = game.map.get_terrain_at(pos_y, pos_x)
+            # Place rails on all passable terrain (destructible terrain has already been cleared to empty)
+            # Skip only existing rails and truly impassable terrain that couldn't be destroyed
+            if current_terrain != TerrainType.RAIL and game.map.is_passable(pos_y, pos_x):
+                # Store original terrain before placing rail (using the same system)
+                game.map.rail_original_terrain[(pos_y, pos_x)] = current_terrain
+                game.map.set_terrain_at(pos_y, pos_x, TerrainType.RAIL)
+                rails_placed += 1
+
         # Log results
-        if units_hit > 0:
+        if rails_placed > 0:
             message_log.add_message(
-                f"The projectile pierces {units_hit} {'target' if units_hit == 1 else 'targets'} for {total_damage} damage",
+                f"The hypersonic projectile leaves {rails_placed} rail {'segment' if rails_placed == 1 else 'segments'} in its wake",
                 MessageType.ABILITY,
                 player=user.player
             )
-            
-        if terrain_destroyed > 0:
-            message_log.add_message(
-                f"The projectile destroys {terrain_destroyed} terrain {'feature' if terrain_destroyed == 1 else 'features'}",
-                MessageType.ABILITY,
-                player=user.player
-            )
-        
-        if units_hit == 0 and terrain_destroyed == 0:
+
+        if units_hit == 0 and terrain_destroyed == 0 and rails_placed == 0:
             message_log.add_message(
                 "The rail cannon's beam finds no targets",
                 MessageType.ABILITY,

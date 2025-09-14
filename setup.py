@@ -25,7 +25,7 @@ for req in requirements:
 
 setup(
     name="boneglaive2",
-    version="0.8.6a",
+    version="0.8.7",
     description="Linux & BSD terminal tactical combat game",
     packages=find_packages(),
     install_requires=install_requires,

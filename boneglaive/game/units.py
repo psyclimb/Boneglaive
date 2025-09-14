@@ -27,7 +27,7 @@ class Unit:
         # Game reference for trap checks (will be set by engine)
         self._game = None
         
-        # Greek letter identifier (assigned later when all units are spawned)
+        # Letter identifier (assigned later when all units are spawned)
         self.greek_id = None
         
         # Get base stats from constants

@@ -255,7 +255,7 @@ class VagalRunSkill(ActiveSkill):
             ui.renderer.animate_attack_sequence(
                 target_pos[0], target_pos[1],
                 vagal_animation,
-                6,  # Yellow color for trauma processing  
+                6,  # Yellow color for trauma processing
                 0.4  # Much slower for visibility
             )
         

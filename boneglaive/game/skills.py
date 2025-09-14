@@ -641,7 +641,7 @@ class PrySkill(ActiveSkill):
             # Flash the target to show it was hit
             if hasattr(ui, 'asset_manager'):
                 tile_ids = [ui.asset_manager.get_unit_tile(target.type)] * 4
-                color_ids = [5, 3 if target.player == 1 else 4] * 2  # Alternate red with player color
+                color_ids = [10, 3 if target.player == 1 else 4] * 2  # Alternate red background with player color
                 durations = [0.1] * 4
                 
                 ui.renderer.flash_tile(target.y, target.x, tile_ids, color_ids, durations)
@@ -741,7 +741,7 @@ class PrySkill(ActiveSkill):
                 # Flash the adjacent unit to show it was hit with debris
                 if hasattr(ui, 'asset_manager'):
                     tile_ids = [ui.asset_manager.get_unit_tile(adjacent_unit.type)] * 2
-                    color_ids = [5, 3 if adjacent_unit.player == 1 else 4]  # Brief flash
+                    color_ids = [10, 3 if adjacent_unit.player == 1 else 4]  # Brief flash with red background
                     durations = [0.1] * 2
                     
                     ui.renderer.flash_tile(adjacent_unit.y, adjacent_unit.x, tile_ids, color_ids, durations)
