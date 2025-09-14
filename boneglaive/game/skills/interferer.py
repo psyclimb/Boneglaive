@@ -345,7 +345,7 @@ class NeuralShuntSkill(ActiveSkill):
                 
                 message_log.add_message(
                     f"{target.get_display_name()}'s actions become erratic",
-                    MessageType.ABILITY,
+                    MessageType.WARNING,
                     player=user.player,
                     target_name=target.get_display_name()
                 )

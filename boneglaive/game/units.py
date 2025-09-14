@@ -440,6 +440,29 @@ class Unit:
             self.hp = max(1, self.hp - damage)
         return old_hp - self.hp
 
+    def heal(self, heal_amount: int, source_description: str = "unknown source") -> int:
+        """
+        Apply healing to the unit with universal Auction Curse prevention.
+        Returns the actual healing amount applied (0 if prevented).
+        """
+        if heal_amount <= 0:
+            return 0
+
+        # Check if healing is prevented by Auction Curse
+        if hasattr(self, 'auction_curse_no_heal') and self.auction_curse_no_heal:
+            from boneglaive.utils.message_log import message_log, MessageType
+            message_log.add_message(
+                f"{self.get_display_name()}'s healing is prevented by the curse",
+                MessageType.WARNING,
+                player=self.player
+            )
+            return 0
+
+        # Apply healing (don't exceed max HP)
+        old_hp = self.hp
+        self.hp = min(self.max_hp, self.hp + heal_amount)
+        return self.hp - old_hp
+
     def apply_shrapnel_damage(self, game=None) -> int:
         """
         Apply shrapnel damage at the start of turn if unit has embedded shrapnel.
@@ -1021,13 +1044,14 @@ class Unit:
             # HEALING EFFECT: Heal allied units in the cloud
             for unit in affected_units:
                 if unit.player == self.player and unit != self and unit.hp < unit.max_hp:
-                    # Heal ally unit
+                    # Heal ally unit using universal heal method
                     healing = 1
-                    unit.hp = min(unit.max_hp, unit.hp + healing)
-                    
-                    # Log healing
-                    message_log.add_message(
-                        f"{self.get_display_name()} heals {unit.get_display_name()} for {healing} HP",
+                    actual_heal = unit.heal(healing, "HEINOUS VAPOR healing")
+
+                    # Log healing only if it actually occurred
+                    if actual_heal > 0:
+                        message_log.add_message(
+                            f"{self.get_display_name()} heals {unit.get_display_name()} for {actual_heal} HP",
                         MessageType.ABILITY,
                         player=self.player
                     )
@@ -1063,13 +1087,14 @@ class Unit:
             # Coolant Gas: Heals allies by 3 HP
             for unit in affected_units:
                 if unit.player == self.player and unit != self and unit.hp < unit.max_hp:
-                    # Heal ally unit
+                    # Heal ally unit using universal heal method
                     healing = 3
-                    unit.hp = min(unit.max_hp, unit.hp + healing)
-                    
-                    # Log healing
-                    message_log.add_message(
-                        f"{self.get_display_name()} heals {unit.get_display_name()} for {healing} HP",
+                    actual_heal = unit.heal(healing, "Coolant Gas healing")
+
+                    # Log healing only if it actually occurred
+                    if actual_heal > 0:
+                        message_log.add_message(
+                            f"{self.get_display_name()} heals {unit.get_display_name()} for {actual_heal} HP",
                         MessageType.ABILITY,
                         player=self.player
                     )
@@ -1321,14 +1346,14 @@ class Unit:
         
         # Apply healing
         if heal_amount > 0 and self.hp < self.max_hp:
-            old_hp = self.hp
-            self.hp = min(self.max_hp, self.hp + heal_amount)
-            actual_heal = self.hp - old_hp
-            
-            message_log.add_message(
-                f"{self.get_display_name()} heals for {actual_heal} HP from processed trauma!",
-                MessageType.ABILITY
-            )
+            # Apply healing using universal heal method
+            actual_heal = self.heal(heal_amount, "processed trauma")
+
+            if actual_heal > 0:
+                message_log.add_message(
+                    f"{self.get_display_name()} heals for {actual_heal} HP from processed trauma!",
+                    MessageType.ABILITY
+                )
             
             # Show healing effect on map if UI is available (via game reference)
             if actual_heal > 0 and hasattr(self, '_game') and self._game and hasattr(self._game, 'ui'):
