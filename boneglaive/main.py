@@ -154,14 +154,18 @@ def run_game(stdscr) -> None:
         
         running = True
         while running:
-            # Get user input
-            key = stdscr.getch()
-            
-            # Handle input - this will update the game state and redraw
-            result = game_ui.handle_input(key)
-            if result == "main_menu":
-                return "main_menu"
-            elif result == False:
+            try:
+                # Get user input
+                key = stdscr.getch()
+
+                # Handle input - this will update the game state and redraw
+                result = game_ui.handle_input(key)
+                if result == "main_menu":
+                    return "main_menu"
+                elif result == False:
+                    running = False
+            except KeyboardInterrupt:
+                # Graceful shutdown on Ctrl+C
                 running = False
 
 def main(stdscr):
@@ -221,17 +225,22 @@ def main(stdscr):
     else:
         # Run menu loop
         while True:
-            logger.info("Starting menu")
-            menu_result = run_menu(stdscr)
-            
-            # Process menu result
-            if menu_result and menu_result[0] == "start_game":
-                logger.info("Starting game from menu")
-                game_result = run_game(stdscr)
-                if game_result != "main_menu":
-                    break  # Exit if game ended normally or player quit
-            else:
-                logger.info("Quitting from menu")
+            try:
+                logger.info("Starting menu")
+                menu_result = run_menu(stdscr)
+
+                # Process menu result
+                if menu_result and menu_result[0] == "start_game":
+                    logger.info("Starting game from menu")
+                    game_result = run_game(stdscr)
+                    if game_result != "main_menu":
+                        break  # Exit if game ended normally or player quit
+                else:
+                    logger.info("Quitting from menu")
+                    break
+            except KeyboardInterrupt:
+                # Graceful shutdown on Ctrl+C in menu
+                logger.info("Keyboard interrupt in menu - exiting gracefully")
                 break
 
 def main_graphical(args):

@@ -83,34 +83,32 @@ ATTACK_EFFECTS = {
     UnitType.DERELICTIONIST: "o"  # Psychological void (melee)
 }
 
-# ASCII alphabet for unit identification
+# Greek alphabet for unit identification
 UNIT_ID_ALPHABET = [
-    'a',  # a
-    'b',  # b
-    'c',  # c
-    'd',  # d
-    'e',  # e
-    'f',  # f
-    'g',  # g
-    'h',  # h
-    'i',  # i
-    'j',  # j
-    'k',  # k
-    'l',  # l
-    'm',  # m
-    'n',  # n
-    'o',  # o
-    'p',  # p
-    'q',  # q
-    'r',  # r
-    's',  # s
-    't',  # t
-    'u',  # u
-    'v',  # v
-    'w',  # w
-    'x',  # x
-    'y',  # y
-    'z'   # z
+    'α',  # alpha
+    'β',  # beta
+    'γ',  # gamma
+    'δ',  # delta
+    'ε',  # epsilon
+    'ζ',  # zeta
+    'η',  # eta
+    'θ',  # theta
+    'ι',  # iota
+    'κ',  # kappa
+    'λ',  # lambda
+    'μ',  # mu
+    'ν',  # nu
+    'ξ',  # xi
+    'ο',  # omicron
+    'π',  # pi
+    'ρ',  # rho
+    'σ',  # sigma
+    'τ',  # tau
+    'υ',  # upsilon
+    'φ',  # phi
+    'χ',  # chi
+    'ψ',  # psi
+    'ω'   # omega
 ]
 
 # Status effect symbols

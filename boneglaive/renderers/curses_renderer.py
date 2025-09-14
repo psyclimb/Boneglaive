@@ -117,6 +117,9 @@ class CursesRenderer(RenderInterface):
                 self.buffer.addstr(y, x, text, curses.color_pair(color_id) | attributes)
             else:
                 self.stdscr.addstr(y, x, text, curses.color_pair(color_id) | attributes)
+        except KeyboardInterrupt:
+            # Let KeyboardInterrupt propagate up for graceful shutdown
+            raise
         except curses.error:
             # Catch errors from writing outside window bounds
             pass
@@ -140,18 +143,22 @@ class CursesRenderer(RenderInterface):
         """Get user input as a key code."""
         # Make sure we're in non-blocking mode
         self.stdscr.nodelay(1)
-        
-        # Try to get input without blocking
-        key = self.stdscr.getch()
-        
-        # If there's no input, return a special value
-        if key == curses.ERR:
-            # Switch back to blocking mode for waiting
-            self.stdscr.nodelay(0)
-            # Wait for real input
+
+        try:
+            # Try to get input without blocking
             key = self.stdscr.getch()
-            
-        return key
+
+            # If there's no input, return a special value
+            if key == curses.ERR:
+                # Switch back to blocking mode for waiting
+                self.stdscr.nodelay(0)
+                # Wait for real input
+                key = self.stdscr.getch()
+
+            return key
+        except KeyboardInterrupt:
+            # Convert Ctrl+C to quit action (ord('q'))
+            return ord('q')
     
     def set_cursor(self, visible: bool) -> None:
         """Set cursor visibility."""

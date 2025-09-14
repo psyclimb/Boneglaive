@@ -24,15 +24,15 @@ for req in requirements:
         install_requires.append(req)
 
 setup(
-    name="boneglaive2",
-    version="0.8.7",
+    name="boneglaive",
+    version="0.8.7a",
     description="Linux & BSD terminal tactical combat game",
     packages=find_packages(),
     install_requires=install_requires,
     python_requires=">=3.8",
     entry_points={
         'console_scripts': [
-            'boneglaive2=boneglaive.main:main',
+            'boneglaive=boneglaive.main:main',
         ],
     },
     classifiers=[
