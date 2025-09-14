@@ -62,6 +62,9 @@ class GameMap:
         # Dictionary to store lighting effects
         self.lighting_effects: Dict[Tuple[int, int], Dict] = {}
 
+        # Dictionary to store original terrain that was replaced by rails
+        self.rail_original_terrain: Dict[Tuple[int, int], TerrainType] = {}
+
         # Generate an empty map by default
         self.reset_to_empty()
 
@@ -252,6 +255,9 @@ class GameMap:
         horizontal_line = center_y - 2
         for x in range(self.width):
             if self._can_place_rail(horizontal_line, x):
+                # Store original terrain before placing rail
+                original_terrain = self.get_terrain_at(horizontal_line, x)
+                self.rail_original_terrain[(horizontal_line, x)] = original_terrain
                 self.set_terrain_at(horizontal_line, x, TerrainType.RAIL)
         
         # Create vertical lines offset from center to avoid crossing
@@ -259,8 +265,14 @@ class GameMap:
         vertical_line_2 = center_x + 2  # Column 12
         for y in range(self.height):
             if self._can_place_rail(y, vertical_line_1):
+                # Store original terrain before placing rail
+                original_terrain = self.get_terrain_at(y, vertical_line_1)
+                self.rail_original_terrain[(y, vertical_line_1)] = original_terrain
                 self.set_terrain_at(y, vertical_line_1, TerrainType.RAIL)
             if self._can_place_rail(y, vertical_line_2):
+                # Store original terrain before placing rail
+                original_terrain = self.get_terrain_at(y, vertical_line_2)
+                self.rail_original_terrain[(y, vertical_line_2)] = original_terrain
                 self.set_terrain_at(y, vertical_line_2, TerrainType.RAIL)
         
         # Add strategic corner positions for tactical positioning
@@ -288,6 +300,9 @@ class GameMap:
         # Add strategic positioning rails
         for y, x in strategic_positions:
             if self._can_place_rail(y, x):
+                # Store original terrain before placing rail
+                original_terrain = self.get_terrain_at(y, x)
+                self.rail_original_terrain[(y, x)] = original_terrain
                 self.set_terrain_at(y, x, TerrainType.RAIL)
 
     def _can_place_rail(self, y: int, x: int) -> bool:
@@ -308,6 +323,10 @@ class GameMap:
             if terrain == TerrainType.RAIL:
                 rail_positions.append((y, x))
         return rail_positions
+
+    def get_rail_original_terrain(self, y: int, x: int) -> TerrainType:
+        """Get the original terrain that was at this position before a rail was placed."""
+        return self.rail_original_terrain.get((y, x), TerrainType.EMPTY)
 
     @classmethod
     def from_json(cls, file_path: str) -> 'GameMap':

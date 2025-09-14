@@ -808,7 +808,7 @@ class Game:
         logger.info(f"Total units setup: Player 1: {p1_units}, Player 2: {p2_units}")
         
         # Assign Greek identifiers
-        self._assign_greek_identifiers()
+        self._assign_unit_identifiers()
         
         # Skip setup phase when using test setup
         self.setup_phase = False
@@ -935,7 +935,7 @@ class Game:
                 # Trigger cosmic value perception now that setup is complete (prevents info leak during setup)
                 self._trigger_valuation_oracle_for_delphic_appraisers()
                 # Assign Greek identification letters to units
-                self._assign_greek_identifiers()
+                self._assign_unit_identifiers()
                 # Move FOWL_CONTRIVANCE units to nearest rails
                 self._move_fowl_contrivances_to_rails()
                 # Add welcome message now that game is starting
@@ -954,7 +954,7 @@ class Game:
             self._resolve_unit_placement_conflicts()
             
             # Assign Greek identification letters to units
-            self._assign_greek_identifiers()
+            self._assign_unit_identifiers()
             
             self.setup_phase = False
             
@@ -1107,12 +1107,12 @@ class Game:
                 return unit
         return None
         
-    def _assign_greek_identifiers(self):
+    def _assign_unit_identifiers(self):
         """
-        Assign Greek letter identifiers to all units based on unit type.
-        Greek letters are shared between players and assigned sequentially.
+        Assign letter identifiers to all units based on unit type.
+        Letters are shared between players and assigned sequentially.
         """
-        from boneglaive.utils.constants import GREEK_ALPHABET
+        from boneglaive.utils.constants import UNIT_ID_ALPHABET
         import collections
         from boneglaive.utils.message_log import message_log, MessageType
         
@@ -1131,13 +1131,13 @@ class Game:
             # Sort units by player first, then position
             units.sort(key=lambda u: (u.player, u.y, u.x))
             
-            # Assign Greek letters
+            # Assign letters
             for i, unit in enumerate(units):
-                if i < len(GREEK_ALPHABET):
-                    unit.greek_id = GREEK_ALPHABET[i]
+                if i < len(UNIT_ID_ALPHABET):
+                    unit.greek_id = UNIT_ID_ALPHABET[i]
                     logger.debug(f"Assigned {unit.greek_id} to Player {unit.player}'s {unit.type.name}")
                 else:
-                    # Fallback if we have more units than Greek letters
+                    # Fallback if we have more units than letters
                     unit.greek_id = f"{i+1}"
                     logger.debug(f"Used number {unit.greek_id} for Player {unit.player}'s {unit.type.name}")
         
@@ -2927,7 +2927,7 @@ class Game:
                         ui.renderer.animate_attack_sequence(
                             trapped_unit.y, trapped_unit.x,
                             animation_sequence,
-                            5,  # color ID (reddish)
+                            10,  # red background color
                             0.2  # duration
                         )
                         time.sleep(0.2)
@@ -2942,7 +2942,7 @@ class Game:
                         ui.renderer.animate_attack_sequence(
                             trapped_unit.y, trapped_unit.x,
                             animation_sequence,
-                            5,  # color ID (reddish)
+                            10,  # red background color
                             0.2  # duration
                         )
                         time.sleep(0.2)
@@ -3516,36 +3516,6 @@ class Game:
             # Success! Wretched Decension triggers
             logger.debug("TRIGGERING WRETCHED DECENSION!")
             
-            # Show animation if UI is available
-            if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-                logger.debug("Playing Wretched Decension animation")
-                
-                # Get animation from asset manager
-                wretched_animation = ui.asset_manager.get_skill_animation_sequence('wretched_decension')
-                if not wretched_animation:
-                    # Fallback animation if not defined - birds descending to claim the wretched
-                    wretched_animation = [
-                        '.', '..', '...', '^', '^^', '^^^', 'v^v', '>v<', 'vVv',
-                        'WVW', '\\V/', '#V#', '@V@', '###', '@@@', '...', '.'
-                    ]
-                
-                # Animate the descending flock using built-in animation renderer
-                ui.renderer.animate_attack_sequence(
-                    target.y, target.x,
-                    wretched_animation,
-                    10,  # Red color for death
-                    0.1  # Duration
-                )
-                
-                # Add a final flash effect at the end
-                if hasattr(ui, 'asset_manager'):
-                    # Flash between red and white for dramatic finale
-                    tile_ids = ['@', '#', '%', ' ']
-                    color_ids = [1, 7, 1, 7]  # Alternate red and white
-                    durations = [0.1, 0.1, 0.1, 0.2]  # Last frame lingers
-                    
-                    # Use renderer's flash tile method for finale
-                    ui.renderer.flash_tile(target.y, target.x, tile_ids, color_ids, durations)
             
             # Kill the target (set HP to 0)
             target.hp = 0
@@ -3682,7 +3652,7 @@ class Game:
                     ui.renderer.animate_attack_sequence(
                         unit.y, unit.x,
                         animation_sequence,
-                        5,  # color ID (reddish)
+                        10,  # red background color
                         0.2  # duration
                     )
                     time.sleep(0.2)
@@ -3739,7 +3709,7 @@ class Game:
                     if hasattr(ui, 'asset_manager'):
                         # Flash the unit with damage colors
                         tile_ids = [ui.asset_manager.get_unit_tile(unit.type)] * 4
-                        color_ids = [5, 3 if unit.player == 1 else 4] * 2  # Alternate red with player color
+                        color_ids = [10, 3 if unit.player == 1 else 4] * 2  # Alternate red background with player color
                         durations = [0.1] * 4
                         
                         # Use renderer's flash tile method
@@ -4197,11 +4167,7 @@ class Game:
         
         # Follow up with the affected units information
         if affected_units:
-            message_log.add_message(
-                f"The reality disruption affects {len(affected_units)} nearby unit(s)",
-                MessageType.ABILITY,
-                player=echo_unit.player
-            )
+            pass  # Remove the summary message
         
         # Animation for echo explosion
         if ui and hasattr(ui, 'renderer'):
@@ -4703,7 +4669,7 @@ class Game:
         # Animate the rail explosions if UI is available - all at once!
         if ui and hasattr(ui, 'renderer'):
             explosion_frames = ['*', '#', '*', '#', '*']
-            explosion_colors = [5, 7, 5, 7, 5]  # Red, white, red, white, red
+            explosion_colors = [19, 7, 19, 7, 19]  # Red text, yellow text, red text, yellow text, red text
             
             # Clear any highlights/selections that might interfere
             if hasattr(ui, 'cursor_manager'):
@@ -4722,10 +4688,15 @@ class Game:
                 ui.renderer.refresh()
                 time.sleep(0.12)  # Quick flash timing
         
-        # Actually remove all rails from the map
+        # Actually remove all rails from the map and restore original terrain
         rail_count = len(rail_positions)
         for rail_y, rail_x in rail_positions:
-            self.map.set_terrain_at(rail_y, rail_x, TerrainType.EMPTY)
+            # Restore the exact original terrain that was replaced when the rail was placed
+            restored_terrain = self.map.get_rail_original_terrain(rail_y, rail_x)
+            self.map.set_terrain_at(rail_y, rail_x, restored_terrain)
+
+        # Clear the rail original terrain backup since rails are gone
+        self.map.rail_original_terrain.clear()
         
         # Simple final message
         message_log.add_message(

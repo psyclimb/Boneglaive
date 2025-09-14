@@ -238,13 +238,13 @@ class EnbroachmentGasSkill(ActiveSkill):
         # Add vapor to the game units
         game.units.append(vapor_unit)
         
-        # Assign a Greek identifier for this vapor based on its type (global across both players)
-        from boneglaive.utils.constants import GREEK_ALPHABET
+        # Assign a letter identifier for this vapor based on its type (global across both players)
+        from boneglaive.utils.constants import UNIT_ID_ALPHABET
         existing_vapors_of_type = len([u for u in game.units if u.is_alive() and u.type == UnitType.HEINOUS_VAPOR and hasattr(u, 'vapor_type') and u.vapor_type == self.vapor_type])
-        if existing_vapors_of_type <= len(GREEK_ALPHABET):
-            vapor_unit.greek_id = GREEK_ALPHABET[existing_vapors_of_type - 1]  # -1 because we just added this vapor
+        if existing_vapors_of_type <= len(UNIT_ID_ALPHABET):
+            vapor_unit.greek_id = UNIT_ID_ALPHABET[existing_vapors_of_type - 1]  # -1 because we just added this vapor
         
-        # Log the successful summoning with proper Greek letter
+        # Log the successful summoning with proper letter identifier
         message_log.add_message(
             f"{vapor_unit.get_display_name()} is expelled to position ({target_pos[0]}, {target_pos[1]})",
             MessageType.ABILITY,
@@ -400,13 +400,13 @@ class SaftEGasSkill(ActiveSkill):
         # Add vapor to the game units
         game.units.append(vapor_unit)
         
-        # Assign a Greek identifier for this vapor based on its type (global across both players)
-        from boneglaive.utils.constants import GREEK_ALPHABET
+        # Assign a letter identifier for this vapor based on its type (global across both players)
+        from boneglaive.utils.constants import UNIT_ID_ALPHABET
         existing_vapors_of_type = len([u for u in game.units if u.is_alive() and u.type == UnitType.HEINOUS_VAPOR and hasattr(u, 'vapor_type') and u.vapor_type == self.vapor_type])
-        if existing_vapors_of_type <= len(GREEK_ALPHABET):
-            vapor_unit.greek_id = GREEK_ALPHABET[existing_vapors_of_type - 1]  # -1 because we just added this vapor
+        if existing_vapors_of_type <= len(UNIT_ID_ALPHABET):
+            vapor_unit.greek_id = UNIT_ID_ALPHABET[existing_vapors_of_type - 1]  # -1 because we just added this vapor
         
-        # Log the successful summoning with proper Greek letter
+        # Log the successful summoning with proper letter identifier
         message_log.add_message(
             f"{vapor_unit.get_display_name()} is expelled to position ({target_pos[0]}, {target_pos[1]})",
             MessageType.ABILITY,
@@ -715,17 +715,17 @@ class DivergeSkill(ActiveSkill):
         game.units.append(cutting_gas)
         
         # Assign Greek identifiers for both vapors based on their types (global across both players)
-        from boneglaive.utils.constants import GREEK_ALPHABET
+        from boneglaive.utils.constants import UNIT_ID_ALPHABET
         
         # Count existing COOLANT gases from both players (including the one we just added)
         existing_coolant_count = len([u for u in game.units if u.is_alive() and u.type == UnitType.HEINOUS_VAPOR and hasattr(u, 'vapor_type') and u.vapor_type == "COOLANT"])
-        if existing_coolant_count <= len(GREEK_ALPHABET):
-            coolant_gas.greek_id = GREEK_ALPHABET[existing_coolant_count - 1]  # -1 because we just added this vapor
+        if existing_coolant_count <= len(UNIT_ID_ALPHABET):
+            coolant_gas.greek_id = UNIT_ID_ALPHABET[existing_coolant_count - 1]  # -1 because we just added this vapor
         
         # Count existing CUTTING gases from both players (including the one we just added)
         existing_cutting_count = len([u for u in game.units if u.is_alive() and u.type == UnitType.HEINOUS_VAPOR and hasattr(u, 'vapor_type') and u.vapor_type == "CUTTING"])
-        if existing_cutting_count <= len(GREEK_ALPHABET):
-            cutting_gas.greek_id = GREEK_ALPHABET[existing_cutting_count - 1]  # -1 because we just added this vapor
+        if existing_cutting_count <= len(UNIT_ID_ALPHABET):
+            cutting_gas.greek_id = UNIT_ID_ALPHABET[existing_cutting_count - 1]  # -1 because we just added this vapor
         
         # If targeting self, set return position property
         if is_self_target:

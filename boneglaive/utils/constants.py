@@ -84,7 +84,7 @@ ATTACK_EFFECTS = {
 }
 
 # ASCII alphabet for unit identification
-GREEK_ALPHABET = [
+UNIT_ID_ALPHABET = [
     'a',  # a
     'b',  # b
     'c',  # c

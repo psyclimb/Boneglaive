@@ -224,69 +224,20 @@ class MarketFuturesSkill(ActiveSkill):
             player=user.player
         )
         
-        # Play elaborate Market Futures animation sequence as described in document
+        # Play Market Futures animation sequence
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Step 1: The APPRAISER touches the furniture
-            # Show appraiser reaching toward furniture
-            from boneglaive.utils.coordinates import get_line, Position
-            path = get_line(Position(user.y, user.x), Position(target_pos[0], target_pos[1]))
+            # Get the pre-defined market futures animation sequence
+            market_futures_animation = ui.asset_manager.get_skill_animation_sequence('market_futures')
+            if not market_futures_animation:
+                # Fallback animation showing the complete progression
+                market_futures_animation = ['A', '|', '-', '#', '\\', '|', '/', '-', '#', '&', '%', '@', '$', '.', '*', '+', '*', '.', '~', '-', '=', 'T', '@']
 
-            # Show reaching animation
-            if len(path) > 1:
-                # Get the point between appraiser and furniture
-                mid_point = path[len(path) // 2]
-
-                # Draw reaching gesture
-                ui.renderer.animate_attack_sequence(
-                    mid_point.y, mid_point.x,
-                    ['A', 'T', '|'],
-                    7,  # White color
-                    0.15  # Duration
-                )
-
-            # Step 2: Temporal market projections spiral around the furniture
-            spiral_animation = ['$', '#', '@', '%', '&']
+            # Play the complete Market Futures animation at target position
             ui.renderer.animate_attack_sequence(
                 target_pos[0], target_pos[1],
-                spiral_animation,
-                6,  # Cyan/blue color
-                0.15  # Duration
-            )
-            sleep_with_animation_speed(0.1)  # Pause between animation phases
-
-            # Step 3: The furniture transforms into a more valuable future version
-            transform_animation = ['#', 'O', 'P', 'W', '@']
-            ui.renderer.animate_attack_sequence(
-                target_pos[0], target_pos[1],
-                transform_animation,
-                3,  # Green color for value enhancement
-                0.15  # Duration
-            )
-
-            # Step 4: Furniture glows with investment potential
-            # Add glowing effect radiating from the furniture to adjacent positions
-            for dy in [-1, 0, 1]:
-                for dx in [-1, 0, 1]:
-                    if dy == 0 and dx == 0:
-                        continue  # Skip the center itself
-
-                    y, x = target_pos[0] + dy, target_pos[1] + dx
-
-                    if game.is_valid_position(y, x):
-                        # Small glow animation in adjacent cells
-                        ui.renderer.animate_attack_sequence(
-                            y, x,
-                            ['*', '.'],
-                            6,  # Cyan/blue color
-                            0.05  # Quick duration
-                        )
-
-            # Final anchor marker on furniture
-            ui.renderer.animate_attack_sequence(
-                target_pos[0], target_pos[1],
-                ['@', 'T', '*'],
-                3,  # Green color for established anchor
-                0.2  # Duration for final state
+                market_futures_animation,
+                6,  # Cyan/blue color for market analysis
+                0.1  # Duration per frame
             )
             
         return True
@@ -559,7 +510,7 @@ class AuctionCurseSkill(ActiveSkill):
         # Special message for maximum duration (9 turns)
         if dot_duration == 9:
             message_log.add_message(
-                f"DELPHIC APPRAISER {user.get_display_name()} rolls deftly!",
+                f"{user.get_display_name()} rolls deftly!",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -587,98 +538,63 @@ class AuctionCurseSkill(ActiveSkill):
                     player=user.player
                 )
 
-        # Play first part of auction curse animation
+        # Play Auction Curse animation - astral auctioneers appear at furniture locations
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Step 1: The APPRAISER creates an auction podium with cosmic value displayed
-            # Start from the Appraiser's position
-            podium_animation = ['A', '=', '|', '=', '|']
-            ui.renderer.animate_attack_sequence(
-                user.y, user.x,  # First part is at the user's position
-                podium_animation,
-                7,  # White color for the appraiser
-                0.2  # Duration
-            )
-            sleep_with_animation_speed(0.1)  # Pause between animation phases
-
-            # Step 2: Show average cosmic value prominently displayed on the podium
-            # Create the value display animation at the target position
-            value_display = []
-            if average_value > 0:
-                value_display = ['=', str(average_value), '=']
-            else:
-                value_display = ['=', '?', '=']
-
-            ui.renderer.animate_attack_sequence(
-                target_pos[0], target_pos[1],
-                value_display,
-                6,  # Yellowish color for the value display
-                0.2  # Duration
-            )
-            sleep_with_animation_speed(0.1)  # Pause between animation phases
-
-            # Step 3: Spectral furniture pieces appear as bidders raising paddles
-            # Animate spectral bidders around the target in nearby positions
+            # Step 1: Podiums and astral auctioneers ascend at furniture locations
             if nearby_furniture:
-                # Show bidding animation from furniture positions
-                for i, pos in enumerate(nearby_furniture[:3]):  # Limit to 3 pieces of furniture for clarity
-                    bidder_animations = ['p', 'G', '|', '!']
+                podium_ascension = ['.', '_', '=', 'i', 'I']  # Ground → podium → auctioneer rises
+                for pos in nearby_furniture:
                     ui.renderer.animate_attack_sequence(
                         pos[0], pos[1],
-                        bidder_animations,
-                        3,  # Green color for the bidders
-                        0.1  # Duration
+                        podium_ascension,
+                        7,  # White/light color for astral beings
+                        0.18  # Duration per frame
                     )
-                    # Slight delay between different bidders
-                    sleep_with_animation_speed(0.05)
+                    sleep_with_animation_speed(0.03)  # Slight stagger between furniture locations
 
-            # Step 4: Show target being afflicted with the DOT effect
-            if average_value > 0:
-                # Animate curse application
-                curse_symbols = ['$', '$', '%', '-', '.']
+                sleep_with_animation_speed(0.15)  # Pause between major phases
+
+                # Step 2: Astral auctioneers raise bidding paddles
+                paddle_raising = ['I', 'Y', 'T']  # Auctioneer → raising paddle → paddle fully raised
+                for pos in nearby_furniture:
+                    ui.renderer.animate_attack_sequence(
+                        pos[0], pos[1],
+                        paddle_raising,
+                        7,  # Yellow for astral energy
+                        0.15  # Duration per frame
+                    )
+                    sleep_with_animation_speed(0.03)  # Slight stagger
+
+                sleep_with_animation_speed(0.2)  # Dramatic pause before curse
+
+                # Step 3: Twisted curse descends from all auctioneers to converge on victim
+                curse_descent = ['~', '*', 'v', 'V']  # Curse energy → swirling → descending → impact
+
+                # First show curse energy forming at each auctioneer
+                for pos in nearby_furniture:
+                    ui.renderer.animate_attack_sequence(
+                        pos[0], pos[1],
+                        ['~', '*'],  # Just the initial curse energy
+                        19,  # Red text for malevolent energy
+                        0.12
+                    )
+
+                # Then show curse converging on the target
                 ui.renderer.animate_attack_sequence(
                     target_pos[0], target_pos[1],
-                    curse_symbols,
-                    10,  # Red color for the target
-                    0.15  # Duration
+                    ['v', 'V', '@', '&'],  # Curse descends → impacts → victim cursed → ongoing effect
+                    19,  # Red text for curse affliction
+                    0.2  # Duration per frame
                 )
 
-                # Step 5: Stats transfer to the APPRAISER as glowing tokens
-                # Show tokens moving from target to appraiser
-                token_path = []
-
-                # Get path from target to user
-                from boneglaive.utils.coordinates import get_line, Position
-                path = get_line(Position(target_pos[0], target_pos[1]), Position(user.y, user.x))
-
-                # Animate token movement along the path
-                token_symbol = '$'
-                for point in path:
-                    ui.renderer.draw_tile(point.y, point.x, token_symbol, 6)  # Yellow for tokens
-                    ui.renderer.refresh()
-                    sleep_with_animation_speed(0.07)
-
-                    # Clear previous position (except target and user positions)
-                    if (point.y != target_pos[0] or point.x != target_pos[1]) and (point.y != user.y or point.x != user.x):
-                        # Get the terrain to restore proper display
-                        terrain = game.map.get_terrain_at(point.y, point.x)
-                        terrain_char = ' '
-                        if terrain:
-                            terrain_name = terrain.name.lower().replace('_', ' ')
-                            if 'empty' in terrain_name:
-                                terrain_char = ' '
-                            elif 'furniture' in terrain_name:
-                                terrain_char = '#'
-                            else:
-                                terrain_char = '.'
-                        ui.renderer.draw_tile(point.y, point.x, terrain_char, 0)
-
-                # Final curse completion animation at the appraiser
-                curse_completion = ['*', '!', '*']
+            else:
+                # Fallback if no furniture nearby - simple curse effect
+                simple_curse = ['~', '*', 'v', '@']
                 ui.renderer.animate_attack_sequence(
-                    user.y, user.x,
-                    curse_completion,
-                    10,  # Red color for curse completion
-                    0.15  # Duration
+                    target_pos[0], target_pos[1],
+                    simple_curse,
+                    19,  # Red text color
+                    0.2
                 )
 
         return True
@@ -863,7 +779,7 @@ class DivineDrepreciationSkill(ActiveSkill):
         # Special message for maximum damage (8 damage)
         if effect_value == 8:
             message_log.add_message(
-                f"DELPHIC APPRAISER {user.get_display_name()} rolls deftly!",
+                f"{user.get_display_name()} rolls deftly!",
                 MessageType.ABILITY,
                 player=user.player
             )

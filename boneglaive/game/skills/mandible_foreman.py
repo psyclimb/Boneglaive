@@ -273,14 +273,14 @@ class DischargeSkill(ActiveSkill):
                         ui.renderer.animate_attack_sequence(
                             enemy_pos[0], enemy_pos[1],
                             impact_animation,
-                            5,  # reddish color for impact
+                            10,  # red background for impact
                             0.1  # duration
                         )
                         
                         # Flash the enemy to show it was hit
                         if hasattr(ui, 'asset_manager'):
                             tile_ids = [ui.asset_manager.get_unit_tile(enemy_hit.type)] * 4
-                            color_ids = [5, 3 if enemy_hit.player == 1 else 4] * 2  # Alternate red with player color
+                            color_ids = [10, 3 if enemy_hit.player == 1 else 4] * 2  # Alternate red background with player color
                             durations = [0.1] * 4
                             
                             ui.renderer.flash_tile(enemy_pos[0], enemy_pos[1], tile_ids, color_ids, durations)
@@ -419,14 +419,14 @@ class DischargeSkill(ActiveSkill):
                 ui.renderer.animate_attack_sequence(
                     enemy_pos[0], enemy_pos[1],
                     impact_animation,
-                    5,  # reddish color for impact
+                    10,  # red background for impact
                     0.1  # duration
                 )
                 
                 # Flash the enemy to show it was hit
                 if hasattr(ui, 'asset_manager'):
                     tile_ids = [ui.asset_manager.get_unit_tile(enemy_hit.type)] * 4
-                    color_ids = [5, 3 if enemy_hit.player == 1 else 4] * 2  # Alternate red with player color
+                    color_ids = [10, 3 if enemy_hit.player == 1 else 4] * 2  # Alternate red background with player color
                     durations = [0.1] * 4
                     
                     ui.renderer.flash_tile(enemy_pos[0], enemy_pos[1], tile_ids, color_ids, durations)
@@ -1125,7 +1125,7 @@ class JawlineSkill(ActiveSkill):
                 # Flash the target
                 if hasattr(ui, 'asset_manager'):
                     tile_ids = [ui.asset_manager.get_unit_tile(target.type)] * 4
-                    color_ids = [5, 3 if target.player == 1 else 4] * 2  # Alternate red with player color
+                    color_ids = [10, 3 if target.player == 1 else 4] * 2  # Alternate red background with player color
                     durations = [0.1] * 4
                     
                     ui.renderer.flash_tile(target.y, target.x, tile_ids, color_ids, durations)

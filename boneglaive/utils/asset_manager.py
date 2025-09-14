@@ -117,8 +117,8 @@ class AssetManager:
         # Add animation sequence tiles for each attack type (using simple ASCII)
         self.animation_sequences = {
             'glaiveman_attack': ['-', '\\', '|', '/', '\\', '-', '/', '|', '\\', '-'],  # Melee range 1 attack
-            'glaiveman_extended_attack': ['\\', '|', '/', '-', '-', '-', '=', '>', 'x'],  # Extended range 2 attack
-            'archer_attack': ['.', '>', '-', '>', '->'],
+            'glaiveman_extended_attack': ['-', '=', '>', '>', '|', '|', '*', 'X', 'x'],  # Blade extending progressively further
+            'archer_attack': ['.', '-', '=', '>', '*'],  # Arrow flying progressively
             'mage_attack': ['.', '*', '*', '*', '*'],
             'mandible_foreman_attack': ['<', '[', '{', '{', '{', '{'],  # Jaws opening and closing animation
             'grayman_attack': ['.', ':', '~', '~', '~', ':', '.'],  # Reality distortion wave
@@ -191,20 +191,16 @@ class AssetManager:
             'delphic_appraiser_attack': ['$', '$', '$'],  # Basic attack with currency symbols
             'interferer_attack': ['x', '+', '*', 'x'],  # Plutonium carabiner cross attack
 
-            # Valuation Oracle: Ancient numerical glyphs materializing, furniture transforms showing ornate details
-            'valuation_oracle': ['?', '1', '3', '5', '7', '9', '$', '#', '@'],
 
-            # Market Futures: Appraiser touches furniture, temporal projections spiral, furniture transforms
-            'market_futures': ['A', 'T', '$', '#', '@', '%', 'O', 'P', 'W'],
+            # Market Futures: Appraiser reaches → spiral projections → furniture transforms → glow → anchor
+            'market_futures': ['A', '|', '-', '#', '\\', '|', '/', '-', '#', '&', '%', '@', '$', '.', '*', '+', '*', '.', '~', '-', '=', 'T', '@'],
 
             # Market Teleport: Ally converted to golden arrows arcing through air
             'market_teleport': ['$', '^', '>', 'v', 'v', '*', 'A'],
 
-            # Auction Curse: Creates podium, bidders raising paddles, stats transfer as tokens
-            'auction_curse': ['A', '=', 'p', 'G', '$', '$', '#', '|', '+'],
+            # Auction Curse: Podiums ascend → auctioneers rise → paddles raised → curse descends
+            'auction_curse': ['.', '_', '=', 'i', 'I', 'Y', 'T', '~', '*', 'v', 'V', '@'],
 
-            # Bid Token: Glowing tokens transferring from Appraiser to ally
-            'bid_token': ['$', '*', '+', '$', '#', '@', 'A'],
 
             # Divine Depreciation: Downward valuation, furniture value drops, floor sinks
             'divine_depreciation': ['A', 'v', '9', '6', '3', '0', '_', '.', ' '],

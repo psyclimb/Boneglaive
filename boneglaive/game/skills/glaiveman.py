@@ -228,16 +228,23 @@ class Autoclave(PassiveSkill):
                 targets_by_direction[direction_idx] = targets_in_direction
                 
         # Animate the cross-shaped attack in each direction if UI is available
-        if ui and hasattr(ui, 'renderer'):
-            # Simplified animation sequence for each directional beam
-            beam_animation = ['+', 'X', '#'] 
+        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+            # Get the autoclave animation sequence
+            beam_animation = ui.asset_manager.get_skill_animation_sequence('autoclave')
+            if not beam_animation:
+                beam_animation = ['+', 'X', '#']  # Fallback 
             
-            # Animate each direction sequentially
+            # Animate each direction sequentially, cycling animation frames spatially
             for direction_idx, targets in targets_by_direction.items():
-                for y, x in targets:
+                # Cycle through animation frames along the beam path
+                for i, (y, x) in enumerate(targets):
+                    # Use modulo to cycle through animation frames spatially
+                    frame_index = i % len(beam_animation)
+                    single_frame = [beam_animation[frame_index]]  # Single frame animation
+
                     ui.renderer.animate_attack_sequence(
                         y, x,
-                        beam_animation,
+                        single_frame,
                         7,  # color ID (white)
                         0.1  # quick but visible
                     )
@@ -534,7 +541,7 @@ class PrySkill(ActiveSkill):
             ui.renderer.animate_attack_sequence(
                 target.y, target.x,
                 impact_animation,
-                5,  # reddish color for impact
+                10,  # red background for impact (white text on red background)
                 0.2  # duration
             )
             
@@ -556,7 +563,7 @@ class PrySkill(ActiveSkill):
             # Flash the target to show it was hit
             if hasattr(ui, 'asset_manager'):
                 tile_ids = [ui.asset_manager.get_unit_tile(target.type)] * 4
-                color_ids = [5, 3 if target.player == 1 else 4] * 2  # Alternate red with player color
+                color_ids = [10, 3 if target.player == 1 else 4] * 2  # Alternate red background with player color
                 durations = [0.1] * 4
                 
                 ui.renderer.flash_tile(target.y, target.x, tile_ids, color_ids, durations)
@@ -655,7 +662,7 @@ class PrySkill(ActiveSkill):
                 # Flash the adjacent unit to show it was hit with debris
                 if hasattr(ui, 'asset_manager'):
                     tile_ids = [ui.asset_manager.get_unit_tile(adjacent_unit.type)] * 2
-                    color_ids = [5, 3 if adjacent_unit.player == 1 else 4]  # Brief flash
+                    color_ids = [10, 3 if adjacent_unit.player == 1 else 4]  # Brief flash with red background
                     durations = [0.1] * 2
                     
                     ui.renderer.flash_tile(adjacent_unit.y, adjacent_unit.x, tile_ids, color_ids, durations)
@@ -1100,7 +1107,7 @@ class JudgementSkill(ActiveSkill):
             # Get the animation sequence
             throw_animation = ui.asset_manager.get_skill_animation_sequence('judgement')
             if not throw_animation:
-                throw_animation = ['*', '+', 'x', '#', 'O', '@']  # Fallback - ASCII characters only
+                throw_animation = ['*', '+', 'x', 'o', 'O', '@']  # Fallback - ASCII characters only
 
             # Get critical animation
             critical_animation = ui.asset_manager.get_skill_animation_sequence('judgement_critical')
@@ -1173,7 +1180,7 @@ class JudgementSkill(ActiveSkill):
                 
                 # Show impact effect on target tile only
                 for i in range(4):  # Quick impact flash
-                    ui.renderer.draw_tile(target.y, target.x, impact_char, 5)  # Reddish color
+                    ui.renderer.draw_tile(target.y, target.x, impact_char, 7, curses.A_BOLD)  # White color with bold (same as STAINED_STONE)
                     ui.renderer.refresh()
                     sleep_with_animation_speed(0.05)
                     
@@ -1221,7 +1228,7 @@ class JudgementSkill(ActiveSkill):
             # Flash the target to show impact
             if hasattr(ui, 'asset_manager'):
                 tile_ids = [ui.asset_manager.get_unit_tile(target.type)] * 4
-                color_ids = [5, 3 if target.player == 1 else 4] * 2  # Alternate red with player color
+                color_ids = [10, 3 if target.player == 1 else 4] * 2  # Alternate red background with player color
                 durations = [0.1] * 4
                 
                 ui.renderer.flash_tile(target.y, target.x, tile_ids, color_ids, durations)

@@ -53,16 +53,19 @@ class NeutronIlluminant(PassiveSkill):
     def trigger_flash_effect(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> None:
         """Trigger the neutron flash animation effect that always plays on INTERFERER attacks."""
         # Always show the flash effect regardless of radiation sickness application
-        if ui and hasattr(ui, 'renderer'):
-            # Flash animation at the INTERFERER's position
-            flash_animation = ['*', '✦', '※', '✦', '*']
+        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+            # Get interferer attack animation sequence
+            flash_animation = ui.asset_manager.get_skill_animation_sequence('interferer_attack')
+            if not flash_animation:
+                flash_animation = ['*', '+', 'x', '*']  # ASCII fallback
+
             ui.renderer.animate_attack_sequence(
                 user.y, user.x,
                 flash_animation,
                 7,  # White/bright color for the flash
                 0.04  # Faster flash duration
             )
-            
+
             # Additional radiating flash effect around the INTERFERER
             radiation_positions = self._get_radiation_positions(user, target_pos)
             flash_radiation_animation = ['*', '+', '.']
@@ -279,7 +282,7 @@ class NeuralShuntSkill(ActiveSkill):
                 
                 # Neural surge effect - rapid flashing through the nervous system
                 surge_frames = ['|', '\\', '/', '-', '|', '\\', '/', '-']
-                surge_colors = [1, 5, 6, 7, 1, 5, 6, 7]  # Red, yellow, white alternating
+                surge_colors = [1, 10, 6, 7, 1, 10, 6, 7]  # Red, red background, yellow, white alternating
                 
                 for i, (frame, color) in enumerate(zip(surge_frames, surge_colors)):
                     ui.renderer.draw_tile(target.y, target.x, frame, color)
