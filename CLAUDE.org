@@ -29,7 +29,7 @@ Tactical turn-based combat game in Python using curses terminal UI. Features com
 
 ** Running the Game
 #+begin_src bash
-PYTHONPATH=/path/to/boneglaive2 python3 boneglaive/main.py [--single-player|--local-mp|--lan-host|--lan-client|--vs-ai]
+PYTHONPATH=/path/to/boneglaive python3 boneglaive/main.py [--single-player|--local-mp|--lan-host|--lan-client|--vs-ai]
 #+end_src
 
 ** Testing
@@ -60,7 +60,7 @@ python3 boneglaive_test.py  # Integration tests for maps and game mechanics
 *IMPORTANT*: This project has been merged into the original boneglaive repository. All future commits should be pushed to:
 - Repository: https://github.com/psyclimb/Boneglaive.git
 - Remote name: =original=
-- *DO NOT* push to the boneglaive2 repository anymore
+- This was originally the boneglaive2 repository but has been merged
 
 Use these commands for git operations:
 #+begin_src bash

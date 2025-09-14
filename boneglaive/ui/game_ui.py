@@ -255,7 +255,15 @@ class GameUI:
     
     def draw_board(self, show_cursor=True, show_selection=True, show_attack_targets=True):
         """Delegate board drawing to the UI renderer component."""
-        self.ui_renderer.draw_board(show_cursor, show_selection, show_attack_targets)
+        try:
+            self.ui_renderer.draw_board(show_cursor, show_selection, show_attack_targets)
+        except KeyboardInterrupt:
+            # Silently handle Ctrl+C during drawing - let it propagate up
+            raise
+        except Exception:
+            # Log other drawing errors but continue
+            from boneglaive.utils.debug import logger
+            logger.error("Error drawing board", exc_info=True)
 
     def reset_game(self):
         """Reset the game to start a new round."""
@@ -376,6 +384,10 @@ class GameUI:
             return result
         
         # Delegate input handling to the input manager
-        result = self.input_manager.process_input(key)
-        self.draw_board()  # Always draw after handling input
-        return result
+        try:
+            result = self.input_manager.process_input(key)
+            self.draw_board()  # Always draw after handling input
+            return result
+        except KeyboardInterrupt:
+            # Graceful shutdown on Ctrl+C
+            return False

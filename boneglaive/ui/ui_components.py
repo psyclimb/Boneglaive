@@ -1085,7 +1085,7 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'GAUSSIAN DUSK (Active) [Key: G]',
-                        'description': 'Charges a devastating rail gun shot that pierces everything in its path.',
+                        'description': 'Charges a devastating rail gun shot that pierces everything in its path and places rail segments in its wake.',
                         'details': [
                             'Type: Active (Two-phase: Charging -> Firing)',
                             'Range: Entire map',

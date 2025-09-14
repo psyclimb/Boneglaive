@@ -50,7 +50,7 @@ class UIRenderer:
             effects.append(('auction_curse', '|', curses.A_BOLD))
             
         if hasattr(unit, 'charging_status') and unit.charging_status:
-            effects.append(('charging', '^', curses.A_BOLD))
+            effects.append(('charging', '=', curses.A_BOLD))
             
         # INTERFERER status effects
         if hasattr(unit, 'radiation_stacks') and unit.radiation_stacks:
@@ -1523,7 +1523,7 @@ class UIRenderer:
             return
             
         # Sort units by their letter identifier for consistent display order
-        player_units.sort(key=lambda u: getattr(u, 'greek_id', 'z'))  # z is last in alphabet
+        player_units.sort(key=lambda u: getattr(u, 'greek_id', 'ω'))  # omega is last in Greek alphabet
         
         # Build status string and draw each unit symbol with appropriate color
         status_line = HEIGHT + 1
