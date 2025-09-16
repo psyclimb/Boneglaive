@@ -2363,6 +2363,7 @@ class CursorManager(UIComponent):
         self.cursor_pos = Position(HEIGHT // 2, WIDTH // 2)
         self.selected_unit = None
         self.highlighted_positions = []
+        self.attack_range_positions = []  # Track attack range tiles (shown in player color)
     
     def _setup_event_handlers(self):
         """Set up event handlers for cursor manager."""
@@ -2554,6 +2555,7 @@ class CursorManager(UIComponent):
             unit = self.selected_unit
             self.selected_unit = None
             self.highlighted_positions = []
+            self.attack_range_positions = []
             
             # Publish unit deselected event
             self.publish_event(
@@ -2614,6 +2616,7 @@ class CursorManager(UIComponent):
             self.game_ui.message = f"Move set to ({to_position.y}, {to_position.x})"
             # No message added to log for planned movements
             self.highlighted_positions = []
+            self.attack_range_positions = []
             return True
         else:
             # Check why the position isn't valid
@@ -2659,81 +2662,93 @@ class CursorManager(UIComponent):
         from boneglaive.utils.coordinates import Position
         
         cursor_position = Position(self.cursor_pos.y, self.cursor_pos.x)
-        
-        if cursor_position in self.highlighted_positions:
-            # Set the attack target
+
+        # Check if cursor is within attack range and if there's a valid target there
+        if cursor_position in self.attack_range_positions:
+            # Check if there's actually a valid attack target at this position
+            from_pos = None
+            if self.selected_unit.move_target:
+                from_pos = self.selected_unit.move_target
+
+            valid_targets = self.game_ui.game.get_possible_attacks(self.selected_unit, from_pos)
             target_position = (self.cursor_pos.y, self.cursor_pos.x)
-            self.selected_unit.attack_target = target_position
-            
-            
-            # Mark that this unit is taking an action (won't regenerate HP)
-            self.selected_unit.took_no_actions = False
-            
-            # Track action order
-            self.selected_unit.action_timestamp = self.game_ui.game.action_counter
-            self.game_ui.game.action_counter += 1
-            
-            # Check if the target is a unit or a wall
-            from boneglaive.utils.message_log import message_log, MessageType
-            target_unit = self.game_ui.game.get_unit_at(self.cursor_pos.y, self.cursor_pos.x)
-            
-            # Check if target is under KARRIER_RAVE (untargetable)
-            if target_unit and hasattr(target_unit, 'carrier_rave_active') and target_unit.carrier_rave_active:
-                self.game_ui.message = "Invalid target"
-                return False
-            
-            is_wall_target = False
-            wall_owner = None
-            
-            # Check if it's a wall tile
-            if hasattr(self.game_ui.game, 'marrow_dike_tiles') and target_position in self.game_ui.game.marrow_dike_tiles:
-                is_wall_target = True
-                wall_info = self.game_ui.game.marrow_dike_tiles[target_position]
-                wall_owner = wall_info['owner']
-            
-            # Publish attack planned event
-            self.publish_event(
-                EventType.ATTACK_PLANNED,
-                AttackEventData(
-                    attacker=self.selected_unit,
-                    target=target_unit  # May be None for wall targets
+
+            if target_position in valid_targets:
+                # Set the attack target
+                self.selected_unit.attack_target = target_position
+
+                # Mark that this unit is taking an action (won't regenerate HP)
+                self.selected_unit.took_no_actions = False
+
+                # Track action order
+                self.selected_unit.action_timestamp = self.game_ui.game.action_counter
+                self.game_ui.game.action_counter += 1
+
+                # Check if the target is a unit or a wall
+                from boneglaive.utils.message_log import message_log, MessageType
+                target_unit = self.game_ui.game.get_unit_at(self.cursor_pos.y, self.cursor_pos.x)
+
+                # Check if target is under KARRIER_RAVE (untargetable)
+                if target_unit and hasattr(target_unit, 'carrier_rave_active') and target_unit.carrier_rave_active:
+                    self.game_ui.message = "Invalid target"
+                    return False
+
+                is_wall_target = False
+                wall_owner = None
+
+                # Check if it's a wall tile
+                if hasattr(self.game_ui.game, 'marrow_dike_tiles') and target_position in self.game_ui.game.marrow_dike_tiles:
+                    is_wall_target = True
+                    wall_info = self.game_ui.game.marrow_dike_tiles[target_position]
+                    wall_owner = wall_info['owner']
+
+                # Publish attack planned event
+                self.publish_event(
+                    EventType.ATTACK_PLANNED,
+                    AttackEventData(
+                        attacker=self.selected_unit,
+                        target=target_unit  # May be None for wall targets
+                    )
                 )
-            )
-            
-            # Set appropriate message based on target type
-            if is_wall_target:
-                self.game_ui.message = f"Attack set against Marrow Dike wall"
-                # Add message to log for planned wall attacks
-                message_log.add_message(
-                    f"{self.selected_unit.get_display_name()} readies attack against {wall_owner.get_display_name()}'s Marrow Dike wall",
-                    MessageType.COMBAT,
-                    player=self.selected_unit.player,
-                    attacker_name=self.selected_unit.get_display_name()
-                )
-            elif target_unit:
-                self.game_ui.message = f"Attack set against {target_unit.get_display_name()}"
-                # Add message to log for planned unit attacks
-                message_log.add_message(
-                    f"{self.selected_unit.get_display_name()} readies attack against {target_unit.get_display_name()}",
-                    MessageType.COMBAT,
-                    player=self.selected_unit.player,
-                    attacker_name=self.selected_unit.get_display_name(),
-                    target_name=target_unit.get_display_name()
-                )
+
+                # Set appropriate message based on target type
+                if is_wall_target:
+                    self.game_ui.message = f"Attack set against Marrow Dike wall"
+                    # Add message to log for planned wall attacks
+                    message_log.add_message(
+                        f"{self.selected_unit.get_display_name()} readies attack against {wall_owner.get_display_name()}'s Marrow Dike wall",
+                        MessageType.COMBAT,
+                        player=self.selected_unit.player,
+                        attacker_name=self.selected_unit.get_display_name()
+                    )
+                elif target_unit:
+                    self.game_ui.message = f"Attack set against {target_unit.get_display_name()}"
+                    # Add message to log for planned unit attacks
+                    message_log.add_message(
+                        f"{self.selected_unit.get_display_name()} readies attack against {target_unit.get_display_name()}",
+                        MessageType.COMBAT,
+                        player=self.selected_unit.player,
+                        attacker_name=self.selected_unit.get_display_name(),
+                        target_name=target_unit.get_display_name()
+                    )
+                else:
+                    # This shouldn't happen, but handle it just in case
+                    self.game_ui.message = "Attack target set"
+                    message_log.add_message(
+                        f"{self.selected_unit.get_display_name()} readies an attack",
+                        MessageType.COMBAT,
+                        player=self.selected_unit.player,
+                        attacker_name=self.selected_unit.get_display_name()
+                    )
+
+                self.highlighted_positions = []
+                self.attack_range_positions = []
+                return True
             else:
-                # This shouldn't happen, but handle it just in case
-                self.game_ui.message = "Attack target set"
-                message_log.add_message(
-                    f"{self.selected_unit.get_display_name()} readies an attack",
-                    MessageType.COMBAT,
-                    player=self.selected_unit.player,
-                    attacker_name=self.selected_unit.get_display_name()
-                )
-            
-            self.highlighted_positions = []
-            return True
+                self.game_ui.message = "Invalid attack target"
+                return False
         else:
-            self.game_ui.message = "Invalid attack target"
+            self.game_ui.message = "Not in attack range"
             return False
     
     def clear_selection(self):
@@ -2744,6 +2759,7 @@ class CursorManager(UIComponent):
         else:
             # If no unit was selected, just clear the highlighted positions
             self.highlighted_positions = []
+            self.attack_range_positions = []
     
     def cycle_units_internal(self, reverse=False):
         """Cycle through the player's units.
@@ -3138,6 +3154,7 @@ class GameModeManager(UIComponent):
         # If in attack, move, skill or target_vapor mode, cancel the mode but keep unit selected
         if self.mode in ["attack", "move", "skill", "target_vapor"] and cursor_manager.selected_unit:
             cursor_manager.highlighted_positions = []
+            cursor_manager.attack_range_positions = []
             # Reset selected skill if it was being used
             if self.mode in ["skill", "target_vapor"] and cursor_manager.selected_unit.selected_skill:
                 cursor_manager.selected_unit.selected_skill = None
@@ -3523,15 +3540,14 @@ class GameModeManager(UIComponent):
                         )
                     )
                 
-                # Convert positions to Position objects, using move destination if set
-                cursor_manager.highlighted_positions = [
-                    Position(y, x) for y, x in self.game_ui.game.get_possible_attacks(
+                # Show attack range in player color (no separate target highlighting)
+                cursor_manager.attack_range_positions = [
+                    Position(y, x) for y, x in self.game_ui.game.get_attack_range_tiles(
                         cursor_manager.selected_unit, from_pos)
                 ]
-                
-                if not cursor_manager.highlighted_positions:
-                    # No message when there are no valid targets
-                    pass
+
+                # Clear highlighted positions since we only want range highlighting
+                cursor_manager.highlighted_positions = []
             else:
                 # Only show the warning message for human players, not AI
                 if self.game_ui.multiplayer.get_current_player() == 1:
@@ -3874,6 +3890,7 @@ class GameModeManager(UIComponent):
                 # Clear teleport state and return to select mode
                 self.teleport_anchor = None
                 cursor_manager.highlighted_positions = []
+                cursor_manager.attack_range_positions = []
                 self.set_mode("select")
 
                 # Clear selection
@@ -3942,6 +3959,7 @@ class GameModeManager(UIComponent):
                     unit.took_no_actions = False
                 # Targets set successfully
                 cursor_manager.highlighted_positions = []
+                cursor_manager.attack_range_positions = []
                 return True
             else:
                 self.publish_event(
@@ -3991,6 +4009,7 @@ class GameModeManager(UIComponent):
                     unit.took_no_actions = False
                 # Clear selection
                 cursor_manager.highlighted_positions = []
+                cursor_manager.attack_range_positions = []
 
                 # Skill used successfully
                 return True
@@ -4051,6 +4070,7 @@ class GameModeManager(UIComponent):
             else:
                 # Clear selection for all other skills
                 cursor_manager.highlighted_positions = []
+                cursor_manager.attack_range_positions = []
                 # Skill used successfully
                 return True
         else:
@@ -4853,7 +4873,7 @@ class ActionMenuComponent(UIComponent):
             hasattr(event_data, 'new_mode') and event_data.new_mode == "select"):
             
             cursor_manager = self.game_ui.cursor_manager
-            if (cursor_manager.selected_unit and 
+            if (cursor_manager.selected_unit and
                 cursor_manager.selected_unit.skill_target is not None and
                 cursor_manager.selected_unit.selected_skill is not None):
                 # Skill has been planned - hide the menu
@@ -5318,8 +5338,32 @@ class ActionMenuComponent(UIComponent):
             # Calculate x position with consistent left margin
             action_x = menu_x + 3  # Left margin for all actions
             
-            # Choose color based on whether action is enabled
-            key_color = player_color if action['enabled'] else 8  # Player color or gray
+            # Choose color based on whether action is enabled and if mode is active
+            mode_manager = self.game_ui.mode_manager
+            is_mode_active = False
+
+            # Check if this action's mode is currently active
+            if action['action'] == GameAction.MOVE_MODE and mode_manager.mode == "move":
+                is_mode_active = True
+            elif action['action'] == GameAction.ATTACK_MODE and mode_manager.mode == "attack":
+                is_mode_active = True
+            elif action['action'] == GameAction.SKILL_MODE and mode_manager.mode in ["skill", "target_vapor"]:
+                is_mode_active = True
+            elif 'skill' in action:
+                # Check if this specific skill is currently selected
+                cursor_manager = self.game_ui.cursor_manager
+                if (cursor_manager.selected_unit and
+                    cursor_manager.selected_unit.selected_skill and
+                    cursor_manager.selected_unit.selected_skill == action['skill']):
+                    is_mode_active = True
+
+            # Use brighter player color if mode is active, otherwise use normal colors
+            if is_mode_active:
+                # Use the bright highlight colors that are used for movement/attack range
+                current_player = unit.player
+                key_color = 17 if current_player == 1 else 18  # Bright player-specific colors
+            else:
+                key_color = player_color if action['enabled'] else 8  # Player color or gray
             
             # Special handling for placeholder skills (marked as not implemented)
             if 'placeholder' in action and action['placeholder']:

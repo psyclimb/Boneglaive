@@ -1443,7 +1443,55 @@ class Game:
                         attacks.append((y, x))
         
         return attacks
-    
+
+    def get_attack_range_tiles(self, unit, from_pos=None):
+        """
+        Get all tiles within attack range for a unit, regardless of whether they contain valid targets.
+
+        Args:
+            unit: The unit to check attack range for
+            from_pos: Optional (y, x) position to calculate range from (for post-move attacks)
+
+        Returns:
+            List of (y, x) tuples representing all tiles within attack range
+        """
+        range_tiles = []
+
+        # Use provided position or unit's current position
+        y_pos, x_pos = from_pos if from_pos else (unit.y, unit.x)
+
+        # Get effective attack range
+        effective_stats = unit.get_effective_stats()
+        effective_attack_range = effective_stats['attack_range']
+
+        for y in range(max(0, y_pos - effective_attack_range), min(HEIGHT, y_pos + effective_attack_range + 1)):
+            for x in range(max(0, x_pos - effective_attack_range), min(WIDTH, x_pos + effective_attack_range + 1)):
+                # Calculate chess distance (allows diagonals) from the attack position
+                distance = self.chess_distance(y_pos, x_pos, y, x)
+                if distance > effective_attack_range:
+                    continue  # Skip if out of range
+
+                # Check line of sight for attack range visualization (all units)
+                los_check = self.has_line_of_sight(y_pos, x_pos, y, x)
+                if not los_check:
+                    continue  # Skip if no line of sight
+
+                # Check if there's a unit at this position
+                target_unit = self.get_unit_at(y, x)
+
+                # Exclude ally positions
+                if target_unit and target_unit.player == unit.player:
+                    continue  # Skip ally positions
+
+                # Check if terrain is passable (exclude impassable terrain)
+                if not self.map.is_passable(y, x):
+                    continue  # Skip impassable terrain
+
+                # Add tile to range (includes empty tiles, enemies, attackable walls)
+                range_tiles.append((y, x))
+
+        return range_tiles
+
     # Store reference to the UI for animations
     def set_ui_reference(self, ui):
         """Store a reference to the game UI for animations."""

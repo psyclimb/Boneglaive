@@ -611,6 +611,13 @@ class UIRenderer:
                         # There's a real unit here
                         tile = self.game_ui.asset_manager.get_unit_tile(unit.type)
                         color_id = 3 if unit.player == 1 else 4
+
+                        # Check if this position is in attack range and highlight accordingly
+                        if pos in cursor_manager.attack_range_positions:
+                            if mode_manager.mode == "attack":
+                                # Use player-specific colors for attack range highlighting on units
+                                current_player = self.game_ui.game.current_player
+                                color_id = 17 if current_player == 1 else 18  # Player-specific colors
                         
                         # Check if this is a HEINOUS_VAPOR and use its specific symbol if available
                         if unit.type == UnitType.HEINOUS_VAPOR and hasattr(unit, 'vapor_symbol') and unit.vapor_symbol:
@@ -1147,7 +1154,14 @@ class UIRenderer:
                                     self.renderer.draw_tile(y, x, tile, 2, curses.A_BOLD)  # Green bold for ally
                                 continue
 
-                # Check if position is highlighted for movement, attack, or skill
+                # Check if position is in attack range (show in player color)
+                if pos in cursor_manager.attack_range_positions:
+                    if mode_manager.mode == "attack":
+                        # Use player-specific colors for attack range
+                        current_player = self.game_ui.game.current_player
+                        color_id = 17 if current_player == 1 else 18  # Player-specific colors
+
+                # Check if position is highlighted for movement, attack targets, or skill
                 if pos in cursor_manager.highlighted_positions:
                     if mode_manager.mode == "move":
                         # Use player-specific move highlight colors
@@ -1181,8 +1195,11 @@ class UIRenderer:
         if self.game_ui.spinner_active:
             # Always draw the spinner in the action menu area during resolving
             self._draw_spinner_in_menu_area()
-        elif self.game_ui.action_menu_component.visible:
-            # Draw action menu if visible and not in resolving phase
+        elif (self.game_ui.action_menu_component.visible or
+              (self.game_ui.mode_manager.mode == "skill" and
+               self.game_ui.cursor_manager.selected_unit and
+               self.game_ui.cursor_manager.selected_unit.selected_skill)):
+            # Draw action menu if visible, or during skill targeting to show active skill
             self.game_ui.action_menu_component.draw()
         
         # Draw unit status indicators before unit info
