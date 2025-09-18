@@ -56,7 +56,7 @@ class GameMap:
         self.terrain: Dict[Tuple[int, int], TerrainType] = {}
         self.name = "Generic Map"
 
-        # Dictionary to store cosmic values for furniture
+        # Dictionary to store astral values for furniture
         self.cosmic_values: Dict[Tuple[int, int], int] = {}
         
         # Dictionary to store lighting effects
@@ -75,7 +75,7 @@ class GameMap:
             for x in range(self.width):
                 self.terrain[(y, x)] = TerrainType.EMPTY
 
-        # Reset cosmic values and lighting effects
+        # Reset astral values and lighting effects
         self.cosmic_values = {}
         self.lighting_effects = {}
     
@@ -108,9 +108,9 @@ class GameMap:
 
     def get_cosmic_value(self, y: int, x: int, player=None, game=None) -> Optional[int]:
         """
-        Get cosmic value at the given coordinates.
+        Get astral value at the given coordinates.
         Returns None if no value is set or if the terrain is not furniture.
-        The player parameter is used to check if the player can see the cosmic value.
+        The player parameter is used to check if the player can see the astral value.
         Only players with DELPHIC_APPRAISER units can see the values.
         """
         # Check if the position has furniture
@@ -144,12 +144,12 @@ class GameMap:
             import random
             self.cosmic_values[(y, x)] = random.randint(1, 9)
 
-        # Return the cosmic value
+        # Return the astral value
         return self.cosmic_values.get((y, x))
 
     def set_cosmic_value(self, y: int, x: int, value: int) -> bool:
         """
-        Set cosmic value at the given coordinates.
+        Set astral value at the given coordinates.
         Returns True if successful, False if the terrain is not furniture.
         """
         # Check if the position has furniture
@@ -163,7 +163,7 @@ class GameMap:
                           TerrainType.POTPOURRI_BOWL]:
             return False
 
-        # Set the cosmic value
+        # Set the astral value
         self.cosmic_values[(y, x)] = value
         return True
 
@@ -389,7 +389,7 @@ class GameMap:
             except ValueError as e:
                 raise ValueError(f"Invalid coordinate or terrain in '{coord_str}': {terrain_name} - {e}")
         
-        # Load cosmic values
+        # Load astral values
         cosmic_data = data.get('cosmic_values', {})
         for coord_str, value in cosmic_data.items():
             try:
@@ -405,13 +405,13 @@ class GameMap:
                 if not (1 <= value <= 9):
                     raise ValueError(f"Cosmic value must be 1-9, got: {value}")
                 
-                # Check if terrain supports cosmic values
+                # Check if terrain supports astral values
                 if not game_map.set_cosmic_value(y, x, value):
                     terrain = game_map.get_terrain_at(y, x)
-                    raise ValueError(f"Cannot set cosmic value on terrain {terrain.name} at ({y}, {x})")
+                    raise ValueError(f"Cannot set astral value on terrain {terrain.name} at ({y}, {x})")
                 
             except ValueError as e:
-                raise ValueError(f"Invalid cosmic value at '{coord_str}': {value} - {e}")
+                raise ValueError(f"Invalid astral value at '{coord_str}': {value} - {e}")
         
         # Setup lighting effects for Tiffany lamps
         game_map.setup_tiffany_lamp_lighting()
@@ -434,7 +434,7 @@ class GameMap:
             if terrain_type != TerrainType.EMPTY:
                 terrain_data[f"{y},{x}"] = terrain_type.name
         
-        # Build cosmic values data
+        # Build astral values data
         cosmic_data = {}
         for (y, x), value in self.cosmic_values.items():
             cosmic_data[f"{y},{x}"] = value

@@ -32,7 +32,7 @@ class UnitType(Enum):
     FOWL_CONTRIVANCE = 6  # The synchronized bird flock formation
     GAS_MACHINIST = 7  # The vapor-controlling technician
     HEINOUS_VAPOR = 8  # Vapor entity controlled by GAS_MACHINIST
-    DELPHIC_APPRAISER = 9  # The furniture evaluator with cosmic value perception
+    DELPHIC_APPRAISER = 9  # The furniture evaluator with astral value perception
     INTERFERER = 10  # The telecommunications engineer turned assassin
     DERELICTIONIST = 11  # The psychological abandonment therapist
 

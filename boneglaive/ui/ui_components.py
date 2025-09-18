@@ -619,7 +619,7 @@ class UnitHelpComponent(UIComponent):
                     'and area control. The GLAIVEMAN serves as a reliable frontline fighter with powerful',
                     'retaliatory abilities.',
                     '',
-                    'Role: Frontline Fighter / Area Controller',
+                    'Role: Frontline Fighter / Area Controller / Escape Artist',
                     'Difficulty: **'
                 ],
                 'stats': [
@@ -807,7 +807,7 @@ class UnitHelpComponent(UIComponent):
                     'GRAYMAN serves as an elusive skirmisher that phases in and out of combat while weakening foes',
                     'through reality distortion and defense piercing attacks.',
                     '',
-                    'Role: Reality Manipulator / Disabler / Summoner',
+                    'Role: Escape Artist / Disabler / Summoner',
                     'Difficulty: *'
                 ],
                 'stats': [
@@ -1237,12 +1237,12 @@ class UnitHelpComponent(UIComponent):
             UnitType.DELPHIC_APPRAISER: {
                 'title': 'DELPHIC APPRAISER',
                 'overview': [
-                    'The DELPHIC APPRAISER is a furniture evaluator with cosmic value perception that',
+                    'The DELPHIC APPRAISER is a furniture evaluator with astral value perception that',
                     'specializes in exploiting the metaphysical properties of terrain. This support unit excels',
                     'at creating tactical advantages through furniture manipulation, teleportation networks,',
                     'and reality distortion effects.',
                     '',
-                    'Role: Utility / Reality Manipulator / Gambler',
+                    'Role: Utility / Disabler / Escape Artist / Gambler',
                     'Difficulty: ****'
                 ],
                 'stats': [
@@ -1256,7 +1256,7 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'VALUATION ORACLE (Passive)',
-                        'description': 'Perceives the \'cosmic value\' of furniture when the game starts.',
+                        'description': 'Perceives the \'astral value\' of furniture when the game starts.',
                         'details': [
                             'Type: Passive',
                             'Range: Adjacent tiles',
@@ -1281,7 +1281,7 @@ class UnitHelpComponent(UIComponent):
                             'Pierce: No',
                             'Effects: Parallax, applied when adjacent to the anchor. Investment, applied on teleport',
                             'Cooldown: 6 turns',
-                            'Special: Teleport range equals cosmic value. Maturing investment grants +1 ATK per turn'
+                            'Special: Teleport range equals astral value. Maturing investment grants +1 ATK per turn'
                         ]
                     },
                     {
@@ -1292,11 +1292,11 @@ class UnitHelpComponent(UIComponent):
                             'Range: 3',
                             'Target: Enemy unit',
                             'Line of Sight: Yes',
-                            'Damage: 1 per turn (based on cosmic values)',
+                            'Damage: 1 per turn (based on astral values)',
                             'Pierce: No',
                             'Effects: Auction Curse, each tick inflates nearby furniture by +1 and prevents healing',
                             'Cooldown: 3 turns',
-                            'Special: Duration equals average cosmic value of furniture within 2 tiles'
+                            'Special: Duration equals average astral value of furniture within 2 tiles'
                         ]
                     },
                     {
@@ -1307,11 +1307,11 @@ class UnitHelpComponent(UIComponent):
                             'Range: 3',
                             'Target: Furniture piece (7x7 area effect)',
                             'Line of Sight: Yes',
-                            'Damage: Based on cosmic value difference',
+                            'Damage: Based on astral value difference',
                             'Pierce: Yes',
                             'Effects: None',
                             'Cooldown: 6 turns',
-                            'Special: Sets target furniture to cosmic value 1. Damage equals average cosmic value of other furniture minus 1. Pull distance per unit equals (original cosmic value - 1) minus unit move value (minimum 1). Rerolls all other furniture cosmic values'
+                            'Special: Sets target furniture to astral value 1. Damage equals average astral value of other furniture minus 1. Pull distance per unit equals (original astral value - 1) minus unit move value (minimum 1). Rerolls all other furniture astral values'
                         ]
                     }
                 ],
@@ -2504,12 +2504,12 @@ class CursorManager(UIComponent):
                     # Get the current player
                     current_player = self.game_ui.game.current_player
 
-                    # Get cosmic value if visible to current player
+                    # Get astral value if visible to current player
                     cosmic_value = self.game_ui.game.map.get_cosmic_value(y, x, player=current_player, game=self.game_ui.game)
 
-                    # If cosmic value is available, add it to the message
+                    # If astral value is available, add it to the message
                     if cosmic_value is not None:
-                        message = f"Tile: {terrain_name} | Cosmic Value: {cosmic_value}"
+                        message = f"Tile: {terrain_name} | Astral Value: {cosmic_value}"
 
                 # Send message through event system
                 self.publish_event(
@@ -3815,7 +3815,7 @@ class GameModeManager(UIComponent):
             cursor_manager.highlighted_positions = []
             cosmic_value = game.teleport_anchors[cursor_pos_tuple]['cosmic_value']
 
-            # Highlight all positions within the cosmic value range
+            # Highlight all positions within the astral value range
             for y in range(max(0, pos.y - cosmic_value), min(game.map.height, pos.y + cosmic_value + 1)):
                 for x in range(max(0, pos.x - cosmic_value), min(game.map.width, pos.x + cosmic_value + 1)):
                     # Check if position is valid and within range
@@ -4074,14 +4074,6 @@ class GameModeManager(UIComponent):
                 # Skill used successfully
                 return True
         else:
-            # Use event system for message
-            self.publish_event(
-                EventType.MESSAGE_DISPLAY_REQUESTED,
-                MessageDisplayEventData(
-                    message="Failed to use skill",
-                    message_type=MessageType.WARNING
-                )
-            )
             return False
     
     def handle_end_turn(self):
@@ -5585,22 +5577,58 @@ class ActionMenuComponent(UIComponent):
                     mode_manager.mode = "target_vapor"
                     # Set a flag to identify we're in vapor targeting mode
                     mode_manager.targeting_vapor = True
-                    
+
+                    # Set up highlighting for DIVERGE skill
+                    vapor_targets = []
+
+                    # Get all HEINOUS_VAPOR units owned by the player within range
+                    for unit in game.units:
+                        if (unit.type == UnitType.HEINOUS_VAPOR and
+                            unit.player == cursor_manager.selected_unit.player and
+                            unit.is_alive()):
+                            # Check if within range
+                            distance = game.chess_distance(from_y, from_x, unit.y, unit.x)
+                            if distance <= skill.range:
+                                # Check line of sight
+                                if game.has_line_of_sight(from_y, from_x, unit.y, unit.x):
+                                    vapor_targets.append((unit.y, unit.x))
+
+                    # Add self as a target (current or planned position)
+                    if cursor_manager.selected_unit.move_target:
+                        self_pos = cursor_manager.selected_unit.move_target
+                    else:
+                        self_pos = (cursor_manager.selected_unit.y, cursor_manager.selected_unit.x)
+                    vapor_targets.append(self_pos)
+
+                    # Add floor tiles for range visualization
+                    for y in range(HEIGHT):
+                        for x in range(WIDTH):
+                            distance = game.chess_distance(from_y, from_x, y, x)
+                            if distance <= skill.range:
+                                # Check line of sight for DIVERGE
+                                if game.has_line_of_sight(from_y, from_x, y, x):
+                                    target_unit = game.get_unit_at(y, x)
+                                    if not target_unit and game.map.is_passable(y, x):
+                                        # Add empty floor tiles for range visualization
+                                        vapor_targets.append((y, x))
+
+                    cursor_manager.highlighted_positions = [Position(y, x) for y, x in vapor_targets]
+
                     # Check if there's a move target set - if so, update cursor to that location
                     if cursor_manager.selected_unit.move_target:
                         # Move cursor to the move target position for easy selection of the new position
                         move_y, move_x = cursor_manager.selected_unit.move_target
                         cursor_manager.cursor_pos = Position(move_y, move_x)
-                        
+
                         # Publish cursor moved event
                         self.publish_event(
-                            EventType.CURSOR_MOVED, 
+                            EventType.CURSOR_MOVED,
                             CursorMovedEventData(
-                                position=cursor_manager.cursor_pos, 
+                                position=cursor_manager.cursor_pos,
                                 previous_position=Position(cursor_manager.selected_unit.y, cursor_manager.selected_unit.x)
                             )
                         )
-                                    
+
                     # Display a message about targeting options
                     # Exit early to allow targeting
                     return
@@ -5649,58 +5677,198 @@ class ActionMenuComponent(UIComponent):
                     mode_manager.set_mode("select")
                     return
             elif skill.target_type == TargetType.ENEMY:
-                # For enemy-targeted skills, highlight enemy units in range
-                for y in range(HEIGHT):
-                    for x in range(WIDTH):
-                        # Check if there's an enemy unit at this position
-                        target = game.get_unit_at(y, x)
-                        if target and target.player != cursor_manager.selected_unit.player:
-                            # Check if target is within skill range
+                # Special case for PRY, JUDGEMENT, and ESTRANGE skills: highlight all tiles in range
+                if skill.name == "Pry":
+                    for y in range(HEIGHT):
+                        for x in range(WIDTH):
+                            # PRY shows enemy targets and floor tiles within range for range visualization
                             distance = game.chess_distance(from_y, from_x, y, x)
-                            
                             if distance <= skill.range:
-                                # Check if skill can be used on this target
-                                if skill.can_use(cursor_manager.selected_unit, (y, x), game):
-                                    # Check if target is protected by Saft-E-Gas (same behavior as attacks)
-                                    if hasattr(game, 'is_protected_from') and game.is_protected_from(target, cursor_manager.selected_unit):
-                                        # Don't add to targets, protection prevents targeting
-                                        pass
-                                    else:
+                                target_unit = game.get_unit_at(y, x)
+                                if target_unit and target_unit.player != cursor_manager.selected_unit.player:
+                                    # Highlight enemy units
+                                    targets.append((y, x))
+                                elif not target_unit and game.map.is_passable(y, x):
+                                    # Highlight empty floor tiles for range visualization
+                                    targets.append((y, x))
+                elif skill.name == "Judgement":
+                    for y in range(HEIGHT):
+                        for x in range(WIDTH):
+                            # JUDGEMENT shows enemy targets and floor tiles within range with line of sight
+                            distance = game.chess_distance(from_y, from_x, y, x)
+                            if distance <= skill.range:
+                                # Check line of sight for JUDGEMENT
+                                if game.has_line_of_sight(from_y, from_x, y, x):
+                                    target_unit = game.get_unit_at(y, x)
+                                    if target_unit and target_unit.player != cursor_manager.selected_unit.player:
+                                        # Highlight enemy units
                                         targets.append((y, x))
+                                    elif not target_unit and game.map.is_passable(y, x):
+                                        # Highlight empty floor tiles for range visualization
+                                        targets.append((y, x))
+                elif skill.name == "Estrange":
+                    for y in range(HEIGHT):
+                        for x in range(WIDTH):
+                            # ESTRANGE shows enemy targets and floor tiles within range with line of sight
+                            distance = game.chess_distance(from_y, from_x, y, x)
+                            if distance <= skill.range:
+                                # Check line of sight for ESTRANGE
+                                if game.has_line_of_sight(from_y, from_x, y, x):
+                                    target_unit = game.get_unit_at(y, x)
+                                    if target_unit and target_unit.player != cursor_manager.selected_unit.player:
+                                        # Highlight enemy units
+                                        targets.append((y, x))
+                                    elif not target_unit and game.map.is_passable(y, x):
+                                        # Highlight empty floor tiles for range visualization
+                                        targets.append((y, x))
+                elif skill.name == "Auction Curse":
+                    for y in range(HEIGHT):
+                        for x in range(WIDTH):
+                            # AUCTION CURSE shows enemy targets and floor tiles within range with line of sight
+                            distance = game.chess_distance(from_y, from_x, y, x)
+                            if distance <= skill.range:
+                                # Check line of sight for AUCTION CURSE
+                                if game.has_line_of_sight(from_y, from_x, y, x):
+                                    target_unit = game.get_unit_at(y, x)
+                                    if target_unit and target_unit.player != cursor_manager.selected_unit.player:
+                                        # Highlight enemy units
+                                        targets.append((y, x))
+                                    elif not target_unit and game.map.is_passable(y, x):
+                                        # Highlight empty floor tiles for range visualization
+                                        targets.append((y, x))
+                elif skill.name == "Neural Shunt":
+                    for y in range(HEIGHT):
+                        for x in range(WIDTH):
+                            # NEURAL SHUNT shows enemy targets and floor tiles within range (no line of sight needed for range 1)
+                            distance = game.chess_distance(from_y, from_x, y, x)
+                            if distance <= skill.range:
+                                target_unit = game.get_unit_at(y, x)
+                                if target_unit and target_unit.player != cursor_manager.selected_unit.player:
+                                    # Highlight enemy units
+                                    targets.append((y, x))
+                                elif not target_unit and game.map.is_passable(y, x):
+                                    # Highlight empty floor tiles for range visualization
+                                    targets.append((y, x))
+                else:
+                    # For other enemy-targeted skills, highlight enemy units in range
+                    for y in range(HEIGHT):
+                        for x in range(WIDTH):
+                            # Check if there's an enemy unit at this position
+                            target = game.get_unit_at(y, x)
+                            if target and target.player != cursor_manager.selected_unit.player:
+                                # Check if target is within skill range
+                                distance = game.chess_distance(from_y, from_x, y, x)
+
+                                if distance <= skill.range:
+                                    # Check if skill can be used on this target
+                                    if skill.can_use(cursor_manager.selected_unit, (y, x), game):
+                                        # Check if target is protected by Saft-E-Gas (same behavior as attacks)
+                                        if hasattr(game, 'is_protected_from') and game.is_protected_from(target, cursor_manager.selected_unit):
+                                            # Don't add to targets, protection prevents targeting
+                                            pass
+                                        else:
+                                            targets.append((y, x))
             
             elif skill.target_type == TargetType.ALLY:
-                # For ally-targeted skills, highlight allied units in range (DERELICTIONIST skills)
-                for y in range(HEIGHT):
-                    for x in range(WIDTH):
-                        # Check if there's an allied unit at this position
-                        target = game.get_unit_at(y, x)
-                        if target and target.player == cursor_manager.selected_unit.player:
-                            # Skip self-targeting for ally skills (unless skill allows it)
-                            if target == cursor_manager.selected_unit:
-                                continue
-                                
+                # Special case for DERELICTIONIST skills: highlight allies and floor tiles
+                if skill.name in ["Vagal Run", "Derelict", "Partition"]:
+                    for y in range(HEIGHT):
+                        for x in range(WIDTH):
+                            # DERELICTIONIST skills show ally targets and floor tiles within range with line of sight
+                            distance = game.chess_distance(from_y, from_x, y, x)
+                            if distance <= skill.range:
+                                # Check line of sight for DERELICTIONIST skills
+                                if game.has_line_of_sight(from_y, from_x, y, x):
+                                    target_unit = game.get_unit_at(y, x)
+                                    if target_unit and target_unit.player == cursor_manager.selected_unit.player:
+                                        # Skip self-targeting for ally skills
+                                        if target_unit != cursor_manager.selected_unit:
+                                            # Highlight allied units
+                                            targets.append((y, x))
+                                    elif not target_unit and game.map.is_passable(y, x):
+                                        # Highlight empty floor tiles for range visualization
+                                        targets.append((y, x))
+                else:
+                    # For other ally-targeted skills, use standard logic
+                    for y in range(HEIGHT):
+                        for x in range(WIDTH):
+                            # Check if there's an allied unit at this position
+                            target = game.get_unit_at(y, x)
+                            if target and target.player == cursor_manager.selected_unit.player:
+                                # Skip self-targeting for ally skills (unless skill allows it)
+                                if target == cursor_manager.selected_unit:
+                                    continue
+
+                                # Check if target is within skill range
+                                distance = game.chess_distance(from_y, from_x, y, x)
+
+                                if distance <= skill.range:
+                                    # Check if skill can be used on this target
+                                    if skill.can_use(cursor_manager.selected_unit, (y, x), game):
+                                        targets.append((y, x))
+
+            elif skill.target_type == TargetType.SELF:
+                # Special case for DIVERGE skill: highlight self, HEINOUS VAPOR allies, and floor tiles
+                if skill.name == "Diverge":
+                    for y in range(HEIGHT):
+                        for x in range(WIDTH):
+                            # DIVERGE shows valid targets and floor tiles within range with line of sight
+                            distance = game.chess_distance(from_y, from_x, y, x)
+                            if distance <= skill.range:
+                                # Check line of sight for DIVERGE
+                                if game.has_line_of_sight(from_y, from_x, y, x):
+                                    target_unit = game.get_unit_at(y, x)
+                                    if target_unit:
+                                        # Check if it's self or a HEINOUS VAPOR ally (valid targets)
+                                        if (target_unit == cursor_manager.selected_unit or
+                                            (target_unit.player == cursor_manager.selected_unit.player and
+                                             hasattr(target_unit, 'type') and target_unit.type.name == 'HEINOUS_VAPOR')):
+                                            targets.append((y, x))
+                                    elif game.map.is_passable(y, x):
+                                        # Highlight empty floor tiles for range visualization
+                                        targets.append((y, x))
+                else:
+                    # For other self-targeted skills, use standard logic
+                    for y in range(HEIGHT):
+                        for x in range(WIDTH):
                             # Check if target is within skill range
                             distance = game.chess_distance(from_y, from_x, y, x)
-                            
+
                             if distance <= skill.range:
-                                # Check if skill can be used on this target
+                                # Check if skill can be used on this position
                                 if skill.can_use(cursor_manager.selected_unit, (y, x), game):
                                     targets.append((y, x))
             
             elif skill.target_type == TargetType.AREA:
-                # For area-targeted skills like Vault, highlight all valid positions
-                for y in range(HEIGHT):
-                    for x in range(WIDTH):
-                        # Skip current position
-                        if y == from_y and x == from_x:
-                            continue
-                            
-                        # Check if position is within skill range
-                        distance = game.chess_distance(from_y, from_x, y, x)
-                        if distance <= skill.range:
-                            # Check if skill can be used on this position (will check for obstacles, etc.)
-                            if skill.can_use(cursor_manager.selected_unit, (y, x), game):
-                                targets.append((y, x))
+                # Special case for DELPHIC APPRAISER furniture-targeting skills
+                if skill.name in ["Market Futures", "Divine Depreciation"]:
+                    for y in range(HEIGHT):
+                        for x in range(WIDTH):
+                            # Show furniture targets and floor tiles within range with line of sight
+                            distance = game.chess_distance(from_y, from_x, y, x)
+                            if distance <= skill.range:
+                                # Check line of sight for furniture-targeting skills
+                                if game.has_line_of_sight(from_y, from_x, y, x):
+                                    # Check if it's furniture (valid target)
+                                    if game.map.is_furniture(y, x):
+                                        targets.append((y, x))
+                                    # Also highlight empty floor tiles for range visualization
+                                    elif not game.get_unit_at(y, x) and game.map.is_passable(y, x):
+                                        targets.append((y, x))
+                else:
+                    # For other area-targeted skills like Vault, highlight all valid positions
+                    for y in range(HEIGHT):
+                        for x in range(WIDTH):
+                            # Skip current position for Vault
+                            if skill.name == "Vault" and y == from_y and x == from_x:
+                                continue
+
+                            # Check if position is within skill range
+                            distance = game.chess_distance(from_y, from_x, y, x)
+                            if distance <= skill.range:
+                                # Check if skill can be used on this position (will check for obstacles, etc.)
+                                if skill.can_use(cursor_manager.selected_unit, (y, x), game):
+                                    targets.append((y, x))
             
             # Convert targets to Position objects
             cursor_manager.highlighted_positions = [Position(y, x) for y, x in targets]

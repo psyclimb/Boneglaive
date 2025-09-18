@@ -932,7 +932,7 @@ class Game:
                 self._apply_seasonal_bonuses()
                 # Trigger rail creation now that setup is complete (prevents info leak during setup)
                 self._create_rails_for_fowl_contrivances()
-                # Trigger cosmic value perception now that setup is complete (prevents info leak during setup)
+                # Trigger astral value perception now that setup is complete (prevents info leak during setup)
                 self._trigger_valuation_oracle_for_delphic_appraisers()
                 # Assign Greek identification letters to units
                 self._assign_unit_identifiers()
@@ -963,7 +963,7 @@ class Game:
             
             # Trigger rail creation now that setup is complete (prevents info leak during setup)
             self._create_rails_for_fowl_contrivances()
-            # Trigger cosmic value perception now that setup is complete (prevents info leak during setup)
+            # Trigger astral value perception now that setup is complete (prevents info leak during setup)
             self._trigger_valuation_oracle_for_delphic_appraisers()
 
             # Move FOWL_CONTRIVANCE units to nearest rails
@@ -2157,7 +2157,7 @@ class Game:
                         
                         # Log the expiration
                         message_log.add_message(
-                            f"{unit.get_display_name()}'s connection to the cosmic value fades.",
+                            f"{unit.get_display_name()}'s connection to the astral value fades.",
                             MessageType.ABILITY,
                             player=unit.player
                         )
@@ -2894,7 +2894,7 @@ class Game:
                     target_player=unit.player
                 )
                 
-                # Inflate cosmic values of furniture within 2 tiles of cursed unit
+                # Inflate astral values of furniture within 2 tiles of cursed unit
                 furniture_inflated = 0
                 for dy in range(-2, 3):  # -2 to +2
                     for dx in range(-2, 3):  # -2 to +2
@@ -2911,7 +2911,7 @@ class Game:
                             furniture_terrain = self.map.get_terrain_at(check_y, check_x)
                             furniture_name = furniture_terrain.name.replace('_', ' ').title()
 
-                            # Get current cosmic value (defaulting to 1 if none exists)
+                            # Get current astral value (defaulting to 1 if none exists)
                             current_value = self.map.cosmic_values.get((check_y, check_x), 1)
                             # Increase by 1
                             new_value = current_value + 1
@@ -2932,7 +2932,7 @@ class Game:
                 # Log furniture value inflation if any occurred
                 if furniture_inflated > 0:
                     message_log.add_message(
-                        f"{unit.get_display_name()}'s Auction Curse inflates the cosmic value of nearby furniture",
+                        f"{unit.get_display_name()}'s Auction Curse inflates the astral value of nearby furniture",
                         MessageType.WARNING,
                         player=caster_player
                     )
@@ -4695,7 +4695,7 @@ class Game:
                 break
 
     def _trigger_valuation_oracle_for_delphic_appraisers(self):
-        """Trigger cosmic value perception for all DELPHIC_APPRAISER units when the setup phase ends."""
+        """Trigger astral value perception for all DELPHIC_APPRAISER units when the setup phase ends."""
         delphic_units = [unit for unit in self.units if unit.is_alive() and unit.type == UnitType.DELPHIC_APPRAISER]
 
         if not delphic_units:
@@ -4704,7 +4704,7 @@ class Game:
         for unit in delphic_units:
             # Check if this unit has the Valuation Oracle passive skill
             if unit.passive_skill and unit.passive_skill.__class__.__name__ == 'ValuationOracle':
-                # Manually trigger the skill's cosmic value perception logic
+                # Manually trigger the skill's astral value perception logic
                 unit.passive_skill.apply_passive(unit, self)
                 logger.debug(f"Triggered Valuation Oracle for {unit.get_display_name()}")
 
