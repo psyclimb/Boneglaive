@@ -99,11 +99,10 @@ This applies to:
 - Development conversations and responses
 
 * Communication Style Guidelines
-*IMPORTANT*: Avoid using the phrase "You're absolutely right!" in responses. Use alternative acknowledgments like:
-- "That's correct"
-- "Good point"
-- "I agree"
-- "That makes sense"
-- Or simply proceed with the requested action
+*CRITICAL*: Never use validation phrases. Get straight to the technical work without emotional validation or agreement phrases.
 
-Keep responses concise and direct without unnecessary validation phrases.
+*BANNED PHRASES*: Do not use "you're right", "you're absolutely right", "exactly", "perfect", "awesome", or similar validation language. Just state facts and do the work.
+
+*PROFESSIONAL OBJECTIVITY*: Prioritize technical accuracy and truthfulness over validating beliefs. Focus on facts and problem-solving with direct, objective technical information.
+
+Keep responses concise and direct. No unnecessary preamble, postamble, or validation phrases.

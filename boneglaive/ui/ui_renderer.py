@@ -618,6 +618,13 @@ class UIRenderer:
                                 # Use player-specific colors for attack range highlighting on units
                                 current_player = self.game_ui.game.current_player
                                 color_id = 17 if current_player == 1 else 18  # Player-specific colors
+
+                        # Check if this position is highlighted for skill targeting
+                        if pos in cursor_manager.highlighted_positions:
+                            if mode_manager.mode == "skill" or mode_manager.mode == "target_vapor":
+                                # Use player-specific skill highlight colors on units
+                                current_player = self.game_ui.game.current_player
+                                color_id = 17 if current_player == 1 else 18  # Player-specific skill highlights
                         
                         # Check if this is a HEINOUS_VAPOR and use its specific symbol if available
                         if unit.type == UnitType.HEINOUS_VAPOR and hasattr(unit, 'vapor_symbol') and unit.vapor_symbol:
@@ -1169,8 +1176,10 @@ class UIRenderer:
                         color_id = 17 if current_player == 1 else 18  # Player-specific move highlights
                     elif mode_manager.mode == "attack":
                         color_id = 6  # Red for attack
-                    elif mode_manager.mode == "skill":
-                        color_id = 16  # Blue for skill targeting
+                    elif mode_manager.mode == "skill" or mode_manager.mode == "target_vapor":
+                        # Use player-specific skill highlight colors
+                        current_player = self.game_ui.game.current_player
+                        color_id = 17 if current_player == 1 else 18  # Player-specific skill highlights
                 
                 # Cursor takes priority for visibility when it should be shown
                 if show_cursor and pos == cursor_manager.cursor_pos:
@@ -1432,22 +1441,22 @@ class UIRenderer:
         msg_line = HEIGHT+4  # Moved down by 1 to make room for status line
         self.renderer.draw_text(msg_line, 0, " " * self.renderer.width, 1)  # Clear line
 
-        # Check if we should display cosmic value
+        # Check if we should display astral value
         cursor_pos = self.game_ui.cursor_manager.cursor_pos
         current_player = self.game_ui.multiplayer.get_current_player()
 
         # Check if cursor is on furniture
         if self.game_ui.game.map.is_furniture(cursor_pos.y, cursor_pos.x):
-            # Get cosmic value if player has DELPHIC_APPRAISER
+            # Get astral value if player has DELPHIC_APPRAISER
             cosmic_value = self.game_ui.game.map.get_cosmic_value(
                 cursor_pos.y, cursor_pos.x,
                 player=current_player,
                 game=self.game_ui.game
             )
 
-            # Display cosmic value if available
+            # Display astral value if available
             if cosmic_value is not None:
-                value_message = f"Furniture cosmic value: {cosmic_value}"
+                value_message = f"Furniture astral value: {cosmic_value}"
                 # Only show value message if there's no other message
                 if not self.game_ui.message:
                     msg_indicator = ">> "

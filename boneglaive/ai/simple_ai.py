@@ -5709,7 +5709,7 @@ class SimpleAI:
                         
                     if self.game.map.is_furniture(check_y, check_x):
                         furniture_count += 1
-                        # Estimate cosmic value (1-9 average = 5)
+                        # Estimate astral value (1-9 average = 5)
                         cosmic_value = self.game.map.get_cosmic_value(check_y, check_x, player=unit.player, game=self.game)
                         if cosmic_value:
                             total_cosmic_value += cosmic_value
@@ -5809,7 +5809,7 @@ class SimpleAI:
                     
             score = 0
             
-            # Get estimated cosmic value for range calculation
+            # Get estimated astral value for range calculation
             cosmic_value = self.game.map.get_cosmic_value(furniture_pos[0], furniture_pos[1], player=unit.player, game=self.game)
             if not cosmic_value:
                 cosmic_value = 5  # Estimated average
@@ -5834,7 +5834,7 @@ class SimpleAI:
                 elif min_ally_distance >= 2:
                     score += 50
                     
-            # 3. High cosmic value bonus (longer teleport range)
+            # 3. High astral value bonus (longer teleport range)
             score += cosmic_value * 15
             
             # 4. Near other furniture bonus (Valuation Oracle synergy)
@@ -5904,7 +5904,7 @@ class SimpleAI:
         for anchor_pos, anchor_data in adjacent_portals:
             cosmic_value = anchor_data['cosmic_value']
             
-            # Find valid destinations within cosmic value range
+            # Find valid destinations within astral value range
             for dy in range(-cosmic_value, cosmic_value + 1):
                 for dx in range(-cosmic_value, cosmic_value + 1):
                     dest_y = anchor_pos[0] + dy

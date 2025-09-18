@@ -24,14 +24,14 @@ if TYPE_CHECKING:
 class ValuationOracle(PassiveSkill):
     """
     Passive skill for DELPHIC_APPRAISER.
-    Perceives the 'cosmic value' of furniture terrain and gains bonuses when adjacent.
+    Perceives the 'astral value' of furniture terrain and gains bonuses when adjacent.
     """
     
     def __init__(self):
         super().__init__(
             name="Valuation Oracle",
             key="V",
-            description="Perceives the 'cosmic value' (1-9) of furniture terrain. When adjacent to appraised furniture, gains +1 to defense and attack range."
+            description="Perceives the 'astral value' (1-9) of furniture terrain. When adjacent to appraised furniture, gains +1 to defense and attack range."
         )
         
     def apply_passive(self, user: 'Unit', game: Optional['Game'] = None) -> None:
@@ -42,9 +42,9 @@ class ValuationOracle(PassiveSkill):
         if not game:
             return
 
-        # Check if we're in setup phase - if so, delay cosmic value perception until game starts
+        # Check if we're in setup phase - if so, delay astral value perception until game starts
         if hasattr(game, 'setup_phase') and game.setup_phase:
-            # During setup, don't perceive cosmic values yet to prevent revealing DELPHIC_APPRAISER presence
+            # During setup, don't perceive astral values yet to prevent revealing DELPHIC_APPRAISER presence
             # Cosmic values will be perceived when the game starts (see engine.py setup completion)
             return
 
@@ -69,7 +69,7 @@ class ValuationOracle(PassiveSkill):
                     adjacent_to_furniture = True
                     furniture_positions.append((y, x))
 
-                    # Get cosmic value with the appraiser's player
+                    # Get astral value with the appraiser's player
                     cosmic_value = game.map.get_cosmic_value(y, x, player=user.player, game=game)
                     # Value will be generated if it doesn't exist yet
 
@@ -78,7 +78,7 @@ class ValuationOracle(PassiveSkill):
             # If this is the first time applying the bonus this turn, log a message
             if not hasattr(user, 'valuation_oracle_buff') or not user.valuation_oracle_buff:
                 message_log.add_message(
-                    f"{user.get_display_name()}'s Valuation Oracle senses the cosmic value of nearby furniture",
+                    f"{user.get_display_name()}'s Valuation Oracle senses the astral value of nearby furniture",
                     MessageType.ABILITY,
                     player=user.player
                 )
@@ -194,7 +194,7 @@ class MarketFuturesSkill(ActiveSkill):
         # Clear the market futures indicator when skill is executed
         user.market_futures_indicator = None
 
-        # Get the cosmic value (will be generated if it doesn't exist)
+        # Get the astral value (will be generated if it doesn't exist)
         cosmic_value = game.map.get_cosmic_value(target_pos[0], target_pos[1], player=user.player, game=game)
         if cosmic_value is None:
             cosmic_value = random.randint(1, 9)  # Fallback
@@ -271,7 +271,7 @@ class MarketFuturesSkill(ActiveSkill):
         if distance_to_anchor > 1:  # Not adjacent
             return False
 
-        # Get cosmic value and check destination range
+        # Get astral value and check destination range
         cosmic_value = anchor['cosmic_value']
         distance = game.chess_distance(anchor_pos[0], anchor_pos[1], destination[0], destination[1])
         if distance > cosmic_value:
@@ -297,7 +297,7 @@ class MarketFuturesSkill(ActiveSkill):
                 player=ally.player
             )
         else:
-            # Always apply the investment effect regardless of cosmic value
+            # Always apply the investment effect regardless of astral value
             message_log.add_message(
                 f"Market Futures grants {ally.get_display_name()} a maturing investment effect",
                 MessageType.ABILITY,
@@ -388,8 +388,8 @@ class AuctionCurseSkill(ActiveSkill):
             name="Auction Curse",
             key="A", 
             description=("Curse target enemy with a twisted auction. Each turn, they take "
-                        "damage equal to total cosmic value of furniture within 2 tiles. "
-                        "Each damage tick inflates cosmic values of nearby furniture by +1 "
+                        "damage equal to total astral value of furniture within 2 tiles. "
+                        "Each damage tick inflates astral values of nearby furniture by +1 "
                         "and prevents all healing for the cursed unit."),
             target_type=TargetType.ENEMY,
             cooldown=3,
@@ -462,7 +462,7 @@ class AuctionCurseSkill(ActiveSkill):
         if not target_unit:
             return False
 
-        # Find nearby furniture and their cosmic values
+        # Find nearby furniture and their astral values
         nearby_furniture = []
         for y in range(max(0, target_pos[0] - 2), min(game.map.height, target_pos[0] + 3)):
             for x in range(max(0, target_pos[1] - 2), min(game.map.width, target_pos[1] + 3)):
@@ -476,13 +476,13 @@ class AuctionCurseSkill(ActiveSkill):
                          TerrainType.POTPOURRI_BOWL]:
                     nearby_furniture.append((y, x))
 
-                    # Get cosmic value (will be generated if it doesn't exist yet)
+                    # Get astral value (will be generated if it doesn't exist yet)
                     game.map.get_cosmic_value(y, x, player=user.player, game=game)
 
-        # Calculate average cosmic value of nearby furniture
+        # Calculate average astral value of nearby furniture
         average_value = 0
         if nearby_furniture:
-            # Get cosmic values for all nearby furniture
+            # Get astral values for all nearby furniture
             cosmic_values = []
             for pos in nearby_furniture:
                 value = game.map.get_cosmic_value(pos[0], pos[1], player=user.player, game=game)
@@ -610,7 +610,7 @@ class DivineDrepreciationSkill(ActiveSkill):
         super().__init__(
             name="Divine Depreciation",
             key="D",
-            description="Dramatically reappraises a furniture piece as cosmically worthless, creating a 7×7 reality distortion. Sets target furniture to value 1, deals damage that bypasses defense and pulls enemies toward the center based on move values. All other furniture has cosmic values rerolled.",
+            description="Dramatically reappraises a furniture piece as cosmically worthless, creating a 7×7 reality distortion. Sets target furniture to value 1, deals damage that bypasses defense and pulls enemies toward the center based on move values. All other furniture has astral values rerolled.",
             target_type=TargetType.AREA,
             cooldown=6,  # Cooldown of 6 turns
             range_=3,
@@ -714,7 +714,7 @@ class DivineDrepreciationSkill(ActiveSkill):
         # Clear the divine depreciation indicator when skill is executed
         user.divine_depreciation_indicator = None
 
-        # Get the cosmic value of the target (will be generated if it doesn't exist)
+        # Get the astral value of the target (will be generated if it doesn't exist)
         original_cosmic_value = game.map.get_cosmic_value(target_pos[0], target_pos[1], player=user.player, game=game)
         if original_cosmic_value is None:
             original_cosmic_value = random.randint(1, 9)  # Fallback
@@ -749,10 +749,10 @@ class DivineDrepreciationSkill(ActiveSkill):
                              TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
                          TerrainType.POTPOURRI_BOWL]:
                     other_furniture.append(pos)
-                    # Ensure cosmic value exists for all furniture
+                    # Ensure astral value exists for all furniture
                     game.map.get_cosmic_value(pos[0], pos[1], player=user.player, game=game)
 
-        # Calculate average cosmic value of other furniture (rounded up)
+        # Calculate average astral value of other furniture (rounded up)
         avg_cosmic_value = 1  # Default if no other furniture
         if other_furniture:
             total_value = 0
@@ -767,10 +767,10 @@ class DivineDrepreciationSkill(ActiveSkill):
                 import math
                 avg_cosmic_value = math.ceil(total_value / count)
 
-        # Store the original cosmic value BEFORE setting it to 1
+        # Store the original astral value BEFORE setting it to 1
         original_target_cosmic_value = original_cosmic_value
         
-        # Set target furniture's cosmic value to 1
+        # Set target furniture's astral value to 1
         game.map.set_cosmic_value(target_pos[0], target_pos[1], 1)
 
         # Calculate effect value based on the difference between average value and target value (now 1)
@@ -807,7 +807,7 @@ class DivineDrepreciationSkill(ActiveSkill):
                 enemies_in_area.append(unit)
 
         # Store damage and pull calculations for later application (after animation)
-        # Calculate pull distance PER UNIT based on original cosmic value
+        # Calculate pull distance PER UNIT based on original astral value
         effects_to_apply = []
         for unit in enemies_in_area:
             # Calculate pull effect (move toward center)
@@ -822,7 +822,7 @@ class DivineDrepreciationSkill(ActiveSkill):
             distance = max(1, abs(dir_y) + abs(dir_x))  # Manhattan distance
 
             # Calculate pull distance per unit: (original_cosmic_value - 1) - unit_move_value
-            # Bigger cosmic values = greater pull distance
+            # Bigger astral values = greater pull distance
             # Units with higher move can resist pull better
             unit_move_value = unit.get_effective_stats()['move_range']
             pull_distance = max(1, (original_target_cosmic_value - 1) - unit_move_value)
@@ -840,7 +840,7 @@ class DivineDrepreciationSkill(ActiveSkill):
                 'distance': distance
             })
 
-        # Reroll cosmic values for all other furniture in the AOE
+        # Reroll astral values for all other furniture in the AOE
         for pos in other_furniture:
             # Show flashing random numbers animation on this furniture before setting final value
             if ui and hasattr(ui, 'renderer'):
@@ -853,11 +853,11 @@ class DivineDrepreciationSkill(ActiveSkill):
                     0.1  # Fast flashing
                 )
 
-            # Generate a new random cosmic value (1-9)
+            # Generate a new random astral value (1-9)
             new_value = random.randint(1, 9)
             game.map.set_cosmic_value(pos[0], pos[1], new_value)
 
-        # Log the skill activation with details about the cosmic values
+        # Log the skill activation with details about the astral values
         message_log.add_message(
             f"{user.get_display_name()} casts Divine Depreciation on the {furniture_name}",
             MessageType.ABILITY,
@@ -873,7 +873,7 @@ class DivineDrepreciationSkill(ActiveSkill):
 
         # Play fast sinkhole animation sequence
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Step 1: Value Collapse - Show furniture's cosmic value plummeting
+            # Step 1: Value Collapse - Show furniture's astral value plummeting
             value_collapse_animation = []
             current_value = original_cosmic_value
             while current_value > 1 and len(value_collapse_animation) < 3:  # Limit to 3 frames max
@@ -946,7 +946,7 @@ class DivineDrepreciationSkill(ActiveSkill):
             dir_x = effect_data['dir_x']
             distance = effect_data['distance']
             
-            # Deal damage based on cosmic value difference, bypassing defense
+            # Deal damage based on astral value difference, bypassing defense
             old_hp = unit.hp
             
             # Use deal_damage to apply damage directly (bypassing defense)
