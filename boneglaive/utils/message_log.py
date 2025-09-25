@@ -254,9 +254,9 @@ class MessageLog:
             
             # Standard message handling with basic player coloring
             text = msg['text']
-            
-            # Check for critical event messages
-            if " perishes!" in text:
+
+            # Check for critical event messages FIRST (highest priority)
+            if " perishes!" in text or "perishes from falling debris!" in text:
                 color = 20  # Dark red for death messages (correct color pair)
             elif " retches!" in text:
                 color = 17  # Bright red for retching messages
@@ -265,8 +265,8 @@ class MessageLog:
                 color = 19  # Special color for Dominion upgrades (bright magenta)
             # Check for debuff messages and forced displacement messages
             # Skip Stasiality immunity messages - they should use player color instead of yellow
-            elif ("movement reduced" in text or "debuff" in text.lower() or 
-                 ("penalty" in text.lower() and "due to Stasiality" not in text) or 
+            elif ("movement reduced" in text or "debuff" in text.lower() or
+                 ("penalty" in text.lower() and "due to Stasiality" not in text) or
                  "displaced from" in text or "collides with" in text or
                  ("immobilized" in text and "immune to" not in text) or
                  ("trapped in" in text and "due to Stasiality" not in text) or
@@ -285,8 +285,10 @@ class MessageLog:
             if (msg['type'] == MessageType.COMBAT or msg['type'] == MessageType.ABILITY) and 'damage' in text:
                 # Find the damage number in the text
                 import re
-                # Pattern to match "for X damage" where X is a number
+                # Pattern to match "for X damage" or "suffers X [type] damage" where X is a number
                 damage_match = re.search(r'for (\d+) damage', text)
+                if not damage_match:
+                    damage_match = re.search(r'suffers (\d+) (?:\w+ )?damage', text)
                 if damage_match:
                     original_damage = int(damage_match.group(1))
                     adjusted_damage = original_damage
@@ -327,7 +329,7 @@ class MessageLog:
                     
                     # Pattern 6: "Y suffers Z damage" (abreaction and other effects)
                     if not target_match:
-                        target_match = re.search(r'(.+) suffers.* (\d+) damage', text)
+                        target_match = re.search(r'(.+) suffers (\d+) (?:\w+ )?damage', text)
                         if target_match:
                             target_name = target_match.group(1).strip()
                     
@@ -341,7 +343,12 @@ class MessageLog:
                             logger.debug(f"PRT MESSAGE ADJUST: {target_name} damage {original_damage} -> {adjusted_damage} (PRT absorbed {target_unit.last_prt_absorbed})")
                     
                     # Replace with the adjusted damage number
-                    text = text.replace(f"for {original_damage} damage", f"for #DAMAGE_{adjusted_damage}# damage")
+                    if f"for {original_damage} damage" in text:
+                        text = text.replace(f"for {original_damage} damage", f"for #DAMAGE_{adjusted_damage}# damage")
+                    elif f"suffers {original_damage}" in text:
+                        # Handle "suffers X radiation damage" pattern
+                        import re
+                        text = re.sub(f"suffers {original_damage} (\\w+ )?damage", f"suffers #DAMAGE_{adjusted_damage}# \\1damage", text)
                     # We'll process this special placeholder in the UI component
 
             # Special handling for healing numbers - highlight them in white

@@ -529,7 +529,7 @@ class BigArcSkill(ActiveSkill):
 
         # Log that the skill has been queued
         message_log.add_message(
-            f"{user.get_display_name()} loads mortar shells for artillery barrage",
+            f"{user.get_display_name()} loads mortar shells for an artillery barrage",
             MessageType.ABILITY,
             player=user.player
         )
@@ -768,7 +768,7 @@ class FragcrestSkill(ActiveSkill):
         # Log that the skill has been queued
         target_unit = game.get_unit_at(target_pos[0], target_pos[1])
         message_log.add_message(
-            f"{user.get_display_name()} unfolds its tail and aims fragmentation burst at {target_unit.get_display_name()}",
+            f"{user.get_display_name()} unfolds its tail and aims a fragmentation burst at {target_unit.get_display_name()}",
             MessageType.ABILITY,
             player=user.player
         )
@@ -850,11 +850,11 @@ class FragcrestSkill(ActiveSkill):
                         unit.shrapnel_duration = 0
                     previous_shrapnel = unit.shrapnel_duration
                     unit.shrapnel_duration = max(unit.shrapnel_duration, self.shrapnel_duration)
-                    
+
                     # Log shrapnel embedding if it's a new effect or extended
                     if unit.shrapnel_duration > previous_shrapnel:
                         message_log.add_message(
-                            f"Shrapnel is embedded deeply in {unit.get_display_name()}",
+                            f"Shrapnel embeds deeply in {unit.get_display_name()}",
                             MessageType.COMBAT,  # Use COMBAT type for potential yellow coloring
                             player=user.player
                         )
@@ -989,11 +989,11 @@ class FragcrestSkill(ActiveSkill):
         return positions
 
     def _apply_knockback(self, user: 'Unit', target: 'Unit', game: 'Game') -> None:
-        """Apply knockback effect to target unit."""
+        """Apply knockback effect to target unit with collision detection."""
         # Calculate knockback direction (away from user)
         dy = target.y - user.y
         dx = target.x - user.x
-        
+
         # Normalize direction
         if abs(dx) > abs(dy):
             knock_dir = (0, 1 if dx > 0 else -1)
@@ -1001,24 +1001,53 @@ class FragcrestSkill(ActiveSkill):
             knock_dir = (1 if dy > 0 else -1, 0)
         else:
             knock_dir = (1 if dy > 0 else -1, 1 if dx > 0 else -1)
-        
-        # Apply knockback
-        new_y = target.y + knock_dir[0] * self.knockback_distance
-        new_x = target.x + knock_dir[1] * self.knockback_distance
-        
-        # Check if knockback destination is valid
-        if (game.is_valid_position(new_y, new_x) and 
-            game.map.is_passable(new_y, new_x) and
-            not game.get_unit_at(new_y, new_x)):
-            
-            # Store original position for message
-            orig_y, orig_x = target.y, target.x
-            
-            target.y = new_y
-            target.x = new_x
-            
-            message_log.add_message(
-                f"{target.get_display_name()} is blasted backward from ({orig_y},{orig_x}) to ({new_y},{new_x})",
-                MessageType.ABILITY,
-                player=target.player
-            )
+
+        # Store original position for message
+        orig_y, orig_x = target.y, target.x
+
+        # Apply knockback step by step to detect collisions
+        final_y, final_x = target.y, target.x
+        distance_moved = 0
+
+        for step in range(1, self.knockback_distance + 1):
+            check_y = target.y + knock_dir[0] * step
+            check_x = target.x + knock_dir[1] * step
+
+            # Check if this position is valid and passable
+            if (game.is_valid_position(check_y, check_x) and
+                game.map.is_passable(check_y, check_x) and
+                not game.get_unit_at(check_y, check_x)):
+
+                # Position is clear, unit can move here
+                final_y, final_x = check_y, check_x
+                distance_moved = step
+            else:
+                # Hit an obstacle, stop here
+                if distance_moved == 0:
+                    # Couldn't move at all
+                    message_log.add_message(
+                        f"{target.get_display_name()} collides with an obstacle and cannot be displaced",
+                        MessageType.ABILITY,
+                        player=target.player
+                    )
+                else:
+                    # Moved some distance before hitting obstacle
+                    message_log.add_message(
+                        f"{target.get_display_name()} is displaced from ({orig_y},{orig_x}) to ({final_y},{final_x}) before colliding with an obstacle",
+                        MessageType.ABILITY,
+                        player=target.player
+                    )
+                break
+        else:
+            # Completed full knockback without hitting anything
+            if distance_moved > 0:
+                message_log.add_message(
+                    f"{target.get_display_name()} is blasted backward from ({orig_y},{orig_x}) to ({final_y},{final_x})",
+                    MessageType.ABILITY,
+                    player=target.player
+                )
+
+        # Update unit position if it moved
+        if distance_moved > 0:
+            target.y = final_y
+            target.x = final_x
