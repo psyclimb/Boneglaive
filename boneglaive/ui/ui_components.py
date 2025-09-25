@@ -83,10 +83,38 @@ class MessageLogComponent(UIComponent):
     def __init__(self, renderer, game_ui):
         super().__init__(renderer, game_ui)
         self.show_log = True  # Whether to show the message log
-        self.log_height = 6   # Number of log lines to display
+        self.min_log_height = 6   # Minimum number of log lines to display
         self.show_log_history = False  # Whether to show the full log history screen
         self.log_history_scroll = 0    # Scroll position in log history
-    
+
+    def get_dynamic_log_height(self):
+        """Calculate the dynamic log height based on terminal size."""
+        try:
+            # Get current terminal size
+            term_height, term_width = self.renderer.get_terminal_size()
+
+            # Calculate available space for the message log
+            # Game board takes HEIGHT (10) lines plus some UI elements
+            game_ui_height = HEIGHT + 6  # Position where log starts
+
+            # Reserve space for status bar and margins (at least 2 lines at bottom)
+            reserved_bottom = 2
+
+            # Calculate how much space is available for the log
+            available_height = term_height - game_ui_height - reserved_bottom - 2  # -2 for borders
+
+            # Use at least the minimum height, but scale up with available space
+            dynamic_height = max(self.min_log_height, available_height)
+
+            # Cap the maximum to reasonable values to avoid excessive log size
+            max_reasonable_height = term_height // 3  # Don't take more than 1/3 of screen
+            dynamic_height = min(dynamic_height, max_reasonable_height)
+
+            return dynamic_height
+        except:
+            # Fallback to minimum height if anything goes wrong
+            return self.min_log_height
+
     def _setup_event_handlers(self):
         """Set up event handlers for the message log component."""
         # Subscribe to help and chat toggle events to handle conflicts
@@ -194,12 +222,15 @@ class MessageLogComponent(UIComponent):
     def draw_message_log(self):
         """Draw the message log in the game UI."""
         try:
+            # Calculate dynamic log height
+            log_height = self.get_dynamic_log_height()
+
             # Get formatted messages (with colors)
-            messages = message_log.get_formatted_messages(self.log_height)
-            
+            messages = message_log.get_formatted_messages(log_height)
+
             # Calculate position for the log (closer to the game info)
             start_y = HEIGHT + 6
-            
+
             # Get terminal width for drawing borders
             term_height, term_width = self.renderer.get_terminal_size()
             
@@ -209,17 +240,17 @@ class MessageLogComponent(UIComponent):
             self.renderer.draw_text(start_y, 0, border_top, 1, curses.A_BOLD)
             
             # Draw side borders and clear message area
-            for i in range(1, self.log_height + 1):
+            for i in range(1, log_height + 1):
                 # Left border
                 self.renderer.draw_text(start_y + i, 0, "│", 1)
                 # Clear line
                 self.renderer.draw_text(start_y + i, 1, " " * (term_width - 2), 1)
                 # Right border
                 self.renderer.draw_text(start_y + i, term_width - 1, "│", 1)
-            
+
             # Bottom border
             border_bottom = "└" + "─" * (term_width - 2) + "┘"
-            self.renderer.draw_text(start_y + self.log_height + 1, 0, border_bottom, 1)
+            self.renderer.draw_text(start_y + log_height + 1, 0, border_bottom, 1)
             
             # Process messages with text wrapping to create content lines
             content_lines = []
@@ -290,7 +321,7 @@ class MessageLogComponent(UIComponent):
             
             # Take only the last N lines that fit in the log height
             # (newest messages at the end, so we want the tail)
-            visible_lines = content_lines[-self.log_height:] if len(content_lines) > self.log_height else content_lines
+            visible_lines = content_lines[-log_height:] if len(content_lines) > log_height else content_lines
             
             # Draw wrapped message lines (newest at bottom)
             for i, line_data in enumerate(visible_lines):

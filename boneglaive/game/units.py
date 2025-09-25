@@ -1202,7 +1202,7 @@ class Unit:
         # Log radiation damage
         from boneglaive.utils.message_log import message_log, MessageType
         message_log.add_message(
-            f"{self.get_display_name()} takes {total_damage} radiation damage!",
+            f"{self.get_display_name()} suffers {total_damage} radiation damage",
             MessageType.ABILITY,
             player=self.player
         )
