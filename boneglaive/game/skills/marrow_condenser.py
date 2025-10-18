@@ -480,7 +480,7 @@ class MarrowDikeSkill(ActiveSkill):
                 'duration': self.duration,
                 'upgraded': self.upgraded,
                 'original_terrain': original_terrain,
-                'hp': 3 if self.upgraded else 2  # 3 HP when upgraded, 2 HP otherwise
+                'hp': 2 if self.upgraded else 1  # 2 HP when upgraded, 1 HP otherwise
             }
         
         # Track interior tiles for Dominion passive detection

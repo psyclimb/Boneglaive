@@ -635,8 +635,8 @@ class UIRenderer:
                             
                         # Check for echo units (priority over estranged)
                         if hasattr(unit, 'is_echo') and unit.is_echo:
-                            # Use lowercase p symbol to show it's an echo of GRAYMAN's P
-                            tile = f"p"
+                            # Use lowercase psi symbol to show it's an echo of GRAYMAN's Ψ
+                            tile = f"ψ"
                             # Use dim attribute for echo units to make them appear faint
                             attributes = curses.A_DIM
                         # Check for estranged units
@@ -1570,7 +1570,7 @@ class UIRenderer:
         for i, unit in enumerate(player_units):
             # Special handling for echo units
             if hasattr(unit, 'is_echo') and unit.is_echo:
-                symbol = 'p'  # Lowercase p for echoes
+                symbol = 'ψ'  # Lowercase psi for echoes
             # Special handling for HEINOUS_VAPOR - use their specific symbol
             elif unit.type == UnitType.HEINOUS_VAPOR and hasattr(unit, 'vapor_symbol') and unit.vapor_symbol:
                 symbol = unit.vapor_symbol  # 1, 0, 2, 3 etc.

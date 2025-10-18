@@ -847,7 +847,7 @@ class UnitHelpComponent(UIComponent):
                     'Defense: 0',
                     'Movement: 2',
                     'Range: 5',
-                    'Symbol: P'
+                    'Symbol: Ψ'
                 ],
                 'skills': [
                     {
@@ -939,7 +939,7 @@ class UnitHelpComponent(UIComponent):
                     'Defense: 0',
                     'Movement: 0',
                     'Range: 1',
-                    'Symbol: p'
+                    'Symbol: ψ'
                 ],
                 'skills': [
                     {
