@@ -1354,10 +1354,8 @@ class Game:
             
         # If no valid unit target, check for Marrow Dike wall tiles
         if hasattr(self, 'marrow_dike_tiles') and (y, x) in self.marrow_dike_tiles:
-            # Verify this is a wall tile that belongs to the enemy player
-            wall_info = self.marrow_dike_tiles[(y, x)]
-            if wall_info['owner'].player != unit.player:
-                return True
+            # Allow attacking both ally and enemy walls
+            return True
                 
         # No valid target (unit or wall)
         return False
@@ -1435,12 +1433,9 @@ class Game:
                     
                     continue  # Skip wall check
                 
-                # Check for Marrow Dike wall tiles that can be attacked
+                # Check for Marrow Dike wall tiles that can be attacked (both ally and enemy walls)
                 if hasattr(self, 'marrow_dike_tiles') and (y, x) in self.marrow_dike_tiles:
-                    # Verify this is a wall tile that belongs to the enemy player
-                    wall_info = self.marrow_dike_tiles[(y, x)]
-                    if wall_info['owner'].player != unit.player:
-                        attacks.append((y, x))
+                    attacks.append((y, x))
         
         return attacks
 
@@ -1484,8 +1479,11 @@ class Game:
                     continue  # Skip ally positions
 
                 # Check if terrain is passable (exclude impassable terrain)
+                # Exception: Include marrow walls as they are attackable obstacles
                 if not self.map.is_passable(y, x):
-                    continue  # Skip impassable terrain
+                    # Check if this is a marrow wall tile (attackable obstacle)
+                    if not (hasattr(self, 'marrow_dike_tiles') and (y, x) in self.marrow_dike_tiles):
+                        continue  # Skip impassable terrain that isn't a marrow wall
 
                 # Add tile to range (includes empty tiles, enemies, attackable walls)
                 range_tiles.append((y, x))
@@ -2500,9 +2498,9 @@ class Game:
                 # Check for Marrow Dike wall tiles that can be targeted
                 wall_target = None
                 if not target and (y, x) in self.marrow_dike_tiles:
-                    # Verify this is a wall tile that belongs to the enemy player
+                    # Allow targeting both ally and enemy walls
                     wall_info = self.marrow_dike_tiles[(y, x)]
-                    if wall_info['owner'].player != unit.player and attack_distance <= effective_attack_range and los_check:
+                    if attack_distance <= effective_attack_range and los_check:
                         wall_target = (y, x)  # Mark this as a valid wall target
 
                 # Check if attack is valid (checks all conditions including protection)
@@ -2518,40 +2516,49 @@ class Game:
                         # Get the wall information
                         wall_y, wall_x = wall_target
                         wall_info = self.marrow_dike_tiles[wall_target]
-                        
-                        # Walls always take exactly 1 damage from any attack
-                        damage = 1
-                        
-                        # Apply damage to the wall
-                        wall_info['hp'] = max(0, wall_info['hp'] - damage)
-                        
+
+                        # Check if attacker is ally (same player as wall owner)
+                        is_ally_attack = (wall_info['owner'].player == unit.player)
+
+                        if is_ally_attack:
+                            # Allies always destroy walls in 1 hit
+                            damage = wall_info['hp']  # Deal exactly enough damage to destroy
+                            wall_info['hp'] = 0
+                        else:
+                            # Enemy walls take 1 damage per attack
+                            damage = 1
+                            wall_info['hp'] = max(0, wall_info['hp'] - damage)
+
                         # Log the attack on the wall
                         message_log.add_message(
                             f"{unit.get_display_name()} attacks a Marrow Dike wall",
                             MessageType.COMBAT,
                             player=unit.player
                         )
-                        
+
                         # Show attack animation with damage after calculation
                         if ui:
                             self._show_wall_attack_animation(ui, unit, wall_target, damage)
-                        
+
                         # Handle wall destruction
                         if wall_info['hp'] <= 0:
                             # Restore original terrain
                             original_terrain = wall_info.get('original_terrain', TerrainType.EMPTY)
                             self.map.set_terrain_at(wall_y, wall_x, original_terrain)
-                            
+
                             # Remove from tracking
                             owner = wall_info['owner']
                             del self.marrow_dike_tiles[wall_target]
-                            
+
                             # Log the destruction
                             message_log.add_message(
                                 f"{unit.get_display_name()} breaks through a section of {owner.get_display_name()}'s Marrow Dike",
                                 MessageType.COMBAT,
                                 player=unit.player
                             )
+
+                        # No XP or further processing for wall attacks - skip to next unit
+                        continue
                     else:
                         # Normal unit-vs-unit combat
                         

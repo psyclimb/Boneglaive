@@ -41,7 +41,7 @@ class AssetManager:
             UnitType.ARCHER: 'A',
             UnitType.MAGE: 'M',
             UnitType.MANDIBLE_FOREMAN: 'F',
-            UnitType.GRAYMAN: 'P',
+            UnitType.GRAYMAN: 'Ψ',
             UnitType.MARROW_CONDENSER: 'C',
             UnitType.FOWL_CONTRIVANCE: 'T',
             UnitType.GAS_MACHINIST: 'M',
@@ -141,11 +141,11 @@ class AssetManager:
             'site_inspection': ['#', 'O', '#', 'O', '#'],  # Animation for Site Inspection with eye-like symbols
             'expedite_rush': ['{', '<', '[', '{'],  # Animation for Expedite rush movement
             'expedite_impact': ['!', '!', '#', 'X', '*', '.'],  # Animation for Expedite impact
-            'delta_config': ['P', '.', ':', '=', ' ', '=', ':', '.', 'P'],  # Teleportation effect
-            'teleport_out': ['P', '.', ':', '=', ' '],  # Teleport out animation
-            'teleport_in': [' ', '=', ':', '.', 'P'],  # Teleport in animation
+            'delta_config': ['Ψ', '.', ':', '=', ' ', '=', ':', '.', 'Ψ'],  # Teleportation effect
+            'teleport_out': ['Ψ', '.', ':', '=', ' '],  # Teleport out animation
+            'teleport_in': [' ', '=', ':', '.', 'Ψ'],  # Teleport in animation
             'estrange': ['~', '=', '=', '~', '-', '-', '~', '='],  # Dramatic pulsing beam
-            'grae_exchange': ['/', '_', '*', 'p', 'P'],  # Echo creation effect
+            'grae_exchange': ['/', '_', '*', 'ψ', 'Ψ'],  # Echo creation effect
             'marrow_healing': ['<', '3', '<', '3', '<', '+', '+', '*'],  # Blood plasma healing animation
             
             # FOWL_CONTRIVANCE reworked animations - rail artillery platform

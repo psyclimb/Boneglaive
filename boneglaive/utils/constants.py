@@ -57,7 +57,7 @@ UNIT_SYMBOLS = {
     UnitType.ARCHER: 'A',
     UnitType.MAGE: 'M',
     UnitType.MANDIBLE_FOREMAN: 'F',
-    UnitType.GRAYMAN: 'P',  # P for Psi/anomalous nature
+    UnitType.GRAYMAN: 'Ψ',  # Greek psi for Psi/anomalous nature
     UnitType.MARROW_CONDENSER: 'C',  # C for Condenser
     UnitType.FOWL_CONTRIVANCE: 'T',  # T for Turret/artillery (matches help page)
     UnitType.GAS_MACHINIST: 'M',  # M for Machinist
