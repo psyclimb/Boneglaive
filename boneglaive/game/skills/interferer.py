@@ -36,7 +36,7 @@ class NeutronIlluminant(PassiveSkill):
         self.current_cooldown = 0
         self.cooldown = 0  # No cooldown
         
-    def apply_passive(self, user: 'Unit', game=None) -> None:
+    def apply_passive(self, user: 'Unit', game=None, ui=None) -> None:
         """Apply effects of the passive skill."""
         # This is handled by the game engine when attacks are processed
         pass

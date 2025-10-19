@@ -41,6 +41,10 @@ from boneglaive.game.skills.derelictionist import (
     Severance, VagalRunSkill, DerelictSkill, PartitionSkill
 )
 
+from boneglaive.game.skills.potpourrist import (
+    MelangeEminence, InfuseSkill, DemiluneSkill, GraniteGavelSkill
+)
+
 # Define the skills available for each unit type
 UNIT_SKILLS = {
     "GLAIVEMAN": {
@@ -78,5 +82,9 @@ UNIT_SKILLS = {
     "DERELICTIONIST": {
         "passive": Severance(),
         "active": [VagalRunSkill(), DerelictSkill(), PartitionSkill()]
+    },
+    "POTPOURRIST": {
+        "passive": MelangeEminence(),
+        "active": [InfuseSkill(), DemiluneSkill(), GraniteGavelSkill()]
     }
 }

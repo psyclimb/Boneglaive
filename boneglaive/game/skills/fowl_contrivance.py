@@ -36,7 +36,7 @@ class RailGenesis(PassiveSkill):
             description="The first FOWL_CONTRIVANCE to deploy establishes a permanent rail network accessible only to mechanical rail units."
         )
     
-    def apply_passive(self, user: 'Unit', game=None) -> None:
+    def apply_passive(self, user: 'Unit', game=None, ui=None) -> None:
         """
         Generate rail network when first FOWL_CONTRIVANCE enters the map.
         Rails are hidden during setup phase to prevent strategic information leakage.

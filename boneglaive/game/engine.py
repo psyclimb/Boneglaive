@@ -28,7 +28,10 @@ class Game:
 
         # Action ordering
         self.action_counter = 0  # Track order of unit actions
-        
+
+        # Track current attacker for damage modifiers (Demilune debuff)
+        self.current_attacker = None
+
         # Create the game map
         self.map = MapFactory.create_map(map_name)
         self.map_name = map_name  # Store current map name
@@ -56,7 +59,7 @@ class Game:
         # Apply passive skills for current player's units
         for unit in self.units:
             if unit.is_alive() and unit.player == self.current_player:
-                unit.apply_passive_skills(self)
+                unit.apply_passive_skills(self, None)
             
     def change_map(self, new_map_name):
         """
@@ -1095,9 +1098,9 @@ class Game:
         unit = Unit(unit_type, player, y, x)
         unit.initialize_skills()  # Initialize skills for the unit
         unit.set_game_reference(self)  # Set game reference for trap checks
-        
+
         # Apply passive skills immediately when unit is added
-        unit.apply_passive_skills(self)
+        unit.apply_passive_skills(self, None)
         
         self.units.append(unit)
     
@@ -2193,7 +2196,9 @@ class Game:
                             MessageType.ABILITY,
                             player=unit.player
                         )
-            
+
+            # Lunacy debuff processing moved to end of turn (after combat phase)
+
             # Process INTERFERER status effects
             if unit.player == self.current_player:
                 # Process radiation damage
@@ -2597,15 +2602,21 @@ class Game:
                                 # Clear the flag
                                 delattr(unit, 'market_futures_final_maturation')
                             
-                        # Show attack animation
-                        if ui:
-                            ui.show_attack_animation(unit, target)
-                        
-                        # Calculate base attack damage
+                        # Calculate base attack damage FIRST (before animation so we can show correct damage)
                         effective_stats = unit.get_effective_stats()
                         effective_attack = effective_stats['attack']
+
+                        # Get effective defense (check for Demilune defense halving)
                         effective_defense = target.get_effective_stats()['defense']
-                        
+                        if (unit.type == UnitType.POTPOURRIST and
+                            hasattr(target, 'demilune_debuffed_by') and
+                            target.demilune_debuffed_by == unit and
+                            hasattr(target, 'demilune_defense_halved') and
+                            target.demilune_defense_halved):
+                            # Halve defense for enhanced Demilune
+                            effective_defense = effective_defense // 2
+                            logger.debug(f"DEMILUNE DEFENSE HALVING: {target.get_display_name()}'s defense halved from {target.get_effective_stats()['defense']} to {effective_defense}")
+
                         # Calculate damage with defense (PRT handled automatically by HP setter)
                         raw_damage = effective_attack
                         
@@ -2640,9 +2651,23 @@ class Game:
                         
                         # Apply final damage to HP (PRT reduction happens automatically in hp setter)
                         old_hp = target.hp
+                        # Set current attacker for Demilune damage halving in hp setter
+                        self.current_attacker = unit
                         target.hp = max(0, target.hp - damage)
+                        self.current_attacker = None
                         actual_damage = old_hp - target.hp
-                    
+
+                        # Show attack animation with actual damage
+                        if ui:
+                            ui.show_attack_animation(unit, target, actual_damage)
+
+                        # Check for taunt response (Granite Gavel)
+                        if (hasattr(unit, 'taunted_by') and unit.taunted_by and
+                            target.type == UnitType.POTPOURRIST and unit.taunted_by == target):
+                            # Attacker attacked the POTPOURRIST that taunted them
+                            unit.taunt_responded_this_turn = True
+                            logger.debug(f"TAUNT RESPONSE: {unit.get_display_name()} responded to {target.get_display_name()}'s taunt")
+
                     # Check if attacker is a MANDIBLE_FOREMAN with the Viseroy passive
                     # If so, trap the target unit
                     if unit.type == UnitType.MANDIBLE_FOREMAN and unit.passive_skill and \
@@ -2710,7 +2735,10 @@ class Game:
                                     if target.hp > 0:  # Only continue if target is still alive
                                         additional_damage = max(1, effective_attack - effective_defense)
                                         old_target_hp = target.hp
+                                        # Set current attacker for Lunacy damage halving
+                                        self.current_attacker = unit
                                         target.hp = max(0, target.hp - additional_damage)
+                                        self.current_attacker = None
                                         actual_additional_damage = old_target_hp - target.hp
                                         
                                         message_log.add_combat_message(
@@ -2721,10 +2749,10 @@ class Game:
                                             attacker_player=unit.player,
                                             target_player=target.player
                                         )
-                                        
-                                        # Show additional damage animation
+
+                                        # Show additional damage animation with actual damage
                                         if ui:
-                                            ui.show_attack_animation(unit, target)
+                                            ui.show_attack_animation(unit, target, actual_additional_damage)
                                             
                                         # Trigger flash effect immediately after each additional strike
                                         if unit.passive_skill and unit.passive_skill.name == "Neutron Illuminant":
@@ -2819,15 +2847,29 @@ class Game:
                 
                 # Execute the skill if it has an execute method
                 if hasattr(skill, 'execute'):
+                    # Set current attacker context for Demilune damage reduction
+                    self.current_attacker = unit
                     skill.execute(unit, target_pos, self, ui)
-                    
+                    self.current_attacker = None
+
                     # If unit is under Neural Shunt effects, put the skill on cooldown
                     if (hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected):
                         skill.current_cooldown = skill.cooldown
                         logger.debug(f"Neural Shunt: {unit.get_display_name()}'s {skill.name} placed on cooldown ({skill.cooldown} turns)")
                 else:
                     logger.warning(f"Skill {skill.name} has no execute method")
-                
+
+                # Check for taunt response (Granite Gavel) - if skill targeted taunting POTPOURRIST
+                if hasattr(unit, 'taunted_by') and unit.taunted_by:
+                    # Check if the skill targeted the taunting POTPOURRIST
+                    target_unit = self.get_unit_at(target_pos[0], target_pos[1])
+                    if (target_unit and
+                        target_unit.type == UnitType.POTPOURRIST and
+                        unit.taunted_by == target_unit):
+                        # Unit used skill on the POTPOURRIST that taunted them
+                        unit.taunt_responded_this_turn = True
+                        logger.debug(f"TAUNT RESPONSE (skill): {unit.get_display_name()} responded to {target_unit.get_display_name()}'s taunt with skill")
+
                 # Add a slight pause after the skill and update spinner
                 if ui:
                     ui.advance_spinner()
@@ -3367,10 +3409,79 @@ class Game:
                         
             # Process Partition Shield emergency cleanup for ALL units (regardless of player)
             for unit in self.units:
-                if (unit.is_alive() and hasattr(unit, 'partition_shield_blocked_fatal') and 
+                if (unit.is_alive() and hasattr(unit, 'partition_shield_blocked_fatal') and
                     unit.partition_shield_blocked_fatal):
                     self._handle_partition_emergency_cleanup(unit)
-                        
+
+            # Process Granite Gavel taunt resolution for current player's units only
+            for unit in self.units:
+                if unit.is_alive() and unit.player == self.current_player and hasattr(unit, 'taunted_by') and unit.taunted_by:
+                    # Check if unit responded to taunt this turn
+                    if not unit.taunt_responded_this_turn:
+                        # Unit didn't attack/skill the POTPOURRIST - heal POTPOURRIST
+                        taunter = unit.taunted_by
+                        if taunter.is_alive():
+                            old_hp = taunter._hp
+                            taunter._hp = min(taunter.max_hp, taunter._hp + 4)
+                            actual_heal = taunter._hp - old_hp
+                            if actual_heal > 0:
+                                from boneglaive.utils.message_log import message_log, MessageType
+                                message_log.add_message(
+                                    f"{taunter.get_display_name()} heals {actual_heal} HP from ignored taunt",
+                                    MessageType.ABILITY,
+                                    player=taunter.player
+                                )
+                                logger.debug(f"TAUNT HEAL: {taunter.get_display_name()} healed {actual_heal} HP")
+
+                    # Decrement taunt duration
+                    unit.taunt_duration -= 1
+                    logger.debug(f"{unit.get_display_name()}'s taunt duration: {unit.taunt_duration}")
+
+                    if unit.taunt_duration <= 0 or unit.taunt_responded_this_turn:
+                        # Taunt expires or was responded to
+                        from boneglaive.utils.message_log import message_log, MessageType
+                        if unit.taunt_responded_this_turn:
+                            message_log.add_message(
+                                f"{unit.get_display_name()}'s taunt ends (responded)",
+                                MessageType.ABILITY,
+                                player=unit.player
+                            )
+                        else:
+                            message_log.add_message(
+                                f"{unit.get_display_name()}'s taunt wears off",
+                                MessageType.ABILITY,
+                                player=unit.player
+                            )
+                        unit.taunted_by = None
+                        unit.taunt_duration = 0
+                        logger.debug(f"TAUNT EXPIRED: {unit.get_display_name()}'s taunt ended")
+
+                    # Reset response flag for next turn
+                    unit.taunt_responded_this_turn = False
+
+            # Process Lunacy debuff duration for units of the current player (after combat phase)
+            for unit in self.units:
+                if unit.is_alive() and unit.player == self.current_player:
+                    if hasattr(unit, 'demilune_debuff_duration') and unit.demilune_debuff_duration > 0:
+                        # Decrement duration
+                        unit.demilune_debuff_duration -= 1
+                        logger.debug(f"{unit.get_display_name()}'s Lunacy debuff duration: {unit.demilune_debuff_duration}")
+
+                        # Check if the debuff has expired
+                        if unit.demilune_debuff_duration <= 0:
+                            # Remove the debuff
+                            unit.demilune_debuffed = False
+                            unit.demilune_debuffed_by = None
+                            unit.demilune_defense_halved = False
+
+                            # Log the expiration
+                            from boneglaive.utils.message_log import message_log, MessageType
+                            message_log.add_message(
+                                f"{unit.get_display_name()}'s Lunacy wears off",
+                                MessageType.ABILITY,
+                                player=unit.player
+                            )
+
             # In single player mode, automatically toggle between player 1 and 2
             # In multiplayer modes, the multiplayer manager handles player switching
             if not self.local_multiplayer:
@@ -3478,33 +3589,44 @@ class Game:
         Initialize the next player's turn by applying passive skills and resetting flags.
         This should be called after player switching in both single player and multiplayer modes.
         """
+        # Get UI reference if available
+        ui = getattr(self, 'ui', None)
+
         # Apply passive skills for the current player's units at the start of their turn
         # Also initialize the took_no_actions flag for health regeneration
         for unit in self.units:
-            if unit.is_alive() and unit.player == self.current_player:
-                unit.apply_passive_skills(self)
-                # Initialize the flag for health regeneration
-                unit.took_no_actions = True
-                
-                # Reset partition message flag for new turn
+            if unit.is_alive():
+                # POTPOURRIST Melange Eminence triggers on EVERY turn (not just their own)
+                if unit.type == UnitType.POTPOURRIST:
+                    unit.apply_passive_skills(self, ui)
+                # Other units' passives only trigger on their own turn
+                elif unit.player == self.current_player:
+                    unit.apply_passive_skills(self, ui)
+
+                # Reset partition message flag for new turn (all units)
                 unit._prt_absorbed_this_action = False
-                
-                # Reset dissociation PRT boost (from prt=999 back to 0)
+
+                # Reset dissociation PRT boost (from prt=999 back to 0) for all units
                 if unit.prt > 1:  # If boosted from dissociation
                     unit.prt = 0
                     from boneglaive.utils.debug import logger
                     logger.info(f"DISSOCIATION RESET: {unit.get_display_name()} prt reset to 0")
-                
-                # Reset DERELICTIONIST movement/skill flags at start of turn (Severance passive)
-                if unit.type == UnitType.DERELICTIONIST:
-                    unit.has_moved_first = False
-                    unit.used_skill_this_turn = False
-                    unit.can_move_post_skill = False
-                    # Reset SEVERANCE status at start of new turn
-                    unit.severance_active = False
-                    unit.severance_duration = 0
-                    # Always reset movement bonus to 0 at start of turn
-                    unit.move_range_bonus = 0
+
+                # Only reset flags for current player's units
+                if unit.player == self.current_player:
+                    # Initialize the flag for health regeneration
+                    unit.took_no_actions = True
+
+                    # Reset DERELICTIONIST movement/skill flags at start of turn (Severance passive)
+                    if unit.type == UnitType.DERELICTIONIST:
+                        unit.has_moved_first = False
+                        unit.used_skill_this_turn = False
+                        unit.can_move_post_skill = False
+                        # Reset SEVERANCE status at start of new turn
+                        unit.severance_active = False
+                        unit.severance_duration = 0
+                        # Always reset movement bonus to 0 at start of turn
+                        unit.move_range_bonus = 0
     
     
     def try_trigger_wretched_decension(self, attacker, target, ui=None):

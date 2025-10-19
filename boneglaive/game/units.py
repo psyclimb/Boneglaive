@@ -152,7 +152,17 @@ class Unit:
         # Pumped Up status effect (from mini pumpkins)
         self.pumped_up_active = False  # Whether unit has Pumped Up status (+1 all stats)
         self.pumped_up_duration = 0  # Duration of Pumped Up effect (3 turns)
-        
+
+        # POTPOURRIST-related status effects
+        self.demilune_debuffed = False  # Whether affected by Demilune debuff
+        self.demilune_debuffed_by = None  # Reference to POTPOURRIST that applied Demilune debuff
+        self.demilune_debuff_duration = 0  # Turns remaining for Demilune debuff
+        self.demilune_defense_halved = False  # Whether defense is halved (enhanced Demilune effect)
+        self.taunted_by = None  # Reference to POTPOURRIST that applied taunt
+        self.taunt_duration = 0  # Turns remaining for taunt
+        self.taunt_responded_this_turn = False  # Track if unit attacked/skilled POTPOURRIST this turn
+        self.potpourri_held = False  # Whether POTPOURRIST is holding potpourri (POTPOURRIST only)
+
         # Experience and leveling
         self.level = 1
         self.xp = 0
@@ -362,10 +372,10 @@ class Unit:
             else:
                 return f"{display_type}"
     
-    def apply_passive_skills(self, game=None) -> None:
+    def apply_passive_skills(self, game=None, ui=None) -> None:
         """Apply effects of passive skills."""
         if self.passive_skill:
-            self.passive_skill.apply_passive(self, game)
+            self.passive_skill.apply_passive(self, game, ui)
             
     def is_immune_to_effects(self) -> bool:
         """Check if this unit has immunity to status effects and debuffs.
@@ -669,7 +679,19 @@ class Unit:
                 
                 # Track PRT absorbed for message log correction
                 self.last_prt_absorbed = prt_absorbed
-                
+
+                # Check for Demilune damage halving (after PRT)
+                if (self._game and
+                    hasattr(self._game, 'current_attacker') and
+                    self._game.current_attacker and
+                    hasattr(self._game.current_attacker, 'demilune_debuffed_by') and
+                    self._game.current_attacker.demilune_debuffed_by and
+                    self._game.current_attacker.demilune_debuffed_by == self):
+                    # Attacker is debuffed by this POTPOURRIST - halve the damage
+                    actual_damage = actual_damage // 2
+                    from boneglaive.utils.debug import logger
+                    logger.debug(f"DEMILUNE: {self._game.current_attacker.get_display_name()}'s damage halved by Demilune debuff ({actual_damage * 2} -> {actual_damage})")
+
                 # Show partition message and animation for each attack (not just once per turn)
                 if prt_absorbed > 0:
                     from boneglaive.utils.debug import logger
@@ -704,7 +726,24 @@ class Unit:
             else:
                 # No PRT - apply damage normally
                 self.last_prt_absorbed = 0  # No PRT was applied
-                self._hp = value
+
+                # Check for Demilune damage halving (no PRT case)
+                actual_damage = self._hp - value  # Calculate raw damage
+                if (self._game and
+                    hasattr(self._game, 'current_attacker') and
+                    self._game.current_attacker and
+                    hasattr(self._game.current_attacker, 'demilune_debuffed_by') and
+                    self._game.current_attacker.demilune_debuffed_by and
+                    self._game.current_attacker.demilune_debuffed_by == self):
+                    # Attacker is debuffed by this POTPOURRIST - halve the damage
+                    actual_damage = actual_damage // 2
+                    from boneglaive.utils.debug import logger
+                    logger.debug(f"DEMILUNE (no PRT): {self._game.current_attacker.get_display_name()}'s damage halved by Demilune debuff ({actual_damage * 2} -> {actual_damage})")
+
+                # Apply the (possibly halved) damage
+                self._applying_damage = True
+                self._hp = max(0, self._hp - actual_damage)
+                self._applying_damage = False
         else:
             # Normal HP setting (healing or non-damage changes)
             self.last_prt_absorbed = 0  # Clear PRT tracking for non-damage changes

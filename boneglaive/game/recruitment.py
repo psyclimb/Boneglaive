@@ -8,7 +8,6 @@ from typing import Dict, List, Optional, Set
 from enum import Enum
 from dataclasses import dataclass, field
 from boneglaive.utils.constants import UnitType
-from boneglaive.utils.unlock_system import unlock_system
 from boneglaive.utils.debug import logger
 
 
@@ -44,7 +43,9 @@ class PlayerUnitPool:
             UnitType.FOWL_CONTRIVANCE,
             UnitType.GAS_MACHINIST,
             UnitType.DELPHIC_APPRAISER,
-            UnitType.INTERFERER
+            UnitType.INTERFERER,
+            UnitType.DERELICTIONIST,
+            UnitType.POTPOURRIST
         ]
         
         for unit_type in recruitable_units:

@@ -1536,6 +1536,95 @@ class UnitHelpComponent(UIComponent):
                     '- Best positioning: Mid-range support, flexible positioning for optimal skill distances'
                 ]
             },
+            UnitType.POTPOURRIST: {
+                'title': 'POTPOURRIST',
+                'overview': [
+                    'The POTPOURRIST is a durable tank unit wielding a granite pedestal as a weapon.',
+                    'This unit specializes in persistent regeneration and damage mitigation through debuffs.',
+                    'The POTPOURRIST can create potpourri to triple its natural healing, becoming highly resilient.',
+                    'Combines exceptional sustain with defensive debuffs and tactical taunting to outlast opponents.',
+                    '',
+                    'Role: Tank / Frontline Fighter',
+                    'Difficulty: *'
+                ],
+                'stats': [
+                    'HP: 28',
+                    'Attack: 4',
+                    'Defense: 0',
+                    'Movement: 2',
+                    'Range: 1',
+                    'Symbol: P',
+                ],
+                'skills': [
+                    {
+                        'name': 'MELANGE EMINENCE (Passive)',
+                        'description': 'Regenerates HP every turn, enhanced by potpourri. Cannot be prevented by any effect.',
+                        'details': [
+                            'Type: Passive',
+                            'Trigger: At the start of EVERY turn (including opponent turns)',
+                            'Base Effect: Heals 1 HP per turn',
+                            'Enhanced Effect: Heals 2 HP per turn while holding potpourri',
+                            'Special: Bypasses all healing prevention effects (including Auction Curse)',
+                            'Special: Only passive that triggers on all turns, not just own turn'
+                        ]
+                    },
+                    {
+                        'name': 'INFUSE (Active) [Key: I]',
+                        'description': 'Creates potpourri to enhance regeneration. Single use until consumed.',
+                        'details': [
+                            'Type: Active',
+                            'Range: Self',
+                            'Target: Self',
+                            'Effect: Grants potpourri_held status',
+                            'Cooldown: 0 turns (gated by potpourri_held flag)',
+                            'Special: Once used, cannot be used again until potpourri is consumed',
+                            'Special: Doubles Melange Eminence healing (1 HP -> 2 HP per turn)'
+                        ]
+                    },
+                    {
+                        'name': 'DEMILUNE (Active) [Key: D]',
+                        'description': 'Forward arc attack that halves all damage from debuffed enemies.',
+                        'details': [
+                            'Type: Active',
+                            'Range: Adjacent (5 tiles: 3 forward + 2 sides)',
+                            'Target: Enemy units',
+                            'Damage: 3 (4 if enhanced)',
+                            'Debuff: Lunacy (2 turns)',
+                            'Debuff Effect: Halves all damage dealt by debuffed unit',
+                            'Enhanced: Also halves enemy defense when attacked by POTPOURRIST',
+                            'Cooldown: 3 turns',
+                            'Special: Damage reduction applies to both attacks and skills'
+                        ]
+                    },
+                    {
+                        'name': 'GRANITE GAVEL (Active) [Key: G]',
+                        'description': 'Taunts enemy. If enemy fails to respond, POTPOURRIST heals.',
+                        'details': [
+                            'Type: Active',
+                            'Range: 1',
+                            'Target: Single enemy',
+                            'Damage: 4',
+                            'Taunt: Applies Taunted status for 1 turn (2 turns if enhanced)',
+                            'Taunt Effect: If taunted unit doesn\'t attack/skill POTPOURRIST on their turn',
+                            'Heal on Ignore: POTPOURRIST heals 4 HP at end of taunted unit\'s turn',
+                            'Enhanced: Taunt lasts 2 turns (up to 8 HP healing if never responded)',
+                            'Cooldown: 3 turns',
+                            'Special: Forces tactical decisions and punishes passive play'
+                        ]
+                    }
+                ],
+                'tips': [
+                    '- Use Infuse early to maximize total regeneration over the match',
+                    '- Lunacy debuff significantly reduces incoming damage - use proactively',
+                    '- Granite Gavel forces enemies into bad trades or grants free healing',
+                    '- High HP pool and constant regeneration allow aggressive front line play'
+                ],
+                'tactical': [
+                    '- Strong against: Sustained damage teams, low-damage units, attrition-based strategies',
+                    '- Vulnerable to: Burst damage, multi-target focus fire, high-damage alpha strikes',
+                    '- Best positioning: Front line, absorbing attacks, protecting fragile allies'
+                ]
+            },
             'HEINOUS_VAPOR_BROACHING': {
                 'title': 'BROACHING GAS (1)',
                 'overview': [
@@ -4187,7 +4276,7 @@ class GameModeManager(UIComponent):
         """
         Toggle between unit types during the setup phase.
         Cycles between GLAIVEMAN, MANDIBLE FOREMAN, GRAYMAN, MARROW_CONDENSER,
-        FOWL_CONTRIVANCE, GAS_MACHINIST, DELPHIC_APPRAISER, and INTERFERER.
+        FOWL_CONTRIVANCE, GAS_MACHINIST, DELPHIC_APPRAISER, INTERFERER, DERELICTIONIST, and POTPOURRIST.
         """
         if self.setup_unit_type == UnitType.GLAIVEMAN:
             self.setup_unit_type = UnitType.MANDIBLE_FOREMAN
@@ -4213,6 +4302,9 @@ class GameModeManager(UIComponent):
         elif self.setup_unit_type == UnitType.INTERFERER:
             self.setup_unit_type = UnitType.DERELICTIONIST
             self.game_ui.message = "Setup unit type: DERELICTIONIST"
+        elif self.setup_unit_type == UnitType.DERELICTIONIST:
+            self.setup_unit_type = UnitType.POTPOURRIST
+            self.game_ui.message = "Setup unit type: POTPOURRIST"
         else:
             self.setup_unit_type = UnitType.GLAIVEMAN
             self.game_ui.message = "Setup unit type: GLAIVEMAN"
@@ -4227,12 +4319,13 @@ class GameModeManager(UIComponent):
         """Navigate to the next unit type in the setup menu (TAB)."""
         if not self.game_ui.game.setup_phase:
             return
-            
+
         # Get current index in unit types list
         unit_types = [
             UnitType.GLAIVEMAN, UnitType.MANDIBLE_FOREMAN, UnitType.GRAYMAN,
             UnitType.MARROW_CONDENSER, UnitType.FOWL_CONTRIVANCE, UnitType.GAS_MACHINIST,
-            UnitType.DELPHIC_APPRAISER, UnitType.INTERFERER, UnitType.DERELICTIONIST
+            UnitType.DELPHIC_APPRAISER, UnitType.INTERFERER, UnitType.DERELICTIONIST,
+            UnitType.POTPOURRIST
         ]
         
         try:
@@ -4254,12 +4347,13 @@ class GameModeManager(UIComponent):
         """Navigate to the previous unit type in the setup menu (SHIFT+TAB)."""
         if not self.game_ui.game.setup_phase:
             return
-            
+
         # Get current index in unit types list
         unit_types = [
             UnitType.GLAIVEMAN, UnitType.MANDIBLE_FOREMAN, UnitType.GRAYMAN,
             UnitType.MARROW_CONDENSER, UnitType.FOWL_CONTRIVANCE, UnitType.GAS_MACHINIST,
-            UnitType.DELPHIC_APPRAISER, UnitType.INTERFERER, UnitType.DERELICTIONIST
+            UnitType.DELPHIC_APPRAISER, UnitType.INTERFERER, UnitType.DERELICTIONIST,
+            UnitType.POTPOURRIST
         ]
         
         try:
@@ -4311,7 +4405,8 @@ class GameModeManager(UIComponent):
             UnitType.GAS_MACHINIST: "GAS MACHINIST",
             UnitType.DELPHIC_APPRAISER: "DELPHIC APPRAISER",
             UnitType.INTERFERER: "INTERFERER",
-            UnitType.DERELICTIONIST: "DERELICTIONIST"
+            UnitType.DERELICTIONIST: "DERELICTIONIST",
+            UnitType.POTPOURRIST: "POTPOURRIST"
         }.get(self.setup_unit_type, "UNKNOWN")
 
         # Check specific error cases based on return value
@@ -4463,7 +4558,8 @@ class GameModeManager(UIComponent):
                 UnitType.GAS_MACHINIST: "GAS MACHINIST",
                 UnitType.DELPHIC_APPRAISER: "DELPHIC APPRAISER",
                 UnitType.INTERFERER: "INTERFERER",
-                UnitType.DERELICTIONIST: "DERELICTIONIST"
+                UnitType.DERELICTIONIST: "DERELICTIONIST",
+                UnitType.POTPOURRIST: "POTPOURRIST"
             }
             current_unit_type = unit_type_display.get(self.setup_unit_type, "UNKNOWN")
             
@@ -4575,19 +4671,19 @@ class AnimationComponent(UIComponent):
         super().__init__(renderer, game_ui)
         
     @measure_perf
-    def show_attack_animation(self, attacker, target):
+    def show_attack_animation(self, attacker, target, damage=None):
         """Show a visual animation for attacks."""
         # Import required modules
         from boneglaive.utils.constants import UnitType
         import time
         import curses
-        
+
         # Get attack effect from asset manager
         effect_tile = self.game_ui.asset_manager.get_attack_effect(attacker.type)
-        
+
         # Get animation sequence
         animation_sequence = self.game_ui.asset_manager.get_attack_animation_sequence(attacker.type)
-        
+
         # Create start and end positions
         start_pos = Position(attacker.y, attacker.x)
         end_pos = Position(target.y, target.x)
@@ -4773,20 +4869,26 @@ class AnimationComponent(UIComponent):
         self.renderer.flash_tile(target.y, target.x, tile_ids, color_ids, durations)
         
         # Show damage number above target with improved visualization
-        # Use effective stats for correct damage display
-        effective_attack = attacker.get_effective_stats()['attack']
-        effective_defense = target.get_effective_stats()['defense']
-        
-        # Account for GRAYMAN units that bypass defense
-        from boneglaive.utils.constants import UnitType
-        if attacker.type == UnitType.GRAYMAN or (hasattr(attacker, 'is_echo') and attacker.is_echo and attacker.type == UnitType.GRAYMAN):
-            # GRAYMAN units bypass defense completely
-            damage = effective_attack
+        # If damage was passed in (from engine after Lunacy/PRT calculations), use it
+        # Otherwise calculate it (for compatibility with old calls)
+        if damage is not None:
+            # Use the actual damage passed from engine (includes Lunacy halving, PRT reduction, etc.)
+            display_damage = damage
         else:
-            # Normal damage calculation
-            damage = max(1, effective_attack - effective_defense)
-            
-        damage_text = f"-{damage}"
+            # Fallback: calculate damage estimate
+            effective_attack = attacker.get_effective_stats()['attack']
+            effective_defense = target.get_effective_stats()['defense']
+
+            # Account for GRAYMAN units that bypass defense
+            from boneglaive.utils.constants import UnitType
+            if attacker.type == UnitType.GRAYMAN or (hasattr(attacker, 'is_echo') and attacker.is_echo and attacker.type == UnitType.GRAYMAN):
+                # GRAYMAN units bypass defense completely
+                display_damage = effective_attack
+            else:
+                # Normal damage calculation
+                display_damage = max(1, effective_attack - effective_defense)
+
+        damage_text = f"-{display_damage}"
         
         # Make damage text more prominent
         for i in range(3):
@@ -5293,7 +5395,37 @@ class ActionMenuComponent(UIComponent):
                 'enabled': partition_skill is not None,
                 'skill': partition_skill
             })
-        
+
+        # POTPOURRIST skills
+        elif unit.type == self.UnitType.POTPOURRIST:
+            # Add Infuse skill
+            infuse_skill = next((skill for skill in available_skills if skill.name == "Infuse"), None)
+            self.actions.append({
+                'key': 'i',
+                'label': 'nfuse',  # Will be displayed as [I]nfuse
+                'action': 'infuse_skill',
+                'enabled': infuse_skill is not None,
+                'skill': infuse_skill
+            })
+            # Add Demilune skill
+            demilune_skill = next((skill for skill in available_skills if skill.name == "Demilune"), None)
+            self.actions.append({
+                'key': 'd',
+                'label': 'emilune',  # Will be displayed as [D]emilune
+                'action': 'demilune_skill',
+                'enabled': demilune_skill is not None,
+                'skill': demilune_skill
+            })
+            # Add Granite Gavel skill
+            granite_gavel_skill = next((skill for skill in available_skills if skill.name == "Granite Gavel"), None)
+            self.actions.append({
+                'key': 'g',
+                'label': 'ranite Gavel',  # Will be displayed as [G]ranite Gavel
+                'action': 'granite_gavel_skill',
+                'enabled': granite_gavel_skill is not None,
+                'skill': granite_gavel_skill
+            })
+
         # Reset selected index
         self.selected_index = 0
         
@@ -5886,6 +6018,17 @@ class ActionMenuComponent(UIComponent):
                                     # Also highlight empty floor tiles for range visualization
                                     elif not game.get_unit_at(y, x) and game.map.is_passable(y, x):
                                         targets.append((y, x))
+                # Special case for Demilune - can target any adjacent tile (empty or with units)
+                elif skill.name == "Demilune":
+                    for y in range(HEIGHT):
+                        for x in range(WIDTH):
+                            # Check if position is within skill range (adjacent)
+                            distance = game.chess_distance(from_y, from_x, y, x)
+                            if distance <= skill.range:
+                                # Can target any tile within range (enemies, allies, empty tiles, terrain)
+                                # Just check if skill.can_use allows it (which checks range only)
+                                if skill.can_use(cursor_manager.selected_unit, (y, x), game):
+                                    targets.append((y, x))
                 else:
                     # For other area-targeted skills like Vault, highlight all valid positions
                     for y in range(HEIGHT):
@@ -6207,7 +6350,8 @@ class UnitSelectionMenuComponent(UIComponent):
             UnitType.GAS_MACHINIST,
             UnitType.DELPHIC_APPRAISER,
             UnitType.INTERFERER,
-            UnitType.DERELICTIONIST
+            UnitType.DERELICTIONIST,
+            UnitType.POTPOURRIST
         ]
         self.unit_names = {
             UnitType.GLAIVEMAN: "GLAIVEMAN",
@@ -6218,7 +6362,8 @@ class UnitSelectionMenuComponent(UIComponent):
             UnitType.GAS_MACHINIST: "GAS MACHINIST",
             UnitType.DELPHIC_APPRAISER: "DELPHIC APPRAISER",
             UnitType.INTERFERER: "INTERFERER",
-            UnitType.DERELICTIONIST: "DERELICTIONIST"
+            UnitType.DERELICTIONIST: "DERELICTIONIST",
+            UnitType.POTPOURRIST: "POTPOURRIST"
         }
         
     def _setup_event_handlers(self):

@@ -40,7 +40,7 @@ class Severance(PassiveSkill):
             description="After using a skill, can move with +1 range. Cannot move twice in one turn."
         )
     
-    def apply_passive(self, user: 'Unit', game: Optional['Game'] = None) -> None:
+    def apply_passive(self, user: 'Unit', game: Optional['Game'] = None, ui=None) -> None:
         """Apply effects of the passive skill."""
         # This skill is handled by the game engine during turn processing
         # It allows post-skill movement with enhanced range

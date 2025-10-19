@@ -322,9 +322,9 @@ class GameUI:
             EventData(game=self.game, map_name=self.game.map.name)
         )
     
-    def show_attack_animation(self, attacker, target):
+    def show_attack_animation(self, attacker, target, damage=None):
         """Delegate animation to the animation component."""
-        self.animation_component.show_attack_animation(attacker, target)
+        self.animation_component.show_attack_animation(attacker, target, damage)
     
     def start_spinner(self):
         """Start the action execution spinner animation."""

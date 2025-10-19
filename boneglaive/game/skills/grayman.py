@@ -24,7 +24,7 @@ class Stasiality(PassiveSkill):
             description="Cannot have stats changed or be displaced. Immune to buffs, debuffs, forced movement, and terrain effects."
         )
     
-    def apply_passive(self, user: 'Unit', game=None) -> None:
+    def apply_passive(self, user: 'Unit', game=None, ui=None) -> None:
         # Implementation handled in Unit.is_immune_to_effects()
         pass
 
