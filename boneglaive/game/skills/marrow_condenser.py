@@ -35,7 +35,7 @@ class Dominion(PassiveSkill):
         self.available_upgrades = ["marrow_dike", "ossify", "bone_tithe"]
         self.kills = 0  # Track the number of kills for flat stat bonuses
     
-    def apply_passive(self, user: 'Unit', game=None) -> None:
+    def apply_passive(self, user: 'Unit', game=None, ui=None) -> None:
         # Logic handled in game engine when units die
         pass
     

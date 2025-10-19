@@ -41,7 +41,7 @@ class EffluviumLathe(PassiveSkill):
         self.last_charge_turn = 1
         self.last_charge_player = None  # Track the player for whom we last generated a charge
         
-    def apply_passive(self, user: 'Unit', game: Optional['Game'] = None) -> None:
+    def apply_passive(self, user: 'Unit', game: Optional['Game'] = None, ui=None) -> None:
         """
         Apply the Effluvium Lathe passive - generate 1 charge at the start of each turn.
         This method is called at the start of the player's turn.

@@ -34,7 +34,14 @@ class UIRenderer:
         # DERELICTIONIST status effects
         if hasattr(unit, 'derelicted') and unit.derelicted:
             effects.append(('derelicted', '&', curses.A_BOLD))
-            
+
+        # POTPOURRIST status effects
+        if hasattr(unit, 'demilune_debuffed') and unit.demilune_debuffed:
+            effects.append(('lunacy', '(', curses.A_DIM))
+
+        if hasattr(unit, 'taunted_by') and unit.taunted_by:
+            effects.append(('taunted', '>', curses.A_BOLD))
+
         if hasattr(unit, 'shrapnel_duration') and unit.shrapnel_duration > 0:
             effects.append(('shrapnel', 'x', curses.A_DIM))
             
@@ -1414,7 +1421,20 @@ class UIRenderer:
                     negative_effects.append(f"Mired({unit.mired_duration})")
                 else:
                     negative_effects.append("Mired")
-            
+            if hasattr(unit, 'demilune_debuffed') and unit.demilune_debuffed:
+                # Check if it has duration, otherwise just show boolean
+                if hasattr(unit, 'demilune_debuff_duration') and unit.demilune_debuff_duration > 0:
+                    negative_effects.append(f"Lunacy({unit.demilune_debuff_duration})")
+                else:
+                    negative_effects.append("Lunacy")
+
+            if hasattr(unit, 'taunted_by') and unit.taunted_by:
+                # Check if it has duration, otherwise just show boolean
+                if hasattr(unit, 'taunt_duration') and unit.taunt_duration > 0:
+                    negative_effects.append(f"Taunted({unit.taunt_duration})")
+                else:
+                    negative_effects.append("Taunted")
+
             # Display status effects if any exist
             if positive_effects or negative_effects:
                 # Start with "Status: " label

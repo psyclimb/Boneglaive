@@ -34,7 +34,7 @@ class ValuationOracle(PassiveSkill):
             description="Perceives the 'astral value' (1-9) of furniture terrain. When adjacent to appraised furniture, gains +1 to defense and attack range."
         )
         
-    def apply_passive(self, user: 'Unit', game: Optional['Game'] = None) -> None:
+    def apply_passive(self, user: 'Unit', game: Optional['Game'] = None, ui=None) -> None:
         """
         Apply the Valuation Oracle passive effect.
         Checks if the user is adjacent to any furniture and applies bonuses if so.

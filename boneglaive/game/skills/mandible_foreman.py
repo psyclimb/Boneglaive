@@ -24,7 +24,7 @@ class Viseroy(PassiveSkill):
             description="When attacking, traps the enemy unit in mechanical jaws. Trapped units cannot move and take damage each turn."
         )
     
-    def apply_passive(self, user: 'Unit', game=None) -> None:
+    def apply_passive(self, user: 'Unit', game=None, ui=None) -> None:
         # Implementation handled in Game engine
         pass
 
