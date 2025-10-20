@@ -1597,26 +1597,27 @@ class UnitHelpComponent(UIComponent):
                         ]
                     },
                     {
-                        'name': 'GRANITE GAVEL (Active) [Key: G]',
-                        'description': 'Taunts enemy. If enemy fails to respond, POTPOURRIST heals.',
+                        'name': 'GRANITE GEAS (Active) [Key: G]',
+                        'description': 'Marks enemy with potpourri oils, binding them. If enemy fails to respond, POTPOURRIST heals.',
                         'details': [
                             'Type: Active',
                             'Range: 1',
                             'Target: Single enemy',
                             'Damage: 4',
-                            'Taunt: Applies Taunted status for 1 turn (2 turns if enhanced)',
+                            'Geas: Marks target with potpourri oils, applying Taunted status',
+                            'Duration: 1 turn (2 turns if enhanced with potpourri)',
                             'Taunt Effect: If taunted unit doesn\'t attack/skill POTPOURRIST on their turn',
                             'Heal on Ignore: POTPOURRIST heals 4 HP at end of taunted unit\'s turn',
-                            'Enhanced: Taunt lasts 2 turns (up to 8 HP healing if never responded)',
+                            'Enhanced: Geas lasts 2 turns (up to 8 HP healing if never responded)',
                             'Cooldown: 3 turns',
-                            'Special: Forces tactical decisions and punishes passive play'
+                            'Special: Magical binding forces tactical decisions and punishes passive play'
                         ]
                     }
                 ],
                 'tips': [
                     '- Use Infuse early to maximize total regeneration over the match',
                     '- Lunacy debuff significantly reduces incoming damage - use proactively',
-                    '- Granite Gavel forces enemies into bad trades or grants free healing',
+                    '- Granite Geas forces enemies into bad trades or grants free healing',
                     '- High HP pool and constant regeneration allow aggressive front line play'
                 ],
                 'tactical': [
@@ -5400,11 +5401,13 @@ class ActionMenuComponent(UIComponent):
         elif unit.type == self.UnitType.POTPOURRIST:
             # Add Infuse skill
             infuse_skill = next((skill for skill in available_skills if skill.name == "Infuse"), None)
+            # Infuse can only be used when NOT holding potpourri
+            infuse_enabled = infuse_skill is not None and (not hasattr(unit, 'potpourri_held') or not unit.potpourri_held)
             self.actions.append({
                 'key': 'i',
                 'label': 'nfuse',  # Will be displayed as [I]nfuse
                 'action': 'infuse_skill',
-                'enabled': infuse_skill is not None,
+                'enabled': infuse_enabled,
                 'skill': infuse_skill
             })
             # Add Demilune skill
@@ -5416,14 +5419,14 @@ class ActionMenuComponent(UIComponent):
                 'enabled': demilune_skill is not None,
                 'skill': demilune_skill
             })
-            # Add Granite Gavel skill
-            granite_gavel_skill = next((skill for skill in available_skills if skill.name == "Granite Gavel"), None)
+            # Add Granite Geas skill
+            granite_geas_skill = next((skill for skill in available_skills if skill.name == "Granite Geas"), None)
             self.actions.append({
                 'key': 'g',
-                'label': 'ranite Gavel',  # Will be displayed as [G]ranite Gavel
-                'action': 'granite_gavel_skill',
-                'enabled': granite_gavel_skill is not None,
-                'skill': granite_gavel_skill
+                'label': 'ranite Geas',  # Will be displayed as [G]ranite Geas
+                'action': 'granite_geas_skill',
+                'enabled': granite_geas_skill is not None,
+                'skill': granite_geas_skill
             })
 
         # Reset selected index

@@ -197,6 +197,13 @@ class AssetManager:
             'potpourrist_attack': ['|', 'I', '!', '!', '*', '#', '@', '#', '*', '.'],  # Granite pedestal slam
             'melange_eminence': ['~', ',', '~', ':', '~', 'o', '~', ':', '~', ',', '~'],  # Potpourri petals and fumes wafting
             'melange_eminence_enhanced': ['~', ',', ':', 'o', '*', 'o', '@', 'o', '*', ':', ',', '~'],  # Enhanced potpourri flourish with more petals and aroma
+            'demilune_sweep': ['/', '|', '\\', '-', '*'],  # Granite pedestal sweeping arc motion
+            'infuse': [',', '.', ':', '*', 'o', 'O', '@', '#', '@', 'O', 'o', '*', ':', '.', ',', '~'],  # Whipping up potpourri blend
+            'lunacy_moon': ['(', ' ', '(', ' ', '(', ' ', '(', ' ', '('],  # Rapid flashing crescent (Lunacy)
+            'granite_geas_windup': ['.', ':', '|', 'I', '^', '^', '^', '|', 'I', '!', ':', '.'],  # Granite Geas windup - POTPOURRIST raising high, pausing, then SLAMMING
+            'granite_geas_impact': ['*', '#', '@', '#', '*', '.'],  # Granite Geas impact - effect on target
+            'geas_binding': [',', '.', ':', '|', 'I', '#', '#', '0', '0'],  # Geas binding - potpourri oils dripping down and sealing the magical obligation
+            'geas_break': ['0', 'O', 'o', '.', '~', '~', '~'],  # Geas breaking - binding shatters and energy returns to POTPOURRIST
 
 
             # Market Futures: Appraiser reaches → spiral projections → furniture transforms → glow → anchor

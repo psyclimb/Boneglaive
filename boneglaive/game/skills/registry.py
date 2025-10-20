@@ -42,7 +42,7 @@ from boneglaive.game.skills.derelictionist import (
 )
 
 from boneglaive.game.skills.potpourrist import (
-    MelangeEminence, InfuseSkill, DemiluneSkill, GraniteGavelSkill
+    MelangeEminence, InfuseSkill, DemiluneSkill, GraniteGeasSkill
 )
 
 # Define the skills available for each unit type
@@ -85,6 +85,6 @@ UNIT_SKILLS = {
     },
     "POTPOURRIST": {
         "passive": MelangeEminence(),
-        "active": [InfuseSkill(), DemiluneSkill(), GraniteGavelSkill()]
+        "active": [InfuseSkill(), DemiluneSkill(), GraniteGeasSkill()]
     }
 }

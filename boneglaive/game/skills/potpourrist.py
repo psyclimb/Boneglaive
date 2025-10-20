@@ -139,11 +139,46 @@ class InfuseSkill(ActiveSkill):
 
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Infuse skill during the combat phase."""
+        import time
+        import curses
+        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+
+        message_log.add_message(
+            f"{user.get_display_name()} begins infusing potpourri",
+            MessageType.ABILITY,
+            player=user.player
+        )
+
+        # Show potpourri creation animation if UI is available
+        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+            # Get infuse animation sequence
+            infuse_animation = ui.asset_manager.get_skill_animation_sequence('infuse')
+            if not infuse_animation:
+                infuse_animation = [',', ':', '*', 'o', 'O', '@', 'O', 'o', '*', ':', ',', '~']  # Fallback
+
+            # Animate the potpourri creation
+            for frame in infuse_animation:
+                ui.renderer.draw_tile(user.y, user.x, frame, 5, curses.A_BOLD)  # Magenta/purple for potpourri
+                ui.renderer.refresh()
+                sleep_with_animation_speed(0.08)
+
+            # Flash to show completion
+            if hasattr(ui, 'asset_manager'):
+                tile_ids = [ui.asset_manager.get_unit_tile(user.type)] * 4
+                color_ids = [5, 3 if user.player == 1 else 4] * 2  # Alternate magenta with player color
+                durations = [0.1] * 4
+
+                ui.renderer.flash_tile(user.y, user.x, tile_ids, color_ids, durations)
+
+            # Redraw board after animation
+            if hasattr(ui, 'draw_board'):
+                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+
         # Set potpourri held flag
         user.potpourri_held = True
 
         message_log.add_message(
-            f"{user.get_display_name()} creates a potpourri blend",
+            f"{user.get_display_name()} creates a potpourri blend!",
             MessageType.ABILITY,
             player=user.player
         )
@@ -257,8 +292,58 @@ class DemiluneSkill(ActiveSkill):
 
         return True
 
+    def _get_sweep_order(self, user_y: int, user_x: int, target_y: int, target_x: int) -> List[Tuple[int, int]]:
+        """Get tiles in sweeping order for animation (left to right or top to bottom)."""
+        tiles = []
+
+        # Determine forward direction
+        dy = target_y - user_y
+        dx = target_x - user_x
+
+        # Order tiles to show a sweeping motion
+        if abs(dy) >= abs(dx):  # Vertical movement dominant
+            if dy < 0:  # Target above - sweep left to right
+                tiles = [
+                    (user_y, user_x - 1),      # W (side)
+                    (user_y - 1, user_x - 1),  # NW (forward)
+                    (user_y - 1, user_x),      # N (forward)
+                    (user_y - 1, user_x + 1),  # NE (forward)
+                    (user_y, user_x + 1)       # E (side)
+                ]
+            else:  # Target below - sweep left to right
+                tiles = [
+                    (user_y, user_x - 1),      # W (side)
+                    (user_y + 1, user_x - 1),  # SW (forward)
+                    (user_y + 1, user_x),      # S (forward)
+                    (user_y + 1, user_x + 1),  # SE (forward)
+                    (user_y, user_x + 1)       # E (side)
+                ]
+        else:  # Horizontal movement dominant
+            if dx < 0:  # Target left - sweep top to bottom
+                tiles = [
+                    (user_y - 1, user_x),      # N (side)
+                    (user_y - 1, user_x - 1),  # NW (forward)
+                    (user_y, user_x - 1),      # W (forward)
+                    (user_y + 1, user_x - 1),  # SW (forward)
+                    (user_y + 1, user_x)       # S (side)
+                ]
+            else:  # Target right - sweep top to bottom
+                tiles = [
+                    (user_y - 1, user_x),      # N (side)
+                    (user_y - 1, user_x + 1),  # NE (forward)
+                    (user_y, user_x + 1),      # E (forward)
+                    (user_y + 1, user_x + 1),  # SE (forward)
+                    (user_y + 1, user_x)       # S (side)
+                ]
+
+        return tiles
+
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Demilune skill during the combat phase."""
+        import time
+        import curses
+        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+
         # Check if enhanced by potpourri
         enhanced = user.potpourri_held
         damage = 4 if enhanced else 3
@@ -275,6 +360,39 @@ class DemiluneSkill(ActiveSkill):
             MessageType.ABILITY,
             player=user.player
         )
+
+        # Show sweeping animation if UI is available
+        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+            # Get the sweep order for animation
+            sweep_tiles = self._get_sweep_order(user.y, user.x, target_pos[0], target_pos[1])
+
+            # Get demilune sweep animation sequence
+            sweep_animation = ui.asset_manager.get_skill_animation_sequence('demilune_sweep')
+            if not sweep_animation:
+                sweep_animation = ['/', '|', '\\', '-', '*']  # Fallback
+
+            # Animate the sweep across tiles
+            for i, (tile_y, tile_x) in enumerate(sweep_tiles):
+                # Use different frames for different positions in the sweep
+                frame_index = min(i, len(sweep_animation) - 1)
+                frame = sweep_animation[frame_index]
+
+                # Draw the sweep effect
+                color = 7 if enhanced else 1  # Yellow if enhanced, red otherwise
+                ui.renderer.draw_tile(tile_y, tile_x, frame, color, curses.A_BOLD)
+                ui.renderer.refresh()
+                sleep_with_animation_speed(0.08)
+
+            # Show impact effect on all tiles simultaneously
+            impact_frame = '*'
+            for tile_y, tile_x in arc_tiles:
+                ui.renderer.draw_tile(tile_y, tile_x, impact_frame, 1, curses.A_BOLD)  # Red for impact
+            ui.renderer.refresh()
+            sleep_with_animation_speed(0.15)
+
+            # Clear the animation
+            if hasattr(ui, 'draw_board'):
+                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
 
         # Apply damage and debuff to all enemy units in arc
         hit_count = 0
@@ -294,17 +412,41 @@ class DemiluneSkill(ActiveSkill):
                     player=target.player
                 )
 
-                # Apply Demilune debuff
-                target.demilune_debuffed = True
-                target.demilune_debuffed_by = user
-                target.demilune_debuff_duration = 2
-                target.demilune_defense_halved = enhanced
+                # Apply Demilune debuff if not immune
+                if not target.is_immune_to_effects():
+                    target.demilune_debuffed = True
+                    target.demilune_debuffed_by = user
+                    target.demilune_debuff_duration = 2
+                    target.demilune_defense_halved = enhanced
 
-                message_log.add_message(
-                    f"{target.get_display_name()} is afflicted with Lunacy",
-                    MessageType.ABILITY,
-                    player=target.player
-                )
+                    # Show moon phase animation if UI is available
+                    if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+                        # Get lunacy moon phase animation
+                        moon_animation = ui.asset_manager.get_skill_animation_sequence('lunacy_moon')
+                        if not moon_animation:
+                            moon_animation = ['(', ' ', '(', ' ', '(', ' ', '(', ' ', '(']  # Fallback
+
+                        # Animate the moon waning over the target
+                        for frame in moon_animation:
+                            ui.renderer.draw_tile(target.y, target.x, frame, 7)  # Yellow for moon
+                            ui.renderer.refresh()
+                            sleep_with_animation_speed(0.08)
+
+                        # Redraw board after animation
+                        if hasattr(ui, 'draw_board'):
+                            ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+
+                    message_log.add_message(
+                        f"{target.get_display_name()} is afflicted with Lunacy",
+                        MessageType.ABILITY,
+                        player=target.player
+                    )
+                else:
+                    message_log.add_message(
+                        f"{target.get_display_name()} is immune to Lunacy due to Stasiality",
+                        MessageType.ABILITY,
+                        player=target.player
+                    )
 
                 hit_count += 1
 
@@ -318,15 +460,15 @@ class DemiluneSkill(ActiveSkill):
         return True
 
 
-class GraniteGavelSkill(ActiveSkill):
+class GraniteGeasSkill(ActiveSkill):
     """
-    Active skill: GRANITE GAVEL
+    Active skill: GRANITE GEAS
     Single target attack that taunts enemy. POTPOURRIST heals if taunt is ignored.
     """
 
     def __init__(self):
         super().__init__(
-            name="Granite Gavel",
+            name="Granite Geas",
             key="3",
             description="Single target attack. If target doesn't attack POTPOURRIST next turn, POTPOURRIST heals 4 HP. Enhanced: Lasts 2 turns.",
             target_type=TargetType.ENEMY,
@@ -367,7 +509,7 @@ class GraniteGavelSkill(ActiveSkill):
         return True
 
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
-        """Queue up the Granite Gavel skill for execution at the end of the turn."""
+        """Queue up the Granite Geas skill for execution at the end of the turn."""
         if not self.can_use(user, target_pos, game):
             return False
 
@@ -400,7 +542,11 @@ class GraniteGavelSkill(ActiveSkill):
         return True
 
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
-        """Execute the Granite Gavel skill during the combat phase."""
+        """Execute the Granite Geas skill during the combat phase."""
+        import time
+        import curses
+        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+
         # Get target
         target = game.get_unit_at(target_pos[0], target_pos[1])
         if not target:
@@ -420,6 +566,39 @@ class GraniteGavelSkill(ActiveSkill):
             player=user.player
         )
 
+        # Show Granite Geas strike animation if UI is available
+        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+            # Part 1: Show POTPOURRIST raising and slamming the pedestal at attacker position
+            windup_animation = ui.asset_manager.get_skill_animation_sequence('granite_geas_windup')
+            if not windup_animation:
+                windup_animation = ['.', ':', '|', 'I', '^', '^', '^', '|', 'I', '!', ':', '.']  # Raising high, pausing, then SLAMMING
+
+            for frame in windup_animation:
+                ui.renderer.draw_tile(user.y, user.x, frame, 7, curses.A_BOLD)  # Yellow at attacker position
+                ui.renderer.refresh()
+                sleep_with_animation_speed(0.08)
+
+            # Part 2: Show impact on target
+            impact_animation = ui.asset_manager.get_skill_animation_sequence('granite_geas_impact')
+            if not impact_animation:
+                impact_animation = ['*', '#', '@', '#', '*', '.']  # Impact effect
+
+            for frame in impact_animation:
+                ui.renderer.draw_tile(target.y, target.x, frame, 7, curses.A_BOLD)  # Yellow at target position
+                ui.renderer.refresh()
+                sleep_with_animation_speed(0.06)
+
+            # Flash the target to show hit
+            if hasattr(ui.renderer, 'flash_tile'):
+                tile_ids = [ui.asset_manager.get_unit_tile(target.type)] * 4
+                color_ids = [6 if target.player == 1 else 10, 3 if target.player == 1 else 4] * 2
+                durations = [0.1] * 4
+                ui.renderer.flash_tile(target.y, target.x, tile_ids, color_ids, durations)
+
+            # Redraw board after animation
+            if hasattr(ui, 'draw_board'):
+                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+
         # Deal damage
         damage = 4
         game.current_attacker = user
@@ -429,20 +608,42 @@ class GraniteGavelSkill(ActiveSkill):
         game.current_attacker = None
 
         message_log.add_message(
-            f"{target.get_display_name()} takes #DAMAGE_{actual_damage}# damage from Granite Gavel",
+            f"{target.get_display_name()} takes #DAMAGE_{actual_damage}# damage from Granite Geas",
             MessageType.COMBAT,
             player=target.player
         )
 
-        # Apply taunt
-        target.taunted_by = user
-        target.taunt_duration = taunt_duration
-        target.taunt_responded_this_turn = False
+        # Apply taunt if not immune
+        if not target.is_immune_to_effects():
+            target.taunted_by = user
+            target.taunt_duration = taunt_duration
+            target.taunt_responded_this_turn = False
 
-        message_log.add_message(
-            f"{target.get_display_name()} is marked by potpourri fragments!",
-            MessageType.ABILITY,
-            player=target.player
-        )
+            # Show geas binding animation - oils dripping and sealing
+            if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+                geas_binding = ui.asset_manager.get_skill_animation_sequence('geas_binding')
+                if not geas_binding:
+                    geas_binding = [',', '.', ':', '|', 'I', '#', '#', '0', '0']  # Oils dripping and sealing
+
+                for frame in geas_binding:
+                    ui.renderer.draw_tile(target.y, target.x, frame, 7, curses.A_BOLD)  # Yellow for geas magic
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.08)
+
+                # Redraw board after geas animation
+                if hasattr(ui, 'draw_board'):
+                    ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+
+            message_log.add_message(
+                f"{target.get_display_name()} is marked by potpourri oils!",
+                MessageType.ABILITY,
+                player=target.player
+            )
+        else:
+            message_log.add_message(
+                f"{target.get_display_name()} is immune to Taunt due to Stasiality",
+                MessageType.ABILITY,
+                player=target.player
+            )
 
         return True
