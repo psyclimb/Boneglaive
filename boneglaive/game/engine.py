@@ -3473,7 +3473,7 @@ class Game:
                             if actual_heal > 0:
                                 from boneglaive.utils.message_log import message_log, MessageType
                                 message_log.add_message(
-                                    f"{taunter.get_display_name()} heals {actual_heal} HP from ignored taunt",
+                                    f"{taunter.get_display_name()} inhales the fumes of the broken geas and heals for #HEAL_{actual_heal}# HP",
                                     MessageType.ABILITY,
                                     player=taunter.player
                                 )
@@ -3485,19 +3485,6 @@ class Game:
 
                     if unit.taunt_duration <= 0 or unit.taunt_responded_this_turn:
                         # Taunt expires or was responded to
-                        from boneglaive.utils.message_log import message_log, MessageType
-                        if unit.taunt_responded_this_turn:
-                            message_log.add_message(
-                                f"{unit.get_display_name()}'s taunt ends (responded)",
-                                MessageType.ABILITY,
-                                player=unit.player
-                            )
-                        else:
-                            message_log.add_message(
-                                f"{unit.get_display_name()}'s taunt wears off",
-                                MessageType.ABILITY,
-                                player=unit.player
-                            )
                         unit.taunted_by = None
                         unit.taunt_duration = 0
                         logger.debug(f"TAUNT EXPIRED: {unit.get_display_name()}'s taunt ended")
@@ -3519,14 +3506,6 @@ class Game:
                             unit.demilune_debuffed = False
                             unit.demilune_debuffed_by = None
                             unit.demilune_defense_halved = False
-
-                            # Log the expiration
-                            from boneglaive.utils.message_log import message_log, MessageType
-                            message_log.add_message(
-                                f"{unit.get_display_name()}'s Lunacy wears off",
-                                MessageType.ABILITY,
-                                player=unit.player
-                            )
 
             # In single player mode, automatically toggle between player 1 and 2
             # In multiplayer modes, the multiplayer manager handles player switching

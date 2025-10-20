@@ -81,7 +81,7 @@ class MelangeEminence(PassiveSkill):
                 sleep_with_animation_speed(0.3)
 
             message_log.add_message(
-                f"{user.get_display_name()} regenerates {actual_heal} HP",
+                f"{user.get_display_name()} inhales the restorative melange and heals for #HEAL_{actual_heal}# HP",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -130,7 +130,7 @@ class InfuseSkill(ActiveSkill):
 
         # Log that the skill has been queued
         message_log.add_message(
-            f"{user.get_display_name()} prepares a potpourri blend",
+            f"{user.get_display_name()} begins mixing a potent blend of potpourri",
             MessageType.ABILITY,
             player=user.player
         )
@@ -144,7 +144,7 @@ class InfuseSkill(ActiveSkill):
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
         message_log.add_message(
-            f"{user.get_display_name()} begins infusing potpourri",
+            f"{user.get_display_name()} infuses the blend with aromatic power",
             MessageType.ABILITY,
             player=user.player
         )
@@ -176,12 +176,6 @@ class InfuseSkill(ActiveSkill):
 
         # Set potpourri held flag
         user.potpourri_held = True
-
-        message_log.add_message(
-            f"{user.get_display_name()} creates a potpourri blend!",
-            MessageType.ABILITY,
-            player=user.player
-        )
 
         return True
 
@@ -285,7 +279,7 @@ class DemiluneSkill(ActiveSkill):
 
         # Log that the skill has been queued
         message_log.add_message(
-            f"{user.get_display_name()} readies to swing the granite pedestal in an arc",
+            f"{user.get_display_name()} readies a mighty swing",
             MessageType.ABILITY,
             player=user.player
         )
@@ -351,12 +345,17 @@ class DemiluneSkill(ActiveSkill):
         # Consume potpourri if held
         if user.potpourri_held:
             user.potpourri_held = False
+            message_log.add_message(
+                f"{user.get_display_name()} infuses Demilune with his fragrant blend",
+                MessageType.ABILITY,
+                player=user.player
+            )
 
         # Get arc tiles
         arc_tiles = self._get_arc_tiles(user.y, user.x, target_pos[0], target_pos[1])
 
         message_log.add_message(
-            f"{user.get_display_name()} swings the granite pedestal in an arc!",
+            f"{user.get_display_name()} swings the granite pedestal in a crescent sweep",
             MessageType.ABILITY,
             player=user.player
         )
@@ -406,11 +405,35 @@ class DemiluneSkill(ActiveSkill):
                 actual_damage = old_hp - target.hp
                 game.current_attacker = None
 
-                message_log.add_message(
-                    f"{target.get_display_name()} takes #DAMAGE_{actual_damage}# damage from Demilune",
-                    MessageType.COMBAT,
-                    player=target.player
+                message_log.add_combat_message(
+                    attacker_name=user.get_display_name(),
+                    target_name=target.get_display_name(),
+                    damage=actual_damage,
+                    ability="Demilune",
+                    attacker_player=user.player,
+                    target_player=target.player
                 )
+
+                # Show damage number on map (flashing like attacks)
+                if ui and hasattr(ui, 'renderer'):
+                    import curses
+                    import time
+                    damage_text = f"-{actual_damage}"
+
+                    # Flash damage text 3 times
+                    for i in range(3):
+                        # First clear the area
+                        ui.renderer.draw_text(target.y-1, target.x*2, " " * len(damage_text), 7)
+                        # Draw with alternating bold/normal for flashing effect
+                        attrs = curses.A_BOLD if i % 2 == 0 else 0
+                        ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, attrs)
+                        ui.renderer.refresh()
+                        time.sleep(0.1)
+
+                    # Final damage display (stays longer)
+                    ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, curses.A_BOLD)
+                    ui.renderer.refresh()
+                    time.sleep(0.3)
 
                 # Apply Demilune debuff if not immune
                 if not target.is_immune_to_effects():
@@ -437,8 +460,8 @@ class DemiluneSkill(ActiveSkill):
                             ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
 
                     message_log.add_message(
-                        f"{target.get_display_name()} is afflicted with Lunacy",
-                        MessageType.ABILITY,
+                        f"{target.get_display_name()}'s power wanes",
+                        MessageType.WARNING,
                         player=target.player
                     )
                 else:
@@ -449,13 +472,6 @@ class DemiluneSkill(ActiveSkill):
                     )
 
                 hit_count += 1
-
-        if hit_count == 0:
-            message_log.add_message(
-                "The swing hits no enemies!",
-                MessageType.WARNING,
-                player=user.player
-            )
 
         return True
 
@@ -532,7 +548,7 @@ class GraniteGeasSkill(ActiveSkill):
 
         # Log that the skill has been queued
         message_log.add_message(
-            f"{user.get_display_name()} prepares to bring down the granite gavel on {target.get_display_name()}",
+            f"{user.get_display_name()} raises the anointed granite pedestal high into the air over {target.get_display_name()}",
             MessageType.ABILITY,
             player=user.player,
             attacker_name=user.get_display_name(),
@@ -559,9 +575,14 @@ class GraniteGeasSkill(ActiveSkill):
         # Consume potpourri if held
         if user.potpourri_held:
             user.potpourri_held = False
+            message_log.add_message(
+                f"{user.get_display_name()} infuses Granite Geas with his fragrant blend",
+                MessageType.ABILITY,
+                player=user.player
+            )
 
         message_log.add_message(
-            f"{user.get_display_name()} brings down the granite gavel!",
+            f"{user.get_display_name()} comes down hard on {target.get_display_name()} with a ton of oiled granite",
             MessageType.ABILITY,
             player=user.player
         )
@@ -607,11 +628,35 @@ class GraniteGeasSkill(ActiveSkill):
         actual_damage = old_hp - target.hp
         game.current_attacker = None
 
-        message_log.add_message(
-            f"{target.get_display_name()} takes #DAMAGE_{actual_damage}# damage from Granite Geas",
-            MessageType.COMBAT,
-            player=target.player
+        message_log.add_combat_message(
+            attacker_name=user.get_display_name(),
+            target_name=target.get_display_name(),
+            damage=actual_damage,
+            ability="Granite Geas",
+            attacker_player=user.player,
+            target_player=target.player
         )
+
+        # Show damage number on map (flashing like attacks)
+        if ui and hasattr(ui, 'renderer'):
+            import curses
+            import time
+            damage_text = f"-{actual_damage}"
+
+            # Flash damage text 3 times
+            for i in range(3):
+                # First clear the area
+                ui.renderer.draw_text(target.y-1, target.x*2, " " * len(damage_text), 7)
+                # Draw with alternating bold/normal for flashing effect
+                attrs = curses.A_BOLD if i % 2 == 0 else 0
+                ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, attrs)
+                ui.renderer.refresh()
+                time.sleep(0.1)
+
+            # Final damage display (stays longer)
+            ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, curses.A_BOLD)
+            ui.renderer.refresh()
+            time.sleep(0.3)
 
         # Apply taunt if not immune
         if not target.is_immune_to_effects():
@@ -635,13 +680,13 @@ class GraniteGeasSkill(ActiveSkill):
                     ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
 
             message_log.add_message(
-                f"{target.get_display_name()} is marked by potpourri oils!",
-                MessageType.ABILITY,
+                f"{target.get_display_name()} is bound by a redolent geas",
+                MessageType.WARNING,
                 player=target.player
             )
         else:
             message_log.add_message(
-                f"{target.get_display_name()} is immune to Taunt due to Stasiality",
+                f"{target.get_display_name()} is immune to the geas due to stasiality",
                 MessageType.ABILITY,
                 player=target.player
             )
