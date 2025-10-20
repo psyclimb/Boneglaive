@@ -1541,7 +1541,7 @@ class UnitHelpComponent(UIComponent):
                 'overview': [
                     'The POTPOURRIST is a durable tank unit wielding a granite pedestal as a weapon.',
                     'This unit specializes in persistent regeneration and damage mitigation through debuffs.',
-                    'The POTPOURRIST can create potpourri to triple its natural healing, becoming highly resilient.',
+                    'The POTPOURRIST can create potpourri to double its natural healing, becoming highly resilient.',
                     'Combines exceptional sustain with defensive debuffs and tactical taunting to outlast opponents.',
                     '',
                     'Role: Tank / Frontline Fighter',
@@ -6177,6 +6177,10 @@ class InputManager(UIComponent):
             elif unit_type == UnitType.DERELICTIONIST:
                 # Show DERELICTIONIST unit help
                 self.game_ui.unit_help_component.toggle_unit_help(UnitType.DERELICTIONIST)
+                return
+            elif unit_type == UnitType.POTPOURRIST:
+                # Show POTPOURRIST unit help
+                self.game_ui.unit_help_component.toggle_unit_help(UnitType.POTPOURRIST)
                 return
             elif unit_type == UnitType.HEINOUS_VAPOR:
                 # Check what type of vapor this is by symbol

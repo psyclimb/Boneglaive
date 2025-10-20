@@ -36,11 +36,14 @@ class UIRenderer:
             effects.append(('derelicted', '&', curses.A_BOLD))
 
         # POTPOURRIST status effects
+        if hasattr(unit, 'potpourri_held') and unit.potpourri_held:
+            effects.append(('Infusion', '*', curses.A_BOLD))
+
         if hasattr(unit, 'demilune_debuffed') and unit.demilune_debuffed:
             effects.append(('lunacy', '(', curses.A_DIM))
 
         if hasattr(unit, 'taunted_by') and unit.taunted_by:
-            effects.append(('taunted', '>', curses.A_BOLD))
+            effects.append(('geas', ':', curses.A_BOLD))
 
         if hasattr(unit, 'shrapnel_duration') and unit.shrapnel_duration > 0:
             effects.append(('shrapnel', 'x', curses.A_DIM))
@@ -61,7 +64,7 @@ class UIRenderer:
             
         # INTERFERER status effects
         if hasattr(unit, 'radiation_stacks') and unit.radiation_stacks:
-            effects.append(('radiation_sickness', '*', curses.A_BOLD))
+            effects.append(('radiation_sickness', 'r', curses.A_BOLD))
             
         if hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected:
             effects.append(('neural_shunt', '?', curses.A_BOLD))
@@ -1405,7 +1408,9 @@ class UIRenderer:
                 positive_effects.append(f"Vagal Run({unit.vagal_run_duration})")
             if hasattr(unit, 'partition_shield_active') and unit.partition_shield_active:
                 positive_effects.append(f"Partition({unit.partition_shield_duration})")
-            
+            if hasattr(unit, 'potpourri_held') and unit.potpourri_held:
+                positive_effects.append("Infusion")
+
             # Movement/action penalties and traps (negative)
             if hasattr(unit, 'was_pried') and unit.was_pried and unit.move_range_bonus < 0:
                 negative_effects.append("Pried")
@@ -1431,9 +1436,9 @@ class UIRenderer:
             if hasattr(unit, 'taunted_by') and unit.taunted_by:
                 # Check if it has duration, otherwise just show boolean
                 if hasattr(unit, 'taunt_duration') and unit.taunt_duration > 0:
-                    negative_effects.append(f"Taunted({unit.taunt_duration})")
+                    negative_effects.append(f"Geis({unit.taunt_duration})")
                 else:
-                    negative_effects.append("Taunted")
+                    negative_effects.append("Geis")
 
             # Display status effects if any exist
             if positive_effects or negative_effects:
