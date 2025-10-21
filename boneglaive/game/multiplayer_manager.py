@@ -173,18 +173,21 @@ class MultiplayerManager:
                 
                 # Initialize the AI player's turn
                 self.game.initialize_next_player_turn()
-                
+
                 # If this is player 2's first turn, apply move bonus to their units
                 if hasattr(self.game, 'is_player2_first_turn') and self.game.is_player2_first_turn:
                     self._apply_player2_first_turn_buff()
                     self.game.is_player2_first_turn = False
-                
+
+                # Indicate player 2's turn has started
+                message_log.add_system_message("Player 2's turn")
+
                 # Process AI turn immediately
                 logger.info("Processing AI turn")
                 if isinstance(self.network_interface, AIInterface):
                     # Get UI reference from game if available
                     ui = getattr(self.game, 'ui', None)
-                    
+
                     # Process AI turn
                     message_log.add_system_message("AI is thinking...")
                     self.network_interface.process_turn()
@@ -196,11 +199,8 @@ class MultiplayerManager:
                     # Switch back to player 1 after AI turn
                     self.current_player = 1
                     self.game.current_player = 1
-                    
-                    # Increment turn counter when switching back to player 1
-                    self.game.turn += 1
-                    
-                    # Initialize player 1's turn
+
+                    # Initialize player 1's turn (execute_turn already incremented turn counter)
                     self.game.initialize_next_player_turn()
                     
                     message_log.add_system_message("Player 1's turn")

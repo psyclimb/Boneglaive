@@ -31,11 +31,23 @@ class MelangeEminence(PassiveSkill):
             key="M",
             description="Heals 1 HP every turn (2 HP while holding potpourri). Cannot be prevented by any effect."
         )
+        # Track last trigger to prevent duplicate triggers for the same player
+        self.last_trigger_player = None
 
     def apply_passive(self, user: 'Unit', game: Optional['Game'] = None, ui=None) -> None:
         """Apply passive healing at start of turn."""
         if not user.is_alive():
             return
+
+        # Prevent duplicate triggers when initialize_next_player_turn() is called multiple times for the same player
+        # This happens in VS AI mode where the turn switch is called redundantly
+        if game:
+            if self.last_trigger_player == game.current_player:
+                logger.debug(f"Melange Eminence already triggered for player {game.current_player}, skipping redundant call")
+                return
+
+            # Update tracking - trigger once per player switch
+            self.last_trigger_player = game.current_player
 
         # Determine heal amount based on potpourri state
         heal_amount = 2 if user.potpourri_held else 1
@@ -253,8 +265,11 @@ class DemiluneSkill(ActiveSkill):
         if not target_pos or not game:
             return False
 
+        # Determine position to check range from (move target if moving, otherwise current position)
+        check_y, check_x = user.move_target if user.move_target else (user.y, user.x)
+
         # Target must be adjacent (range 1)
-        distance = game.chess_distance(user.y, user.x, target_pos[0], target_pos[1])
+        distance = game.chess_distance(check_y, check_x, target_pos[0], target_pos[1])
         if distance > self.range:
             return False
 
@@ -500,13 +515,16 @@ class GraniteGeasSkill(ActiveSkill):
         if not target_pos or not game:
             return False
 
+        # Determine position to check range from (move target if moving, otherwise current position)
+        check_y, check_x = user.move_target if user.move_target else (user.y, user.x)
+
         # Check range
-        distance = game.chess_distance(user.y, user.x, target_pos[0], target_pos[1])
+        distance = game.chess_distance(check_y, check_x, target_pos[0], target_pos[1])
         if distance > self.range:
             return False
 
         # Check line of sight
-        if not game.has_line_of_sight(user.y, user.x, target_pos[0], target_pos[1]):
+        if not game.has_line_of_sight(check_y, check_x, target_pos[0], target_pos[1]):
             return False
 
         # Find target unit at position

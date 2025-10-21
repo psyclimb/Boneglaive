@@ -2795,15 +2795,19 @@ class CursorManager(UIComponent):
             target_position = (self.cursor_pos.y, self.cursor_pos.x)
 
             if target_position in valid_targets:
+                # Check if attack is already queued for this target (prevent duplicate messages)
+                attack_already_queued = self.selected_unit.attack_target == target_position
+
                 # Set the attack target
                 self.selected_unit.attack_target = target_position
 
                 # Mark that this unit is taking an action (won't regenerate HP)
                 self.selected_unit.took_no_actions = False
 
-                # Track action order
-                self.selected_unit.action_timestamp = self.game_ui.game.action_counter
-                self.game_ui.game.action_counter += 1
+                # Track action order (only if not already queued)
+                if not attack_already_queued:
+                    self.selected_unit.action_timestamp = self.game_ui.game.action_counter
+                    self.game_ui.game.action_counter += 1
 
                 # Check if the target is a unit or a wall
                 from boneglaive.utils.message_log import message_log, MessageType
@@ -2823,44 +2827,52 @@ class CursorManager(UIComponent):
                     wall_info = self.game_ui.game.marrow_dike_tiles[target_position]
                     wall_owner = wall_info['owner']
 
-                # Publish attack planned event
-                self.publish_event(
-                    EventType.ATTACK_PLANNED,
-                    AttackEventData(
-                        attacker=self.selected_unit,
-                        target=target_unit  # May be None for wall targets
+                # Only publish event and add message if attack wasn't already queued
+                if not attack_already_queued:
+                    # Publish attack planned event
+                    self.publish_event(
+                        EventType.ATTACK_PLANNED,
+                        AttackEventData(
+                            attacker=self.selected_unit,
+                            target=target_unit  # May be None for wall targets
+                        )
                     )
-                )
 
-                # Set appropriate message based on target type
+                    # Set appropriate message based on target type
+                    if is_wall_target:
+                        # Add message to log for planned wall attacks
+                        message_log.add_message(
+                            f"{self.selected_unit.get_display_name()} readies attack against {wall_owner.get_display_name()}'s Marrow Dike wall",
+                            MessageType.COMBAT,
+                            player=self.selected_unit.player,
+                            attacker_name=self.selected_unit.get_display_name()
+                        )
+                    elif target_unit:
+                        # Add message to log for planned unit attacks
+                        message_log.add_message(
+                            f"{self.selected_unit.get_display_name()} readies attack against {target_unit.get_display_name()}",
+                            MessageType.COMBAT,
+                            player=self.selected_unit.player,
+                            attacker_name=self.selected_unit.get_display_name(),
+                            target_name=target_unit.get_display_name()
+                        )
+                    else:
+                        # This shouldn't happen, but handle it just in case
+                        message_log.add_message(
+                            f"{self.selected_unit.get_display_name()} readies an attack",
+                            MessageType.COMBAT,
+                            player=self.selected_unit.player,
+                            attacker_name=self.selected_unit.get_display_name()
+                        )
+
+                # Set appropriate UI message based on target type
                 if is_wall_target:
                     self.game_ui.message = f"Attack set against Marrow Dike wall"
-                    # Add message to log for planned wall attacks
-                    message_log.add_message(
-                        f"{self.selected_unit.get_display_name()} readies attack against {wall_owner.get_display_name()}'s Marrow Dike wall",
-                        MessageType.COMBAT,
-                        player=self.selected_unit.player,
-                        attacker_name=self.selected_unit.get_display_name()
-                    )
                 elif target_unit:
                     self.game_ui.message = f"Attack set against {target_unit.get_display_name()}"
-                    # Add message to log for planned unit attacks
-                    message_log.add_message(
-                        f"{self.selected_unit.get_display_name()} readies attack against {target_unit.get_display_name()}",
-                        MessageType.COMBAT,
-                        player=self.selected_unit.player,
-                        attacker_name=self.selected_unit.get_display_name(),
-                        target_name=target_unit.get_display_name()
-                    )
                 else:
                     # This shouldn't happen, but handle it just in case
                     self.game_ui.message = "Attack target set"
-                    message_log.add_message(
-                        f"{self.selected_unit.get_display_name()} readies an attack",
-                        MessageType.COMBAT,
-                        player=self.selected_unit.player,
-                        attacker_name=self.selected_unit.get_display_name()
-                    )
 
                 self.highlighted_positions = []
                 self.attack_range_positions = []
