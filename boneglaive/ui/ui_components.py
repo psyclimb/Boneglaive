@@ -1184,7 +1184,7 @@ class UnitHelpComponent(UIComponent):
                 ],
                 'stats': [
                     'HP: 20',
-                    'Attack: 4',
+                    'Attack: 3',
                     'Defense: 1',
                     'Movement: 2',
                     'Range: 1',
@@ -1362,9 +1362,10 @@ class UnitHelpComponent(UIComponent):
                 'title': 'INTERFERER',
                 'overview': [
                     'The INTERFERER is a telecommunications engineer turned assassin who weaponized a remote',
-                    'radio tower array into a directed energy system. This glass cannon "phones home" to coordinate',
-                    'precise strikes, neural interference, and electromagnetic warfare through triangulated',
-                    'transmissions from the tower network. Also attacks with plutonium tipped carabiners.',
+                    'radio tower array into a directed energy weapon system. This glass cannon "phones home" to',
+                    'the tower network, triangulating transmissions to coordinate precise strikes, neural hijacking,',
+                    'and electromagnetic warfare. In close combat, the INTERFERER attacks with plutonium-tipped',
+                    'carabiners that create radioactive hazard zones on impact.',
                     '',
                     'Role: Glass Cannon / Disabler',
                     'Difficulty: **'
@@ -1381,59 +1382,41 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'NEUTRON ILLUMINANT (Passive)',
-                        'description': 'Directional radiation spreads around the INTERFERER when attacking.',
+                        'description': 'When the INTERFERER strikes with plutonium-tipped carabiners, the impact creates a radiation burst that spreads in a directional pattern. If attacking along cardinal directions (up/down/left/right), radiation spreads diagonally from the INTERFERER\'s position. If attacking diagonally, radiation spreads cardinally. Each radiation stack deals 1 damage per turn for 2 turns, creating persistent hazard zones that accumulate with repeated attacks.',
                         'details': [
-                            'Type: Passive',
-                            'Trigger: On attack (no cooldown)',
-                            'Effect: Creates radiation pattern around INTERFERER',
-                            'Radiation Damage: 1 per stack per turn',
-                            'Radiation Duration: 2 turns per stack',
-                            'Special: Cardinal attacks radiate diagonally, diagonal attacks radiate cardinally'
+                            'Type: Passive'
                         ]
                     },
                     {
                         'name': 'NEURAL SHUNT (Active) [Key: N]',
-                        'description': 'Tower array transmits neural interference signal to hijack target\'s mind.',
+                        'description': 'The INTERFERER triangulates the tower array to transmit a concentrated neural interference signal directly into a target\'s brain, hijacking their motor functions for 1 turn. The transmission deals 8 damage from electromagnetic stress, and the afflicted unit performs random moves, attacks, or skills as their nervous system misfires under external control.',
                         'details': [
                             'Type: Active',
                             'Range: 1',
-                            'Target: Any unit',
-                            'Line of Sight: Yes',
                             'Damage: 8',
-                            'Pierce: No',
-                            'Effects: Neural control for 1 turn',
-                            'Cooldown: 4 turns',
-                            'Special: Affected unit performs random moves, attacks, or skills for 1 turn'
+                            'Effect: Neural Shunt (?) (1 turn)',
+                            'Cooldown: 4 turns'
                         ]
                     },
                     {
                         'name': 'KARRIER RAVE (Active) [Key: K]',
-                        'description': 'Rides karrier wave transmission to phase out, becoming untargetable.',
+                        'description': 'The INTERFERER tunes into a carrier wave transmission from the tower array, riding the electromagnetic frequency to phase partially out of reality for 2 turns. While phased, the INTERFERER becomes untargetable by any attacks or skills. Upon returning to normal phase, the stored carrier wave energy amplifies the next melee attack, causing it to strike three times in rapid succession.',
                         'details': [
                             'Type: Active',
-                            'Range: Self-target',
-                            'Target: Self',
-                            'Line of Sight: N/A',
-                            'Damage: None',
-                            'Pierce: N/A',
-                            'Effects: Untargetable for 2 turns, next attack strikes 3 times',
-                            'Cooldown: 5 turns',
-                            'Special: Cannot be targeted by any attacks or skills while phased'
+                            'Range: Self',
+                            'Effect: Karrier Rave (!) (2 turns); next attack strikes 3 times',
+                            'Cooldown: 5 turns'
                         ]
                     },
                     {
                         'name': 'SCALAR NODE (Active) [Key: S]',
-                        'description': 'Triangulates coordinates to create standing wave energy trap.',
+                        'description': 'The INTERFERER triangulates coordinates with the tower array to create an invisible standing wave energy trap at a specific location (range 3). The trap placement is completely silent—no message appears when setting it. When any enemy ends their turn on the trapped tile, the standing wave collapses violently, dealing 12 damage and announcing the trap\'s detonation. The trap persists until triggered.',
                         'details': [
                             'Type: Active',
                             'Range: 3',
-                            'Target: Empty tile',
-                            'Line of Sight: Yes',
                             'Damage: 12',
-                            'Pierce: No',
-                            'Effects: Invisible trap, silent warfare',
                             'Cooldown: 3 turns',
-                            'Special: No message log entries, triggers when enemies end turn on trap'
+                            'Special: Invisible trap; silent placement only; triggers when enemy ends turn on tile'
                         ]
                     }
                 ],
@@ -1453,9 +1436,10 @@ class UnitHelpComponent(UIComponent):
                 'title': 'DERELICTIONIST',
                 'overview': [
                     'The DERELICTIONIST is a psychological abandonment therapist who weaponized distance-based',
-                    'therapeutic techniques into a support system. This healer specializes in trauma processing,',
-                    'protective partitioning, and abandonment therapy through controlled dissociation.',
-                    'The unit manipulates interpersonal distance to create healing effects and manage status conditions.',
+                    'therapeutic techniques into a tactical support system. By manipulating interpersonal distance',
+                    'and inducing controlled dissociation, this healer specializes in trauma processing, protective',
+                    'partitioning, and abandonment therapy. The farther allies are from the DERELICTIONIST, the more',
+                    'profound the therapeutic effect—but close proximity forces painful abreactive trauma processing.',
                     '',
                     'Role: Utility / Healer',
                     'Difficulty: ***'
@@ -1471,56 +1455,42 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'SEVERANCE (Passive)',
-                        'description': 'After using a skill, the unit can move with enhanced range but cannot move twice in one turn.',
+                        'description': 'After using any active skill, the DERELICTIONIST enters a dissociative state that grants +1 movement range for a single move, allowing tactical repositioning after skill use. The unit cannot move twice in one turn.',
                         'details': [
                             'Type: Passive',
-                            'Trigger: After using any active skill.',
-                            'Effect: Grants +1 movement range for one move.',
-                            'Restriction: Cannot move twice in one turn.',
-                            'Special: Allows skill-then-move tactical flexibility.'
+                            'Effect: Severance (\\) (+1 movement after skill use)'
                         ]
                     },
                     {
                         'name': 'VAGAL RUN (Active) [Key: V]',
-                        'description': 'Stimulates an ally\'s vagus nerve to trigger abreactive trauma processing, clearing status effects with distance-based damage or healing and a delayed secondary response.',
+                        'description': 'The DERELICTIONIST stimulates an ally\'s vagus nerve to trigger abreactive trauma processing, immediately clearing all status effects. The therapeutic response varies with distance: at close range (1-3 tiles), the ally suffers 3 piercing abreactive damage that cannot kill; at medium range (4-5 tiles), damage decreases to 2-1; at neutral range (exactly 6 tiles), no immediate effect occurs; at therapeutic distance (7+ tiles), the ally heals for (distance - 6) HP and enters a Derelicted state. After 3 turns, a delayed secondary abreaction repeats the distance-based effect and clears status effects again.',
                         'details': [
                             'Type: Active',
                             'Range: 3',
-                            'Target: Ally',
+                            'Effect: Clears all status (immediate + after 3 turns); Derelicted (&) (1 turn) at distance 7+',
                             'Cooldown: 4 turns',
-                            'Distance 3-5: Deals 3-1 piercing damage, cannot kill.',
-                            'Distance 6: No immediate effect.',
-                            'Distance 7+: Heals for distance minus 6 HP and applies Derelicted.',
-                            'Always: Clears all status effects immediately.',
-                            'Abreaction: After 3 turns, the effect repeats and clears status again.'
+                            'Special: Distance-based: 1-3 tiles = 3 damage; 4 tiles = 2 damage; 5 tiles = 1 damage; 6 tiles = no effect; 7+ tiles = heal (distance - 6); piercing damage cannot kill'
                         ]
                     },
                     {
                         'name': 'DERELICT (Active) [Key: D]',
-                        'description': 'Pushes ally away and heals based on final distance from DERELICTIONIST.',
+                        'description': 'The DERELICTIONIST forcefully pushes an ally away in a straight line (up to 4 tiles), inducing therapeutic abandonment. The ally heals for an amount equal to the final distance between them and the DERELICTIONIST after the push resolves. The traumatic separation applies the Derelicted status for 1 turn. Obstacles and map boundaries can interrupt the push, affecting final distance and healing.',
                         'details': [
                             'Type: Active',
                             'Range: 3',
-                            'Target: Ally',
-                            'Push: Attempts to push ally 4 tiles in a straight line.',
-                            'Healing: Heals for distance between final positions.',
-                            'Status: Applies Derelicted for 1 turn.',
-                            'Cooldown: 4 turns',
-                            'Special: Healing scales with tactical positioning.'
+                            'Effect: Push (4 tiles); heal = final distance; Derelicted (&) (1 turn)',
+                            'Cooldown: 4 turns'
                         ]
                     },
                     {
                         'name': 'PARTITION (Active) [Key: P]',
-                        'description': 'Creates a protective shield with emergency intervention capability.',
+                        'description': 'The DERELICTIONIST creates a protective psychological partition on an ally, reducing all incoming damage by 1 for 3 turns. This defensive dissociation has an emergency intervention capability: if the ally would receive fatal damage while the shield is active, the ally dissociates completely to ignore all damage that turn, then the partition collapses. When emergency intervention triggers, the shield ends, the DERELICTIONIST teleports exactly 4 tiles away (abandoning the ally), and the ally enters a Derelicted state from the traumatic abandonment.',
                         'details': [
                             'Type: Active',
                             'Range: 3',
-                            'Target: Ally',
-                            'Shield: Reduces all incoming damage by 1 for 3 turns.',
-                            'Emergency: If fatal damage would occur, blocks all damage that turn.',
-                            'Emergency Effect: Ends shield, teleports DERELICTIONIST away, and applies Derelicted.',
+                            'Effect: Partition ()) (3 turns); -1 incoming damage',
                             'Cooldown: 4 turns',
-                            'Special: Can save allies from death once per cast.'
+                            'Special: Emergency: ally dissociates to ignore fatal damage once; ends shield; teleports DERELICTIONIST 4 tiles; applies Derelicted (&) to ally'
                         ]
                     }
                 ],
@@ -1539,10 +1509,13 @@ class UnitHelpComponent(UIComponent):
             UnitType.POTPOURRIST: {
                 'title': 'POTPOURRIST',
                 'overview': [
-                    'The POTPOURRIST is a durable tank unit wielding a granite pedestal as a weapon.',
-                    'This unit specializes in persistent regeneration and damage mitigation through debuffs.',
-                    'The POTPOURRIST can create potpourri to double its natural healing, becoming highly resilient.',
-                    'Combines exceptional sustain with defensive debuffs and tactical taunting to outlast opponents.',
+                    'The POTPOURRIST is a durable tank unit who wields a heavy granite pedestal as both weapon',
+                    'and incense burner. The pedestal releases aromatic vapors that provide continuous healing and',
+                    'tactical advantages in combat. This unit specializes in persistent regeneration and damage',
+                    'mitigation through disorienting debuffs. By infusing their blend into concentrated potpourri,',
+                    'the POTPOURRIST can double their natural healing and empower their offensive abilities.',
+                    'The POTPOURRIST excels at outlasting opponents through exceptional sustain, defensive debuffs,',
+                    'and magical bindings that force enemies into unfavorable tactical decisions.',
                     '',
                     'Role: Tank / Frontline Fighter',
                     'Difficulty: *'
@@ -1558,59 +1531,45 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'MELANGE EMINENCE (Passive)',
-                        'description': 'Regenerates HP every turn, enhanced by potpourri. Cannot be prevented by any effect.',
+                        'description': 'The POTPOURRIST\'s aromatic blend continuously restores vitality through inhalation. This natural regenerative process occurs at the start of every turn (including enemy turns) and cannot be suppressed by any curse or healing prevention effect. When infused with potpourri, the enhanced fragrance doubles the restorative power.',
                         'details': [
                             'Type: Passive',
-                            'Trigger: At the start of EVERY turn (including opponent turns)',
-                            'Base Effect: Heals 1 HP per turn',
-                            'Enhanced Effect: Heals 2 HP per turn while holding potpourri',
-                            'Special: Bypasses all healing prevention effects (including Auction Curse)',
-                            'Special: Only passive that triggers on all turns, not just own turn'
+                            'Base healing: 1 HP per turn',
+                            'Enhanced healing: 2 HP per turn while holding potpourri'
                         ]
                     },
                     {
                         'name': 'INFUSE (Active) [Key: I]',
-                        'description': 'Creates potpourri to enhance regeneration. Single use until consumed.',
+                        'description': 'The POTPOURRIST infuses their aromatic blend into a concentrated potpourri mixture, intensifying the healing vapors. This self-targeting ability enhances Melange Eminence\'s regeneration (from 1 HP to 2 HP per turn) and empowers both Demilune and Granite Geas with additional effects. Once created, the potpourri persists until consumed by casting Demilune or Granite Geas.',
                         'details': [
                             'Type: Active',
                             'Range: Self',
-                            'Target: Self',
-                            'Effect: Grants potpourri_held status',
-                            'Cooldown: 0 turns (gated by potpourri_held flag)',
-                            'Special: Once used, cannot be used again until potpourri is consumed',
-                            'Special: Doubles Melange Eminence healing (1 HP -> 2 HP per turn)'
+                            'Effect: Infusion (*)',
+                            'Cooldown: 0 turns (gated by Infusion status)'
                         ]
                     },
                     {
                         'name': 'DEMILUNE (Active) [Key: D]',
-                        'description': 'Forward arc attack that halves all damage from debuffed enemies.',
+                        'description': 'The POTPOURRIST swings their granite pedestal in a wide crescent arc, striking enemies in a forward half-moon pattern (3 tiles ahead plus 2 diagonal sides). The impact releases disorienting potpourri vapors that induce Lunacy, a maddening effect that halves all damage the afflicted enemy deals to the POTPOURRIST for 2 turns (rounded down). When enhanced with potpourri, the strike also erodes the target\'s mental defenses, halving their defense value against the POTPOURRIST\'s attacks. This consumes the potpourri.',
                         'details': [
                             'Type: Active',
-                            'Range: Adjacent (5 tiles: 3 forward + 2 sides)',
-                            'Target: Enemy units',
-                            'Damage: 3 (4 if enhanced)',
-                            'Debuff: Lunacy (2 turns)',
-                            'Debuff Effect: Halves all damage dealt by debuffed unit',
-                            'Enhanced: Also halves enemy defense when attacked by POTPOURRIST',
+                            'Target: Adjacent tile',
+                            'Damage: 3 (4 if enhanced with potpourri)',
+                            'Effect: Lunacy (() (2 turns)',
                             'Cooldown: 3 turns',
-                            'Special: Damage reduction applies to both attacks and skills'
+                            'Special: Lunacy affects both attacks and skills'
                         ]
                     },
                     {
                         'name': 'GRANITE GEAS (Active) [Key: G]',
-                        'description': 'Marks enemy with potpourri oils, binding them. If enemy fails to respond, POTPOURRIST heals.',
+                        'description': 'The POTPOURRIST strikes an enemy with their pedestal, marking them with aromatic oils that form a magical binding. This geas compels the marked target to focus their aggression on the POTPOURRIST—if the target fails to attack or use a skill against the POTPOURRIST during their turn, the binding breaks and releases fragrant fumes that the POTPOURRIST inhales for 4 HP of healing. When enhanced with potpourri, the geas lasts 2 turns instead of 1, potentially yielding up to 8 HP if ignored both turns. This consumes the potpourri.',
                         'details': [
                             'Type: Active',
                             'Range: 1',
                             'Target: Single enemy',
                             'Damage: 4',
-                            'Geas: Marks target with potpourri oils, applying Taunted status',
-                            'Duration: 1 turn (2 turns if enhanced with potpourri)',
-                            'Taunt Effect: If taunted unit doesn\'t attack/skill POTPOURRIST on their turn',
-                            'Heal on Ignore: POTPOURRIST heals 4 HP at end of taunted unit\'s turn',
-                            'Enhanced: Geas lasts 2 turns (up to 8 HP healing if never responded)',
-                            'Cooldown: 3 turns',
-                            'Special: Magical binding forces tactical decisions and punishes passive play'
+                            'Effect: Geas (:) (1-2 turns); heals 4 HP per turn if ignored',
+                            'Cooldown: 3 turns'
                         ]
                     }
                 ],
