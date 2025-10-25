@@ -1402,7 +1402,7 @@ class UnitHelpComponent(UIComponent):
                             'Damage: 8',
                             'Pierce: No',
                             'Effects: Neural control for 1 turn',
-                            'Cooldown: 3 turns',
+                            'Cooldown: 4 turns',
                             'Special: Affected unit performs random moves, attacks, or skills for 1 turn'
                         ]
                     },
