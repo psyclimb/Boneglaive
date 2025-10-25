@@ -424,6 +424,8 @@ class SimpleAI:
             self._process_delphic_appraiser(unit, use_coordination=self.difficulty == AIDifficulty.HARD)
         elif unit.type == UnitType.DERELICTIONIST:
             self._process_derelictionist(unit, use_coordination=self.difficulty == AIDifficulty.HARD)
+        elif unit.type == UnitType.POTPOURRIST:
+            self._process_potpourrist(unit, use_coordination=self.difficulty == AIDifficulty.HARD)
         else:
             # Default behavior for other unit types
             logger.info(f"No specific AI logic for {unit.type.name}, using default behavior")
@@ -6548,3 +6550,631 @@ class SimpleAI:
         if best_position:
             unit.move_target = best_position
             logger.info(f"DEFENSIVE: Moving to safe position {best_position}")
+    def _process_potpourrist(self, unit: 'Unit', use_coordination: bool = False) -> None:
+        """
+        Process actions for a POTPOURRIST unit with intelligent tank play.
+        
+        The POTPOURRIST is an aggressive sustain tank that:
+        - Prioritizes kill opportunities with basic attacks
+        - Uses Infuse early for healing boost
+        - Applies Demilune debuffs to multiple enemies
+        - Forces bad trades with Granite Geas taunt
+        - Positions aggressively on the frontline
+        
+        Strategic priorities:
+        1. Execute kills with basic attacks (don't waste skills)
+        2. Use Infuse if not holding potpourri
+        3. Emergency Demilune if surrounded
+        4. Tactical Granite Geas on high-value targets
+        5. Aggressive Demilune on key threats
+        6. Move towards enemies
+        7. Attack nearest target
+        
+        Args:
+            unit: The POTPOURRIST unit to process
+            use_coordination: Whether to use group coordination tactics
+        """
+        # Reset all targets
+        unit.move_target = None
+        unit.attack_target = None
+        unit.skill_target = None
+        unit.selected_skill = None
+        
+        logger.info(f"POTPOURRIST {unit.get_display_name()} beginning tactical analysis")
+        
+        # Check constraints
+        is_trapped = hasattr(unit, 'trapped_by') and unit.trapped_by is not None
+        
+        # Get enemies for analysis
+        enemies = [u for u in self.game.units
+                  if u.player != unit.player and u.is_alive() and u.type != UnitType.HEINOUS_VAPOR]
+        
+        if not enemies:
+            logger.info("POTPOURRIST has no enemies - waiting")
+            return
+        
+        # Find best target
+        if use_coordination and unit.id in self.target_assignments:
+            # Use coordinated target
+            target_id = self.target_assignments[unit.id]
+            target = None
+            for enemy in enemies:
+                if enemy.id == target_id:
+                    target = enemy
+                    logger.info(f"Using coordinated target: {target.get_display_name()}")
+                    break
+            if not target:
+                target = self._find_best_target_for_potpourrist(unit, enemies)
+        elif self.difficulty == AIDifficulty.EASY:
+            target = self._find_random_enemy(unit)
+        elif self.difficulty == AIDifficulty.MEDIUM:
+            target = self._find_nearest_enemy(unit)
+        else:  # HARD
+            target = self._find_best_target_for_potpourrist(unit, enemies)
+        
+        if not target:
+            logger.info("No valid target found")
+            return
+        
+        logger.info(f"POTPOURRIST targeting: {target.get_display_name()} at ({target.y}, {target.x})")
+        
+        # PRIORITY 1: Check for kill opportunity with basic attack
+        if self._can_kill_with_attack(unit, target):
+            # Can kill this target - check if we can reach it
+            can_attack = self._can_attack(unit, target)
+            
+            if can_attack:
+                logger.info(f"KILL OPPORTUNITY: Basic attacking {target.get_display_name()}")
+                unit.attack_target = (target.y, target.x)
+                return
+            else:
+                # Try to move into attack range
+                if not is_trapped:
+                    self._move_towards_enemy(unit, target)
+                    if self._can_attack_after_move(unit, target):
+                        logger.info(f"KILL OPPORTUNITY: Moving and attacking {target.get_display_name()}")
+                        return
+        
+        # Get available skills
+        available_skills = unit.get_available_skills()
+        
+        # PRIORITY 2: Use Infuse if not holding potpourri
+        if self._evaluate_infuse_skill(unit, available_skills):
+            return
+        
+        # PRIORITY 3: Emergency Demilune if surrounded by 3+ enemies
+        adjacent_enemies = [e for e in enemies 
+                           if self.game.chess_distance(unit.y, unit.x, e.y, e.x) <= 1]
+        
+        if len(adjacent_enemies) >= 3:
+            demilune_used = self._use_emergency_demilune(unit, adjacent_enemies, available_skills)
+            if demilune_used:
+                return
+        
+        # PRIORITY 4: Tactical Granite Geas on high-value targets
+        geas_used = self._use_tactical_granite_geas(unit, target, enemies, available_skills)
+        if geas_used:
+            return
+        
+        # PRIORITY 5: Aggressive Demilune on key threats
+        demilune_used = self._use_aggressive_demilune(unit, enemies, available_skills)
+        if demilune_used:
+            return
+        
+        # PRIORITY 6: Move towards enemies (aggressive positioning)
+        if not is_trapped:
+            # Check if we can attack from current position
+            can_attack = self._can_attack(unit, target)
+            
+            if can_attack:
+                logger.info(f"POTPOURRIST attacking {target.get_display_name()} from current position")
+                unit.attack_target = (target.y, target.x)
+            else:
+                # Move towards target
+                if self.difficulty == AIDifficulty.EASY and random.random() < 0.1:
+                    logger.info("EASY difficulty: Skipping movement")
+                    return
+                
+                logger.info(f"POTPOURRIST moving towards {target.get_display_name()}")
+                self._aggressive_positioning(unit, target, enemies)
+                
+                # Check if we can attack after moving
+                if self._can_attack_after_move(unit, target):
+                    logger.info(f"POTPOURRIST attacking after movement")
+        else:
+            # Trapped - can only attack
+            can_attack = self._can_attack(unit, target)
+            if can_attack:
+                logger.info(f"POTPOURRIST (trapped) attacking {target.get_display_name()}")
+                unit.attack_target = (target.y, target.x)
+    
+    def _find_best_target_for_potpourrist(self, unit: 'Unit', enemies: list) -> Optional['Unit']:
+        """
+        Find the best target for POTPOURRIST to engage.
+        
+        Priorities:
+        1. High-damage threats (GLAIVEMAN, FOWL_CONTRIVANCE)
+        2. Support units for Geas value (DERELICTIONIST, GAS_MACHINIST)
+        3. Avoid GRAYMAN (Stasiality immunity)
+        4. Prefer closer targets
+        
+        Args:
+            unit: The POTPOURRIST unit
+            enemies: List of enemy units
+            
+        Returns:
+            Best enemy target or None
+        """
+        if not enemies:
+            return None
+        
+        scored_enemies = []
+        
+        for enemy in enemies:
+            score = 0
+            distance = self.game.chess_distance(unit.y, unit.x, enemy.y, enemy.x)
+            
+            # High-damage threats
+            if enemy.type in [UnitType.GLAIVEMAN, UnitType.FOWL_CONTRIVANCE]:
+                score += 30
+            
+            # Support units (good Geas targets)
+            elif enemy.type in [UnitType.DERELICTIONIST, UnitType.GAS_MACHINIST]:
+                score += 25
+            
+            # Medium threats
+            elif enemy.type in [UnitType.MANDIBLE_FOREMAN, UnitType.MARROW_CONDENSER]:
+                score += 15
+            
+            # Avoid GRAYMAN (immune to status effects)
+            elif enemy.type == UnitType.GRAYMAN:
+                score -= 10
+            
+            # Prefer closer targets
+            score += max(0, 20 - distance * 2)
+            
+            # Prefer wounded targets
+            hp_percent = enemy.hp / enemy.max_hp
+            if hp_percent < 0.3:
+                score += 20
+            elif hp_percent < 0.6:
+                score += 10
+            
+            scored_enemies.append((enemy, score))
+        
+        # Sort by score
+        scored_enemies.sort(key=lambda x: x[1], reverse=True)
+        
+        best_enemy = scored_enemies[0][0]
+        logger.info(f"Best target: {best_enemy.get_display_name()} (score: {scored_enemies[0][1]})")
+        
+        return best_enemy
+    
+    def _can_kill_with_attack(self, unit: 'Unit', target: 'Unit') -> bool:
+        """
+        Check if POTPOURRIST can kill target with a basic attack.
+        
+        Args:
+            unit: The POTPOURRIST unit
+            target: The enemy target
+            
+        Returns:
+            True if basic attack will kill, False otherwise
+        """
+        unit_stats = unit.get_effective_stats()
+        damage = unit_stats['attack']
+        
+        # Account for Demilune debuff on target if active
+        if hasattr(target, 'demilune_debuffed') and target.demilune_debuffed:
+            # Target deals half damage, but this doesn't affect our outgoing damage
+            # However, if target has defense halving from enhanced Demilune, we do more damage
+            if hasattr(target, 'demilune_defense_halved') and target.demilune_defense_halved:
+                target_defense = target.defense // 2
+            else:
+                target_defense = target.defense
+        else:
+            target_defense = target.defense
+        
+        actual_damage = max(1, damage - target_defense)
+        
+        can_kill = target.hp <= actual_damage
+        
+        if can_kill:
+            logger.info(f"Can kill {target.get_display_name()} with basic attack ({actual_damage} damage vs {target.hp} HP)")
+        
+        return can_kill
+    
+    def _evaluate_infuse_skill(self, unit: 'Unit', available_skills: list) -> bool:
+        """
+        Evaluate and use Infuse skill if conditions are met.
+        
+        Args:
+            unit: The POTPOURRIST unit
+            available_skills: List of available skills
+            
+        Returns:
+            True if Infuse was used, False otherwise
+        """
+        # Check if already holding potpourri
+        if hasattr(unit, 'potpourri_held') and unit.potpourri_held:
+            return False
+        
+        # Find Infuse skill
+        infuse_skill = None
+        for skill in available_skills:
+            if hasattr(skill, 'name') and skill.name == "Infuse":
+                infuse_skill = skill
+                break
+        
+        if not infuse_skill:
+            return False
+        
+        # Use Infuse immediately
+        logger.info("POTPOURRIST using Infuse to create potpourri")
+        success = infuse_skill.use(unit, (unit.y, unit.x), self.game)
+        if success:
+            return True
+        return False
+    
+    def _use_emergency_demilune(self, unit: 'Unit', adjacent_enemies: list, available_skills: list) -> bool:
+        """
+        Use Demilune in emergency when surrounded by multiple enemies.
+        
+        Args:
+            unit: The POTPOURRIST unit
+            adjacent_enemies: List of adjacent enemy units
+            available_skills: List of available skills
+            
+        Returns:
+            True if Demilune was used, False otherwise
+        """
+        # Find Demilune skill
+        demilune_skill = None
+        for skill in available_skills:
+            if hasattr(skill, 'name') and skill.name == "Demilune":
+                demilune_skill = skill
+                break
+        
+        if not demilune_skill:
+            return False
+        
+        # Pick any adjacent enemy as target (skill will hit arc)
+        target_pos = (adjacent_enemies[0].y, adjacent_enemies[0].x)
+
+        logger.info(f"EMERGENCY DEMILUNE: Surrounded by {len(adjacent_enemies)} enemies")
+        success = demilune_skill.use(unit, target_pos, self.game)
+        return success
+    
+    def _use_tactical_granite_geas(self, unit: 'Unit', target: 'Unit', enemies: list, 
+                                    available_skills: list) -> bool:
+        """
+        Use Granite Geas tactically on high-value targets.
+        
+        Args:
+            unit: The POTPOURRIST unit
+            target: Primary enemy target
+            enemies: List of all enemies
+            available_skills: List of available skills
+            
+        Returns:
+            True if Granite Geas was used, False otherwise
+        """
+        # Find Granite Geas skill
+        geas_skill = None
+        for skill in available_skills:
+            if hasattr(skill, 'name') and skill.name == "Granite Geas":
+                geas_skill = skill
+                break
+        
+        if not geas_skill:
+            return False
+        
+        # EASY difficulty: skip skills sometimes
+        if self.difficulty == AIDifficulty.EASY and random.random() < 0.4:
+            return False
+        
+        # Find best Geas target
+        best_geas_target = None
+        best_score = 0
+        
+        for enemy in enemies:
+            # Don't use Geas on targets that can be killed with basic attack
+            if self._can_kill_with_attack(unit, enemy):
+                continue
+            
+            # Check if in range
+            distance = self.game.chess_distance(unit.y, unit.x, enemy.y, enemy.x)
+            if distance > geas_skill.range:
+                continue
+            
+            # Check if already taunted
+            if hasattr(enemy, 'taunted_by') and enemy.taunted_by:
+                continue
+            
+            # Check if immune (GRAYMAN)
+            if enemy.type == UnitType.GRAYMAN:
+                continue
+            
+            # Score this target
+            score = self._evaluate_granite_geas_skill(unit, enemy, available_skills)
+            
+            if score > best_score:
+                best_score = score
+                best_geas_target = enemy
+        
+        # Use skill if score is high enough
+        threshold = 15 if self.difficulty == AIDifficulty.HARD else 20
+        
+        if best_geas_target and best_score >= threshold:
+            logger.info(f"TACTICAL GEAS: Targeting {best_geas_target.get_display_name()} (score: {best_score})")
+            success = geas_skill.use(unit, (best_geas_target.y, best_geas_target.x), self.game)
+            return success
+
+        return False
+    
+    def _evaluate_granite_geas_skill(self, unit: 'Unit', target: 'Unit', available_skills: list) -> int:
+        """
+        Evaluate the value of using Granite Geas on a target.
+        
+        Score factors:
+        - Target is support: +30 (forces bad response)
+        - POTPOURRIST HP > 80%: +15 (can afford tank response)
+        - Enhanced (holding potpourri): +25 (double healing potential)
+        - Target HP > 50%: +10 (healthy target = more taunt pressure)
+        - Base: +5
+        
+        Args:
+            unit: The POTPOURRIST unit
+            target: The enemy target
+            available_skills: List of available skills
+            
+        Returns:
+            Score for using Geas on this target
+        """
+        score = 5  # Base score
+        
+        # Support units (force bad tactical choice)
+        if target.type in [UnitType.DERELICTIONIST, UnitType.GAS_MACHINIST, UnitType.DELPHIC_APPRAISER]:
+            score += 30
+            logger.debug(f"  +30 support unit")
+        
+        # High-damage threats
+        elif target.type in [UnitType.GLAIVEMAN, UnitType.FOWL_CONTRIVANCE]:
+            score += 20
+            logger.debug(f"  +20 high damage threat")
+        
+        # POTPOURRIST HP check
+        hp_percent = unit.hp / unit.max_hp
+        if hp_percent > 0.8:
+            score += 15
+            logger.debug(f"  +15 high HP")
+        elif hp_percent < 0.4:
+            score -= 10  # Risky to taunt when low
+            logger.debug(f"  -10 low HP")
+        
+        # Enhanced with potpourri
+        if hasattr(unit, 'potpourri_held') and unit.potpourri_held:
+            score += 25
+            logger.debug(f"  +25 enhanced (potpourri)")
+        
+        # Target HP (prefer healthy targets for taunt value)
+        target_hp_percent = target.hp / target.max_hp
+        if target_hp_percent > 0.5:
+            score += 10
+            logger.debug(f"  +10 healthy target")
+        
+        return score
+    
+    def _use_aggressive_demilune(self, unit: 'Unit', enemies: list, available_skills: list) -> bool:
+        """
+        Use Demilune aggressively to hit multiple enemies or key threats.
+        
+        Args:
+            unit: The POTPOURRIST unit
+            enemies: List of enemy units
+            available_skills: List of available skills
+            
+        Returns:
+            True if Demilune was used, False otherwise
+        """
+        # Find Demilune skill
+        demilune_skill = None
+        for skill in available_skills:
+            if hasattr(skill, 'name') and skill.name == "Demilune":
+                demilune_skill = skill
+                break
+        
+        if not demilune_skill:
+            return False
+        
+        # EASY difficulty: skip skills sometimes
+        if self.difficulty == AIDifficulty.EASY and random.random() < 0.4:
+            return False
+        
+        # Find best Demilune direction
+        best_direction, best_score, best_targets = self._choose_demilune_direction(unit, enemies)
+        
+        if not best_direction:
+            return False
+        
+        # Use skill if score is high enough
+        threshold = 10 if self.difficulty == AIDifficulty.HARD else 15
+        
+        if best_score >= threshold:
+            logger.info(f"AGGRESSIVE DEMILUNE: Hitting {len(best_targets)} enemies (score: {best_score})")
+            success = demilune_skill.use(unit, best_direction, self.game)
+            return success
+
+        return False
+    
+    def _choose_demilune_direction(self, unit: 'Unit', enemies: list) -> Tuple[Optional[Tuple[int, int]], int, list]:
+        """
+        Choose the best direction for Demilune to hit maximum value targets.
+        
+        Demilune hits in a forward arc (5 tiles: 3 forward + 2 sides).
+        
+        Args:
+            unit: The POTPOURRIST unit
+            enemies: List of enemy units
+            
+        Returns:
+            Tuple of (target_position, score, targets_hit)
+        """
+        # Try all 4 cardinal directions
+        directions = [
+            (-1, 0),  # North
+            (1, 0),   # South
+            (0, -1),  # West
+            (0, 1)    # East
+        ]
+        
+        best_direction = None
+        best_score = 0
+        best_targets = []
+        
+        for dy, dx in directions:
+            target_y = unit.y + dy
+            target_x = unit.x + dx
+            
+            # Check if target position is valid
+            if not self.game.is_valid_position(target_y, target_x):
+                continue
+            
+            # Get arc tiles for this direction
+            arc_tiles = self._get_demilune_arc_tiles(unit.y, unit.x, target_y, target_x)
+            
+            # Find enemies in arc
+            targets_in_arc = []
+            for enemy in enemies:
+                if (enemy.y, enemy.x) in arc_tiles:
+                    targets_in_arc.append(enemy)
+            
+            if not targets_in_arc:
+                continue
+            
+            # Score this direction
+            score = 0
+            
+            # Base score for number of targets
+            score += len(targets_in_arc) * 10
+            
+            # Bonus for specific unit types
+            for target in targets_in_arc:
+                if target.type in [UnitType.GLAIVEMAN, UnitType.FOWL_CONTRIVANCE]:
+                    score += 10  # High-damage threats
+                elif target.type in [UnitType.MANDIBLE_FOREMAN, UnitType.MARROW_CONDENSER]:
+                    score += 5   # Medium threats
+                elif target.type == UnitType.GRAYMAN:
+                    score -= 5   # Immune to debuff
+            
+            if score > best_score:
+                best_score = score
+                best_direction = (target_y, target_x)
+                best_targets = targets_in_arc
+        
+        return best_direction, best_score, best_targets
+    
+    def _get_demilune_arc_tiles(self, user_y: int, user_x: int, target_y: int, target_x: int) -> list:
+        """
+        Get the 5 tiles in Demilune's forward arc.
+        
+        Args:
+            user_y: POTPOURRIST Y position
+            user_x: POTPOURRIST X position
+            target_y: Target Y position
+            target_x: Target X position
+            
+        Returns:
+            List of (y, x) tuples in the arc
+        """
+        tiles = []
+        
+        # Determine forward direction
+        dy = target_y - user_y
+        dx = target_x - user_x
+        
+        # Add forward 3 tiles and perpendicular side 2 tiles based on direction
+        if abs(dy) >= abs(dx):  # Vertical movement dominant
+            if dy < 0:  # Target above - forward is north
+                tiles.append((user_y - 1, user_x - 1))  # NW
+                tiles.append((user_y - 1, user_x))      # N
+                tiles.append((user_y - 1, user_x + 1))  # NE
+                tiles.append((user_y, user_x - 1))      # W
+                tiles.append((user_y, user_x + 1))      # E
+            else:  # Target below - forward is south
+                tiles.append((user_y + 1, user_x - 1))  # SW
+                tiles.append((user_y + 1, user_x))      # S
+                tiles.append((user_y + 1, user_x + 1))  # SE
+                tiles.append((user_y, user_x - 1))      # W
+                tiles.append((user_y, user_x + 1))      # E
+        else:  # Horizontal movement dominant
+            if dx < 0:  # Target left - forward is west
+                tiles.append((user_y - 1, user_x - 1))  # NW
+                tiles.append((user_y, user_x - 1))      # W
+                tiles.append((user_y + 1, user_x - 1))  # SW
+                tiles.append((user_y - 1, user_x))      # N
+                tiles.append((user_y + 1, user_x))      # S
+            else:  # Target right - forward is east
+                tiles.append((user_y - 1, user_x + 1))  # NE
+                tiles.append((user_y, user_x + 1))      # E
+                tiles.append((user_y + 1, user_x + 1))  # SE
+                tiles.append((user_y - 1, user_x))      # N
+                tiles.append((user_y + 1, user_x))      # S
+        
+        return tiles
+    
+    def _aggressive_positioning(self, unit: 'Unit', target: 'Unit', enemies: list) -> None:
+        """
+        Position POTPOURRIST aggressively towards enemies (tank role).
+        
+        Prioritizes positions that:
+        1. Get closer to target
+        2. Maximize Demilune arc coverage
+        3. Stay in melee range of enemies
+        
+        Args:
+            unit: The POTPOURRIST unit
+            target: Primary enemy target
+            enemies: List of all enemies
+        """
+        move_range = unit.get_effective_stats()['move_range']
+        best_position = None
+        best_score = -999
+        
+        for dy in range(-move_range, move_range + 1):
+            for dx in range(-move_range, move_range + 1):
+                new_y = unit.y + dy
+                new_x = unit.x + dx
+                
+                # Check if position is valid and reachable
+                if (not self.game.is_valid_position(new_y, new_x) or
+                    not self.game.map.is_passable(new_y, new_x) or
+                    self.game.get_unit_at(new_y, new_x) or
+                    self.game.chess_distance(unit.y, unit.x, new_y, new_x) > move_range):
+                    continue
+                
+                # Score this position
+                score = 0
+                
+                # Distance to target (prefer closer)
+                distance_to_target = self.game.chess_distance(new_y, new_x, target.y, target.x)
+                score += max(0, 30 - distance_to_target * 3)
+                
+                # Count enemies in skill range (prefer positions that threaten more)
+                enemies_in_range = sum(1 for e in enemies 
+                                      if self.game.chess_distance(new_y, new_x, e.y, e.x) <= 1)
+                score += enemies_in_range * 5
+                
+                # Prefer positions closer to enemy clusters (aggressive tanking)
+                total_enemy_distance = sum(self.game.chess_distance(new_y, new_x, e.y, e.x) for e in enemies)
+                score += max(0, 50 - total_enemy_distance)
+                
+                if score > best_score:
+                    best_score = score
+                    best_position = (new_y, new_x)
+        
+        if best_position:
+            unit.move_target = best_position
+            logger.info(f"AGGRESSIVE: Moving to {best_position} (score: {best_score})")
+        else:
+            logger.warning("No valid aggressive position found")

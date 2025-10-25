@@ -1230,7 +1230,13 @@ class Unit:
         """
         if not hasattr(self, 'radiation_stacks') or not self.radiation_stacks:
             return 0
-            
+
+        # GRAYMAN with Stasiality is immune to radiation
+        if self.is_immune_to_effects():
+            # Clear all radiation stacks
+            self.radiation_stacks = []
+            return 0
+
         total_damage = len(self.radiation_stacks)  # 1 damage per stack
         if total_damage <= 0:
             return 0
@@ -1287,19 +1293,9 @@ class Unit:
     
     def process_interferer_effects(self, game: 'Game') -> None:
         """Process INTERFERER-specific status effects at end of turn."""
-        # Process Karrier Rave duration
-        if hasattr(self, 'carrier_rave_duration') and self.carrier_rave_duration > 0:
-            self.carrier_rave_duration -= 1
-            if self.carrier_rave_duration <= 0:
-                self.carrier_rave_active = False
-                
-                from boneglaive.utils.message_log import message_log, MessageType
-                message_log.add_message(
-                    f"{self.get_display_name()} phases back into reality without striking!",
-                    MessageType.ABILITY,
-                    player=self.player
-                )
-        
+        # Karrier Rave duration is now processed at the end of execute_turn (after combat)
+        # to prevent it from expiring before the attack executes
+
         # Process Neural Shunt duration
         if hasattr(self, 'neural_shunt_duration') and self.neural_shunt_duration > 0:
             self.neural_shunt_duration -= 1

@@ -1455,14 +1455,14 @@ class UnitHelpComponent(UIComponent):
                     'The DERELICTIONIST is a psychological abandonment therapist who weaponized distance-based',
                     'therapeutic techniques into a support system. This healer specializes in trauma processing,',
                     'protective partitioning, and abandonment therapy through controlled dissociation.',
-                    'Manipulates interpersonal distance to create healing effects and manage status conditions.',
+                    'The unit manipulates interpersonal distance to create healing effects and manage status conditions.',
                     '',
                     'Role: Utility / Healer',
                     'Difficulty: ***'
                 ],
                 'stats': [
                     'HP: 18',
-                    'Attack: 2',
+                    'Attack: 3',
                     'Defense: 0',
                     'Movement: 3',
                     'Range: 1',
@@ -1471,69 +1471,69 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'SEVERANCE (Passive)',
-                        'description': 'After using a skill, can move with enhanced range but cannot move twice.',
+                        'description': 'After using a skill, the unit can move with enhanced range but cannot move twice in one turn.',
                         'details': [
                             'Type: Passive',
-                            'Trigger: After using any active skill',
-                            'Effect: Grants +1 movement range for one move',
-                            'Restriction: Cannot move twice in one turn',
-                            'Special: Allows skill-then-move tactical flexibility'
+                            'Trigger: After using any active skill.',
+                            'Effect: Grants +1 movement range for one move.',
+                            'Restriction: Cannot move twice in one turn.',
+                            'Special: Allows skill-then-move tactical flexibility.'
                         ]
                     },
                     {
                         'name': 'VAGAL RUN (Active) [Key: V]',
-                        'description': 'Trauma therapy with distance-based effects and delayed abreaction.',
+                        'description': 'Stimulates an ally\'s vagus nerve to trigger abreactive trauma processing, clearing status effects with distance-based damage or healing and a delayed secondary response.',
                         'details': [
                             'Type: Active',
                             'Range: 3',
                             'Target: Ally',
                             'Cooldown: 4 turns',
-                            'Distance 3-5: Deals 3-1 piercing damage, cannot kill',
-                            'Distance 6: No immediate effect',
-                            'Distance 7+: Heals for distance minus 6 HP and applies Derelicted',
-                            'Always: Clears all status effects immediately',
-                            'Abreaction: After 3 turns, repeats the same effect and clears status again'
+                            'Distance 3-5: Deals 3-1 piercing damage, cannot kill.',
+                            'Distance 6: No immediate effect.',
+                            'Distance 7+: Heals for distance minus 6 HP and applies Derelicted.',
+                            'Always: Clears all status effects immediately.',
+                            'Abreaction: After 3 turns, the effect repeats and clears status again.'
                         ]
                     },
                     {
                         'name': 'DERELICT (Active) [Key: D]',
-                        'description': 'Push ally away and heal based on final distance from DERELICTIONIST.',
+                        'description': 'Pushes ally away and heals based on final distance from DERELICTIONIST.',
                         'details': [
                             'Type: Active',
                             'Range: 3',
                             'Target: Ally',
-                            'Push: Attempts to push ally 4 tiles in straight line',
-                            'Healing: Heals for distance between final positions',
-                            'Status: Applies Derelicted for 1 turn',
+                            'Push: Attempts to push ally 4 tiles in a straight line.',
+                            'Healing: Heals for distance between final positions.',
+                            'Status: Applies Derelicted for 1 turn.',
                             'Cooldown: 4 turns',
-                            'Special: Healing scales with tactical positioning'
+                            'Special: Healing scales with tactical positioning.'
                         ]
                     },
                     {
                         'name': 'PARTITION (Active) [Key: P]',
-                        'description': 'Protective shield with emergency intervention capability.',
+                        'description': 'Creates a protective shield with emergency intervention capability.',
                         'details': [
                             'Type: Active',
                             'Range: 3',
                             'Target: Ally',
-                            'Shield: Reduces all incoming damage by 1 for 3 turns',
-                            'Emergency: If fatal damage would occur, blocks all damage that turn',
-                            'Emergency Effect: Ends shield, teleports DERELICTIONIST away, applies Derelicted',
+                            'Shield: Reduces all incoming damage by 1 for 3 turns.',
+                            'Emergency: If fatal damage would occur, blocks all damage that turn.',
+                            'Emergency Effect: Ends shield, teleports DERELICTIONIST away, and applies Derelicted.',
                             'Cooldown: 4 turns',
-                            'Special: Can save allies from death once per cast'
+                            'Special: Can save allies from death once per cast.'
                         ]
                     }
                 ],
                 'tips': [
-                    '- Use Severance to reposition after skills for optimal healing distances',
-                    '- Vagal Run at distance 7+ provides powerful heal-over-time effects',
-                    '- Derelict can be used defensively to push allies out of danger while healing',
-                    '- Partition emergency intervention can save critically wounded allies'
+                    '- Use Severance to reposition after skills for optimal healing distances.',
+                    '- Vagal Run at distance 7+ provides powerful heal-over-time effects.',
+                    '- Derelict can be used defensively to push allies out of danger while healing.',
+                    '- Partition emergency intervention can save critically wounded allies.'
                 ],
                 'tactical': [
-                    '- Strong against: Status effect teams, burst damage, sustained fights',
-                    '- Vulnerable to: Mobility denial',
-                    '- Best positioning: Mid-range support, flexible positioning for optimal skill distances'
+                    '- Strong against: Status effect teams, burst damage, sustained fights.',
+                    '- Vulnerable to: Mobility denial.',
+                    '- Best positioning: Mid-range support with flexible positioning for optimal skill distances.'
                 ]
             },
             UnitType.POTPOURRIST: {
@@ -1548,10 +1548,10 @@ class UnitHelpComponent(UIComponent):
                     'Difficulty: *'
                 ],
                 'stats': [
-                    'HP: 28',
+                    'HP: 26',
                     'Attack: 4',
                     'Defense: 0',
-                    'Movement: 2',
+                    'Movement: 3',
                     'Range: 1',
                     'Symbol: P',
                 ],

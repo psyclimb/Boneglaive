@@ -118,17 +118,23 @@ class NeutronIlluminant(PassiveSkill):
         
         # Apply radiation to valid positions
         affected_units = []
+        immune_units = []
         for pos in radiation_positions:
             y, x = pos
             if not game.is_valid_position(y, x):
                 continue
-                
+
             target = game.get_unit_at(y, x)
             if target and target.player != user.player and target.is_alive():
+                # Check if target is immune to radiation (GRAYMAN with Stasiality)
+                if target.is_immune_to_effects():
+                    immune_units.append(target)
+                    continue
+
                 # Apply radiation sickness
                 if not hasattr(target, 'radiation_stacks'):
                     target.radiation_stacks = []
-                
+
                 # Add new radiation stack (2 turns duration)
                 target.radiation_stacks.append(2)
                 affected_units.append(target)
@@ -139,6 +145,14 @@ class NeutronIlluminant(PassiveSkill):
                 f"Neutron radiation spreads from the impact",
                 MessageType.ABILITY,
                 player=user.player
+            )
+
+        # Log immunity message for immune units
+        for immune_unit in immune_units:
+            message_log.add_message(
+                f"{immune_unit.get_display_name()} is immune to radiation due to Stasiality",
+                MessageType.ABILITY,
+                player=immune_unit.player
             )
 
 
