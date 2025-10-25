@@ -166,13 +166,13 @@ class NeuralShuntSkill(ActiveSkill):
         super().__init__(
             name="Neural Shunt",
             key="N",
-            description="Neural disruption attack (range 1). Deals 8 damage and causes target to perform random actions for 2 turns.",
+            description="Neural disruption attack (range 1). Deals 8 damage and causes target to perform random actions for 1 turn.",
             target_type=TargetType.ENEMY,
-            cooldown=4,
+            cooldown=3,
             range_=1
         )
         self.damage = 7
-        self.effect_duration = 2
+        self.effect_duration = 1
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         # Basic validation

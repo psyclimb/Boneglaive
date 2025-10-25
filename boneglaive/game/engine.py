@@ -3537,6 +3537,27 @@ class Game:
                                 player=unit.player
                             )
 
+            # Process Neural Shunt duration for units of the current player (after random actions)
+            # This ensures the effect lasts through the random action execution
+            for unit in self.units:
+                if unit.is_alive() and unit.player == self.current_player:
+                    if hasattr(unit, 'neural_shunt_duration') and unit.neural_shunt_duration > 0:
+                        # Decrement duration
+                        unit.neural_shunt_duration -= 1
+                        logger.debug(f"{unit.get_display_name()}'s Neural Shunt duration: {unit.neural_shunt_duration}")
+
+                        # Check if the effect has expired
+                        if unit.neural_shunt_duration <= 0:
+                            # Deactivate Neural Shunt
+                            unit.neural_shunt_affected = False
+
+                            # Log the recovery message
+                            message_log.add_message(
+                                f"{unit.get_display_name()} regains control of their actions!",
+                                MessageType.ABILITY,
+                                player=unit.player
+                            )
+
             # In single player mode, automatically toggle between player 1 and 2
             # In multiplayer modes, the multiplayer manager handles player switching
             if not self.local_multiplayer:
@@ -4137,10 +4158,16 @@ class Game:
                 # Only trigger if node belongs to enemy player
                 if owner.player != unit.player and node_info.get('active', True):
                     logger.debug(f"SCALAR NODE TRIGGERED! Triggering animation for unit {unit.get_display_name()}")
-                    damage = node_info['damage']
-                    
+                    raw_damage = node_info['damage']
+
                     # Apply regular damage (respects defense)
-                    actual_damage = unit.take_damage(damage, owner, "Scalar Node")
+                    effective_defense = unit.get_effective_stats()['defense']
+                    damage = max(1, raw_damage - effective_defense)
+
+                    # Apply damage
+                    previous_hp = unit.hp
+                    unit.hp = max(0, unit.hp - damage)
+                    actual_damage = previous_hp - unit.hp
                     
                     # Log scalar node activation with custom message format and proper damage coloring
                     custom_message = f"{unit.get_display_name()} stands in {owner.get_display_name()}'s standing wave for {actual_damage} damage!"
