@@ -3316,16 +3316,20 @@ class Game:
         
         # Check if game is over
         self.check_game_over()
-        
+
         # If UI is provided, redraw with cursor, selection, and attack targets before finishing
         if ui:
             # Stop the spinner
             ui.stop_spinner()
-            
+
             # Slight delay before showing final state
             time.sleep(0.3)
             ui.draw_board(show_cursor=True, show_selection=True, show_attack_targets=True)  # Restore all UI elements
-        
+
+        # If game is over, stop processing and don't switch players
+        if self.winner:
+            return
+
         # Process health regeneration for units that took no actions this turn
         # This must happen BEFORE player switching so flags are accurate
         if not self.winner:
@@ -3430,63 +3434,72 @@ class Game:
                         # Unit didn't attack/skill the POTPOURRIST - heal POTPOURRIST
                         taunter = unit.taunted_by
                         if taunter.is_alive():
-                            # Show geas breaking animation on taunted unit
-                            if hasattr(self, 'ui') and self.ui and hasattr(self.ui, 'renderer') and hasattr(self.ui, 'asset_manager'):
-                                import time
-                                import curses
-                                from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-
-                                # Binding breaking animation on the unit who ignored the geas
-                                geas_break = self.ui.asset_manager.get_skill_animation_sequence('geas_break')
-                                if not geas_break:
-                                    geas_break = ['0', 'O', 'o', '.', '~', '~', '~']  # Binding breaking and energy dispersing
-
-                                for frame in geas_break:
-                                    self.ui.renderer.draw_tile(unit.y, unit.x, frame, 7)  # Yellow for geas magic
-                                    self.ui.renderer.refresh()
-                                    sleep_with_animation_speed(0.08)
-
-                                # Show healing glow on POTPOURRIST
-                                heal_glow = ['+', '*', '+']
-                                for frame in heal_glow:
-                                    self.ui.renderer.draw_tile(taunter.y, taunter.x, frame, 3, curses.A_BOLD)  # Green for healing
-                                    self.ui.renderer.refresh()
-                                    sleep_with_animation_speed(0.1)
-
-                            old_hp = taunter._hp
-                            taunter._hp = min(taunter.max_hp, taunter._hp + 4)
-                            actual_heal = taunter._hp - old_hp
-
-                            # Show healing number if heal occurred
-                            if actual_heal > 0 and hasattr(self, 'ui') and self.ui and hasattr(self.ui, 'renderer'):
-                                healing_text = f"+{actual_heal}"
-
-                                # Flash 3 times
-                                for i in range(3):
-                                    # First clear the area
-                                    self.ui.renderer.draw_damage_text(taunter.y-1, taunter.x*2, " " * len(healing_text), 7)
-                                    # Draw with alternating bold/normal for a flashing effect
-                                    attrs = curses.A_BOLD if i % 2 == 0 else 0
-                                    self.ui.renderer.draw_damage_text(taunter.y-1, taunter.x*2, healing_text, 3, attrs)  # Green color
-                                    self.ui.renderer.refresh()
-                                    sleep_with_animation_speed(0.1)
-
-                                # Final healing display (stays on screen slightly longer)
-                                self.ui.renderer.draw_damage_text(taunter.y-1, taunter.x*2, healing_text, 3, curses.A_BOLD)
-                                self.ui.renderer.refresh()
-                                sleep_with_animation_speed(0.3)
-
-                                # Redraw board after animation
-                                if hasattr(self.ui, 'draw_board'):
-                                    self.ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-                            if actual_heal > 0:
-                                from boneglaive.utils.message_log import message_log, MessageType
+                            # Check if taunter is cursed by Auction Curse (healing prevention)
+                            if hasattr(taunter, 'auction_curse_no_heal') and taunter.auction_curse_no_heal:
+                                logger.debug(f"{taunter.get_display_name()} cannot heal from Granite Geas due to Auction Curse")
                                 message_log.add_message(
-                                    f"{taunter.get_display_name()} inhales the fumes of the broken geas and heals for #HEAL_{actual_heal}# HP",
-                                    MessageType.ABILITY,
+                                    f"{taunter.get_display_name()}'s healing from Granite Geas is prevented by the curse.",
+                                    MessageType.WARNING,
                                     player=taunter.player
                                 )
-                                logger.debug(f"TAUNT HEAL: {taunter.get_display_name()} healed {actual_heal} HP")
+                            else:
+                                # Show geas breaking animation on taunted unit
+                                if hasattr(self, 'ui') and self.ui and hasattr(self.ui, 'renderer') and hasattr(self.ui, 'asset_manager'):
+                                    import time
+                                    import curses
+                                    from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+
+                                    # Binding breaking animation on the unit who ignored the geas
+                                    geas_break = self.ui.asset_manager.get_skill_animation_sequence('geas_break')
+                                    if not geas_break:
+                                        geas_break = ['0', 'O', 'o', '.', '~', '~', '~']  # Binding breaking and energy dispersing
+
+                                    for frame in geas_break:
+                                        self.ui.renderer.draw_tile(unit.y, unit.x, frame, 7)  # Yellow for geas magic
+                                        self.ui.renderer.refresh()
+                                        sleep_with_animation_speed(0.08)
+
+                                    # Show healing glow on POTPOURRIST
+                                    heal_glow = ['+', '*', '+']
+                                    for frame in heal_glow:
+                                        self.ui.renderer.draw_tile(taunter.y, taunter.x, frame, 3, curses.A_BOLD)  # Green for healing
+                                        self.ui.renderer.refresh()
+                                        sleep_with_animation_speed(0.1)
+
+                                old_hp = taunter._hp
+                                taunter._hp = min(taunter.max_hp, taunter._hp + 4)
+                                actual_heal = taunter._hp - old_hp
+
+                                # Show healing number if heal occurred
+                                if actual_heal > 0 and hasattr(self, 'ui') and self.ui and hasattr(self.ui, 'renderer'):
+                                    healing_text = f"+{actual_heal}"
+
+                                    # Flash 3 times
+                                    for i in range(3):
+                                        # First clear the area
+                                        self.ui.renderer.draw_damage_text(taunter.y-1, taunter.x*2, " " * len(healing_text), 7)
+                                        # Draw with alternating bold/normal for a flashing effect
+                                        attrs = curses.A_BOLD if i % 2 == 0 else 0
+                                        self.ui.renderer.draw_damage_text(taunter.y-1, taunter.x*2, healing_text, 3, attrs)  # Green color
+                                        self.ui.renderer.refresh()
+                                        sleep_with_animation_speed(0.1)
+
+                                    # Final healing display (stays on screen slightly longer)
+                                    self.ui.renderer.draw_damage_text(taunter.y-1, taunter.x*2, healing_text, 3, curses.A_BOLD)
+                                    self.ui.renderer.refresh()
+                                    sleep_with_animation_speed(0.3)
+
+                                    # Redraw board after animation
+                                    if hasattr(self.ui, 'draw_board'):
+                                        self.ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+                                if actual_heal > 0:
+                                    from boneglaive.utils.message_log import message_log, MessageType
+                                    message_log.add_message(
+                                        f"{taunter.get_display_name()} inhales the fumes of the broken geas and heals for #HEAL_{actual_heal}# HP",
+                                        MessageType.ABILITY,
+                                        player=taunter.player
+                                    )
+                                    logger.debug(f"TAUNT HEAL: {taunter.get_display_name()} healed {actual_heal} HP")
 
                     # Decrement taunt duration
                     unit.taunt_duration -= 1

@@ -51,7 +51,7 @@ UNIT_STATS = {
     UnitType.DELPHIC_APPRAISER: (20, 4, 0, 3, 1),
     UnitType.INTERFERER: (18, 3, 0, 3, 1),
     UnitType.DERELICTIONIST: (18, 3, 0, 3, 1),
-    UnitType.POTPOURRIST: (26, 4, 0, 3, 1)
+    UnitType.POTPOURRIST: (24, 4, 0, 2, 1)
 }
 
 UNIT_SYMBOLS = {

@@ -1548,10 +1548,10 @@ class UnitHelpComponent(UIComponent):
                     'Difficulty: *'
                 ],
                 'stats': [
-                    'HP: 26',
+                    'HP: 24',
                     'Attack: 4',
                     'Defense: 0',
-                    'Movement: 3',
+                    'Movement: 2',
                     'Range: 1',
                     'Symbol: P',
                 ],
