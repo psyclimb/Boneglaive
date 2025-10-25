@@ -1296,18 +1296,8 @@ class Unit:
         # Karrier Rave duration is now processed at the end of execute_turn (after combat)
         # to prevent it from expiring before the attack executes
 
-        # Process Neural Shunt duration
-        if hasattr(self, 'neural_shunt_duration') and self.neural_shunt_duration > 0:
-            self.neural_shunt_duration -= 1
-            if self.neural_shunt_duration <= 0:
-                self.neural_shunt_affected = False
-                
-                from boneglaive.utils.message_log import message_log, MessageType
-                message_log.add_message(
-                    f"{self.get_display_name()} regains control of their actions!",
-                    MessageType.ABILITY,
-                    player=self.player
-                )
+        # Neural Shunt duration is now processed at the end of execute_turn (after random actions)
+        # to prevent it from expiring before the random actions are applied
         
     def get_skill_by_key(self, key: str) -> Optional:
         """Get an active skill by its key (for UI selection)."""

@@ -1401,9 +1401,9 @@ class UnitHelpComponent(UIComponent):
                             'Line of Sight: Yes',
                             'Damage: 8',
                             'Pierce: No',
-                            'Effects: Neural control for 2 turns',
-                            'Cooldown: 4 turns',
-                            'Special: Affected unit performs random moves, attacks, or skills for 2 turns'
+                            'Effects: Neural control for 1 turn',
+                            'Cooldown: 3 turns',
+                            'Special: Affected unit performs random moves, attacks, or skills for 1 turn'
                         ]
                     },
                     {
