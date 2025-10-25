@@ -258,7 +258,8 @@ class Game:
                     UnitType.GAS_MACHINIST,
                     UnitType.DELPHIC_APPRAISER,
                     UnitType.INTERFERER,
-                    UnitType.DERELICTIONIST
+                    UnitType.DERELICTIONIST,
+                    UnitType.POTPOURRIST
                 ]
 
                 # Track unit counts to enforce max 2 of each type
@@ -484,7 +485,9 @@ class Game:
             UnitType.FOWL_CONTRIVANCE,
             UnitType.GAS_MACHINIST,
             UnitType.DELPHIC_APPRAISER,
-            UnitType.INTERFERER
+            UnitType.INTERFERER,
+            UnitType.DERELICTIONIST,
+            UnitType.POTPOURRIST
         ]
         
         # Find valid positions for units that aren't on limestone
@@ -602,7 +605,10 @@ class Game:
                     UnitType.MARROW_CONDENSER,
                     UnitType.FOWL_CONTRIVANCE,
                     UnitType.GAS_MACHINIST,
-                    UnitType.DELPHIC_APPRAISER
+                    UnitType.DELPHIC_APPRAISER,
+                    UnitType.INTERFERER,
+                    UnitType.DERELICTIONIST,
+                    UnitType.POTPOURRIST
                 ]
                 
                 # Track unit counts to enforce max 2 of each type
@@ -718,7 +724,7 @@ class Game:
             # For VS_AI mode, add random unit types for player 2 with max 2 of each
             if is_vs_ai_mode and p2_missing > 0:
                 logger.warning("Adding emergency units for VS_AI mode with random selection")
-                
+
                 # Available unit types for random selection
                 available_types = [
                     UnitType.GLAIVEMAN,
@@ -727,7 +733,10 @@ class Game:
                     UnitType.MARROW_CONDENSER,
                     UnitType.FOWL_CONTRIVANCE,
                     UnitType.GAS_MACHINIST,
-                    UnitType.DELPHIC_APPRAISER
+                    UnitType.DELPHIC_APPRAISER,
+                    UnitType.INTERFERER,
+                    UnitType.DERELICTIONIST,
+                    UnitType.POTPOURRIST
                 ]
                 
                 # Count existing units for player 2
@@ -3506,6 +3515,27 @@ class Game:
                             unit.demilune_debuffed = False
                             unit.demilune_debuffed_by = None
                             unit.demilune_defense_halved = False
+
+            # Process Karrier Rave duration for units of the current player (after combat phase)
+            # This ensures the effect lasts through the attack execution
+            for unit in self.units:
+                if unit.is_alive() and unit.player == self.current_player:
+                    if hasattr(unit, 'carrier_rave_duration') and unit.carrier_rave_duration > 0:
+                        # Decrement duration
+                        unit.carrier_rave_duration -= 1
+                        logger.debug(f"{unit.get_display_name()}'s Karrier Rave duration: {unit.carrier_rave_duration}")
+
+                        # Check if the effect has expired
+                        if unit.carrier_rave_duration <= 0:
+                            # Deactivate Karrier Rave
+                            unit.carrier_rave_active = False
+
+                            # Log the phase-back message
+                            message_log.add_message(
+                                f"{unit.get_display_name()} phases back into reality without striking!",
+                                MessageType.ABILITY,
+                                player=unit.player
+                            )
 
             # In single player mode, automatically toggle between player 1 and 2
             # In multiplayer modes, the multiplayer manager handles player switching
