@@ -168,7 +168,7 @@ class NeuralShuntSkill(ActiveSkill):
             key="N",
             description="Neural disruption attack (range 1). Deals 8 damage and causes target to perform random actions for 1 turn.",
             target_type=TargetType.ENEMY,
-            cooldown=3,
+            cooldown=4,
             range_=1
         )
         self.damage = 7
