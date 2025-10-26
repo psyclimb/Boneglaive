@@ -1175,9 +1175,11 @@ class UnitHelpComponent(UIComponent):
             UnitType.GAS_MACHINIST: {
                 'title': 'GAS MACHINIST',
                 'overview': [
-                    'The GAS MACHINIST is a vapor-controlling technician that specializes in battlefield',
-                    'manipulation through chemical entities. This support unit excels at creating HEINOUS VAPOR',
-                    'minions that provide area control, healing, status removal, and damage over time.',
+                    'The GAS MACHINIST is an industrial chemist who deploys autonomous HEINOUS VAPOR entities',
+                    'in 3x3 areas that passively affect all units within each turn. The GAS MACHINIST generates',
+                    'Effluvium charges that extend vapor duration. Vapors can be split into specialized forms,',
+                    'or the GAS MACHINIST can dissolve entirely into vapor, reforming when the gases dissipate.',
+                    'The GAS MACHINIST excels at area control and sustained utility through vapor deployment.',
                     '',
                     'Role: Summoner / Area Controller / Utility / Healer',
                     'Difficulty: *****'
@@ -1188,67 +1190,54 @@ class UnitHelpComponent(UIComponent):
                     'Defense: 1',
                     'Movement: 2',
                     'Range: 1',
-                    'Symbol: M'
+                    'Symbol: M',
+                    'Attack Symbol: o'
                 ],
                 'skills': [
                     {
                         'name': 'EFFLUVIUM LATHE (Passive)',
-                        'description': 'Generates 1 Effluvium charge per turn (max 4). Charges extend HEINOUS VAPOR duration by 1 turn each.',
+                        'description': 'The GAS MACHINIST\'s internal lathe generates 1 Effluvium charge at the start of each turn (max 4). When summoning or splitting vapors, all accumulated charges are consumed to extend the vapor\'s duration. The GAS MACHINIST begins each match with 1 charge. While diverged into vapor form, the lathe ceases production until the GAS MACHINIST reforms.',
                         'details': [
                             'Type: Passive',
-                            'Range: Self',
-                            'Target: Charge generation',
-                            'Line of Sight: No',
-                            'Damage: None',
-                            'Pierce: No',
-                            'Effects: Generates charges, extends vapor duration',
-                            'Cooldown: None',
-                            'Special: Does not generate charges while diverged, starts with 1 charge'
+                            'Effect: Generates 1 charge/turn (max 4); starts with 1 charge',
+                            'Special: Charges consumed during vapor creation extend duration (1 charge = 1 turn); no generation while diverged'
                         ]
                     },
                     {
                         'name': 'BROACHING GAS (Active) [Key: B]',
-                        'description': 'Summons a HEINOUS VAPOR (1) that deals damage to enemies and cleanses allies of negative status effects.',
+                        'description': 'The GAS MACHINIST expels a HEINOUS VAPOR (symbol: 1) to an empty tile, creating a caustic gas cloud in a 3x3 area centered on the vapor. Each turn, the vapor automatically corrodes enemies within the cloud for 2 damage while simultaneously dissolving negative status effects from allies. The vapor persists for a duration equal to consumed Effluvium charges and is completely invulnerable to all damage.',
                         'details': [
                             'Type: Active',
                             'Range: 4',
                             'Target: Empty tile',
-                            'Line of Sight: Yes',
-                            'Damage: 2',
-                            'Pierce: No',
-                            'Effects: None',
+                            'Area: 3x3 (centered on vapor)',
+                            'Damage: 2 per turn to enemies',
                             'Cooldown: 2 turns',
-                            'Special: Vapor cleanses ally status effects; vapor is invulnerable'
+                            'Special: Cleanses ally status effects; invulnerable; duration = charges'
                         ]
                     },
                     {
                         'name': 'SAFT-E-GAS (Active) [Key: S]',
-                        'description': 'Summons a HEINOUS VAPOR (0) that blocks enemy targeting and heals allies.',
+                        'description': 'The GAS MACHINIST releases a HEINOUS VAPOR (symbol: 0) to an empty tile, forming a protective gas shield in a 3x3 area centered on the vapor. The vapor grants +1 defense to all allies within the cloud and heals them for 1 HP each turn. The vapor persists for a duration equal to consumed Effluvium charges and is completely invulnerable to all damage.',
                         'details': [
                             'Type: Active',
                             'Range: 4',
                             'Target: Empty tile',
-                            'Line of Sight: Yes',
-                            'Damage: None',
-                            'Pierce: No',
-                            'Effects: None',
+                            'Area: 3x3 (centered on vapor)',
+                            'Effect: +1 defense to allies; heals 1 HP/turn',
                             'Cooldown: 3 turns',
-                            'Special: Prevents being targetted from outside of the area of effect, heals allies, invulnerable unit'
+                            'Special: Invulnerable; duration = charges'
                         ]
                     },
                     {
                         'name': 'DIVERGE (Active) [Key: D]',
-                        'description': 'Splits an existing HEINOUS VAPOR or self into Coolant Gas and Cutting Gas.',
+                        'description': 'The GAS MACHINIST violently splits an existing HEINOUS VAPOR or themselves into two specialized vapor entities that appear in adjacent spaces. The split creates Coolant Gas (symbol: 2), which heals allies for 3 HP per turn in a 3x3 area, and Cutting Gas (symbol: 3), which deals 3 piercing damage per turn to enemies in a 3x3 area. When targeting self, the GAS MACHINIST dissolves completely and is removed from the board until both vapors expire. When the last vapor dissipates, the GAS MACHINIST reforms at that vapor\'s final position. Both resulting vapors inherit duration from consumed Effluvium charges.',
                         'details': [
                             'Type: Active',
                             'Range: 4',
                             'Target: Self or owned HEINOUS VAPOR',
-                            'Line of Sight: Yes',
-                            'Damage: 3',
-                            'Pierce: Yes',
-                            'Effects: None',
                             'Cooldown: 4 turns',
-                            'Special: Self-targeting removes GAS MACHINIST until vapors expire. Coolant gas heals allied units for 3 HP'
+                            'Special: Coolant heals 3 HP/turn; Cutting deals 3 piercing damage/turn; self-targeting removes GAS MACHINIST from board; reforms at last vapor position; duration = charges'
                         ]
                     }
                 ],
@@ -1268,12 +1257,16 @@ class UnitHelpComponent(UIComponent):
             UnitType.DELPHIC_APPRAISER: {
                 'title': 'DELPHIC APPRAISER',
                 'overview': [
-                    'The DELPHIC APPRAISER is a furniture evaluator with astral value perception that',
-                    'specializes in exploiting the metaphysical properties of terrain. This support unit excels',
-                    'at creating tactical advantages through furniture manipulation, teleportation networks,',
-                    'and reality distortion effects.',
+                    'The DELPHIC APPRAISER is an antique dealer with oracular sight who perceives the "astral',
+                    'value" (1-9) of every furniture piece on the battlefield. These metaphysical appraisals',
+                    'manifest as glowing numbers visible only to the APPRAISER, revealing the hidden cosmic worth',
+                    'of mundane objects. The APPRAISER weaponizes this supernatural perception to gain tactical',
+                    'bonuses from proximity to appraised furniture, imbue objects with teleportation energy,',
+                    'curse enemies with escalating value-based damage, and collapse furniture worth to create',
+                    'reality sinkholes. The APPRAISER thrives on furniture-rich maps where random astral values',
+                    'create unpredictable opportunities for devastating combos and tactical repositioning.',
                     '',
-                    'Role: Utility / Disabler / Escape Artist / Gambler',
+                    'Role: Utility / Support / Terrain Manipulator',
                     'Difficulty: ****'
                 ],
                 'stats': [
@@ -1282,67 +1275,54 @@ class UnitHelpComponent(UIComponent):
                     'Defense: 0',
                     'Movement: 3',
                     'Range: 1',
-                    'Symbol: A'
+                    'Symbol: A',
+                    'Attack Symbol: $'
                 ],
                 'skills': [
                     {
                         'name': 'VALUATION ORACLE (Passive)',
-                        'description': 'Perceives the \'astral value\' of furniture when the game starts.',
+                        'description': 'The DELPHIC APPRAISER\'s oracular sight pierces the material realm to perceive the "astral value" (random 1-9) of every furniture piece when the match begins. When standing adjacent to any appraised furniture, the APPRAISER channels its metaphysical energy to enhance their combat capabilities, gaining +1 defense and +1 attack range. These bonuses persist as long as the APPRAISER remains adjacent to at least one furniture piece.',
                         'details': [
                             'Type: Passive',
-                            'Range: Adjacent tiles',
-                            'Target: Furniture terrain',
-                            'Line of Sight: No',
-                            'Damage: None',
-                            'Pierce: No',
-                            'Effects: Valuation Oracle, gains +1 to defense and attack range',
-                            'Cooldown: None',
-                            'Special: Bonuses last while adjacent to any furniture'
+                            'Effect: Valuation Oracle (@); +1 defense and +1 attack range while adjacent to furniture'
                         ]
                     },
                     {
                         'name': 'MARKET FUTURES (Active) [Key: M]',
-                        'description': 'Imbues a furniture piece with temporal investment energy, turning it into a portal.',
+                        'description': 'The DELPHIC APPRAISER infuses a furniture piece with temporal investment energy, transforming it into a shimmering teleportation anchor. Allies standing adjacent to the imbued furniture enter Parallax—a state where they exist simultaneously in their current location and the potential destination. While in Parallax, the ally can activate the anchor to teleport up to a distance equal to the furniture\'s astral value (1-9 tiles). Upon teleporting, the ally receives a maturing investment effect that grants +1 attack range for 3 turns and attack bonuses that grow over time: +1 attack (turn 1), +2 attack (turn 2), +3 attack (turn 3). The investment bonuses apply immediately before each basic attack. After one ally uses the anchor, it deactivates.',
                         'details': [
                             'Type: Active',
                             'Range: 4',
                             'Target: Furniture piece',
-                            'Line of Sight: Yes',
-                            'Damage: None',
-                            'Pierce: No',
-                            'Effects: Parallax, applied when adjacent to the anchor. Investment, applied on teleport',
+                            'Effect: Parallax (%) when adjacent to anchor; Investment ($) (3 turns) after teleport',
                             'Cooldown: 6 turns',
-                            'Special: Teleport range equals astral value. Maturing investment grants +1 ATK per turn'
+                            'Special: Teleport range = astral value (1-9); Investment grants +1 range (constant) and maturing attack (+1/+2/+3)'
                         ]
                     },
                     {
                         'name': 'AUCTION CURSE (Active) [Key: A]',
-                        'description': 'Curse target enemy with a twisted auction.',
+                        'description': 'The DELPHIC APPRAISER opens a twisted auction that surrounds the target enemy with astral auctioneers who manifest at nearby furniture (within 2 tiles). The curse duration equals the average astral value of surrounding furniture (rounded up, 1-9 turns). Each turn, the victim takes 1 damage as their life force is drained by the escalating bids, and all nearby furniture values inflate by +1 as the market frenzy intensifies. The curse also prevents all healing.',
                         'details': [
                             'Type: Active',
                             'Range: 3',
-                            'Target: Enemy unit',
-                            'Line of Sight: Yes',
-                            'Damage: 1 per turn (based on astral values)',
-                            'Pierce: No',
-                            'Effects: Auction Curse, each tick inflates nearby furniture by +1 and prevents healing',
+                            'Target: Single enemy',
+                            'Damage: 1 per turn',
+                            'Effect: Auction Curse (|); prevents healing; inflates nearby furniture +1 each turn',
                             'Cooldown: 3 turns',
-                            'Special: Duration equals average astral value of furniture within 2 tiles'
+                            'Special: Duration = avg astral value (1-9 turns); furniture within 2 tiles inflates +1 every turn'
                         ]
                     },
                     {
                         'name': 'DIVINE DEPRECIATION (Active) [Key: D]',
-                        'description': 'Dramatically reappraises a furniture piece as cosmically worthless, creating a 7x7 reality sinkhole.',
+                        'description': 'The DELPHIC APPRAISER dramatically reappraises a furniture piece as cosmically worthless, causing its astral value to collapse from its original value to 1. The sudden devaluation creates a reality sinkhole in a 7x7 area as the floor buckles inward. All enemies in the area take piercing damage (bypasses defense) equal to the average astral value of OTHER furniture in the area minus 1. The reality distortion pulls enemies toward the center—pull distance equals (original target value - 1) minus each unit\'s movement value (minimum 1 tile). High-mobility units resist the pull better. Finally, the market chaos rerolls all OTHER furniture astral values randomly (1-9).',
                         'details': [
                             'Type: Active',
                             'Range: 3',
-                            'Target: Furniture piece (7x7 area effect)',
-                            'Line of Sight: Yes',
-                            'Damage: Based on astral value difference',
-                            'Pierce: Yes',
-                            'Effects: None',
+                            'Target: Furniture piece',
+                            'Area: 7x7',
+                            'Damage: (Average of other furniture) - 1 (pierces defense)',
                             'Cooldown: 6 turns',
-                            'Special: Sets target furniture to astral value 1. Damage equals average astral value of other furniture minus 1. Pull distance per unit equals (original astral value - 1) minus unit move value (minimum 1). Rerolls all other furniture astral values'
+                            'Special: Sets target value to 1; pull = (original value - 1) - move (min 1); rerolls other furniture'
                         ]
                     }
                 ],
