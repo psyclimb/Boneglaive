@@ -743,65 +743,49 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'VISEROY (Passive)',
-                        'description': 'When attacking, traps enemy units in hydraulic mechanical jaws.',
+                        'description': 'Every basic attack automatically traps the target in hydraulic mechanical jaws that crush incrementally. Trapped enemies cannot move or use skills as the jaws tighten each turn, dealing continuous damage until they escape or the MANDIBLE FOREMAN moves away.',
                         'details': [
                             'Type: Passive',
-                            'Range: 1',
-                            'Target: Enemy unit',
-                            'Line of Sight: Yes',
-                            'Damage: 3',
-                            'Pierce: No',
-                            'Effects: Trapped, cannot move, cannot use skills, takes incremental damage over time',
-                            'Cooldown: None',
-                            'Special: Automatic when attacking'
+                            'Special: Automatic on all attacks; trap persists until FOREMAN moves away or target dies'
                         ]
                     },
                     {
                         'name': 'EXPEDITE (Active) [Key: E]',
-                        'description': 'Rush up to 4 tiles in a straight line, trapping and damaging the first enemy encountered.',
+                        'description': 'The MANDIBLE FOREMAN rushes forward up to 4 tiles in a straight line, hydraulic systems screaming, stopping at the first enemy encountered. The collision deals 6 damage and immediately clamps the target in Viseroy jaws. This aggressive repositioning skill combines gap-closing with guaranteed trap application.',
                         'details': [
                             'Type: Active',
                             'Range: 4',
-                            'Target: Line movement',
-                            'Line of Sight: Yes',
                             'Damage: 6',
-                            'Pierce: No',
-                            'Effects: Trapped, cannot move, cannot use skills, takes incremental damage over time',
                             'Cooldown: 3 turns',
-                            'Special: Stops at first enemy, must move in straight lines, applies Viseroy trap'
+                            'Special: Must move in straight lines (cardinal or diagonal); stops at first enemy; applies Viseroy trap'
                         ]
                     },
                     {
                         'name': 'SITE INSPECTION (Active) [Key: S]',
-                        'description': 'Survey a 3x3 area for tactical analysis, granting scaled bonuses based on terrain obstacles.',
+                        'description': 'The MANDIBLE FOREMAN conducts a tactical survey of a 3x3 area, evaluating terrain obstacles to determine operational efficiency. Clear worksites (0 terrain obstacles) grant allies +1 attack and +1 movement for 3 turns—full productivity. Partially obstructed areas (1 terrain obstacle) grant +1 attack only—reduced efficiency. Heavily obstructed sites (2+ obstacles) cannot be effectively analyzed. The inspection also reveals hidden INTERFERER scalar nodes within the surveyed area.',
                         'details': [
                             'Type: Active',
                             'Range: 3',
                             'Target: 3x3 area',
-                            'Line of Sight: Yes',
-                            'Damage: None',
-                            'Pierce: No',
-                            'Effects: Scaled bonuses to allies in area for 3 turns:',
-                            '  - 0 terrain: +1 attack & +1 movement (full effect)',
-                            '  - 1 terrain: +1 attack only (partial effect)',
+                            'Effect: Duration 3 turns',
+                            '  - 0 terrain: +1 attack & +1 movement (full)',
+                            '  - 1 terrain: +1 attack only (partial)',
                             '  - 2+ terrain: No effect',
                             'Cooldown: 3 turns',
-                            'Special: Reveals hidden traps, effect strength depends on terrain count'
+                            'Special: Reveals hidden scalar nodes'
                         ]
                     },
                     {
                         'name': 'JAWLINE (Active) [Key: J]',
-                        'description': 'Deploy network of mechanical jaws in 3x3 area around yourself, damaging and completely immobilizing adjacent enemies.',
+                        'description': 'The MANDIBLE FOREMAN deploys a network of smaller mechanical jaws across all 8 adjacent tiles, creating an immobilization field around their position. Each jaw snaps onto any adjacent enemy, dealing 4 damage and completely disabling movement for 2 turns. Enemies caught in the Jawline cannot move, attack, or use skills—total lockdown.',
                         'details': [
                             'Type: Active',
-                            'Range: 0',
-                            'Target: 3x3 area around self',
-                            'Line of Sight: No',
+                            'Range: 0 (self)',
+                            'Target: All adjacent tiles (3x3 around self)',
                             'Damage: 4',
-                            'Pierce: No',
-                            'Effects: Jawline, Immobilized for 2 turns',
+                            'Effect: Immobilized (2 turns)',
                             'Cooldown: 3 turns',
-                            'Special: Affects all adjacent enemies, complete movement lockdown'
+                            'Special: Affects all adjacent enemies; complete movement and action lockdown'
                         ]
                     }
                 ],
@@ -809,12 +793,12 @@ class UnitHelpComponent(UIComponent):
                     '- Use Viseroy to control enemy positioning with every attack',
                     '- Expedite provides both gap-closing and guaranteed trap application',
                     '- Position teams strategically: clear areas give full bonuses, lightly obstructed areas give partial',
-                    '- Jawline is strong in chokepoints or when surrounded by multiple enemies',
-                    '- High HP allows aggressive frontline positioning despite low attack range'
+                    '- Jawline is devastating in chokepoints or when surrounded by multiple enemies',
+                    '- High HP allows aggressive frontline positioning despite melee range'
                 ],
                 'tactical': [
-                    '- Strong against: Isolated units',
-                    '- Vulnerable to: Ranged attackers, immunity effects, extremely cluttered terrain',
+                    '- Strong against: Isolated units, melee-focused teams',
+                    '- Vulnerable to: Ranged attackers, immunity effects (GRAYMAN), heavily cluttered terrain',
                     '- Best positioning: Frontline in moderately open areas, near chokepoints to maximize Jawline effectiveness'
                 ]
             },
