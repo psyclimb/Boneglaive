@@ -656,7 +656,7 @@ class UnitHelpComponent(UIComponent):
                 'stats': [
                     'HP: 22',
                     'Attack: 4',
-                    'Defense: 1', 
+                    'Defense: 1',
                     'Movement: 2',
                     'Range: 2',
                     'Symbol: G'
@@ -664,59 +664,47 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'AUTOCLAVE (Passive)',
-                        'description': 'When near death, unleashes a desperate retaliatory burst of energy in four directions.',
+                        'description': 'When the GLAIVEMAN is brought to critical health or takes damage while already at critical health, he unleashes a desperate cross-shaped retaliation in four cardinal directions (range 3). The burst deals 8 damage to all enemies in its path and heals the GLAIVEMAN for half the total damage dealt. This ability can only trigger once per match and requires at least one enemy within range to activate.',
                         'details': [
                             'Type: Passive',
-                            'Range: 3',
-                            'Target: Enemy units',
-                            'Line of Sight: No',
+                            'Range: 3 (cross-shaped in 4 directions)',
                             'Damage: 8',
-                            'Pierce: No',
-                            'Effects: None',
-                            'Cooldown: Once per game',
-                            'Special: Triggers on critical health damage, heals for half damage dealt'
+                            'Effect: Heals for 50% of total damage dealt',
+                            'Special: Once per game; triggers on critical health; requires enemy in range; pierces through terrain'
                         ]
                     },
                     {
                         'name': 'PRY (Active) [Key: P]',
-                        'description': 'Uses the glaive as a lever to launch an enemy into the ceiling, causing debris to rain down.',
+                        'description': 'The GLAIVEMAN pries an adjacent enemy straight up into the ceiling or skybox, causing them to crash down with falling debris. The primary target takes 6 damage and suffers -1 movement for 2 turns (Pried). All adjacent enemies take 3 splash damage from the falling debris.',
                         'details': [
                             'Type: Active',
                             'Range: 1',
-                            'Target: Enemy unit',
-                            'Line of Sight: Yes',
-                            'Damage: 6 primary, 3 splash to adjacent enemies',
-                            'Pierce: No',
-                            'Effects: Pried, -1 movement for 2 turns',
-                            'Cooldown: 3 turns'
+                            'Damage: 6 (primary target), 3 (splash to adjacent enemies)',
+                            'Effect: Pried (/) (-1 movement for 2 turns)',
+                            'Cooldown: 3 turns',
+                            'Special: Requires line of sight; splash damage affects all adjacent enemies of target'
                         ]
                     },
                     {
                         'name': 'VAULT (Active) [Key: V]',
-                        'description': 'Performs an athletic leap to cross obstacles and units.',
+                        'description': 'The GLAIVEMAN performs an athletic vault, leaping over obstacles and units to land on any empty passable tile within range 2. This movement ignores pathing restrictions and does not require line of sight, allowing repositioning over impassable terrain and enemy units.',
                         'details': [
                             'Type: Active',
                             'Range: 2',
-                            'Target: Empty terrain',
-                            'Line of Sight: No',
-                            'Damage: None',
-                            'Pierce: No',
-                            'Effects: None',
-                            'Cooldown: 4 turns'
+                            'Target: Empty passable terrain',
+                            'Cooldown: 4 turns',
+                            'Special: Ignores pathing; no line of sight required; leaps over obstacles and units'
                         ]
                     },
                     {
                         'name': 'JUDGEMENT (Active) [Key: J]',
-                        'description': 'Hurls a sacred spinning glaive that pierces through enemy defenses and deals double damage on enemies at critical health',
+                        'description': 'The GLAIVEMAN hurls a sacred spinning glaive that pierces enemy defenses, dealing 4 damage. Against enemies at critical health, divine judgement activates and deals 8 damage (double damage). Requires line of sight to the target.',
                         'details': [
                             'Type: Active',
                             'Range: 4',
-                            'Target: Enemy unit',
-                            'Line of Sight: Yes',
-                            'Damage: 4, 8 on critical health enemies',
-                            'Pierce: Yes',
-                            'Effects: None',
-                            'Cooldown: 4 turns'
+                            'Damage: 4 (base), 8 (critical health targets)',
+                            'Cooldown: 4 turns',
+                            'Special: Pierces defense; double damage to critical health enemies; requires line of sight'
                         ]
                     }
                 ],
@@ -833,10 +821,13 @@ class UnitHelpComponent(UIComponent):
             UnitType.GRAYMAN: {
                 'title': 'GRAYMAN',
                 'overview': [
-                    'The GRAYMAN is a psychic entity that manipulates spacetime. This highly mobile unit excels at',
-                    'long-range harassment, teleportation tactics, and applying permanent debuffs to enemies. The',
-                    'GRAYMAN serves as an elusive skirmisher that phases in and out of combat while weakening foes',
-                    'through reality distortion and defense piercing attacks.',
+                    'The GRAYMAN is a gray alien-human hybrid that exists in a liminal state between species, between',
+                    'dimensions, and between moments. Neither fully gray nor fully man, this entity occupies an ambiguous',
+                    'existence outside normal causality, rendering it immune to all external manipulation. Using alien',
+                    'propulsion technology adapted for combat, the GRAYMAN travels via delta configuration—instantaneous',
+                    'point-to-point spatial reconfiguration. The unit weaponizes existential isolation to permanently',
+                    'weaken enemies while creating psychic echoes that maintain battlefield presence across multiple',
+                    'locations simultaneously.',
                     '',
                     'Role: Escape Artist / Disabler / Summoner',
                     'Difficulty: *'
@@ -845,69 +836,52 @@ class UnitHelpComponent(UIComponent):
                     'HP: 18',
                     'Attack: 3',
                     'Defense: 0',
-                    'Movement: 2',
+                    'Movement: 3',
                     'Range: 5',
                     'Symbol: Ψ'
                 ],
                 'skills': [
                     {
                         'name': 'STASIALITY (Passive)',
-                        'description': 'Exists outside normal spacetime, granting complete immunity to all external effects and manipulations.',
+                        'description': 'The GRAYMAN exists in a state of permanent stasis outside normal spacetime, rendering it completely immutable. This grants absolute immunity to all status effects, stat modifications, forced movement, and terrain effects. The GRAYMAN cannot be buffed, debuffed, pushed, pulled, or otherwise manipulated by any external force.',
                         'details': [
                             'Type: Passive',
-                            'Range: Self',
-                            'Target: Self',
-                            'Line of Sight: No',
-                            'Damage: None',
-                            'Pierce: No',
-                            'Effects: Immunity to all status effects, forced movement, and stat changes',
-                            'Cooldown: None',
-                            'Special: Cannot be buffed, debuffed, or displaced'
+                            'Effect: Stasiality (=) (Immunity to all effects and stat changes)'
                         ]
                     },
                     {
                         'name': 'DELTA CONFIG (Active) [Key: D]',
-                        'description': 'Instantly teleports across spacetime to any unoccupied location on the battlefield.',
+                        'description': 'The GRAYMAN engages delta configuration, an alien propulsion system that warps spacetime to pull two points together. Once the spatial fold is complete, the GRAYMAN snaps instantaneously to the destination coordinate. This allows teleportation to any unoccupied passable tile on the battlefield with no regard for distance, obstacles, or line of sight.',
                         'details': [
                             'Type: Active',
-                            'Range: 99',
+                            'Range: Unlimited (entire battlefield)',
                             'Target: Empty passable terrain',
-                            'Line of Sight: No',
-                            'Damage: None',
-                            'Pierce: No',
-                            'Effects: Instant teleportation',
                             'Cooldown: 12 turns',
-                            'Special: Unlimited range'
+                            'Special: Warps space to bring distant points together; no line of sight required'
                         ]
                     },
                     {
                         'name': 'ESTRANGE (Active) [Key: E]',
-                        'description': 'Fires a reality-warping beam that phases the target partially out of spacetime, permanently weakening them.',
+                        'description': 'The GRAYMAN fires a reality-warping beam that phases the target partially out of spacetime, dealing 3 defense-piercing damage. The beam applies Estrangement, a permanent debuff that reduces the target\'s HP by 1, attack by 1, and defense by 1. This existential weakening never wears off and gradually compounds as multiple Estrangements are applied to the same target.',
                         'details': [
                             'Type: Active',
                             'Range: 5',
-                            'Target: Enemy unit',
-                            'Line of Sight: Yes',
-                            'Damage: 3',
-                            'Pierce: Yes',
-                            'Effects: Estranged - -1 to all stats',
+                            'Damage: 3 (pierces defense)',
+                            'Effect: Estranged (~) (Permanent -1 to all stats)',
                             'Cooldown: 3 turns',
-                            'Special: This effect does not wear off'
+                            'Special: Requires line of sight; effect is permanent and stackable'
                         ]
                     },
                     {
                         'name': 'GRÆ EXCHANGE (Active) [Key: G]',
-                        'description': 'Creates an echo at current position and teleports to target location, maintaining presence in two places.',
+                        'description': 'The GRAYMAN splits its consciousness across spacetime, creating a psychic echo at its current position before teleporting up to 3 tiles away. The echo possesses 5 HP and 3 attack but cannot move or use skills—only basic attacks. When the echo is destroyed, it explodes for 4 damage to all adjacent enemies. The echo persists for 2 of the GRAYMAN\'s turns, creating simultaneous battlefield presence in multiple locations.',
                         'details': [
                             'Type: Active',
                             'Range: 3',
                             'Target: Empty passable terrain',
-                            'Line of Sight: No',
-                            'Damage: None',
-                            'Pierce: No',
-                            'Effects: Creates echo with 5 HP, 3 attack, immobile, lasts 2 turns',
+                            'Effect: Creates Echo (ψ) with 5 HP, 3 ATK, immobile; lasts 2 owner turns',
                             'Cooldown: 4 turns',
-                            'Special: Expires on owner\'s turns'
+                            'Special: Echo cannot use skills; explodes for 4 damage to adjacent enemies on death; no line of sight required'
                         ]
                     }
                 ],
@@ -988,11 +962,13 @@ class UnitHelpComponent(UIComponent):
             UnitType.MARROW_CONDENSER: {
                 'title': 'MARROW CONDENSER',
                 'overview': [
-                    'The MARROW CONDENSER is a quadrupedal fortress builder that manipulates bone matter to create',
-                    'defensive structures and enhance its own capabilities. This high-HP tank excels at area',
-                    'control through wall creation while growing stronger from enemy deaths within its domain.',
-                    'The MARROW CONDENSER serves as a defensive anchor that transforms the battlefield through',
-                    'bone manipulation.',
+                    'The MARROW CONDENSER is a quadrupedal bone manipulator that transforms the battlefield into',
+                    'a calcified fortress. By condensing and weaponizing bone marrow, this tank creates impassable',
+                    'wall structures that trap enemies inside killzones. Each death within the Marrow Dike\'s domain',
+                    'triggers Dominion—a permanent evolutionary upgrade that enhances both the unit\'s stats and',
+                    'active skills. The MARROW CONDENSER grows exponentially stronger throughout battle, draining',
+                    'life force from trapped enemies while reinforcing its skeletal structure into an increasingly',
+                    'impenetrable form.',
                     '',
                     'Role: Tank / Frontline Fighter / Area Controller',
                     'Difficulty: ***'
@@ -1008,62 +984,42 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'DOMINION (Passive)',
-                        'description': 'Gains permanent upgrades when units die within Marrow Dike walls, becoming stronger with each kill.',
+                        'description': 'When any unit dies within the interior of a Marrow Dike, the MARROW CONDENSER absorbs their essence to trigger permanent evolutionary upgrades. The first death grants +1 movement. The second death grants +1 attack. The third death grants +1 defense. Additionally, each death upgrades one active skill in sequence (Marrow Dike → Ossify → Bone Tithe). All stat bonuses and skill upgrades are permanent and persist for the entire match.',
                         'details': [
                             'Type: Passive',
-                            'Range: Marrow Dike interior',
-                            'Target: Self enhancement',
-                            'Line of Sight: No',
-                            'Damage: None',
-                            'Pierce: No',
-                            'Effects: First kill: +1 defense, Second kill: +1 attack, Third kill: +1 movement',
-                            'Cooldown: None',
-                            'Special: Also upgrades active skills in sequence, tracks kill count for Bone Tithe scaling'
+                            'Special: 1st kill = +1 movement & upgrade Marrow Dike; 2nd kill = +1 attack & upgrade Ossify; 3rd kill = +1 defense & upgrade Bone Tithe'
                         ]
                     },
                     {
                         'name': 'OSSIFY (Active) [Key: O]',
-                        'description': 'Hardens skeletal structure to gain defense bonus at the cost of mobility.',
+                        'description': 'The MARROW CONDENSER compresses its skeletal structure into a nearly impenetrable ossified state for 2 turns, gaining +2 defense at the cost of -1 movement. When upgraded by Dominion, the defense bonus increases to +3.',
                         'details': [
                             'Type: Active',
-                            'Range: 0',
-                            'Target: Self',
-                            'Line of Sight: No',
-                            'Damage: None',
-                            'Pierce: No',
-                            'Effects: Ossified, +2 defense, -1 movement for 2 turns',
-                            'Cooldown: 3 turns',
-                            'Special: +3 defense when upgraded'
+                            'Effect: Ossified (O) (+2 defense, -1 movement for 2 turns; +3 defense when upgraded)',
+                            'Cooldown: 3 turns'
                         ]
                     },
                     {
                         'name': 'MARROW DIKE (Active) [Key: M]',
-                        'description': 'Creates a 5x5 perimeter of marrow walls around itself, pulling enemies inward.',
+                        'description': 'The MARROW CONDENSER erupts bone marrow walls in a 5x5 perimeter around itself, creating an enclosed killzone. Enemy units on the perimeter tiles are pulled one tile inward into the interior. The walls last 3 turns and block movement and line of sight. When upgraded by Dominion, walls take an additional hit to destroy, and enemies starting their turn inside the interior suffer -1 movement (Mired).',
                         'details': [
                             'Type: Active',
-                            'Range: self',
-                            'Target: 5x5 area around self',
-                            'Line of Sight: No',
-                            'Damage: None',
-                            'Pierce: No',
-                            'Effects: Mired, -1 move when inside the interior (upgrade only)',
+                            'Range: Self (5x5 perimeter)',
+                            'Effect: Creates walls for 3 turns; pulls perimeter enemies inward 1 tile',
                             'Cooldown: 4 turns',
-                            'Special: Upgraded walls have 3 HP and apply Mired to enemies'
+                            'Special: Upgraded walls take an additional hit to destroy and apply Mired (~) (-1 movement) to enemies in interior'
                         ]
                     },
                     {
                         'name': 'BONE TITHE (Active) [Key: B]',
-                        'description': 'Drains life force from nearby enemies through bone manipulation, healing self.',
+                        'description': 'The MARROW CONDENSER extracts bone marrow from all adjacent enemies (3x3 area), dealing 1 damage to each and permanently increasing both max HP and current HP by +1 for each enemy hit. This HP gain is permanent and cumulative. When upgraded by Dominion, the damage scales with total Dominion kills (1 + kill count) and HP gain per enemy increases to +2.',
                         'details': [
                             'Type: Active',
-                            'Range: self',
-                            'Target: adjacent tiles around self',
-                            'Line of Sight: No',
-                            'Damage: 1 (scales with kill count when upgraded)',
-                            'Pierce: No',
-                            'Effects: None',
+                            'Range: Self (3x3 area - all adjacent tiles)',
+                            'Damage: 1 (upgraded: 1 + Dominion kill count)',
+                            'Effect: +1 permanent max HP & current HP per enemy hit (+2 when upgraded)',
                             'Cooldown: 1 turn',
-                            'Special: +1 max HP and current HP per enemy hit (+2 when upgraded)'
+                            'Special: HP increases are permanent and stack indefinitely'
                         ]
                     }
                 ],
@@ -1083,9 +1039,12 @@ class UnitHelpComponent(UIComponent):
             UnitType.FOWL_CONTRIVANCE: {
                 'title': 'FOWL CONTRIVANCE',
                 'overview': [
-                    'The FOWL CONTRIVANCE is a mechanical peacock rail artillery platform that specializes in',
-                    'long-range devastation and battlefield control. This unit excels at indirect fire support',
-                    'while establishing an explosive rail network.',
+                    'The FOWL CONTRIVANCE is a mechanical peacock rail artillery platform that transforms the',
+                    'battlefield through devastating long-range bombardment and explosive infrastructure. Upon',
+                    'deployment, this unit establishes a permanent rail network that detonates catastrophically',
+                    'whenever any FOWL CONTRIVANCE falls. Combining extreme mobility with overwhelming firepower,',
+                    'this glass cannon excels at indirect fire support—raining mortar shells, unleashing piercing',
+                    'rail cannon shots, and deploying directional fragmentation bursts that shred clustered enemies.',
                     '',
                     'Role: Artillery / Glass Cannon',
                     'Difficulty: ***'
@@ -1101,62 +1060,46 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'RAIL GENESIS (Passive)',
-                        'description': 'Establishes a rail network when the game starts that explodes upon death.',
+                        'description': 'The first FOWL CONTRIVANCE to deploy establishes a permanent rail network across passable terrain. This infrastructure persists throughout the match and is shared by all FOWL CONTRIVANCES. Whenever any FOWL CONTRIVANCE dies, the rail network detonates, dealing 4 damage to all enemy units standing on rail tiles. When the last FOWL CONTRIVANCE dies, the rail network is destroyed and removed from the battlefield.',
                         'details': [
                             'Type: Passive',
-                            'Range: Map-wide',
-                            'Target: Battlefield terrain',
-                            'Line of Sight: No',
-                            'Damage: 4 on death explosion',
-                            'Pierce: No',
-                            'Effects: None',
-                            'Cooldown: None',
-                            'Special: Rail network persists until the last FOWL CONTRIVANCE dies'
+                            'Effect: Rail network across map; 4 damage to enemies on rails when any FOWL CONTRIVANCE dies; network removed when last one dies',
+                            'Special: Rail network is permanent until last FOWL dies; shared across all FOWL CONTRIVANCES; explodes on every FOWL death'
                         ]
                     },
                     {
                         'name': 'GAUSSIAN DUSK (Active) [Key: G]',
-                        'description': 'Charges a devastating rail gun shot that pierces everything in its path and places rail segments in its wake.',
+                        'description': 'The FOWL CONTRIVANCE charges its rail cannon for one turn, disabling all movement, attacks, and skills. On the following turn, the cannon automatically fires a devastating beam in the chosen direction that pierces through all units and terrain in a straight line across the entire map. The beam deals 10 defense-piercing damage to every unit hit and places rail segments along its path. The skill cannot be canceled once charging begins.',
                         'details': [
-                            'Type: Active (Two-phase: Charging -> Firing)',
-                            'Range: Entire map',
-                            'Target: Line of destruction',
-                            'Line of Sight: No',
-                            'Damage: 12',
-                            'Pierce: Yes',
-                            'Effects: Charging, self, disables move, attack, and skills',
-                            'Cooldown: 4 turns, after firing',
-                            'Special: Destroys terrain'
+                            'Type: Active (Two-phase: Charging → Automatic Firing)',
+                            'Range: Unlimited (entire map in chosen direction)',
+                            'Damage: 10 (pierces defense)',
+                            'Effect: Charging (=) (disables all actions for 1 turn); places rails along beam path',
+                            'Cooldown: 4 turns (begins after firing)',
+                            'Special: Automatically fires on next turn after charging; destroys terrain; cannot be interrupted'
                         ]
                     },
                     {
                         'name': 'PARABOL (Active) [Key: P]',
-                        'description': 'Launches explosive mortar shells in a 3x3 area.',
+                        'description': 'The FOWL CONTRIVANCE launches explosive mortar shells in a high arc to bombard a 3x3 area at range. The indirect fire ignores line of sight and cannot target adjacent tiles (minimum range 2). The center tile takes 8 damage while the surrounding 8 tiles each take 5 damage. Cannot be used while Gaussian Dusk is charging.',
                         'details': [
                             'Type: Active',
-                            'Range: 6',
-                            'Target: 3x3 area',
-                            'Line of Sight: No',
-                            'Damage: 8 primary, 5 adjacent',
-                            'Pierce: No',
-                            'Effects: None',
+                            'Range: 6 (minimum range 2)',
+                            'Damage: 8 (center tile), 5 (surrounding 8 tiles)',
                             'Cooldown: 4 turns',
-                            'Special: Cannot target adjacent tiles'
+                            'Special: Ignores line of sight; cannot target adjacent tiles; disabled while charging'
                         ]
                     },
                     {
                         'name': 'FRAGCREST (Active) [Key: F]',
-                        'description': 'Deploys a directional fragmentation burst that fans out in a cone, firing explosive shrapnel that blasts enemies backward and embeds fragments for ongoing damage.',
+                        'description': 'The FOWL CONTRIVANCE unfolds its mechanical tail feathers and fires a directional fragmentation burst in a 90-degree cone. The primary target takes 4 damage and is knocked back 2 tiles. All other enemies in the cone take 2 damage and are also knocked back. All hit enemies become embedded with Shrapnel, suffering 1 damage per turn for 3 turns. Requires line of sight to the primary target. Cannot be used while Gaussian Dusk is charging.',
                         'details': [
                             'Type: Active',
                             'Range: 4',
-                            'Target: Cone area (90-degree spread)',
-                            'Line of Sight: Yes',
-                            'Damage: 4 primary, 2 secondary',
-                            'Pierce: No',
-                            'Effects: Shrapnel, 1 damage per turn for 3 turns',
+                            'Damage: 4 (primary target), 2 (cone targets); pushes enemies 2 tiles',
+                            'Effect: Shrapnel (x) (1 damage/turn for 3 turns)',
                             'Cooldown: 3 turns',
-                            'Special: Pushes enemies away'
+                            'Special: 90-degree cone; requires line of sight to primary target; disabled while charging'
                         ]
                     }
                 ],
