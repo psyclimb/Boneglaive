@@ -4,16 +4,14 @@
 - [x] POTPOURRIST
 - [x] INTERFERER
 - [x] DERELICTIONIST
+- [x] DELPHIC_APPRAISER
+- [x] GAS_MACHINIST
 
 ## Remaining Units to Revamp
 
 ### Priority Order (by complexity/importance)
 
-1. **DELPHIC_APPRAISER** - Complex utility unit with furniture/value mechanics
-   - Skills: Valuation Oracle (passive), Auction Curse, Site Inspection, Investment
-   - Focus: Clarify furniture interaction mechanics, value perception, status effects
-
-2. **GAS_MACHINIST** - Summoner with vapor control mechanics
+1. **GRAYMAN** - Unique anomaly unit with reality distortion
    - Skills: Effluvium Lathe (passive), Broaching, Saft-E-Gas, Diverge
    - Focus: Explain vapor types, charge system, diverge splitting mechanic
    - Note: May need to update HEINOUS_VAPOR help pages for different vapor types
