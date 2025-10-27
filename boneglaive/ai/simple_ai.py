@@ -103,8 +103,8 @@ class SimpleAI:
                     logger.error(f"Error in targeting: {e}")
                     # If there's an error in targeting, just continue without coordination
             
-            # On HARD difficulty, sort units to process the most tactical ones first
-            if self.difficulty == AIDifficulty.HARD:
+            # On MEDIUM/HARD difficulty, sort units to process the most tactical ones first
+            if self.difficulty == AIDifficulty.MEDIUM or self.difficulty == AIDifficulty.HARD:
                 try:
                     # Sort units by their tactical advantage (units with attack opportunities go first)
                     logger.info("Sorting AI units by tactical priority")
@@ -472,7 +472,7 @@ class SimpleAI:
             if self.difficulty == AIDifficulty.EASY:
                 target = self._find_random_enemy(unit)
             elif self.difficulty == AIDifficulty.MEDIUM:
-                target = self._find_nearest_enemy(unit)
+                target = self._find_best_target(unit)  # Use smart targeting
             else:  # HARD difficulty
                 target = self._find_best_target(unit)
             
@@ -3603,7 +3603,7 @@ class SimpleAI:
             if self.difficulty == AIDifficulty.EASY:
                 target = self._find_random_enemy(unit)
             elif self.difficulty == AIDifficulty.MEDIUM:
-                target = self._find_nearest_enemy(unit)
+                target = self._find_best_target(unit)  # Use smart targeting
             else:  # HARD difficulty
                 target = self._find_best_target(unit)
         
@@ -3706,30 +3706,34 @@ class SimpleAI:
         """
         Find the best target unit based on tactical evaluation - used for HARD difficulty.
         Considers the target's health, attack range, and distance.
-        
+
         Args:
             unit: The unit to find a target for
-            
+
         Returns:
             The best target unit, or None if no enemies are found
         """
-        enemy_units = [enemy for enemy in self.game.units 
+        enemy_units = [enemy for enemy in self.game.units
                       if enemy.player != unit.player and enemy.is_alive()]
-        
+
         if not enemy_units:
             return None
-            
+
         # Calculate scores for each enemy
         scored_enemies = []
-        
+
         # Get attacker's effective stats
         attacker_stats = unit.get_effective_stats()
         attacker_move = attacker_stats['move_range']
         attacker_attack = attacker_stats['attack_range']
-        
+
         for enemy in enemy_units:
             score = 0
-            
+
+            # KILL CONFIRMATION: Massive bonus if we can finish this enemy
+            if self._can_kill_with_attack(unit, enemy):
+                score += 200  # Huge bonus - prioritize confirmed kills
+
             # Calculate base distance
             distance = self.game.chess_distance(unit.y, unit.x, enemy.y, enemy.x)
             

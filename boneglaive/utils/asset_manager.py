@@ -99,7 +99,7 @@ class AssetManager:
             'health': 'HP',
             'vault_target': 'X',  # X marker for vault landing spot
             'site_inspection': '#',  # Site Inspection target
-            'teleport_target': 'T'  # Teleport landing spot
+            'teleport_target': 'Δ'  # Delta Config landing spot
         }
         
         # Effect symbols - enhanced ASCII for attacks
