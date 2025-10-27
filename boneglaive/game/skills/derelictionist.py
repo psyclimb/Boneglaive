@@ -232,7 +232,7 @@ class VagalRunSkill(ActiveSkill):
             target.derelicted_duration = 1
             
             message_log.add_message(
-                f"{target.get_display_name()} becomes anchored by distant abandonment",
+                f"{target.get_display_name()} becomes anchored by abandonment",
                 MessageType.WARNING,
                 player=target.player
             )
@@ -263,7 +263,8 @@ class VagalRunSkill(ActiveSkill):
             effects_text = ", ".join(cleared_effects)
             message_log.add_message(
                 f"{target.get_display_name()}'s Vagal Run sloughs off {effects_text}",
-                MessageType.ABILITY
+                MessageType.ABILITY,
+                player=target.player
             )
         
         logger.info(f"VAGAL RUN EXECUTED: {user.get_display_name()} applies trauma processing to {target.get_display_name()} (damage: {piercing_damage}, distance: {distance})")

@@ -6156,28 +6156,32 @@ class SimpleAI:
         available_skills = unit.get_available_skills()
 
         # ULTRA-STRATEGIC DECISION TREE
+        # Try each skill priority in order, but only use ONE skill
+        # After using a skill (or not), ALWAYS do positioning to leverage Severance
+
+        skill_used = False
 
         # Priority 1: CRITICAL INTERVENTION - Save dying allies with Partition
-        if self._derelictionist_emergency_save(unit, allies, enemies, available_skills):
-            return
+        if not skill_used:
+            skill_used = self._derelictionist_emergency_save(unit, allies, enemies, available_skills)
 
-        # Priority 2: OPTIMAL DISTANCE HEALING - Use Vagal Run at distance 7+ for max benefit
-        if self._derelictionist_distance_healing(unit, allies, available_skills):
-            return
+        # Priority 2: OPTIMAL DISTANCE HEALING - Use Vagal Run within range
+        if not skill_used:
+            skill_used = self._derelictionist_distance_healing(unit, allies, available_skills)
 
         # Priority 3: STRATEGIC REPOSITIONING - Use Derelict to move allies optimally
-        if self._derelictionist_strategic_push(unit, allies, enemies, available_skills):
-            return
+        if not skill_used:
+            skill_used = self._derelictionist_strategic_push(unit, allies, enemies, available_skills)
 
         # Priority 4: STATUS CLEANSING - Clear negative effects from allies
-        if self._derelictionist_status_cleansing(unit, allies, available_skills):
-            return
+        if not skill_used:
+            skill_used = self._derelictionist_status_cleansing(unit, allies, available_skills)
 
         # Priority 5: PREVENTIVE PROTECTION - Shield vulnerable allies
-        if self._derelictionist_preventive_shield(unit, allies, enemies, available_skills):
-            return
+        if not skill_used:
+            skill_used = self._derelictionist_preventive_shield(unit, allies, enemies, available_skills)
 
-        # Priority 6: OPTIMAL POSITIONING - Use Severance for tactical positioning
+        # Priority 6: OPTIMAL POSITIONING - ALWAYS execute, uses Severance after skills
         self._derelictionist_optimal_positioning(unit, allies, enemies, is_trapped)
 
     def _derelictionist_emergency_save(self, unit: 'Unit', allies: list, enemies: list, available_skills: list) -> bool:
@@ -6215,22 +6219,26 @@ class SimpleAI:
             critical_allies.sort(key=lambda x: (-x[1], x[2]))  # Most threat, then closest
             target_ally = critical_allies[0][0]
 
-            logger.info(f"EMERGENCY: Saving {target_ally.get_display_name()} from mortal danger")
-            unit.skill_target = (target_ally.y, target_ally.x)
-            unit.selected_skill = partition_skill
-            unit.action_timestamp = self.game.action_counter
-            self.game.action_counter += 1
-            return True
+            logger.info(f"EMERGENCY: Saving {target_ally.get_display_name()} from mortal danger, will reposition after")
+
+            # Call the skill's use() method properly (handles queuing, cooldown, messages, Severance)
+            target_pos = (target_ally.y, target_ally.x)
+            if partition_skill.use(unit, target_pos, self.game):
+                # Store target position for Severance positioning - move away after skill
+                unit.vagal_run_target_pos = target_pos
+                return True
+
+            return False
 
         return False
 
     def _derelictionist_distance_healing(self, unit: 'Unit', allies: list, available_skills: list) -> bool:
-        """Use Vagal Run at optimal distance (7+) for maximum healing benefit."""
+        """Use Vagal Run within range, then move away using Severance for optimal positioning."""
         vagal_skill = next((s for s in available_skills if hasattr(s, 'name') and s.name == "Vagal Run"), None)
         if not vagal_skill:
             return False
 
-        # Find damaged allies at optimal healing distance (7+)
+        # Find damaged or debuffed allies within actual range (3)
         healing_targets = []
 
         for ally in allies:
@@ -6240,18 +6248,24 @@ class SimpleAI:
             if hasattr(ally, 'vagal_run_active') and ally.vagal_run_active:
                 continue
 
-            if ally_distance >= 7 and ally_distance <= vagal_skill.range:
-                # Calculate healing benefit
-                potential_healing = ally_distance - 6
+            # Within actual skill range (3)
+            if ally_distance <= vagal_skill.range:
                 needed_healing = max(0, ally.max_hp - ally.hp)
-                healing_value = min(potential_healing, needed_healing)
-
-                # Also consider status cleansing value
                 status_count = self._count_negative_effects(ally)
 
-                total_value = healing_value + status_count * 2
+                # Calculate immediate damage (at close range) - negative value
+                immediate_damage = max(0, 6 - ally_distance) if ally_distance < 6 else 0
 
-                if total_value > 0:  # Only if there's actual benefit
+                # Value calculation: status cleansing is always good, healing is good if ally needs it
+                # Subtract damage penalty if we'd hurt them
+                cleansing_value = status_count * 3
+                healing_value = min(3, needed_healing) if needed_healing > 0 else 0
+                damage_penalty = immediate_damage if ally.hp <= immediate_damage + 2 else 0
+
+                total_value = cleansing_value + healing_value - damage_penalty
+
+                # Use if there's meaningful benefit
+                if total_value > 2:
                     healing_targets.append((ally, total_value, ally_distance))
 
         if healing_targets:
@@ -6259,12 +6273,16 @@ class SimpleAI:
             healing_targets.sort(key=lambda x: x[1], reverse=True)
             target_ally = healing_targets[0][0]
 
-            logger.info(f"DISTANCE HEALING: Vagal Run on {target_ally.get_display_name()} at distance {healing_targets[0][2]} (value: {healing_targets[0][1]})")
-            unit.skill_target = (target_ally.y, target_ally.x)
-            unit.selected_skill = vagal_skill
-            unit.action_timestamp = self.game.action_counter
-            self.game.action_counter += 1
-            return True
+            logger.info(f"VAGAL RUN: Using on {target_ally.get_display_name()} at distance {healing_targets[0][2]} (value: {healing_targets[0][1]}), will move away after")
+
+            # Call the skill's use() method properly (handles queuing, cooldown, messages, Severance)
+            target_pos = (target_ally.y, target_ally.x)
+            if vagal_skill.use(unit, target_pos, self.game):
+                # Store target position for Severance positioning - move away after skill
+                unit.vagal_run_target_pos = target_pos
+                return True
+
+            return False
 
         return False
 
@@ -6300,12 +6318,16 @@ class SimpleAI:
             push_candidates.sort(key=lambda x: x[1], reverse=True)
             target_ally = push_candidates[0][0]
 
-            logger.info(f"STRATEGIC PUSH: Derelict on {target_ally.get_display_name()} (benefit: {push_candidates[0][1]})")
-            unit.skill_target = (target_ally.y, target_ally.x)
-            unit.selected_skill = derelict_skill
-            unit.action_timestamp = self.game.action_counter
-            self.game.action_counter += 1
-            return True
+            logger.info(f"STRATEGIC PUSH: Derelict on {target_ally.get_display_name()} (benefit: {push_candidates[0][1]}), will move away after")
+
+            # Call the skill's use() method properly (handles queuing, cooldown, messages, Severance)
+            target_pos = (target_ally.y, target_ally.x)
+            if derelict_skill.use(unit, target_pos, self.game):
+                # Store target position for Severance positioning - move away after skill
+                unit.vagal_run_target_pos = target_pos
+                return True
+
+            return False
 
         return False
 
@@ -6344,12 +6366,16 @@ class SimpleAI:
             cleansing_targets.sort(key=lambda x: x[1], reverse=True)
             target_ally = cleansing_targets[0][0]
 
-            logger.info(f"STATUS CLEANSING: Cleansing {target_ally.get_display_name()} (value: {cleansing_targets[0][1]})")
-            unit.skill_target = (target_ally.y, target_ally.x)
-            unit.selected_skill = vagal_skill
-            unit.action_timestamp = self.game.action_counter
-            self.game.action_counter += 1
-            return True
+            logger.info(f"STATUS CLEANSING: Cleansing {target_ally.get_display_name()} (value: {cleansing_targets[0][1]}), will move away after")
+
+            # Call the skill's use() method properly (handles queuing, cooldown, messages, Severance)
+            target_pos = (target_ally.y, target_ally.x)
+            if vagal_skill.use(unit, target_pos, self.game):
+                # Store target position for Severance positioning - move away after skill
+                unit.vagal_run_target_pos = target_pos
+                return True
+
+            return False
 
         return False
 
@@ -6379,12 +6405,16 @@ class SimpleAI:
             protection_targets.sort(key=lambda x: x[1], reverse=True)
             target_ally = protection_targets[0][0]
 
-            logger.info(f"PREVENTIVE SHIELD: Protecting {target_ally.get_display_name()} (vulnerability: {protection_targets[0][1]})")
-            unit.skill_target = (target_ally.y, target_ally.x)
-            unit.selected_skill = partition_skill
-            unit.action_timestamp = self.game.action_counter
-            self.game.action_counter += 1
-            return True
+            logger.info(f"PREVENTIVE SHIELD: Protecting {target_ally.get_display_name()} (vulnerability: {protection_targets[0][1]}), will reposition after")
+
+            # Call the skill's use() method properly (handles queuing, cooldown, messages, Severance)
+            target_pos = (target_ally.y, target_ally.x)
+            if partition_skill.use(unit, target_pos, self.game):
+                # Store target position for Severance positioning - move away after skill
+                unit.vagal_run_target_pos = target_pos
+                return True
+
+            return False
 
         return False
 
@@ -6401,6 +6431,12 @@ class SimpleAI:
         best_position = None
         best_score = self._evaluate_position(unit.y, unit.x, unit, allies, enemies)
 
+        # Check if we just used Vagal Run - if so, move away from target
+        vagal_run_target = None
+        if hasattr(unit, 'vagal_run_target_pos'):
+            vagal_run_target = unit.vagal_run_target_pos
+            logger.info(f"SEVERANCE ACTIVATION: Moving away from Vagal Run target at {vagal_run_target}")
+
         # Evaluate all possible positions
         for dy in range(-enhanced_move, enhanced_move + 1):
             for dx in range(-enhanced_move, enhanced_move + 1):
@@ -6413,13 +6449,32 @@ class SimpleAI:
                     self.game.chess_distance(unit.y, unit.x, new_y, new_x) <= enhanced_move):
 
                     score = self._evaluate_position(new_y, new_x, unit, allies, enemies)
+
+                    # SEVERANCE BONUS: If we used a skill, prefer moving AWAY from that target
+                    # BUT don't abandon all allies - need to stay in range for next turn
+                    if vagal_run_target:
+                        distance_from_skill_target = self.game.chess_distance(new_y, new_x, vagal_run_target[0], vagal_run_target[1])
+                        current_distance = self.game.chess_distance(unit.y, unit.x, vagal_run_target[0], vagal_run_target[1])
+
+                        # Moderate bonus for moving away, but not so much we abandon all allies
+                        if distance_from_skill_target > current_distance:
+                            score += (distance_from_skill_target - current_distance) * 2
+
                     if score > best_score:
                         best_score = score
                         best_position = (new_y, new_x)
 
         if best_position:
             unit.move_target = best_position
-            logger.info(f"POSITIONING: Moving to {best_position} for tactical advantage")
+            if vagal_run_target:
+                final_distance = self.game.chess_distance(best_position[0], best_position[1], vagal_run_target[0], vagal_run_target[1])
+                logger.info(f"SEVERANCE: Moving to {best_position}, distance from Vagal Run target: {final_distance}")
+            else:
+                logger.info(f"POSITIONING: Moving to {best_position} for tactical advantage")
+
+        # Clean up stored target
+        if hasattr(unit, 'vagal_run_target_pos'):
+            delattr(unit, 'vagal_run_target_pos')
 
     def _calculate_derelict_value(self, unit: 'Unit', ally: 'Unit', enemies: list, dy: int, dx: int) -> float:
         """Calculate the strategic value of using Derelict on an ally."""
@@ -6502,15 +6557,15 @@ class SimpleAI:
         """Evaluate the strategic value of a position."""
         score = 0
 
-        # Distance to allies (want to be in support range)
+        # Distance to allies (want to be in support range) - CRITICAL for DERELICTIONIST
         for ally in allies:
             distance = self.game.chess_distance(y, x, ally.y, ally.x)
             if distance <= 3:
-                score += 3  # Perfect support range
+                score += 5  # Perfect support range - MUST stay here for skills!
             elif distance <= 6:
                 score += 1  # Decent range
             else:
-                score -= 0.5  # Too far
+                score -= 1  # Too far, can't support
 
         # Safety from enemies
         for enemy in enemies:

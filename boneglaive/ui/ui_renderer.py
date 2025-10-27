@@ -103,7 +103,7 @@ class UIRenderer:
             effects.append(('move_bonus', '+', curses.A_BOLD))
             
         if hasattr(unit, 'valuation_oracle_buff') and unit.valuation_oracle_buff:
-            effects.append(('valuation_oracle', '@', curses.A_BOLD))
+            effects.append(('valuation_oracle', '¤', curses.A_BOLD))
             
         return effects
     
