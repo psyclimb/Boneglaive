@@ -4201,10 +4201,10 @@ class GameModeManager(UIComponent):
 
         # Get current index in unit types list
         unit_types = [
-            UnitType.GLAIVEMAN, UnitType.MANDIBLE_FOREMAN, UnitType.GRAYMAN,
-            UnitType.MARROW_CONDENSER, UnitType.FOWL_CONTRIVANCE, UnitType.GAS_MACHINIST,
-            UnitType.DELPHIC_APPRAISER, UnitType.INTERFERER, UnitType.DERELICTIONIST,
-            UnitType.POTPOURRIST
+            UnitType.GLAIVEMAN, UnitType.GRAYMAN, UnitType.MANDIBLE_FOREMAN,
+            UnitType.POTPOURRIST, UnitType.MARROW_CONDENSER, UnitType.INTERFERER,
+            UnitType.FOWL_CONTRIVANCE, UnitType.DELPHIC_APPRAISER, UnitType.GAS_MACHINIST,
+            UnitType.DERELICTIONIST
         ]
         
         try:
@@ -4229,10 +4229,10 @@ class GameModeManager(UIComponent):
 
         # Get current index in unit types list
         unit_types = [
-            UnitType.GLAIVEMAN, UnitType.MANDIBLE_FOREMAN, UnitType.GRAYMAN,
-            UnitType.MARROW_CONDENSER, UnitType.FOWL_CONTRIVANCE, UnitType.GAS_MACHINIST,
-            UnitType.DELPHIC_APPRAISER, UnitType.INTERFERER, UnitType.DERELICTIONIST,
-            UnitType.POTPOURRIST
+            UnitType.GLAIVEMAN, UnitType.GRAYMAN, UnitType.MANDIBLE_FOREMAN,
+            UnitType.POTPOURRIST, UnitType.MARROW_CONDENSER, UnitType.INTERFERER,
+            UnitType.FOWL_CONTRIVANCE, UnitType.DELPHIC_APPRAISER, UnitType.GAS_MACHINIST,
+            UnitType.DERELICTIONIST
         ]
         
         try:
@@ -6228,15 +6228,15 @@ class UnitSelectionMenuComponent(UIComponent):
         self.selected_index = 0  # Index of currently selected unit type
         self.unit_types = [
             UnitType.GLAIVEMAN,
-            UnitType.MANDIBLE_FOREMAN,
             UnitType.GRAYMAN,
+            UnitType.MANDIBLE_FOREMAN,
+            UnitType.POTPOURRIST,
             UnitType.MARROW_CONDENSER,
-            UnitType.FOWL_CONTRIVANCE,
-            UnitType.GAS_MACHINIST,
-            UnitType.DELPHIC_APPRAISER,
             UnitType.INTERFERER,
-            UnitType.DERELICTIONIST,
-            UnitType.POTPOURRIST
+            UnitType.FOWL_CONTRIVANCE,
+            UnitType.DELPHIC_APPRAISER,
+            UnitType.GAS_MACHINIST,
+            UnitType.DERELICTIONIST
         ]
         self.unit_names = {
             UnitType.GLAIVEMAN: "GLAIVEMAN",
