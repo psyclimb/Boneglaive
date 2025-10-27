@@ -13,6 +13,7 @@ from boneglaive.utils.config import ConfigManager, NetworkMode, DisplayMode
 from boneglaive.utils.debug import debug_config, logger
 from boneglaive.renderers.curses_renderer import CursesRenderer
 from boneglaive.utils.render_interface import RenderInterface
+from boneglaive.game.player_profile import profile_manager
 
 class MenuItem:
     """Represents a menu item."""
@@ -79,24 +80,33 @@ class MenuUI:
             MenuItem("Local Multiplayer", self._start_local_multiplayer),
             MenuItem("Back", lambda: ("submenu", None))
         ])
-        
+
         settings_menu = Menu("Settings", [
             MenuItem("Display Settings", lambda: ("submenu", self._create_display_settings_menu())),
             MenuItem("Back", lambda: ("submenu", None))
         ])
-        
+
+        profile_menu = Menu("Profile", [
+            MenuItem("Select Profile", self._select_profile),
+            MenuItem("Create Profile", self._create_profile),
+            MenuItem("View Stats", self._view_profile_stats),
+            MenuItem("Back", lambda: ("submenu", None))
+        ])
+
         # Create main menu
         main_menu = Menu("Boneglaive", [
             MenuItem("Play", None, play_menu),
+            MenuItem("Profile", None, profile_menu),
             MenuItem("Settings", None, settings_menu),
             MenuItem("About", self._show_about),
             MenuItem("Quit", self._quit_game)
         ])
-        
+
         # Set parent menus
         play_menu.parent = main_menu
+        profile_menu.parent = main_menu
         settings_menu.parent = main_menu
-        
+
         return main_menu
     
     def _create_display_settings_menu(self) -> Menu:
@@ -322,7 +332,231 @@ class MenuUI:
         # Refresh display and wait for input
         self.renderer.refresh()
         self.renderer.get_input()  # Wait for any key press
-    
+
+    def _get_text_input(self, prompt: str, max_length: int = 8) -> Optional[str]:
+        """
+        Get text input from the user.
+
+        Args:
+            prompt: Prompt to display
+            max_length: Maximum length of input (default 8 for profile names)
+
+        Returns:
+            User input string, or None if cancelled
+        """
+        self.renderer.clear_screen()
+
+        # Get screen dimensions
+        if hasattr(self.renderer, 'grid_height'):
+            height = self.renderer.grid_height
+            width = self.renderer.grid_width
+        else:
+            height = self.renderer.height
+            width = self.renderer.width
+
+        # Draw prompt
+        prompt_row = height // 2 - 2
+        prompt_col = max(2, (width - len(prompt)) // 2)
+        self.renderer.draw_text(prompt_row, prompt_col, prompt, 1, curses.A_BOLD)
+
+        # Draw input area
+        input_row = prompt_row + 2
+        input_col = max(2, (width - max_length - 4) // 2)
+        self.renderer.draw_text(input_row, input_col, "> ", 1, 0)
+
+        # Draw instructions
+        instructions = "(ENTER to confirm, ESC to cancel)"
+        instr_row = input_row + 2
+        instr_col = max(2, (width - len(instructions)) // 2)
+        self.renderer.draw_text(instr_row, instr_col, instructions, 2, 0)
+
+        self.renderer.refresh()
+
+        # Get input character by character
+        input_text = ""
+        cursor_col = input_col + 2
+
+        # Show cursor but disable automatic echo (we handle drawing manually)
+        if hasattr(self.renderer, 'stdscr'):
+            curses.noecho()  # Don't auto-echo, we draw manually
+            curses.curs_set(1)  # Show cursor
+
+        while True:
+            key = self.renderer.get_input()
+
+            if key == 27:  # ESC key
+                if hasattr(self.renderer, 'stdscr'):
+                    curses.curs_set(0)  # Hide cursor
+                return None
+            elif key == ord('\n') or key == ord('\r') or key == 10:  # Enter key
+                if hasattr(self.renderer, 'stdscr'):
+                    curses.curs_set(0)  # Hide cursor
+                return input_text.strip().upper() if input_text.strip() else None
+            elif key == curses.KEY_BACKSPACE or key == 127 or key == 8:  # Backspace
+                if input_text:
+                    input_text = input_text[:-1]
+                    # Clear the character
+                    self.renderer.draw_text(input_row, cursor_col + len(input_text), " ", 1, 0)
+                    self.renderer.refresh()
+            elif 32 <= key <= 126 and len(input_text) < max_length:  # Printable characters
+                char = chr(key).upper()
+                input_text += char
+                self.renderer.draw_text(input_row, cursor_col + len(input_text) - 1, char, 1, 0)
+                self.renderer.refresh()
+
+    def _create_profile(self):
+        """Create a new profile."""
+        name = self._get_text_input("Enter profile name (max 8 characters):", 8)
+
+        if name:
+            try:
+                profile = profile_manager.create_profile(name)
+                profile_manager.set_current_profile(profile)
+                logger.info(f"Created profile: {name}")
+                # Show success message
+                return ("show_message", f"Profile '{name}' created!")
+            except ValueError as e:
+                # Profile already exists
+                logger.warning(f"Profile creation failed: {e}")
+                return ("show_message", f"Error: {e}")
+
+        return None
+
+    def _select_profile(self):
+        """Select an existing profile from a list."""
+        profiles = profile_manager.list_profiles()
+
+        if not profiles:
+            return ("show_message", "No profiles found. Create one first!")
+
+        # Create a menu with all profiles
+        profile_items = []
+        for profile_name in profiles:
+            # Create a lambda that captures the profile name
+            profile_items.append(
+                MenuItem(profile_name, lambda p=profile_name: self._load_profile(p))
+            )
+        profile_items.append(MenuItem("Back", lambda: ("submenu", None)))
+
+        profile_select_menu = Menu("Select Profile", profile_items)
+        profile_select_menu.parent = self._find_menu_by_title("Profile")
+
+        return ("submenu", profile_select_menu)
+
+    def _load_profile(self, name: str):
+        """Load a specific profile."""
+        profile = profile_manager.load_profile(name)
+        if profile:
+            profile_manager.set_current_profile(profile)
+            logger.info(f"Loaded profile: {name}")
+            return ("show_message", f"Profile '{name}' loaded!")
+        else:
+            return ("show_message", f"Error loading profile '{name}'")
+
+    def _view_profile_stats(self):
+        """Display current profile statistics."""
+        profile = profile_manager.get_current_profile()
+
+        if not profile:
+            return ("show_message", "No profile selected.")
+
+        return ("show_profile_stats", None)
+
+    def _display_profile_stats(self):
+        """Display the profile statistics screen."""
+        profile = profile_manager.get_current_profile()
+
+        if not profile:
+            return
+
+        self.renderer.clear_screen()
+
+        # Get screen dimensions
+        if hasattr(self.renderer, 'grid_height'):
+            height = self.renderer.grid_height
+            width = self.renderer.grid_width
+        else:
+            height = self.renderer.height
+            width = self.renderer.width
+
+        # Profile stats content
+        win_rate = profile.get_win_rate()
+        most_picked = profile.get_most_picked_unit() or "None"
+
+        lines = [
+            f"PROFILE: {profile.name}",
+            "",
+            "=== GAME STATS ===",
+            f"Games Played: {profile.games_played}",
+            f"Wins: {profile.wins}",
+            f"Losses: {profile.losses}",
+            f"Win Rate: {win_rate:.1f}%",
+            "",
+            "=== UNIT STATS ===",
+            f"Most Picked Unit: {most_picked}",
+            "",
+            "Unit Pick Counts:",
+        ]
+
+        # Add unit picks (only show units with picks > 0)
+        for unit_name, picks in sorted(profile.unit_picks.items(), key=lambda x: x[1], reverse=True):
+            if picks > 0:
+                lines.append(f"  {unit_name}: {picks}")
+
+        lines.append("")
+        lines.append("Press any key to return to menu...")
+
+        # Calculate starting position to center the content
+        start_row = max(2, (height - len(lines)) // 2)
+
+        # Draw each line
+        for i, line in enumerate(lines):
+            if line:  # Non-empty line
+                # Center the text horizontally
+                col = max(2, (width - len(line)) // 2)
+                if f"PROFILE:" in line:
+                    # Title in bold
+                    self.renderer.draw_text(start_row + i, col, line, 1, curses.A_BOLD)
+                elif "===" in line:
+                    # Section headers
+                    self.renderer.draw_text(start_row + i, col, line, 3, curses.A_BOLD)
+                elif "Win Rate:" in line or "Most Picked" in line:
+                    # Highlight key stats
+                    self.renderer.draw_text(start_row + i, col, line, 2, 0)
+                else:
+                    # Regular text
+                    self.renderer.draw_text(start_row + i, col, line, 1, 0)
+
+        # Refresh display and wait for input
+        self.renderer.refresh()
+        self.renderer.get_input()  # Wait for any key press
+
+    def _display_message(self, message: str):
+        """Display a simple message screen."""
+        self.renderer.clear_screen()
+
+        # Get screen dimensions
+        if hasattr(self.renderer, 'grid_height'):
+            height = self.renderer.grid_height
+            width = self.renderer.grid_width
+        else:
+            height = self.renderer.height
+            width = self.renderer.width
+
+        # Display message
+        row = height // 2
+        col = max(2, (width - len(message)) // 2)
+        self.renderer.draw_text(row, col, message, 1, 0)
+
+        # Instructions
+        instructions = "Press any key to continue..."
+        instr_row = row + 2
+        instr_col = max(2, (width - len(instructions)) // 2)
+        self.renderer.draw_text(instr_row, instr_col, instructions, 2, 0)
+
+        self.renderer.refresh()
+        self.renderer.get_input()
+
     def _quit_game(self):
         """Quit the game."""
         self.running = False
@@ -362,7 +596,7 @@ class MenuUI:
         """Draw the current menu."""
         menu = self.current_menu
         self.renderer.clear_screen()
-        
+
         # Get screen dimensions
         if hasattr(self.renderer, 'grid_height'):
             height = self.renderer.grid_height
@@ -370,7 +604,14 @@ class MenuUI:
         else:
             height = self.renderer.height
             width = self.renderer.width
-        
+
+        # Draw current profile indicator in top-right corner
+        profile = profile_manager.get_current_profile()
+        if profile:
+            profile_text = f"Profile: {profile.name}"
+            profile_col = width - len(profile_text) - 2
+            self.renderer.draw_text(1, profile_col, profile_text, 3, 0)
+
         # Draw title art only for main menu
         if menu.title == "Boneglaive":
             # Draw the ASCII art title
@@ -440,23 +681,29 @@ class MenuUI:
         """Handle the result of a menu action."""
         if not result:
             return
-        
+
         action, data = result
-        
+
         if action == "submenu":
             if data is None and self.current_menu.parent:
                 self.current_menu = self.current_menu.parent
             elif data:
                 self.current_menu = data
-        
+
         elif action == "start_game":
             self.running = False
             # This ensures the result is passed up to the caller
             return ("start_game", None)
-        
+
         elif action == "show_about":
             self._display_about_screen()
-            
+
+        elif action == "show_profile_stats":
+            self._display_profile_stats()
+
+        elif action == "show_message":
+            self._display_message(data)
+
         elif action == "quit":
             self.running = False
             return ("quit", None)

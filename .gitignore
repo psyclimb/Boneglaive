@@ -82,3 +82,4 @@ logs/
 # Game-specific
 *.save
 game_state_*.json
+profiles/*.json
