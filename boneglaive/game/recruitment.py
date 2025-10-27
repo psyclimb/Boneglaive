@@ -11,6 +11,21 @@ from boneglaive.utils.constants import UnitType
 from boneglaive.utils.debug import logger
 
 
+# Define recruitment order (excluding HEINOUS_VAPOR which is summoned)
+RECRUITMENT_ORDER = [
+    UnitType.GLAIVEMAN,
+    UnitType.GRAYMAN,
+    UnitType.MANDIBLE_FOREMAN,
+    UnitType.POTPOURRIST,
+    UnitType.MARROW_CONDENSER,
+    UnitType.INTERFERER,
+    UnitType.FOWL_CONTRIVANCE,
+    UnitType.DELPHIC_APPRAISER,
+    UnitType.GAS_MACHINIST,
+    UnitType.DERELICTIONIST
+]
+
+
 class RecruitmentPhase(Enum):
     """Phases of the recruitment process."""
     PLAYER_1_RECRUITING = "player1_recruiting"
@@ -32,26 +47,11 @@ class PlayerUnitPool:
     def reset_pool(self):
         """Reset the pool to have 2 of each unit type."""
         self.available_units = {}
-        
-        # Use all actual game unit types (excluding HEINOUS_VAPOR which is summoned, and legacy units)
-        from boneglaive.utils.constants import UnitType
-        recruitable_units = [
-            UnitType.GLAIVEMAN,
-            UnitType.MANDIBLE_FOREMAN,
-            UnitType.GRAYMAN,
-            UnitType.MARROW_CONDENSER,
-            UnitType.FOWL_CONTRIVANCE,
-            UnitType.GAS_MACHINIST,
-            UnitType.DELPHIC_APPRAISER,
-            UnitType.INTERFERER,
-            UnitType.DERELICTIONIST,
-            UnitType.POTPOURRIST
-        ]
-        
-        for unit_type in recruitable_units:
+
+        for unit_type in RECRUITMENT_ORDER:
             self.available_units[unit_type] = 2
-        
-        logger.info(f"Player {self.player_id} unit pool reset with {len(recruitable_units)} unit types, 2 each")
+
+        logger.info(f"Player {self.player_id} unit pool reset with {len(RECRUITMENT_ORDER)} unit types, 2 each")
     
     def is_available(self, unit_type: UnitType) -> bool:
         """Check if a unit type is available for recruitment."""
@@ -62,8 +62,8 @@ class PlayerUnitPool:
         return self.available_units.get(unit_type, 0)
     
     def get_available_types(self) -> List[UnitType]:
-        """Get all unit types that are available for recruitment."""
-        return [unit_type for unit_type, count in self.available_units.items() if count > 0]
+        """Get all unit types that are available for recruitment in the correct order."""
+        return [unit_type for unit_type in RECRUITMENT_ORDER if self.available_units.get(unit_type, 0) > 0]
     
     def recruit_unit(self, unit_type: UnitType) -> bool:
         """Recruit a unit, reducing the available count. Returns True if successful."""

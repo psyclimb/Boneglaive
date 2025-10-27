@@ -251,15 +251,15 @@ class Game:
                 # Available unit types for random selection
                 available_types = [
                     UnitType.GLAIVEMAN,
-                    UnitType.MANDIBLE_FOREMAN,
                     UnitType.GRAYMAN,
+                    UnitType.MANDIBLE_FOREMAN,
+                    UnitType.POTPOURRIST,
                     UnitType.MARROW_CONDENSER,
-                    UnitType.FOWL_CONTRIVANCE,
-                    UnitType.GAS_MACHINIST,
-                    UnitType.DELPHIC_APPRAISER,
                     UnitType.INTERFERER,
-                    UnitType.DERELICTIONIST,
-                    UnitType.POTPOURRIST
+                    UnitType.FOWL_CONTRIVANCE,
+                    UnitType.DELPHIC_APPRAISER,
+                    UnitType.GAS_MACHINIST,
+                    UnitType.DERELICTIONIST
                 ]
 
                 # Track unit counts to enforce max 2 of each type
@@ -479,15 +479,15 @@ class Game:
         # Define available unit types for Player 2 in VS_AI mode (random selection)
         vs_ai_p2_unit_types = [
             UnitType.GLAIVEMAN,
-            UnitType.MANDIBLE_FOREMAN,
             UnitType.GRAYMAN,
+            UnitType.MANDIBLE_FOREMAN,
+            UnitType.POTPOURRIST,
             UnitType.MARROW_CONDENSER,
-            UnitType.FOWL_CONTRIVANCE,
-            UnitType.GAS_MACHINIST,
-            UnitType.DELPHIC_APPRAISER,
             UnitType.INTERFERER,
-            UnitType.DERELICTIONIST,
-            UnitType.POTPOURRIST
+            UnitType.FOWL_CONTRIVANCE,
+            UnitType.DELPHIC_APPRAISER,
+            UnitType.GAS_MACHINIST,
+            UnitType.DERELICTIONIST
         ]
         
         # Find valid positions for units that aren't on limestone
@@ -600,15 +600,15 @@ class Game:
                 # Available unit types for random selection
                 available_types = [
                     UnitType.GLAIVEMAN,
-                    UnitType.MANDIBLE_FOREMAN,
                     UnitType.GRAYMAN,
+                    UnitType.MANDIBLE_FOREMAN,
+                    UnitType.POTPOURRIST,
                     UnitType.MARROW_CONDENSER,
-                    UnitType.FOWL_CONTRIVANCE,
-                    UnitType.GAS_MACHINIST,
-                    UnitType.DELPHIC_APPRAISER,
                     UnitType.INTERFERER,
-                    UnitType.DERELICTIONIST,
-                    UnitType.POTPOURRIST
+                    UnitType.FOWL_CONTRIVANCE,
+                    UnitType.DELPHIC_APPRAISER,
+                    UnitType.GAS_MACHINIST,
+                    UnitType.DERELICTIONIST
                 ]
                 
                 # Track unit counts to enforce max 2 of each type
@@ -728,15 +728,15 @@ class Game:
                 # Available unit types for random selection
                 available_types = [
                     UnitType.GLAIVEMAN,
-                    UnitType.MANDIBLE_FOREMAN,
                     UnitType.GRAYMAN,
+                    UnitType.MANDIBLE_FOREMAN,
+                    UnitType.POTPOURRIST,
                     UnitType.MARROW_CONDENSER,
-                    UnitType.FOWL_CONTRIVANCE,
-                    UnitType.GAS_MACHINIST,
-                    UnitType.DELPHIC_APPRAISER,
                     UnitType.INTERFERER,
-                    UnitType.DERELICTIONIST,
-                    UnitType.POTPOURRIST
+                    UnitType.FOWL_CONTRIVANCE,
+                    UnitType.DELPHIC_APPRAISER,
+                    UnitType.GAS_MACHINIST,
+                    UnitType.DERELICTIONIST
                 ]
                 
                 # Count existing units for player 2
