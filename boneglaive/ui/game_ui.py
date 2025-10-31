@@ -7,8 +7,9 @@ from boneglaive.game.engine import Game
 from boneglaive.utils.coordinates import Position
 from boneglaive.utils.debug import debug_config, measure_perf, logger
 from boneglaive.utils.asset_manager import AssetManager
-from boneglaive.utils.config import ConfigManager
+from boneglaive.utils.config import ConfigManager, NetworkMode
 from boneglaive.utils.input_handler import InputHandler, GameAction
+from boneglaive.game.player_profile import profile_manager
 from boneglaive.renderers.curses_renderer import CursesRenderer
 from boneglaive.utils.render_interface import RenderInterface
 from boneglaive.utils.message_log import message_log, MessageType
@@ -62,7 +63,27 @@ class GameUI:
         selected_map = self.config_manager.get('selected_map', 'lime_foyer')
         from boneglaive.utils.debug import logger
         logger.info(f"GameUI: Reading selected_map from config: '{selected_map}'")
-        self.game = Game(skip_setup=False, map_name=selected_map)
+
+        # Build player names dict based on profile and game mode
+        player_names = {}
+        current_profile = profile_manager.get_current_profile()
+        if current_profile:
+            player_names[1] = current_profile.name
+            logger.info(f"GameUI: Using profile name '{current_profile.name}' for Player 1")
+        else:
+            player_names[1] = "Player 1"
+            logger.info("GameUI: No profile selected, using default 'Player 1'")
+
+        # Check if Player 2 is AI
+        network_mode = self.config_manager.get('network_mode', NetworkMode.VS_AI.value)
+        if network_mode == NetworkMode.VS_AI.value:
+            player_names[2] = "AI"
+            logger.info("GameUI: Player 2 is AI opponent")
+        else:
+            player_names[2] = "Player 2"
+            logger.info("GameUI: Player 2 is human opponent")
+
+        self.game = Game(skip_setup=False, map_name=selected_map, player_names=player_names)
         
         # Set up multiplayer manager
         from boneglaive.game.multiplayer_manager import MultiplayerManager
@@ -182,8 +203,21 @@ class GameUI:
         """Handle game over events."""
         # Display game over message in message log
         winner = event_data.winner
-        message_log.add_system_message(f"Game over. Player {winner} wins")
-        self.message = f"Player {winner} wins"
+        winner_name = self.game.get_player_name(winner)
+        message_log.add_system_message(f"Game over. {winner_name} wins")
+        self.message = f"{winner_name} wins"
+
+        # Track profile stats (only for Player 1 - the human player)
+        profile = profile_manager.get_current_profile()
+        if profile:
+            if winner == 1:
+                profile.record_win()
+                logger.info(f"Profile {profile.name}: Recorded win")
+            else:
+                profile.record_loss()
+                logger.info(f"Profile {profile.name}: Recorded loss")
+            # Save profile to persist stats
+            profile_manager.save_profile(profile)
 
         # Show the game over prompt
         self.game_over_prompt.show(winner)
@@ -215,14 +249,16 @@ class GameUI:
             return
             
         current_player = self.multiplayer.get_current_player()
-        
+        player_name = self.game.get_player_name(current_player)
+
         if self.multiplayer.is_multiplayer():
             if self.multiplayer.is_current_player_turn():
-                message_log.add_system_message(f"Player {current_player} - Turn {self.game.turn}")
+                message_log.add_system_message(f"{player_name} - Turn {self.game.turn}")
             else:
-                message_log.add_system_message(f"Player {current_player} - Turn {self.game.turn}")
+                message_log.add_system_message(f"{player_name} - Turn {self.game.turn}")
         else:
-            message_log.add_system_message(f"Player {self.game.current_player} - Turn {self.game.turn}")
+            current_player_name = self.game.get_player_name(self.game.current_player)
+            message_log.add_system_message(f"{current_player_name} - Turn {self.game.turn}")
         
         # Keep the message display area clear
         self.message = ""
@@ -301,8 +337,9 @@ class GameUI:
         message_log.add_system_message(f"New game started. Entering {self.game.map.name}")
         
         # Seasonal messages are now handled when the game starts (after setup phase)
-        
-        message_log.add_system_message(f"Player {self.game.current_player} - Setup Phase")
+
+        current_player_name = self.game.get_player_name(self.game.current_player)
+        message_log.add_system_message(f"{current_player_name} - Setup Phase")
 
         # Reset cursor position to center of board
         from boneglaive.utils.constants import HEIGHT, WIDTH

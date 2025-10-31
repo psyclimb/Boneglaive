@@ -42,7 +42,10 @@ class GameConfig:
     server_ip: str = "127.0.0.1"
     server_port: int = 7777
     player_name: str = "Player"
-    
+
+    # Profile settings
+    current_profile: str = ""  # Name of currently selected profile
+
     # AI settings
     ai_difficulty: str = "medium"  # easy, medium, hard
     

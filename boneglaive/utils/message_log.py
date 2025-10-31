@@ -247,7 +247,12 @@ class MessageLog:
                 # Format player chat messages with clear player indicator
                 player_num = msg['player']
                 player_color = self.player_colors.get(player_num, 1)
-                text = f"[Player {player_num}] {msg['text']}"
+                # Get player name from game instance if available
+                if self.game_instance:
+                    player_name = self.game_instance.get_player_name(player_num)
+                else:
+                    player_name = f"Player {player_num}"
+                text = f"[{player_name}] {msg['text']}"
                 # Chat messages use player color for the entire message
                 formatted.append((text, player_color))
                 continue

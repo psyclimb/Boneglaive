@@ -15,7 +15,7 @@ if 'logger' not in locals():
     logger = debug_config.setup_logging('game.engine')
 
 class Game:
-    def __init__(self, skip_setup=False, map_name="lime_foyer_arena"):
+    def __init__(self, skip_setup=False, map_name="lime_foyer_arena", player_names=None):
         self.units = []
         self.current_player = 1
         self.turn = 1
@@ -31,6 +31,9 @@ class Game:
 
         # Track current attacker for damage modifiers (Demilune debuff)
         self.current_attacker = None
+
+        # Store player names (defaults to "Player 1" and "Player 2" if not provided)
+        self.player_names = player_names if player_names else {1: "Player 1", 2: "Player 2"}
 
         # Create the game map
         self.map = MapFactory.create_map(map_name)
@@ -60,7 +63,19 @@ class Game:
         for unit in self.units:
             if unit.is_alive() and unit.player == self.current_player:
                 unit.apply_passive_skills(self, None)
-            
+
+    def get_player_name(self, player_num: int) -> str:
+        """
+        Get the display name for a player.
+
+        Args:
+            player_num: The player number (1 or 2)
+
+        Returns:
+            The player's display name, or "Player {num}" as fallback
+        """
+        return self.player_names.get(player_num, f"Player {player_num}")
+
     def change_map(self, new_map_name):
         """
         Change the current map and reset the game.
@@ -881,11 +896,20 @@ class Game:
         existing_unit = self.get_unit_at(y, x)
         if existing_unit is not None and existing_unit.player == self.setup_player:
             return "position_occupied"  # Position occupied by same player
-        
+
         self.add_unit(unit_type, self.setup_player, y, x)
 
         # Decrement remaining units
         self.setup_units_remaining[self.setup_player] -= 1
+
+        # Track unit pick for Player 1 (human player)
+        if self.setup_player == 1:
+            from boneglaive.game.player_profile import profile_manager
+            profile = profile_manager.get_current_profile()
+            if profile:
+                profile.record_unit_pick(unit_type)
+                profile_manager.save_profile(profile)
+                logger.debug(f"Profile {profile.name}: Recorded pick for {unit_type.name}")
 
         return True
             
@@ -1147,18 +1171,21 @@ class Game:
             for i, unit in enumerate(units):
                 if i < len(UNIT_ID_ALPHABET):
                     unit.greek_id = UNIT_ID_ALPHABET[i]
-                    logger.debug(f"Assigned {unit.greek_id} to Player {unit.player}'s {unit.type.name}")
+                    player_name = self.get_player_name(unit.player)
+                    logger.debug(f"Assigned {unit.greek_id} to {player_name}'s {unit.type.name}")
                 else:
                     # Fallback if we have more units than letters
                     unit.greek_id = f"{i+1}"
-                    logger.debug(f"Used number {unit.greek_id} for Player {unit.player}'s {unit.type.name}")
-        
+                    player_name = self.get_player_name(unit.player)
+                    logger.debug(f"Used number {unit.greek_id} for {player_name}'s {unit.type.name}")
+
         # No need to log the identifier assignments
         for player in [1, 2]:
             player_units = [u for u in self.units if u.is_alive() and u.player == player]
             if player_units:
+                player_name = self.get_player_name(player)
                 message_log.add_message(
-                    f"Player {player} units: " + ", ".join([f"{u.get_display_name()}" for u in player_units]),
+                    f"{player_name} units: " + ", ".join([f"{u.get_display_name()}" for u in player_units]),
                     MessageType.SYSTEM
                 )
     
@@ -3882,10 +3909,14 @@ class Game:
         
         if not player1_alive:
             self.winner = 2
-            message_log.add_system_message(f"Player 2 wins. All Player 1 units have been defeated.")
+            winner_name = self.get_player_name(2)
+            loser_name = self.get_player_name(1)
+            message_log.add_system_message(f"{winner_name} wins. All {loser_name} units have been defeated.")
         elif not player2_alive:
             self.winner = 1
-            message_log.add_system_message(f"Player 1 wins. All Player 2 units have been defeated.")
+            winner_name = self.get_player_name(1)
+            loser_name = self.get_player_name(2)
+            message_log.add_system_message(f"{winner_name} wins. All {loser_name} units have been defeated.")
     
     def _apply_trap_damage(self):
         """Apply damage to units trapped by MANDIBLE_FOREMENs."""
