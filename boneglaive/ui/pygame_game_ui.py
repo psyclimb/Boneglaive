@@ -50,9 +50,7 @@ class PygameGameUI:
     
     def get_current_player_info(self) -> str:
         """Get display string for current player."""
-        if self.is_vs_ai_mode():
-            return "AI" if self.game.current_player == 2 else "Player"
-        return f"Player {self.game.current_player}"
+        return self.game.get_player_name(self.game.current_player)
         
     def draw_board(self):
         """Draw the game board with pygame."""

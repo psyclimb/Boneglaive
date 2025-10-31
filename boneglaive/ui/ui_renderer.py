@@ -238,8 +238,9 @@ class UIRenderer:
             current_player = self.game_ui.multiplayer.get_current_player()
             player_color = chat_component.player_colors.get(current_player, 1)
             
-            # Draw player indicator with box drawing chars 
-            player_text = f"[ PLAYER {current_player} ]"
+            # Draw player indicator with box drawing chars
+            player_name = self.game_ui.game.get_player_name(current_player)
+            player_text = f"[ {player_name.upper()} ]"
             self.renderer.draw_text(header_y, 2, player_text, player_color, curses.A_BOLD)
             
             # Draw action mode (select/move/attack)
@@ -1540,7 +1541,8 @@ class UIRenderer:
                 
                 # Add game state info
                 game_state = self.game_ui.game.get_game_state()
-                overlay_lines.append(f"Game State: Turn {game_state['turn']}, Player {game_state['current_player']}")
+                current_player_name = self.game_ui.game.get_player_name(game_state['current_player'])
+                overlay_lines.append(f"Game State: Turn {game_state['turn']}, {current_player_name}")
                 overlay_lines.append(f"Units: {len(game_state['units'])}")
                 
                 # Display overlay below message log
@@ -1582,9 +1584,10 @@ class UIRenderer:
         
         # Clear the line first
         self.renderer.draw_text(status_line, 0, " " * self.renderer.width, 1)
-        
+
         # Draw the player label
-        label = f"Player {current_player}: "
+        player_name = self.game_ui.game.get_player_name(current_player)
+        label = f"{player_name}: "
         self.renderer.draw_text(status_line, 2, label, player_color)
         current_pos = 2 + len(label)
         

@@ -6426,7 +6426,7 @@ class SimpleAI:
         # Determine movement range (potentially enhanced by Severance)
         base_move = unit.get_effective_stats()['move_range']
         # Severance gives +1 movement after using a skill
-        enhanced_move = base_move + (1 if hasattr(unit, 'used_skill_this_turn') and unit.used_skill_this_turn else 0)
+        enhanced_move = base_move + (1 if hasattr(unit, 'severance_active') and unit.severance_active else 0)
 
         best_position = None
         best_score = self._evaluate_position(unit.y, unit.x, unit, allies, enemies)
@@ -6587,7 +6587,9 @@ class SimpleAI:
         # Find safest position away from enemies
         best_position = None
         best_safety = 0
-        move_range = unit.get_effective_stats()['move_range']
+        # Account for Severance enhanced movement
+        base_move = unit.get_effective_stats()['move_range']
+        move_range = base_move + (1 if hasattr(unit, 'severance_active') and unit.severance_active else 0)
 
         for dy in range(-move_range, move_range + 1):
             for dx in range(-move_range, move_range + 1):

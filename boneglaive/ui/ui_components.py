@@ -2281,9 +2281,10 @@ class ChatComponent(UIComponent):
             # Calculate the current player
             current_player = self.game_ui.multiplayer.get_current_player()
             player_color = self.player_colors.get(current_player, 1)
-            
+            player_name = self.game_ui.game.get_player_name(current_player)
+
             # Draw the input prompt with player-specific color
-            prompt = f"[Player {current_player}]> "
+            prompt = f"[{player_name}]> "
             self.renderer.draw_text(input_y, 0, prompt, player_color)
             
             # Draw the input text with a cursor at the end
@@ -2950,7 +2951,8 @@ class GameOverPrompt(UIComponent):
                     self.renderer.draw_text(y, x, " ", 7)  # Background with white color
 
         # Draw title
-        title = f"Player {self.winner} Wins!"
+        winner_name = self.game_ui.game.get_player_name(self.winner)
+        title = f"{winner_name} Wins!"
         title_x = prompt_x + (prompt_width - len(title)) // 2
         # Use bright white color with bold attribute
         self.renderer.draw_text(prompt_y + 1, title_x, title, 7, 1)
@@ -4347,24 +4349,27 @@ class GameModeManager(UIComponent):
                     )
                     
                     # Notify the player about single player mode
+                    player1_name = self.game_ui.game.get_player_name(1)
                     self.publish_event(
                         EventType.MESSAGE_DISPLAY_REQUESTED,
                         MessageDisplayEventData(
-                            message="Game starting in single player mode. Player 1 - Turn 1",
+                            message=f"Game starting in single player mode. {player1_name} - Turn 1",
                             message_type=MessageType.SYSTEM
                         )
                     )
                 else:
+                    player1_name = self.game_ui.game.get_player_name(1)
                     self.publish_event(
                         EventType.MESSAGE_DISPLAY_REQUESTED,
                         MessageDisplayEventData(
-                            message="Player 1 - Turn 1",
+                            message=f"{player1_name} - Turn 1",
                             message_type=MessageType.SYSTEM
                         )
                     )
             else:
                 # Normal local multiplayer mode - message shown in UI only, not in log
-                self.game_ui.message = "Player 2's turn to place units"
+                player2_name = self.game_ui.game.get_player_name(2)
+                self.game_ui.message = f"{player2_name}'s turn to place units"
                 # Start player 2 with cursor in center
                 self.game_ui.cursor_manager.cursor_pos = Position(HEIGHT // 2, WIDTH // 2)
                 # Publish cursor moved event
@@ -4373,10 +4378,11 @@ class GameModeManager(UIComponent):
                     CursorMovedEventData(position=self.game_ui.cursor_manager.cursor_pos)
                 )
         elif game_start:
+            player1_name = self.game_ui.game.get_player_name(1)
             self.publish_event(
                 EventType.MESSAGE_DISPLAY_REQUESTED,
                 MessageDisplayEventData(
-                    message="Player 1 - Turn 1",
+                    message=f"{player1_name} - Turn 1",
                     message_type=MessageType.SYSTEM
                 )
             )
@@ -4426,7 +4432,8 @@ class GameModeManager(UIComponent):
             # Draw instructions
             setup_player = self.game_ui.game.setup_player
             player_color = self.game_ui.chat_component.player_colors.get(setup_player, 1)
-            
+            setup_player_name = self.game_ui.game.get_player_name(setup_player)
+
             # Map UnitType to display name
             unit_type_display = {
                 UnitType.GLAIVEMAN: "GLAIVEMAN",
@@ -4441,9 +4448,9 @@ class GameModeManager(UIComponent):
                 UnitType.POTPOURRIST: "POTPOURRIST"
             }
             current_unit_type = unit_type_display.get(self.setup_unit_type, "UNKNOWN")
-            
+
             instructions = [
-                f"Player {setup_player}, place your units on the battlefield.",
+                f"{setup_player_name}, place your units on the battlefield.",
                 "",
                 f"Each player must place 3 units (Current unit type: {current_unit_type}).",
                 "",
@@ -4467,15 +4474,16 @@ class GameModeManager(UIComponent):
             # Draw instructions
             for i, line in enumerate(instructions):
                 y_pos = 5 + i
-                if "Player 1" in line and setup_player == 1:
-                    self.renderer.draw_text(y_pos, 4, line, 3)  # Player 1 color
-                elif "Player 2" in line and setup_player == 2:
-                    self.renderer.draw_text(y_pos, 4, line, 4)  # Player 2 color
+                # Check if this line mentions the current player by name
+                if setup_player_name in line:
+                    # Use player-specific color
+                    color = 3 if setup_player == 1 else 4
+                    self.renderer.draw_text(y_pos, 4, line, color)
                 else:
                     self.renderer.draw_text(y_pos, 4, line)
-            
+
             # Draw current player indicator
-            player_text = f"Player {setup_player}'s turn to place units"
+            player_text = f"{setup_player_name}'s turn to place units"
             self.renderer.draw_text(5 + len(instructions) + 2, 4, player_text, player_color, curses.A_BOLD)
             
             # Draw footer

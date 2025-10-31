@@ -68,7 +68,20 @@ class MenuUI:
             self.renderer.initialize()
         self.current_menu = self._create_main_menu()
         self.running = True
-        
+
+        # Auto-load the last selected profile if one exists
+        saved_profile_name = self.config.get('current_profile', '')
+        if saved_profile_name:
+            profile = profile_manager.load_profile(saved_profile_name)
+            if profile:
+                profile_manager.set_current_profile(profile)
+                logger.info(f"Auto-loaded profile: {saved_profile_name}")
+            else:
+                logger.warning(f"Failed to auto-load profile: {saved_profile_name}")
+                # Clear the invalid profile from config
+                self.config.set('current_profile', '')
+                self.config.save_config()
+
         # Draw the menu immediately to avoid black screen
         self.draw()
     
@@ -412,6 +425,9 @@ class MenuUI:
             try:
                 profile = profile_manager.create_profile(name)
                 profile_manager.set_current_profile(profile)
+                # Save profile to config for auto-load on next startup
+                self.config.set('current_profile', name)
+                self.config.save_config()
                 logger.info(f"Created profile: {name}")
                 # Show success message
                 return ("show_message", f"Profile '{name}' created!")
@@ -448,6 +464,9 @@ class MenuUI:
         profile = profile_manager.load_profile(name)
         if profile:
             profile_manager.set_current_profile(profile)
+            # Save profile to config for auto-load on next startup
+            self.config.set('current_profile', name)
+            self.config.save_config()
             logger.info(f"Loaded profile: {name}")
             return ("show_message", f"Profile '{name}' loaded!")
         else:
