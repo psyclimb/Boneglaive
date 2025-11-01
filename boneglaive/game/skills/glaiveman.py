@@ -39,7 +39,7 @@ class Autoclave(PassiveSkill):
         )
         self.activated = False  # Track if this skill has been used
         
-    def apply_passive(self, user: 'Unit', game: Optional['Game'] = None) -> None:
+    def apply_passive(self, user: 'Unit', game: Optional['Game'] = None, ui=None) -> None:
         """
         Apply the Autoclave passive effect.
         This method is kept for backward compatibility and as a fallback check.

@@ -35,6 +35,7 @@ class UnitType(Enum):
     DELPHIC_APPRAISER = 9  # The furniture evaluator with astral value perception
     INTERFERER = 10  # The telecommunications engineer turned assassin
     DERELICTIONIST = 11  # The psychological abandonment therapist
+    POTPOURRIST = 12  # The tank with potpourri-enhanced healing
 
 # Unit stats: (hp, attack, defense, move_range, attack_range)
 UNIT_STATS = {
@@ -45,11 +46,12 @@ UNIT_STATS = {
     UnitType.GRAYMAN: (18, 3, 0, 3, 5),
     UnitType.MARROW_CONDENSER: (20, 3, 2, 2, 1),
     UnitType.FOWL_CONTRIVANCE: (18, 4, 0, 4, 2),
-    UnitType.GAS_MACHINIST: (20, 4, 1, 2, 1),
+    UnitType.GAS_MACHINIST: (20, 3, 1, 2, 1),
     UnitType.HEINOUS_VAPOR: (1, 0, 0, 3, 1),
     UnitType.DELPHIC_APPRAISER: (20, 4, 0, 3, 1),
     UnitType.INTERFERER: (18, 3, 0, 3, 1),
-    UnitType.DERELICTIONIST: (18, 3, 0, 3, 1)
+    UnitType.DERELICTIONIST: (18, 3, 0, 3, 1),
+    UnitType.POTPOURRIST: (24, 4, 0, 2, 1)
 }
 
 UNIT_SYMBOLS = {
@@ -64,7 +66,8 @@ UNIT_SYMBOLS = {
     UnitType.HEINOUS_VAPOR: 'V',  # Generic vapor symbol, actual symbols set in skills
     UnitType.DELPHIC_APPRAISER: 'A',  # A for Appraiser
     UnitType.INTERFERER: 'R',  # R for Radioactive interference
-    UnitType.DERELICTIONIST: 'D'  # D for DERELICTIONIST
+    UnitType.DERELICTIONIST: 'D',  # D for DERELICTIONIST
+    UnitType.POTPOURRIST: 'P'  # P for POTPOURRIST
 }
 
 # Attack visual effects
@@ -80,7 +83,8 @@ ATTACK_EFFECTS = {
     UnitType.HEINOUS_VAPOR: "~",    # Vapor effect (area)
     UnitType.DELPHIC_APPRAISER: "$",  # Currency symbol (evaluation)
     UnitType.INTERFERER: "x",  # Plutonium carabiner cross (melee)
-    UnitType.DERELICTIONIST: "o"  # Psychological void (melee)
+    UnitType.DERELICTIONIST: "o",  # Psychological void (melee)
+    UnitType.POTPOURRIST: "I"  # Pedestal strike (melee)
 }
 
 # Greek alphabet for unit identification
@@ -111,6 +115,23 @@ UNIT_ID_ALPHABET = [
     'ω'   # omega
 ]
 
+# Unit display names for UI
+UNIT_DISPLAY_NAMES = {
+    UnitType.GLAIVEMAN: 'GLAIVEMAN',
+    UnitType.ARCHER: 'ARCHER',
+    UnitType.MAGE: 'MAGE',
+    UnitType.MANDIBLE_FOREMAN: 'MANDIBLE FOREMAN',
+    UnitType.GRAYMAN: 'GRAYMAN',
+    UnitType.MARROW_CONDENSER: 'MARROW CONDENSER',
+    UnitType.FOWL_CONTRIVANCE: 'FOWL CONTRIVANCE',
+    UnitType.GAS_MACHINIST: 'GAS MACHINIST',
+    UnitType.HEINOUS_VAPOR: 'HEINOUS VAPOR',
+    UnitType.DELPHIC_APPRAISER: 'DELPHIC APPRAISER',
+    UnitType.INTERFERER: 'INTERFERER',
+    UnitType.DERELICTIONIST: 'DERELICTIONIST',
+    UnitType.POTPOURRIST: 'POTPOURRIST'
+}
+
 # Status effect symbols
 STATUS_EFFECT_SYMBOLS = {
     'MIRED': 'm',             # Movement reduction from upgraded marrow dike
@@ -119,4 +140,5 @@ STATUS_EFFECT_SYMBOLS = {
     'KARRIER_RAVE': '!',      # Phased/untargetable state
     'DERELICTED': '&',        # Immobilization from psychological abandonment
     'SEVERANCE': 's',         # Enhanced movement from skill usage
+    'DEMILUNE_DEBUFF': '(',   # Damage reduction debuff from POTPOURRIST
 }

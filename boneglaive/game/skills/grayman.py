@@ -24,7 +24,7 @@ class Stasiality(PassiveSkill):
             description="Cannot have stats changed or be displaced. Immune to buffs, debuffs, forced movement, and terrain effects."
         )
     
-    def apply_passive(self, user: 'Unit', game=None) -> None:
+    def apply_passive(self, user: 'Unit', game=None, ui=None) -> None:
         # Implementation handled in Unit.is_immune_to_effects()
         pass
 
@@ -101,7 +101,7 @@ class DeltaConfigSkill(ActiveSkill):
         # Log that the skill has been readied
         from boneglaive.utils.message_log import message_log, MessageType
         message_log.add_message(
-            f"{user.get_display_name()} prepares to shift to Delta Config ({target_pos[0]}, {target_pos[1]})",
+            f"{user.get_display_name()} energizes and assumes the Delta Configuration to ({target_pos[0]}, {target_pos[1]})",
             MessageType.ABILITY,
             player=user.player
         )
@@ -124,69 +124,100 @@ class DeltaConfigSkill(ActiveSkill):
         
         # Log the skill activation
         message_log.add_message(
-            f"{user.get_display_name()} initiates Delta Config",
+            f"{user.get_display_name()} de-energizes",
             MessageType.ABILITY,
             player=user.player
         )
         
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Get teleport out animation sequence
-            teleport_out = ui.asset_manager.get_skill_animation_sequence('teleport_out')
-            if not teleport_out:
-                teleport_out = ['P', '.', ':', '=', ' ']  # Fallback
-                
-            # Get teleport in animation sequence
-            teleport_in = ui.asset_manager.get_skill_animation_sequence('teleport_in')
-            if not teleport_in:
-                teleport_in = [' ', '=', ':', '.', 'P']  # Fallback
-                
-            # Play teleport out animation at original position
-            ui.renderer.animate_attack_sequence(
-                original_pos[0], original_pos[1],
-                teleport_out,
-                7,  # white color
-                0.15  # duration
-            )
-            
-            # Remove the unit temporarily to show it's gone
-            temp_y, temp_x = user.y, user.x
-            user.y, user.x = -999, -999  # Move off-screen
-            
-            # Redraw board to show unit is gone
-            if hasattr(ui, 'draw_board'):
-                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-                
-            # Brief pause for effect
-            sleep_with_animation_speed(0.3)
-            
-            # Brief pre-teleport effect at destination
-            # Just a single flash to indicate where teleport will occur
-            ui.renderer.draw_tile(target_pos[0], target_pos[1], '*', 6)  # yellowish color star
+            # Calculate path between origin and destination
+            from boneglaive.utils.coordinates import get_line, Position
+            path = get_line(Position(original_pos[0], original_pos[1]),
+                           Position(target_pos[0], target_pos[1]))
+
+            # PHASE 1: ENERGIZE - GRAYMAN powers up at origin
+            energize_frames = ['Ψ', '*', 'Ψ', '*']
+            energize_colors = [7, 6, 7, 6]  # White and yellow alternating
+            for frame, color in zip(energize_frames, energize_colors):
+                ui.renderer.draw_tile(original_pos[0], original_pos[1], frame, color)
+                ui.renderer.refresh()
+                sleep_with_animation_speed(0.05)
+
+            # PHASE 2: PULL DESTINATION TOWARD ORIGIN - "Reeling in" the distant point
+            # Draw pull symbols progressively from destination toward origin
+            max_pull_length = len(path) - 1  # Full distance visualization
+            for pull_distance in range(1, max_pull_length + 1):
+                # Keep GRAYMAN energized during pull
+                ui.renderer.draw_tile(original_pos[0], original_pos[1], '*', 6)
+
+                # Draw the "pulled" chain from destination back toward origin
+                for i in range(pull_distance):
+                    pos_index = len(path) - 1 - i  # Start from destination, work backward
+                    if pos_index > 0 and pos_index < len(path):  # Don't overdraw origin
+                        ui.renderer.draw_tile(path[pos_index].y, path[pos_index].x, '<', 6)
+
+                ui.renderer.refresh()
+                sleep_with_animation_speed(0.06)
+
+            # PHASE 3: DE-ENERGIZE & HOLD - Brief pause showing full tension
+            ui.renderer.draw_tile(original_pos[0], original_pos[1], 'Ψ', 7)
             ui.renderer.refresh()
             sleep_with_animation_speed(0.1)
-            
-            # Play teleport in animation at target position
-            ui.renderer.animate_attack_sequence(
-                target_pos[0], target_pos[1],
-                teleport_in,
-                7,  # white color
-                0.15  # duration
-            )
-            
-            # Actually move the unit to the target position
+
+            # PHASE 4: ELASTIC SNAPBACK - Instant release
+            # Clear the entire pull chain
+            for i in range(max_pull_length):
+                pos_index = len(path) - 1 - i
+                if pos_index > 0 and pos_index < len(path):
+                    terrain_type = game.map.get_terrain_at(path[pos_index].y, path[pos_index].x)
+                    terrain_name = terrain_type.name.lower() if hasattr(terrain_type, 'name') else 'empty'
+                    terrain_tile = ui.asset_manager.get_terrain_tile(terrain_name)
+
+                    # Determine terrain color
+                    if terrain_name == 'empty':
+                        terrain_color = 1
+                    elif terrain_name == 'dust':
+                        terrain_color = 11
+                    elif terrain_name == 'limestone':
+                        terrain_color = 12
+                    elif terrain_name == 'pillar':
+                        terrain_color = 13
+                    elif terrain_name.startswith('furniture') or terrain_name in ['coat_rack', 'ottoman']:
+                        terrain_color = 14
+                    else:
+                        terrain_color = 1
+
+                    ui.renderer.draw_tile(path[pos_index].y, path[pos_index].x, terrain_tile, terrain_color)
+
+            # Clear origin position (GRAYMAN disappears)
+            terrain_type = game.map.get_terrain_at(original_pos[0], original_pos[1])
+            terrain_name = terrain_type.name.lower() if hasattr(terrain_type, 'name') else 'empty'
+            terrain_tile = ui.asset_manager.get_terrain_tile(terrain_name)
+            terrain_color = 1  # Default to empty color
+            ui.renderer.draw_tile(original_pos[0], original_pos[1], terrain_tile, terrain_color)
+
+            # INSTANT: Move unit and appear at destination with impact
             user.y, user.x = target_pos
-            
-            # Redraw board after animations
+            ui.renderer.draw_tile(target_pos[0], target_pos[1], '*', 6)  # Big flash
+            ui.renderer.refresh()
+            sleep_with_animation_speed(0.08)
+
+            # Show GRAYMAN at destination
+            ui.renderer.draw_tile(target_pos[0], target_pos[1], 'Ψ', 7)
+            ui.renderer.refresh()
+            sleep_with_animation_speed(0.05)
+
+            # Redraw board to show final state
             if hasattr(ui, 'draw_board'):
                 ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-                
-            # Flash the unit to emphasize teleport completed
+
+            # Flash the unit to emphasize snapback completed
             if hasattr(ui, 'asset_manager'):
                 tile_ids = [ui.asset_manager.get_unit_tile(user.type)] * 4
                 color_ids = [6, 3 if user.player == 1 else 4] * 2  # Alternate yellow with player color
                 durations = [0.1] * 4
-                
+
                 ui.renderer.flash_tile(user.y, user.x, tile_ids, color_ids, durations)
         else:
             # No UI, just set position without animations
@@ -194,7 +225,7 @@ class DeltaConfigSkill(ActiveSkill):
         
         # Log the completion of teleportation
         message_log.add_message(
-            f"{user.get_display_name()} teleports from ({original_pos[0]}, {original_pos[1]}) to position ({target_pos[0]}, {target_pos[1]})",
+            f"{user.get_display_name()} and the distant point at ({original_pos[0]}, {original_pos[1]}) snap to position ({target_pos[0]}, {target_pos[1]})",
             MessageType.ABILITY,
             player=user.player
         )

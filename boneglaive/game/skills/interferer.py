@@ -36,7 +36,7 @@ class NeutronIlluminant(PassiveSkill):
         self.current_cooldown = 0
         self.cooldown = 0  # No cooldown
         
-    def apply_passive(self, user: 'Unit', game=None) -> None:
+    def apply_passive(self, user: 'Unit', game=None, ui=None) -> None:
         """Apply effects of the passive skill."""
         # This is handled by the game engine when attacks are processed
         pass
@@ -118,17 +118,23 @@ class NeutronIlluminant(PassiveSkill):
         
         # Apply radiation to valid positions
         affected_units = []
+        immune_units = []
         for pos in radiation_positions:
             y, x = pos
             if not game.is_valid_position(y, x):
                 continue
-                
+
             target = game.get_unit_at(y, x)
             if target and target.player != user.player and target.is_alive():
+                # Check if target is immune to radiation (GRAYMAN with Stasiality)
+                if target.is_immune_to_effects():
+                    immune_units.append(target)
+                    continue
+
                 # Apply radiation sickness
                 if not hasattr(target, 'radiation_stacks'):
                     target.radiation_stacks = []
-                
+
                 # Add new radiation stack (2 turns duration)
                 target.radiation_stacks.append(2)
                 affected_units.append(target)
@@ -139,6 +145,14 @@ class NeutronIlluminant(PassiveSkill):
                 f"Neutron radiation spreads from the impact",
                 MessageType.ABILITY,
                 player=user.player
+            )
+
+        # Log immunity message for immune units
+        for immune_unit in immune_units:
+            message_log.add_message(
+                f"{immune_unit.get_display_name()} is immune to radiation due to Stasiality",
+                MessageType.ABILITY,
+                player=immune_unit.player
             )
 
 
@@ -152,13 +166,13 @@ class NeuralShuntSkill(ActiveSkill):
         super().__init__(
             name="Neural Shunt",
             key="N",
-            description="Neural disruption attack (range 1). Deals 8 damage and causes target to perform random actions for 2 turns.",
+            description="Neural disruption attack (range 1). Deals 8 damage and causes target to perform random actions for 1 turn.",
             target_type=TargetType.ENEMY,
             cooldown=4,
             range_=1
         )
         self.damage = 7
-        self.effect_duration = 2
+        self.effect_duration = 1
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         # Basic validation
