@@ -34,7 +34,17 @@ class UIRenderer:
         # DERELICTIONIST status effects
         if hasattr(unit, 'derelicted') and unit.derelicted:
             effects.append(('derelicted', '&', curses.A_BOLD))
-            
+
+        # POTPOURRIST status effects
+        if hasattr(unit, 'potpourri_held') and unit.potpourri_held:
+            effects.append(('Infusion', '*', curses.A_BOLD))
+
+        if hasattr(unit, 'demilune_debuffed') and unit.demilune_debuffed:
+            effects.append(('lunacy', '(', curses.A_DIM))
+
+        if hasattr(unit, 'taunted_by') and unit.taunted_by:
+            effects.append(('geas', ':', curses.A_BOLD))
+
         if hasattr(unit, 'shrapnel_duration') and unit.shrapnel_duration > 0:
             effects.append(('shrapnel', 'x', curses.A_DIM))
             
@@ -54,7 +64,7 @@ class UIRenderer:
             
         # INTERFERER status effects
         if hasattr(unit, 'radiation_stacks') and unit.radiation_stacks:
-            effects.append(('radiation_sickness', '*', curses.A_BOLD))
+            effects.append(('radiation_sickness', 'r', curses.A_BOLD))
             
         if hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected:
             effects.append(('neural_shunt', '?', curses.A_BOLD))
@@ -93,7 +103,7 @@ class UIRenderer:
             effects.append(('move_bonus', '+', curses.A_BOLD))
             
         if hasattr(unit, 'valuation_oracle_buff') and unit.valuation_oracle_buff:
-            effects.append(('valuation_oracle', '@', curses.A_BOLD))
+            effects.append(('valuation_oracle', '¤', curses.A_BOLD))
             
         return effects
     
@@ -228,8 +238,9 @@ class UIRenderer:
             current_player = self.game_ui.multiplayer.get_current_player()
             player_color = chat_component.player_colors.get(current_player, 1)
             
-            # Draw player indicator with box drawing chars 
-            player_text = f"[ PLAYER {current_player} ]"
+            # Draw player indicator with box drawing chars
+            player_name = self.game_ui.game.get_player_name(current_player)
+            player_text = f"[ {player_name.upper()} ]"
             self.renderer.draw_text(header_y, 2, player_text, player_color, curses.A_BOLD)
             
             # Draw action mode (select/move/attack)
@@ -1398,7 +1409,9 @@ class UIRenderer:
                 positive_effects.append(f"Vagal Run({unit.vagal_run_duration})")
             if hasattr(unit, 'partition_shield_active') and unit.partition_shield_active:
                 positive_effects.append(f"Partition({unit.partition_shield_duration})")
-            
+            if hasattr(unit, 'potpourri_held') and unit.potpourri_held:
+                positive_effects.append("Infusion")
+
             # Movement/action penalties and traps (negative)
             if hasattr(unit, 'was_pried') and unit.was_pried and unit.move_range_bonus < 0:
                 negative_effects.append("Pried")
@@ -1414,7 +1427,20 @@ class UIRenderer:
                     negative_effects.append(f"Mired({unit.mired_duration})")
                 else:
                     negative_effects.append("Mired")
-            
+            if hasattr(unit, 'demilune_debuffed') and unit.demilune_debuffed:
+                # Check if it has duration, otherwise just show boolean
+                if hasattr(unit, 'demilune_debuff_duration') and unit.demilune_debuff_duration > 0:
+                    negative_effects.append(f"Lunacy({unit.demilune_debuff_duration})")
+                else:
+                    negative_effects.append("Lunacy")
+
+            if hasattr(unit, 'taunted_by') and unit.taunted_by:
+                # Check if it has duration, otherwise just show boolean
+                if hasattr(unit, 'taunt_duration') and unit.taunt_duration > 0:
+                    negative_effects.append(f"Geis({unit.taunt_duration})")
+                else:
+                    negative_effects.append("Geis")
+
             # Display status effects if any exist
             if positive_effects or negative_effects:
                 # Start with "Status: " label
@@ -1515,7 +1541,8 @@ class UIRenderer:
                 
                 # Add game state info
                 game_state = self.game_ui.game.get_game_state()
-                overlay_lines.append(f"Game State: Turn {game_state['turn']}, Player {game_state['current_player']}")
+                current_player_name = self.game_ui.game.get_player_name(game_state['current_player'])
+                overlay_lines.append(f"Game State: Turn {game_state['turn']}, {current_player_name}")
                 overlay_lines.append(f"Units: {len(game_state['units'])}")
                 
                 # Display overlay below message log
@@ -1557,9 +1584,10 @@ class UIRenderer:
         
         # Clear the line first
         self.renderer.draw_text(status_line, 0, " " * self.renderer.width, 1)
-        
+
         # Draw the player label
-        label = f"Player {current_player}: "
+        player_name = self.game_ui.game.get_player_name(current_player)
+        label = f"{player_name}: "
         self.renderer.draw_text(status_line, 2, label, player_color)
         current_pos = 2 + len(label)
         

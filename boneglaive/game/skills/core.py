@@ -81,7 +81,7 @@ class Skill:
         # Skill effect implemented in subclasses
         return True
         
-    def apply_passive(self, user: 'Unit', game: Optional['Game'] = None) -> None:
+    def apply_passive(self, user: 'Unit', game: Optional['Game'] = None, ui=None) -> None:
         """Apply passive effect. Override in passive skill subclasses."""
         pass
         

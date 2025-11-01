@@ -41,7 +41,7 @@ class EffluviumLathe(PassiveSkill):
         self.last_charge_turn = 1
         self.last_charge_player = None  # Track the player for whom we last generated a charge
         
-    def apply_passive(self, user: 'Unit', game: Optional['Game'] = None) -> None:
+    def apply_passive(self, user: 'Unit', game: Optional['Game'] = None, ui=None) -> None:
         """
         Apply the Effluvium Lathe passive - generate 1 charge at the start of each turn.
         This method is called at the start of the player's turn.
@@ -742,11 +742,18 @@ class DivergeSkill(ActiveSkill):
             )
         else:
             # Log the vapor being split with proper Greek letters
-            message_log.add_message(
-                f"{user.get_display_name()} splits {target_unit.get_display_name()} {coolant_gas.get_display_name()} and {cutting_gas.get_display_name()}",
-                MessageType.ABILITY,
-                player=user.player
-            )
+            if target_unit:
+                message_log.add_message(
+                    f"{user.get_display_name()} splits {target_unit.get_display_name()} into {coolant_gas.get_display_name()} and {cutting_gas.get_display_name()}",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
+            else:
+                message_log.add_message(
+                    f"{user.get_display_name()} diverges vapor into {coolant_gas.get_display_name()} and {cutting_gas.get_display_name()}",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
             
         # Play additional animations for the new gases
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):

@@ -15,7 +15,7 @@ if 'logger' not in locals():
     logger = debug_config.setup_logging('game.engine')
 
 class Game:
-    def __init__(self, skip_setup=False, map_name="lime_foyer_arena"):
+    def __init__(self, skip_setup=False, map_name="lime_foyer_arena", player_names=None):
         self.units = []
         self.current_player = 1
         self.turn = 1
@@ -28,7 +28,13 @@ class Game:
 
         # Action ordering
         self.action_counter = 0  # Track order of unit actions
-        
+
+        # Track current attacker for damage modifiers (Demilune debuff)
+        self.current_attacker = None
+
+        # Store player names (defaults to "Player 1" and "Player 2" if not provided)
+        self.player_names = player_names if player_names else {1: "Player 1", 2: "Player 2"}
+
         # Create the game map
         self.map = MapFactory.create_map(map_name)
         self.map_name = map_name  # Store current map name
@@ -56,8 +62,20 @@ class Game:
         # Apply passive skills for current player's units
         for unit in self.units:
             if unit.is_alive() and unit.player == self.current_player:
-                unit.apply_passive_skills(self)
-            
+                unit.apply_passive_skills(self, None)
+
+    def get_player_name(self, player_num: int) -> str:
+        """
+        Get the display name for a player.
+
+        Args:
+            player_num: The player number (1 or 2)
+
+        Returns:
+            The player's display name, or "Player {num}" as fallback
+        """
+        return self.player_names.get(player_num, f"Player {player_num}")
+
     def change_map(self, new_map_name):
         """
         Change the current map and reset the game.
@@ -248,13 +266,14 @@ class Game:
                 # Available unit types for random selection
                 available_types = [
                     UnitType.GLAIVEMAN,
-                    UnitType.MANDIBLE_FOREMAN,
                     UnitType.GRAYMAN,
+                    UnitType.MANDIBLE_FOREMAN,
+                    UnitType.POTPOURRIST,
                     UnitType.MARROW_CONDENSER,
-                    UnitType.FOWL_CONTRIVANCE,
-                    UnitType.GAS_MACHINIST,
-                    UnitType.DELPHIC_APPRAISER,
                     UnitType.INTERFERER,
+                    UnitType.FOWL_CONTRIVANCE,
+                    UnitType.DELPHIC_APPRAISER,
+                    UnitType.GAS_MACHINIST,
                     UnitType.DERELICTIONIST
                 ]
 
@@ -475,13 +494,15 @@ class Game:
         # Define available unit types for Player 2 in VS_AI mode (random selection)
         vs_ai_p2_unit_types = [
             UnitType.GLAIVEMAN,
-            UnitType.MANDIBLE_FOREMAN,
             UnitType.GRAYMAN,
+            UnitType.MANDIBLE_FOREMAN,
+            UnitType.POTPOURRIST,
             UnitType.MARROW_CONDENSER,
+            UnitType.INTERFERER,
             UnitType.FOWL_CONTRIVANCE,
-            UnitType.GAS_MACHINIST,
             UnitType.DELPHIC_APPRAISER,
-            UnitType.INTERFERER
+            UnitType.GAS_MACHINIST,
+            UnitType.DERELICTIONIST
         ]
         
         # Find valid positions for units that aren't on limestone
@@ -594,12 +615,15 @@ class Game:
                 # Available unit types for random selection
                 available_types = [
                     UnitType.GLAIVEMAN,
-                    UnitType.MANDIBLE_FOREMAN,
                     UnitType.GRAYMAN,
+                    UnitType.MANDIBLE_FOREMAN,
+                    UnitType.POTPOURRIST,
                     UnitType.MARROW_CONDENSER,
+                    UnitType.INTERFERER,
                     UnitType.FOWL_CONTRIVANCE,
+                    UnitType.DELPHIC_APPRAISER,
                     UnitType.GAS_MACHINIST,
-                    UnitType.DELPHIC_APPRAISER
+                    UnitType.DERELICTIONIST
                 ]
                 
                 # Track unit counts to enforce max 2 of each type
@@ -715,16 +739,19 @@ class Game:
             # For VS_AI mode, add random unit types for player 2 with max 2 of each
             if is_vs_ai_mode and p2_missing > 0:
                 logger.warning("Adding emergency units for VS_AI mode with random selection")
-                
+
                 # Available unit types for random selection
                 available_types = [
                     UnitType.GLAIVEMAN,
-                    UnitType.MANDIBLE_FOREMAN,
                     UnitType.GRAYMAN,
+                    UnitType.MANDIBLE_FOREMAN,
+                    UnitType.POTPOURRIST,
                     UnitType.MARROW_CONDENSER,
+                    UnitType.INTERFERER,
                     UnitType.FOWL_CONTRIVANCE,
+                    UnitType.DELPHIC_APPRAISER,
                     UnitType.GAS_MACHINIST,
-                    UnitType.DELPHIC_APPRAISER
+                    UnitType.DERELICTIONIST
                 ]
                 
                 # Count existing units for player 2
@@ -869,11 +896,20 @@ class Game:
         existing_unit = self.get_unit_at(y, x)
         if existing_unit is not None and existing_unit.player == self.setup_player:
             return "position_occupied"  # Position occupied by same player
-        
+
         self.add_unit(unit_type, self.setup_player, y, x)
 
         # Decrement remaining units
         self.setup_units_remaining[self.setup_player] -= 1
+
+        # Track unit pick for Player 1 (human player)
+        if self.setup_player == 1:
+            from boneglaive.game.player_profile import profile_manager
+            profile = profile_manager.get_current_profile()
+            if profile:
+                profile.record_unit_pick(unit_type)
+                profile_manager.save_profile(profile)
+                logger.debug(f"Profile {profile.name}: Recorded pick for {unit_type.name}")
 
         return True
             
@@ -1095,9 +1131,9 @@ class Game:
         unit = Unit(unit_type, player, y, x)
         unit.initialize_skills()  # Initialize skills for the unit
         unit.set_game_reference(self)  # Set game reference for trap checks
-        
+
         # Apply passive skills immediately when unit is added
-        unit.apply_passive_skills(self)
+        unit.apply_passive_skills(self, None)
         
         self.units.append(unit)
     
@@ -1135,18 +1171,21 @@ class Game:
             for i, unit in enumerate(units):
                 if i < len(UNIT_ID_ALPHABET):
                     unit.greek_id = UNIT_ID_ALPHABET[i]
-                    logger.debug(f"Assigned {unit.greek_id} to Player {unit.player}'s {unit.type.name}")
+                    player_name = self.get_player_name(unit.player)
+                    logger.debug(f"Assigned {unit.greek_id} to {player_name}'s {unit.type.name}")
                 else:
                     # Fallback if we have more units than letters
                     unit.greek_id = f"{i+1}"
-                    logger.debug(f"Used number {unit.greek_id} for Player {unit.player}'s {unit.type.name}")
-        
+                    player_name = self.get_player_name(unit.player)
+                    logger.debug(f"Used number {unit.greek_id} for {player_name}'s {unit.type.name}")
+
         # No need to log the identifier assignments
         for player in [1, 2]:
             player_units = [u for u in self.units if u.is_alive() and u.player == player]
             if player_units:
+                player_name = self.get_player_name(player)
                 message_log.add_message(
-                    f"Player {player} units: " + ", ".join([f"{u.get_display_name()}" for u in player_units]),
+                    f"{player_name} units: " + ", ".join([f"{u.get_display_name()}" for u in player_units]),
                     MessageType.SYSTEM
                 )
     
@@ -2193,7 +2232,9 @@ class Game:
                             MessageType.ABILITY,
                             player=unit.player
                         )
-            
+
+            # Lunacy debuff processing moved to end of turn (after combat phase)
+
             # Process INTERFERER status effects
             if unit.player == self.current_player:
                 # Process radiation damage
@@ -2597,15 +2638,21 @@ class Game:
                                 # Clear the flag
                                 delattr(unit, 'market_futures_final_maturation')
                             
-                        # Show attack animation
-                        if ui:
-                            ui.show_attack_animation(unit, target)
-                        
-                        # Calculate base attack damage
+                        # Calculate base attack damage FIRST (before animation so we can show correct damage)
                         effective_stats = unit.get_effective_stats()
                         effective_attack = effective_stats['attack']
+
+                        # Get effective defense (check for Demilune defense halving)
                         effective_defense = target.get_effective_stats()['defense']
-                        
+                        if (unit.type == UnitType.POTPOURRIST and
+                            hasattr(target, 'demilune_debuffed_by') and
+                            target.demilune_debuffed_by == unit and
+                            hasattr(target, 'demilune_defense_halved') and
+                            target.demilune_defense_halved):
+                            # Halve defense for enhanced Demilune
+                            effective_defense = effective_defense // 2
+                            logger.debug(f"DEMILUNE DEFENSE HALVING: {target.get_display_name()}'s defense halved from {target.get_effective_stats()['defense']} to {effective_defense}")
+
                         # Calculate damage with defense (PRT handled automatically by HP setter)
                         raw_damage = effective_attack
                         
@@ -2640,9 +2687,23 @@ class Game:
                         
                         # Apply final damage to HP (PRT reduction happens automatically in hp setter)
                         old_hp = target.hp
+                        # Set current attacker for Demilune damage halving in hp setter
+                        self.current_attacker = unit
                         target.hp = max(0, target.hp - damage)
+                        self.current_attacker = None
                         actual_damage = old_hp - target.hp
-                    
+
+                        # Show attack animation with actual damage
+                        if ui:
+                            ui.show_attack_animation(unit, target, actual_damage)
+
+                        # Check for taunt response (Granite Geas)
+                        if (hasattr(unit, 'taunted_by') and unit.taunted_by and
+                            target.type == UnitType.POTPOURRIST and unit.taunted_by == target):
+                            # Attacker attacked the POTPOURRIST that taunted them
+                            unit.taunt_responded_this_turn = True
+                            logger.debug(f"TAUNT RESPONSE: {unit.get_display_name()} responded to {target.get_display_name()}'s taunt")
+
                     # Check if attacker is a MANDIBLE_FOREMAN with the Viseroy passive
                     # If so, trap the target unit
                     if unit.type == UnitType.MANDIBLE_FOREMAN and unit.passive_skill and \
@@ -2710,7 +2771,10 @@ class Game:
                                     if target.hp > 0:  # Only continue if target is still alive
                                         additional_damage = max(1, effective_attack - effective_defense)
                                         old_target_hp = target.hp
+                                        # Set current attacker for Lunacy damage halving
+                                        self.current_attacker = unit
                                         target.hp = max(0, target.hp - additional_damage)
+                                        self.current_attacker = None
                                         actual_additional_damage = old_target_hp - target.hp
                                         
                                         message_log.add_combat_message(
@@ -2721,10 +2785,10 @@ class Game:
                                             attacker_player=unit.player,
                                             target_player=target.player
                                         )
-                                        
-                                        # Show additional damage animation
+
+                                        # Show additional damage animation with actual damage
                                         if ui:
-                                            ui.show_attack_animation(unit, target)
+                                            ui.show_attack_animation(unit, target, actual_additional_damage)
                                             
                                         # Trigger flash effect immediately after each additional strike
                                         if unit.passive_skill and unit.passive_skill.name == "Neutron Illuminant":
@@ -2819,15 +2883,29 @@ class Game:
                 
                 # Execute the skill if it has an execute method
                 if hasattr(skill, 'execute'):
+                    # Set current attacker context for Demilune damage reduction
+                    self.current_attacker = unit
                     skill.execute(unit, target_pos, self, ui)
-                    
+                    self.current_attacker = None
+
                     # If unit is under Neural Shunt effects, put the skill on cooldown
                     if (hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected):
                         skill.current_cooldown = skill.cooldown
                         logger.debug(f"Neural Shunt: {unit.get_display_name()}'s {skill.name} placed on cooldown ({skill.cooldown} turns)")
                 else:
                     logger.warning(f"Skill {skill.name} has no execute method")
-                
+
+                # Check for taunt response (Granite Geas) - if skill targeted taunting POTPOURRIST
+                if hasattr(unit, 'taunted_by') and unit.taunted_by:
+                    # Check if the skill targeted the taunting POTPOURRIST
+                    target_unit = self.get_unit_at(target_pos[0], target_pos[1])
+                    if (target_unit and
+                        target_unit.type == UnitType.POTPOURRIST and
+                        unit.taunted_by == target_unit):
+                        # Unit used skill on the POTPOURRIST that taunted them
+                        unit.taunt_responded_this_turn = True
+                        logger.debug(f"TAUNT RESPONSE (skill): {unit.get_display_name()} responded to {target_unit.get_display_name()}'s taunt with skill")
+
                 # Add a slight pause after the skill and update spinner
                 if ui:
                     ui.advance_spinner()
@@ -3265,16 +3343,20 @@ class Game:
         
         # Check if game is over
         self.check_game_over()
-        
+
         # If UI is provided, redraw with cursor, selection, and attack targets before finishing
         if ui:
             # Stop the spinner
             ui.stop_spinner()
-            
+
             # Slight delay before showing final state
             time.sleep(0.3)
             ui.draw_board(show_cursor=True, show_selection=True, show_attack_targets=True)  # Restore all UI elements
-        
+
+        # If game is over, stop processing and don't switch players
+        if self.winner:
+            return
+
         # Process health regeneration for units that took no actions this turn
         # This must happen BEFORE player switching so flags are accurate
         if not self.winner:
@@ -3367,10 +3449,155 @@ class Game:
                         
             # Process Partition Shield emergency cleanup for ALL units (regardless of player)
             for unit in self.units:
-                if (unit.is_alive() and hasattr(unit, 'partition_shield_blocked_fatal') and 
+                if (unit.is_alive() and hasattr(unit, 'partition_shield_blocked_fatal') and
                     unit.partition_shield_blocked_fatal):
                     self._handle_partition_emergency_cleanup(unit)
-                        
+
+            # Process Granite Geas taunt resolution for current player's units only
+            for unit in self.units:
+                if unit.is_alive() and unit.player == self.current_player and hasattr(unit, 'taunted_by') and unit.taunted_by:
+                    # Check if unit responded to taunt this turn
+                    if not unit.taunt_responded_this_turn:
+                        # Unit didn't attack/skill the POTPOURRIST - heal POTPOURRIST
+                        taunter = unit.taunted_by
+                        if taunter.is_alive():
+                            # Check if taunter is cursed by Auction Curse (healing prevention)
+                            if hasattr(taunter, 'auction_curse_no_heal') and taunter.auction_curse_no_heal:
+                                logger.debug(f"{taunter.get_display_name()} cannot heal from Granite Geas due to Auction Curse")
+                                message_log.add_message(
+                                    f"{taunter.get_display_name()}'s healing from Granite Geas is prevented by the curse.",
+                                    MessageType.WARNING,
+                                    player=taunter.player
+                                )
+                            else:
+                                # Show geas breaking animation on taunted unit
+                                if hasattr(self, 'ui') and self.ui and hasattr(self.ui, 'renderer') and hasattr(self.ui, 'asset_manager'):
+                                    import time
+                                    import curses
+                                    from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+
+                                    # Binding breaking animation on the unit who ignored the geas
+                                    geas_break = self.ui.asset_manager.get_skill_animation_sequence('geas_break')
+                                    if not geas_break:
+                                        geas_break = ['0', 'O', 'o', '.', '~', '~', '~']  # Binding breaking and energy dispersing
+
+                                    for frame in geas_break:
+                                        self.ui.renderer.draw_tile(unit.y, unit.x, frame, 7)  # Yellow for geas magic
+                                        self.ui.renderer.refresh()
+                                        sleep_with_animation_speed(0.08)
+
+                                    # Show healing glow on POTPOURRIST
+                                    heal_glow = ['+', '*', '+']
+                                    for frame in heal_glow:
+                                        self.ui.renderer.draw_tile(taunter.y, taunter.x, frame, 3, curses.A_BOLD)  # Green for healing
+                                        self.ui.renderer.refresh()
+                                        sleep_with_animation_speed(0.1)
+
+                                old_hp = taunter._hp
+                                taunter._hp = min(taunter.max_hp, taunter._hp + 4)
+                                actual_heal = taunter._hp - old_hp
+
+                                # Show healing number if heal occurred
+                                if actual_heal > 0 and hasattr(self, 'ui') and self.ui and hasattr(self.ui, 'renderer'):
+                                    healing_text = f"+{actual_heal}"
+
+                                    # Flash 3 times
+                                    for i in range(3):
+                                        # First clear the area
+                                        self.ui.renderer.draw_damage_text(taunter.y-1, taunter.x*2, " " * len(healing_text), 7)
+                                        # Draw with alternating bold/normal for a flashing effect
+                                        attrs = curses.A_BOLD if i % 2 == 0 else 0
+                                        self.ui.renderer.draw_damage_text(taunter.y-1, taunter.x*2, healing_text, 3, attrs)  # Green color
+                                        self.ui.renderer.refresh()
+                                        sleep_with_animation_speed(0.1)
+
+                                    # Final healing display (stays on screen slightly longer)
+                                    self.ui.renderer.draw_damage_text(taunter.y-1, taunter.x*2, healing_text, 3, curses.A_BOLD)
+                                    self.ui.renderer.refresh()
+                                    sleep_with_animation_speed(0.3)
+
+                                    # Redraw board after animation
+                                    if hasattr(self.ui, 'draw_board'):
+                                        self.ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+                                if actual_heal > 0:
+                                    from boneglaive.utils.message_log import message_log, MessageType
+                                    message_log.add_message(
+                                        f"{taunter.get_display_name()} inhales the fumes of the broken geas and heals for #HEAL_{actual_heal}# HP",
+                                        MessageType.ABILITY,
+                                        player=taunter.player
+                                    )
+                                    logger.debug(f"TAUNT HEAL: {taunter.get_display_name()} healed {actual_heal} HP")
+
+                    # Decrement taunt duration
+                    unit.taunt_duration -= 1
+                    logger.debug(f"{unit.get_display_name()}'s taunt duration: {unit.taunt_duration}")
+
+                    if unit.taunt_duration <= 0 or unit.taunt_responded_this_turn:
+                        # Taunt expires or was responded to
+                        unit.taunted_by = None
+                        unit.taunt_duration = 0
+                        logger.debug(f"TAUNT EXPIRED: {unit.get_display_name()}'s taunt ended")
+
+                    # Reset response flag for next turn
+                    unit.taunt_responded_this_turn = False
+
+            # Process Lunacy debuff duration for units of the current player (after combat phase)
+            for unit in self.units:
+                if unit.is_alive() and unit.player == self.current_player:
+                    if hasattr(unit, 'demilune_debuff_duration') and unit.demilune_debuff_duration > 0:
+                        # Decrement duration
+                        unit.demilune_debuff_duration -= 1
+                        logger.debug(f"{unit.get_display_name()}'s Lunacy debuff duration: {unit.demilune_debuff_duration}")
+
+                        # Check if the debuff has expired
+                        if unit.demilune_debuff_duration <= 0:
+                            # Remove the debuff
+                            unit.demilune_debuffed = False
+                            unit.demilune_debuffed_by = None
+                            unit.demilune_defense_halved = False
+
+            # Process Karrier Rave duration for units of the current player (after combat phase)
+            # This ensures the effect lasts through the attack execution
+            for unit in self.units:
+                if unit.is_alive() and unit.player == self.current_player:
+                    if hasattr(unit, 'carrier_rave_duration') and unit.carrier_rave_duration > 0:
+                        # Decrement duration
+                        unit.carrier_rave_duration -= 1
+                        logger.debug(f"{unit.get_display_name()}'s Karrier Rave duration: {unit.carrier_rave_duration}")
+
+                        # Check if the effect has expired
+                        if unit.carrier_rave_duration <= 0:
+                            # Deactivate Karrier Rave
+                            unit.carrier_rave_active = False
+
+                            # Log the phase-back message
+                            message_log.add_message(
+                                f"{unit.get_display_name()} phases back into reality without striking!",
+                                MessageType.ABILITY,
+                                player=unit.player
+                            )
+
+            # Process Neural Shunt duration for units of the current player (after random actions)
+            # This ensures the effect lasts through the random action execution
+            for unit in self.units:
+                if unit.is_alive() and unit.player == self.current_player:
+                    if hasattr(unit, 'neural_shunt_duration') and unit.neural_shunt_duration > 0:
+                        # Decrement duration
+                        unit.neural_shunt_duration -= 1
+                        logger.debug(f"{unit.get_display_name()}'s Neural Shunt duration: {unit.neural_shunt_duration}")
+
+                        # Check if the effect has expired
+                        if unit.neural_shunt_duration <= 0:
+                            # Deactivate Neural Shunt
+                            unit.neural_shunt_affected = False
+
+                            # Log the recovery message
+                            message_log.add_message(
+                                f"{unit.get_display_name()} regains control of their actions!",
+                                MessageType.ABILITY,
+                                player=unit.player
+                            )
+
             # In single player mode, automatically toggle between player 1 and 2
             # In multiplayer modes, the multiplayer manager handles player switching
             if not self.local_multiplayer:
@@ -3478,33 +3705,44 @@ class Game:
         Initialize the next player's turn by applying passive skills and resetting flags.
         This should be called after player switching in both single player and multiplayer modes.
         """
+        # Get UI reference if available
+        ui = getattr(self, 'ui', None)
+
         # Apply passive skills for the current player's units at the start of their turn
         # Also initialize the took_no_actions flag for health regeneration
         for unit in self.units:
-            if unit.is_alive() and unit.player == self.current_player:
-                unit.apply_passive_skills(self)
-                # Initialize the flag for health regeneration
-                unit.took_no_actions = True
-                
-                # Reset partition message flag for new turn
+            if unit.is_alive():
+                # POTPOURRIST Melange Eminence triggers on EVERY turn (not just their own)
+                if unit.type == UnitType.POTPOURRIST:
+                    unit.apply_passive_skills(self, ui)
+                # Other units' passives only trigger on their own turn
+                elif unit.player == self.current_player:
+                    unit.apply_passive_skills(self, ui)
+
+                # Reset partition message flag for new turn (all units)
                 unit._prt_absorbed_this_action = False
-                
-                # Reset dissociation PRT boost (from prt=999 back to 0)
+
+                # Reset dissociation PRT boost (from prt=999 back to 0) for all units
                 if unit.prt > 1:  # If boosted from dissociation
                     unit.prt = 0
                     from boneglaive.utils.debug import logger
                     logger.info(f"DISSOCIATION RESET: {unit.get_display_name()} prt reset to 0")
-                
-                # Reset DERELICTIONIST movement/skill flags at start of turn (Severance passive)
-                if unit.type == UnitType.DERELICTIONIST:
-                    unit.has_moved_first = False
-                    unit.used_skill_this_turn = False
-                    unit.can_move_post_skill = False
-                    # Reset SEVERANCE status at start of new turn
-                    unit.severance_active = False
-                    unit.severance_duration = 0
-                    # Always reset movement bonus to 0 at start of turn
-                    unit.move_range_bonus = 0
+
+                # Only reset flags for current player's units
+                if unit.player == self.current_player:
+                    # Initialize the flag for health regeneration
+                    unit.took_no_actions = True
+
+                    # Reset DERELICTIONIST movement/skill flags at start of turn (Severance passive)
+                    if unit.type == UnitType.DERELICTIONIST:
+                        unit.has_moved_first = False
+                        unit.used_skill_this_turn = False
+                        unit.can_move_post_skill = False
+                        # Reset SEVERANCE status at start of new turn
+                        unit.severance_active = False
+                        unit.severance_duration = 0
+                        # Always reset movement bonus to 0 at start of turn
+                        unit.move_range_bonus = 0
     
     
     def try_trigger_wretched_decension(self, attacker, target, ui=None):
@@ -3671,10 +3909,14 @@ class Game:
         
         if not player1_alive:
             self.winner = 2
-            message_log.add_system_message(f"Player 2 wins. All Player 1 units have been defeated.")
+            winner_name = self.get_player_name(2)
+            loser_name = self.get_player_name(1)
+            message_log.add_system_message(f"{winner_name} wins. All {loser_name} units have been defeated.")
         elif not player2_alive:
             self.winner = 1
-            message_log.add_system_message(f"Player 1 wins. All Player 2 units have been defeated.")
+            winner_name = self.get_player_name(1)
+            loser_name = self.get_player_name(2)
+            message_log.add_system_message(f"{winner_name} wins. All {loser_name} units have been defeated.")
     
     def _apply_trap_damage(self):
         """Apply damage to units trapped by MANDIBLE_FOREMENs."""
@@ -3960,10 +4202,16 @@ class Game:
                 # Only trigger if node belongs to enemy player
                 if owner.player != unit.player and node_info.get('active', True):
                     logger.debug(f"SCALAR NODE TRIGGERED! Triggering animation for unit {unit.get_display_name()}")
-                    damage = node_info['damage']
-                    
+                    raw_damage = node_info['damage']
+
                     # Apply regular damage (respects defense)
-                    actual_damage = unit.take_damage(damage, owner, "Scalar Node")
+                    effective_defense = unit.get_effective_stats()['defense']
+                    damage = max(1, raw_damage - effective_defense)
+
+                    # Apply damage
+                    previous_hp = unit.hp
+                    unit.hp = max(0, unit.hp - damage)
+                    actual_damage = previous_hp - unit.hp
                     
                     # Log scalar node activation with custom message format and proper damage coloring
                     custom_message = f"{unit.get_display_name()} stands in {owner.get_display_name()}'s standing wave for {actual_damage} damage!"

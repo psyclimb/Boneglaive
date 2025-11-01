@@ -40,7 +40,7 @@ class Severance(PassiveSkill):
             description="After using a skill, can move with +1 range. Cannot move twice in one turn."
         )
     
-    def apply_passive(self, user: 'Unit', game: Optional['Game'] = None) -> None:
+    def apply_passive(self, user: 'Unit', game: Optional['Game'] = None, ui=None) -> None:
         """Apply effects of the passive skill."""
         # This skill is handled by the game engine during turn processing
         # It allows post-skill movement with enhanced range
@@ -232,7 +232,7 @@ class VagalRunSkill(ActiveSkill):
             target.derelicted_duration = 1
             
             message_log.add_message(
-                f"{target.get_display_name()} becomes anchored by distant abandonment",
+                f"{target.get_display_name()} becomes anchored by abandonment",
                 MessageType.WARNING,
                 player=target.player
             )
@@ -263,7 +263,8 @@ class VagalRunSkill(ActiveSkill):
             effects_text = ", ".join(cleared_effects)
             message_log.add_message(
                 f"{target.get_display_name()}'s Vagal Run sloughs off {effects_text}",
-                MessageType.ABILITY
+                MessageType.ABILITY,
+                player=target.player
             )
         
         logger.info(f"VAGAL RUN EXECUTED: {user.get_display_name()} applies trauma processing to {target.get_display_name()} (damage: {piercing_damage}, distance: {distance})")

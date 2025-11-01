@@ -48,7 +48,8 @@ class AssetManager:
             UnitType.HEINOUS_VAPOR: 'V',  # Base symbol, will be replaced by vapor_symbol in display code
             UnitType.DELPHIC_APPRAISER: 'A',  # A for Appraiser
             UnitType.DERELICTIONIST: 'D',  # D for DERELICTIONIST
-            UnitType.INTERFERER: 'R'  # R for Radioactive interference
+            UnitType.INTERFERER: 'R',  # R for Radioactive interference
+            UnitType.POTPOURRIST: 'P'  # P for POTPOURRIST
         }
         
         # Terrain symbols
@@ -98,7 +99,7 @@ class AssetManager:
             'health': 'HP',
             'vault_target': 'X',  # X marker for vault landing spot
             'site_inspection': '#',  # Site Inspection target
-            'teleport_target': 'T'  # Teleport landing spot
+            'teleport_target': 'Δ'  # Delta Config landing spot
         }
         
         # Effect symbols - enhanced ASCII for attacks
@@ -111,7 +112,8 @@ class AssetManager:
             'marrow_condenser_attack': 'Ø', # Bone symbol for melee
             'fowl_contrivance_attack': '>', # Rail artillery projectile symbol
             'delphic_appraiser_attack': '$', # Currency symbol for evaluation
-            'interferer_attack': 'x'  # Plutonium carabiner cross
+            'interferer_attack': 'x',  # Plutonium carabiner cross
+            'potpourrist_attack': 'I'  # Granite pedestal strike
         }
         
         # Add animation sequence tiles for each attack type (using simple ASCII)
@@ -191,6 +193,18 @@ class AssetManager:
             'delphic_appraiser_attack': ['$', '$', '$'],  # Basic attack with currency symbols
             'interferer_attack': ['x', '+', '*', 'x'],  # Plutonium carabiner cross attack
 
+            # POTPOURRIST animations
+            'potpourrist_attack': ['|', 'I', '!', '!', '*', '#', '@', '#', '*', '.'],  # Granite pedestal slam
+            'melange_eminence': ['~', ',', '~', ':', '~', 'o', '~', ':', '~', ',', '~'],  # Potpourri petals and fumes wafting
+            'melange_eminence_enhanced': ['~', ',', ':', 'o', '*', 'o', '@', 'o', '*', ':', ',', '~'],  # Enhanced potpourri flourish with more petals and aroma
+            'demilune_sweep': ['/', '|', '\\', '-', '*'],  # Granite pedestal sweeping arc motion
+            'infuse': [',', '.', ':', '*', 'o', 'O', '@', '#', '@', 'O', 'o', '*', ':', '.', ',', '~'],  # Whipping up potpourri blend
+            'lunacy_moon': ['(', ' ', '(', ' ', '(', ' ', '(', ' ', '('],  # Rapid flashing crescent (Lunacy)
+            'granite_geas_windup': ['.', ':', '|', 'I', '^', '^', '^', '|', 'I', '!', ':', '.'],  # Granite Geas windup - POTPOURRIST raising high, pausing, then SLAMMING
+            'granite_geas_impact': ['*', '#', '@', '#', '*', '.'],  # Granite Geas impact - effect on target
+            'geas_binding': [',', '.', ':', '|', 'I', '#', '#', '0', '0'],  # Geas binding - potpourri oils dripping down and sealing the magical obligation
+            'geas_break': ['0', 'O', 'o', '.', '~', '~', '~'],  # Geas breaking - binding shatters and energy returns to POTPOURRIST
+
 
             # Market Futures: Appraiser reaches → spiral projections → furniture transforms → glow → anchor
             'market_futures': ['A', '|', '-', '#', '\\', '|', '/', '-', '#', '&', '%', '@', '$', '.', '*', '+', '*', '.', '~', '-', '=', 'T', '@'],
@@ -227,7 +241,8 @@ class AssetManager:
             UnitType.HEINOUS_VAPOR: 'assets/sprites/heinous_vapor.png',
             UnitType.DELPHIC_APPRAISER: 'assets/sprites/delphic_appraiser.png',
             UnitType.DERELICTIONIST: 'assets/sprites/derelictionist.png',
-            UnitType.INTERFERER: 'assets/sprites/interferer.png'
+            UnitType.INTERFERER: 'assets/sprites/interferer.png',
+            UnitType.POTPOURRIST: 'assets/sprites/potpourrist.png'
         }
         
         self.terrain_tiles = {
@@ -270,7 +285,8 @@ class AssetManager:
             'gas_machinist_attack': 'assets/effects/gas.png',
             'heinous_vapor_attack': 'assets/effects/vapor.png',
             'delphic_appraiser_attack': 'assets/effects/evaluation.png',
-            'interferer_attack': 'assets/effects/radiation.png'
+            'interferer_attack': 'assets/effects/radiation.png',
+            'potpourrist_attack': 'assets/effects/pedestal.png'
         }
         
         # Add animation sequences for graphical mode too
@@ -340,7 +356,8 @@ class AssetManager:
             UnitType.GAS_MACHINIST: 'gas_machinist_attack',
             UnitType.HEINOUS_VAPOR: 'heinous_vapor_attack',
             UnitType.DELPHIC_APPRAISER: 'delphic_appraiser_attack',
-            UnitType.INTERFERER: 'interferer_attack'
+            UnitType.INTERFERER: 'interferer_attack',
+            UnitType.POTPOURRIST: 'potpourrist_attack'
         }
         effect_type = effect_map.get(unit_type, 'glaiveman_attack')
         return self.get_effect_tile(effect_type)
@@ -357,7 +374,8 @@ class AssetManager:
             UnitType.FOWL_CONTRIVANCE: 'fowl_contrivance_attack',
             UnitType.GAS_MACHINIST: 'gas_machinist_attack',
             UnitType.HEINOUS_VAPOR: 'heinous_vapor_attack',
-            UnitType.DELPHIC_APPRAISER: 'delphic_appraiser_attack'
+            UnitType.DELPHIC_APPRAISER: 'delphic_appraiser_attack',
+            UnitType.POTPOURRIST: 'potpourrist_attack'
         }
         effect_type = effect_map.get(unit_type, 'glaiveman_attack')
         return self.animation_sequences.get(effect_type, [])

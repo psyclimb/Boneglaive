@@ -82,3 +82,7 @@ logs/
 # Game-specific
 *.save
 game_state_*.json
+profiles/*.json
+
+# Design documents (work in progress)
+AETHERIC_BILLMAN.md

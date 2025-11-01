@@ -656,7 +656,7 @@ class UnitHelpComponent(UIComponent):
                 'stats': [
                     'HP: 22',
                     'Attack: 4',
-                    'Defense: 1', 
+                    'Defense: 1',
                     'Movement: 2',
                     'Range: 2',
                     'Symbol: G'
@@ -664,59 +664,47 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'AUTOCLAVE (Passive)',
-                        'description': 'When near death, unleashes a desperate retaliatory burst of energy in four directions.',
+                        'description': 'When the GLAIVEMAN is brought to critical health or takes damage while already at critical health, he unleashes a desperate cross-shaped retaliation in four cardinal directions (range 3). The burst deals 8 damage to all enemies in its path and heals the GLAIVEMAN for half the total damage dealt. This ability can only trigger once per match and requires at least one enemy within range to activate.',
                         'details': [
                             'Type: Passive',
-                            'Range: 3',
-                            'Target: Enemy units',
-                            'Line of Sight: No',
+                            'Range: 3 (cross-shaped in 4 directions)',
                             'Damage: 8',
-                            'Pierce: No',
-                            'Effects: None',
-                            'Cooldown: Once per game',
-                            'Special: Triggers on critical health damage, heals for half damage dealt'
+                            'Effect: Heals for 50% of total damage dealt',
+                            'Special: Once per game; triggers on critical health; requires enemy in range; pierces through terrain'
                         ]
                     },
                     {
                         'name': 'PRY (Active) [Key: P]',
-                        'description': 'Uses the glaive as a lever to launch an enemy into the ceiling, causing debris to rain down.',
+                        'description': 'The GLAIVEMAN pries an adjacent enemy straight up into the ceiling or skybox, causing them to crash down with falling debris. The primary target takes 6 damage and suffers -1 movement for 2 turns (Pried). All adjacent enemies take 3 splash damage from the falling debris.',
                         'details': [
                             'Type: Active',
                             'Range: 1',
-                            'Target: Enemy unit',
-                            'Line of Sight: Yes',
-                            'Damage: 6 primary, 3 splash to adjacent enemies',
-                            'Pierce: No',
-                            'Effects: Pried, -1 movement for 2 turns',
-                            'Cooldown: 3 turns'
+                            'Damage: 6 (primary target), 3 (splash to adjacent enemies)',
+                            'Effect: Pried (/) (-1 movement for 2 turns)',
+                            'Cooldown: 3 turns',
+                            'Special: Requires line of sight; splash damage affects all adjacent enemies of target'
                         ]
                     },
                     {
                         'name': 'VAULT (Active) [Key: V]',
-                        'description': 'Performs an athletic leap to cross obstacles and units.',
+                        'description': 'The GLAIVEMAN performs an athletic vault, leaping over obstacles and units to land on any empty passable tile within range 2. This movement ignores pathing restrictions and does not require line of sight, allowing repositioning over impassable terrain and enemy units.',
                         'details': [
                             'Type: Active',
                             'Range: 2',
-                            'Target: Empty terrain',
-                            'Line of Sight: No',
-                            'Damage: None',
-                            'Pierce: No',
-                            'Effects: None',
-                            'Cooldown: 4 turns'
+                            'Target: Empty passable terrain',
+                            'Cooldown: 4 turns',
+                            'Special: Ignores pathing; no line of sight required; leaps over obstacles and units'
                         ]
                     },
                     {
                         'name': 'JUDGEMENT (Active) [Key: J]',
-                        'description': 'Hurls a sacred spinning glaive that pierces through enemy defenses and deals double damage on enemies at critical health',
+                        'description': 'The GLAIVEMAN hurls a sacred spinning glaive that pierces enemy defenses, dealing 4 damage. Against enemies at critical health, divine judgement activates and deals 8 damage (double damage). Requires line of sight to the target.',
                         'details': [
                             'Type: Active',
                             'Range: 4',
-                            'Target: Enemy unit',
-                            'Line of Sight: Yes',
-                            'Damage: 4, 8 on critical health enemies',
-                            'Pierce: Yes',
-                            'Effects: None',
-                            'Cooldown: 4 turns'
+                            'Damage: 4 (base), 8 (critical health targets)',
+                            'Cooldown: 4 turns',
+                            'Special: Pierces defense; double damage to critical health enemies; requires line of sight'
                         ]
                     }
                 ],
@@ -755,65 +743,49 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'VISEROY (Passive)',
-                        'description': 'When attacking, traps enemy units in hydraulic mechanical jaws.',
+                        'description': 'Every basic attack automatically traps the target in hydraulic mechanical jaws that crush incrementally. Trapped enemies cannot move or use skills as the jaws tighten each turn, dealing continuous damage until they escape or the MANDIBLE FOREMAN moves away.',
                         'details': [
                             'Type: Passive',
-                            'Range: 1',
-                            'Target: Enemy unit',
-                            'Line of Sight: Yes',
-                            'Damage: 3',
-                            'Pierce: No',
-                            'Effects: Trapped, cannot move, cannot use skills, takes incremental damage over time',
-                            'Cooldown: None',
-                            'Special: Automatic when attacking'
+                            'Special: Automatic on all attacks; trap persists until FOREMAN moves away or target dies'
                         ]
                     },
                     {
                         'name': 'EXPEDITE (Active) [Key: E]',
-                        'description': 'Rush up to 4 tiles in a straight line, trapping and damaging the first enemy encountered.',
+                        'description': 'The MANDIBLE FOREMAN rushes forward up to 4 tiles in a straight line, hydraulic systems screaming, stopping at the first enemy encountered. The collision deals 6 damage and immediately clamps the target in Viseroy jaws. This aggressive repositioning skill combines gap-closing with guaranteed trap application.',
                         'details': [
                             'Type: Active',
                             'Range: 4',
-                            'Target: Line movement',
-                            'Line of Sight: Yes',
                             'Damage: 6',
-                            'Pierce: No',
-                            'Effects: Trapped, cannot move, cannot use skills, takes incremental damage over time',
                             'Cooldown: 3 turns',
-                            'Special: Stops at first enemy, must move in straight lines, applies Viseroy trap'
+                            'Special: Must move in straight lines (cardinal or diagonal); stops at first enemy; applies Viseroy trap'
                         ]
                     },
                     {
                         'name': 'SITE INSPECTION (Active) [Key: S]',
-                        'description': 'Survey a 3x3 area for tactical analysis, granting scaled bonuses based on terrain obstacles.',
+                        'description': 'The MANDIBLE FOREMAN conducts a tactical survey of a 3x3 area, evaluating terrain obstacles to determine operational efficiency. Clear worksites (0 terrain obstacles) grant allies +1 attack and +1 movement for 3 turns—full productivity. Partially obstructed areas (1 terrain obstacle) grant +1 attack only—reduced efficiency. Heavily obstructed sites (2+ obstacles) cannot be effectively analyzed. The inspection also reveals hidden INTERFERER scalar nodes within the surveyed area.',
                         'details': [
                             'Type: Active',
                             'Range: 3',
                             'Target: 3x3 area',
-                            'Line of Sight: Yes',
-                            'Damage: None',
-                            'Pierce: No',
-                            'Effects: Scaled bonuses to allies in area for 3 turns:',
-                            '  - 0 terrain: +1 attack & +1 movement (full effect)',
-                            '  - 1 terrain: +1 attack only (partial effect)',
+                            'Effect: Duration 3 turns',
+                            '  - 0 terrain: +1 attack & +1 movement (full)',
+                            '  - 1 terrain: +1 attack only (partial)',
                             '  - 2+ terrain: No effect',
                             'Cooldown: 3 turns',
-                            'Special: Reveals hidden traps, effect strength depends on terrain count'
+                            'Special: Reveals hidden scalar nodes'
                         ]
                     },
                     {
                         'name': 'JAWLINE (Active) [Key: J]',
-                        'description': 'Deploy network of mechanical jaws in 3x3 area around yourself, damaging and completely immobilizing adjacent enemies.',
+                        'description': 'The MANDIBLE FOREMAN deploys a network of smaller mechanical jaws across all 8 adjacent tiles, creating an immobilization field around their position. Each jaw snaps onto any adjacent enemy, dealing 4 damage and completely disabling movement for 2 turns. Enemies caught in the Jawline cannot move, attack, or use skills—total lockdown.',
                         'details': [
                             'Type: Active',
-                            'Range: 0',
-                            'Target: 3x3 area around self',
-                            'Line of Sight: No',
+                            'Range: 0 (self)',
+                            'Target: All adjacent tiles (3x3 around self)',
                             'Damage: 4',
-                            'Pierce: No',
-                            'Effects: Jawline, Immobilized for 2 turns',
+                            'Effect: Immobilized (2 turns)',
                             'Cooldown: 3 turns',
-                            'Special: Affects all adjacent enemies, complete movement lockdown'
+                            'Special: Affects all adjacent enemies; complete movement and action lockdown'
                         ]
                     }
                 ],
@@ -821,22 +793,25 @@ class UnitHelpComponent(UIComponent):
                     '- Use Viseroy to control enemy positioning with every attack',
                     '- Expedite provides both gap-closing and guaranteed trap application',
                     '- Position teams strategically: clear areas give full bonuses, lightly obstructed areas give partial',
-                    '- Jawline is strong in chokepoints or when surrounded by multiple enemies',
-                    '- High HP allows aggressive frontline positioning despite low attack range'
+                    '- Jawline is devastating in chokepoints or when surrounded by multiple enemies',
+                    '- High HP allows aggressive frontline positioning despite melee range'
                 ],
                 'tactical': [
-                    '- Strong against: Isolated units',
-                    '- Vulnerable to: Ranged attackers, immunity effects, extremely cluttered terrain',
+                    '- Strong against: Isolated units, melee-focused teams',
+                    '- Vulnerable to: Ranged attackers, immunity effects (GRAYMAN), heavily cluttered terrain',
                     '- Best positioning: Frontline in moderately open areas, near chokepoints to maximize Jawline effectiveness'
                 ]
             },
             UnitType.GRAYMAN: {
                 'title': 'GRAYMAN',
                 'overview': [
-                    'The GRAYMAN is a psychic entity that manipulates spacetime. This highly mobile unit excels at',
-                    'long-range harassment, teleportation tactics, and applying permanent debuffs to enemies. The',
-                    'GRAYMAN serves as an elusive skirmisher that phases in and out of combat while weakening foes',
-                    'through reality distortion and defense piercing attacks.',
+                    'The GRAYMAN is a gray alien-human hybrid that exists in a liminal state between species, between',
+                    'dimensions, and between moments. Neither fully gray nor fully man, this entity occupies an ambiguous',
+                    'existence outside normal causality, rendering it immune to all external manipulation. Using alien',
+                    'propulsion technology adapted for combat, the GRAYMAN travels via delta configuration—instantaneous',
+                    'point-to-point spatial reconfiguration. The unit weaponizes existential isolation to permanently',
+                    'weaken enemies while creating psychic echoes that maintain battlefield presence across multiple',
+                    'locations simultaneously.',
                     '',
                     'Role: Escape Artist / Disabler / Summoner',
                     'Difficulty: *'
@@ -845,69 +820,52 @@ class UnitHelpComponent(UIComponent):
                     'HP: 18',
                     'Attack: 3',
                     'Defense: 0',
-                    'Movement: 2',
+                    'Movement: 3',
                     'Range: 5',
                     'Symbol: Ψ'
                 ],
                 'skills': [
                     {
                         'name': 'STASIALITY (Passive)',
-                        'description': 'Exists outside normal spacetime, granting complete immunity to all external effects and manipulations.',
+                        'description': 'The GRAYMAN exists in a state of permanent stasis outside normal spacetime, rendering it completely immutable. This grants absolute immunity to all status effects, stat modifications, forced movement, and terrain effects. The GRAYMAN cannot be buffed, debuffed, pushed, pulled, or otherwise manipulated by any external force.',
                         'details': [
                             'Type: Passive',
-                            'Range: Self',
-                            'Target: Self',
-                            'Line of Sight: No',
-                            'Damage: None',
-                            'Pierce: No',
-                            'Effects: Immunity to all status effects, forced movement, and stat changes',
-                            'Cooldown: None',
-                            'Special: Cannot be buffed, debuffed, or displaced'
+                            'Effect: Stasiality (=) (Immunity to all effects and stat changes)'
                         ]
                     },
                     {
                         'name': 'DELTA CONFIG (Active) [Key: D]',
-                        'description': 'Instantly teleports across spacetime to any unoccupied location on the battlefield.',
+                        'description': 'The GRAYMAN engages delta configuration, an alien propulsion system that warps spacetime to pull two points together. Once the spatial fold is complete, the GRAYMAN snaps instantaneously to the destination coordinate. This allows teleportation to any unoccupied passable tile on the battlefield with no regard for distance, obstacles, or line of sight.',
                         'details': [
                             'Type: Active',
-                            'Range: 99',
+                            'Range: Unlimited (entire battlefield)',
                             'Target: Empty passable terrain',
-                            'Line of Sight: No',
-                            'Damage: None',
-                            'Pierce: No',
-                            'Effects: Instant teleportation',
                             'Cooldown: 12 turns',
-                            'Special: Unlimited range'
+                            'Special: Warps space to bring distant points together; no line of sight required'
                         ]
                     },
                     {
                         'name': 'ESTRANGE (Active) [Key: E]',
-                        'description': 'Fires a reality-warping beam that phases the target partially out of spacetime, permanently weakening them.',
+                        'description': 'The GRAYMAN fires a reality-warping beam that phases the target partially out of spacetime, dealing 3 defense-piercing damage. The beam applies Estrangement, a permanent debuff that reduces the target\'s HP by 1, attack by 1, and defense by 1. This existential weakening never wears off and gradually compounds as multiple Estrangements are applied to the same target.',
                         'details': [
                             'Type: Active',
                             'Range: 5',
-                            'Target: Enemy unit',
-                            'Line of Sight: Yes',
-                            'Damage: 3',
-                            'Pierce: Yes',
-                            'Effects: Estranged - -1 to all stats',
+                            'Damage: 3 (pierces defense)',
+                            'Effect: Estranged (~) (Permanent -1 to all stats)',
                             'Cooldown: 3 turns',
-                            'Special: This effect does not wear off'
+                            'Special: Requires line of sight; effect is permanent and stackable'
                         ]
                     },
                     {
                         'name': 'GRÆ EXCHANGE (Active) [Key: G]',
-                        'description': 'Creates an echo at current position and teleports to target location, maintaining presence in two places.',
+                        'description': 'The GRAYMAN splits its consciousness across spacetime, creating a psychic echo at its current position before teleporting up to 3 tiles away. The echo possesses 5 HP and 3 attack but cannot move or use skills—only basic attacks. When the echo is destroyed, it explodes for 4 damage to all adjacent enemies. The echo persists for 2 of the GRAYMAN\'s turns, creating simultaneous battlefield presence in multiple locations.',
                         'details': [
                             'Type: Active',
                             'Range: 3',
                             'Target: Empty passable terrain',
-                            'Line of Sight: No',
-                            'Damage: None',
-                            'Pierce: No',
-                            'Effects: Creates echo with 5 HP, 3 attack, immobile, lasts 2 turns',
+                            'Effect: Creates Echo (ψ) with 5 HP, 3 ATK, immobile; lasts 2 owner turns',
                             'Cooldown: 4 turns',
-                            'Special: Expires on owner\'s turns'
+                            'Special: Echo cannot use skills; explodes for 4 damage to adjacent enemies on death; no line of sight required'
                         ]
                     }
                 ],
@@ -988,11 +946,13 @@ class UnitHelpComponent(UIComponent):
             UnitType.MARROW_CONDENSER: {
                 'title': 'MARROW CONDENSER',
                 'overview': [
-                    'The MARROW CONDENSER is a quadrupedal fortress builder that manipulates bone matter to create',
-                    'defensive structures and enhance its own capabilities. This high-HP tank excels at area',
-                    'control through wall creation while growing stronger from enemy deaths within its domain.',
-                    'The MARROW CONDENSER serves as a defensive anchor that transforms the battlefield through',
-                    'bone manipulation.',
+                    'The MARROW CONDENSER is a quadrupedal bone manipulator that transforms the battlefield into',
+                    'a calcified fortress. By condensing and weaponizing bone marrow, this tank creates impassable',
+                    'wall structures that trap enemies inside killzones. Each death within the Marrow Dike\'s domain',
+                    'triggers Dominion—a permanent evolutionary upgrade that enhances both the unit\'s stats and',
+                    'active skills. The MARROW CONDENSER grows exponentially stronger throughout battle, draining',
+                    'life force from trapped enemies while reinforcing its skeletal structure into an increasingly',
+                    'impenetrable form.',
                     '',
                     'Role: Tank / Frontline Fighter / Area Controller',
                     'Difficulty: ***'
@@ -1008,62 +968,42 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'DOMINION (Passive)',
-                        'description': 'Gains permanent upgrades when units die within Marrow Dike walls, becoming stronger with each kill.',
+                        'description': 'When any unit dies within the interior of a Marrow Dike, the MARROW CONDENSER absorbs their essence to trigger permanent evolutionary upgrades. The first death grants +1 movement. The second death grants +1 attack. The third death grants +1 defense. Additionally, each death upgrades one active skill in sequence (Marrow Dike → Ossify → Bone Tithe). All stat bonuses and skill upgrades are permanent and persist for the entire match.',
                         'details': [
                             'Type: Passive',
-                            'Range: Marrow Dike interior',
-                            'Target: Self enhancement',
-                            'Line of Sight: No',
-                            'Damage: None',
-                            'Pierce: No',
-                            'Effects: First kill: +1 defense, Second kill: +1 attack, Third kill: +1 movement',
-                            'Cooldown: None',
-                            'Special: Also upgrades active skills in sequence, tracks kill count for Bone Tithe scaling'
+                            'Special: 1st kill = +1 movement & upgrade Marrow Dike; 2nd kill = +1 attack & upgrade Ossify; 3rd kill = +1 defense & upgrade Bone Tithe'
                         ]
                     },
                     {
                         'name': 'OSSIFY (Active) [Key: O]',
-                        'description': 'Hardens skeletal structure to gain defense bonus at the cost of mobility.',
+                        'description': 'The MARROW CONDENSER compresses its skeletal structure into a nearly impenetrable ossified state for 2 turns, gaining +2 defense at the cost of -1 movement. When upgraded by Dominion, the defense bonus increases to +3.',
                         'details': [
                             'Type: Active',
-                            'Range: 0',
-                            'Target: Self',
-                            'Line of Sight: No',
-                            'Damage: None',
-                            'Pierce: No',
-                            'Effects: Ossified, +2 defense, -1 movement for 2 turns',
-                            'Cooldown: 3 turns',
-                            'Special: +3 defense when upgraded'
+                            'Effect: Ossified (O) (+2 defense, -1 movement for 2 turns; +3 defense when upgraded)',
+                            'Cooldown: 3 turns'
                         ]
                     },
                     {
                         'name': 'MARROW DIKE (Active) [Key: M]',
-                        'description': 'Creates a 5x5 perimeter of marrow walls around itself, pulling enemies inward.',
+                        'description': 'The MARROW CONDENSER erupts bone marrow walls in a 5x5 perimeter around itself, creating an enclosed killzone. Enemy units on the perimeter tiles are pulled one tile inward into the interior. The walls last 3 turns and block movement and line of sight. When upgraded by Dominion, walls take an additional hit to destroy, and enemies starting their turn inside the interior suffer -1 movement (Mired).',
                         'details': [
                             'Type: Active',
-                            'Range: self',
-                            'Target: 5x5 area around self',
-                            'Line of Sight: No',
-                            'Damage: None',
-                            'Pierce: No',
-                            'Effects: Mired, -1 move when inside the interior (upgrade only)',
+                            'Range: Self (5x5 perimeter)',
+                            'Effect: Creates walls for 3 turns; pulls perimeter enemies inward 1 tile',
                             'Cooldown: 4 turns',
-                            'Special: Upgraded walls have 3 HP and apply Mired to enemies'
+                            'Special: Upgraded walls take an additional hit to destroy and apply Mired (~) (-1 movement) to enemies in interior'
                         ]
                     },
                     {
                         'name': 'BONE TITHE (Active) [Key: B]',
-                        'description': 'Drains life force from nearby enemies through bone manipulation, healing self.',
+                        'description': 'The MARROW CONDENSER extracts bone marrow from all adjacent enemies (3x3 area), dealing 1 damage to each and permanently increasing both max HP and current HP by +1 for each enemy hit. This HP gain is permanent and cumulative. When upgraded by Dominion, the damage scales with total Dominion kills (1 + kill count) and HP gain per enemy increases to +2.',
                         'details': [
                             'Type: Active',
-                            'Range: self',
-                            'Target: adjacent tiles around self',
-                            'Line of Sight: No',
-                            'Damage: 1 (scales with kill count when upgraded)',
-                            'Pierce: No',
-                            'Effects: None',
+                            'Range: Self (3x3 area - all adjacent tiles)',
+                            'Damage: 1 (upgraded: 1 + Dominion kill count)',
+                            'Effect: +1 permanent max HP & current HP per enemy hit (+2 when upgraded)',
                             'Cooldown: 1 turn',
-                            'Special: +1 max HP and current HP per enemy hit (+2 when upgraded)'
+                            'Special: HP increases are permanent and stack indefinitely'
                         ]
                     }
                 ],
@@ -1083,9 +1023,12 @@ class UnitHelpComponent(UIComponent):
             UnitType.FOWL_CONTRIVANCE: {
                 'title': 'FOWL CONTRIVANCE',
                 'overview': [
-                    'The FOWL CONTRIVANCE is a mechanical peacock rail artillery platform that specializes in',
-                    'long-range devastation and battlefield control. This unit excels at indirect fire support',
-                    'while establishing an explosive rail network.',
+                    'The FOWL CONTRIVANCE is a mechanical peacock rail artillery platform that transforms the',
+                    'battlefield through devastating long-range bombardment and explosive infrastructure. Upon',
+                    'deployment, this unit establishes a permanent rail network that detonates catastrophically',
+                    'whenever any FOWL CONTRIVANCE falls. Combining extreme mobility with overwhelming firepower,',
+                    'this glass cannon excels at indirect fire support—raining mortar shells, unleashing piercing',
+                    'rail cannon shots, and deploying directional fragmentation bursts that shred clustered enemies.',
                     '',
                     'Role: Artillery / Glass Cannon',
                     'Difficulty: ***'
@@ -1101,62 +1044,46 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'RAIL GENESIS (Passive)',
-                        'description': 'Establishes a rail network when the game starts that explodes upon death.',
+                        'description': 'The first FOWL CONTRIVANCE to deploy establishes a permanent rail network across passable terrain. This infrastructure persists throughout the match and is shared by all FOWL CONTRIVANCES. Whenever any FOWL CONTRIVANCE dies, the rail network detonates, dealing 4 damage to all enemy units standing on rail tiles. When the last FOWL CONTRIVANCE dies, the rail network is destroyed and removed from the battlefield.',
                         'details': [
                             'Type: Passive',
-                            'Range: Map-wide',
-                            'Target: Battlefield terrain',
-                            'Line of Sight: No',
-                            'Damage: 4 on death explosion',
-                            'Pierce: No',
-                            'Effects: None',
-                            'Cooldown: None',
-                            'Special: Rail network persists until the last FOWL CONTRIVANCE dies'
+                            'Effect: Rail network across map; 4 damage to enemies on rails when any FOWL CONTRIVANCE dies; network removed when last one dies',
+                            'Special: Rail network is permanent until last FOWL dies; shared across all FOWL CONTRIVANCES; explodes on every FOWL death'
                         ]
                     },
                     {
                         'name': 'GAUSSIAN DUSK (Active) [Key: G]',
-                        'description': 'Charges a devastating rail gun shot that pierces everything in its path and places rail segments in its wake.',
+                        'description': 'The FOWL CONTRIVANCE charges its rail cannon for one turn, disabling all movement, attacks, and skills. On the following turn, the cannon automatically fires a devastating beam in the chosen direction that pierces through all units and terrain in a straight line across the entire map. The beam deals 10 defense-piercing damage to every unit hit and places rail segments along its path. The skill cannot be canceled once charging begins.',
                         'details': [
-                            'Type: Active (Two-phase: Charging -> Firing)',
-                            'Range: Entire map',
-                            'Target: Line of destruction',
-                            'Line of Sight: No',
-                            'Damage: 12',
-                            'Pierce: Yes',
-                            'Effects: Charging, self, disables move, attack, and skills',
-                            'Cooldown: 4 turns, after firing',
-                            'Special: Destroys terrain'
+                            'Type: Active (Two-phase: Charging → Automatic Firing)',
+                            'Range: Unlimited (entire map in chosen direction)',
+                            'Damage: 10 (pierces defense)',
+                            'Effect: Charging (=) (disables all actions for 1 turn); places rails along beam path',
+                            'Cooldown: 4 turns (begins after firing)',
+                            'Special: Automatically fires on next turn after charging; destroys terrain; cannot be interrupted'
                         ]
                     },
                     {
                         'name': 'PARABOL (Active) [Key: P]',
-                        'description': 'Launches explosive mortar shells in a 3x3 area.',
+                        'description': 'The FOWL CONTRIVANCE launches explosive mortar shells in a high arc to bombard a 3x3 area at range. The indirect fire ignores line of sight and cannot target adjacent tiles (minimum range 2). The center tile takes 8 damage while the surrounding 8 tiles each take 5 damage. Cannot be used while Gaussian Dusk is charging.',
                         'details': [
                             'Type: Active',
-                            'Range: 6',
-                            'Target: 3x3 area',
-                            'Line of Sight: No',
-                            'Damage: 8 primary, 5 adjacent',
-                            'Pierce: No',
-                            'Effects: None',
+                            'Range: 6 (minimum range 2)',
+                            'Damage: 8 (center tile), 5 (surrounding 8 tiles)',
                             'Cooldown: 4 turns',
-                            'Special: Cannot target adjacent tiles'
+                            'Special: Ignores line of sight; cannot target adjacent tiles; disabled while charging'
                         ]
                     },
                     {
                         'name': 'FRAGCREST (Active) [Key: F]',
-                        'description': 'Deploys a directional fragmentation burst that fans out in a cone, firing explosive shrapnel that blasts enemies backward and embeds fragments for ongoing damage.',
+                        'description': 'The FOWL CONTRIVANCE unfolds its mechanical tail feathers and fires a directional fragmentation burst in a 90-degree cone. The primary target takes 4 damage and is knocked back 2 tiles. All other enemies in the cone take 2 damage and are also knocked back. All hit enemies become embedded with Shrapnel, suffering 1 damage per turn for 3 turns. Requires line of sight to the primary target. Cannot be used while Gaussian Dusk is charging.',
                         'details': [
                             'Type: Active',
                             'Range: 4',
-                            'Target: Cone area (90-degree spread)',
-                            'Line of Sight: Yes',
-                            'Damage: 4 primary, 2 secondary',
-                            'Pierce: No',
-                            'Effects: Shrapnel, 1 damage per turn for 3 turns',
+                            'Damage: 4 (primary target), 2 (cone targets); pushes enemies 2 tiles',
+                            'Effect: Shrapnel (x) (1 damage/turn for 3 turns)',
                             'Cooldown: 3 turns',
-                            'Special: Pushes enemies away'
+                            'Special: 90-degree cone; requires line of sight to primary target; disabled while charging'
                         ]
                     }
                 ],
@@ -1175,80 +1102,69 @@ class UnitHelpComponent(UIComponent):
             UnitType.GAS_MACHINIST: {
                 'title': 'GAS MACHINIST',
                 'overview': [
-                    'The GAS MACHINIST is a vapor-controlling technician that specializes in battlefield',
-                    'manipulation through chemical entities. This support unit excels at creating HEINOUS VAPOR',
-                    'minions that provide area control, healing, status removal, and damage over time.',
+                    'The GAS MACHINIST is an industrial chemist who deploys autonomous HEINOUS VAPOR entities',
+                    'in 3x3 areas that passively affect all units within each turn. The GAS MACHINIST generates',
+                    'Effluvium charges that extend vapor duration. Vapors can be split into specialized forms,',
+                    'or the GAS MACHINIST can dissolve entirely into vapor, reforming when the gases dissipate.',
+                    'The GAS MACHINIST excels at area control and sustained utility through vapor deployment.',
                     '',
                     'Role: Summoner / Area Controller / Utility / Healer',
                     'Difficulty: *****'
                 ],
                 'stats': [
                     'HP: 20',
-                    'Attack: 4',
+                    'Attack: 3',
                     'Defense: 1',
                     'Movement: 2',
                     'Range: 1',
-                    'Symbol: M'
+                    'Symbol: M',
+                    'Attack Symbol: o'
                 ],
                 'skills': [
                     {
                         'name': 'EFFLUVIUM LATHE (Passive)',
-                        'description': 'Generates 1 Effluvium charge per turn (max 4). Charges extend HEINOUS VAPOR duration by 1 turn each.',
+                        'description': 'The GAS MACHINIST\'s internal lathe generates 1 Effluvium charge at the start of each turn (max 4). When summoning or splitting vapors, all accumulated charges are consumed to extend the vapor\'s duration. The GAS MACHINIST begins each match with 1 charge. While diverged into vapor form, the lathe ceases production until the GAS MACHINIST reforms.',
                         'details': [
                             'Type: Passive',
-                            'Range: Self',
-                            'Target: Charge generation',
-                            'Line of Sight: No',
-                            'Damage: None',
-                            'Pierce: No',
-                            'Effects: Generates charges, extends vapor duration',
-                            'Cooldown: None',
-                            'Special: Does not generate charges while diverged, starts with 1 charge'
+                            'Effect: Generates 1 charge/turn (max 4); starts with 1 charge',
+                            'Special: Charges consumed during vapor creation extend duration (1 charge = 1 turn); no generation while diverged'
                         ]
                     },
                     {
                         'name': 'BROACHING GAS (Active) [Key: B]',
-                        'description': 'Summons a HEINOUS VAPOR (1) that deals damage to enemies and cleanses allies of negative status effects.',
+                        'description': 'The GAS MACHINIST expels a HEINOUS VAPOR (symbol: 1) to an empty tile, creating a caustic gas cloud in a 3x3 area centered on the vapor. Each turn, the vapor automatically corrodes enemies within the cloud for 2 damage while simultaneously dissolving negative status effects from allies. The vapor persists for a duration equal to consumed Effluvium charges and is completely invulnerable to all damage.',
                         'details': [
                             'Type: Active',
                             'Range: 4',
                             'Target: Empty tile',
-                            'Line of Sight: Yes',
-                            'Damage: 2',
-                            'Pierce: No',
-                            'Effects: None',
+                            'Area: 3x3 (centered on vapor)',
+                            'Damage: 2 per turn to enemies',
                             'Cooldown: 2 turns',
-                            'Special: Vapor cleanses ally status effects; vapor is invulnerable'
+                            'Special: Cleanses ally status effects; invulnerable; duration = charges'
                         ]
                     },
                     {
                         'name': 'SAFT-E-GAS (Active) [Key: S]',
-                        'description': 'Summons a HEINOUS VAPOR (0) that blocks enemy targeting and heals allies.',
+                        'description': 'The GAS MACHINIST releases a HEINOUS VAPOR (symbol: 0) to an empty tile, forming a protective gas shield in a 3x3 area centered on the vapor. The vapor grants +1 defense to all allies within the cloud and heals them for 1 HP each turn. The vapor persists for a duration equal to consumed Effluvium charges and is completely invulnerable to all damage.',
                         'details': [
                             'Type: Active',
                             'Range: 4',
                             'Target: Empty tile',
-                            'Line of Sight: Yes',
-                            'Damage: None',
-                            'Pierce: No',
-                            'Effects: None',
+                            'Area: 3x3 (centered on vapor)',
+                            'Effect: +1 defense to allies; heals 1 HP/turn',
                             'Cooldown: 3 turns',
-                            'Special: Prevents being targetted from outside of the area of effect, heals allies, invulnerable unit'
+                            'Special: Invulnerable; duration = charges'
                         ]
                     },
                     {
                         'name': 'DIVERGE (Active) [Key: D]',
-                        'description': 'Splits an existing HEINOUS VAPOR or self into Coolant Gas and Cutting Gas.',
+                        'description': 'The GAS MACHINIST violently splits an existing HEINOUS VAPOR or themselves into two specialized vapor entities that appear in adjacent spaces. The split creates Coolant Gas (symbol: 2), which heals allies for 3 HP per turn in a 3x3 area, and Cutting Gas (symbol: 3), which deals 3 piercing damage per turn to enemies in a 3x3 area. When targeting self, the GAS MACHINIST dissolves completely and is removed from the board until both vapors expire. When the last vapor dissipates, the GAS MACHINIST reforms at that vapor\'s final position. Both resulting vapors inherit duration from consumed Effluvium charges.',
                         'details': [
                             'Type: Active',
                             'Range: 4',
                             'Target: Self or owned HEINOUS VAPOR',
-                            'Line of Sight: Yes',
-                            'Damage: 3',
-                            'Pierce: Yes',
-                            'Effects: None',
                             'Cooldown: 4 turns',
-                            'Special: Self-targeting removes GAS MACHINIST until vapors expire. Coolant gas heals allied units for 3 HP'
+                            'Special: Coolant heals 3 HP/turn; Cutting deals 3 piercing damage/turn; self-targeting removes GAS MACHINIST from board; reforms at last vapor position; duration = charges'
                         ]
                     }
                 ],
@@ -1268,12 +1184,16 @@ class UnitHelpComponent(UIComponent):
             UnitType.DELPHIC_APPRAISER: {
                 'title': 'DELPHIC APPRAISER',
                 'overview': [
-                    'The DELPHIC APPRAISER is a furniture evaluator with astral value perception that',
-                    'specializes in exploiting the metaphysical properties of terrain. This support unit excels',
-                    'at creating tactical advantages through furniture manipulation, teleportation networks,',
-                    'and reality distortion effects.',
+                    'The DELPHIC APPRAISER is an antique dealer with oracular sight who perceives the "astral',
+                    'value" (1-9) of every furniture piece on the battlefield. These metaphysical appraisals',
+                    'manifest as glowing numbers visible only to the APPRAISER, revealing the hidden cosmic worth',
+                    'of mundane objects. The APPRAISER weaponizes this supernatural perception to gain tactical',
+                    'bonuses from proximity to appraised furniture, imbue objects with teleportation energy,',
+                    'curse enemies with escalating value-based damage, and collapse furniture worth to create',
+                    'reality sinkholes. The APPRAISER thrives on furniture-rich maps where random astral values',
+                    'create unpredictable opportunities for devastating combos and tactical repositioning.',
                     '',
-                    'Role: Utility / Disabler / Escape Artist / Gambler',
+                    'Role: Utility / Support / Terrain Manipulator',
                     'Difficulty: ****'
                 ],
                 'stats': [
@@ -1282,67 +1202,54 @@ class UnitHelpComponent(UIComponent):
                     'Defense: 0',
                     'Movement: 3',
                     'Range: 1',
-                    'Symbol: A'
+                    'Symbol: A',
+                    'Attack Symbol: $'
                 ],
                 'skills': [
                     {
                         'name': 'VALUATION ORACLE (Passive)',
-                        'description': 'Perceives the \'astral value\' of furniture when the game starts.',
+                        'description': 'The DELPHIC APPRAISER\'s oracular sight pierces the material realm to perceive the "astral value" (random 1-9) of every furniture piece when the match begins. When standing adjacent to any appraised furniture, the APPRAISER channels its metaphysical energy to enhance their combat capabilities, gaining +1 defense and +1 attack range. These bonuses persist as long as the APPRAISER remains adjacent to at least one furniture piece.',
                         'details': [
                             'Type: Passive',
-                            'Range: Adjacent tiles',
-                            'Target: Furniture terrain',
-                            'Line of Sight: No',
-                            'Damage: None',
-                            'Pierce: No',
-                            'Effects: Valuation Oracle, gains +1 to defense and attack range',
-                            'Cooldown: None',
-                            'Special: Bonuses last while adjacent to any furniture'
+                            'Effect: Valuation Oracle (@); +1 defense and +1 attack range while adjacent to furniture'
                         ]
                     },
                     {
                         'name': 'MARKET FUTURES (Active) [Key: M]',
-                        'description': 'Imbues a furniture piece with temporal investment energy, turning it into a portal.',
+                        'description': 'The DELPHIC APPRAISER infuses a furniture piece with temporal investment energy, transforming it into a shimmering teleportation anchor. Allies standing adjacent to the imbued furniture enter Parallax—a state where they exist simultaneously in their current location and the potential destination. While in Parallax, the ally can activate the anchor to teleport up to a distance equal to the furniture\'s astral value (1-9 tiles). Upon teleporting, the ally receives a maturing investment effect that grants +1 attack range for 3 turns and attack bonuses that grow over time: +1 attack (turn 1), +2 attack (turn 2), +3 attack (turn 3). The investment bonuses apply immediately before each basic attack. After one ally uses the anchor, it deactivates.',
                         'details': [
                             'Type: Active',
                             'Range: 4',
                             'Target: Furniture piece',
-                            'Line of Sight: Yes',
-                            'Damage: None',
-                            'Pierce: No',
-                            'Effects: Parallax, applied when adjacent to the anchor. Investment, applied on teleport',
+                            'Effect: Parallax (%) when adjacent to anchor; Investment ($) (3 turns) after teleport',
                             'Cooldown: 6 turns',
-                            'Special: Teleport range equals astral value. Maturing investment grants +1 ATK per turn'
+                            'Special: Teleport range = astral value (1-9); Investment grants +1 range (constant) and maturing attack (+1/+2/+3)'
                         ]
                     },
                     {
                         'name': 'AUCTION CURSE (Active) [Key: A]',
-                        'description': 'Curse target enemy with a twisted auction.',
+                        'description': 'The DELPHIC APPRAISER opens a twisted auction that surrounds the target enemy with astral auctioneers who manifest at nearby furniture (within 2 tiles). The curse duration equals the average astral value of surrounding furniture (rounded up, 1-9 turns). Each turn, the victim takes 1 damage as their life force is drained by the escalating bids, and all nearby furniture values inflate by +1 as the market frenzy intensifies. The curse also prevents all healing.',
                         'details': [
                             'Type: Active',
                             'Range: 3',
-                            'Target: Enemy unit',
-                            'Line of Sight: Yes',
-                            'Damage: 1 per turn (based on astral values)',
-                            'Pierce: No',
-                            'Effects: Auction Curse, each tick inflates nearby furniture by +1 and prevents healing',
+                            'Target: Single enemy',
+                            'Damage: 1 per turn',
+                            'Effect: Auction Curse (|); prevents healing; inflates nearby furniture +1 each turn',
                             'Cooldown: 3 turns',
-                            'Special: Duration equals average astral value of furniture within 2 tiles'
+                            'Special: Duration = avg astral value (1-9 turns); furniture within 2 tiles inflates +1 every turn'
                         ]
                     },
                     {
                         'name': 'DIVINE DEPRECIATION (Active) [Key: D]',
-                        'description': 'Dramatically reappraises a furniture piece as cosmically worthless, creating a 7x7 reality sinkhole.',
+                        'description': 'The DELPHIC APPRAISER dramatically reappraises a furniture piece as cosmically worthless, causing its astral value to collapse from its original value to 1. The sudden devaluation creates a reality sinkhole in a 7x7 area as the floor buckles inward. All enemies in the area take piercing damage (bypasses defense) equal to the average astral value of OTHER furniture in the area minus 1. The reality distortion pulls enemies toward the center—pull distance equals (original target value - 1) minus each unit\'s movement value (minimum 1 tile). High-mobility units resist the pull better. Finally, the market chaos rerolls all OTHER furniture astral values randomly (1-9).',
                         'details': [
                             'Type: Active',
                             'Range: 3',
-                            'Target: Furniture piece (7x7 area effect)',
-                            'Line of Sight: Yes',
-                            'Damage: Based on astral value difference',
-                            'Pierce: Yes',
-                            'Effects: None',
+                            'Target: Furniture piece',
+                            'Area: 7x7',
+                            'Damage: (Average of other furniture) - 1 (pierces defense)',
                             'Cooldown: 6 turns',
-                            'Special: Sets target furniture to astral value 1. Damage equals average astral value of other furniture minus 1. Pull distance per unit equals (original astral value - 1) minus unit move value (minimum 1). Rerolls all other furniture astral values'
+                            'Special: Sets target value to 1; pull = (original value - 1) - move (min 1); rerolls other furniture'
                         ]
                     }
                 ],
@@ -1362,9 +1269,10 @@ class UnitHelpComponent(UIComponent):
                 'title': 'INTERFERER',
                 'overview': [
                     'The INTERFERER is a telecommunications engineer turned assassin who weaponized a remote',
-                    'radio tower array into a directed energy system. This glass cannon "phones home" to coordinate',
-                    'precise strikes, neural interference, and electromagnetic warfare through triangulated',
-                    'transmissions from the tower network. Also attacks with plutonium tipped carabiners.',
+                    'radio tower array into a directed energy weapon system. This glass cannon "phones home" to',
+                    'the tower network, triangulating transmissions to coordinate precise strikes, neural hijacking,',
+                    'and electromagnetic warfare. In close combat, the INTERFERER attacks with plutonium-tipped',
+                    'carabiners that create radioactive hazard zones on impact.',
                     '',
                     'Role: Glass Cannon / Disabler',
                     'Difficulty: **'
@@ -1381,59 +1289,41 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'NEUTRON ILLUMINANT (Passive)',
-                        'description': 'Directional radiation spreads around the INTERFERER when attacking.',
+                        'description': 'When the INTERFERER strikes with plutonium-tipped carabiners, the impact creates a radiation burst that spreads in a directional pattern. If attacking along cardinal directions (up/down/left/right), radiation spreads diagonally from the INTERFERER\'s position. If attacking diagonally, radiation spreads cardinally. Each radiation stack deals 1 damage per turn for 2 turns, creating persistent hazard zones that accumulate with repeated attacks.',
                         'details': [
-                            'Type: Passive',
-                            'Trigger: On attack (no cooldown)',
-                            'Effect: Creates radiation pattern around INTERFERER',
-                            'Radiation Damage: 1 per stack per turn',
-                            'Radiation Duration: 2 turns per stack',
-                            'Special: Cardinal attacks radiate diagonally, diagonal attacks radiate cardinally'
+                            'Type: Passive'
                         ]
                     },
                     {
                         'name': 'NEURAL SHUNT (Active) [Key: N]',
-                        'description': 'Tower array transmits neural interference signal to hijack target\'s mind.',
+                        'description': 'The INTERFERER triangulates the tower array to transmit a concentrated neural interference signal directly into a target\'s brain, hijacking their motor functions for 1 turn. The transmission deals 8 damage from electromagnetic stress, and the afflicted unit performs random moves, attacks, or skills as their nervous system misfires under external control.',
                         'details': [
                             'Type: Active',
                             'Range: 1',
-                            'Target: Any unit',
-                            'Line of Sight: Yes',
                             'Damage: 8',
-                            'Pierce: No',
-                            'Effects: Neural control for 2 turns',
-                            'Cooldown: 4 turns',
-                            'Special: Affected unit performs random moves, attacks, or skills for 2 turns'
+                            'Effect: Neural Shunt (?) (1 turn)',
+                            'Cooldown: 4 turns'
                         ]
                     },
                     {
                         'name': 'KARRIER RAVE (Active) [Key: K]',
-                        'description': 'Rides karrier wave transmission to phase out, becoming untargetable.',
+                        'description': 'The INTERFERER tunes into a carrier wave transmission from the tower array, riding the electromagnetic frequency to phase partially out of reality for 2 turns. While phased, the INTERFERER becomes untargetable by any attacks or skills. Upon returning to normal phase, the stored carrier wave energy amplifies the next melee attack, causing it to strike three times in rapid succession.',
                         'details': [
                             'Type: Active',
-                            'Range: Self-target',
-                            'Target: Self',
-                            'Line of Sight: N/A',
-                            'Damage: None',
-                            'Pierce: N/A',
-                            'Effects: Untargetable for 2 turns, next attack strikes 3 times',
-                            'Cooldown: 5 turns',
-                            'Special: Cannot be targeted by any attacks or skills while phased'
+                            'Range: Self',
+                            'Effect: Karrier Rave (!) (2 turns); next attack strikes 3 times',
+                            'Cooldown: 5 turns'
                         ]
                     },
                     {
                         'name': 'SCALAR NODE (Active) [Key: S]',
-                        'description': 'Triangulates coordinates to create standing wave energy trap.',
+                        'description': 'The INTERFERER triangulates coordinates with the tower array to create an invisible standing wave energy trap at a specific location (range 3). The trap placement is completely silent—no message appears when setting it. When any enemy ends their turn on the trapped tile, the standing wave collapses violently, dealing 12 damage and announcing the trap\'s detonation. The trap persists until triggered.',
                         'details': [
                             'Type: Active',
                             'Range: 3',
-                            'Target: Empty tile',
-                            'Line of Sight: Yes',
                             'Damage: 12',
-                            'Pierce: No',
-                            'Effects: Invisible trap, silent warfare',
                             'Cooldown: 3 turns',
-                            'Special: No message log entries, triggers when enemies end turn on trap'
+                            'Special: Invisible trap; silent placement only; triggers when enemy ends turn on tile'
                         ]
                     }
                 ],
@@ -1453,16 +1343,17 @@ class UnitHelpComponent(UIComponent):
                 'title': 'DERELICTIONIST',
                 'overview': [
                     'The DERELICTIONIST is a psychological abandonment therapist who weaponized distance-based',
-                    'therapeutic techniques into a support system. This healer specializes in trauma processing,',
-                    'protective partitioning, and abandonment therapy through controlled dissociation.',
-                    'Manipulates interpersonal distance to create healing effects and manage status conditions.',
+                    'therapeutic techniques into a tactical support system. By manipulating interpersonal distance',
+                    'and inducing controlled dissociation, this healer specializes in trauma processing, protective',
+                    'partitioning, and abandonment therapy. The farther allies are from the DERELICTIONIST, the more',
+                    'profound the therapeutic effect—but close proximity forces painful abreactive trauma processing.',
                     '',
                     'Role: Utility / Healer',
                     'Difficulty: ***'
                 ],
                 'stats': [
                     'HP: 18',
-                    'Attack: 2',
+                    'Attack: 3',
                     'Defense: 0',
                     'Movement: 3',
                     'Range: 1',
@@ -1471,69 +1362,134 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'SEVERANCE (Passive)',
-                        'description': 'After using a skill, can move with enhanced range but cannot move twice.',
+                        'description': 'After using any active skill, the DERELICTIONIST enters a dissociative state that grants +1 movement range for a single move, allowing tactical repositioning after skill use. The unit cannot move twice in one turn.',
                         'details': [
                             'Type: Passive',
-                            'Trigger: After using any active skill',
-                            'Effect: Grants +1 movement range for one move',
-                            'Restriction: Cannot move twice in one turn',
-                            'Special: Allows skill-then-move tactical flexibility'
+                            'Effect: Severance (\\) (+1 movement after skill use)'
                         ]
                     },
                     {
                         'name': 'VAGAL RUN (Active) [Key: V]',
-                        'description': 'Trauma therapy with distance-based effects and delayed abreaction.',
+                        'description': 'The DERELICTIONIST stimulates an ally\'s vagus nerve to trigger abreactive trauma processing, immediately clearing all status effects. The therapeutic response varies with distance: at close range (1-3 tiles), the ally suffers 3 piercing abreactive damage that cannot kill; at medium range (4-5 tiles), damage decreases to 2-1; at neutral range (exactly 6 tiles), no immediate effect occurs; at therapeutic distance (7+ tiles), the ally heals for (distance - 6) HP and enters a Derelicted state. After 3 turns, a delayed secondary abreaction repeats the distance-based effect and clears status effects again.',
                         'details': [
                             'Type: Active',
                             'Range: 3',
-                            'Target: Ally',
+                            'Effect: Clears all status (immediate + after 3 turns); Derelicted (&) (1 turn) at distance 7+',
                             'Cooldown: 4 turns',
-                            'Distance 3-5: Deals 3-1 piercing damage, cannot kill',
-                            'Distance 6: No immediate effect',
-                            'Distance 7+: Heals for distance minus 6 HP and applies Derelicted',
-                            'Always: Clears all status effects immediately',
-                            'Abreaction: After 3 turns, repeats the same effect and clears status again'
+                            'Special: Distance-based: 1-3 tiles = 3 damage; 4 tiles = 2 damage; 5 tiles = 1 damage; 6 tiles = no effect; 7+ tiles = heal (distance - 6); piercing damage cannot kill'
                         ]
                     },
                     {
                         'name': 'DERELICT (Active) [Key: D]',
-                        'description': 'Push ally away and heal based on final distance from DERELICTIONIST.',
+                        'description': 'The DERELICTIONIST forcefully pushes an ally away in a straight line (up to 4 tiles), inducing therapeutic abandonment. The ally heals for an amount equal to the final distance between them and the DERELICTIONIST after the push resolves. The traumatic separation applies the Derelicted status for 1 turn. Obstacles and map boundaries can interrupt the push, affecting final distance and healing.',
                         'details': [
                             'Type: Active',
                             'Range: 3',
-                            'Target: Ally',
-                            'Push: Attempts to push ally 4 tiles in straight line',
-                            'Healing: Heals for distance between final positions',
-                            'Status: Applies Derelicted for 1 turn',
-                            'Cooldown: 4 turns',
-                            'Special: Healing scales with tactical positioning'
+                            'Effect: Push (4 tiles); heal = final distance; Derelicted (&) (1 turn)',
+                            'Cooldown: 4 turns'
                         ]
                     },
                     {
                         'name': 'PARTITION (Active) [Key: P]',
-                        'description': 'Protective shield with emergency intervention capability.',
+                        'description': 'The DERELICTIONIST creates a protective psychological partition on an ally, reducing all incoming damage by 1 for 3 turns. This defensive dissociation has an emergency intervention capability: if the ally would receive fatal damage while the shield is active, the ally dissociates completely to ignore all damage that turn, then the partition collapses. When emergency intervention triggers, the shield ends, the DERELICTIONIST teleports exactly 4 tiles away (abandoning the ally), and the ally enters a Derelicted state from the traumatic abandonment.',
                         'details': [
                             'Type: Active',
                             'Range: 3',
-                            'Target: Ally',
-                            'Shield: Reduces all incoming damage by 1 for 3 turns',
-                            'Emergency: If fatal damage would occur, blocks all damage that turn',
-                            'Emergency Effect: Ends shield, teleports DERELICTIONIST away, applies Derelicted',
+                            'Effect: Partition ()) (3 turns); -1 incoming damage',
                             'Cooldown: 4 turns',
-                            'Special: Can save allies from death once per cast'
+                            'Special: Emergency: ally dissociates to ignore fatal damage once; ends shield; teleports DERELICTIONIST 4 tiles; applies Derelicted (&) to ally'
                         ]
                     }
                 ],
                 'tips': [
-                    '- Use Severance to reposition after skills for optimal healing distances',
-                    '- Vagal Run at distance 7+ provides powerful heal-over-time effects',
-                    '- Derelict can be used defensively to push allies out of danger while healing',
-                    '- Partition emergency intervention can save critically wounded allies'
+                    '- Use Severance to reposition after skills for optimal healing distances.',
+                    '- Vagal Run at distance 7+ provides powerful heal-over-time effects.',
+                    '- Derelict can be used defensively to push allies out of danger while healing.',
+                    '- Partition emergency intervention can save critically wounded allies.'
                 ],
                 'tactical': [
-                    '- Strong against: Status effect teams, burst damage, sustained fights',
-                    '- Vulnerable to: Mobility denial',
-                    '- Best positioning: Mid-range support, flexible positioning for optimal skill distances'
+                    '- Strong against: Status effect teams, burst damage, sustained fights.',
+                    '- Vulnerable to: Mobility denial.',
+                    '- Best positioning: Mid-range support with flexible positioning for optimal skill distances.'
+                ]
+            },
+            UnitType.POTPOURRIST: {
+                'title': 'POTPOURRIST',
+                'overview': [
+                    'The POTPOURRIST is a durable tank unit who wields a heavy granite pedestal as both weapon',
+                    'and incense burner. The pedestal releases aromatic vapors that provide continuous healing and',
+                    'tactical advantages in combat. This unit specializes in persistent regeneration and damage',
+                    'mitigation through disorienting debuffs. By infusing their blend into concentrated potpourri,',
+                    'the POTPOURRIST can double their natural healing and empower their offensive abilities.',
+                    'The POTPOURRIST excels at outlasting opponents through exceptional sustain, defensive debuffs,',
+                    'and magical bindings that force enemies into unfavorable tactical decisions.',
+                    '',
+                    'Role: Tank / Frontline Fighter',
+                    'Difficulty: *'
+                ],
+                'stats': [
+                    'HP: 24',
+                    'Attack: 4',
+                    'Defense: 0',
+                    'Movement: 2',
+                    'Range: 1',
+                    'Symbol: P',
+                ],
+                'skills': [
+                    {
+                        'name': 'MELANGE EMINENCE (Passive)',
+                        'description': 'The POTPOURRIST\'s aromatic blend continuously restores vitality through inhalation. This natural regenerative process occurs at the start of every turn (including enemy turns) and cannot be suppressed by any curse or healing prevention effect. When infused with potpourri, the enhanced fragrance doubles the restorative power.',
+                        'details': [
+                            'Type: Passive',
+                            'Base healing: 1 HP per turn',
+                            'Enhanced healing: 2 HP per turn while holding potpourri'
+                        ]
+                    },
+                    {
+                        'name': 'INFUSE (Active) [Key: I]',
+                        'description': 'The POTPOURRIST infuses their aromatic blend into a concentrated potpourri mixture, intensifying the healing vapors. This self-targeting ability enhances Melange Eminence\'s regeneration (from 1 HP to 2 HP per turn) and empowers both Demilune and Granite Geas with additional effects. Once created, the potpourri persists until consumed by casting Demilune or Granite Geas.',
+                        'details': [
+                            'Type: Active',
+                            'Range: Self',
+                            'Effect: Infusion (*)',
+                            'Cooldown: 0 turns (gated by Infusion status)'
+                        ]
+                    },
+                    {
+                        'name': 'DEMILUNE (Active) [Key: D]',
+                        'description': 'The POTPOURRIST swings their granite pedestal in a wide crescent arc, striking enemies in a forward half-moon pattern (3 tiles ahead plus 2 diagonal sides). The impact releases disorienting potpourri vapors that induce Lunacy, a maddening effect that halves all damage the afflicted enemy deals to the POTPOURRIST for 2 turns (rounded down). When enhanced with potpourri, the strike also erodes the target\'s mental defenses, halving their defense value against the POTPOURRIST\'s attacks. This consumes the potpourri.',
+                        'details': [
+                            'Type: Active',
+                            'Target: Adjacent tile',
+                            'Damage: 3 (4 if enhanced with potpourri)',
+                            'Effect: Lunacy (() (2 turns)',
+                            'Cooldown: 3 turns',
+                            'Special: Lunacy affects both attacks and skills'
+                        ]
+                    },
+                    {
+                        'name': 'GRANITE GEAS (Active) [Key: G]',
+                        'description': 'The POTPOURRIST strikes an enemy with their pedestal, marking them with aromatic oils that form a magical binding. This geas compels the marked target to focus their aggression on the POTPOURRIST—if the target fails to attack or use a skill against the POTPOURRIST during their turn, the binding breaks and releases fragrant fumes that the POTPOURRIST inhales for 4 HP of healing. When enhanced with potpourri, the geas lasts 2 turns instead of 1, potentially yielding up to 8 HP if ignored both turns. This consumes the potpourri.',
+                        'details': [
+                            'Type: Active',
+                            'Range: 1',
+                            'Target: Single enemy',
+                            'Damage: 4',
+                            'Effect: Geas (:) (1-2 turns); heals 4 HP per turn if ignored',
+                            'Cooldown: 3 turns'
+                        ]
+                    }
+                ],
+                'tips': [
+                    '- Use Infuse early to maximize total regeneration over the match',
+                    '- Lunacy debuff significantly reduces incoming damage - use proactively',
+                    '- Granite Geas forces enemies into bad trades or grants free healing',
+                    '- High HP pool and constant regeneration allow aggressive front line play'
+                ],
+                'tactical': [
+                    '- Strong against: Sustained damage teams, low-damage units, attrition-based strategies',
+                    '- Vulnerable to: Burst damage, multi-target focus fire, high-damage alpha strikes',
+                    '- Best positioning: Front line, absorbing attacks, protecting fragile allies'
                 ]
             },
             'HEINOUS_VAPOR_BROACHING': {
@@ -2325,9 +2281,10 @@ class ChatComponent(UIComponent):
             # Calculate the current player
             current_player = self.game_ui.multiplayer.get_current_player()
             player_color = self.player_colors.get(current_player, 1)
-            
+            player_name = self.game_ui.game.get_player_name(current_player)
+
             # Draw the input prompt with player-specific color
-            prompt = f"[Player {current_player}]> "
+            prompt = f"[{player_name}]> "
             self.renderer.draw_text(input_y, 0, prompt, player_color)
             
             # Draw the input text with a cursor at the end
@@ -2705,15 +2662,19 @@ class CursorManager(UIComponent):
             target_position = (self.cursor_pos.y, self.cursor_pos.x)
 
             if target_position in valid_targets:
+                # Check if attack is already queued for this target (prevent duplicate messages)
+                attack_already_queued = self.selected_unit.attack_target == target_position
+
                 # Set the attack target
                 self.selected_unit.attack_target = target_position
 
                 # Mark that this unit is taking an action (won't regenerate HP)
                 self.selected_unit.took_no_actions = False
 
-                # Track action order
-                self.selected_unit.action_timestamp = self.game_ui.game.action_counter
-                self.game_ui.game.action_counter += 1
+                # Track action order (only if not already queued)
+                if not attack_already_queued:
+                    self.selected_unit.action_timestamp = self.game_ui.game.action_counter
+                    self.game_ui.game.action_counter += 1
 
                 # Check if the target is a unit or a wall
                 from boneglaive.utils.message_log import message_log, MessageType
@@ -2733,44 +2694,52 @@ class CursorManager(UIComponent):
                     wall_info = self.game_ui.game.marrow_dike_tiles[target_position]
                     wall_owner = wall_info['owner']
 
-                # Publish attack planned event
-                self.publish_event(
-                    EventType.ATTACK_PLANNED,
-                    AttackEventData(
-                        attacker=self.selected_unit,
-                        target=target_unit  # May be None for wall targets
+                # Only publish event and add message if attack wasn't already queued
+                if not attack_already_queued:
+                    # Publish attack planned event
+                    self.publish_event(
+                        EventType.ATTACK_PLANNED,
+                        AttackEventData(
+                            attacker=self.selected_unit,
+                            target=target_unit  # May be None for wall targets
+                        )
                     )
-                )
 
-                # Set appropriate message based on target type
+                    # Set appropriate message based on target type
+                    if is_wall_target:
+                        # Add message to log for planned wall attacks
+                        message_log.add_message(
+                            f"{self.selected_unit.get_display_name()} readies attack against {wall_owner.get_display_name()}'s Marrow Dike wall",
+                            MessageType.COMBAT,
+                            player=self.selected_unit.player,
+                            attacker_name=self.selected_unit.get_display_name()
+                        )
+                    elif target_unit:
+                        # Add message to log for planned unit attacks
+                        message_log.add_message(
+                            f"{self.selected_unit.get_display_name()} readies attack against {target_unit.get_display_name()}",
+                            MessageType.COMBAT,
+                            player=self.selected_unit.player,
+                            attacker_name=self.selected_unit.get_display_name(),
+                            target_name=target_unit.get_display_name()
+                        )
+                    else:
+                        # This shouldn't happen, but handle it just in case
+                        message_log.add_message(
+                            f"{self.selected_unit.get_display_name()} readies an attack",
+                            MessageType.COMBAT,
+                            player=self.selected_unit.player,
+                            attacker_name=self.selected_unit.get_display_name()
+                        )
+
+                # Set appropriate UI message based on target type
                 if is_wall_target:
                     self.game_ui.message = f"Attack set against Marrow Dike wall"
-                    # Add message to log for planned wall attacks
-                    message_log.add_message(
-                        f"{self.selected_unit.get_display_name()} readies attack against {wall_owner.get_display_name()}'s Marrow Dike wall",
-                        MessageType.COMBAT,
-                        player=self.selected_unit.player,
-                        attacker_name=self.selected_unit.get_display_name()
-                    )
                 elif target_unit:
                     self.game_ui.message = f"Attack set against {target_unit.get_display_name()}"
-                    # Add message to log for planned unit attacks
-                    message_log.add_message(
-                        f"{self.selected_unit.get_display_name()} readies attack against {target_unit.get_display_name()}",
-                        MessageType.COMBAT,
-                        player=self.selected_unit.player,
-                        attacker_name=self.selected_unit.get_display_name(),
-                        target_name=target_unit.get_display_name()
-                    )
                 else:
                     # This shouldn't happen, but handle it just in case
                     self.game_ui.message = "Attack target set"
-                    message_log.add_message(
-                        f"{self.selected_unit.get_display_name()} readies an attack",
-                        MessageType.COMBAT,
-                        player=self.selected_unit.player,
-                        attacker_name=self.selected_unit.get_display_name()
-                    )
 
                 self.highlighted_positions = []
                 self.attack_range_positions = []
@@ -2982,7 +2951,8 @@ class GameOverPrompt(UIComponent):
                     self.renderer.draw_text(y, x, " ", 7)  # Background with white color
 
         # Draw title
-        title = f"Player {self.winner} Wins!"
+        winner_name = self.game_ui.game.get_player_name(self.winner)
+        title = f"{winner_name} Wins!"
         title_x = prompt_x + (prompt_width - len(title)) // 2
         # Use bright white color with bold attribute
         self.renderer.draw_text(prompt_y + 1, title_x, title, 7, 1)
@@ -4187,7 +4157,7 @@ class GameModeManager(UIComponent):
         """
         Toggle between unit types during the setup phase.
         Cycles between GLAIVEMAN, MANDIBLE FOREMAN, GRAYMAN, MARROW_CONDENSER,
-        FOWL_CONTRIVANCE, GAS_MACHINIST, DELPHIC_APPRAISER, and INTERFERER.
+        FOWL_CONTRIVANCE, GAS_MACHINIST, DELPHIC_APPRAISER, INTERFERER, DERELICTIONIST, and POTPOURRIST.
         """
         if self.setup_unit_type == UnitType.GLAIVEMAN:
             self.setup_unit_type = UnitType.MANDIBLE_FOREMAN
@@ -4213,6 +4183,9 @@ class GameModeManager(UIComponent):
         elif self.setup_unit_type == UnitType.INTERFERER:
             self.setup_unit_type = UnitType.DERELICTIONIST
             self.game_ui.message = "Setup unit type: DERELICTIONIST"
+        elif self.setup_unit_type == UnitType.DERELICTIONIST:
+            self.setup_unit_type = UnitType.POTPOURRIST
+            self.game_ui.message = "Setup unit type: POTPOURRIST"
         else:
             self.setup_unit_type = UnitType.GLAIVEMAN
             self.game_ui.message = "Setup unit type: GLAIVEMAN"
@@ -4227,12 +4200,13 @@ class GameModeManager(UIComponent):
         """Navigate to the next unit type in the setup menu (TAB)."""
         if not self.game_ui.game.setup_phase:
             return
-            
+
         # Get current index in unit types list
         unit_types = [
-            UnitType.GLAIVEMAN, UnitType.MANDIBLE_FOREMAN, UnitType.GRAYMAN,
-            UnitType.MARROW_CONDENSER, UnitType.FOWL_CONTRIVANCE, UnitType.GAS_MACHINIST,
-            UnitType.DELPHIC_APPRAISER, UnitType.INTERFERER, UnitType.DERELICTIONIST
+            UnitType.GLAIVEMAN, UnitType.GRAYMAN, UnitType.MANDIBLE_FOREMAN,
+            UnitType.POTPOURRIST, UnitType.MARROW_CONDENSER, UnitType.INTERFERER,
+            UnitType.FOWL_CONTRIVANCE, UnitType.DELPHIC_APPRAISER, UnitType.GAS_MACHINIST,
+            UnitType.DERELICTIONIST
         ]
         
         try:
@@ -4254,12 +4228,13 @@ class GameModeManager(UIComponent):
         """Navigate to the previous unit type in the setup menu (SHIFT+TAB)."""
         if not self.game_ui.game.setup_phase:
             return
-            
+
         # Get current index in unit types list
         unit_types = [
-            UnitType.GLAIVEMAN, UnitType.MANDIBLE_FOREMAN, UnitType.GRAYMAN,
-            UnitType.MARROW_CONDENSER, UnitType.FOWL_CONTRIVANCE, UnitType.GAS_MACHINIST,
-            UnitType.DELPHIC_APPRAISER, UnitType.INTERFERER, UnitType.DERELICTIONIST
+            UnitType.GLAIVEMAN, UnitType.GRAYMAN, UnitType.MANDIBLE_FOREMAN,
+            UnitType.POTPOURRIST, UnitType.MARROW_CONDENSER, UnitType.INTERFERER,
+            UnitType.FOWL_CONTRIVANCE, UnitType.DELPHIC_APPRAISER, UnitType.GAS_MACHINIST,
+            UnitType.DERELICTIONIST
         ]
         
         try:
@@ -4311,7 +4286,8 @@ class GameModeManager(UIComponent):
             UnitType.GAS_MACHINIST: "GAS MACHINIST",
             UnitType.DELPHIC_APPRAISER: "DELPHIC APPRAISER",
             UnitType.INTERFERER: "INTERFERER",
-            UnitType.DERELICTIONIST: "DERELICTIONIST"
+            UnitType.DERELICTIONIST: "DERELICTIONIST",
+            UnitType.POTPOURRIST: "POTPOURRIST"
         }.get(self.setup_unit_type, "UNKNOWN")
 
         # Check specific error cases based on return value
@@ -4373,24 +4349,27 @@ class GameModeManager(UIComponent):
                     )
                     
                     # Notify the player about single player mode
+                    player1_name = self.game_ui.game.get_player_name(1)
                     self.publish_event(
                         EventType.MESSAGE_DISPLAY_REQUESTED,
                         MessageDisplayEventData(
-                            message="Game starting in single player mode. Player 1 - Turn 1",
+                            message=f"Game starting in single player mode. {player1_name} - Turn 1",
                             message_type=MessageType.SYSTEM
                         )
                     )
                 else:
+                    player1_name = self.game_ui.game.get_player_name(1)
                     self.publish_event(
                         EventType.MESSAGE_DISPLAY_REQUESTED,
                         MessageDisplayEventData(
-                            message="Player 1 - Turn 1",
+                            message=f"{player1_name} - Turn 1",
                             message_type=MessageType.SYSTEM
                         )
                     )
             else:
                 # Normal local multiplayer mode - message shown in UI only, not in log
-                self.game_ui.message = "Player 2's turn to place units"
+                player2_name = self.game_ui.game.get_player_name(2)
+                self.game_ui.message = f"{player2_name}'s turn to place units"
                 # Start player 2 with cursor in center
                 self.game_ui.cursor_manager.cursor_pos = Position(HEIGHT // 2, WIDTH // 2)
                 # Publish cursor moved event
@@ -4399,10 +4378,11 @@ class GameModeManager(UIComponent):
                     CursorMovedEventData(position=self.game_ui.cursor_manager.cursor_pos)
                 )
         elif game_start:
+            player1_name = self.game_ui.game.get_player_name(1)
             self.publish_event(
                 EventType.MESSAGE_DISPLAY_REQUESTED,
                 MessageDisplayEventData(
-                    message="Player 1 - Turn 1",
+                    message=f"{player1_name} - Turn 1",
                     message_type=MessageType.SYSTEM
                 )
             )
@@ -4452,7 +4432,8 @@ class GameModeManager(UIComponent):
             # Draw instructions
             setup_player = self.game_ui.game.setup_player
             player_color = self.game_ui.chat_component.player_colors.get(setup_player, 1)
-            
+            setup_player_name = self.game_ui.game.get_player_name(setup_player)
+
             # Map UnitType to display name
             unit_type_display = {
                 UnitType.GLAIVEMAN: "GLAIVEMAN",
@@ -4463,12 +4444,13 @@ class GameModeManager(UIComponent):
                 UnitType.GAS_MACHINIST: "GAS MACHINIST",
                 UnitType.DELPHIC_APPRAISER: "DELPHIC APPRAISER",
                 UnitType.INTERFERER: "INTERFERER",
-                UnitType.DERELICTIONIST: "DERELICTIONIST"
+                UnitType.DERELICTIONIST: "DERELICTIONIST",
+                UnitType.POTPOURRIST: "POTPOURRIST"
             }
             current_unit_type = unit_type_display.get(self.setup_unit_type, "UNKNOWN")
-            
+
             instructions = [
-                f"Player {setup_player}, place your units on the battlefield.",
+                f"{setup_player_name}, place your units on the battlefield.",
                 "",
                 f"Each player must place 3 units (Current unit type: {current_unit_type}).",
                 "",
@@ -4492,15 +4474,16 @@ class GameModeManager(UIComponent):
             # Draw instructions
             for i, line in enumerate(instructions):
                 y_pos = 5 + i
-                if "Player 1" in line and setup_player == 1:
-                    self.renderer.draw_text(y_pos, 4, line, 3)  # Player 1 color
-                elif "Player 2" in line and setup_player == 2:
-                    self.renderer.draw_text(y_pos, 4, line, 4)  # Player 2 color
+                # Check if this line mentions the current player by name
+                if setup_player_name in line:
+                    # Use player-specific color
+                    color = 3 if setup_player == 1 else 4
+                    self.renderer.draw_text(y_pos, 4, line, color)
                 else:
                     self.renderer.draw_text(y_pos, 4, line)
-            
+
             # Draw current player indicator
-            player_text = f"Player {setup_player}'s turn to place units"
+            player_text = f"{setup_player_name}'s turn to place units"
             self.renderer.draw_text(5 + len(instructions) + 2, 4, player_text, player_color, curses.A_BOLD)
             
             # Draw footer
@@ -4575,19 +4558,19 @@ class AnimationComponent(UIComponent):
         super().__init__(renderer, game_ui)
         
     @measure_perf
-    def show_attack_animation(self, attacker, target):
+    def show_attack_animation(self, attacker, target, damage=None):
         """Show a visual animation for attacks."""
         # Import required modules
         from boneglaive.utils.constants import UnitType
         import time
         import curses
-        
+
         # Get attack effect from asset manager
         effect_tile = self.game_ui.asset_manager.get_attack_effect(attacker.type)
-        
+
         # Get animation sequence
         animation_sequence = self.game_ui.asset_manager.get_attack_animation_sequence(attacker.type)
-        
+
         # Create start and end positions
         start_pos = Position(attacker.y, attacker.x)
         end_pos = Position(target.y, target.x)
@@ -4773,20 +4756,26 @@ class AnimationComponent(UIComponent):
         self.renderer.flash_tile(target.y, target.x, tile_ids, color_ids, durations)
         
         # Show damage number above target with improved visualization
-        # Use effective stats for correct damage display
-        effective_attack = attacker.get_effective_stats()['attack']
-        effective_defense = target.get_effective_stats()['defense']
-        
-        # Account for GRAYMAN units that bypass defense
-        from boneglaive.utils.constants import UnitType
-        if attacker.type == UnitType.GRAYMAN or (hasattr(attacker, 'is_echo') and attacker.is_echo and attacker.type == UnitType.GRAYMAN):
-            # GRAYMAN units bypass defense completely
-            damage = effective_attack
+        # If damage was passed in (from engine after Lunacy/PRT calculations), use it
+        # Otherwise calculate it (for compatibility with old calls)
+        if damage is not None:
+            # Use the actual damage passed from engine (includes Lunacy halving, PRT reduction, etc.)
+            display_damage = damage
         else:
-            # Normal damage calculation
-            damage = max(1, effective_attack - effective_defense)
-            
-        damage_text = f"-{damage}"
+            # Fallback: calculate damage estimate
+            effective_attack = attacker.get_effective_stats()['attack']
+            effective_defense = target.get_effective_stats()['defense']
+
+            # Account for GRAYMAN units that bypass defense
+            from boneglaive.utils.constants import UnitType
+            if attacker.type == UnitType.GRAYMAN or (hasattr(attacker, 'is_echo') and attacker.is_echo and attacker.type == UnitType.GRAYMAN):
+                # GRAYMAN units bypass defense completely
+                display_damage = effective_attack
+            else:
+                # Normal damage calculation
+                display_damage = max(1, effective_attack - effective_defense)
+
+        damage_text = f"-{display_damage}"
         
         # Make damage text more prominent
         for i in range(3):
@@ -5293,7 +5282,39 @@ class ActionMenuComponent(UIComponent):
                 'enabled': partition_skill is not None,
                 'skill': partition_skill
             })
-        
+
+        # POTPOURRIST skills
+        elif unit.type == self.UnitType.POTPOURRIST:
+            # Add Infuse skill
+            infuse_skill = next((skill for skill in available_skills if skill.name == "Infuse"), None)
+            # Infuse can only be used when NOT holding potpourri
+            infuse_enabled = infuse_skill is not None and (not hasattr(unit, 'potpourri_held') or not unit.potpourri_held)
+            self.actions.append({
+                'key': 'i',
+                'label': 'nfuse',  # Will be displayed as [I]nfuse
+                'action': 'infuse_skill',
+                'enabled': infuse_enabled,
+                'skill': infuse_skill
+            })
+            # Add Demilune skill
+            demilune_skill = next((skill for skill in available_skills if skill.name == "Demilune"), None)
+            self.actions.append({
+                'key': 'd',
+                'label': 'emilune',  # Will be displayed as [D]emilune
+                'action': 'demilune_skill',
+                'enabled': demilune_skill is not None,
+                'skill': demilune_skill
+            })
+            # Add Granite Geas skill
+            granite_geas_skill = next((skill for skill in available_skills if skill.name == "Granite Geas"), None)
+            self.actions.append({
+                'key': 'g',
+                'label': 'ranite Geas',  # Will be displayed as [G]ranite Geas
+                'action': 'granite_geas_skill',
+                'enabled': granite_geas_skill is not None,
+                'skill': granite_geas_skill
+            })
+
         # Reset selected index
         self.selected_index = 0
         
@@ -5886,6 +5907,17 @@ class ActionMenuComponent(UIComponent):
                                     # Also highlight empty floor tiles for range visualization
                                     elif not game.get_unit_at(y, x) and game.map.is_passable(y, x):
                                         targets.append((y, x))
+                # Special case for Demilune - can target any adjacent tile (empty or with units)
+                elif skill.name == "Demilune":
+                    for y in range(HEIGHT):
+                        for x in range(WIDTH):
+                            # Check if position is within skill range (adjacent)
+                            distance = game.chess_distance(from_y, from_x, y, x)
+                            if distance <= skill.range:
+                                # Can target any tile within range (enemies, allies, empty tiles, terrain)
+                                # Just check if skill.can_use allows it (which checks range only)
+                                if skill.can_use(cursor_manager.selected_unit, (y, x), game):
+                                    targets.append((y, x))
                 else:
                     # For other area-targeted skills like Vault, highlight all valid positions
                     for y in range(HEIGHT):
@@ -6031,6 +6063,10 @@ class InputManager(UIComponent):
             elif unit_type == UnitType.DERELICTIONIST:
                 # Show DERELICTIONIST unit help
                 self.game_ui.unit_help_component.toggle_unit_help(UnitType.DERELICTIONIST)
+                return
+            elif unit_type == UnitType.POTPOURRIST:
+                # Show POTPOURRIST unit help
+                self.game_ui.unit_help_component.toggle_unit_help(UnitType.POTPOURRIST)
                 return
             elif unit_type == UnitType.HEINOUS_VAPOR:
                 # Check what type of vapor this is by symbol
@@ -6200,13 +6236,14 @@ class UnitSelectionMenuComponent(UIComponent):
         self.selected_index = 0  # Index of currently selected unit type
         self.unit_types = [
             UnitType.GLAIVEMAN,
-            UnitType.MANDIBLE_FOREMAN,
             UnitType.GRAYMAN,
+            UnitType.MANDIBLE_FOREMAN,
+            UnitType.POTPOURRIST,
             UnitType.MARROW_CONDENSER,
-            UnitType.FOWL_CONTRIVANCE,
-            UnitType.GAS_MACHINIST,
-            UnitType.DELPHIC_APPRAISER,
             UnitType.INTERFERER,
+            UnitType.FOWL_CONTRIVANCE,
+            UnitType.DELPHIC_APPRAISER,
+            UnitType.GAS_MACHINIST,
             UnitType.DERELICTIONIST
         ]
         self.unit_names = {
@@ -6218,7 +6255,8 @@ class UnitSelectionMenuComponent(UIComponent):
             UnitType.GAS_MACHINIST: "GAS MACHINIST",
             UnitType.DELPHIC_APPRAISER: "DELPHIC APPRAISER",
             UnitType.INTERFERER: "INTERFERER",
-            UnitType.DERELICTIONIST: "DERELICTIONIST"
+            UnitType.DERELICTIONIST: "DERELICTIONIST",
+            UnitType.POTPOURRIST: "POTPOURRIST"
         }
         
     def _setup_event_handlers(self):
