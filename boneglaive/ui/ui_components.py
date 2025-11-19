@@ -650,7 +650,7 @@ class UnitHelpComponent(UIComponent):
                     'and area control. The GLAIVEMAN serves as a reliable frontline fighter with powerful',
                     'retaliatory abilities.',
                     '',
-                    'Role: Frontline Fighter / Area Controller / Escape Artist',
+                    'Role: Frontline Fighter / Disabler / Displacer / Escape Artist',
                     'Difficulty: **'
                 ],
                 'stats': [
@@ -729,7 +729,7 @@ class UnitHelpComponent(UIComponent):
                     'enemies while providing tactical support to allies in open terrain. The MANDIBLE FOREMAN serves',
                     'as a close-range specialist focused on movement denial and crowd control.',
                     '',
-                    'Role: Frontline Fighter / Area Controller / Disabler',
+                    'Role: Frontline Fighter / Disabler',
                     'Difficulty: **'
                 ],
                 'stats': [
@@ -954,7 +954,7 @@ class UnitHelpComponent(UIComponent):
                     'life force from trapped enemies while reinforcing its skeletal structure into an increasingly',
                     'impenetrable form.',
                     '',
-                    'Role: Tank / Frontline Fighter / Area Controller',
+                    'Role: Tank / Frontline Fighter / Displacer',
                     'Difficulty: ***'
                 ],
                 'stats': [
@@ -1030,7 +1030,7 @@ class UnitHelpComponent(UIComponent):
                     'this glass cannon excels at indirect fire support—raining mortar shells, unleashing piercing',
                     'rail cannon shots, and deploying directional fragmentation bursts that shred clustered enemies.',
                     '',
-                    'Role: Artillery / Glass Cannon',
+                    'Role: Burst Damage / Displacer',
                     'Difficulty: ***'
                 ],
                 'stats': [
@@ -1108,7 +1108,7 @@ class UnitHelpComponent(UIComponent):
                     'or the GAS MACHINIST can dissolve entirely into vapor, reforming when the gases dissipate.',
                     'The GAS MACHINIST excels at area control and sustained utility through vapor deployment.',
                     '',
-                    'Role: Summoner / Area Controller / Utility / Healer',
+                    'Role: Summoner / Utility / Healer',
                     'Difficulty: *****'
                 ],
                 'stats': [
@@ -1193,7 +1193,7 @@ class UnitHelpComponent(UIComponent):
                     'reality sinkholes. The APPRAISER thrives on furniture-rich maps where random astral values',
                     'create unpredictable opportunities for devastating combos and tactical repositioning.',
                     '',
-                    'Role: Utility / Support / Terrain Manipulator',
+                    'Role: Utility / Displacer / Disabler / Burst Damage / Escape Artist',
                     'Difficulty: ****'
                 ],
                 'stats': [
@@ -1274,7 +1274,7 @@ class UnitHelpComponent(UIComponent):
                     'and electromagnetic warfare. In close combat, the INTERFERER attacks with plutonium-tipped',
                     'carabiners that create radioactive hazard zones on impact.',
                     '',
-                    'Role: Glass Cannon / Disabler',
+                    'Role: Burst Damage / Disabler',
                     'Difficulty: **'
                 ],
                 'stats': [
