@@ -1348,7 +1348,7 @@ class UnitHelpComponent(UIComponent):
                     'partitioning, and abandonment therapy. The farther allies are from the DERELICTIONIST, the more',
                     'profound the therapeutic effect—but close proximity forces painful abreactive trauma processing.',
                     '',
-                    'Role: Utility / Healer / Displacer',
+                    'Role: Utility / Healer / Disabler / Displacer',
                     'Difficulty: ***'
                 ],
                 'stats': [
