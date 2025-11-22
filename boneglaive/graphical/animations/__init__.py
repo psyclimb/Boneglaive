@@ -48,6 +48,15 @@ from .grayman import (
     EstrangeBeam,
 )
 
+from .interferer import (
+    NeutronIlluminantCardinal,
+    NeutronIlluminantDiagonal,
+    NeuralShuntAnimation,
+    ScalarNodeTriggerAnimation,
+    KarrierRavePhaseOut,
+    KarrierRaveTripleStrike,
+)
+
 from .animation_factory import AnimationFactory
 
 __all__ = [
@@ -86,6 +95,13 @@ __all__ = [
     'DeltaConfigAnimation',
     'GraeExchangeAnimation',
     'EstrangeBeam',
+    # Interferer
+    'NeutronIlluminantCardinal',
+    'NeutronIlluminantDiagonal',
+    'NeuralShuntAnimation',
+    'ScalarNodeTriggerAnimation',
+    'KarrierRavePhaseOut',
+    'KarrierRaveTripleStrike',
     # Factory
     'AnimationFactory',
 ]

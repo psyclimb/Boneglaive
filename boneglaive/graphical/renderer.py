@@ -509,6 +509,12 @@ class GraphicalRenderer:
         self.screen_shake_intensity = intensity
         self.screen_shake_duration = duration
 
+    def trigger_screen_flash(self, color: tuple, duration: float):
+        """Trigger screen flash effect with specified color."""
+        self.flash_color = color
+        self.flash_alpha = 255
+        self.flash_duration = duration
+
     def has_active_animations(self) -> bool:
         """Check if any animations are currently active."""
         # Check for animation objects
@@ -561,6 +567,90 @@ class GraphicalRenderer:
                 y = animated_unit.y - 20
                 self.floating_texts.append(FloatingText(x, y, f"+{heal}", COLOR_HEAL))
                 self.particle_emitter.emit_float(x, y, COLOR_HEAL, count=15)
+
+        elif event.event_type == "geas_heal":
+            # Geas break heal animation
+            source = event.source_unit  # Unit that had geas
+            target = event.target_unit  # Potpourrist healing
+            heal = event.kwargs.get("heal_amount", 0)
+
+            print(f"[GeasHeal] Processing geas_heal event: {target.get_display_name() if target else 'None'} heals {heal} HP from {source.get_display_name() if source else 'None'}")
+
+            source_visual = self._get_visual_unit(source)
+            target_visual = self._get_visual_unit(target)
+
+            print(f"[GeasHeal] Visual units: source={source_visual is not None}, target={target_visual is not None}")
+
+            if source_visual and target_visual:
+                from boneglaive.graphical.animations.potpourrist import GeasBreakHeal
+
+                source_animated = source_visual.animated_unit
+                target_animated = target_visual.animated_unit
+
+                print(f"[GeasHeal] Creating animation from ({source_animated.x:.1f}, {source_animated.y:.1f}) to ({target_animated.x:.1f}, {target_animated.y:.1f})")
+
+                # Create geas break heal animation
+                animation = GeasBreakHeal(
+                    target_x=source_animated.x,
+                    target_y=source_animated.y,
+                    caster_x=target_animated.x,
+                    caster_y=target_animated.y,
+                    caster_unit=target_animated,
+                    heal_amount=heal
+                )
+                self.active_animations.append(animation)
+                print(f"[GeasHeal] Animation added to active_animations (count: {len(self.active_animations)})")
+
+                # Also show floating heal text
+                x = target_animated.x
+                y = target_animated.y - 20
+                self.floating_texts.append(FloatingText(x, y, f"+{heal}", COLOR_HEAL))
+
+                print(f"[GeasHeal] Animation created successfully!")
+            else:
+                print(f"[GeasHeal] ERROR: Could not find visual units for animation")
+
+        elif event.event_type == "scalar_trap":
+            # Scalar node trap triggered - standing wave explosion
+            target = event.target_unit  # Victim who stepped on trap
+            trap_pos = event.kwargs.get("trap_position")  # (y, x) in game coords
+            damage = event.kwargs.get("damage_amount", 0)
+
+            print(f"[ScalarTrap] Processing scalar_trap event: {target.get_display_name() if target else 'None'} triggers trap at {trap_pos} for {damage} damage")
+
+            target_visual = self._get_visual_unit(target)
+
+            if target_visual and trap_pos:
+                from boneglaive.graphical.animations.interferer import ScalarNodeTriggerAnimation
+
+                target_animated = target_visual.animated_unit
+
+                # Convert trap position to screen coordinates
+                trap_screen_x = GRID_OFFSET_X + trap_pos[1] * TILE_SIZE + TILE_SIZE // 2
+                trap_screen_y = GRID_OFFSET_Y + trap_pos[0] * TILE_SIZE + TILE_SIZE // 2
+
+                print(f"[ScalarTrap] Creating animation at screen coords ({trap_screen_x}, {trap_screen_y})")
+
+                # Create scalar node trigger animation
+                animation = ScalarNodeTriggerAnimation(
+                    trap_x=trap_screen_x,
+                    trap_y=trap_screen_y,
+                    target_unit=target_animated,
+                    particle_emitter=self.particle_emitter,
+                    screen_flash_callback=self.trigger_screen_flash
+                )
+                self.active_animations.append(animation)
+                print(f"[ScalarTrap] Animation added to active_animations (count: {len(self.active_animations)})")
+
+                # Show damage floating text
+                x = target_animated.x
+                y = target_animated.y - 20
+                self.floating_texts.append(FloatingText(x, y, f"-{damage}", COLOR_DAMAGE))
+                target_animated.shake_intensity = 12
+
+                print(f"[ScalarTrap] Animation created successfully!")
+            else:
+                print(f"[ScalarTrap] ERROR: Could not find visual unit or trap position for animation")
 
         elif event.event_type == "death":
             # Play death animation - blood explosion
@@ -733,7 +823,7 @@ class GraphicalRenderer:
         Args:
             event: Animation event from game state
         """
-        if event.event_type == "damage" or event.event_type == "heal":
+        if event.event_type == "damage" or event.event_type == "heal" or event.event_type == "geas_heal" or event.event_type == "scalar_trap":
             # If animations are active, queue the event for later
             if self.has_active_animations():
                 self.pending_animation_events.append(event)
@@ -872,6 +962,76 @@ class GraphicalRenderer:
         else:
             print(f"  [Animation] WARNING: Failed to create basic attack animation")
 
+        # Check if attacker is INTERFERER and trigger Neutron Illuminant passive flash
+        print(f"  [DEBUG] Checking for INTERFERER: attacker={attacker}, has type={hasattr(attacker, 'type') if attacker else False}")
+        if attacker and hasattr(attacker, 'type') and attacker.type:
+            from boneglaive.utils.constants import UnitType
+            unit_type_name = attacker.type.name if attacker.type else "None"
+            print(f"  [DEBUG] Attacker unit type: {unit_type_name}")
+            if attacker.type == UnitType.INTERFERER and attack_target:
+                print(f"  [Renderer] *** INTERFERER ATTACK DETECTED ***")
+
+                # Check if this attack has carrier_rave flag (captured from game state BEFORE execution cleared it)
+                has_carrier_rave = event.kwargs.get("has_carrier_rave", False)
+                if has_carrier_rave:
+                    print(f"  [Renderer] *** CARRIER RAVE FLAG DETECTED - using triple strike animation ***")
+
+                from boneglaive.graphical.animations.animation_factory import AnimationFactory
+
+                if has_carrier_rave:
+                    # Use triple strike animation
+                    print(f"  [Renderer] Creating KARRIER_RAVE_STRIKE animation (triple strike)")
+
+                    # Convert target to screen coords
+                    target_grid_x = attack_target[1]
+                    target_grid_y = attack_target[0]
+                    target_visual_unit = self._get_unit_at_grid(target_grid_x, target_grid_y)
+
+                    karrier_animation = AnimationFactory.create_animation(
+                        skill_name="KARRIER_RAVE_STRIKE",
+                        caster_unit=attacker_animated,
+                        target_unit=target_visual_unit,
+                        target_pos=(target_grid_y, target_grid_x),
+                        particle_emitter=self.particle_emitter,
+                        screen_flash_callback=self.trigger_screen_flash
+                    )
+
+                    if karrier_animation:
+                        self.active_animations.append(karrier_animation)
+                        print(f"  [Animation] *** Successfully triggered KARRIER RAVE triple strike - added to active_animations (count: {len(self.active_animations)}) ***")
+                    else:
+                        print(f"  [Animation] WARNING: Failed to create KARRIER RAVE strike animation")
+                else:
+                    # Use normal Neutron Illuminant flash animation
+                    # Determine attack direction (cardinal vs diagonal)
+                    attacker_y, attacker_x = attacker.y, attacker.x
+                    target_y, target_x = attack_target[0], attack_target[1]
+                    dy = target_y - attacker_y
+                    dx = target_x - attacker_x
+
+                    # Normalize direction
+                    is_cardinal = (dy == 0 or dx == 0)
+
+                    skill_name = "NEUTRON_ILLUMINANT_CARDINAL" if is_cardinal else "NEUTRON_ILLUMINANT_DIAGONAL"
+                    print(f"  [Renderer] Creating {skill_name} flash (direction: dy={dy}, dx={dx}, is_cardinal={is_cardinal})")
+
+                    neutron_animation = AnimationFactory.create_animation(
+                        skill_name=skill_name,
+                        caster_unit=attacker_animated,
+                        target_unit=None,
+                        target_pos=None,
+                        particle_emitter=self.particle_emitter,
+                        screen_flash_callback=self.trigger_screen_flash
+                    )
+
+                    if neutron_animation:
+                        self.active_animations.append(neutron_animation)
+                        print(f"  [Animation] *** Successfully triggered Neutron Illuminant flash - added to active_animations (count: {len(self.active_animations)}) ***")
+                    else:
+                        print(f"  [Animation] WARNING: Failed to create Neutron Illuminant animation")
+            else:
+                print(f"  [DEBUG] Not INTERFERER or no attack target")
+
     def _create_skill_animation(self, event):
         """
         Create and queue a skill animation from an event.
@@ -916,6 +1076,11 @@ class GraphicalRenderer:
             if is_crit:
                 print(f"  [Animation] CRITICAL HIT detected! Target HP: {target_game_unit.hp}/{target_game_unit.max_hp}")
 
+        # Get infused state from event (captured before skill execution)
+        is_infused = event.kwargs.get("is_infused", False)
+        if is_infused:
+            print(f"  [Animation] INFUSED skill detected - using enhanced visuals!")
+
         # Create animation via factory
         print(f"  [Renderer] Creating animation for {skill_name}...")
         animation = AnimationFactory.create_animation(
@@ -924,9 +1089,11 @@ class GraphicalRenderer:
             target_unit=target_unit,
             target_pos=target_pos,
             is_crit=is_crit,
+            is_infused=is_infused,
             particle_emitter=self.particle_emitter,
             debris_list=self.debris_particles,
             screen_shake_callback=self.trigger_screen_shake,
+            screen_flash_callback=self.trigger_screen_flash,
             units_list=self.units
         )
         if animation:

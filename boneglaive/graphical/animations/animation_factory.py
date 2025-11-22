@@ -20,12 +20,20 @@ from boneglaive.graphical.animations.mandible_foreman import (
     SiteInspectionScan, ExpediteRush, JawlineNetwork
 )
 from boneglaive.graphical.animations.potpourrist import (
-    PedestalStrike, InfuseEffect, DemiluneSwing
+    PedestalStrike, InfuseEffect, DemiluneSwing, GraniteGeasEffect
 )
 from boneglaive.graphical.animations.grayman import (
     DeltaConfigAnimation,
     GraeExchangeAnimation,
     EstrangeBeam,
+)
+from boneglaive.graphical.animations.interferer import (
+    NeutronIlluminantCardinal,
+    NeutronIlluminantDiagonal,
+    NeuralShuntAnimation,
+    ScalarNodeTriggerAnimation,
+    KarrierRavePhaseOut,
+    KarrierRaveTripleStrike,
 )
 
 # Grid offset constants (must match renderer.py values)
@@ -61,7 +69,7 @@ class AnimationFactory:
         "INFUSE": (InfuseEffect, {}),
         "DEMILUNE": (DemiluneSwing, {}),
         "DEMILUNE_INFUSED": (DemiluneSwing, {"infused": True}),
-        "GRANITE_GEAS": (None, {}),  # TODO: Implement
+        "GRANITE_GEAS": (GraniteGeasEffect, {}),
 
         # GRAYMAN skills
         "DELTA_CONFIG": (DeltaConfigAnimation, {}),
@@ -89,10 +97,13 @@ class AnimationFactory:
         "AUCTION_CURSE": (None, {}),
         "DIVINE_DEPRECIATION": (None, {}),
 
-        # INTERFERER skills (TODO: Implement)
-        "NEURAL_SHUNT": (None, {}),
-        "KARRIER_RAVE": (None, {}),
-        "SCALAR_NODE": (None, {}),
+        # INTERFERER skills
+        "NEUTRON_ILLUMINANT_CARDINAL": (NeutronIlluminantCardinal, {}),
+        "NEUTRON_ILLUMINANT_DIAGONAL": (NeutronIlluminantDiagonal, {}),
+        "NEURAL_SHUNT": (NeuralShuntAnimation, {}),
+        "KARRIER_RAVE": (KarrierRavePhaseOut, {}),
+        "KARRIER_RAVE_STRIKE": (KarrierRaveTripleStrike, {}),  # Triple melee attack
+        "SCALAR_NODE": (None, {}),  # Trap placement (no animation - silent)
 
         # DERELICTIONIST skills (TODO: Implement)
         "VAGAL_RUN": (None, {}),
@@ -105,9 +116,11 @@ class AnimationFactory:
                         target_unit: Optional[AnimatedUnit] = None,
                         target_pos: Optional[tuple] = None,
                         is_crit: bool = False,
+                        is_infused: bool = False,
                         particle_emitter = None,
                         debris_list = None,
                         screen_shake_callback = None,
+                        screen_flash_callback = None,
                         units_list = None,
                         damage_callback = None):
         """
@@ -259,23 +272,79 @@ class AnimationFactory:
                 )
             elif anim_class.__name__ == "DemiluneSwing":
                 # DemiluneSwing needs caster, target positions, and infused flag
-                # Check if Potpourrist is holding potpourri for infused variant
-                is_infused = kwargs.get('infused', False)
-                if hasattr(caster_unit, 'game_unit') and hasattr(caster_unit.game_unit, 'potpourri_held'):
-                    is_infused = caster_unit.game_unit.potpourri_held
-
-                # Pass grid coordinates so animation can calculate arc correctly
+                # Use the is_infused parameter passed from the event (captured before skill execution)
                 animation = anim_class(
                     caster_x=caster_screen_x,
                     caster_y=caster_screen_y,
                     caster_unit=caster_unit,
                     target_x=kwargs.get('target_x', caster_screen_x),
                     target_y=kwargs.get('target_y', caster_screen_y),
-                    infused=is_infused,
+                    infused=is_infused,  # Use the parameter, not the game state
                     targets=units_list,  # Pass all units so animation can detect hits
                     # Pass grid positions for accurate arc calculation
                     caster_grid_pos=(caster_unit.grid_y, caster_unit.grid_x) if hasattr(caster_unit, 'grid_y') else None,
                     target_grid_pos=target_pos
+                )
+            elif anim_class.__name__ == "GraniteGeasEffect":
+                # GraniteGeasEffect needs target position and target unit
+                if not target_unit:
+                    print("[AnimationFactory] GRANITE_GEAS requires a target unit")
+                    return None
+                animation = anim_class(
+                    target_x=kwargs['target_x'],
+                    target_y=kwargs['target_y'],
+                    target_unit=target_unit,
+                    infused=is_infused  # Use the parameter from event
+                )
+            elif anim_class.__name__ in ["NeutronIlluminantCardinal", "NeutronIlluminantDiagonal"]:
+                # Neutron Illuminant animations need caster position, particle emitter, and screen flash callback
+                print(f"[AnimationFactory] Creating {anim_class.__name__} at ({caster_screen_x}, {caster_screen_y})")
+                animation = anim_class(
+                    caster_x=caster_screen_x,
+                    caster_y=caster_screen_y,
+                    caster_unit=caster_unit,
+                    particle_emitter=particle_emitter,
+                    screen_flash_callback=screen_flash_callback
+                )
+                print(f"[AnimationFactory] Created animation: {animation}")
+            elif anim_class.__name__ == "NeuralShuntAnimation":
+                # Neural Shunt needs caster, target positions, and callbacks
+                if not target_unit:
+                    print("[AnimationFactory] NEURAL_SHUNT requires a target unit")
+                    return None
+                animation = anim_class(
+                    caster_x=caster_screen_x,
+                    caster_y=caster_screen_y,
+                    target_x=kwargs.get('target_x', caster_screen_x),
+                    target_y=kwargs.get('target_y', caster_screen_y),
+                    caster_unit=caster_unit,
+                    target_unit=target_unit,
+                    particle_emitter=particle_emitter,
+                    screen_flash_callback=screen_flash_callback
+                )
+            elif anim_class.__name__ == "KarrierRavePhaseOut":
+                # Karrier Rave phase-out (self-buff)
+                animation = anim_class(
+                    caster_x=caster_screen_x,
+                    caster_y=caster_screen_y,
+                    caster_unit=caster_unit,
+                    particle_emitter=particle_emitter,
+                    screen_flash_callback=screen_flash_callback
+                )
+            elif anim_class.__name__ == "KarrierRaveTripleStrike":
+                # Karrier Rave triple strike (melee attack with Neutron Illuminant patterns)
+                if not target_unit:
+                    print("[AnimationFactory] KARRIER_RAVE_STRIKE requires a target unit")
+                    return None
+                animation = anim_class(
+                    caster_x=caster_screen_x,
+                    caster_y=caster_screen_y,
+                    target_x=kwargs.get('target_x', caster_screen_x),
+                    target_y=kwargs.get('target_y', caster_screen_y),
+                    caster_unit=caster_unit,
+                    target_unit=target_unit,
+                    particle_emitter=particle_emitter,
+                    screen_flash_callback=screen_flash_callback
                 )
             else:
                 # Most animations expect just target coordinates

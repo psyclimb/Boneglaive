@@ -27,7 +27,7 @@ class AnimationEvent:
 
 class VisualUnit:
     """Visual representation of a game unit."""
-    def __init__(self, game_unit, animated_unit):
+    def __init__(self, game_unit, animated_unit, game):
         self.game_unit = game_unit  # Reference to logic unit
         self.animated_unit = animated_unit  # Reference to visual unit
         self.last_hp = game_unit.hp
@@ -40,6 +40,8 @@ class VisualUnit:
         self.last_passive_activated = self._get_passive_activation_state(game_unit)
         # Track status effects
         self.last_status_effects = self._get_status_effects(game_unit)
+        # Track geas taunt status for geas break heal animation
+        self.last_taunted_units = self._get_taunted_units(game_unit, game)
 
     def _get_passive_activation_state(self, game_unit):
         """Get current activation state of passive skill."""
@@ -47,6 +49,35 @@ class VisualUnit:
             if hasattr(game_unit.passive_skill, 'activated'):
                 return game_unit.passive_skill.activated
         return False
+
+    def _get_taunted_units(self, game_unit, game):
+        """
+        Get dict of units taunted by this Potpourrist with their current taunt durations.
+        Returns a dict of {unit_id: taunt_duration}.
+        This allows detecting both when taunts are cleared AND when duration decreases.
+        """
+        taunted = {}
+
+        if not game or not game.units:
+            return taunted
+
+        # Check all units for taunts
+        taunt_count = 0
+        for unit in game.units:
+            has_taunted_by = hasattr(unit, 'taunted_by')
+            taunted_by_this = has_taunted_by and unit.taunted_by == game_unit
+            has_duration = hasattr(unit, 'taunt_duration')
+            duration_positive = has_duration and unit.taunt_duration > 0
+
+            if taunted_by_this and duration_positive:
+                taunted[id(unit)] = unit.taunt_duration
+                taunt_count += 1
+                print(f"[DEBUG] _get_taunted_units: {unit.get_display_name()} is taunted by {game_unit.get_display_name()} (duration: {unit.taunt_duration})")
+
+        if taunt_count == 0 and hasattr(game_unit, 'unit_class') and game_unit.unit_class and game_unit.unit_class.name == "POTPOURRIST":
+            print(f"[DEBUG] _get_taunted_units: {game_unit.get_display_name()} has no taunted units")
+
+        return taunted
 
     def _get_status_effects(self, game_unit):
         """
@@ -144,6 +175,10 @@ class GameStateAdapter:
         # Maps unit_id -> dict of {effect_name: is_active}
         self.status_effects_snapshot: Dict[str, Dict[str, bool]] = {}
 
+        # Scalar node tracking for detecting trap triggers
+        # Maps (y, x) position -> {'owner': unit, 'damage': int, 'active': bool}
+        self.last_scalar_nodes: Dict[Tuple[int, int], Dict[str, Any]] = {}
+
     def initialize_game(self, game_instance=None, skip_setup=True, map_name="lime_foyer_arena"):
         """
         Initialize or attach to a game instance.
@@ -187,7 +222,7 @@ class GameStateAdapter:
             animated_unit: The AnimatedUnit from the renderer
         """
         unit_id = self._get_unit_id(game_unit)
-        self.visual_units[unit_id] = VisualUnit(game_unit, animated_unit)
+        self.visual_units[unit_id] = VisualUnit(game_unit, animated_unit, self.game)
 
     def _get_unit_id(self, unit) -> str:
         """Get unique ID for a unit."""
@@ -292,21 +327,77 @@ class GameStateAdapter:
                 hp_delta = current_hp - visual_unit.last_hp
 
                 if hp_delta < 0:
-                    # Damage taken
-                    events.append(AnimationEvent(
-                        "damage",
-                        source_unit=None,  # TODO: Track damage source
-                        target_unit=game_unit,
-                        damage_amount=abs(hp_delta)
-                    ))
+                    # Damage taken - check if from scalar node trap
+                    unit_pos = (game_unit.y, game_unit.x)
+                    scalar_trap_triggered = False
+
+                    # Check if this position had a scalar node that's now gone
+                    current_scalar_nodes = getattr(self.game, 'scalar_nodes', {})
+                    if unit_pos in self.last_scalar_nodes and unit_pos not in current_scalar_nodes:
+                        # Scalar node was here and is now gone - it triggered!
+                        node_info = self.last_scalar_nodes[unit_pos]
+                        owner = node_info['owner']
+
+                        print(f"[GameState] SCALAR NODE TRAP DETECTED! {game_unit.get_display_name()} triggered trap at {unit_pos}")
+
+                        events.append(AnimationEvent(
+                            "scalar_trap",
+                            source_unit=owner,  # INTERFERER who placed the trap
+                            target_unit=game_unit,  # Victim
+                            trap_position=unit_pos,
+                            damage_amount=abs(hp_delta)
+                        ))
+                        scalar_trap_triggered = True
+
+                    if not scalar_trap_triggered:
+                        # Regular damage (not from scalar trap)
+                        events.append(AnimationEvent(
+                            "damage",
+                            source_unit=None,  # TODO: Track damage source
+                            target_unit=game_unit,
+                            damage_amount=abs(hp_delta)
+                        ))
                 elif hp_delta > 0:
-                    # Healing
-                    events.append(AnimationEvent(
-                        "heal",
-                        source_unit=None,
-                        target_unit=game_unit,
-                        heal_amount=hp_delta
-                    ))
+                    # Healing - check if it's from geas break
+                    current_taunted = visual_unit._get_taunted_units(game_unit, self.game)
+                    last_taunted = visual_unit.last_taunted_units
+
+                    print(f"[GameState] {game_unit.get_display_name()} healed {hp_delta} HP")
+                    print(f"  Last taunted units: {last_taunted}")
+                    print(f"  Current taunted units: {current_taunted}")
+
+                    # Check for geas break: either taunt was removed OR duration decreased
+                    geas_break_unit = None
+                    if self.game:
+                        for unit in self.game.units:
+                            unit_id = id(unit)
+                            # Was this unit taunted before?
+                            if unit_id in last_taunted:
+                                last_duration = last_taunted[unit_id]
+                                current_duration = current_taunted.get(unit_id, 0)
+
+                                # If duration decreased or taunt was cleared, that's a geas break
+                                if current_duration < last_duration:
+                                    geas_break_unit = unit
+                                    print(f"  *** GEAS BREAK DETECTED! {unit.get_display_name()} ignored geas (duration {last_duration}->{current_duration}), {game_unit.get_display_name()} heals! ***")
+                                    break
+
+                    if geas_break_unit:
+                        # Geas break heal - special animation
+                        events.append(AnimationEvent(
+                            "geas_heal",
+                            source_unit=geas_break_unit,  # Unit that had geas
+                            target_unit=game_unit,  # Potpourrist healing
+                            heal_amount=hp_delta
+                        ))
+                    else:
+                        # Regular heal
+                        events.append(AnimationEvent(
+                            "heal",
+                            source_unit=None,
+                            target_unit=game_unit,
+                            heal_amount=hp_delta
+                        ))
 
                 visual_unit.last_hp = current_hp
 
@@ -367,11 +458,20 @@ class GameStateAdapter:
 
                         print(f"[GameState] Detected basic attack during turn execution: {game_unit.get_display_name()} → {attack_target}")
 
+                        # Capture INTERFERER's carrier_rave_active state BEFORE attack execution clears it
+                        # (Similar to Potpourrist infusion check below)
+                        has_carrier_rave = False
+                        if hasattr(game_unit, 'carrier_rave_active'):
+                            has_carrier_rave = game_unit.carrier_rave_active
+                            if has_carrier_rave:
+                                print(f"[GameState] INTERFERER has carrier_rave_active - attack will be triple strike!")
+
                         events.append(AnimationEvent(
                             "attack",
                             source_unit=game_unit,
                             target_unit=None,
-                            attack_target=attack_target
+                            attack_target=attack_target,
+                            has_carrier_rave=has_carrier_rave  # Pass flag to renderer
                         ))
                         visual_unit.last_attack_target = game_unit.attack_target
                 elif visual_unit.last_attack_target is not None:
@@ -397,12 +497,20 @@ class GameStateAdapter:
                             visual_unit.pending_teleport_skill = skill_name
                             print(f"[GameState] Marking {skill_name} as pending teleport")
 
+                        # Capture Potpourrist's infusion state BEFORE skill execution clears it
+                        is_infused = False
+                        if skill_name in ["Demilune", "Granite Geas"] and hasattr(game_unit, 'potpourri_held'):
+                            is_infused = game_unit.potpourri_held
+                            if is_infused:
+                                print(f"[GameState] Potpourrist is holding potpourri - {skill_name} will be infused!")
+
                         events.append(AnimationEvent(
                             "skill",
                             source_unit=game_unit,
                             target_unit=None,
                             skill_name=skill_name,
-                            skill_target=skill_target
+                            skill_target=skill_target,
+                            is_infused=is_infused
                         ))
                         visual_unit.last_skill = game_unit.selected_skill
                 elif visual_unit.last_skill is not None:
@@ -434,8 +542,19 @@ class GameStateAdapter:
 
                     visual_unit.last_passive_activated = True
 
+            # Update taunted units snapshot at end of each sync cycle
+            # This ensures we have the "before" state for next cycle's geas heal detection
+            new_taunted = visual_unit._get_taunted_units(game_unit, self.game)
+            if new_taunted != visual_unit.last_taunted_units:
+                print(f"[GameState] Updating {game_unit.get_display_name()} taunted snapshot: {visual_unit.last_taunted_units} -> {new_taunted}")
+            visual_unit.last_taunted_units = new_taunted
+
         # Status effects are shown after damage numbers via _show_active_status_effects()
         # in the renderer, using _effects_to_show_after_damage populated by the callback
+
+        # Update scalar node tracking for next sync
+        if hasattr(self.game, 'scalar_nodes'):
+            self.last_scalar_nodes = self.game.scalar_nodes.copy()
 
         return events
 
