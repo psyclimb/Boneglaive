@@ -646,13 +646,13 @@ class PrySkill(ActiveSkill):
                 durations = [0.1] * 4
                 
                 ui.renderer.flash_tile(target.y, target.x, tile_ids, color_ids, durations)
-            
+
         # Apply damage to primary target (ignoring defense for part of the damage)
         # This represents the direct impact of hitting the ceiling and ground
         defense_reduced_damage = max(3, self.primary_damage - target.defense)  # 3 damage minimum
         previous_hp = target.hp
         target.hp = max(0, target.hp - defense_reduced_damage)
-        
+
         # Log the primary damage
         message_log.add_combat_message(
             attacker_name=user.get_display_name(),
@@ -662,7 +662,7 @@ class PrySkill(ActiveSkill):
             attacker_player=user.player,
             target_player=target.player
         )
-            
+
         # Apply splash damage to adjacent enemy units (secondary debris damage)
         affected_adjacents = []
         

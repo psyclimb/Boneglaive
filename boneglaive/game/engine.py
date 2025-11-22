@@ -35,6 +35,10 @@ class Game:
         # Store player names (defaults to "Player 1" and "Player 2" if not provided)
         self.player_names = player_names if player_names else {1: "Player 1", 2: "Player 2"}
 
+        # Graphical mode callback - called before status effects are cleared
+        # This allows the graphical system to detect status effects before they're removed
+        self.pre_status_clear_callback = None
+
         # Create the game map
         self.map = MapFactory.create_map(map_name)
         self.map_name = map_name  # Store current map name
@@ -509,7 +513,7 @@ class Game:
         valid_positions = []
         
         # Check left side for player 1
-        logger.info("Finding positions for player 1 units")
+        logger.info("Finding positions for player 1 units (3 GLAIVEMENs for testing)")
         for y in range(3, 7):
             for x in range(5, 9):
                 if self.map.can_place_unit(y, x) and self.get_unit_at(y, x) is None:
@@ -593,11 +597,11 @@ class Game:
         valid_positions.extend(p2_positions)
         logger.info(f"Found {len(valid_positions)} valid positions for units")
         
-        # Unit type setup
+        # Unit type setup - 3 GLAIVEMENs for player 1 for animation testing
         player1_unit_types = [
             UnitType.GLAIVEMAN,
-            UnitType.DELPHIC_APPRAISER,
-            UnitType.GAS_MACHINIST
+            UnitType.GLAIVEMAN,
+            UnitType.GLAIVEMAN
         ]
         
         # Track unit counts for each player and type
@@ -688,23 +692,30 @@ class Game:
                     else:
                         unit_type = valid_types[0]
                 else:  # player 2
-                    # For player 2, use rotation of types
-                    # Default rotation of unit types with variety
-                    player2_unit_types = [
+                    # For player 2, use random selection from all available unit types
+                    available_types = [
                         UnitType.GLAIVEMAN,
+                        UnitType.GRAYMAN,
+                        UnitType.MANDIBLE_FOREMAN,
+                        UnitType.POTPOURRIST,
+                        UnitType.MARROW_CONDENSER,
+                        UnitType.INTERFERER,
+                        UnitType.FOWL_CONTRIVANCE,
                         UnitType.DELPHIC_APPRAISER,
-                        UnitType.GAS_MACHINIST
+                        UnitType.GAS_MACHINIST,
+                        UnitType.DERELICTIONIST
                     ]
-                    
-                    # For player 2, respect the 2-unit type limit
-                    valid_types = [t for t in player2_unit_types 
+
+                    # Filter to types with count < 2
+                    valid_types = [t for t in available_types
                                 if player_unit_counts.get(player, {}).get(t, 0) < 2]
-                    
+
                     # Default to GLAIVEMAN if no valid types
                     if not valid_types:
                         unit_type = UnitType.GLAIVEMAN
                     else:
-                        unit_type = valid_types[0]
+                        # Random selection from valid types
+                        unit_type = random.choice(valid_types)
                 
                 # Add the unit and update unit count
                 self.add_unit(unit_type, player, y, x)
@@ -3263,7 +3274,15 @@ class Game:
                                     player=unit.player,
                                     target_name=unit.get_display_name()
                                 )
-                
+
+        # Call graphical callback before clearing status effects
+        # This allows the graphical system to detect status effects before they're removed
+        if self.pre_status_clear_callback:
+            self.pre_status_clear_callback()
+
+        # Continue with status clearing for current player's units
+        for unit in self.units:
+            if unit.is_alive():
                 # Handle units that were affected by Pry during the turn that just ended
                 # They need to keep their was_pried status until after THEIR next turn
                 if unit.was_pried and unit.player == self.current_player:

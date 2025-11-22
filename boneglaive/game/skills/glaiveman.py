@@ -838,10 +838,10 @@ class VaultSkill(ActiveSkill):
         
         # Clear the vault target indicator after execution
         user.vault_target_indicator = None
-        
+
         # Store original position for animations
         original_pos = (user.y, user.x)
-        
+
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
             # Get vault animation sequence

@@ -273,6 +273,15 @@ class DemiluneSkill(ActiveSkill):
         if distance > self.range:
             return False
 
+        # Target must be in a cardinal direction (north, south, east, west only)
+        dy = target_pos[0] - check_y
+        dx = target_pos[1] - check_x
+
+        # Cardinal directions: one coordinate must be 0, the other non-zero
+        is_cardinal = (dx == 0 and dy != 0) or (dy == 0 and dx != 0)
+        if not is_cardinal:
+            return False
+
         return True
 
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:

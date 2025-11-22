@@ -121,7 +121,7 @@ class DeltaConfigSkill(ActiveSkill):
         
         # Store original position for animations
         original_pos = (user.y, user.x)
-        
+
         # Log the skill activation
         message_log.add_message(
             f"{user.get_display_name()} de-energizes",
@@ -598,10 +598,10 @@ class GraeExchangeSkill(ActiveSkill):
         
         # Clear the teleport target indicator after execution
         user.teleport_target_indicator = None
-        
+
         # Store original position for creating the echo
         original_pos = (user.y, user.x)
-        
+
         # Log the skill activation
         message_log.add_message(
             f"{user.get_display_name()} begins the Græ Exchange ritual",
