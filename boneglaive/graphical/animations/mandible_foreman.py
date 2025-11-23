@@ -815,17 +815,23 @@ class SiteInspectionBuff:
 
 class SiteInspectionScan:
     """Animation for SITE INSPECTION - laser level scanning a 3x3 grid."""
-    def __init__(self, center_x, center_y):
+    def __init__(self, center_x, center_y, camera=None):
+        # Get tile size from camera (or fallback to default)
+        if camera:
+            tile_size = camera.tile_size
+        else:
+            tile_size = TILE_SIZE
+
         # Snap to tile center (not intersection)
         # Round to nearest tile, then add half tile size to center on the tile
-        tile_x = round(center_x / TILE_SIZE)
-        tile_y = round(center_y / TILE_SIZE)
-        self.center_x = tile_x * TILE_SIZE + TILE_SIZE // 2
-        self.center_y = tile_y * TILE_SIZE + TILE_SIZE // 2
+        tile_x = round(center_x / tile_size)
+        tile_y = round(center_y / tile_size)
+        self.center_x = tile_x * tile_size + tile_size // 2
+        self.center_y = tile_y * tile_size + tile_size // 2
         self.phase = "deploying"  # deploying, scanning, complete
         self.timer = 0
         self.scan_progress = 0  # 0 to 1
-        self.grid_size = TILE_SIZE  # Size of each grid cell
+        self.grid_size = tile_size  # Size of each grid cell
         self.active = True
         self.laser_alpha = 0
 
@@ -950,21 +956,45 @@ class SiteInspectionScan:
 
 class ExpediteRush:
     """EXPEDITE - MANDIBLE FOREMAN rushes forward in a line, stopping at first enemy."""
-    def __init__(self, start_x, start_y, target_x, target_y, foreman_unit):
+    def __init__(self, start_x, start_y, target_x, target_y, foreman_unit, target_grid_pos=None, camera=None):
         self.start_x = start_x
         self.start_y = start_y
         self.current_x = start_x
         self.current_y = start_y
-        self.target_x = target_x
-        self.target_y = target_y
         self.foreman = foreman_unit  # Reference to FOREMAN unit for animation
         self.phase = "charging"  # charging, rushing, impact, complete
         self.timer = 0
         self.active = True
 
+        # Store camera reference and get tile size
+        self.camera = camera
+        if camera:
+            self.tile_size = camera.tile_size
+        else:
+            self.tile_size = TILE_SIZE
+
+        # IMPORTANT: Use the foreman's actual final grid position (from game logic)
+        # Game logic has already executed and placed the foreman at the correct tile
+        # (stopping before enemies, etc). Use THAT as our animation target.
+        self.target_grid_x = foreman_unit.grid_x
+        self.target_grid_y = foreman_unit.grid_y
+
+        # Convert the actual final position to screen coordinates
+        if camera:
+            self.target_x, self.target_y = camera.grid_to_screen(self.target_grid_x, self.target_grid_y)
+        else:
+            # Fallback without camera
+            from boneglaive.graphical.renderer import GRID_OFFSET_X, GRID_OFFSET_Y
+            self.target_x = GRID_OFFSET_X + self.target_grid_x * self.tile_size + self.tile_size // 2
+            self.target_y = GRID_OFFSET_Y + self.target_grid_y * self.tile_size + self.tile_size // 2
+
+        # Debug: Log initial state
+        print(f"[ExpediteRush INIT] Foreman's ACTUAL final grid position from game logic: ({self.target_grid_x}, {self.target_grid_y})")
+        print(f"[ExpediteRush INIT] Animation: start screen ({start_x}, {start_y}) -> final screen ({self.target_x}, {self.target_y})")
+
         # Calculate rush direction (normalize to unit vector)
-        dx = target_x - start_x
-        dy = target_y - start_y
+        dx = self.target_x - start_x
+        dy = self.target_y - start_y
         dist = math.sqrt(dx*dx + dy*dy)
         if dist > 0:
             self.direction_x = dx / dist
@@ -1014,6 +1044,7 @@ class ExpediteRush:
                 # Store FOREMAN's starting position for restoration later
                 self.foreman_original_x = self.foreman.x
                 self.foreman_original_y = self.foreman.y
+                print(f"[ExpediteRush CHARGING->RUSHING] Starting rush from ({self.current_x}, {self.current_y})")
 
         elif self.phase == "rushing":
             # Rush forward at high speed
@@ -1021,29 +1052,61 @@ class ExpediteRush:
             self.current_x += self.direction_x * self.rush_speed * delta_time
             self.current_y += self.direction_y * self.rush_speed * delta_time
 
-            # Update FOREMAN's visual position
+            # Update foreman visual position to follow the animation
+            # This makes the sprite move during the rush
             self.foreman.x = self.current_x
             self.foreman.y = self.current_y
 
             # Store trail positions
             self.trail_positions.append((self.current_x, self.current_y, self.timer))
-            if len(self.trail_positions) > 6:
+            if len(self.trail_positions) > 8:
                 self.trail_positions.pop(0)
 
-            # Create steam trail particles
-            if random.random() < 0.5:
-                # Backward-facing steam
+            # Create dense steam trail particles for rapid movement effect
+            # Spawn multiple particles per frame to create a continuous trail
+            for _ in range(3):
+                # Backward-facing steam in opposite direction of travel
                 back_angle = math.atan2(self.direction_y, self.direction_x) + math.pi
-                speed = random.uniform(40, 80)
+                # Add some spread for more natural look
+                angle_variation = random.uniform(-0.3, 0.3)
+                actual_angle = back_angle + angle_variation
+
+                # Vary speed for dissipating effect
+                speed = random.uniform(30, 100)
+
+                # Spawn slightly behind current position
+                spawn_offset = random.uniform(5, 15)
+                spawn_x = self.current_x - self.direction_x * spawn_offset
+                spawn_y = self.current_y - self.direction_y * spawn_offset
+
+                # Create steam particle with varying properties
                 particle = Particle(
-                    self.current_x,
-                    self.current_y,
-                    math.cos(back_angle) * speed,
-                    math.sin(back_angle) * speed,
-                    (200, 200, 210), random.uniform(5, 10), 0.4
+                    spawn_x,
+                    spawn_y,
+                    math.cos(actual_angle) * speed,
+                    math.sin(actual_angle) * speed,
+                    (200, 200, 220),
+                    random.uniform(8, 16),  # Larger, more visible particles
+                    random.uniform(0.5, 0.8)  # Longer lifetime for visible trail
                 )
-                particle.gravity = 50
+                particle.gravity = random.uniform(20, 40)  # Vary gravity for spread
                 self.steam_particles.append(particle)
+
+            # Add occasional larger steam puffs for emphasis
+            if random.random() < 0.3:
+                back_angle = math.atan2(self.direction_y, self.direction_x) + math.pi
+                puff_x = self.current_x - self.direction_x * 20
+                puff_y = self.current_y - self.direction_y * 20
+                puff = Particle(
+                    puff_x, puff_y,
+                    math.cos(back_angle) * 60,
+                    math.sin(back_angle) * 60,
+                    (220, 220, 240),
+                    random.uniform(20, 30),  # Large puff
+                    1.0  # Long-lasting
+                )
+                puff.gravity = 30
+                self.steam_particles.append(puff)
 
             # Check if reached target (within threshold)
             dx_remaining = self.target_x - self.current_x
@@ -1056,11 +1119,12 @@ class ExpediteRush:
                 self.timer = 0
                 self.current_x = self.target_x
                 self.current_y = self.target_y
+
+                # Ensure foreman sprite is at exact target position
                 self.foreman.x = self.target_x
                 self.foreman.y = self.target_y
-                # Update grid position
-                self.foreman.grid_x = int(self.target_x / TILE_SIZE)
-                self.foreman.grid_y = int(self.target_y / TILE_SIZE)
+
+                print(f"[ExpediteRush RUSHING->IMPACT] Reached target screen ({self.target_x}, {self.target_y}), grid ({self.foreman.grid_x}, {self.foreman.grid_y})")
 
         elif self.phase == "impact":
             # Brief impact pause (0.2s)
@@ -1111,17 +1175,48 @@ class ExpediteRush:
                            (int(arrow_end_x), int(arrow_end_y)), 4)
 
         elif self.phase == "rushing":
-            # Draw motion blur trail
-            for i, (trail_x, trail_y, trail_time) in enumerate(self.trail_positions):
-                alpha = int(150 * (i / len(self.trail_positions)))
-                trail_size = int(25 * (1 - i / len(self.trail_positions)))
+            # Draw continuous dissipating steam trail along the path
+            if len(self.trail_positions) > 1:
+                # Draw thick steam trail connecting all path positions
+                for i in range(len(self.trail_positions) - 1):
+                    trail_x1, trail_y1, _ = self.trail_positions[i]
+                    trail_x2, trail_y2, _ = self.trail_positions[i + 1]
 
-                # Draw trail as fading circles
-                trail_surf = pygame.Surface((trail_size * 2, trail_size * 2), pygame.SRCALPHA)
-                pygame.draw.circle(trail_surf, (200, 200, 220, alpha),
-                                 (trail_size, trail_size), trail_size)
-                trail_rect = trail_surf.get_rect(center=(int(trail_x), int(trail_y)))
-                surface.blit(trail_surf, trail_rect)
+                    # Calculate fade for this segment (older = more transparent)
+                    segment_progress = i / max(len(self.trail_positions) - 1, 1)
+                    alpha = int(200 * segment_progress)
+
+                    # Draw thick steam line with soft edges
+                    line_width = int(40 - segment_progress * 15)  # Thins out over time
+
+                    # Draw multiple overlapping lines for soft steam effect
+                    for layer in range(3):
+                        layer_width = line_width - layer * 8
+                        layer_alpha = alpha // (layer + 1)
+                        if layer_width > 2:
+                            pygame.draw.line(surface, (210, 210, 230, layer_alpha),
+                                           (int(trail_x1), int(trail_y1)),
+                                           (int(trail_x2), int(trail_y2)),
+                                           layer_width)
+
+            # Also draw steam clouds at each position for extra density
+            for i, (trail_x, trail_y, trail_time) in enumerate(self.trail_positions):
+                trail_progress = i / max(len(self.trail_positions), 1)
+                alpha = int(150 * trail_progress)
+                cloud_size = int(30 * (1 - trail_progress * 0.3))
+
+                # Draw soft steam cloud
+                steam_surf = pygame.Surface((cloud_size * 2, cloud_size * 2), pygame.SRCALPHA)
+                for j in range(2):
+                    offset = j * 6
+                    size = cloud_size - offset
+                    cloud_alpha = alpha // (j + 1)
+                    if size > 0:
+                        pygame.draw.circle(steam_surf, (210, 210, 230, cloud_alpha),
+                                         (cloud_size, cloud_size), size)
+
+                trail_rect = steam_surf.get_rect(center=(int(trail_x), int(trail_y)))
+                surface.blit(steam_surf, trail_rect)
 
             # Draw FOREMAN's rushing silhouette with glow
             rush_glow = pygame.Surface((50, 50), pygame.SRCALPHA)
@@ -1163,7 +1258,7 @@ class ExpediteRush:
 
 class JawlineNetwork:
     """JAWLINE - Network of mechanical bear trap jaws deployed in 3x3 grid around MANDIBLE FOREMAN."""
-    def __init__(self, center_x, center_y):
+    def __init__(self, center_x, center_y, camera=None):
         self.center_x = center_x
         self.center_y = center_y
         self.phase = "deploying"  # deploying, snapping, active, fading
@@ -1172,6 +1267,12 @@ class JawlineNetwork:
         self.damage_targets = []  # Units that will take damage
         self.damage_applied = False
 
+        # Get tile size from camera (or fallback to default)
+        if camera:
+            self.tile_size = camera.tile_size
+        else:
+            self.tile_size = TILE_SIZE
+
         # 8 trap positions in 3x3 grid (excluding center where FOREMAN stands)
         self.trap_positions = []
         trap_index = 0
@@ -1179,8 +1280,8 @@ class JawlineNetwork:
             for dx in [-1, 0, 1]:
                 if dx == 0 and dy == 0:
                     continue  # Skip center
-                trap_x = center_x + dx * TILE_SIZE
-                trap_y = center_y + dy * TILE_SIZE
+                trap_x = center_x + dx * self.tile_size
+                trap_y = center_y + dy * self.tile_size
                 self.trap_positions.append({
                     'x': trap_x,
                     'y': trap_y,
@@ -1287,8 +1388,8 @@ class JawlineNetwork:
                     dy = current_y - self.center_y
                     dist = math.sqrt(dx*dx + dy*dy)
                     if dist > 0:
-                        perp_x = -dy / dist * trap['cable_slack'] * TILE_SIZE * 0.5
-                        perp_y = dx / dist * trap['cable_slack'] * TILE_SIZE * 0.5
+                        perp_x = -dy / dist * trap['cable_slack'] * self.tile_size * 0.5
+                        perp_y = dx / dist * trap['cable_slack'] * self.tile_size * 0.5
                     else:
                         perp_x = perp_y = 0
                     control_x = mid_x + perp_x

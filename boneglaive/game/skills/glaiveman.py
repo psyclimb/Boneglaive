@@ -809,12 +809,15 @@ class VaultSkill(ActiveSkill):
             return False
         user.skill_target = target_pos
         user.selected_skill = self
-        
+
         # Track action order
         if game:
             user.action_timestamp = game.action_counter
             game.action_counter += 1
-        
+
+        # Clear the move target - Vault IS the movement, don't walk first
+        user.move_target = None
+
         # Set vault target indicator for UI
         user.vault_target_indicator = target_pos
         

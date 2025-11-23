@@ -443,9 +443,16 @@ class GameStateAdapter:
                     animated_unit.target_x += GRID_OFFSET_X
                     animated_unit.target_y += GRID_OFFSET_Y
                 else:
-                    # Teleport skill - update last_position but don't animate walking
-                    # The skill animation will handle the visual teleportation
+                    # Teleport skill - update last_position and sync grid position but don't animate walking
+                    # The skill animation will handle the visual teleportation effect
                     visual_unit.last_position = current_pos
+
+                    # Sync the visual unit's grid position to match game logic
+                    # Game uses (y, x), visual uses (grid_x, grid_y)
+                    # grid_x = x (column), grid_y = y (row)
+                    animated_unit.grid_x = game_unit.x
+                    animated_unit.grid_y = game_unit.y
+                    print(f"[GameState] Synced teleport position: game ({game_unit.x}, {game_unit.y}) -> visual grid ({animated_unit.grid_x}, {animated_unit.grid_y})")
 
             # Detect basic attack ONLY during turn execution
             # Attacks get set when planned, but we only want to animate them when executed
@@ -490,12 +497,13 @@ class GameStateAdapter:
 
                         print(f"[GameState] Detected skill during turn execution: {skill_name} on {game_unit.get_display_name()}")
 
-                        # Track if this is a teleport skill that will change position
-                        teleport_skills = ["Delta Config", "Vault", "Græ Exchange", "Grae Exchange"]
+                        # Track if this is a teleport/movement skill that will change position
+                        # These skills have their own animation and should not show walking animation
+                        teleport_skills = ["Delta Config", "Vault", "Græ Exchange", "Grae Exchange", "Expedite"]
                         if skill_name in teleport_skills:
                             # Store this in visual_unit so we can check it when detecting position changes
                             visual_unit.pending_teleport_skill = skill_name
-                            print(f"[GameState] Marking {skill_name} as pending teleport")
+                            print(f"[GameState] Marking {skill_name} as pending movement skill")
 
                         # Capture Potpourrist's infusion state BEFORE skill execution clears it
                         is_infused = False

@@ -3555,6 +3555,7 @@ class Game:
                         # Taunt expires or was responded to
                         unit.taunted_by = None
                         unit.taunt_duration = 0
+                        unit.geas_affected = False  # Clear geas status icon
                         logger.debug(f"TAUNT EXPIRED: {unit.get_display_name()}'s taunt ended")
 
                     # Reset response flag for next turn

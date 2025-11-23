@@ -44,7 +44,7 @@ class DischargeSkill(ActiveSkill):
             cooldown=3,
             range_=4
         )
-        self.trap_damage = 6
+        self.trap_damage = 3
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Check if Expedite can be used to the target position."""
@@ -125,21 +125,23 @@ class DischargeSkill(ActiveSkill):
             return False
         user.skill_target = target_pos
         user.selected_skill = self
-        
+
         # Track action order
         if game:
             user.action_timestamp = game.action_counter
             game.action_counter += 1
-        
+
         # Create a property on the unit to track the expedite path for UI
         # We'll store all the positions in the path for visualization
         from boneglaive.utils.coordinates import get_line, Position
-        
+
         # Use planned move position if available, otherwise use current position
         from_y = user.y
         from_x = user.x
         if user.move_target:
             from_y, from_x = user.move_target
+            # Clear the move target - Expedite IS the movement, don't walk first
+            user.move_target = None
             
         path = get_line(Position(from_y, from_x), Position(target_pos[0], target_pos[1]))
         
@@ -222,7 +224,82 @@ class DischargeSkill(ActiveSkill):
             MessageType.ABILITY,
             player=user.player
         )
-        
+
+        # UPDATE FOREMAN POSITION FIRST (before applying trap, so movement doesn't break the trap!)
+        # Must happen regardless of ui mode for graphical version
+        if enemy_hit:
+            # Stop before the enemy position
+            if len(path_positions) > 1 and enemy_pos in path_positions:
+                # Find position just before enemy
+                index = path_positions.index(enemy_pos)
+                if index > 0:
+                    stop_pos = path_positions[index - 1]
+                    user.y, user.x = stop_pos
+                    print(f"[Expedite GAME LOGIC] Hit enemy! Moving foreman to stop_pos: {stop_pos} (before enemy at {enemy_pos})")
+                else:
+                    # If there's no position before, keep original
+                    pass  # Don't move
+            # else: If enemy is not in path_positions, don't move
+        else:
+            # No enemy hit, check if target position is valid and passable
+            if game.is_valid_position(target_pos[0], target_pos[1]) and game.map.is_passable(target_pos[0], target_pos[1]):
+                # Move to target position if it's valid and passable
+                user.y, user.x = target_pos
+                print(f"[Expedite GAME LOGIC] No enemy hit. Moving foreman to target_pos: {target_pos}")
+            elif path_positions:
+                # If target isn't valid but we have valid path positions, move to last valid position
+                user.y, user.x = path_positions[-1]
+                print(f"[Expedite GAME LOGIC] No enemy hit. Moving foreman to last path position: {path_positions[-1]}")
+            # If no valid positions at all, don't move (stay at original position)
+
+        # NOW apply damage and trapping AFTER foreman has moved to final position
+        # This prevents movement from breaking the trap
+        if enemy_hit:
+            # Apply damage to the enemy
+            damage = self.trap_damage - enemy_hit.defense
+            damage = max(1, damage)  # Minimum damage of 1
+            previous_hp = enemy_hit.hp
+            enemy_hit.hp = max(0, enemy_hit.hp - damage)
+
+            # Log the damage
+            message_log.add_combat_message(
+                attacker_name=user.get_display_name(),
+                target_name=enemy_hit.get_display_name(),
+                damage=damage,
+                ability="Expedite",
+                attacker_player=user.player,
+                target_player=enemy_hit.player
+            )
+
+            # Check if enemy was defeated and handle death properly
+            if enemy_hit.hp <= 0:
+                # Use centralized death handling to ensure all systems (like DOMINION) are notified
+                game.handle_unit_death(enemy_hit, user, cause="clamp", ui=ui)
+            else:
+                # Check for critical health (retching) using centralized logic
+                game.check_critical_health(enemy_hit, user, previous_hp, ui)
+
+                # If not immune, trap the enemy
+                if enemy_hit.hp > 0 and not enemy_hit.is_immune_to_trap():
+                    # Set trapped_by to indicate this unit is trapped
+                    enemy_hit.trapped_by = user
+                    enemy_hit.trap_duration = 0  # Initialize trap duration for incremental damage
+
+                    message_log.add_message(
+                        f"{enemy_hit.get_display_name()} is trapped in {user.get_display_name()}'s mechanical jaws",
+                        MessageType.ABILITY,
+                        player=user.player,
+                        target=enemy_hit.player,
+                        target_name=enemy_hit.get_display_name()
+                    )
+                elif enemy_hit.hp > 0:
+                    message_log.add_message(
+                        f"{enemy_hit.get_display_name()} is immune to Viseroy due to Stasiality",
+                        MessageType.ABILITY,
+                        player=enemy_hit.player,  # Use target's player color
+                        target_name=enemy_hit.get_display_name()
+                    )
+
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
             # Get animation sequence for rush animation
@@ -243,26 +320,10 @@ class DischargeSkill(ActiveSkill):
                 if pos == end_pos:
                     break
             
-            # For very short paths, skip complex animation but still handle movement and collisions
+            # For very short paths, skip complex animation but still show impact animations
             if len(animation_positions) <= 1:
-                # If we hit an enemy, still apply trap and damage
+                # If we hit an enemy, show impact animations (damage already applied above)
                 if enemy_hit:
-                    # Apply damage to the enemy
-                    damage = self.trap_damage - enemy_hit.defense
-                    damage = max(1, damage)  # Minimum damage of 1
-                    previous_hp = enemy_hit.hp
-                    enemy_hit.hp = max(0, enemy_hit.hp - damage)
-                    
-                    # Log the damage
-                    message_log.add_combat_message(
-                        attacker_name=user.get_display_name(),
-                        target_name=enemy_hit.get_display_name(),
-                        damage=damage,
-                        ability="Expedite",
-                        attacker_player=user.player,
-                        target_player=enemy_hit.player
-                    )
-                    
                     # Show hit animation and damage numbers even for short paths
                     if ui and hasattr(ui, 'renderer'):
                         # Show impact animation at enemy position
@@ -287,57 +348,25 @@ class DischargeSkill(ActiveSkill):
                         
                         # Show damage number
                         damage_text = f"-{damage}"
-                        
+
                         for i in range(3):
                             ui.renderer.draw_damage_text(enemy_pos[0]-1, enemy_pos[1]*2, " " * len(damage_text), 7)
                             attrs = curses.A_BOLD if i % 2 == 0 else 0
                             ui.renderer.draw_damage_text(enemy_pos[0]-1, enemy_pos[1]*2, damage_text, 7, attrs)
                             ui.renderer.refresh()
                             sleep_with_animation_speed(0.1)
-                    
-                    # Check if enemy was defeated and handle death properly
-                    if enemy_hit.hp <= 0:
-                        # Use centralized death handling to ensure all systems (like DOMINION) are notified
-                        game.handle_unit_death(enemy_hit, user, cause="clamp", ui=ui)
-                    else:
-                        # Check for critical health (retching) using centralized logic
-                        game.check_critical_health(enemy_hit, user, previous_hp, ui)
-                        
-                        # If not immune, trap the enemy
-                        if enemy_hit.hp > 0 and not enemy_hit.is_immune_to_trap():
-                            # Set trapped_by to indicate this unit is trapped
-                            enemy_hit.trapped_by = user
-                            enemy_hit.trap_duration = 0  # Initialize trap duration for incremental damage
-                            
-                            message_log.add_message(
-                                f"{enemy_hit.get_display_name()} is trapped in {user.get_display_name()}'s mechanical jaws",
-                                MessageType.ABILITY,
-                                player=user.player,
-                                target=enemy_hit.player,
-                                target_name=enemy_hit.get_display_name()
-                            )
-                            
-                            # Show trapping animation
-                            if ui and hasattr(ui, 'asset_manager'):
-                                trap_animation = ui.asset_manager.get_skill_animation_sequence('viseroy_trap')
-                                if trap_animation:
-                                    ui.renderer.animate_attack_sequence(
-                                        enemy_pos[0], enemy_pos[1],
-                                        trap_animation,
-                                        7,  # white color, matching MANDIBLE_FOREMAN's animation
-                                        0.1  # duration
-                                    )
-                        elif enemy_hit.hp > 0:
-                            message_log.add_message(
-                                f"{enemy_hit.get_display_name()} is immune to Viseroy due to Stasiality",
-                                MessageType.ABILITY,
-                                player=enemy_hit.player,  # Use target's player color
-                                target_name=enemy_hit.get_display_name()
-                            )
-                else:
-                    # No enemy hit - move to target position directly if valid
-                    if game.is_valid_position(target_pos[0], target_pos[1]) and game.map.is_passable(target_pos[0], target_pos[1]):
-                        user.y, user.x = target_pos
+
+                        # Show trapping animation (if trapped - logic already ran above)
+                        if enemy_hit.hp > 0 and enemy_hit.trapped_by == user:
+                            trap_animation = ui.asset_manager.get_skill_animation_sequence('viseroy_trap')
+                            if trap_animation:
+                                ui.renderer.animate_attack_sequence(
+                                    enemy_pos[0], enemy_pos[1],
+                                    trap_animation,
+                                    7,  # white color, matching MANDIBLE_FOREMAN's animation
+                                    0.1  # duration
+                                )
+                # Note: Position updates now happen before UI block (line 276+)
                 
                 # Redraw the board after movement
                 if hasattr(ui, 'draw_board'):
@@ -430,129 +459,13 @@ class DischargeSkill(ActiveSkill):
                     durations = [0.1] * 4
                     
                     ui.renderer.flash_tile(enemy_pos[0], enemy_pos[1], tile_ids, color_ids, durations)
-                
-                # Apply damage to the enemy
-                damage = self.trap_damage - enemy_hit.defense
-                damage = max(1, damage)  # Minimum damage of 1
-                previous_hp = enemy_hit.hp
-                enemy_hit.hp = max(0, enemy_hit.hp - damage)
-                
-                # Log the damage
-                message_log.add_combat_message(
-                    attacker_name=user.get_display_name(),
-                    target_name=enemy_hit.get_display_name(),
-                    damage=damage,
-                    ability="Expedite",
-                    attacker_player=user.player,
-                    target_player=enemy_hit.player
-                )
-                
-                # Show damage number
-                if hasattr(ui, 'renderer'):
-                    damage_text = f"-{damage}"
-                    
-                    for i in range(3):
-                        ui.renderer.draw_damage_text(enemy_pos[0]-1, enemy_pos[1]*2, " " * len(damage_text), 7)
-                        attrs = curses.A_BOLD if i % 2 == 0 else 0
-                        ui.renderer.draw_damage_text(enemy_pos[0]-1, enemy_pos[1]*2, damage_text, 7, attrs)
-                        ui.renderer.refresh()
-                        sleep_with_animation_speed(0.1)
-                
-                # Check if enemy was defeated and handle death properly
-                if enemy_hit.hp <= 0:
-                    # Use centralized death handling to ensure all systems (like DOMINION) are notified
-                    game.handle_unit_death(enemy_hit, user, cause="viseroy", ui=ui)
-                # Otherwise check critical health
-                else:
-                    # Check for critical health (retching) using centralized logic
-                    game.check_critical_health(enemy_hit, user, previous_hp, ui)
-                
-                # Move FOREMAN to final position BEFORE applying trap effect to prevent auto-release
-                # Stop before the enemy position
-                new_foreman_pos = None
-                if len(path_positions) > 1 and enemy_pos in path_positions:
-                    # Find position just before enemy
-                    index = path_positions.index(enemy_pos)
-                    if index > 0:
-                        stop_pos = path_positions[index - 1]
-                        new_foreman_pos = stop_pos
-                        user.y, user.x = stop_pos
-                    else:
-                        # If there's no position before, keep original
-                        new_foreman_pos = original_pos
-                        user.y, user.x = original_pos
-                else:
-                    # No valid positions, keep original
-                    new_foreman_pos = original_pos
-                    user.y, user.x = original_pos
-                
-                # NOW apply trap AFTER the FOREMAN has moved to final position
-                # This prevents the trap from being auto-released due to position change
-                if enemy_hit.hp > 0:  # Only trap if target is still alive
-                    # If not immune, trap the enemy
-                    if not enemy_hit.is_immune_to_trap():  # Changed to is_immune_to_trap
-                        # Set trapped_by to indicate this unit is trapped
-                        enemy_hit.trapped_by = user
-                        enemy_hit.trap_duration = 0  # Initialize trap duration for incremental damage
-                        
-                        message_log.add_message(
-                            f"{enemy_hit.get_display_name()} is trapped in {user.get_display_name()}'s mechanical jaws",
-                            MessageType.ABILITY,
-                            player=user.player,
-                            target=enemy_hit.player,
-                            target_name=enemy_hit.get_display_name()
-                        )
-                        
-                        # Show trapping animation
-                        trap_animation = ui.asset_manager.get_skill_animation_sequence('viseroy_trap')
-                        if trap_animation:
-                            ui.renderer.animate_attack_sequence(
-                                enemy_pos[0], enemy_pos[1],
-                                trap_animation,
-                                7,  # white color, matching MANDIBLE_FOREMAN's attack animation
-                                0.1  # duration
-                            )
-                    else:
-                        message_log.add_message(
-                            f"{enemy_hit.get_display_name()} is immune to Viseroy due to Stasiality",
-                            MessageType.ABILITY,
-                            player=enemy_hit.player,  # Use target's player color
-                            target_name=enemy_hit.get_display_name()
-                        )
-            else:
-                # No enemy hit, check if target position is valid and passable
-                if game.is_valid_position(target_pos[0], target_pos[1]) and game.map.is_passable(target_pos[0], target_pos[1]):
-                    # Move to target position if it's valid and passable
-                    user.y, user.x = target_pos
-                elif path_positions:
-                    # If target isn't valid but we have valid path positions, move to last valid position
-                    user.y, user.x = path_positions[-1]
-                # If no valid positions at all, don't move (stay at original position)
+
+                # Note: Damage, trap, and position logic now handled before UI block (lines 228-299)
             
             # Redraw board after animations
             if hasattr(ui, 'draw_board'):
                 ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-        else:
-            # No UI, just set position without animations
-            if enemy_hit:
-                # Find position just before enemy
-                if enemy_pos in path_positions:
-                    index = path_positions.index(enemy_pos)
-                    if index > 0:
-                        user.y, user.x = path_positions[index - 1]
-                    else:
-                        user.y, user.x = original_pos
-                else:
-                    user.y, user.x = original_pos
-            else:
-                # Check if target position is valid and passable
-                if game.is_valid_position(target_pos[0], target_pos[1]) and game.map.is_passable(target_pos[0], target_pos[1]):
-                    # Move to target position if it's valid and passable
-                    user.y, user.x = target_pos
-                elif path_positions:
-                    # If target isn't valid but we have valid path positions, move to last valid position
-                    user.y, user.x = path_positions[-1]
-                # If no valid positions at all, don't move (stay at original position)
+        # Note: Position updates now happen before UI block (lines 275-299), so no else block needed
         
         return True
 
