@@ -24,6 +24,7 @@ from .glaiveman import (
 
 from .mandible_foreman import (
     JawClamp,
+    JawRelease,
     ViseroyTrap,
     ViseroyRelease,
     SiteInspectionBuff,
@@ -77,6 +78,7 @@ __all__ = [
     'VaultAnimationController',
     # Mandible Foreman
     'JawClamp',
+    'JawRelease',
     'ViseroyTrap',
     'ViseroyRelease',
     'SiteInspectionBuff',

@@ -57,10 +57,11 @@ class AnimationFactory:
         "AUTOCLAVE": (AutoclaveAnimation, {}),  # Cross-shaped steam beams in 4 directions
 
         # MANDIBLE FOREMAN skills
-        "DISCHARGE": (ViseroyRelease, {}),
-        "SITE_INSPECTION": (SiteInspectionBuff, {}),
-        "JAWLINE": (JawlineNetwork, {}),
-        "VISEROY": (ViseroyTrap, {}),  # Passive
+        "EXPEDITE": (ExpediteRush, {}),  # Discharge skill is named "Expedite"
+        "DISCHARGE": (ViseroyRelease, {}),  # Release animation for Viseroy trap (when it ends)
+        "SITE_INSPECTION": (SiteInspectionScan, {}),  # Laser scan animation
+        "JAWLINE": (JawlineNetwork, {}),  # Network of bear traps
+        "VISEROY": (ViseroyTrap, {}),  # Passive (basic attack animation)
 
         # POTPOURRIST skills
         "PEDESTAL_STRIKE": (PedestalStrike, {}),
@@ -359,6 +360,50 @@ class AnimationFactory:
                     target_unit=target_unit,
                     particle_emitter=particle_emitter,
                     screen_flash_callback=screen_flash_callback
+                )
+            elif anim_class.__name__ == "SiteInspectionScan":
+                # Site Inspection scan animation - needs center position (target_pos)
+                # NOTE: target_pos is (grid_y, grid_x) format from renderer
+                # Target position is where the scan is centered
+                if target_pos:
+                    # Convert grid to screen: target_pos[1] is grid_x, target_pos[0] is grid_y
+                    center_x, center_y = grid_to_screen(target_pos[1], target_pos[0])
+                else:
+                    center_x, center_y = kwargs.get('target_x', caster_screen_x), kwargs.get('target_y', caster_screen_y)
+                animation = anim_class(
+                    center_x=center_x,
+                    center_y=center_y,
+                    camera=camera
+                )
+            elif anim_class.__name__ == "JawlineNetwork":
+                # Jawline network - deploys from caster position
+                animation = anim_class(
+                    center_x=caster_screen_x,
+                    center_y=caster_screen_y,
+                    camera=camera
+                )
+            elif anim_class.__name__ == "ExpediteRush":
+                # Expedite rush - needs start, target, and caster unit
+                # NOTE: target_pos is (grid_y, grid_x) format from renderer
+                if not target_pos:
+                    print("[AnimationFactory] EXPEDITE requires a target position")
+                    return None
+                # Convert grid to screen: target_pos[1] is grid_x, target_pos[0] is grid_y
+                target_x, target_y = grid_to_screen(target_pos[1], target_pos[0])
+                animation = anim_class(
+                    start_x=caster_screen_x,
+                    start_y=caster_screen_y,
+                    target_x=target_x,
+                    target_y=target_y,
+                    foreman_unit=caster_unit,
+                    target_grid_pos=target_pos,  # Pass grid position for final update
+                    camera=camera
+                )
+            elif anim_class.__name__ in ["ViseroyTrap", "ViseroyRelease"]:
+                # Viseroy animations - target coordinates
+                animation = anim_class(
+                    target_x=kwargs.get('target_x', caster_screen_x),
+                    target_y=kwargs.get('target_y', caster_screen_y)
                 )
             else:
                 # Most animations expect just target coordinates

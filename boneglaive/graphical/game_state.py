@@ -42,6 +42,8 @@ class VisualUnit:
         self.last_status_effects = self._get_status_effects(game_unit)
         # Track geas taunt status for geas break heal animation
         self.last_taunted_units = self._get_taunted_units(game_unit, game)
+        # Track trapped_by status for trap release animation
+        self.last_trapped_by = getattr(game_unit, 'trapped_by', None)
 
     def _get_passive_activation_state(self, game_unit):
         """Get current activation state of passive skill."""
@@ -128,6 +130,10 @@ class VisualUnit:
             effects['ossify'] = True
         if hasattr(game_unit, 'site_inspection_marked') and game_unit.site_inspection_marked:
             effects['site_inspection'] = True
+        if hasattr(game_unit, 'status_site_inspection') and game_unit.status_site_inspection:
+            effects['site_inspection'] = True
+        if hasattr(game_unit, 'status_site_inspection_partial') and game_unit.status_site_inspection_partial:
+            effects['site_inspection_partial'] = True
         if hasattr(game_unit, 'valuation_oracle_active') and game_unit.valuation_oracle_active:
             effects['valuation_oracle'] = True
         if hasattr(game_unit, 'vagal_run_active') and game_unit.vagal_run_active:
@@ -179,7 +185,7 @@ class GameStateAdapter:
         # Maps (y, x) position -> {'owner': unit, 'damage': int, 'active': bool}
         self.last_scalar_nodes: Dict[Tuple[int, int], Dict[str, Any]] = {}
 
-    def initialize_game(self, game_instance=None, skip_setup=True, map_name="lime_foyer_arena"):
+    def initialize_game(self, game_instance=None, skip_setup=True, map_name="stained_stones"):
         """
         Initialize or attach to a game instance.
 
@@ -549,6 +555,22 @@ class GameStateAdapter:
                     ))
 
                     visual_unit.last_passive_activated = True
+
+            # Detect trap releases (Viseroy trap)
+            current_trapped_by = getattr(game_unit, 'trapped_by', None)
+            if visual_unit.last_trapped_by and not current_trapped_by:
+                # Unit was trapped and is now released!
+                trapper_unit = visual_unit.last_trapped_by
+                print(f"[GameState] *** TRAP RELEASE DETECTED! {game_unit.get_display_name()} released from {trapper_unit.get_display_name()}'s Viseroy trap ***")
+
+                events.append(AnimationEvent(
+                    "trap_release",
+                    source_unit=trapper_unit,  # MANDIBLE FOREMAN who set the trap
+                    target_unit=game_unit  # Unit being released
+                ))
+
+            # Update trapped_by tracking
+            visual_unit.last_trapped_by = current_trapped_by
 
             # Update taunted units snapshot at end of each sync cycle
             # This ensures we have the "before" state for next cycle's geas heal detection

@@ -30,6 +30,9 @@ from .ui.status_effects import StatusEffectsPanel
 from .ui.unit_info import UnitInfoPanel
 from .ui_adapter import GraphicalUIAdapter
 
+# Import TerrainType for terrain/furniture rendering
+from boneglaive.game.map import TerrainType
+
 
 # Screen constants
 SCREEN_WIDTH = 1480  # Increased to fit 20-column grid (20*64 + 100 offset + margin)
@@ -121,6 +124,10 @@ class GraphicalRenderer:
         # UI Adapter for animations
         self.ui_adapter = GraphicalUIAdapter(self)
 
+        # Terrain and furniture tile cache
+        self.terrain_tiles: Dict[TerrainType, pygame.Surface] = {}
+        self._init_terrain_furniture_mapping()
+
         self.running = True
         self.paused = False
 
@@ -147,6 +154,83 @@ class GraphicalRenderer:
         enemy_unit.hp = 15
 
         self.units = [player_unit, enemy_unit]
+
+    def _init_terrain_furniture_mapping(self):
+        """Initialize the mapping from TerrainType to SVG file paths."""
+        # Mapping from TerrainType to SVG filename
+        self.terrain_svg_map = {
+            # Terrain types
+            TerrainType.LIMESTONE: "graphics/terrain/limestone.svg",
+            TerrainType.DUST: "graphics/terrain/dust.svg",
+            TerrainType.PILLAR: "graphics/terrain/pillar.svg",
+            TerrainType.MARROW_WALL: "graphics/terrain/marrow_wall.svg",
+            TerrainType.RAIL: "graphics/terrain/rail.svg",
+            TerrainType.STAINED_STONE: "graphics/terrain/stained_stone.svg",
+            TerrainType.CANYON_FLOOR: "graphics/terrain/canyon_floor.svg",
+            TerrainType.HYDRAULIC_PRESS: "graphics/terrain/hydraulic_press.svg",
+            TerrainType.CONCRETE_FLOOR: "graphics/terrain/concrete_floor.svg",
+            TerrainType.LEAF_PIT: "graphics/terrain/leaf_pit.svg",
+            TerrainType.MELANGE_FUME: "graphics/terrain/melange_fume.svg",
+
+            # Furniture types
+            TerrainType.FURNITURE: "graphics/furniture/furniture_generic.svg",
+            TerrainType.COAT_RACK: "graphics/furniture/coat_rack.svg",
+            TerrainType.OTTOMAN: "graphics/furniture/ottoman.svg",
+            TerrainType.CONSOLE: "graphics/furniture/console_table.svg",
+            TerrainType.DEC_TABLE: "graphics/furniture/dec_table.svg",
+            TerrainType.TIFFANY_LAMP: "graphics/furniture/tiffany_lamp.svg",
+            TerrainType.EASEL: "graphics/furniture/easel.svg",
+            TerrainType.SCULPTURE: "graphics/furniture/sculpture.svg",
+            TerrainType.BENCH: "graphics/furniture/bench.svg",
+            TerrainType.PODIUM: "graphics/furniture/podium.svg",
+            TerrainType.VASE: "graphics/furniture/vase.svg",
+            TerrainType.WORKBENCH: "graphics/furniture/workbench.svg",
+            TerrainType.COUCH: "graphics/furniture/couch.svg",
+            TerrainType.TOOLBOX: "graphics/furniture/toolbox.svg",
+            TerrainType.COT: "graphics/furniture/cot.svg",
+            TerrainType.CONVEYOR: "graphics/furniture/conveyor_belt.svg",
+            TerrainType.MINI_PUMPKIN: "graphics/furniture/mini_pumpkin.svg",
+            TerrainType.POTPOURRI_BOWL: "graphics/furniture/potpourri_bowl.svg",
+        }
+
+    def _load_terrain_tile(self, terrain_type: TerrainType) -> Optional[pygame.Surface]:
+        """
+        Load a terrain/furniture tile from SVG file.
+        Caches the loaded surface for performance.
+
+        Args:
+            terrain_type: TerrainType enum value
+
+        Returns:
+            pygame.Surface or None if loading fails
+        """
+        # Check cache first
+        if terrain_type in self.terrain_tiles:
+            return self.terrain_tiles[terrain_type]
+
+        # Get SVG path from mapping
+        svg_path = self.terrain_svg_map.get(terrain_type)
+        if not svg_path or not os.path.exists(svg_path):
+            return None
+
+        try:
+            # Try to load SVG using cairosvg
+            try:
+                import cairosvg
+                from io import BytesIO
+                # Convert SVG to PNG in memory
+                png_data = cairosvg.svg2png(url=svg_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
+                surface = pygame.image.load(BytesIO(png_data))
+
+                # Cache the surface
+                self.terrain_tiles[terrain_type] = surface
+                return surface
+            except ImportError:
+                print(f"Info: cairosvg not available, cannot load terrain SVG: {svg_path}")
+                return None
+        except Exception as e:
+            print(f"Warning: Could not load terrain SVG {svg_path}: {e}")
+            return None
 
     def sync_units_from_game(self):
         """
@@ -660,6 +744,25 @@ class GraphicalRenderer:
             else:
                 print(f"[ScalarTrap] ERROR: Could not find visual unit or trap position for animation")
 
+        elif event.event_type == "trap_release":
+            # Play trap release animation (jaw opening)
+            target = event.target_unit  # Unit being released
+            visual_unit = self._get_visual_unit(target)
+            if visual_unit:
+                animated_unit = visual_unit.animated_unit
+
+                # Convert unit position to screen coordinates
+                release_x, release_y = self.camera.grid_to_screen(animated_unit.grid_x, animated_unit.grid_y)
+
+                print(f"[TrapRelease] {target.get_display_name()} released from Viseroy trap at grid ({animated_unit.grid_x}, {animated_unit.grid_y}), screen ({release_x}, {release_y})")
+
+                # Create JawRelease animation
+                from boneglaive.graphical.animations.mandible_foreman import JawRelease
+                jaw_release = JawRelease(release_x, release_y)
+                self.active_animations.append(jaw_release)
+            else:
+                print(f"[TrapRelease] ERROR: Could not find visual unit for released unit")
+
         elif event.event_type == "death":
             # Play death animation - blood explosion
             unit = event.source_unit
@@ -810,6 +913,41 @@ class GraphicalRenderer:
 
                 anim.trigger_impact = False  # Reset flag
 
+            # Check if ExpediteRush animation just completed - trigger JawClamp on enemy
+            if hasattr(anim, 'foreman') and anim.foreman and not still_active:
+                # Animation completed, check if foreman hit an enemy during Expedite
+                # Find the game unit at the foreman's position using game.get_unit_at
+                foreman_grid_x = anim.foreman.grid_x
+                foreman_grid_y = anim.foreman.grid_y
+
+                # Look up the game unit at this position
+                game_unit = None
+                if self.game_adapter.game:
+                    game_unit = self.game_adapter.game.get_unit_at(foreman_grid_y, foreman_grid_x)
+
+                if game_unit and hasattr(game_unit, 'expedite_enemy_hit') and game_unit.expedite_enemy_hit:
+                    from boneglaive.graphical.animations.mandible_foreman import JawClamp
+
+                    enemy = game_unit.expedite_enemy_hit
+                    enemy_pos = game_unit.expedite_enemy_pos  # (y, x) format
+
+                    # Convert enemy position to screen coordinates
+                    jaw_x, jaw_y = self.camera.grid_to_screen(enemy_pos[1], enemy_pos[0])  # (x, y) = (col, row)
+
+                    print(f"  [Renderer] ExpediteRush hit enemy at grid ({enemy_pos[1]}, {enemy_pos[0]})")
+                    print(f"  [Renderer] Creating JawClamp animation at enemy screen position ({jaw_x}, {jaw_y})")
+
+                    jaw_animation = JawClamp(jaw_x, jaw_y)
+                    if jaw_animation:
+                        self.active_animations.append(jaw_animation)
+                        print(f"  [Animation] Successfully triggered JawClamp animation on Expedite enemy hit")
+                    else:
+                        print(f"  [Animation] WARNING: Failed to create JawClamp animation")
+
+                    # Clear the expedite enemy hit flag
+                    game_unit.expedite_enemy_hit = None
+                    game_unit.expedite_enemy_pos = None
+
             if still_active:
                 updated_animations.append(anim)
 
@@ -831,7 +969,7 @@ class GraphicalRenderer:
         Args:
             event: Animation event from game state
         """
-        if event.event_type == "damage" or event.event_type == "heal" or event.event_type == "geas_heal" or event.event_type == "scalar_trap":
+        if event.event_type == "damage" or event.event_type == "heal" or event.event_type == "geas_heal" or event.event_type == "scalar_trap" or event.event_type == "trap_release":
             # If animations are active, queue the event for later
             if self.has_active_animations():
                 self.pending_animation_events.append(event)
@@ -884,6 +1022,7 @@ class GraphicalRenderer:
         """
         from boneglaive.graphical.animations.core import StatusIconFlash
 
+        # Regular status icon flash for all effects
         print(f"  [Renderer] Creating status icon flash for {effect_name}...")
         animation = StatusIconFlash(animated_unit, effect_name)
         if animation:
@@ -1039,8 +1178,24 @@ class GraphicalRenderer:
                         print(f"  [Animation] *** Successfully triggered Neutron Illuminant flash - added to active_animations (count: {len(self.active_animations)}) ***")
                     else:
                         print(f"  [Animation] WARNING: Failed to create Neutron Illuminant animation")
+
+            # Check if attacker is MANDIBLE_FOREMAN and trigger JawClamp animation on hit
+            elif attacker.type == UnitType.MANDIBLE_FOREMAN and attack_target and target_unit:
+                print(f"  [Renderer] *** MANDIBLE_FOREMAN ATTACK DETECTED ***")
+                from boneglaive.graphical.animations.mandible_foreman import JawClamp
+
+                # Convert target position to screen coordinates
+                target_x, target_y = self.camera.grid_to_screen(target_unit.grid_x, target_unit.grid_y)
+
+                print(f"  [Renderer] Creating JawClamp animation at target position ({target_x}, {target_y})")
+                jaw_animation = JawClamp(target_x, target_y)
+                if jaw_animation:
+                    self.active_animations.append(jaw_animation)
+                    print(f"  [Animation] Successfully triggered JawClamp animation on MANDIBLE_FOREMAN hit")
+                else:
+                    print(f"  [Animation] WARNING: Failed to create JawClamp animation")
             else:
-                print(f"  [DEBUG] Not INTERFERER or no attack target")
+                print(f"  [DEBUG] Not INTERFERER or MANDIBLE_FOREMAN, or no attack target")
 
     def _create_skill_animation(self, event):
         """
@@ -1255,21 +1410,53 @@ class GraphicalRenderer:
         pygame.display.flip()
 
     def draw_grid(self, surface: pygame.Surface):
-        """Draw the game grid."""
+        """Draw the game grid with terrain and furniture."""
+        # Get game map if available
+        game_map = self.game_adapter.game.map if self.game_adapter.game else None
+
         for y in range(GRID_HEIGHT):
             for x in range(GRID_WIDTH):
-                color = COLOR_GRID_DARK if (x + y) % 2 == 0 else COLOR_GRID_LIGHT
+                # Calculate tile position
+                tile_x = GRID_OFFSET_X + x * TILE_SIZE
+                tile_y = GRID_OFFSET_Y + y * TILE_SIZE
+                rect = pygame.Rect(tile_x, tile_y, TILE_SIZE, TILE_SIZE)
+
+                # Get terrain type at this position
+                terrain_type = TerrainType.EMPTY
+                if game_map:
+                    terrain_type = game_map.get_terrain_at(y, x)
+
+                # Determine base color (checkerboard pattern for empty/passable tiles)
+                base_color = COLOR_GRID_DARK if (x + y) % 2 == 0 else COLOR_GRID_LIGHT
 
                 # Highlight hovered tile
                 if self.hovered_grid_pos == (x, y):
-                    color = tuple(min(255, c + 30) for c in color)
+                    base_color = tuple(min(255, c + 30) for c in base_color)
 
-                rect = pygame.Rect(
-                    GRID_OFFSET_X + x * TILE_SIZE,
-                    GRID_OFFSET_Y + y * TILE_SIZE,
-                    TILE_SIZE, TILE_SIZE
-                )
-                pygame.draw.rect(surface, color, rect)
+                # Draw base tile
+                pygame.draw.rect(surface, base_color, rect)
+
+                # Try to load and draw terrain/furniture SVG
+                if terrain_type != TerrainType.EMPTY:
+                    terrain_surface = self._load_terrain_tile(terrain_type)
+                    if terrain_surface:
+                        # Blit the SVG surface at tile position
+                        surface.blit(terrain_surface, (tile_x, tile_y))
+                    else:
+                        # Fallback: draw a colored rectangle to indicate terrain/furniture
+                        # Use different colors for different types
+                        if terrain_type in [TerrainType.LIMESTONE, TerrainType.PILLAR,
+                                           TerrainType.STAINED_STONE, TerrainType.HYDRAULIC_PRESS]:
+                            # Blocking terrain - dark gray
+                            pygame.draw.rect(surface, (80, 80, 90), rect)
+                        elif terrain_type in [TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.CONCRETE_FLOOR]:
+                            # Passable terrain - slightly different shade
+                            pygame.draw.rect(surface, (70, 75, 80), rect)
+                        else:
+                            # Furniture - lighter color
+                            pygame.draw.rect(surface, (100, 110, 120), rect)
+
+                # Draw grid lines
                 pygame.draw.rect(surface, (30, 34, 42), rect, 1)
 
     def draw_range_indicators(self, surface: pygame.Surface):

@@ -221,6 +221,70 @@ class JawClamp:
         surface.blit(mandible_surf, (int(x - mandible_length // 2), int(y - mandible_width // 2)))
 
 
+class JawRelease(JawClamp):
+    """Jaw release animation - jaws spring open and fade away when trap is released."""
+    def __init__(self, target_x, target_y):
+        super().__init__(target_x, target_y)
+        # Start closed and spring open
+        self.phase = "spring_open"
+        self.timer = 0
+        self.jaw_gap = 0
+        self.mandible_gap = 0
+        self.max_gap = 50
+
+    def update(self, delta_time):
+        """Update jaw release animation - springs open and fades."""
+        self.timer += delta_time
+
+        if self.phase == "spring_open":
+            # Jaws spring open quickly (0.2s)
+            if self.timer < 0.2:
+                progress = self.timer / 0.2
+                # Ease-out for spring effect
+                ease_progress = 1.0 - (1.0 - progress) ** 2
+                self.jaw_gap = ease_progress * self.max_gap
+                self.mandible_gap = ease_progress * self.max_gap
+            else:
+                self.phase = "fade"
+                self.timer = 0
+
+        elif self.phase == "fade":
+            # Hold open and fade (0.25s)
+            if self.timer < 0.25:
+                # Keep jaws open during fade
+                pass
+            else:
+                self.active = False
+                return False
+
+        return True
+
+    def draw(self, surface):
+        """Draw the releasing jaws with fade effect."""
+        if not self.active:
+            return
+
+        # Calculate alpha based on phase
+        if self.phase == "fade":
+            alpha = int(255 * (1.0 - self.timer / 0.25))
+        else:
+            alpha = 255
+
+        # Draw vertical jaws (top and bottom)
+        upper_jaw_y = self.target_y - self.jaw_gap
+        self.draw_vertical_jaw(surface, self.target_x, upper_jaw_y, True, alpha)
+
+        lower_jaw_y = self.target_y + self.jaw_gap
+        self.draw_vertical_jaw(surface, self.target_x, lower_jaw_y, False, alpha)
+
+        # Draw horizontal mandibles (left and right)
+        left_mandible_x = self.target_x - self.mandible_gap
+        self.draw_horizontal_mandible(surface, left_mandible_x, self.target_y, True, alpha)
+
+        right_mandible_x = self.target_x + self.mandible_gap
+        self.draw_horizontal_mandible(surface, right_mandible_x, self.target_y, False, alpha)
+
+
 class ViseroyTrap:
     """Viseroy trap animation - jaws grind and chew the target over time, never releasing."""
     def __init__(self, target_x, target_y):
@@ -822,12 +886,10 @@ class SiteInspectionScan:
         else:
             tile_size = TILE_SIZE
 
-        # Snap to tile center (not intersection)
-        # Round to nearest tile, then add half tile size to center on the tile
-        tile_x = round(center_x / tile_size)
-        tile_y = round(center_y / tile_size)
-        self.center_x = tile_x * tile_size + tile_size // 2
-        self.center_y = tile_y * tile_size + tile_size // 2
+        # Coordinates are already properly centered from grid_to_screen conversion
+        # No need to snap - the animation factory already handles grid offset
+        self.center_x = center_x
+        self.center_y = center_y
         self.phase = "deploying"  # deploying, scanning, complete
         self.timer = 0
         self.scan_progress = 0  # 0 to 1
@@ -972,6 +1034,7 @@ class ExpediteRush:
             self.tile_size = camera.tile_size
         else:
             self.tile_size = TILE_SIZE
+
 
         # IMPORTANT: Use the foreman's actual final grid position (from game logic)
         # Game logic has already executed and placed the foreman at the correct tile
