@@ -242,7 +242,8 @@ class AnimationFactory:
                     caster_unit=caster_unit,
                     target_pos=target_pos,
                     particle_emitter=particle_emitter,
-                    screen_shake_callback=screen_shake_callback
+                    screen_shake_callback=screen_shake_callback,
+                    camera=camera
                 )
             elif anim_class.__name__ == "EstrangeBeam":
                 # EstrangeBeam needs source, target, and particle emitter
@@ -261,7 +262,8 @@ class AnimationFactory:
                 animation = anim_class(
                     caster_unit=caster_unit,
                     target_pos=target_pos,
-                    particle_emitter=particle_emitter
+                    particle_emitter=particle_emitter,
+                    camera=camera
                 )
             elif anim_class.__name__ == "GraeExchangeAnimation":
                 # GraeExchangeAnimation needs caster unit, target position, and particle emitter
@@ -271,7 +273,8 @@ class AnimationFactory:
                 animation = anim_class(
                     caster_unit=caster_unit,
                     target_pos=target_pos,
-                    particle_emitter=particle_emitter
+                    particle_emitter=particle_emitter,
+                    camera=camera
                 )
             elif anim_class.__name__ == "InfuseEffect":
                 # InfuseEffect needs caster position and caster unit
@@ -293,7 +296,8 @@ class AnimationFactory:
                     targets=units_list,  # Pass all units so animation can detect hits
                     # Pass grid positions for accurate arc calculation
                     caster_grid_pos=(caster_unit.grid_y, caster_unit.grid_x) if hasattr(caster_unit, 'grid_y') else None,
-                    target_grid_pos=target_pos
+                    target_grid_pos=target_pos,
+                    camera=camera
                 )
             elif anim_class.__name__ == "GraniteGeasEffect":
                 # GraniteGeasEffect needs target position and target unit

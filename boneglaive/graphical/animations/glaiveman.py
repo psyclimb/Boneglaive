@@ -426,17 +426,19 @@ class VaultAnimationController:
     Uses attribute-based animation (manipulates caster position during vault).
     """
 
-    def __init__(self, caster_unit, target_pos, particle_emitter, screen_shake_callback):
+    def __init__(self, caster_unit, target_pos, particle_emitter, screen_shake_callback, camera=None):
         """
         Args:
             caster_unit: AnimatedUnit performing the vault
             target_pos: Tuple (grid_x, grid_y) destination
             particle_emitter: ParticleEmitter for effects
             screen_shake_callback: Function(intensity, duration)
+            camera: Camera instance for coordinate conversion (optional, will use defaults)
         """
         self.caster = caster_unit
         self.particle_emitter = particle_emitter
         self.screen_shake = screen_shake_callback
+        self.camera = camera
 
         # Set up vault animation state
         self.caster.vault_phase = "vaulting"
@@ -446,14 +448,18 @@ class VaultAnimationController:
         self.caster.vault_start_y = caster_unit.y
         self.caster.wind_up_rotation = 0  # Initialize rotation for flip
 
-        # Calculate target screen position
-        from .core import TILE_SIZE
-        target_grid_x, target_grid_y = target_pos
-        # Match renderer's grid_to_screen calculation
-        GRID_OFFSET_X = 100
-        GRID_OFFSET_Y = 50
-        self.caster.vault_target_x = GRID_OFFSET_X + target_grid_x * TILE_SIZE + TILE_SIZE // 2
-        self.caster.vault_target_y = GRID_OFFSET_Y + target_grid_y * TILE_SIZE + TILE_SIZE // 2
+        # Calculate target screen position using camera
+        # NOTE: target_pos is (grid_y, grid_x) format from renderer
+        target_grid_y, target_grid_x = target_pos
+        if self.camera:
+            self.caster.vault_target_x, self.caster.vault_target_y = self.camera.grid_to_screen(target_grid_x, target_grid_y)
+        else:
+            # Fallback to defaults
+            from .core import TILE_SIZE
+            GRID_OFFSET_X = 100
+            GRID_OFFSET_Y = 50
+            self.caster.vault_target_x = GRID_OFFSET_X + target_grid_x * TILE_SIZE + TILE_SIZE // 2
+            self.caster.vault_target_y = GRID_OFFSET_Y + target_grid_y * TILE_SIZE + TILE_SIZE // 2
         self.caster.vault_target_grid_x = target_grid_x
         self.caster.vault_target_grid_y = target_grid_y
 

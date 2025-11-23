@@ -597,6 +597,26 @@ class GraniteGeasEffect:
                 # Spawn oil drip particles
                 if random.random() < 0.3:
                     angle = random.uniform(0, 2 * math.pi)
+                    # Tropical flower colors for infused, gray/stone for normal
+                    if self.infused:
+                        drip_color = random.choice([
+                            (255, 215, 0),    # Gold
+                            (255, 105, 180),  # Hot pink
+                            (255, 99, 71),    # Tomato
+                            (255, 165, 0),    # Orange
+                            (147, 112, 219),  # Medium purple
+                            (186, 85, 211),   # Medium orchid
+                            (0, 206, 209),    # Dark turquoise
+                            (255, 20, 147)    # Deep pink
+                        ])
+                    else:
+                        drip_color = random.choice([
+                            (140, 140, 140),  # Gray
+                            (160, 160, 160),  # Light gray
+                            (120, 120, 120),  # Dark gray
+                            (130, 130, 135)   # Blue-gray
+                        ])
+
                     self.oil_drips.append({
                         'x': self.target_x + random.uniform(-15, 15),
                         'y': self.target_y - 20 + random.uniform(-10, 10),
@@ -604,7 +624,7 @@ class GraniteGeasEffect:
                         'vy': random.uniform(20, 50),  # Drips downward
                         'lifetime': random.uniform(0.8, 1.5),
                         'size': random.uniform(2, 4),
-                        'color': (150, 120, 180) if self.infused else (120, 100, 80),  # Purple for infused, brown for normal
+                        'color': drip_color,
                         'gravity': 100
                     })
             else:
@@ -620,6 +640,26 @@ class GraniteGeasEffect:
             if random.random() < 0.4:
                 angle = random.uniform(0, 2 * math.pi)
                 spawn_dist = random.uniform(15, 30)
+                # Tropical flower colors for infused, gray/stone for normal
+                if self.infused:
+                    rune_color = random.choice([
+                        (255, 215, 0),    # Gold
+                        (255, 105, 180),  # Hot pink
+                        (255, 99, 71),    # Tomato
+                        (255, 165, 0),    # Orange
+                        (147, 112, 219),  # Medium purple
+                        (186, 85, 211),   # Medium orchid
+                        (0, 206, 209),    # Dark turquoise
+                        (255, 20, 147)    # Deep pink
+                    ])
+                else:
+                    rune_color = random.choice([
+                        (140, 140, 140),  # Gray
+                        (160, 160, 160),  # Light gray
+                        (120, 120, 120),  # Dark gray
+                        (130, 130, 135)   # Blue-gray
+                    ])
+
                 self.fume_runes.append({
                     'x': self.target_x + math.cos(angle) * spawn_dist,
                     'y': self.target_y + math.sin(angle) * spawn_dist,
@@ -629,7 +669,7 @@ class GraniteGeasEffect:
                     'size': random.uniform(8, 14),
                     'rotation': random.uniform(0, 360),
                     'rotation_speed': random.uniform(-90, 90),
-                    'color': (150, 120, 180) if self.infused else (120, 100, 80),
+                    'color': rune_color,
                     'rune_type': random.choice(['circle', 'cross', 'triangle', 'diamond'])
                 })
 
@@ -701,13 +741,15 @@ class GraniteGeasEffect:
             mark_surf = pygame.Surface((mark_size, mark_size), pygame.SRCALPHA)
             center = mark_size // 2
 
-            # Base color - purple/magical for infused, earthy for normal
+            # Base color - tropical flowers for infused, gray stone for normal
             if self.infused:
-                mark_color = (180, 100, 255)
-                glow_color = (200, 150, 255)
+                # Use a vibrant tropical color for the mark
+                mark_color = (255, 20, 147)    # Deep pink
+                glow_color = (255, 105, 180)   # Hot pink
             else:
-                mark_color = (140, 100, 60)
-                glow_color = (180, 140, 100)
+                # Gray/stone colors for normal granite
+                mark_color = (140, 140, 140)
+                glow_color = (180, 180, 180)
 
             # Draw circular geas mark/seal
             alpha = int(180 * self.mark_alpha)
@@ -854,7 +896,7 @@ class GeasBreakHeal:
         # Burst particles at release
         self.release_burst = []
 
-        # Initial burst of fumes - VIOLENT explosion
+        # Initial burst of fumes - VIOLENT explosion with tropical flower colors
         for i in range(40):  # More particles
             angle = random.uniform(0, 2 * math.pi)
             speed = random.uniform(100, 200)  # Much faster
@@ -866,9 +908,14 @@ class GeasBreakHeal:
                 'lifetime': random.uniform(0.4, 0.8),
                 'size': random.uniform(8, 18),  # Larger
                 'color': random.choice([
-                    (200, 100, 200),  # Purple (potpourri)
-                    (255, 150, 200),  # Pink
-                    (180, 100, 255),  # Violet
+                    (255, 215, 0),    # Gold
+                    (255, 105, 180),  # Hot pink
+                    (255, 99, 71),    # Tomato
+                    (255, 165, 0),    # Orange
+                    (147, 112, 219),  # Medium purple
+                    (186, 85, 211),   # Medium orchid
+                    (0, 206, 209),    # Dark turquoise
+                    (255, 20, 147)    # Deep pink
                 ])
             })
 
@@ -929,10 +976,14 @@ class GeasBreakHeal:
                             'lifetime': 1.5,
                             'size': random.uniform(8, 14),
                             'color': random.choice([
-                                (200, 100, 200),  # Purple (potpourri)
-                                (255, 150, 200),  # Pink
-                                (180, 100, 255),  # Violet
-                                (255, 100, 150),  # Rose
+                                (255, 215, 0),    # Gold
+                                (255, 105, 180),  # Hot pink
+                                (255, 99, 71),    # Tomato
+                                (255, 165, 0),    # Orange
+                                (147, 112, 219),  # Medium purple
+                                (186, 85, 211),   # Medium orchid
+                                (0, 206, 209),    # Dark turquoise
+                                (255, 20, 147)    # Deep pink
                             ]),
                             'trail_alpha': 1.0
                         })
@@ -1033,12 +1084,17 @@ class GeasBreakHeal:
                         ring_surf = pygame.Surface((radius * 2 + 20, radius * 2 + 20), pygame.SRCALPHA)
                         center = radius + 10
 
-                        # Draw thick ring with gradient
+                        # Draw thick ring with gradient - tropical flower colors
                         for thickness in range(5):
                             ring_color = random.choice([
-                                (200, 100, 200),  # Purple
-                                (255, 150, 200),  # Pink
-                                (180, 100, 255),  # Violet
+                                (255, 215, 0),    # Gold
+                                (255, 105, 180),  # Hot pink
+                                (255, 99, 71),    # Tomato
+                                (255, 165, 0),    # Orange
+                                (147, 112, 219),  # Medium purple
+                                (186, 85, 211),   # Medium orchid
+                                (0, 206, 209),    # Dark turquoise
+                                (255, 20, 147)    # Deep pink
                             ])
                             layer_alpha = ring_alpha // (thickness + 1)
                             pygame.draw.circle(ring_surf, (*ring_color, layer_alpha),
@@ -1070,7 +1126,7 @@ class GeasBreakHeal:
 class DemiluneSwing:
     """DEMILUNE - Heavy arc swing of granite pedestal with stone impact effects."""
     def __init__(self, caster_x, caster_y, caster_unit, target_x, target_y, infused=False, targets=None,
-                 caster_grid_pos=None, target_grid_pos=None):
+                 caster_grid_pos=None, target_grid_pos=None, camera=None):
         self.caster_x = caster_x
         self.caster_y = caster_y
         self.caster = caster_unit
@@ -1078,6 +1134,7 @@ class DemiluneSwing:
         self.target_y = target_y
         self.infused = infused
         self.targets = targets or []  # List of units that will be hit
+        self.camera = camera
 
         self.phase = "windup"  # windup -> swing -> impact -> settling -> complete
         self.timer = 0
@@ -1141,15 +1198,17 @@ class DemiluneSwing:
                 arc_grid_tiles.append((caster_grid_y, caster_grid_x + 1))
                 self.swing_direction = "north"
 
-            # Convert grid tiles to screen coordinates
-            # Grid offset constants (from animation_factory)
-            GRID_OFFSET_X = 100
-            GRID_OFFSET_Y = 50
-
+            # Convert grid tiles to screen coordinates using camera
             self.arc_tiles = []
             for grid_y, grid_x in arc_grid_tiles:
-                screen_x = GRID_OFFSET_X + grid_x * TILE_SIZE + TILE_SIZE // 2
-                screen_y = GRID_OFFSET_Y + grid_y * TILE_SIZE + TILE_SIZE // 2
+                if self.camera:
+                    screen_x, screen_y = self.camera.grid_to_screen(grid_x, grid_y)
+                else:
+                    # Fallback to defaults
+                    GRID_OFFSET_X = 100
+                    GRID_OFFSET_Y = 50
+                    screen_x = GRID_OFFSET_X + grid_x * TILE_SIZE + TILE_SIZE // 2
+                    screen_y = GRID_OFFSET_Y + grid_y * TILE_SIZE + TILE_SIZE // 2
                 self.arc_tiles.append((screen_y, screen_x))
         else:
             # Fallback to old pixel-based calculation

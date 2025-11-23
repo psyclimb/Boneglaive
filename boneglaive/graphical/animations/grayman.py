@@ -15,23 +15,31 @@ class DeltaConfigAnimation:
     then snaps to the destination. Represents bending space-time.
     """
 
-    def __init__(self, caster_unit, target_pos, particle_emitter):
+    def __init__(self, caster_unit, target_pos, particle_emitter, camera=None):
         """
         Args:
             caster_unit: AnimatedUnit teleporting
             target_pos: Target grid position (grid_x, grid_y)
             particle_emitter: ParticleEmitter for spawning particles
+            camera: Camera instance for coordinate conversion (optional)
         """
         self.caster_unit = caster_unit
-        self.target_grid_x, self.target_grid_y = target_pos
+        # NOTE: target_pos is (grid_y, grid_x) format from renderer - UNPACK CORRECTLY!
+        self.target_grid_y, self.target_grid_x = target_pos
         self.particle_emitter = particle_emitter
+        self.camera = camera
 
-        # Convert grid to screen coordinates
-        from boneglaive.graphical.renderer import GRID_OFFSET_X, GRID_OFFSET_Y
+        # Convert grid to screen coordinates using camera
         self.source_x = caster_unit.x
         self.source_y = caster_unit.y
-        self.target_x = GRID_OFFSET_X + target_pos[0] * TILE_SIZE + TILE_SIZE // 2
-        self.target_y = GRID_OFFSET_Y + target_pos[1] * TILE_SIZE + TILE_SIZE // 2
+        if self.camera:
+            self.target_x, self.target_y = self.camera.grid_to_screen(self.target_grid_x, self.target_grid_y)
+        else:
+            # Fallback to defaults
+            GRID_OFFSET_X = 100
+            GRID_OFFSET_Y = 50
+            self.target_x = GRID_OFFSET_X + self.target_grid_x * TILE_SIZE + TILE_SIZE // 2
+            self.target_y = GRID_OFFSET_Y + self.target_grid_y * TILE_SIZE + TILE_SIZE // 2
 
         # Animation phases
         self.phase = "energize"  # energize, pull, hold, snap, appear
@@ -284,23 +292,31 @@ class GraeExchangeAnimation:
     The unit appears to phase/split, leaving a ghostly echo behind.
     """
 
-    def __init__(self, caster_unit, target_pos, particle_emitter):
+    def __init__(self, caster_unit, target_pos, particle_emitter, camera=None):
         """
         Args:
             caster_unit: AnimatedUnit performing the exchange
             target_pos: Target grid position (grid_x, grid_y)
             particle_emitter: ParticleEmitter for spawning particles
+            camera: Camera instance for coordinate conversion (optional)
         """
         self.caster_unit = caster_unit
-        self.target_grid_x, self.target_grid_y = target_pos
+        # NOTE: target_pos is (grid_y, grid_x) format from renderer - UNPACK CORRECTLY!
+        self.target_grid_y, self.target_grid_x = target_pos
         self.particle_emitter = particle_emitter
+        self.camera = camera
 
-        # Convert grid to screen coordinates
-        from boneglaive.graphical.renderer import GRID_OFFSET_X, GRID_OFFSET_Y
+        # Convert grid to screen coordinates using camera
         self.source_x = caster_unit.x
         self.source_y = caster_unit.y
-        self.target_x = GRID_OFFSET_X + target_pos[0] * TILE_SIZE + TILE_SIZE // 2
-        self.target_y = GRID_OFFSET_Y + target_pos[1] * TILE_SIZE + TILE_SIZE // 2
+        if self.camera:
+            self.target_x, self.target_y = self.camera.grid_to_screen(self.target_grid_x, self.target_grid_y)
+        else:
+            # Fallback to defaults
+            GRID_OFFSET_X = 100
+            GRID_OFFSET_Y = 50
+            self.target_x = GRID_OFFSET_X + self.target_grid_x * TILE_SIZE + TILE_SIZE // 2
+            self.target_y = GRID_OFFSET_Y + self.target_grid_y * TILE_SIZE + TILE_SIZE // 2
 
         # Animation phases
         self.phase = "ritual"  # ritual, split, teleport_out, teleport_in
