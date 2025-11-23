@@ -23,6 +23,7 @@ from .animations.core import (
 )
 
 from .game_state import GameStateAdapter, AnimationEvent
+from .camera import Camera
 from .ui.skill_bar import SkillBar
 from .ui.combat_log import CombatLog
 from .ui.status_effects import StatusEffectsPanel
@@ -67,6 +68,13 @@ class GraphicalRenderer:
         self.font = pygame.font.Font(None, 24)
         self.small_font = pygame.font.Font(None, 18)
         self.large_font = pygame.font.Font(None, 36)
+
+        # Camera system (centralizes coordinate conversion)
+        self.camera = Camera(
+            grid_offset_x=GRID_OFFSET_X,
+            grid_offset_y=GRID_OFFSET_Y,
+            tile_size=TILE_SIZE
+        )
 
         # Game state adapter
         self.game_adapter = game_adapter or GameStateAdapter()
@@ -993,7 +1001,8 @@ class GraphicalRenderer:
                         target_unit=target_visual_unit,
                         target_pos=(target_grid_y, target_grid_x),
                         particle_emitter=self.particle_emitter,
-                        screen_flash_callback=self.trigger_screen_flash
+                        screen_flash_callback=self.trigger_screen_flash,
+                        camera=self.camera
                     )
 
                     if karrier_animation:
@@ -1021,7 +1030,8 @@ class GraphicalRenderer:
                         target_unit=None,
                         target_pos=None,
                         particle_emitter=self.particle_emitter,
-                        screen_flash_callback=self.trigger_screen_flash
+                        screen_flash_callback=self.trigger_screen_flash,
+                        camera=self.camera
                     )
 
                     if neutron_animation:
@@ -1094,7 +1104,8 @@ class GraphicalRenderer:
             debris_list=self.debris_particles,
             screen_shake_callback=self.trigger_screen_shake,
             screen_flash_callback=self.trigger_screen_flash,
-            units_list=self.units
+            units_list=self.units,
+            camera=self.camera
         )
         if animation:
             self.active_animations.append(animation)
@@ -1183,6 +1194,9 @@ class GraphicalRenderer:
         if self.screen_shake_intensity > 0:
             shake_offset_x = random.uniform(-self.screen_shake_intensity, self.screen_shake_intensity)
             shake_offset_y = random.uniform(-self.screen_shake_intensity, self.screen_shake_intensity)
+
+        # Update camera shake offset (for animations that use camera)
+        self.camera.set_shake(shake_offset_x, shake_offset_y)
 
         # Create main surface
         main_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))

@@ -36,18 +36,16 @@ from boneglaive.graphical.animations.interferer import (
     KarrierRaveTripleStrike,
 )
 
-# Grid offset constants (must match renderer.py values)
-GRID_OFFSET_X = 100
-GRID_OFFSET_Y = 50
-
 if TYPE_CHECKING:
     from boneglaive.game.units import Unit
+    from boneglaive.graphical.camera import Camera
 
 
 class AnimationFactory:
     """
     Factory for creating skill animations based on skill names.
     Maps skill names to their corresponding animation classes.
+    Uses Camera system for coordinate conversion (resize-safe).
     """
 
     # Skill name → (animation_class, kwargs)
@@ -122,7 +120,8 @@ class AnimationFactory:
                         screen_shake_callback = None,
                         screen_flash_callback = None,
                         units_list = None,
-                        damage_callback = None):
+                        damage_callback = None,
+                        camera = None):
         """
         Create an animation for a skill.
 
@@ -159,13 +158,24 @@ class AnimationFactory:
         # Prepare animation kwargs
         kwargs = base_kwargs.copy()
 
-        # Convert grid coordinates to screen pixel coordinates
-        # Animations expect pixel coords: grid * TILE_SIZE + offset + center
-        def grid_to_screen(grid_x, grid_y):
-            """Convert grid coords to screen pixel coords (center of tile)."""
-            screen_x = GRID_OFFSET_X + grid_x * TILE_SIZE + TILE_SIZE // 2
-            screen_y = GRID_OFFSET_Y + grid_y * TILE_SIZE + TILE_SIZE // 2
-            return screen_x, screen_y
+        # Use camera for coordinate conversion (if provided)
+        # Falls back to default offsets for backwards compatibility
+        if camera:
+            grid_to_screen = camera.grid_to_screen
+        else:
+            # Fallback for older code that doesn't pass camera
+            print("[AnimationFactory] WARNING: No camera provided, using default offsets")
+            from boneglaive.graphical.animations.core import TILE_SIZE as DEFAULT_TILE_SIZE
+            GRID_OFFSET_X = 100
+            GRID_OFFSET_Y = 50
+            def grid_to_screen(grid_x, grid_y, centered=True):
+                """Fallback grid-to-screen conversion."""
+                screen_x = GRID_OFFSET_X + grid_x * DEFAULT_TILE_SIZE
+                screen_y = GRID_OFFSET_Y + grid_y * DEFAULT_TILE_SIZE
+                if centered:
+                    screen_x += DEFAULT_TILE_SIZE // 2
+                    screen_y += DEFAULT_TILE_SIZE // 2
+                return screen_x, screen_y
 
         # Determine target based on animation type
         if target_unit:
