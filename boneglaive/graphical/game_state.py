@@ -138,7 +138,7 @@ class VisualUnit:
             effects['valuation_oracle'] = True
         if hasattr(game_unit, 'vagal_run_active') and game_unit.vagal_run_active:
             effects['vagal_run'] = True
-        if hasattr(game_unit, 'auction_curse_affected') and game_unit.auction_curse_affected:
+        if hasattr(game_unit, 'auction_curse_dot') and game_unit.auction_curse_dot:
             effects['auction_curse'] = True
         if hasattr(game_unit, 'investment_active') and game_unit.investment_active:
             effects['investment'] = True
