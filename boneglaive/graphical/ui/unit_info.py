@@ -26,7 +26,7 @@ HP_BAR_HEIGHT = 24
 
 
 class UnitInfoPanel:
-    """UI panel showing detailed information about selected unit."""
+    """UI panel showing detailed information about selected unit or furniture."""
 
     def __init__(self, font, small_font, large_font):
         self.font = font
@@ -34,6 +34,7 @@ class UnitInfoPanel:
         self.large_font = large_font
         self.selected_unit = None  # AnimatedUnit
         self.game_unit = None  # Game unit from engine
+        self.furniture_info = None  # Dict with furniture data
 
     def update(self, selected_unit, game_unit):
         """
@@ -45,6 +46,18 @@ class UnitInfoPanel:
         """
         self.selected_unit = selected_unit
         self.game_unit = game_unit
+        self.furniture_info = None  # Clear furniture when showing unit
+
+    def update_furniture(self, furniture_info):
+        """
+        Update panel with furniture information.
+
+        Args:
+            furniture_info: Dict with keys: 'name', 'astral_value' (or None), 'position'
+        """
+        self.selected_unit = None  # Clear unit when showing furniture
+        self.game_unit = None
+        self.furniture_info = furniture_info
 
     def draw(self, surface: pygame.Surface, x: int, y: int):
         """
@@ -54,6 +67,11 @@ class UnitInfoPanel:
             surface: Surface to draw on
             x, y: Position to draw at (top-left)
         """
+        # Check if showing furniture instead of unit
+        if self.furniture_info:
+            self._draw_furniture_info(surface, x, y)
+            return
+
         if not self.selected_unit or not self.game_unit:
             return
 
@@ -287,3 +305,64 @@ class UnitInfoPanel:
         surface.blit(value_text, (x + 150, y))
 
         return y + LINE_HEIGHT
+
+    def _draw_furniture_info(self, surface: pygame.Surface, x: int, y: int):
+        """
+        Draw furniture information panel.
+
+        Args:
+            surface: Surface to draw on
+            x, y: Position to draw at (top-left)
+        """
+        if not self.furniture_info:
+            return
+
+        # Smaller panel for furniture (no stats to show)
+        panel_height = 150 if self.furniture_info.get('astral_value') else 120
+        panel_rect = pygame.Rect(x, y, PANEL_WIDTH, panel_height)
+        panel_surface = pygame.Surface((PANEL_WIDTH, panel_height), pygame.SRCALPHA)
+        panel_surface.fill((*COLOR_BG, 220))
+        surface.blit(panel_surface, (panel_rect.x, panel_rect.y))
+
+        # Draw border (neutral color for furniture)
+        furniture_color = (180, 150, 100)  # Brown/tan color
+        pygame.draw.rect(surface, furniture_color, panel_rect, 3)
+
+        current_y = y + PANEL_PADDING
+
+        # Draw furniture name
+        furniture_name = self.furniture_info['name']
+        name_text = self.large_font.render(furniture_name, True, COLOR_TEXT)
+        surface.blit(name_text, (x + PANEL_PADDING, current_y))
+        current_y += 32
+
+        # Draw type label
+        type_text = self.small_font.render("Furniture", True, COLOR_TEXT_DIM)
+        surface.blit(type_text, (x + PANEL_PADDING, current_y))
+        current_y += 25
+
+        # Draw position
+        pos = self.furniture_info['position']
+        pos_text = self.small_font.render(f"Position: ({pos[0]}, {pos[1]})", True, COLOR_TEXT_DIM)
+        surface.blit(pos_text, (x + PANEL_PADDING, current_y))
+        current_y += 25
+
+        # Draw astral value if present
+        astral_value = self.furniture_info.get('astral_value')
+        if astral_value is not None:
+            current_y += 5
+            # Draw label
+            label_text = self.font.render("Astral Value:", True, COLOR_STAT_LABEL)
+            surface.blit(label_text, (x + PANEL_PADDING, current_y))
+
+            # Draw value (golden color for mystical value)
+            value_color = (255, 215, 0)  # Gold
+            value_text = self.large_font.render(str(astral_value), True, value_color)
+            surface.blit(value_text, (x + PANEL_WIDTH - 60, current_y - 5))
+            current_y += 25
+        elif self.furniture_info.get('has_appraiser') == False:
+            # Player doesn't have DELPHIC APPRAISER
+            current_y += 5
+            hint_text = self.small_font.render("(Requires DELPHIC APPRAISER)", True, COLOR_TEXT_DIM)
+            surface.blit(hint_text, (x + PANEL_PADDING, current_y))
+            current_y += 20

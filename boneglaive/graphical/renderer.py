@@ -434,6 +434,8 @@ class GraphicalRenderer:
                     self.skill_bar.update(None, None)
                     self.status_effects_panel.update(None)
                     self.unit_info_panel.update(None, None)
+                    # Also clear furniture info if showing
+                    self.unit_info_panel.furniture_info = None
 
     def handle_grid_click(self, grid_x: int, grid_y: int):
         """
@@ -563,7 +565,47 @@ class GraphicalRenderer:
                         self.unit_info_panel.update(None, None)
                         print(f"Enemy unit: {unit.name} (Player {unit.player}) - WARNING: No game unit found")
         else:
-            # Clicked empty tile
+            # Clicked tile with no unit
+            # Check if it's furniture
+            if self.game_adapter.game and self.game_adapter.game.map:
+                game_map = self.game_adapter.game.map
+                # Convert grid coords to game coords (y, x)
+                terrain = game_map.get_terrain_at(grid_y, grid_x)
+
+                if game_map.is_furniture(grid_y, grid_x):
+                    # Clicked on furniture - show info
+                    furniture_name = self._get_furniture_name(terrain)
+
+                    # Check if player has DELPHIC APPRAISER to see astral value
+                    has_appraiser = self._has_delphic_appraiser(current_player)
+                    astral_value = None
+
+                    if has_appraiser:
+                        # Get astral value (generates if not set)
+                        astral_value = game_map.get_cosmic_value(grid_y, grid_x, current_player, self.game_adapter.game)
+
+                    # Create furniture info dict
+                    furniture_info = {
+                        'name': furniture_name,
+                        'position': (grid_x, grid_y),
+                        'astral_value': astral_value,
+                        'has_appraiser': has_appraiser
+                    }
+
+                    # Update unit info panel to show furniture
+                    self.unit_info_panel.update_furniture(furniture_info)
+
+                    # Clear other panels
+                    self.skill_bar.update(None, None)
+                    self.status_effects_panel.update(None)
+
+                    print(f"Selected furniture: {furniture_name} at ({grid_x}, {grid_y})")
+                    if astral_value:
+                        print(f"  Astral Value: {astral_value}")
+
+                    return  # Don't process as movement
+
+            # Not furniture - handle as movement
             if self.selected_unit:
                 # Check if clicked position is in movement range
                 if (grid_x, grid_y) in self.valid_positions:
@@ -595,6 +637,42 @@ class GraphicalRenderer:
         if not unit:
             return None
         return unit.name  # TODO: Use proper unit ID
+
+    def _get_furniture_name(self, terrain_type) -> str:
+        """Convert TerrainType to readable furniture name."""
+        # Map terrain types to readable names
+        furniture_names = {
+            TerrainType.FURNITURE: "Furniture",
+            TerrainType.COAT_RACK: "Coat Rack",
+            TerrainType.OTTOMAN: "Ottoman",
+            TerrainType.CONSOLE: "Console Table",
+            TerrainType.DEC_TABLE: "Decorative Table",
+            TerrainType.TIFFANY_LAMP: "Tiffany Lamp",
+            TerrainType.EASEL: "Easel",
+            TerrainType.SCULPTURE: "Sculpture",
+            TerrainType.BENCH: "Bench",
+            TerrainType.PODIUM: "Podium",
+            TerrainType.VASE: "Vase",
+            TerrainType.WORKBENCH: "Workbench",
+            TerrainType.COUCH: "Couch",
+            TerrainType.TOOLBOX: "Toolbox",
+            TerrainType.COT: "Cot",
+            TerrainType.CONVEYOR: "Conveyor Belt",
+            TerrainType.MINI_PUMPKIN: "Mini Pumpkin",
+            TerrainType.POTPOURRI_BOWL: "Potpourri Bowl",
+        }
+        return furniture_names.get(terrain_type, "Unknown Furniture")
+
+    def _has_delphic_appraiser(self, player: int) -> bool:
+        """Check if player has a living DELPHIC APPRAISER unit."""
+        if not self.game_adapter.game:
+            return False
+
+        from boneglaive.utils.constants import UnitType
+        for unit in self.game_adapter.game.units:
+            if unit.player == player and unit.type == UnitType.DELPHIC_APPRAISER and unit.hp > 0:
+                return True
+        return False
 
     def trigger_screen_shake(self, intensity: float, duration: float):
         """Trigger screen shake effect."""
