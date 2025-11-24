@@ -77,6 +77,8 @@ from .derelictionist import (
     PartitionDissociationAnimation,
     DerelictedApplicationAnimation,
     DerelictionistDefectTeleportAnimation,
+    VagalRunAnimation,
+    VagalRunAbreactionAnimation,
 )
 
 from .animation_factory import AnimationFactory
@@ -140,6 +142,8 @@ __all__ = [
     'PartitionDissociationAnimation',
     'DerelictedApplicationAnimation',
     'DerelictionistDefectTeleportAnimation',
+    'VagalRunAnimation',
+    'VagalRunAbreactionAnimation',
     # Factory
     'AnimationFactory',
 ]

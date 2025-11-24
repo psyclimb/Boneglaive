@@ -2371,3 +2371,913 @@ class DerelictionistDefectTeleportAnimation:
         # Phase 4: Stabilization glow
         if self.glow:
             self.glow.draw(surface)
+
+
+# ============================================================================
+# VAGAL RUN ANIMATION
+# ============================================================================
+
+class LightningArc:
+    """
+    Initial lightning arc connecting DERELICTIONIST to ally's head.
+    Jagged bolt with bright white core and ice-blue glow.
+    """
+    def __init__(self, start_x, start_y, end_x, end_y):
+        self.start_x = start_x
+        self.start_y = start_y
+        self.end_x = end_x
+        self.end_y = end_y
+        self.timer = 0
+        self.duration = 0.4
+        self.active = True
+
+        # Generate jagged path points
+        self.path_points = self._generate_jagged_path()
+
+    def _generate_jagged_path(self):
+        """Generate jagged lightning path from start to end."""
+        points = [(self.start_x, self.start_y)]
+
+        # Create 4-6 segments with random jitter
+        num_segments = random.randint(4, 6)
+        for i in range(1, num_segments):
+            t = i / num_segments
+            # Linear interpolation
+            x = self.start_x + (self.end_x - self.start_x) * t
+            y = self.start_y + (self.end_y - self.start_y) * t
+
+            # Add perpendicular jitter
+            dx = self.end_x - self.start_x
+            dy = self.end_y - self.start_y
+            length = math.sqrt(dx * dx + dy * dy)
+            if length > 0:
+                # Perpendicular vector
+                perp_x = -dy / length
+                perp_y = dx / length
+                # Random jitter
+                jitter = random.uniform(-8, 8)
+                x += perp_x * jitter
+                y += perp_y * jitter
+
+            points.append((x, y))
+
+        points.append((self.end_x, self.end_y))
+        return points
+
+    def update(self, delta_time):
+        """Update lightning arc."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Regenerate path occasionally for flickering effect
+        if random.random() < 0.3:
+            self.path_points = self._generate_jagged_path()
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw jagged lightning arc."""
+        if not self.active:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+
+        # Flicker alpha
+        base_alpha = int(220 * (1.0 - progress * 0.5))
+        flicker = 0.8 + 0.2 * random.random()
+        alpha = int(base_alpha * flicker)
+
+        if alpha > 0 and len(self.path_points) > 1:
+            # Draw outer glow (ice-blue)
+            for i in range(len(self.path_points) - 1):
+                pygame.draw.line(surface, (122, 186, 232, alpha // 3),
+                               (int(self.path_points[i][0]), int(self.path_points[i][1])),
+                               (int(self.path_points[i+1][0]), int(self.path_points[i+1][1])),
+                               4)
+
+            # Draw middle layer (bright ice-blue)
+            for i in range(len(self.path_points) - 1):
+                pygame.draw.line(surface, (170, 218, 255, alpha // 2),
+                               (int(self.path_points[i][0]), int(self.path_points[i][1])),
+                               (int(self.path_points[i+1][0]), int(self.path_points[i+1][1])),
+                               2)
+
+            # Draw core (white)
+            for i in range(len(self.path_points) - 1):
+                pygame.draw.line(surface, (255, 255, 255, alpha),
+                               (int(self.path_points[i][0]), int(self.path_points[i][1])),
+                               (int(self.path_points[i+1][0]), int(self.path_points[i+1][1])),
+                               1)
+
+
+class VagusNervePath:
+    """
+    Glowing vertical pathway representing the vagus nerve running down the ally's body.
+    Starts at head, goes through neck, chest, to abdomen.
+    """
+    def __init__(self, center_x, center_y):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.timer = 0
+        self.duration = 1.3  # Visible during phases 2-3
+        self.active = True
+
+        # Nerve path dimensions
+        self.path_top = center_y - 20  # Head
+        self.path_bottom = center_y + 20  # Abdomen
+
+        # Current activation position (lightning progress)
+        self.activation_y = self.path_top
+
+    def update(self, delta_time):
+        """Update nerve pathway glow."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def set_activation_position(self, y_pos):
+        """Set where the lightning has reached on the nerve path."""
+        self.activation_y = y_pos
+
+    def draw(self, surface):
+        """Draw glowing nerve pathway."""
+        if not self.active:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+
+        # Base glow alpha
+        base_alpha = int(180 * min(1.0, self.timer / 0.3))  # Fade in
+        if progress > 0.7:
+            base_alpha = int(180 * (1.0 - (progress - 0.7) / 0.3))  # Fade out
+
+        # Pulse effect
+        pulse = 0.6 + 0.4 * math.sin(self.timer * 8)
+        alpha = int(base_alpha * pulse)
+
+        if alpha > 0:
+            # Draw vertical nerve path (multiple layers for glow)
+            # Outer glow
+            pygame.draw.line(surface, (90, 154, 200, alpha // 4),
+                           (int(self.center_x), int(self.path_top)),
+                           (int(self.center_x), int(self.path_bottom)),
+                           6)
+
+            # Middle glow
+            pygame.draw.line(surface, (122, 186, 232, alpha // 2),
+                           (int(self.center_x), int(self.path_top)),
+                           (int(self.center_x), int(self.path_bottom)),
+                           3)
+
+            # Core line
+            pygame.draw.line(surface, (170, 218, 255, alpha),
+                           (int(self.center_x), int(self.path_top)),
+                           (int(self.center_x), int(self.path_bottom)),
+                           1)
+
+            # Bright spot where lightning is currently at
+            if self.activation_y >= self.path_top and self.activation_y <= self.path_bottom:
+                bright_alpha = int(255 * pulse)
+                pygame.draw.circle(surface, (255, 255, 255, bright_alpha),
+                                 (int(self.center_x), int(self.activation_y)), 4)
+                pygame.draw.circle(surface, (221, 242, 255, bright_alpha // 2),
+                                 (int(self.center_x), int(self.activation_y)), 6)
+
+
+class CascadingLightning:
+    """
+    Forking lightning bolts cascading downward through the vagus nerve.
+    Multiple bolts with branching, traveling from head to abdomen.
+    """
+    def __init__(self, center_x, center_y, delay=0):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.timer = -delay
+        self.duration = 0.8
+        self.active = True
+
+        # Cascade path
+        self.path_top = center_y - 20  # Head
+        self.path_bottom = center_y + 20  # Abdomen
+        self.current_y = self.path_top
+
+        # Lightning segments (jagged vertical path)
+        self.segments = []
+        self._generate_segments()
+
+    def _generate_segments(self):
+        """Generate jagged vertical lightning segments."""
+        self.segments = []
+        num_segments = 8
+        for i in range(num_segments + 1):
+            t = i / num_segments
+            y = self.path_top + (self.path_bottom - self.path_top) * t
+            # Horizontal jitter
+            x = self.center_x + random.uniform(-4, 4)
+            self.segments.append((x, y))
+
+    def update(self, delta_time):
+        """Update cascading lightning."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.timer >= 0:
+            # Progress downward
+            progress = min(1.0, self.timer / self.duration)
+            self.current_y = self.path_top + (self.path_bottom - self.path_top) * progress
+
+            # Occasionally regenerate for flicker
+            if random.random() < 0.2:
+                self._generate_segments()
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw cascading lightning bolt."""
+        if not self.active or self.timer < 0:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+
+        # Determine visible portion of lightning
+        visible_segments = int(len(self.segments) * progress)
+
+        # Flicker alpha
+        base_alpha = 220
+        flicker = 0.7 + 0.3 * random.random()
+        alpha = int(base_alpha * flicker)
+
+        if alpha > 0 and visible_segments > 1:
+            # Draw lightning segments
+            for i in range(visible_segments - 1):
+                # Outer glow
+                pygame.draw.line(surface, (122, 186, 232, alpha // 3),
+                               (int(self.segments[i][0]), int(self.segments[i][1])),
+                               (int(self.segments[i+1][0]), int(self.segments[i+1][1])),
+                               3)
+                # Core
+                pygame.draw.line(surface, (255, 255, 255, alpha),
+                               (int(self.segments[i][0]), int(self.segments[i][1])),
+                               (int(self.segments[i+1][0]), int(self.segments[i+1][1])),
+                               1)
+
+
+class LightningBranches:
+    """
+    Small branching lightning arcs spreading horizontally from the main nerve path.
+    Creates forking effect as lightning cascades down.
+    """
+    def __init__(self, center_x, center_y, spawn_time=0):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.timer = 0
+        self.spawn_time = spawn_time
+        self.duration = 0.3
+        self.active = False  # Becomes active when spawn_time reached
+
+        # Random branch direction and length
+        self.angle = random.choice([-1, 1]) * random.uniform(0.3, 0.8) * math.pi
+        self.length = random.uniform(10, 20)
+
+        # Branch points
+        self.branch_points = []
+        self._generate_branch()
+
+    def _generate_branch(self):
+        """Generate jagged branch."""
+        self.branch_points = [(self.center_x, self.center_y)]
+        num_segments = 3
+        for i in range(1, num_segments + 1):
+            t = i / num_segments
+            distance = self.length * t
+            x = self.center_x + math.cos(self.angle) * distance
+            y = self.center_y + math.sin(self.angle) * distance
+            # Jitter
+            x += random.uniform(-2, 2)
+            y += random.uniform(-2, 2)
+            self.branch_points.append((x, y))
+
+    def update(self, delta_time, global_time):
+        """Update branch (activates at spawn_time)."""
+        if global_time < self.spawn_time:
+            return True  # Not spawned yet
+
+        if not self.active:
+            self.active = True
+
+        self.timer += delta_time
+
+        if self.timer >= self.duration:
+            return False
+
+        return True
+
+    def draw(self, surface, global_time):
+        """Draw lightning branch."""
+        if not self.active or global_time < self.spawn_time:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+        alpha = int(200 * (1.0 - progress))
+
+        if alpha > 0 and len(self.branch_points) > 1:
+            # Draw branch
+            for i in range(len(self.branch_points) - 1):
+                pygame.draw.line(surface, (170, 218, 255, alpha // 2),
+                               (int(self.branch_points[i][0]), int(self.branch_points[i][1])),
+                               (int(self.branch_points[i+1][0]), int(self.branch_points[i+1][1])),
+                               2)
+                pygame.draw.line(surface, (255, 255, 255, alpha),
+                               (int(self.branch_points[i][0]), int(self.branch_points[i][1])),
+                               (int(self.branch_points[i+1][0]), int(self.branch_points[i+1][1])),
+                               1)
+
+
+class FractureExplosion:
+    """
+    Explosive burst of ice-blue lightning and particles when lightning reaches bottom.
+    Represents status effects shattering and trauma dispersing.
+    """
+    def __init__(self, center_x, center_y):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.timer = 0
+        self.duration = 0.6
+        self.active = True
+
+        # Radial lightning branches
+        self.radial_branches = []
+        num_branches = 12
+        for i in range(num_branches):
+            angle = (i / num_branches) * 2 * math.pi
+            length = random.uniform(20, 35)
+            self.radial_branches.append({
+                'angle': angle,
+                'length': length,
+                'segments': self._generate_radial_segments(angle, length)
+            })
+
+        # Shatter particles
+        self.particles = []
+        for _ in range(25):
+            angle = random.uniform(0, 2 * math.pi)
+            speed = random.uniform(30, 80)
+            self.particles.append({
+                'x': center_x,
+                'y': center_y,
+                'vx': math.cos(angle) * speed,
+                'vy': math.sin(angle) * speed,
+                'size': random.uniform(2, 5),
+                'color': random.choice([
+                    (122, 186, 232),
+                    (154, 202, 248),
+                    (170, 218, 255),
+                ])
+            })
+
+    def _generate_radial_segments(self, angle, length):
+        """Generate jagged radial lightning branch."""
+        segments = [(self.center_x, self.center_y)]
+        num_segments = 4
+        for i in range(1, num_segments + 1):
+            t = i / num_segments
+            distance = length * t
+            x = self.center_x + math.cos(angle) * distance
+            y = self.center_y + math.sin(angle) * distance
+            # Jitter perpendicular to angle
+            jitter = random.uniform(-3, 3)
+            x += math.cos(angle + math.pi / 2) * jitter
+            y += math.sin(angle + math.pi / 2) * jitter
+            segments.append((x, y))
+        return segments
+
+    def update(self, delta_time):
+        """Update explosion."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Update particles
+        for p in self.particles:
+            p['x'] += p['vx'] * delta_time
+            p['y'] += p['vy'] * delta_time
+            p['vx'] *= 0.93
+            p['vy'] *= 0.93
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw fracture explosion."""
+        if not self.active:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+
+        # Radial lightning branches (fade quickly)
+        if progress < 0.4:
+            branch_alpha = int(255 * (1.0 - progress / 0.4))
+            for branch in self.radial_branches:
+                if branch_alpha > 0 and len(branch['segments']) > 1:
+                    for i in range(len(branch['segments']) - 1):
+                        # Glow
+                        pygame.draw.line(surface, (122, 186, 232, branch_alpha // 3),
+                                       (int(branch['segments'][i][0]), int(branch['segments'][i][1])),
+                                       (int(branch['segments'][i+1][0]), int(branch['segments'][i+1][1])),
+                                       3)
+                        # Core
+                        pygame.draw.line(surface, (255, 255, 255, branch_alpha),
+                                       (int(branch['segments'][i][0]), int(branch['segments'][i][1])),
+                                       (int(branch['segments'][i+1][0]), int(branch['segments'][i+1][1])),
+                                       1)
+
+        # Shatter particles
+        particle_alpha = int(220 * (1.0 - progress))
+        if particle_alpha > 0:
+            for p in self.particles:
+                particle_surf = pygame.Surface((int(p['size'] * 2), int(p['size'] * 2)), pygame.SRCALPHA)
+                color = p['color'] + (particle_alpha,)
+                pygame.draw.circle(particle_surf, color, (int(p['size']), int(p['size'])), int(p['size']))
+                surface.blit(particle_surf, (int(p['x'] - p['size']), int(p['y'] - p['size'])))
+
+
+class ElectricalAfterimage:
+    """
+    Flickering residual electrical energy after the main lightning cascade.
+    Small arcs and glowing particles settling down.
+    """
+    def __init__(self, center_x, center_y):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.timer = 0
+        self.duration = 0.5
+        self.active = True
+
+        # Small flickering arcs
+        self.flicker_arcs = []
+        for _ in range(5):
+            y_offset = random.uniform(-15, 15)
+            self.flicker_arcs.append({
+                'y': center_y + y_offset,
+                'phase': random.uniform(0, 2 * math.pi)
+            })
+
+        # Settling particles
+        self.particles = []
+        for _ in range(8):
+            x_offset = random.uniform(-10, 10)
+            y_offset = random.uniform(-15, 15)
+            self.particles.append({
+                'x': center_x + x_offset,
+                'y': center_y + y_offset,
+                'vy': random.uniform(5, 15),  # Falling slowly
+                'size': random.uniform(1.5, 3)
+            })
+
+    def update(self, delta_time):
+        """Update afterimage."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Update settling particles
+        for p in self.particles:
+            p['y'] += p['vy'] * delta_time
+            p['vy'] *= 0.95  # Slow down
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw electrical afterimage."""
+        if not self.active:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+        alpha = int(180 * (1.0 - progress))
+
+        if alpha > 0:
+            # Flickering arcs (horizontal small lines)
+            for arc in self.flicker_arcs:
+                if random.random() < 0.4:  # Flicker on/off
+                    arc_length = 8
+                    pygame.draw.line(surface, (170, 218, 255, alpha),
+                                   (int(self.center_x - arc_length), int(arc['y'])),
+                                   (int(self.center_x + arc_length), int(arc['y'])),
+                                   1)
+
+            # Settling particles
+            for p in self.particles:
+                particle_surf = pygame.Surface((int(p['size'] * 2), int(p['size'] * 2)), pygame.SRCALPHA)
+                pygame.draw.circle(particle_surf, (122, 186, 232, alpha),
+                                 (int(p['size']), int(p['size'])), int(p['size']))
+                surface.blit(particle_surf, (int(p['x'] - p['size']), int(p['y'] - p['size'])))
+
+
+class VagalRunAnimation:
+    """
+    Vagal Run skill animation for DERELICTIONIST.
+    Ice-blue lightning cascades down the vagus nerve from head to abdomen,
+    fracturing trauma and clearing status effects with therapeutic intensity.
+
+    Phases:
+    1. Connection Strike (0.4s) - Lightning arc connects caster to ally's head
+    2. Vagal Cascade (0.8s) - Lightning runs down vagus nerve (head→chest→abdomen)
+    3. Trauma Fracture Burst (0.6s) - Explosive burst, status effects shatter
+    4. Nerve Afterglow (0.5s) - Residual electrical energy fades
+    """
+
+    def __init__(self, caster_unit, target_unit, target_pos, is_crit, is_infused,
+                 particle_emitter, debris_list, screen_shake_callback,
+                 screen_flash_callback, units_list, camera, game=None):
+        """
+        Initialize Vagal Run animation.
+
+        Args:
+            caster_unit: DERELICTIONIST casting Vagal Run
+            target_unit: Ally receiving therapy
+            target_pos: (grid_y, grid_x) - Position of ally
+            camera: Camera for coordinate conversion
+            Other args: Standard from AnimationFactory
+        """
+        # Store references
+        self.caster = caster_unit
+        self.target_unit = target_unit
+        self.target_pos = target_pos
+        self.camera = camera
+        self.particle_emitter = particle_emitter
+        self.screen_shake_callback = screen_shake_callback
+        self.screen_flash_callback = screen_flash_callback
+
+        # Convert positions to screen coords
+        # Caster position (may be None if caster died before abreaction)
+        if caster_unit:
+            self.caster_x, self.caster_y = camera.grid_to_screen(caster_unit.grid_x, caster_unit.grid_y, centered=True)
+        else:
+            # No caster (died before abreaction) - use target position for connection
+            self.caster_x, self.caster_y = None, None
+
+        # Target position (CRITICAL: target_pos is (grid_y, grid_x), grid_to_screen takes (grid_x, grid_y))
+        grid_y, grid_x = target_pos
+        self.target_x, self.target_y = camera.grid_to_screen(grid_x, grid_y, centered=True)
+
+        # Animation state
+        self.phase = "connection"  # connection -> cascade -> burst -> afterglow
+        self.timer = 0
+        self.active = True
+
+        # Sub-effects
+        self.connection_arc = None
+        self.nerve_path = None
+        self.cascading_bolts = []
+        self.branches = []
+        self.explosion = None
+        self.afterimage = None
+
+        # Start Phase 1
+        self._start_connection()
+
+    def _start_connection(self):
+        """Phase 1: Connection Strike."""
+        self.phase = "connection"
+        self.timer = 0
+
+        # Lightning arc from caster to target's head (skip if no caster)
+        if self.caster_x is not None and self.caster_y is not None:
+            self.connection_arc = LightningArc(self.caster_x, self.caster_y,
+                                              self.target_x, self.target_y - 20)
+        else:
+            # No caster (abreaction with dead caster) - skip connection phase
+            # Go straight to cascade after minimal delay
+            self.connection_arc = None
+
+        # Light screen shake
+        self.screen_shake_callback(3, 0.4)
+
+    def _start_cascade(self):
+        """Phase 2: Vagal Cascade - Lightning runs down nerve."""
+        self.phase = "cascade"
+        self.timer = 0
+
+        # Create nerve path
+        self.nerve_path = VagusNervePath(self.target_x, self.target_y)
+
+        # Create multiple cascading lightning bolts with stagger
+        for i in range(3):
+            self.cascading_bolts.append(
+                CascadingLightning(self.target_x, self.target_y, delay=i * 0.15)
+            )
+
+        # Create branching arcs that spawn during cascade
+        for i in range(8):
+            spawn_time = random.uniform(0.1, 0.7)
+            y_pos = self.target_y - 20 + random.uniform(0, 40)
+            self.branches.append(
+                LightningBranches(self.target_x, y_pos, spawn_time=spawn_time)
+            )
+
+        # Medium screen shake
+        self.screen_shake_callback(5, 0.8)
+
+    def _start_burst(self):
+        """Phase 3: Trauma Fracture Burst."""
+        self.phase = "burst"
+        self.timer = 0
+
+        # Explosive fracture at bottom of nerve path
+        self.explosion = FractureExplosion(self.target_x, self.target_y + 20)
+
+        # Screen flash (ice-blue)
+        self.screen_flash_callback((170, 218, 255), 0.2)
+
+        # Heavy screen shake
+        self.screen_shake_callback(6, 0.6)
+
+    def _start_afterglow(self):
+        """Phase 4: Nerve Afterglow."""
+        self.phase = "afterglow"
+        self.timer = 0
+
+        # Residual electrical energy
+        self.afterimage = ElectricalAfterimage(self.target_x, self.target_y)
+
+    def update(self, delta_time):
+        """Update animation state. Returns True if active, False when done."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Phase transitions
+        # If no caster, skip connection phase faster (0.1s instead of 0.4s)
+        connection_duration = 0.1 if self.caster_x is None else 0.4
+        if self.phase == "connection" and self.timer >= connection_duration:
+            self._start_cascade()
+        elif self.phase == "cascade" and self.timer >= 0.8:
+            self._start_burst()
+        elif self.phase == "burst" and self.timer >= 0.6:
+            self._start_afterglow()
+        elif self.phase == "afterglow" and self.timer >= 0.5:
+            self.active = False  # Animation complete
+
+        # Update sub-effects
+        if self.connection_arc:
+            self.connection_arc.update(delta_time)
+
+        if self.nerve_path:
+            self.nerve_path.update(delta_time)
+            # Update nerve activation position based on cascade progress
+            if self.phase == "cascade":
+                cascade_progress = min(1.0, self.timer / 0.8)
+                activation_y = self.target_y - 20 + 40 * cascade_progress
+                self.nerve_path.set_activation_position(activation_y)
+
+        # Update cascading bolts
+        for bolt in self.cascading_bolts:
+            bolt.update(delta_time)
+
+        # Update branches (pass global timer for spawn timing)
+        cascade_time = self.timer if self.phase == "cascade" else 0.8
+        self.branches = [b for b in self.branches if b.update(delta_time, cascade_time)]
+
+        if self.explosion:
+            self.explosion.update(delta_time)
+
+        if self.afterimage:
+            self.afterimage.update(delta_time)
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw animation to pygame surface."""
+        if not self.active:
+            return
+
+        # Draw in layers (back to front)
+
+        # Phase 1: Connection arc
+        if self.connection_arc:
+            self.connection_arc.draw(surface)
+
+        # Phase 2: Nerve path (behind lightning)
+        if self.nerve_path:
+            self.nerve_path.draw(surface)
+
+        # Phase 2: Cascading lightning bolts
+        for bolt in self.cascading_bolts:
+            bolt.draw(surface)
+
+        # Phase 2: Lightning branches
+        cascade_time = self.timer if self.phase == "cascade" else 0.8
+        for branch in self.branches:
+            branch.draw(surface, cascade_time)
+
+        # Phase 3: Explosion
+        if self.explosion:
+            self.explosion.draw(surface)
+
+        # Phase 4: Afterimage
+        if self.afterimage:
+            self.afterimage.draw(surface)
+
+
+class VagalRunAbreactionAnimation:
+    """
+    Vagal Run abreaction animation (delayed effect after 3 turns).
+    Same as VagalRunAnimation but WITHOUT the initial connection arc from caster.
+    Lightning appears directly on the target and cascades down the vagus nerve.
+
+    Used when abreaction triggers, especially when the DERELICTIONIST may be dead.
+
+    Phases:
+    1. Vagal Cascade (0.8s) - Lightning runs down vagus nerve (head→chest→abdomen)
+    2. Trauma Fracture Burst (0.6s) - Explosive burst, status effects shatter
+    3. Nerve Afterglow (0.5s) - Residual electrical energy fades
+
+    Total duration: ~1.9s (vs 2.3s for full animation)
+    """
+
+    def __init__(self, caster_unit, target_unit, target_pos, is_crit, is_infused,
+                 particle_emitter, debris_list, screen_shake_callback,
+                 screen_flash_callback, units_list, camera, game=None):
+        """
+        Initialize Vagal Run abreaction animation.
+
+        Args:
+            caster_unit: DERELICTIONIST who cast Vagal Run (may be None/dead)
+            target_unit: Unit experiencing abreaction
+            target_pos: (grid_y, grid_x) - Position of target
+            camera: Camera for coordinate conversion
+            Other args: Standard from AnimationFactory
+        """
+        # Store references
+        self.caster = caster_unit  # May be None
+        self.target_unit = target_unit
+        self.target_pos = target_pos
+        self.camera = camera
+        self.particle_emitter = particle_emitter
+        self.screen_shake_callback = screen_shake_callback
+        self.screen_flash_callback = screen_flash_callback
+
+        # Convert target position to screen coords
+        # CRITICAL: target_pos is (grid_y, grid_x), grid_to_screen takes (grid_x, grid_y)
+        grid_y, grid_x = target_pos
+        self.target_x, self.target_y = camera.grid_to_screen(grid_x, grid_y, centered=True)
+
+        # Animation state (starts directly at cascade - NO connection phase)
+        self.phase = "cascade"  # cascade -> burst -> afterglow
+        self.timer = 0
+        self.active = True
+
+        # Sub-effects
+        self.nerve_path = None
+        self.cascading_bolts = []
+        self.branches = []
+        self.explosion = None
+        self.afterimage = None
+
+        # Start directly with cascade phase
+        self._start_cascade()
+
+    def _start_cascade(self):
+        """Phase 1: Vagal Cascade - Lightning runs down nerve."""
+        self.phase = "cascade"
+        self.timer = 0
+
+        # Create nerve path
+        self.nerve_path = VagusNervePath(self.target_x, self.target_y)
+
+        # Create multiple cascading lightning bolts with stagger
+        for i in range(3):
+            self.cascading_bolts.append(
+                CascadingLightning(self.target_x, self.target_y, delay=i * 0.15)
+            )
+
+        # Create branching arcs that spawn during cascade
+        for i in range(8):
+            spawn_time = random.uniform(0.1, 0.7)
+            y_pos = self.target_y - 20 + random.uniform(0, 40)
+            self.branches.append(
+                LightningBranches(self.target_x, y_pos, spawn_time=spawn_time)
+            )
+
+        # Medium screen shake
+        self.screen_shake_callback(5, 0.8)
+
+    def _start_burst(self):
+        """Phase 2: Trauma Fracture Burst."""
+        self.phase = "burst"
+        self.timer = 0
+
+        # Explosive fracture at bottom of nerve path
+        self.explosion = FractureExplosion(self.target_x, self.target_y + 20)
+
+        # Screen flash (ice-blue)
+        self.screen_flash_callback((170, 218, 255), 0.2)
+
+        # Heavy screen shake
+        self.screen_shake_callback(6, 0.6)
+
+    def _start_afterglow(self):
+        """Phase 3: Nerve Afterglow."""
+        self.phase = "afterglow"
+        self.timer = 0
+
+        # Residual electrical energy
+        self.afterimage = ElectricalAfterimage(self.target_x, self.target_y)
+
+    def update(self, delta_time):
+        """Update animation state. Returns True if active, False when done."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Phase transitions (no connection phase - starts at cascade)
+        if self.phase == "cascade" and self.timer >= 0.8:
+            self._start_burst()
+        elif self.phase == "burst" and self.timer >= 0.6:
+            self._start_afterglow()
+        elif self.phase == "afterglow" and self.timer >= 0.5:
+            self.active = False  # Animation complete
+
+        # Update sub-effects
+        if self.nerve_path:
+            self.nerve_path.update(delta_time)
+            # Update nerve activation position based on cascade progress
+            if self.phase == "cascade":
+                cascade_progress = min(1.0, self.timer / 0.8)
+                activation_y = self.target_y - 20 + 40 * cascade_progress
+                self.nerve_path.set_activation_position(activation_y)
+
+        # Update cascading bolts
+        for bolt in self.cascading_bolts:
+            bolt.update(delta_time)
+
+        # Update branches (pass global timer for spawn timing)
+        cascade_time = self.timer if self.phase == "cascade" else 0.8
+        self.branches = [b for b in self.branches if b.update(delta_time, cascade_time)]
+
+        if self.explosion:
+            self.explosion.update(delta_time)
+
+        if self.afterimage:
+            self.afterimage.update(delta_time)
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw animation to pygame surface."""
+        if not self.active:
+            return
+
+        # Draw in layers (back to front)
+
+        # Phase 1: Nerve path (behind lightning)
+        if self.nerve_path:
+            self.nerve_path.draw(surface)
+
+        # Phase 1: Cascading lightning bolts
+        for bolt in self.cascading_bolts:
+            bolt.draw(surface)
+
+        # Phase 1: Lightning branches
+        cascade_time = self.timer if self.phase == "cascade" else 0.8
+        for branch in self.branches:
+            branch.draw(surface, cascade_time)
+
+        # Phase 2: Explosion
+        if self.explosion:
+            self.explosion.draw(surface)
+
+        # Phase 3: Afterimage
+        if self.afterimage:
+            self.afterimage.draw(surface)
+
+
+# ============================================================================
+# DERELICT ANIMATION
+# ============================================================================
+

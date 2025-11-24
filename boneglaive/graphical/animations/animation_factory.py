@@ -49,6 +49,8 @@ from boneglaive.graphical.animations.marrow_condenser import (
 from boneglaive.graphical.animations.derelictionist import (
     PartitionAnimation,
     PartitionHitAnimation,
+    VagalRunAnimation,
+    VagalRunAbreactionAnimation,
 )
 
 if TYPE_CHECKING:
@@ -121,8 +123,8 @@ class AnimationFactory:
         "SCALAR_NODE": (None, {}),  # Trap placement (no animation - silent)
 
         # DERELICTIONIST skills
-        "VAGAL_RUN": (None, {}),  # TODO: Implement
-        "DERELICT": (None, {}),  # TODO: Implement
+        "VAGAL_RUN": (VagalRunAnimation, {}),
+        "VAGAL_RUN_ABREACTION": (VagalRunAbreactionAnimation, {}),  # Delayed effect (no connection arc)
         "PARTITION": (PartitionAnimation, {}),
     }
 
@@ -207,15 +209,26 @@ class AnimationFactory:
             kwargs['target_y'] = target_y
         else:
             # Some skills target self or area
-            target_x, target_y = grid_to_screen(caster_unit.grid_x, caster_unit.grid_y)
-            kwargs['target_x'] = target_x
-            kwargs['target_y'] = target_y
+            if caster_unit:
+                target_x, target_y = grid_to_screen(caster_unit.grid_x, caster_unit.grid_y)
+                kwargs['target_x'] = target_x
+                kwargs['target_y'] = target_y
+            else:
+                # No caster and no target position - cannot determine location
+                print("[AnimationFactory] Warning: No caster or target position provided")
+                kwargs['target_x'] = 0
+                kwargs['target_y'] = 0
 
         # Create animation instance
         # Different animations have different constructor signatures
         try:
-            # Convert caster grid coords to screen coords
-            caster_screen_x, caster_screen_y = grid_to_screen(caster_unit.grid_x, caster_unit.grid_y)
+            # Convert caster grid coords to screen coords (if caster exists)
+            if caster_unit:
+                caster_screen_x, caster_screen_y = grid_to_screen(caster_unit.grid_x, caster_unit.grid_y)
+            else:
+                # No caster (e.g., caster died before delayed effect like abreaction)
+                # Use target position as fallback
+                caster_screen_x, caster_screen_y = kwargs.get('target_x', 0), kwargs.get('target_y', 0)
 
             # Most animations expect target_x, target_y (or center_x, center_y)
             # SpinningGlaiveProjectile expects start_x, start_y, target_x, target_y, is_crit
@@ -566,6 +579,48 @@ class AnimationFactory:
                     caster_unit=caster_unit,
                     target_unit=target_unit,
                     target_pos=target_pos,  # Ally position (grid_y, grid_x)
+                    is_crit=is_crit,
+                    is_infused=is_infused,
+                    particle_emitter=particle_emitter,
+                    debris_list=[],
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,
+                    units_list=units_list if units_list else [],
+                    camera=camera,
+                    game=kwargs.get('game')
+                )
+            elif anim_class.__name__ == "VagalRunAnimation":
+                # Vagal Run - lightning trauma therapy cascading down vagus nerve
+                # Requires: target_unit (ally), target_pos, camera, standard callbacks
+                if not target_unit:
+                    print("[AnimationFactory] VAGAL_RUN requires a target unit")
+                    return None
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_unit=target_unit,
+                    target_pos=target_pos,  # Ally position (grid_y, grid_x)
+                    is_crit=is_crit,
+                    is_infused=is_infused,
+                    particle_emitter=particle_emitter,
+                    debris_list=[],
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,
+                    units_list=units_list if units_list else [],
+                    camera=camera,
+                    game=kwargs.get('game')
+                )
+            elif anim_class.__name__ == "VagalRunAbreactionAnimation":
+                # Vagal Run Abreaction - abreaction trigger (NO connection arc to caster)
+                # Same nerve cascade effect, but starts immediately on target
+                # Requires: target_unit, target_pos, camera, standard callbacks
+                # NOTE: caster_unit may be None if DERELICTIONIST died
+                if not target_unit:
+                    print("[AnimationFactory] VAGAL_RUN_ABREACTION requires a target unit")
+                    return None
+                animation = anim_class(
+                    caster_unit=caster_unit,  # May be None
+                    target_unit=target_unit,
+                    target_pos=target_pos,  # Target position (grid_y, grid_x)
                     is_crit=is_crit,
                     is_infused=is_infused,
                     particle_emitter=particle_emitter,

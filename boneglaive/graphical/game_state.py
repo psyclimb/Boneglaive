@@ -44,6 +44,8 @@ class VisualUnit:
         self.last_taunted_units = self._get_taunted_units(game_unit, game)
         # Track trapped_by status for trap release animation
         self.last_trapped_by = getattr(game_unit, 'trapped_by', None)
+        # Track vagal run duration for abreaction animation
+        self.last_vagal_run_duration = getattr(game_unit, 'vagal_run_duration', 0)
 
     def _get_passive_activation_state(self, game_unit):
         """Get current activation state of passive skill."""
@@ -358,6 +360,29 @@ class GameStateAdapter:
                 if not (hasattr(game_unit, 'partition_shield_blocked_fatal') and game_unit.partition_shield_blocked_fatal):
                     visual_unit.dissociation_animated = False
                     print(f"[GameState DEBUG] Reset dissociation_animated flag for {game_unit.get_display_name()}")
+
+            # Detect vagal run abreaction (delayed effect trigger)
+            current_vagal_duration = getattr(game_unit, 'vagal_run_duration', 0)
+            if visual_unit.last_vagal_run_duration > 0 and current_vagal_duration == 0:
+                # Abreaction just triggered! (duration went from >0 to 0)
+                caster = getattr(game_unit, 'vagal_run_caster', None)
+                print(f"[GameState] *** VAGAL RUN ABREACTION DETECTED! *** {game_unit.get_display_name()}'s abreaction triggered")
+                if caster:
+                    print(f"  DERELICTIONIST caster: {caster.get_display_name()}")
+                else:
+                    print(f"  DERELICTIONIST caster is dead/None")
+
+                events.append(AnimationEvent(
+                    "skill",
+                    source_unit=caster,  # DERELICTIONIST who cast Vagal Run (may be None if dead)
+                    target_unit=game_unit,  # Unit experiencing abreaction
+                    skill_name="VAGAL_RUN_ABREACTION",  # Use abreaction version (no connection arc)
+                    skill_target=(game_unit.y, game_unit.x)  # Must be skill_target, not target_pos!
+                ))
+                print(f"  Abreaction animation event created (total events: {len(events)})")
+
+            # Update last vagal run duration
+            visual_unit.last_vagal_run_duration = current_vagal_duration
 
             # Detect HP changes
             current_hp = game_unit.hp
