@@ -1,0 +1,5085 @@
+#!/usr/bin/env python3
+"""
+Modern Graphical Renderer Demo for Boneglaive (Pygame version)
+Demonstrates what the game MIGHT look like with modern rendering.
+
+No external dependencies needed (uses pygame from requirements.txt)
+Run: python3 demo_modern_renderer_pygame.py
+"""
+import pygame
+import random
+import math
+from pathlib import Path
+from typing import List, Tuple, Optional
+import sys
+import os
+
+# Constants
+SCREEN_WIDTH = 1280
+SCREEN_HEIGHT = 800
+SCREEN_TITLE = "Boneglaive Modern Renderer Demo"
+
+TILE_SIZE = 64
+GRID_WIDTH = 12
+GRID_HEIGHT = 8
+
+# Colors
+COLOR_PLAYER1 = (100, 150, 255)  # Light blue
+COLOR_PLAYER2 = (255, 150, 150)  # Light coral
+COLOR_DAMAGE = (255, 50, 50)
+COLOR_HEAL = (50, 255, 100)
+COLOR_SKILL = (200, 100, 255)
+COLOR_BG = (40, 44, 52)
+COLOR_GRID_DARK = (50, 54, 62)
+COLOR_GRID_LIGHT = (60, 64, 72)
+
+
+class Particle:
+    """Simple particle for effects."""
+    def __init__(self, x, y, vx, vy, color, size, lifetime):
+        self.x = x
+        self.y = y
+        self.vx = vx
+        self.vy = vy
+        self.color = color
+        self.size = size
+        self.lifetime = lifetime
+        self.max_lifetime = lifetime
+        self.gravity = 0
+        self.fade = True
+
+    def update(self, delta_time):
+        self.x += self.vx * delta_time
+        self.y += self.vy * delta_time
+        self.vy += self.gravity * delta_time
+        self.lifetime -= delta_time
+        return self.lifetime > 0
+
+    def draw(self, surface):
+        if self.lifetime <= 0:
+            return
+        alpha = int(255 * (self.lifetime / self.max_lifetime)) if self.fade else 255
+        color = (*self.color[:3], alpha)
+
+        # Create a surface with per-pixel alpha
+        particle_surf = pygame.Surface((int(self.size * 2), int(self.size * 2)), pygame.SRCALPHA)
+        pygame.draw.circle(particle_surf, color, (int(self.size), int(self.size)), int(self.size))
+        surface.blit(particle_surf, (int(self.x - self.size), int(self.y - self.size)))
+
+
+class ParticleEmitter:
+    """Manages particle effects."""
+    def __init__(self):
+        self.particles: List[Particle] = []
+
+    def emit_burst(self, x, y, color, count=20):
+        """Emit a burst of particles (explosions, impacts)."""
+        for _ in range(count):
+            angle = random.uniform(0, 2 * math.pi)
+            speed = random.uniform(50, 150)
+            vx = math.cos(angle) * speed
+            vy = math.sin(angle) * speed
+            size = random.uniform(2, 5)
+            lifetime = random.uniform(0.3, 0.8)
+            particle = Particle(x, y, vx, vy, color, size, lifetime)
+            particle.gravity = 200
+            self.particles.append(particle)
+
+    def emit_trail(self, x, y, color, count=5):
+        """Emit trailing particles (movement trails)."""
+        for _ in range(count):
+            vx = random.uniform(-20, 20)
+            vy = random.uniform(-20, 20)
+            size = random.uniform(1, 3)
+            lifetime = random.uniform(0.2, 0.5)
+            self.particles.append(Particle(x, y, vx, vy, color, size, lifetime))
+
+    def emit_float(self, x, y, color, count=10):
+        """Emit floating particles (healing, buffs)."""
+        for _ in range(count):
+            vx = random.uniform(-10, 10)
+            vy = random.uniform(-60, -20)
+            size = random.uniform(2, 4)
+            lifetime = random.uniform(0.5, 1.5)
+            self.particles.append(Particle(x, y, vx, vy, color, size, lifetime))
+
+    def emit_beam(self, x1, y1, x2, y2, color, count=30):
+        """Emit particles along a beam (ranged attacks)."""
+        for i in range(count):
+            t = i / count
+            x = x1 + (x2 - x1) * t
+            y = y1 + (y2 - y1) * t
+            vx = random.uniform(-5, 5)
+            vy = random.uniform(-5, 5)
+            size = random.uniform(2, 4)
+            lifetime = random.uniform(0.1, 0.3)
+            self.particles.append(Particle(x, y, vx, vy, color, size, lifetime))
+
+    def update(self, delta_time):
+        self.particles = [p for p in self.particles if p.update(delta_time)]
+
+    def draw(self, surface):
+        for particle in self.particles:
+            particle.draw(surface)
+
+
+class AnimatedUnit:
+    """Unit with smooth animation support."""
+    def __init__(self, name, player, grid_x, grid_y, color, sprite_path=None):
+        self.name = name
+        self.player = player
+        self.grid_x = grid_x
+        self.grid_y = grid_y
+        self.color = color
+
+        # Position
+        self.x = grid_x * TILE_SIZE + TILE_SIZE // 2
+        self.y = grid_y * TILE_SIZE + TILE_SIZE // 2
+
+        # Animation
+        self.target_x = self.x
+        self.target_y = self.y
+        self.is_moving = False
+        self.move_speed = 400
+
+        # Visual effects
+        self.shake_x = 0
+        self.shake_y = 0
+        self.shake_intensity = 0
+        self.hop_offset = 0
+        self.hop_phase = 0
+
+        # Potpourri aura (for POTPOURRIST)
+        self.potpourri_aura_active = False
+        self.potpourri_aura_timer = 0
+        self.potpourri_aura_particles = []
+
+        # Stats
+        self.max_hp = 20
+        self.hp = 20
+
+        # Render
+        self.radius = 24
+        self.sprite = None
+        self.sprite_rect = None
+
+        # Load sprite if path provided
+        if sprite_path and os.path.exists(sprite_path):
+            try:
+                # Try to load SVG using cairosvg if available
+                if sprite_path.endswith('.svg'):
+                    try:
+                        import cairosvg
+                        from io import BytesIO
+                        # Convert SVG to PNG in memory
+                        png_data = cairosvg.svg2png(url=sprite_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
+                        self.sprite = pygame.image.load(BytesIO(png_data))
+                    except ImportError:
+                        print(f"Info: cairosvg not available, rendering SVG with basic rasterization for {sprite_path}")
+                        # Fallback: create a colored square placeholder
+                        self.sprite = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                        # Draw a simple representation
+                        pygame.draw.circle(self.sprite, self.color, (TILE_SIZE//2, TILE_SIZE//2), TILE_SIZE//3)
+                        pygame.draw.circle(self.sprite, (255, 255, 255), (TILE_SIZE//2, TILE_SIZE//2), TILE_SIZE//3, 2)
+                else:
+                    self.sprite = pygame.image.load(sprite_path)
+                    # Scale to fit tile size
+                    self.sprite = pygame.transform.smoothscale(self.sprite, (TILE_SIZE, TILE_SIZE))
+
+                self.sprite_rect = self.sprite.get_rect()
+            except Exception as e:
+                print(f"Warning: Could not load sprite {sprite_path}: {e}")
+                self.sprite = None
+
+    def move_to_grid(self, grid_x, grid_y):
+        """Start smooth movement to grid position."""
+        self.grid_x = grid_x
+        self.grid_y = grid_y
+        self.target_x = grid_x * TILE_SIZE + TILE_SIZE // 2
+        self.target_y = grid_y * TILE_SIZE + TILE_SIZE // 2
+        self.is_moving = True
+        self.hop_phase = math.pi
+
+    def take_damage(self, amount):
+        """Apply damage and trigger shake effect."""
+        self.hp = max(0, self.hp - amount)
+        self.shake_intensity = 10
+
+    def heal(self, amount):
+        """Apply healing."""
+        self.hp = min(self.max_hp, self.hp + amount)
+
+    def update(self, delta_time):
+        # Smooth movement
+        if self.is_moving:
+            dx = self.target_x - self.x
+            dy = self.target_y - self.y
+            distance = math.sqrt(dx*dx + dy*dy)
+
+            if distance < 2:
+                self.x = self.target_x
+                self.y = self.target_y
+                self.is_moving = False
+                self.hop_offset = 0
+            else:
+                move_amount = self.move_speed * delta_time
+                if move_amount > distance:
+                    move_amount = distance
+                self.x += (dx / distance) * move_amount
+                self.y += (dy / distance) * move_amount
+
+                # Hop animation
+                self.hop_phase -= delta_time * 10
+                self.hop_offset = abs(math.sin(self.hop_phase)) * 15
+
+        # Shake effect
+        if self.shake_intensity > 0:
+            self.shake_x = random.uniform(-self.shake_intensity, self.shake_intensity)
+            self.shake_y = random.uniform(-self.shake_intensity, self.shake_intensity)
+            self.shake_intensity -= delta_time * 50
+            if self.shake_intensity < 0:
+                self.shake_intensity = 0
+                self.shake_x = 0
+                self.shake_y = 0
+
+        # Potpourri aura effect
+        if self.potpourri_aura_active:
+            self.potpourri_aura_timer += delta_time
+
+            # Spawn new aura particles periodically
+            if int(self.potpourri_aura_timer * 20) % 3 == 0 and len(self.potpourri_aura_particles) < 15:
+                # Random position around unit
+                angle = random.uniform(0, 2 * math.pi)
+                distance = random.uniform(15, 30)
+                px = self.x + math.cos(angle) * distance
+                py = self.y + math.sin(angle) * distance
+
+                self.potpourri_aura_particles.append({
+                    'x': px,
+                    'y': py,
+                    'vx': random.uniform(-10, 10),
+                    'vy': random.uniform(-30, -10),  # Float upward
+                    'lifetime': random.uniform(1.0, 2.0),
+                    'max_lifetime': 2.0,
+                    'size': random.uniform(2, 4),
+                    'color': random.choice([
+                        (200, 100, 200),  # Purple
+                        (255, 150, 200),  # Pink
+                        (180, 100, 255),  # Violet
+                        (255, 100, 150)   # Rose
+                    ]),
+                    'orbit_angle': angle,
+                    'orbit_speed': random.uniform(1.0, 2.0)
+                })
+
+            # Update aura particles
+            for particle in self.potpourri_aura_particles[:]:
+                # Gentle orbiting motion
+                particle['orbit_angle'] += particle['orbit_speed'] * delta_time
+                orbit_influence = 0.3
+                particle['vx'] += math.cos(particle['orbit_angle']) * 20 * delta_time * orbit_influence
+                particle['vy'] += math.sin(particle['orbit_angle']) * 20 * delta_time * orbit_influence
+
+                # Move
+                particle['x'] += particle['vx'] * delta_time
+                particle['y'] += particle['vy'] * delta_time
+
+                # Age
+                particle['lifetime'] -= delta_time
+                if particle['lifetime'] <= 0:
+                    self.potpourri_aura_particles.remove(particle)
+
+    def draw(self, surface, font):
+        # Calculate final position
+        final_x = int(self.x + self.shake_x)
+        final_y = int(self.y + self.shake_y - self.hop_offset)
+
+        # Draw potpourri aura particles (behind unit)
+        if self.potpourri_aura_active:
+            for particle in self.potpourri_aura_particles:
+                if particle['lifetime'] > 0:
+                    alpha = int(200 * (particle['lifetime'] / particle['max_lifetime']))
+                    if alpha > 0:
+                        color = (*particle['color'], alpha)
+                        particle_surf = pygame.Surface((int(particle['size'] * 2), int(particle['size'] * 2)), pygame.SRCALPHA)
+                        pygame.draw.circle(particle_surf, color,
+                                         (int(particle['size']), int(particle['size'])),
+                                         int(particle['size']))
+                        # Add glow
+                        glow_size = particle['size'] + 2
+                        pygame.draw.circle(particle_surf, (*particle['color'], alpha // 3),
+                                         (int(particle['size']), int(particle['size'])),
+                                         int(glow_size))
+                        surface.blit(particle_surf, (int(particle['x'] - particle['size']), int(particle['y'] - particle['size'])))
+
+        # Draw sprite or fallback to circle
+        if self.sprite:
+            # Position sprite centered at final position
+            self.sprite_rect.center = (final_x, final_y)
+            surface.blit(self.sprite, self.sprite_rect)
+        else:
+            # Draw unit circle (fallback)
+            pygame.draw.circle(surface, self.color, (final_x, final_y), self.radius)
+            pygame.draw.circle(surface, (255, 255, 255), (final_x, final_y), self.radius, 2)
+
+        # Draw HP bar
+        bar_width = 50
+        bar_height = 6
+        bar_x = final_x - bar_width // 2
+        bar_y = final_y - 40
+
+        # Background
+        pygame.draw.rect(surface, (0, 0, 0), (bar_x, bar_y, bar_width, bar_height))
+
+        # HP fill
+        hp_ratio = self.hp / self.max_hp
+        fill_width = int(bar_width * hp_ratio)
+        color = self.color if hp_ratio >= 0.3 else COLOR_DAMAGE
+        pygame.draw.rect(surface, color, (bar_x, bar_y, fill_width, bar_height))
+
+        # Unit name
+        name_text = font.render(self.name, True, (255, 255, 255))
+        name_rect = name_text.get_rect(center=(final_x, final_y - 50))
+        surface.blit(name_text, name_rect)
+
+
+class FloatingText:
+    """Floating damage/heal numbers."""
+    def __init__(self, x, y, text, color):
+        self.x = x
+        self.y = y
+        self.text = text
+        self.color = color
+        self.lifetime = 1.5
+        self.vy = -60
+        self.timer = 0  # For delayed text
+
+    def update(self, delta_time):
+        # Handle delayed text (negative timer means waiting)
+        if self.timer < 0:
+            self.timer += delta_time
+            return True  # Keep alive but don't move yet
+
+        self.y += self.vy * delta_time
+        self.vy += 100 * delta_time
+        self.lifetime -= delta_time
+        return self.lifetime > 0
+
+    def draw(self, surface, font):
+        # Don't draw if still waiting
+        if self.timer < 0:
+            return
+        if self.lifetime <= 0:
+            return
+        alpha = int(255 * (self.lifetime / 1.5))
+        color = (*self.color[:3], alpha)
+
+        # Create text with alpha
+        text_surf = font.render(self.text, True, self.color)
+        text_surf.set_alpha(alpha)
+        text_rect = text_surf.get_rect(center=(int(self.x), int(self.y)))
+        surface.blit(text_surf, text_rect)
+
+
+class DebrisParticle:
+    """Falling debris chunks from PRY impact."""
+    def __init__(self, x, y, vx, vy, size, color, target_unit=None):
+        self.x = x
+        self.y = y
+        self.vx = vx
+        self.vy = vy
+        self.size = size
+        self.color = color
+        self.rotation = random.uniform(0, 360)
+        self.rotation_speed = random.uniform(-500, 500)
+        self.lifetime = 1.0
+        self.gravity = 400
+        self.target_unit = target_unit  # The unit this debris is falling toward
+        self.has_hit = False  # Track if we've already hit the target
+
+    def update(self, delta_time):
+        self.x += self.vx * delta_time
+        self.y += self.vy * delta_time
+        self.vy += self.gravity * delta_time
+        self.rotation += self.rotation_speed * delta_time
+        self.lifetime -= delta_time
+        return self.lifetime > 0
+
+    def check_collision(self, units, particle_emitter):
+        """Check if debris has hit its target unit and create impact effect."""
+        if self.has_hit or not self.target_unit:
+            return False
+
+        # Check if debris has reached the target unit's position
+        dx = self.x - self.target_unit.x
+        dy = self.y - self.target_unit.y
+        distance = math.sqrt(dx*dx + dy*dy)
+
+        # If debris is within collision range of the target
+        if distance < 25 and self.y >= self.target_unit.y - 20:
+            self.has_hit = True
+
+            # Create impact effects at the target location
+            # Dust burst
+            particle_emitter.emit_burst(self.target_unit.x, self.target_unit.y, (150, 130, 100), 15)
+
+            # Ground dust on tile
+            for _ in range(10):
+                angle = random.uniform(0, 2 * math.pi)
+                speed = random.uniform(30, 80)
+                particle = Particle(self.target_unit.x, self.target_unit.y + 15,
+                                   math.cos(angle) * speed, math.sin(angle) * speed - 20,
+                                   (120, 100, 80), random.uniform(3, 6), 0.6)
+                particle.gravity = 150
+                particle_emitter.particles.append(particle)
+
+            # Mark debris for removal
+            self.lifetime = 0
+            return True
+
+        return False
+
+    def draw(self, surface):
+        if self.lifetime <= 0:
+            return
+
+        alpha = int(255 * min(1.0, self.lifetime))
+
+        # Create debris sprite (jagged rock)
+        debris_surf = pygame.Surface((int(self.size * 2), int(self.size * 2)), pygame.SRCALPHA)
+        points = []
+        num_points = 5
+        for i in range(num_points):
+            angle = (i / num_points) * 2 * math.pi
+            distance = self.size * random.uniform(0.7, 1.0)
+            px = self.size + math.cos(angle) * distance
+            py = self.size + math.sin(angle) * distance
+            points.append((px, py))
+
+        pygame.draw.polygon(debris_surf, (*self.color, alpha), points)
+        pygame.draw.polygon(debris_surf, (100, 80, 60, alpha), points, 2)
+
+        # Rotate
+        rotated = pygame.transform.rotate(debris_surf, self.rotation)
+        rect = rotated.get_rect(center=(int(self.x), int(self.y)))
+        surface.blit(rotated, rect)
+
+
+class LightningBolt:
+    """A lightning bolt effect that strikes from above."""
+    def __init__(self, target_x, target_y):
+        self.target_x = target_x
+        self.target_y = target_y
+        self.segments = []
+        self.lifetime = 0.4
+        self.max_lifetime = 0.4
+        self.flash_intensity = 255
+        self.generate_bolt()
+
+    def generate_bolt(self):
+        """Generate jagged lightning path from top of screen to target."""
+        # Start from top of screen
+        start_y = 0
+        current_x = self.target_x
+        current_y = start_y
+
+        # Generate segments with random jagged offsets
+        while current_y < self.target_y:
+            # Move down
+            next_y = current_y + random.uniform(15, 40)
+            # Random horizontal offset for jagged effect
+            next_x = current_x + random.uniform(-25, 25)
+
+            # Clamp next_y to target
+            if next_y > self.target_y:
+                next_y = self.target_y
+                next_x = self.target_x
+
+            self.segments.append(((current_x, current_y), (next_x, next_y)))
+            current_x = next_x
+            current_y = next_y
+
+    def update(self, delta_time):
+        """Update lightning animation."""
+        self.lifetime -= delta_time
+        # Flash effect - flicker intensity
+        self.flash_intensity = int(255 * (self.lifetime / self.max_lifetime))
+        if self.lifetime < 0.2:
+            self.flash_intensity = int(255 * random.uniform(0.5, 1.0) * (self.lifetime / self.max_lifetime))
+        return self.lifetime > 0
+
+    def draw(self, surface):
+        """Draw the lightning bolt with multiple layers."""
+        if self.lifetime <= 0:
+            return
+
+        alpha = int(255 * (self.lifetime / self.max_lifetime))
+
+        # Draw multiple bolts for thickness/glow effect
+        for thickness, color_mod in [(6, 0.3), (4, 0.6), (2, 1.0)]:
+            for (x1, y1), (x2, y2) in self.segments:
+                # Main bolt color (bright white/yellow)
+                color = (
+                    int(255 * color_mod),
+                    int(255 * color_mod),
+                    int(200 * color_mod),
+                    min(alpha, 255)
+                )
+
+                # Create a surface for this segment with alpha
+                segment_surf = pygame.Surface((abs(x2-x1)+thickness*2, abs(y2-y1)+thickness*2), pygame.SRCALPHA)
+                local_x1 = thickness
+                local_y1 = thickness
+                local_x2 = local_x1 + (x2 - x1)
+                local_y2 = local_y1 + (y2 - y1)
+
+                pygame.draw.line(segment_surf, color,
+                               (local_x1, local_y1), (local_x2, local_y2), thickness)
+
+                # Blit to main surface
+                segment_rect = segment_surf.get_rect(topleft=(min(x1, x2) - thickness, min(y1, y2) - thickness))
+                surface.blit(segment_surf, segment_rect)
+
+        # Draw bright core
+        for (x1, y1), (x2, y2) in self.segments:
+            pygame.draw.line(surface, (255, 255, 255, alpha), (int(x1), int(y1)), (int(x2), int(y2)), 1)
+
+
+class CrossBeam:
+    """Expanding cross-shaped beam for Autoclave skill."""
+    def __init__(self, center_x, center_y, direction, max_range=3):
+        """
+        direction: 0=up, 1=right, 2=down, 3=left
+        max_range: number of tiles to expand
+        """
+        self.center_x = center_x
+        self.center_y = center_y
+        self.direction = direction
+        self.max_range = max_range * TILE_SIZE
+        self.current_range = 0
+        self.expand_speed = 600  # pixels per second
+        self.lifetime = 1.0
+        self.max_lifetime = 1.0
+        self.width = 20
+        self.active = True
+
+    def update(self, delta_time):
+        """Update beam expansion."""
+        if self.current_range < self.max_range:
+            self.current_range += self.expand_speed * delta_time
+            if self.current_range > self.max_range:
+                self.current_range = self.max_range
+        else:
+            self.lifetime -= delta_time
+        return self.lifetime > 0 and self.active
+
+    def get_beam_rect(self):
+        """Get the current beam rectangle."""
+        if self.direction == 0:  # Up
+            return (self.center_x - self.width // 2, self.center_y - self.current_range,
+                   self.width, self.current_range)
+        elif self.direction == 1:  # Right
+            return (self.center_x, self.center_y - self.width // 2,
+                   self.current_range, self.width)
+        elif self.direction == 2:  # Down
+            return (self.center_x - self.width // 2, self.center_y,
+                   self.width, self.current_range)
+        else:  # Left
+            return (self.center_x - self.current_range, self.center_y - self.width // 2,
+                   self.current_range, self.width)
+
+    def draw(self, surface):
+        """Draw the cross beam as jets of steam with spinning glaive shuriken."""
+        if self.lifetime <= 0:
+            return
+
+        alpha = int(255 * min(1.0, self.lifetime / self.max_lifetime))
+
+        # Draw steam particles along the beam
+        if self.current_range > 10:
+            num_steam_particles = int(self.current_range / 15)
+            for i in range(num_steam_particles):
+                progress = (i / num_steam_particles) if num_steam_particles > 0 else 0
+
+                # Calculate position along beam
+                if self.direction == 0:  # Up
+                    px = self.center_x + random.uniform(-self.width//2, self.width//2)
+                    py = self.center_y - progress * self.current_range
+                elif self.direction == 1:  # Right
+                    px = self.center_x + progress * self.current_range
+                    py = self.center_y + random.uniform(-self.width//2, self.width//2)
+                elif self.direction == 2:  # Down
+                    px = self.center_x + random.uniform(-self.width//2, self.width//2)
+                    py = self.center_y + progress * self.current_range
+                else:  # Left
+                    px = self.center_x - progress * self.current_range
+                    py = self.center_y + random.uniform(-self.width//2, self.width//2)
+
+                # Steam puffs - wispy and white
+                steam_size = random.uniform(8, 16) * (1.0 - progress * 0.3)  # Smaller at the end
+                steam_alpha = int(alpha * 0.4 * (1.0 - progress * 0.5))  # Fade toward end
+
+                # Multiple overlapping circles for wispy steam effect
+                for _ in range(3):
+                    offset_x = random.uniform(-steam_size * 0.3, steam_size * 0.3)
+                    offset_y = random.uniform(-steam_size * 0.3, steam_size * 0.3)
+                    steam_surf = pygame.Surface((int(steam_size * 3), int(steam_size * 3)), pygame.SRCALPHA)
+                    pygame.draw.circle(steam_surf, (240, 240, 255, steam_alpha),
+                                     (int(steam_size * 1.5 + offset_x), int(steam_size * 1.5 + offset_y)),
+                                     int(steam_size))
+                    surface.blit(steam_surf, (int(px - steam_size * 1.5), int(py - steam_size * 1.5)))
+
+        # Draw spinning glaive shuriken along the beam path
+        if self.current_range > 20:
+            num_glaives = max(1, int(self.current_range / 80))  # Fewer glaives
+            for i in range(num_glaives):
+                progress = ((i + 0.5) / num_glaives) if num_glaives > 0 else 0.5
+
+                # Position along beam
+                if self.direction == 0:  # Up
+                    gx = self.center_x
+                    gy = self.center_y - progress * self.current_range
+                elif self.direction == 1:  # Right
+                    gx = self.center_x + progress * self.current_range
+                    gy = self.center_y
+                elif self.direction == 2:  # Down
+                    gx = self.center_x
+                    gy = self.center_y + progress * self.current_range
+                else:  # Left
+                    gx = self.center_x - progress * self.current_range
+                    gy = self.center_y
+
+                # Draw spinning six-pointed glaive (like in Judgement)
+                glaive_size = 16
+                rotation = (pygame.time.get_ticks() * 0.5 + i * 60) % 360  # Spinning
+
+                glaive_surf = pygame.Surface((glaive_size * 2, glaive_size * 2), pygame.SRCALPHA)
+                center = glaive_size
+
+                # Six blades
+                for blade in range(6):
+                    angle = math.radians(rotation + blade * 60)
+                    # Outer point
+                    px1 = center + math.cos(angle) * glaive_size
+                    py1 = center + math.sin(angle) * glaive_size
+                    # Inner left
+                    angle_l = math.radians(rotation + blade * 60 - 15)
+                    px2 = center + math.cos(angle_l) * (glaive_size * 0.4)
+                    py2 = center + math.sin(angle_l) * (glaive_size * 0.4)
+                    # Inner right
+                    angle_r = math.radians(rotation + blade * 60 + 15)
+                    px3 = center + math.cos(angle_r) * (glaive_size * 0.4)
+                    py3 = center + math.sin(angle_r) * (glaive_size * 0.4)
+
+                    # Draw blade triangle
+                    pygame.draw.polygon(glaive_surf, (200, 200, 220, alpha),
+                                      [(px1, py1), (px2, py2), (px3, py3)])
+                    pygame.draw.polygon(glaive_surf, (255, 255, 255, alpha),
+                                      [(px1, py1), (px2, py2), (px3, py3)], 1)
+
+                # Center hub
+                pygame.draw.circle(glaive_surf, (180, 180, 200, alpha), (center, center), int(glaive_size * 0.3))
+                pygame.draw.circle(glaive_surf, (255, 255, 255, alpha), (center, center), int(glaive_size * 0.3), 2)
+
+                surface.blit(glaive_surf, (int(gx - glaive_size), int(gy - glaive_size)))
+
+
+class JawClamp:
+    """Animated mechanical jaws AND mandibles that clamp down on a target from all 4 directions."""
+    def __init__(self, target_x, target_y):
+        self.target_x = target_x
+        self.target_y = target_y
+        self.phase = "opening"  # opening, crushing, clamped, releasing
+        self.timer = 0
+        self.jaw_gap = 0  # Distance for vertical jaws (top/bottom)
+        self.mandible_gap = 0  # Distance for horizontal mandibles (left/right)
+        self.max_gap = 60  # Maximum opening
+        self.active = True
+
+    def update(self, delta_time):
+        """Update jaw and mandible animation."""
+        self.timer += delta_time
+
+        if self.phase == "opening":
+            # Jaws and mandibles open (0.2s)
+            if self.timer < 0.2:
+                progress = self.timer / 0.2
+                self.jaw_gap = progress * self.max_gap
+                self.mandible_gap = progress * self.max_gap
+            else:
+                self.phase = "crushing"
+                self.timer = 0
+
+        elif self.phase == "crushing":
+            # Jaws and mandibles slam shut (0.1s)
+            if self.timer < 0.1:
+                progress = self.timer / 0.1
+                self.jaw_gap = self.max_gap * (1.0 - progress)
+                self.mandible_gap = self.max_gap * (1.0 - progress)
+            else:
+                self.phase = "clamped"
+                self.timer = 0
+                self.jaw_gap = 0
+                self.mandible_gap = 0
+
+        elif self.phase == "clamped":
+            # Hold closed (0.15s)
+            if self.timer >= 0.15:
+                self.phase = "releasing"
+                self.timer = 0
+
+        elif self.phase == "releasing":
+            # Open and fade (0.15s)
+            if self.timer < 0.15:
+                progress = self.timer / 0.15
+                self.jaw_gap = progress * 40
+                self.mandible_gap = progress * 40
+            else:
+                self.active = False
+                return False
+
+        return True
+
+    def draw(self, surface):
+        """Draw the mechanical jaws (vertical) and mandibles (horizontal)."""
+        if not self.active:
+            return
+
+        # Calculate alpha based on phase
+        if self.phase == "releasing":
+            alpha = int(255 * (1.0 - self.timer / 0.15))
+        else:
+            alpha = 255
+
+        # Draw vertical jaws (top and bottom)
+        upper_jaw_y = self.target_y - self.jaw_gap
+        self.draw_vertical_jaw(surface, self.target_x, upper_jaw_y, True, alpha)
+
+        lower_jaw_y = self.target_y + self.jaw_gap
+        self.draw_vertical_jaw(surface, self.target_x, lower_jaw_y, False, alpha)
+
+        # Draw horizontal mandibles (left and right)
+        left_mandible_x = self.target_x - self.mandible_gap
+        self.draw_horizontal_mandible(surface, left_mandible_x, self.target_y, True, alpha)
+
+        right_mandible_x = self.target_x + self.mandible_gap
+        self.draw_horizontal_mandible(surface, right_mandible_x, self.target_y, False, alpha)
+
+    def draw_vertical_jaw(self, surface, x, y, is_upper, alpha):
+        """Draw vertical jaw (top or bottom) with sharp teeth."""
+        jaw_width = 70
+        jaw_height = 25
+
+        jaw_surf = pygame.Surface((jaw_width, jaw_height), pygame.SRCALPHA)
+
+        # Metal colors
+        metal_dark = (100, 100, 110, alpha)
+        metal_light = (160, 160, 170, alpha)
+        metal_highlight = (200, 200, 210, alpha)
+
+        # Main jaw body
+        pygame.draw.rect(jaw_surf, metal_dark, (0, 0, jaw_width, jaw_height))
+        pygame.draw.rect(jaw_surf, metal_light, (0, 0, jaw_width, jaw_height), 2)
+
+        # Sharp teeth pointing toward center
+        num_teeth = 7
+        tooth_width = jaw_width // num_teeth
+        for i in range(num_teeth):
+            tooth_x = i * tooth_width
+            if is_upper:
+                # Upper jaw teeth point downward
+                points = [
+                    (tooth_x + tooth_width // 2, jaw_height),
+                    (tooth_x + 2, jaw_height - 12),
+                    (tooth_x + tooth_width - 2, jaw_height - 12)
+                ]
+            else:
+                # Lower jaw teeth point upward
+                points = [
+                    (tooth_x + tooth_width // 2, 0),
+                    (tooth_x + 2, 12),
+                    (tooth_x + tooth_width - 2, 12)
+                ]
+            pygame.draw.polygon(jaw_surf, metal_light, points)
+            pygame.draw.polygon(jaw_surf, metal_highlight, points, 1)
+
+        # Rivets
+        for i in range(3):
+            pygame.draw.circle(jaw_surf, (80, 80, 90, alpha), (15 + i * 20, jaw_height // 2), 3)
+
+        surface.blit(jaw_surf, (int(x - jaw_width // 2), int(y - jaw_height // 2)))
+
+    def draw_horizontal_mandible(self, surface, x, y, is_left, alpha):
+        """Draw horizontal mandible shaped like a metal insect mandible - curved pincer."""
+        mandible_length = 70
+        mandible_width = 30
+
+        mandible_surf = pygame.Surface((mandible_length, mandible_width), pygame.SRCALPHA)
+
+        # Metal colors
+        metal_dark = (90, 90, 100, alpha)
+        metal_light = (150, 150, 160, alpha)
+        metal_highlight = (190, 190, 200, alpha)
+        metal_accent = (120, 120, 130, alpha)
+
+        if is_left:
+            # Left mandible - curved pincer pointing right toward center
+            # Main curved body (thick at base, tapering to sharp point)
+            mandible_curve = [
+                (0, mandible_width // 2),  # Base (left side, center)
+                (10, 5),  # Upper curve
+                (35, 2),  # Upper edge
+                (60, mandible_width // 2 - 2),  # Tip upper
+                (70, mandible_width // 2),  # Sharp tip
+                (60, mandible_width // 2 + 2),  # Tip lower
+                (35, mandible_width - 2),  # Lower edge
+                (10, mandible_width - 5),  # Lower curve
+            ]
+            pygame.draw.polygon(mandible_surf, metal_dark, mandible_curve)
+            pygame.draw.polygon(mandible_surf, metal_light, mandible_curve, 2)
+
+            # Inner serrated cutting edge (like insect mandible teeth)
+            cutting_teeth = [40, 50, 55]
+            for tooth_x in cutting_teeth:
+                tooth_points = [
+                    (tooth_x, mandible_width // 2 - 3),
+                    (tooth_x + 5, mandible_width // 2),
+                    (tooth_x, mandible_width // 2 + 3)
+                ]
+                pygame.draw.polygon(mandible_surf, metal_highlight, tooth_points)
+
+            # Segmented exoskeleton plates
+            for i in range(4):
+                segment_x = 8 + i * 12
+                pygame.draw.line(mandible_surf, metal_accent,
+                               (segment_x, 8), (segment_x, mandible_width - 8), 2)
+
+            # Sharp tip highlight
+            pygame.draw.line(mandible_surf, metal_highlight,
+                           (60, mandible_width // 2 - 1), (70, mandible_width // 2), 2)
+
+        else:
+            # Right mandible - curved pincer pointing left toward center
+            # Main curved body (mirror of left)
+            mandible_curve = [
+                (mandible_length, mandible_width // 2),  # Base (right side, center)
+                (60, 5),  # Upper curve
+                (35, 2),  # Upper edge
+                (10, mandible_width // 2 - 2),  # Tip upper
+                (0, mandible_width // 2),  # Sharp tip
+                (10, mandible_width // 2 + 2),  # Tip lower
+                (35, mandible_width - 2),  # Lower edge
+                (60, mandible_width - 5),  # Lower curve
+            ]
+            pygame.draw.polygon(mandible_surf, metal_dark, mandible_curve)
+            pygame.draw.polygon(mandible_surf, metal_light, mandible_curve, 2)
+
+            # Inner serrated cutting edge (like insect mandible teeth)
+            cutting_teeth = [30, 20, 15]
+            for tooth_x in cutting_teeth:
+                tooth_points = [
+                    (tooth_x, mandible_width // 2 - 3),
+                    (tooth_x - 5, mandible_width // 2),
+                    (tooth_x, mandible_width // 2 + 3)
+                ]
+                pygame.draw.polygon(mandible_surf, metal_highlight, tooth_points)
+
+            # Segmented exoskeleton plates
+            for i in range(4):
+                segment_x = 62 - i * 12
+                pygame.draw.line(mandible_surf, metal_accent,
+                               (segment_x, 8), (segment_x, mandible_width - 8), 2)
+
+            # Sharp tip highlight
+            pygame.draw.line(mandible_surf, metal_highlight,
+                           (10, mandible_width // 2 - 1), (0, mandible_width // 2), 2)
+
+        surface.blit(mandible_surf, (int(x - mandible_length // 2), int(y - mandible_width // 2)))
+
+
+class ViseroyTrap:
+    """Viseroy trap animation - jaws grind and chew the target over time, never releasing."""
+    def __init__(self, target_x, target_y):
+        self.target_x = target_x
+        self.target_y = target_y
+        self.phase = "snapping"  # snapping, grinding, clamped
+        self.timer = 0
+        self.jaw_gap = 60  # Start open
+        self.mandible_gap = 60
+        self.max_gap = 60
+        self.grind_cycle = 0  # Track grinding cycles
+        self.active = True
+        self.damage_applied = False
+
+    def update(self, delta_time):
+        """Update Viseroy trap animation with grinding motion."""
+        self.timer += delta_time
+
+        if self.phase == "snapping":
+            # Jaws snap shut quickly (0.12s)
+            if self.timer < 0.12:
+                progress = self.timer / 0.12
+                self.jaw_gap = 60 * (1.0 - progress)
+                self.mandible_gap = 60 * (1.0 - progress)
+            else:
+                self.phase = "grinding"
+                self.timer = 0
+                self.jaw_gap = 0
+                self.mandible_gap = 0
+
+        elif self.phase == "grinding":
+            # Grinding chewing motion - open and close repeatedly (1.2s total)
+            if self.timer < 1.2:
+                # 4 grinding cycles (each 0.3s)
+                cycle_time = self.timer % 0.3
+                cycle_progress = cycle_time / 0.3
+
+                # Pulsing chewing motion - open slightly then close
+                if cycle_progress < 0.5:
+                    # Opening phase of chew
+                    open_amount = (cycle_progress / 0.5) * 20  # Open to 20 pixels
+                    self.jaw_gap = open_amount
+                    self.mandible_gap = open_amount
+                else:
+                    # Closing phase of chew
+                    close_progress = (cycle_progress - 0.5) / 0.5
+                    self.jaw_gap = 20 * (1.0 - close_progress)
+                    self.mandible_gap = 20 * (1.0 - close_progress)
+
+                self.grind_cycle = int(self.timer / 0.3)
+            else:
+                self.phase = "clamped"
+                self.timer = 0
+                self.jaw_gap = 0
+                self.mandible_gap = 0
+
+        elif self.phase == "clamped":
+            # Hold clamped shut (0.3s) then fade
+            if self.timer < 0.3:
+                self.jaw_gap = 0
+                self.mandible_gap = 0
+            else:
+                self.phase = "fading"
+                self.timer = 0
+
+        elif self.phase == "fading":
+            # Fade out while staying closed (0.3s)
+            if self.timer >= 0.3:
+                self.active = False
+                return False
+            # Jaws stay closed (gap = 0) during fade
+
+        return True
+
+    def draw(self, surface):
+        """Draw the Viseroy trap using the same jaw/mandible rendering."""
+        if not self.active:
+            return
+
+        # Calculate alpha - fade out during "fading" phase while staying closed
+        if self.phase == "fading":
+            alpha = int(255 * (1.0 - self.timer / 0.3))
+        else:
+            alpha = 255
+
+        # Draw vertical jaws (top and bottom)
+        upper_jaw_y = self.target_y - self.jaw_gap
+        self.draw_vertical_jaw(surface, self.target_x, upper_jaw_y, True, alpha)
+
+        lower_jaw_y = self.target_y + self.jaw_gap
+        self.draw_vertical_jaw(surface, self.target_x, lower_jaw_y, False, alpha)
+
+        # Draw horizontal mandibles (left and right)
+        left_mandible_x = self.target_x - self.mandible_gap
+        self.draw_horizontal_mandible(surface, left_mandible_x, self.target_y, True, alpha)
+
+        right_mandible_x = self.target_x + self.mandible_gap
+        self.draw_horizontal_mandible(surface, right_mandible_x, self.target_y, False, alpha)
+
+    def draw_vertical_jaw(self, surface, x, y, is_upper, alpha):
+        """Draw vertical jaw (reusing JawClamp's method)."""
+        jaw_width = 70
+        jaw_height = 25
+
+        jaw_surf = pygame.Surface((jaw_width, jaw_height), pygame.SRCALPHA)
+
+        # Metal colors
+        metal_dark = (100, 100, 110, alpha)
+        metal_light = (160, 160, 170, alpha)
+        metal_highlight = (200, 200, 210, alpha)
+
+        # Main jaw body
+        pygame.draw.rect(jaw_surf, metal_dark, (0, 0, jaw_width, jaw_height))
+        pygame.draw.rect(jaw_surf, metal_light, (0, 0, jaw_width, jaw_height), 2)
+
+        # Sharp teeth pointing toward center
+        num_teeth = 7
+        tooth_width = jaw_width // num_teeth
+        for i in range(num_teeth):
+            tooth_x = i * tooth_width
+            if is_upper:
+                # Upper jaw teeth point downward
+                tooth_points = [
+                    (tooth_x + tooth_width // 2, jaw_height),
+                    (tooth_x + 2, jaw_height - 12),
+                    (tooth_x + tooth_width - 2, jaw_height - 12)
+                ]
+            else:
+                # Lower jaw teeth point upward
+                tooth_points = [
+                    (tooth_x + tooth_width // 2, 0),
+                    (tooth_x + 2, 12),
+                    (tooth_x + tooth_width - 2, 12)
+                ]
+            pygame.draw.polygon(jaw_surf, metal_light, tooth_points)
+            pygame.draw.polygon(jaw_surf, metal_highlight, tooth_points, 1)
+
+        # Rivets
+        for i in range(3):
+            pygame.draw.circle(jaw_surf, (80, 80, 90, alpha), (15 + i * 20, jaw_height // 2), 3)
+
+        surface.blit(jaw_surf, (int(x - jaw_width // 2), int(y - jaw_height // 2)))
+
+    def draw_horizontal_mandible(self, surface, x, y, is_left, alpha):
+        """Draw horizontal mandible (reusing JawClamp's method)."""
+        mandible_length = 70
+        mandible_width = 30
+
+        mandible_surf = pygame.Surface((mandible_length, mandible_width), pygame.SRCALPHA)
+
+        # Metal colors
+        metal_dark = (90, 90, 100, alpha)
+        metal_light = (150, 150, 160, alpha)
+        metal_highlight = (190, 190, 200, alpha)
+        metal_accent = (120, 120, 130, alpha)
+
+        if is_left:
+            # Left mandible - curved pincer pointing right toward center
+            mandible_curve = [
+                (0, mandible_width // 2),
+                (10, 5),
+                (35, 2),
+                (60, mandible_width // 2 - 2),
+                (70, mandible_width // 2),
+                (60, mandible_width // 2 + 2),
+                (35, mandible_width - 2),
+                (10, mandible_width - 5),
+            ]
+            pygame.draw.polygon(mandible_surf, metal_dark, mandible_curve)
+            pygame.draw.polygon(mandible_surf, metal_light, mandible_curve, 2)
+
+            # Inner serrated cutting edge
+            cutting_teeth = [40, 50, 55]
+            for tooth_x in cutting_teeth:
+                tooth_points = [
+                    (tooth_x, mandible_width // 2 - 3),
+                    (tooth_x + 5, mandible_width // 2),
+                    (tooth_x, mandible_width // 2 + 3)
+                ]
+                pygame.draw.polygon(mandible_surf, metal_highlight, tooth_points)
+
+            # Segmented exoskeleton plates
+            for i in range(4):
+                segment_x = 8 + i * 12
+                pygame.draw.line(mandible_surf, metal_accent,
+                               (segment_x, 8), (segment_x, mandible_width - 8), 2)
+
+            # Sharp tip highlight
+            pygame.draw.line(mandible_surf, metal_highlight,
+                           (60, mandible_width // 2 - 1), (70, mandible_width // 2), 2)
+
+        else:
+            # Right mandible - curved pincer pointing left toward center
+            mandible_curve = [
+                (mandible_length, mandible_width // 2),
+                (60, 5),
+                (35, 2),
+                (10, mandible_width // 2 - 2),
+                (0, mandible_width // 2),
+                (10, mandible_width // 2 + 2),
+                (35, mandible_width - 2),
+                (60, mandible_width - 5),
+            ]
+            pygame.draw.polygon(mandible_surf, metal_dark, mandible_curve)
+            pygame.draw.polygon(mandible_surf, metal_light, mandible_curve, 2)
+
+            # Inner serrated cutting edge
+            cutting_teeth = [30, 20, 15]
+            for tooth_x in cutting_teeth:
+                tooth_points = [
+                    (tooth_x, mandible_width // 2 - 3),
+                    (tooth_x - 5, mandible_width // 2),
+                    (tooth_x, mandible_width // 2 + 3)
+                ]
+                pygame.draw.polygon(mandible_surf, metal_highlight, tooth_points)
+
+            # Segmented exoskeleton plates
+            for i in range(4):
+                segment_x = 62 - i * 12
+                pygame.draw.line(mandible_surf, metal_accent,
+                               (segment_x, 8), (segment_x, mandible_width - 8), 2)
+
+            # Sharp tip highlight
+            pygame.draw.line(mandible_surf, metal_highlight,
+                           (10, mandible_width // 2 - 1), (0, mandible_width // 2), 2)
+
+        surface.blit(mandible_surf, (int(x - mandible_length // 2), int(y - mandible_width // 2)))
+
+
+class ViseroyRelease:
+    """Animation for releasing a victim from Viseroy trap - jaws open dramatically."""
+    def __init__(self, target_x, target_y):
+        self.target_x = target_x
+        self.target_y = target_y
+        self.phase = "opening"  # opening, releasing
+        self.timer = 0
+        self.jaw_gap = 0  # Start closed
+        self.mandible_gap = 0
+        self.max_gap = 70  # Open wider than initial snap
+        self.active = True
+
+    def update(self, delta_time):
+        """Update release animation - jaws spring open."""
+        self.timer += delta_time
+
+        if self.phase == "opening":
+            # Jaws spring open quickly with slight overshoot (0.25s)
+            if self.timer < 0.25:
+                progress = self.timer / 0.25
+                # Ease-out with slight overshoot
+                overshoot = 1.0 + 0.15 * math.sin(progress * math.pi)
+                self.jaw_gap = progress * self.max_gap * overshoot
+                self.mandible_gap = progress * self.max_gap * overshoot
+            else:
+                self.phase = "releasing"
+                self.timer = 0
+
+        elif self.phase == "releasing":
+            # Fade out while staying open (0.2s)
+            if self.timer >= 0.2:
+                self.active = False
+                return False
+
+        return True
+
+    def draw(self, surface):
+        """Draw the release animation with jaws opening."""
+        if not self.active:
+            return
+
+        # Calculate alpha - fade during releasing phase
+        if self.phase == "releasing":
+            alpha = int(255 * (1.0 - self.timer / 0.2))
+        else:
+            alpha = 255
+
+        # Draw vertical jaws (top and bottom)
+        upper_jaw_y = self.target_y - self.jaw_gap
+        self.draw_vertical_jaw(surface, self.target_x, upper_jaw_y, True, alpha)
+
+        lower_jaw_y = self.target_y + self.jaw_gap
+        self.draw_vertical_jaw(surface, self.target_x, lower_jaw_y, False, alpha)
+
+        # Draw horizontal mandibles (left and right)
+        left_mandible_x = self.target_x - self.mandible_gap
+        self.draw_horizontal_mandible(surface, left_mandible_x, self.target_y, True, alpha)
+
+        right_mandible_x = self.target_x + self.mandible_gap
+        self.draw_horizontal_mandible(surface, right_mandible_x, self.target_y, False, alpha)
+
+    def draw_vertical_jaw(self, surface, x, y, is_upper, alpha):
+        """Draw vertical jaw (reusing same method)."""
+        jaw_width = 70
+        jaw_height = 25
+
+        jaw_surf = pygame.Surface((jaw_width, jaw_height), pygame.SRCALPHA)
+
+        # Metal colors
+        metal_dark = (100, 100, 110, alpha)
+        metal_light = (160, 160, 170, alpha)
+        metal_highlight = (200, 200, 210, alpha)
+
+        # Main jaw body
+        pygame.draw.rect(jaw_surf, metal_dark, (0, 0, jaw_width, jaw_height))
+        pygame.draw.rect(jaw_surf, metal_light, (0, 0, jaw_width, jaw_height), 2)
+
+        # Sharp teeth pointing toward center
+        num_teeth = 7
+        tooth_width = jaw_width // num_teeth
+        for i in range(num_teeth):
+            tooth_x = i * tooth_width
+            if is_upper:
+                # Upper jaw teeth point downward
+                tooth_points = [
+                    (tooth_x + tooth_width // 2, jaw_height),
+                    (tooth_x + 2, jaw_height - 12),
+                    (tooth_x + tooth_width - 2, jaw_height - 12)
+                ]
+            else:
+                # Lower jaw teeth point upward
+                tooth_points = [
+                    (tooth_x + tooth_width // 2, 0),
+                    (tooth_x + 2, 12),
+                    (tooth_x + tooth_width - 2, 12)
+                ]
+            pygame.draw.polygon(jaw_surf, metal_light, tooth_points)
+            pygame.draw.polygon(jaw_surf, metal_highlight, tooth_points, 1)
+
+        # Rivets
+        for i in range(3):
+            pygame.draw.circle(jaw_surf, (80, 80, 90, alpha), (15 + i * 20, jaw_height // 2), 3)
+
+        surface.blit(jaw_surf, (int(x - jaw_width // 2), int(y - jaw_height // 2)))
+
+    def draw_horizontal_mandible(self, surface, x, y, is_left, alpha):
+        """Draw horizontal mandible (reusing same method)."""
+        mandible_length = 70
+        mandible_width = 30
+
+        mandible_surf = pygame.Surface((mandible_length, mandible_width), pygame.SRCALPHA)
+
+        # Metal colors
+        metal_dark = (90, 90, 100, alpha)
+        metal_light = (150, 150, 160, alpha)
+        metal_highlight = (190, 190, 200, alpha)
+        metal_accent = (120, 120, 130, alpha)
+
+        if is_left:
+            # Left mandible - curved pincer pointing right toward center
+            mandible_curve = [
+                (0, mandible_width // 2),
+                (10, 5),
+                (35, 2),
+                (60, mandible_width // 2 - 2),
+                (70, mandible_width // 2),
+                (60, mandible_width // 2 + 2),
+                (35, mandible_width - 2),
+                (10, mandible_width - 5),
+            ]
+            pygame.draw.polygon(mandible_surf, metal_dark, mandible_curve)
+            pygame.draw.polygon(mandible_surf, metal_light, mandible_curve, 2)
+
+            # Inner serrated cutting edge
+            cutting_teeth = [40, 50, 55]
+            for tooth_x in cutting_teeth:
+                tooth_points = [
+                    (tooth_x, mandible_width // 2 - 3),
+                    (tooth_x + 5, mandible_width // 2),
+                    (tooth_x, mandible_width // 2 + 3)
+                ]
+                pygame.draw.polygon(mandible_surf, metal_highlight, tooth_points)
+
+            # Segmented exoskeleton plates
+            for i in range(4):
+                segment_x = 8 + i * 12
+                pygame.draw.line(mandible_surf, metal_accent,
+                               (segment_x, 8), (segment_x, mandible_width - 8), 2)
+
+            # Sharp tip highlight
+            pygame.draw.line(mandible_surf, metal_highlight,
+                           (60, mandible_width // 2 - 1), (70, mandible_width // 2), 2)
+
+        else:
+            # Right mandible - curved pincer pointing left toward center
+            mandible_curve = [
+                (mandible_length, mandible_width // 2),
+                (60, 5),
+                (35, 2),
+                (10, mandible_width // 2 - 2),
+                (0, mandible_width // 2),
+                (10, mandible_width // 2 + 2),
+                (35, mandible_width - 2),
+                (60, mandible_width - 5),
+            ]
+            pygame.draw.polygon(mandible_surf, metal_dark, mandible_curve)
+            pygame.draw.polygon(mandible_surf, metal_light, mandible_curve, 2)
+
+            # Inner serrated cutting edge
+            cutting_teeth = [30, 20, 15]
+            for tooth_x in cutting_teeth:
+                tooth_points = [
+                    (tooth_x, mandible_width // 2 - 3),
+                    (tooth_x - 5, mandible_width // 2),
+                    (tooth_x, mandible_width // 2 + 3)
+                ]
+                pygame.draw.polygon(mandible_surf, metal_highlight, tooth_points)
+
+            # Segmented exoskeleton plates
+            for i in range(4):
+                segment_x = 62 - i * 12
+                pygame.draw.line(mandible_surf, metal_accent,
+                               (segment_x, 8), (segment_x, mandible_width - 8), 2)
+
+            # Sharp tip highlight
+            pygame.draw.line(mandible_surf, metal_highlight,
+                           (10, mandible_width // 2 - 1), (0, mandible_width // 2), 2)
+
+        surface.blit(mandible_surf, (int(x - mandible_length // 2), int(y - mandible_width // 2)))
+
+
+class SiteInspectionBuff:
+    """Visual buff indicator for units receiving Site Inspection bonuses."""
+    def __init__(self, target_x, target_y, is_full_buff):
+        self.target_x = target_x
+        self.target_y = target_y
+        self.is_full_buff = is_full_buff  # True = full buff, False = partial buff
+        self.phase = "appearing"  # appearing, pulsing, fading
+        self.timer = 0
+        self.ring_radius = 0
+        self.active = True
+        self.pulse_alpha = 255
+
+    def update(self, delta_time):
+        """Update buff indicator animation."""
+        self.timer += delta_time
+
+        if self.phase == "waiting":
+            # Waiting for trigger delay to elapse
+            if self.timer >= 0:
+                self.phase = "appearing"
+                self.timer = 0
+            return True
+
+        if self.phase == "appearing":
+            # Ring expands outward (0.3s)
+            if self.timer < 0.3:
+                progress = self.timer / 0.3
+                if self.is_full_buff:
+                    self.ring_radius = progress * 35  # Larger for full buff
+                else:
+                    self.ring_radius = progress * 25  # Smaller for partial
+            else:
+                self.phase = "pulsing"
+                self.timer = 0
+
+        elif self.phase == "pulsing":
+            # Pulsing glow (0.8s total, 2 pulses)
+            if self.timer < 0.8:
+                pulse_cycle = (math.sin(self.timer * 2 * math.pi * 2.5) + 1) / 2  # 2 pulses
+                self.pulse_alpha = int(150 + pulse_cycle * 105)
+            else:
+                self.phase = "fading"
+                self.timer = 0
+
+        elif self.phase == "fading":
+            # Fade out (0.3s)
+            if self.timer < 0.3:
+                fade_progress = self.timer / 0.3
+                self.pulse_alpha = int(255 * (1.0 - fade_progress))
+            else:
+                self.active = False
+                return False
+
+        return True
+
+    def draw(self, surface):
+        """Draw the buff indicator."""
+        if not self.active or self.pulse_alpha == 0:
+            return
+
+        if self.is_full_buff:
+            # FULL BUFF - Green and blue tactical display with movement arrows
+            primary_color = (0, 255, 100, self.pulse_alpha)
+            secondary_color = (100, 200, 255, self.pulse_alpha)
+
+            # Outer ring
+            if self.ring_radius > 0:
+                pygame.draw.circle(surface, primary_color,
+                                 (int(self.target_x), int(self.target_y)),
+                                 int(self.ring_radius), 3)
+                pygame.draw.circle(surface, secondary_color,
+                                 (int(self.target_x), int(self.target_y)),
+                                 int(self.ring_radius - 5), 2)
+
+            # Four directional arrows (indicating movement boost)
+            if self.phase != "appearing":
+                arrow_distance = 25
+                arrow_size = 8
+                directions = [(0, -1), (1, 0), (0, 1), (-1, 0)]  # Up, Right, Down, Left
+
+                for dx, dy in directions:
+                    arrow_x = self.target_x + dx * arrow_distance
+                    arrow_y = self.target_y + dy * arrow_distance
+
+                    # Arrow shaft
+                    pygame.draw.line(surface, secondary_color,
+                                   (self.target_x + dx * 10, self.target_y + dy * 10),
+                                   (arrow_x, arrow_y), 2)
+
+                    # Arrow head
+                    if dx == 0:  # Vertical arrows
+                        head_points = [
+                            (arrow_x, arrow_y),
+                            (arrow_x - arrow_size//2, arrow_y - dy * arrow_size),
+                            (arrow_x + arrow_size//2, arrow_y - dy * arrow_size)
+                        ]
+                    else:  # Horizontal arrows
+                        head_points = [
+                            (arrow_x, arrow_y),
+                            (arrow_x - dx * arrow_size, arrow_y - arrow_size//2),
+                            (arrow_x - dx * arrow_size, arrow_y + arrow_size//2)
+                        ]
+                    pygame.draw.polygon(surface, secondary_color, head_points)
+
+            # Center tactical crosshair
+            if self.phase != "appearing":
+                cross_size = 12
+                # Diagonal lines forming X
+                pygame.draw.line(surface, primary_color,
+                               (self.target_x - cross_size, self.target_y - cross_size),
+                               (self.target_x + cross_size, self.target_y + cross_size), 2)
+                pygame.draw.line(surface, primary_color,
+                               (self.target_x + cross_size, self.target_y - cross_size),
+                               (self.target_x - cross_size, self.target_y + cross_size), 2)
+                # Center dot
+                pygame.draw.circle(surface, (255, 255, 100, self.pulse_alpha),
+                                 (int(self.target_x), int(self.target_y)), 3)
+
+        else:
+            # PARTIAL BUFF - Orange/amber warning indicator (attack boost only)
+            primary_color = (255, 150, 0, self.pulse_alpha)
+            secondary_color = (255, 200, 100, self.pulse_alpha)
+
+            # Single ring (smaller, less dramatic)
+            if self.ring_radius > 0:
+                pygame.draw.circle(surface, primary_color,
+                                 (int(self.target_x), int(self.target_y)),
+                                 int(self.ring_radius), 2)
+
+            # Danger/attack indicator - triangular warning markers
+            if self.phase != "appearing":
+                marker_distance = 18
+                marker_size = 6
+                angles = [0, 120, 240]  # Three warning triangles evenly spaced
+
+                for angle_deg in angles:
+                    angle_rad = math.radians(angle_deg)
+                    marker_x = self.target_x + math.cos(angle_rad) * marker_distance
+                    marker_y = self.target_y + math.sin(angle_rad) * marker_distance
+
+                    # Warning triangle pointing outward
+                    offset_x = math.cos(angle_rad) * marker_size
+                    offset_y = math.sin(angle_rad) * marker_size
+                    perp_x = -math.sin(angle_rad) * marker_size * 0.6
+                    perp_y = math.cos(angle_rad) * marker_size * 0.6
+
+                    triangle_points = [
+                        (marker_x + offset_x, marker_y + offset_y),
+                        (marker_x - offset_x//2 + perp_x, marker_y - offset_y//2 + perp_y),
+                        (marker_x - offset_x//2 - perp_x, marker_y - offset_y//2 - perp_y)
+                    ]
+                    pygame.draw.polygon(surface, primary_color, triangle_points)
+                    pygame.draw.polygon(surface, secondary_color, triangle_points, 1)
+
+            # Center attack symbol (sword/blade icon)
+            if self.phase != "appearing":
+                blade_length = 10
+                # Vertical blade
+                pygame.draw.line(surface, secondary_color,
+                               (self.target_x, self.target_y - blade_length),
+                               (self.target_x, self.target_y + blade_length), 3)
+                # Crossguard
+                pygame.draw.line(surface, primary_color,
+                               (self.target_x - 6, self.target_y - 2),
+                               (self.target_x + 6, self.target_y - 2), 2)
+                # Blade tip
+                pygame.draw.polygon(surface, primary_color,
+                                  [(self.target_x, self.target_y - blade_length - 3),
+                                   (self.target_x - 3, self.target_y - blade_length),
+                                   (self.target_x + 3, self.target_y - blade_length)])
+
+
+class SiteInspectionScan:
+    """Animation for SITE INSPECTION - laser level scanning a 3x3 grid."""
+    def __init__(self, center_x, center_y):
+        # Snap to tile center (not intersection)
+        # Round to nearest tile, then add half tile size to center on the tile
+        tile_x = round(center_x / TILE_SIZE)
+        tile_y = round(center_y / TILE_SIZE)
+        self.center_x = tile_x * TILE_SIZE + TILE_SIZE // 2
+        self.center_y = tile_y * TILE_SIZE + TILE_SIZE // 2
+        self.phase = "deploying"  # deploying, scanning, complete
+        self.timer = 0
+        self.scan_progress = 0  # 0 to 1
+        self.grid_size = TILE_SIZE  # Size of each grid cell
+        self.active = True
+        self.laser_alpha = 0
+
+    def update(self, delta_time):
+        """Update site inspection animation."""
+        self.timer += delta_time
+
+        if self.phase == "deploying":
+            # Lasers fade in (0.2s)
+            if self.timer < 0.2:
+                self.laser_alpha = int(255 * (self.timer / 0.2))
+            else:
+                self.phase = "scanning"
+                self.timer = 0
+                self.laser_alpha = 255
+
+        elif self.phase == "scanning":
+            # Scan across the grid (1.0s)
+            if self.timer < 1.0:
+                self.scan_progress = self.timer / 1.0
+            else:
+                self.phase = "complete"
+                self.timer = 0
+
+        elif self.phase == "complete":
+            # Hold complete state briefly then fade (0.5s)
+            if self.timer < 0.3:
+                # Hold fully visible
+                pass
+            elif self.timer < 0.5:
+                # Fade out
+                fade_progress = (self.timer - 0.3) / 0.2
+                self.laser_alpha = int(255 * (1.0 - fade_progress))
+            else:
+                self.active = False
+                return False
+
+        return True
+
+    def draw(self, surface):
+        """Draw the laser level scanning grid."""
+        if not self.active or self.laser_alpha == 0:
+            return
+
+        # Define 3x3 grid centered on target
+        grid_offsets = [
+            (-1, -1), (0, -1), (1, -1),
+            (-1,  0), (0,  0), (1,  0),
+            (-1,  1), (0,  1), (1,  1)
+        ]
+
+        # Laser colors
+        laser_red = (255, 0, 0, self.laser_alpha)
+        laser_bright = (255, 100, 100, self.laser_alpha)
+        grid_line_color = (255, 50, 50, min(self.laser_alpha, 180))
+
+        # Draw horizontal and vertical laser beams forming grid
+        for dx, dy in grid_offsets:
+            cell_x = self.center_x + dx * self.grid_size
+            cell_y = self.center_y + dy * self.grid_size
+
+            # Draw grid cell outline
+            if self.phase != "deploying":
+                rect_surf = pygame.Surface((self.grid_size, self.grid_size), pygame.SRCALPHA)
+                pygame.draw.rect(rect_surf, grid_line_color,
+                               (0, 0, self.grid_size, self.grid_size), 2)
+                surface.blit(rect_surf, (int(cell_x - self.grid_size // 2),
+                                        int(cell_y - self.grid_size // 2)))
+
+        # During scanning phase, draw sweeping laser line
+        if self.phase == "scanning":
+            # Vertical sweep from top to bottom
+            sweep_y = self.center_y - self.grid_size * 1.5 + self.scan_progress * (self.grid_size * 3)
+
+            # Draw horizontal scanning line
+            pygame.draw.line(surface, laser_bright,
+                           (self.center_x - self.grid_size * 1.5, sweep_y),
+                           (self.center_x + self.grid_size * 1.5, sweep_y), 3)
+
+            # Draw vertical scanning line (perpendicular)
+            sweep_x = self.center_x - self.grid_size * 1.5 + self.scan_progress * (self.grid_size * 3)
+            pygame.draw.line(surface, laser_bright,
+                           (sweep_x, self.center_y - self.grid_size * 1.5),
+                           (sweep_x, self.center_y + self.grid_size * 1.5), 3)
+
+            # Crosshair at intersection
+            cross_size = 8
+            pygame.draw.line(surface, (255, 255, 100, self.laser_alpha),
+                           (sweep_x - cross_size, sweep_y),
+                           (sweep_x + cross_size, sweep_y), 2)
+            pygame.draw.line(surface, (255, 255, 100, self.laser_alpha),
+                           (sweep_x, sweep_y - cross_size),
+                           (sweep_x, sweep_y + cross_size), 2)
+
+        # Draw corner markers for the 3x3 area
+        if self.phase == "complete" or (self.phase == "scanning" and self.scan_progress > 0.7):
+            corner_size = 6
+            corners = [
+                (self.center_x - self.grid_size * 1.5, self.center_y - self.grid_size * 1.5),
+                (self.center_x + self.grid_size * 1.5, self.center_y - self.grid_size * 1.5),
+                (self.center_x - self.grid_size * 1.5, self.center_y + self.grid_size * 1.5),
+                (self.center_x + self.grid_size * 1.5, self.center_y + self.grid_size * 1.5),
+            ]
+
+            for cx, cy in corners:
+                # L-shaped corner markers
+                pygame.draw.line(surface, (0, 255, 0, self.laser_alpha),
+                               (cx - corner_size, cy), (cx + corner_size, cy), 2)
+                pygame.draw.line(surface, (0, 255, 0, self.laser_alpha),
+                               (cx, cy - corner_size), (cx, cy + corner_size), 2)
+
+        # Draw center crosshair (always visible during scan)
+        if self.phase != "deploying":
+            center_cross_size = 10
+            pygame.draw.line(surface, (255, 200, 0, self.laser_alpha),
+                           (self.center_x - center_cross_size, self.center_y),
+                           (self.center_x + center_cross_size, self.center_y), 3)
+            pygame.draw.line(surface, (255, 200, 0, self.laser_alpha),
+                           (self.center_x, self.center_y - center_cross_size),
+                           (self.center_x, self.center_y + center_cross_size), 3)
+
+
+class ExpediteRush:
+    """EXPEDITE - MANDIBLE FOREMAN rushes forward in a line, stopping at first enemy."""
+    def __init__(self, start_x, start_y, target_x, target_y, foreman_unit):
+        self.start_x = start_x
+        self.start_y = start_y
+        self.current_x = start_x
+        self.current_y = start_y
+        self.target_x = target_x
+        self.target_y = target_y
+        self.foreman = foreman_unit  # Reference to FOREMAN unit for animation
+        self.phase = "charging"  # charging, rushing, impact, complete
+        self.timer = 0
+        self.active = True
+
+        # Calculate rush direction (normalize to unit vector)
+        dx = target_x - start_x
+        dy = target_y - start_y
+        dist = math.sqrt(dx*dx + dy*dy)
+        if dist > 0:
+            self.direction_x = dx / dist
+            self.direction_y = dy / dist
+        else:
+            self.direction_x = 1
+            self.direction_y = 0
+
+        # Rush speed (very fast)
+        self.rush_speed = 800  # pixels per second
+
+        # Trail positions for motion blur
+        self.trail_positions = []
+
+        # Target unit (enemy hit)
+        self.target_unit = None
+        self.damage_applied = False
+
+        # Steam particles
+        self.steam_particles = []
+
+    def update(self, delta_time):
+        """Update expedite rush animation."""
+        self.timer += delta_time
+
+        if self.phase == "charging":
+            # Build up steam pressure (0.3s)
+            if self.timer < 0.3:
+                # Create charging steam particles
+                if random.random() < 0.4:
+                    # Steam venting from sides
+                    side = random.choice([-1, 1])
+                    angle = math.atan2(self.direction_y, self.direction_x) + side * math.pi/2
+                    speed = random.uniform(30, 60)
+                    particle = Particle(
+                        self.current_x + side * 15,
+                        self.current_y,
+                        math.cos(angle) * speed,
+                        math.sin(angle) * speed,
+                        (220, 220, 230), random.uniform(4, 8), 0.5
+                    )
+                    particle.gravity = -20  # Float upward
+                    self.steam_particles.append(particle)
+            else:
+                self.phase = "rushing"
+                self.timer = 0
+                # Store FOREMAN's starting position for restoration later
+                self.foreman_original_x = self.foreman.x
+                self.foreman_original_y = self.foreman.y
+
+        elif self.phase == "rushing":
+            # Rush forward at high speed
+            # Move toward target
+            self.current_x += self.direction_x * self.rush_speed * delta_time
+            self.current_y += self.direction_y * self.rush_speed * delta_time
+
+            # Update FOREMAN's visual position
+            self.foreman.x = self.current_x
+            self.foreman.y = self.current_y
+
+            # Store trail positions
+            self.trail_positions.append((self.current_x, self.current_y, self.timer))
+            if len(self.trail_positions) > 6:
+                self.trail_positions.pop(0)
+
+            # Create steam trail particles
+            if random.random() < 0.5:
+                # Backward-facing steam
+                back_angle = math.atan2(self.direction_y, self.direction_x) + math.pi
+                speed = random.uniform(40, 80)
+                particle = Particle(
+                    self.current_x,
+                    self.current_y,
+                    math.cos(back_angle) * speed,
+                    math.sin(back_angle) * speed,
+                    (200, 200, 210), random.uniform(5, 10), 0.4
+                )
+                particle.gravity = 50
+                self.steam_particles.append(particle)
+
+            # Check if reached target (within threshold)
+            dx_remaining = self.target_x - self.current_x
+            dy_remaining = self.target_y - self.current_y
+            dist_remaining = math.sqrt(dx_remaining*dx_remaining + dy_remaining*dy_remaining)
+
+            if dist_remaining < self.rush_speed * delta_time * 1.5:
+                # Reached target - transition to impact
+                self.phase = "impact"
+                self.timer = 0
+                self.current_x = self.target_x
+                self.current_y = self.target_y
+                self.foreman.x = self.target_x
+                self.foreman.y = self.target_y
+                # Update grid position
+                self.foreman.grid_x = int(self.target_x / TILE_SIZE)
+                self.foreman.grid_y = int(self.target_y / TILE_SIZE)
+
+        elif self.phase == "impact":
+            # Brief impact pause (0.2s)
+            if self.timer >= 0.2:
+                self.phase = "complete"
+                self.timer = 0
+
+        elif self.phase == "complete":
+            # Fade out (0.3s) - keep FOREMAN at new position
+            if self.timer >= 0.3:
+                # Don't restore position - FOREMAN stays where he rushed to
+                # Position will be reset at end of full skill rotation
+                self.active = False
+                return False
+
+        # Update steam particles
+        self.steam_particles = [p for p in self.steam_particles if p.update(delta_time)]
+
+        return True
+
+    def draw(self, surface):
+        """Draw the expedite rush animation."""
+        if not self.active:
+            return
+
+        # Draw steam particles
+        for particle in self.steam_particles:
+            particle.draw(surface)
+
+        if self.phase == "charging":
+            # Draw charging indicator - pulsing glow around FOREMAN
+            pulse = (math.sin(self.timer * 20) + 1) / 2
+            glow_size = int(30 + pulse * 10)
+            glow_alpha = int(100 + pulse * 50)
+
+            glow_surf = pygame.Surface((glow_size * 2, glow_size * 2), pygame.SRCALPHA)
+            pygame.draw.circle(glow_surf, (220, 220, 255, glow_alpha),
+                             (glow_size, glow_size), glow_size)
+            glow_rect = glow_surf.get_rect(center=(int(self.current_x), int(self.current_y)))
+            surface.blit(glow_surf, glow_rect)
+
+            # Direction indicator (arrow pointing forward)
+            arrow_length = 40
+            arrow_end_x = self.current_x + self.direction_x * arrow_length
+            arrow_end_y = self.current_y + self.direction_y * arrow_length
+            pygame.draw.line(surface, (180, 180, 200, 200),
+                           (int(self.current_x), int(self.current_y)),
+                           (int(arrow_end_x), int(arrow_end_y)), 4)
+
+        elif self.phase == "rushing":
+            # Draw motion blur trail
+            for i, (trail_x, trail_y, trail_time) in enumerate(self.trail_positions):
+                alpha = int(150 * (i / len(self.trail_positions)))
+                trail_size = int(25 * (1 - i / len(self.trail_positions)))
+
+                # Draw trail as fading circles
+                trail_surf = pygame.Surface((trail_size * 2, trail_size * 2), pygame.SRCALPHA)
+                pygame.draw.circle(trail_surf, (200, 200, 220, alpha),
+                                 (trail_size, trail_size), trail_size)
+                trail_rect = trail_surf.get_rect(center=(int(trail_x), int(trail_y)))
+                surface.blit(trail_surf, trail_rect)
+
+            # Draw FOREMAN's rushing silhouette with glow
+            rush_glow = pygame.Surface((50, 50), pygame.SRCALPHA)
+            pygame.draw.circle(rush_glow, (220, 230, 255, 200), (25, 25), 25)
+            rush_rect = rush_glow.get_rect(center=(int(self.current_x), int(self.current_y)))
+            surface.blit(rush_glow, rush_rect)
+
+            # Speed lines indicating direction
+            for i in range(3):
+                line_offset = (i - 1) * 15
+                perp_x = -self.direction_y * line_offset
+                perp_y = self.direction_x * line_offset
+                line_start_x = self.current_x + perp_x - self.direction_x * 30
+                line_start_y = self.current_y + perp_y - self.direction_y * 30
+                line_end_x = self.current_x + perp_x
+                line_end_y = self.current_y + perp_y
+                pygame.draw.line(surface, (180, 190, 200, 150),
+                               (int(line_start_x), int(line_start_y)),
+                               (int(line_end_x), int(line_end_y)), 3)
+
+        elif self.phase == "impact":
+            # Draw impact burst
+            impact_progress = self.timer / 0.2
+            burst_size = int(40 + impact_progress * 60)
+            burst_alpha = int(255 * (1 - impact_progress))
+
+            # White impact flash
+            burst_surf = pygame.Surface((burst_size * 2, burst_size * 2), pygame.SRCALPHA)
+            pygame.draw.circle(burst_surf, (255, 255, 255, burst_alpha),
+                             (burst_size, burst_size), burst_size)
+            burst_rect = burst_surf.get_rect(center=(int(self.current_x), int(self.current_y)))
+            surface.blit(burst_surf, burst_rect)
+
+            # Shockwave ring
+            ring_radius = int(burst_size * 0.7)
+            pygame.draw.circle(surface, (220, 220, 240, burst_alpha),
+                             (int(self.current_x), int(self.current_y)), ring_radius, 4)
+
+
+class JawlineNetwork:
+    """JAWLINE - Network of mechanical bear trap jaws deployed in 3x3 grid around MANDIBLE FOREMAN."""
+    def __init__(self, center_x, center_y):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.phase = "deploying"  # deploying, snapping, active, fading
+        self.timer = 0
+        self.active = True
+        self.damage_targets = []  # Units that will take damage
+        self.damage_applied = False
+
+        # 8 trap positions in 3x3 grid (excluding center where FOREMAN stands)
+        self.trap_positions = []
+        trap_index = 0
+        for dy in [-1, 0, 1]:
+            for dx in [-1, 0, 1]:
+                if dx == 0 and dy == 0:
+                    continue  # Skip center
+                trap_x = center_x + dx * TILE_SIZE
+                trap_y = center_y + dy * TILE_SIZE
+                self.trap_positions.append({
+                    'x': trap_x,
+                    'y': trap_y,
+                    'dx': dx,
+                    'dy': dy,
+                    'deploy_progress': 0,
+                    'jaw_angle': 45,  # Bear trap jaw opening angle (degrees)
+                    'cable_slack': 0,
+                    'deploy_delay': trap_index * 0.06  # Stagger deployment
+                })
+                trap_index += 1
+
+    def update(self, delta_time):
+        """Update jawline network animation."""
+        self.timer += delta_time
+
+        if self.phase == "deploying":
+            # Traps slide out from center along cables
+            all_deployed = True
+            for trap in self.trap_positions:
+                if self.timer >= trap['deploy_delay']:
+                    deploy_time = self.timer - trap['deploy_delay']
+                    if deploy_time < 0.35:
+                        trap['deploy_progress'] = deploy_time / 0.35
+                        # Cable slack diminishes as trap deploys
+                        trap['cable_slack'] = (1.0 - trap['deploy_progress']) * 0.25
+                        all_deployed = False  # Still deploying
+                    else:
+                        trap['deploy_progress'] = 1.0
+                        trap['cable_slack'] = 0
+                else:
+                    all_deployed = False  # Hasn't started yet
+
+            # Only transition when ALL traps have fully deployed (deploy_progress = 1.0)
+            if all_deployed:
+                self.phase = "snapping"
+                self.timer = 0
+
+        elif self.phase == "snapping":
+            # All traps snap shut simultaneously (0.12s fast snap)
+            if self.timer < 0.12:
+                snap_progress = self.timer / 0.12
+                for trap in self.trap_positions:
+                    # Jaws close from 45° to 0° with ease-in
+                    ease = snap_progress * snap_progress
+                    trap['jaw_angle'] = 45 * (1.0 - ease)
+            else:
+                for trap in self.trap_positions:
+                    trap['jaw_angle'] = 0
+                self.phase = "active"
+                self.timer = 0
+                # Damage applied when jaws snap shut
+                self.damage_applied = True
+
+        elif self.phase == "active":
+            # Hold active state with pulsing glow (1.5s)
+            if self.timer >= 1.5:
+                self.phase = "fading"
+                self.timer = 0
+
+        elif self.phase == "fading":
+            # Fade out (0.3s)
+            if self.timer >= 0.3:
+                self.active = False
+                return False
+
+        return True
+
+    def draw(self, surface):
+        """Draw the jawline network."""
+        if not self.active:
+            return
+
+        # Calculate alpha for fading
+        if self.phase == "fading":
+            alpha = int(255 * (1.0 - self.timer / 0.3))
+        else:
+            alpha = 255
+
+        # Pulsing glow during active phase
+        pulse_intensity = 1.0
+        if self.phase == "active":
+            pulse = (math.sin(self.timer * 10) + 1) / 2  # Fast pulse
+            pulse_intensity = 0.6 + pulse * 0.4
+
+        # Orange cable color (matching FOREMAN's SVG)
+        cable_base_alpha = int(alpha * pulse_intensity)
+        cable_color = (255, 102, 0, cable_base_alpha)  # #ff6600
+
+        # Draw orange cables connecting traps to center
+        for trap in self.trap_positions:
+            if trap['deploy_progress'] > 0:
+                # Calculate current trap position (lerp from center to final position)
+                current_x = self.center_x + (trap['x'] - self.center_x) * trap['deploy_progress']
+                current_y = self.center_y + (trap['y'] - self.center_y) * trap['deploy_progress']
+
+                # Draw cable with curve for slack
+                if trap['cable_slack'] > 0:
+                    # Quadratic Bezier curve for cable slack
+                    mid_x = (self.center_x + current_x) / 2
+                    mid_y = (self.center_y + current_y) / 2
+                    # Perpendicular offset for slack
+                    dx = current_x - self.center_x
+                    dy = current_y - self.center_y
+                    dist = math.sqrt(dx*dx + dy*dy)
+                    if dist > 0:
+                        perp_x = -dy / dist * trap['cable_slack'] * TILE_SIZE * 0.5
+                        perp_y = dx / dist * trap['cable_slack'] * TILE_SIZE * 0.5
+                    else:
+                        perp_x = perp_y = 0
+                    control_x = mid_x + perp_x
+                    control_y = mid_y + perp_y
+
+                    # Draw curve as line segments
+                    points = []
+                    for t_step in range(11):
+                        t = t_step / 10
+                        # Quadratic Bezier: B(t) = (1-t)²P₀ + 2(1-t)tP₁ + t²P₂
+                        bx = (1-t)**2 * self.center_x + 2*(1-t)*t * control_x + t**2 * current_x
+                        by = (1-t)**2 * self.center_y + 2*(1-t)*t * control_y + t**2 * current_y
+                        points.append((int(bx), int(by)))
+
+                    if len(points) > 1:
+                        pygame.draw.lines(surface, cable_color, False, points, 3)
+                else:
+                    # Straight taut cable
+                    pygame.draw.line(surface, cable_color,
+                                   (int(self.center_x), int(self.center_y)),
+                                   (int(current_x), int(current_y)), 3)
+
+        # Draw bear trap jaws at each position
+        for trap in self.trap_positions:
+            if trap['deploy_progress'] > 0:
+                current_x = self.center_x + (trap['x'] - self.center_x) * trap['deploy_progress']
+                current_y = self.center_y + (trap['y'] - self.center_y) * trap['deploy_progress']
+                trap_alpha = int(alpha * pulse_intensity)
+                self.draw_bear_trap(surface, current_x, current_y, trap['jaw_angle'], trap_alpha)
+
+        # Draw central hub (cable spool on FOREMAN's position)
+        hub_radius = 10
+        pygame.draw.circle(surface, (120, 120, 130, alpha),
+                         (int(self.center_x), int(self.center_y)), hub_radius)
+        pygame.draw.circle(surface, (80, 80, 90, alpha),
+                         (int(self.center_x), int(self.center_y)), hub_radius, 3)
+        # Orange pulsing indicator light on hub
+        if self.phase in ["active", "snapping"]:
+            light_size = int(4 + pulse_intensity * 2)
+            light_alpha = int(alpha * pulse_intensity)
+            pygame.draw.circle(surface, (255, 150, 0, light_alpha),
+                             (int(self.center_x), int(self.center_y)), light_size)
+
+    def draw_bear_trap(self, surface, x, y, jaw_angle, alpha):
+        """Draw a mechanical bear trap with adjustable jaw angle."""
+        trap_size = 24
+
+        # Create surface for the trap
+        trap_surf = pygame.Surface((trap_size * 3, trap_size * 3), pygame.SRCALPHA)
+        center = trap_size * 1.5
+
+        # Metal colors
+        metal_dark = (100, 100, 110, alpha)
+        metal_light = (160, 160, 170, alpha)
+        metal_teeth = (200, 200, 210, alpha)
+
+        # Base plate
+        base_w = int(trap_size * 0.8)
+        base_h = int(trap_size * 0.4)
+        base_rect = pygame.Rect(center - base_w // 2, center - base_h // 2, base_w, base_h)
+        pygame.draw.rect(trap_surf, metal_dark, base_rect)
+        pygame.draw.rect(trap_surf, metal_light, base_rect, 2)
+
+        # Central hinge pivot
+        pygame.draw.circle(trap_surf, metal_light, (int(center), int(center)), 5)
+        pygame.draw.circle(trap_surf, metal_dark, (int(center), int(center)), 5, 2)
+
+        # Draw upper and lower jaws
+        self.draw_trap_jaw(trap_surf, center, center, jaw_angle, True, alpha)  # Upper jaw
+        self.draw_trap_jaw(trap_surf, center, center, jaw_angle, False, alpha)  # Lower jaw
+
+        # Blit to main surface
+        trap_rect = trap_surf.get_rect(center=(int(x), int(y)))
+        surface.blit(trap_surf, trap_rect)
+
+    def draw_trap_jaw(self, surface, cx, cy, angle, is_upper, alpha):
+        """Draw a single jaw of the bear trap."""
+        # Metal colors
+        metal_light = (160, 160, 170, alpha)
+        metal_teeth = (200, 200, 210, alpha)
+        metal_dark = (100, 100, 110, alpha)
+
+        # Jaw parameters
+        jaw_length = 20
+        jaw_width = 9
+
+        # Calculate jaw angle (upper jaw rotates up, lower rotates down)
+        angle_rad = math.radians(angle if is_upper else -angle)
+
+        # Jaw arm as quadrilateral
+        arm_points = []
+        # Near points at hinge
+        for side_offset in [-jaw_width//2, jaw_width//2]:
+            px = cx + side_offset * math.cos(angle_rad + math.pi/2)
+            py = cy + side_offset * math.sin(angle_rad + math.pi/2)
+            arm_points.append((px, py))
+        # Far points at end
+        for side_offset in [jaw_width//2, -jaw_width//2]:
+            px = cx + jaw_length * math.cos(angle_rad) + side_offset * math.cos(angle_rad + math.pi/2)
+            py = cy + jaw_length * math.sin(angle_rad) + side_offset * math.sin(angle_rad + math.pi/2)
+            arm_points.append((px, py))
+
+        pygame.draw.polygon(surface, metal_light, arm_points)
+        pygame.draw.polygon(surface, metal_dark, arm_points, 2)
+
+        # Teeth along the jaw (4 sharp teeth pointing inward)
+        for tooth_idx in range(4):
+            tooth_dist = (tooth_idx + 0.7) * jaw_length / 4.5
+            tooth_base_x = cx + tooth_dist * math.cos(angle_rad)
+            tooth_base_y = cy + tooth_dist * math.sin(angle_rad)
+
+            # Tooth length and direction (perpendicular, pointing inward)
+            tooth_length = 6
+            tooth_angle = angle_rad + (math.pi/2 if not is_upper else -math.pi/2)
+
+            # Triangle tooth
+            tooth_tip_x = tooth_base_x + tooth_length * math.cos(tooth_angle)
+            tooth_tip_y = tooth_base_y + tooth_length * math.sin(tooth_angle)
+
+            tooth_base_offset = 2.5
+            tooth_base1_x = tooth_base_x + tooth_base_offset * math.cos(angle_rad)
+            tooth_base1_y = tooth_base_y + tooth_base_offset * math.sin(angle_rad)
+            tooth_base2_x = tooth_base_x - tooth_base_offset * math.cos(angle_rad)
+            tooth_base2_y = tooth_base_y - tooth_base_offset * math.sin(angle_rad)
+
+            tooth_points = [
+                (tooth_tip_x, tooth_tip_y),
+                (tooth_base1_x, tooth_base1_y),
+                (tooth_base2_x, tooth_base2_y)
+            ]
+            pygame.draw.polygon(surface, metal_teeth, tooth_points)
+            pygame.draw.polygon(surface, metal_light, tooth_points, 1)
+
+
+class SpinningGlaiveProjectile:
+    """A spinning glaive projectile that travels from attacker to target."""
+    def __init__(self, start_x, start_y, target_x, target_y, speed=600):
+        self.x = start_x
+        self.y = start_y
+        self.target_x = target_x
+        self.target_y = target_y
+        self.speed = speed
+        self.rotation = 0
+        self.rotation_speed = 1080  # degrees per second (3 full rotations)
+        self.active = True
+        self.trail_positions = []
+
+        # Calculate direction
+        dx = target_x - start_x
+        dy = target_y - start_y
+        distance = math.sqrt(dx*dx + dy*dy)
+        if distance > 0:
+            self.vx = (dx / distance) * speed
+            self.vy = (dy / distance) * speed
+        else:
+            self.vx = 0
+            self.vy = 0
+
+        # Create glaive sprite (six-pointed spinning blade)
+        self.size = 32
+        self.create_glaive_surface()
+
+    def create_glaive_surface(self):
+        """Create the spinning glaive sprite."""
+        self.base_surface = pygame.Surface((self.size, self.size), pygame.SRCALPHA)
+        center = self.size // 2
+
+        # Golden/white color scheme
+        gold = (255, 215, 0)
+        light_gold = (255, 235, 100)
+        white = (255, 255, 255)
+
+        # Draw six pointed blades radiating from center
+        blade_length = self.size // 2 - 2
+        for i in range(6):
+            angle = (i * 60) * math.pi / 180
+
+            # Blade tip
+            tip_x = center + math.cos(angle) * blade_length
+            tip_y = center + math.sin(angle) * blade_length
+
+            # Blade sides (slightly offset for width)
+            angle_offset = 15 * math.pi / 180
+            side1_x = center + math.cos(angle - angle_offset) * (blade_length * 0.7)
+            side1_y = center + math.sin(angle - angle_offset) * (blade_length * 0.7)
+            side2_x = center + math.cos(angle + angle_offset) * (blade_length * 0.7)
+            side2_y = center + math.sin(angle + angle_offset) * (blade_length * 0.7)
+
+            # Draw blade triangle
+            pygame.draw.polygon(self.base_surface, gold,
+                              [(center, center), (tip_x, tip_y), (side1_x, side1_y)])
+            pygame.draw.polygon(self.base_surface, gold,
+                              [(center, center), (tip_x, tip_y), (side2_x, side2_y)])
+
+            # Highlight edge
+            pygame.draw.line(self.base_surface, light_gold,
+                           (center, center), (tip_x, tip_y), 2)
+
+        # Center hub
+        pygame.draw.circle(self.base_surface, white, (center, center), 6)
+        pygame.draw.circle(self.base_surface, gold, (center, center), 6, 2)
+        pygame.draw.circle(self.base_surface, (200, 180, 0), (center, center), 3)
+
+    def update(self, delta_time):
+        """Update projectile position and rotation."""
+        if not self.active:
+            return False
+
+        # Store position for trail
+        self.trail_positions.append((self.x, self.y, self.rotation))
+        if len(self.trail_positions) > 8:
+            self.trail_positions.pop(0)
+
+        # Move towards target
+        self.x += self.vx * delta_time
+        self.y += self.vy * delta_time
+
+        # Rotate
+        self.rotation += self.rotation_speed * delta_time
+
+        # Check if reached target (within small distance)
+        dx = self.target_x - self.x
+        dy = self.target_y - self.y
+        distance = math.sqrt(dx*dx + dy*dy)
+
+        if distance < self.speed * delta_time:
+            self.active = False
+            return False
+
+        return True
+
+    def draw(self, surface):
+        """Draw the spinning glaive with motion blur trail."""
+        if not self.active:
+            return
+
+        # Draw motion blur trail
+        for i, (trail_x, trail_y, trail_rot) in enumerate(self.trail_positions):
+            alpha = int(100 * (i / len(self.trail_positions)))
+            trail_surface = pygame.transform.rotate(self.base_surface, trail_rot)
+            trail_surface.set_alpha(alpha)
+            trail_rect = trail_surface.get_rect(center=(int(trail_x), int(trail_y)))
+            surface.blit(trail_surface, trail_rect)
+
+        # Draw main glaive
+        rotated_surface = pygame.transform.rotate(self.base_surface, self.rotation)
+        rect = rotated_surface.get_rect(center=(int(self.x), int(self.y)))
+        surface.blit(rotated_surface, rect)
+
+        # Add glow effect
+        glow_surf = pygame.Surface((self.size + 20, self.size + 20), pygame.SRCALPHA)
+        glow_radius = self.size // 2 + 10
+        pygame.draw.circle(glow_surf, (255, 215, 0, 50),
+                          (glow_radius, glow_radius), glow_radius)
+        glow_rect = glow_surf.get_rect(center=(int(self.x), int(self.y)))
+        surface.blit(glow_surf, glow_rect)
+
+
+class PedestalStrike:
+    """Impact effects for POTPOURRIST's pedestal strike (shockwave, debris, crater)."""
+    def __init__(self, target_x, target_y, target_unit):
+        self.target_x = target_x
+        self.target_y = target_y
+        self.target = target_unit
+
+        self.phase = "impact"  # impact -> shockwave -> crater -> complete
+        self.timer = 0
+        self.active = True
+
+        # Impact effects
+        self.shockwave_radius = 0
+        self.crater_particles = []
+        self.dust_particles = []
+        self.damage_applied = False
+
+    def update(self, delta_time):
+        """Update impact effects."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.phase == "impact":
+            # Impact moment with compression (0.15s)
+            if self.timer < 0.15:
+                # Target compression
+                if self.target:
+                    progress = self.timer / 0.15
+                    if progress < 0.5:
+                        # Compress
+                        self.target.pry_stretch_y = 1.0 - (progress * 2 * 0.3)  # Squash to 0.7
+                    else:
+                        # Rebound
+                        rebound = (progress - 0.5) * 2
+                        self.target.pry_stretch_y = 0.7 + (rebound * 0.3)
+
+                # Apply damage at start of impact
+                if not self.damage_applied:
+                    self.damage_applied = True
+                    if self.target:
+                        self.target.take_damage(4)
+
+            else:
+                self.phase = "shockwave"
+                self.timer = 0
+                # Reset target stretch
+                if self.target:
+                    self.target.pry_stretch_y = 1.0
+
+        elif self.phase == "shockwave":
+            # Expanding shockwave and debris (0.5s)
+            if self.timer < 0.5:
+                progress = self.timer / 0.5
+                self.shockwave_radius = progress * 80  # Expand to 80px
+
+                # Spawn debris particles
+                if int(self.timer * 100) % 5 == 0 and len(self.crater_particles) < 40:
+                    angle = random.uniform(0, 2 * math.pi)
+                    speed = random.uniform(80, 200)
+                    self.crater_particles.append({
+                        'x': self.target_x,
+                        'y': self.target_y,
+                        'vx': math.cos(angle) * speed,
+                        'vy': math.sin(angle) * speed - 100,  # Initial upward bias
+                        'lifetime': random.uniform(0.4, 0.8),
+                        'size': random.uniform(2, 6),
+                        'color': (120, 100, 80),  # Brown rock
+                        'gravity': 400
+                    })
+
+                # Gray dust cloud
+                if int(self.timer * 100) % 3 == 0 and len(self.dust_particles) < 30:
+                    angle = random.uniform(0, 2 * math.pi)
+                    speed = random.uniform(30, 80)
+                    self.dust_particles.append({
+                        'x': self.target_x,
+                        'y': self.target_y,
+                        'vx': math.cos(angle) * speed,
+                        'vy': math.sin(angle) * speed - 50,
+                        'lifetime': random.uniform(0.6, 1.0),
+                        'size': random.uniform(4, 10),
+                        'color': (180, 180, 180)
+                    })
+            else:
+                self.phase = "crater"
+                self.timer = 0
+
+        elif self.phase == "crater":
+            # Crater settling (0.4s)
+            if self.timer < 0.4:
+                # Particles settle
+                pass
+            else:
+                self.phase = "complete"
+                self.active = False
+
+        # Update particles
+        for particle in self.crater_particles[:]:
+            particle['x'] += particle['vx'] * delta_time
+            particle['y'] += particle['vy'] * delta_time
+            particle['vy'] += particle.get('gravity', 0) * delta_time
+            particle['lifetime'] -= delta_time
+            if particle['lifetime'] <= 0:
+                self.crater_particles.remove(particle)
+
+        for particle in self.dust_particles[:]:
+            particle['x'] += particle['vx'] * delta_time
+            particle['y'] += particle['vy'] * delta_time
+            particle['lifetime'] -= delta_time
+            if particle['lifetime'] <= 0:
+                self.dust_particles.remove(particle)
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw the impact effects."""
+        if not self.active and self.phase == "complete":
+            return
+
+        # Draw shockwave ring
+        if self.phase == "shockwave" or self.phase == "crater":
+            alpha = int(255 * (1.0 - (self.shockwave_radius / 80)))
+            if alpha > 0:
+                shockwave_surf = pygame.Surface((int(self.shockwave_radius * 2), int(self.shockwave_radius * 2)), pygame.SRCALPHA)
+                pygame.draw.circle(shockwave_surf, (200, 100, 200, alpha),
+                                 (int(self.shockwave_radius), int(self.shockwave_radius)),
+                                 int(self.shockwave_radius), 4)
+                shockwave_rect = shockwave_surf.get_rect(center=(int(self.target_x), int(self.target_y)))
+                surface.blit(shockwave_surf, shockwave_rect)
+
+        # Draw crater particles (rock debris)
+        for particle in self.crater_particles:
+            alpha = int(255 * (particle['lifetime'] / 0.8))
+            if alpha > 0:
+                color = (*particle['color'], alpha)
+                particle_surf = pygame.Surface((int(particle['size'] * 2), int(particle['size'] * 2)), pygame.SRCALPHA)
+                pygame.draw.circle(particle_surf, color,
+                                 (int(particle['size']), int(particle['size'])),
+                                 int(particle['size']))
+                surface.blit(particle_surf, (int(particle['x'] - particle['size']), int(particle['y'] - particle['size'])))
+
+        # Draw dust particles
+        for particle in self.dust_particles:
+            alpha = int(150 * (particle['lifetime'] / 1.0))
+            if alpha > 0:
+                color = (*particle['color'], alpha)
+                particle_surf = pygame.Surface((int(particle['size'] * 2), int(particle['size'] * 2)), pygame.SRCALPHA)
+                pygame.draw.circle(particle_surf, color,
+                                 (int(particle['size']), int(particle['size'])),
+                                 int(particle['size']))
+                surface.blit(particle_surf, (int(particle['x'] - particle['size']), int(particle['y'] - particle['size'])))
+
+
+class InfuseEffect:
+    """INFUSE - POTPOURRIST creates aromatic potpourri with swirling petals and fragrance."""
+    def __init__(self, caster_x, caster_y, caster_unit):
+        self.caster_x = caster_x
+        self.caster_y = caster_y
+        self.caster = caster_unit
+
+        self.phase = "gathering"  # gathering -> swirling -> infusion -> complete
+        self.timer = 0
+        self.active = True
+
+        # Visual effects
+        self.petal_particles = []
+        self.fragrance_waves = []
+        self.spiral_angle = 0
+        self.core_glow_radius = 0
+
+    def update(self, delta_time):
+        """Update infuse animation."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+        self.spiral_angle += delta_time * 360  # Full rotation per second
+
+        if self.phase == "gathering":
+            # Petals and particles gather inward (0.5s)
+            if self.timer < 0.5:
+                progress = self.timer / 0.5
+
+                # Spawn incoming petal particles
+                if int(self.timer * 100) % 8 == 0 and len(self.petal_particles) < 30:
+                    angle = random.uniform(0, 2 * math.pi)
+                    distance = random.uniform(60, 100)
+                    start_x = self.caster_x + math.cos(angle) * distance
+                    start_y = self.caster_y + math.sin(angle) * distance
+
+                    # Petals move inward in a spiral
+                    self.petal_particles.append({
+                        'x': start_x,
+                        'y': start_y,
+                        'target_x': self.caster_x,
+                        'target_y': self.caster_y,
+                        'speed': random.uniform(150, 250),
+                        'spiral_offset': random.uniform(0, 2 * math.pi),
+                        'color': random.choice([
+                            (200, 100, 200),  # Purple
+                            (255, 150, 200),  # Pink
+                            (180, 100, 255),  # Violet
+                            (255, 100, 150)   # Rose
+                        ]),
+                        'size': random.uniform(3, 6),
+                        'lifetime': 2.0
+                    })
+
+                # Growing core glow
+                self.core_glow_radius = progress * 20
+            else:
+                self.phase = "swirling"
+                self.timer = 0
+
+        elif self.phase == "swirling":
+            # Petals swirl around caster (0.6s)
+            if self.timer < 0.6:
+                # All petals orbit in a vortex
+                for petal in self.petal_particles:
+                    angle_to_center = math.atan2(self.caster_y - petal['y'], self.caster_x - petal['x'])
+                    distance = math.sqrt((petal['x'] - self.caster_x)**2 + (petal['y'] - self.caster_y)**2)
+
+                    # Spiral inward while orbiting
+                    orbit_angle = angle_to_center + petal['spiral_offset'] + self.spiral_angle * 0.02
+                    new_distance = max(10, distance - delta_time * 60)
+
+                    petal['x'] = self.caster_x + math.cos(orbit_angle) * new_distance
+                    petal['y'] = self.caster_y + math.sin(orbit_angle) * new_distance
+
+                # Core glow pulses
+                self.core_glow_radius = 20 + math.sin(self.timer * 10) * 5
+            else:
+                self.phase = "infusion"
+                self.timer = 0
+
+        elif self.phase == "infusion":
+            # Petals burst outward and fade, potpourri absorbed (0.5s)
+            if self.timer < 0.5:
+                progress = self.timer / 0.5
+
+                # Petals expand outward and fade
+                for petal in self.petal_particles:
+                    angle_from_center = math.atan2(petal['y'] - self.caster_y, petal['x'] - self.caster_x)
+                    speed = 100 * (1.0 + progress)
+                    petal['x'] += math.cos(angle_from_center) * speed * delta_time
+                    petal['y'] += math.sin(angle_from_center) * speed * delta_time
+                    petal['lifetime'] -= delta_time * 3
+
+                # Spawn fragrance waves
+                if int(self.timer * 100) % 15 == 0 and len(self.fragrance_waves) < 5:
+                    self.fragrance_waves.append({
+                        'radius': 0,
+                        'max_radius': random.uniform(40, 60),
+                        'lifetime': 0.8,
+                        'color': (200, 150, 200)
+                    })
+
+                # Core flash
+                self.core_glow_radius = 20 + (1.0 - progress) * 30
+
+                # Caster glows
+                if self.caster:
+                    self.caster.pry_stretch_y = 1.0 + (math.sin(progress * math.pi) * 0.05)
+            else:
+                self.phase = "complete"
+                self.active = False
+                if self.caster:
+                    self.caster.pry_stretch_y = 1.0
+                    # Activate sustained potpourri aura
+                    self.caster.potpourri_aura_active = True
+                    self.caster.potpourri_aura_timer = 0
+
+        # Update petal particles
+        for petal in self.petal_particles[:]:
+            petal['lifetime'] -= delta_time
+            if petal['lifetime'] <= 0:
+                self.petal_particles.remove(petal)
+
+        # Update fragrance waves
+        for wave in self.fragrance_waves[:]:
+            wave['radius'] += delta_time * 80
+            wave['lifetime'] -= delta_time
+            if wave['lifetime'] <= 0:
+                self.fragrance_waves.remove(wave)
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw the infuse effect."""
+        if not self.active and self.phase == "complete":
+            return
+
+        # Draw fragrance waves (expanding rings)
+        for wave in self.fragrance_waves:
+            alpha = int(150 * (wave['lifetime'] / 0.8))
+            if alpha > 0 and wave['radius'] > 0:
+                wave_surf = pygame.Surface((int(wave['radius'] * 2), int(wave['radius'] * 2)), pygame.SRCALPHA)
+                color = (*wave['color'], alpha)
+                pygame.draw.circle(wave_surf, color,
+                                 (int(wave['radius']), int(wave['radius'])),
+                                 int(wave['radius']), 2)
+                wave_rect = wave_surf.get_rect(center=(int(self.caster_x), int(self.caster_y)))
+                surface.blit(wave_surf, wave_rect)
+
+        # Draw core glow
+        if self.core_glow_radius > 0:
+            for i in range(3):
+                radius = self.core_glow_radius + i * 8
+                alpha = int(100 - i * 30)
+                if alpha > 0:
+                    glow_surf = pygame.Surface((int(radius * 2), int(radius * 2)), pygame.SRCALPHA)
+                    pygame.draw.circle(glow_surf, (200, 100, 200, alpha),
+                                     (int(radius), int(radius)), int(radius))
+                    glow_rect = glow_surf.get_rect(center=(int(self.caster_x), int(self.caster_y)))
+                    surface.blit(glow_surf, glow_rect)
+
+        # Draw petal particles
+        for petal in self.petal_particles:
+            if petal['lifetime'] > 0:
+                alpha = int(255 * min(1.0, petal['lifetime']))
+                if alpha > 0:
+                    color = (*petal['color'], alpha)
+                    petal_surf = pygame.Surface((int(petal['size'] * 2), int(petal['size'] * 2)), pygame.SRCALPHA)
+
+                    # Draw petal as a rounded shape
+                    pygame.draw.circle(petal_surf, color,
+                                     (int(petal['size']), int(petal['size'])),
+                                     int(petal['size']))
+                    # Add highlight
+                    pygame.draw.circle(petal_surf, (255, 255, 255, alpha // 2),
+                                     (int(petal['size'] * 0.7), int(petal['size'] * 0.7)),
+                                     int(petal['size'] * 0.4))
+
+                    surface.blit(petal_surf, (int(petal['x'] - petal['size']), int(petal['y'] - petal['size'])))
+
+
+
+
+class DemiluneSwing:
+    """DEMILUNE - Heavy arc swing of granite pedestal with stone impact effects."""
+    def __init__(self, caster_x, caster_y, caster_unit, target_x, target_y, infused=False):
+        self.caster_x = caster_x
+        self.caster_y = caster_y
+        self.caster = caster_unit
+        self.target_x = target_x
+        self.target_y = target_y
+        self.infused = infused
+
+        self.phase = "windup"  # windup -> swing -> impact -> settling -> complete
+        self.timer = 0
+        self.active = True
+
+        # Determine arc direction from caster to target
+        dy = target_y - caster_y
+        dx = target_x - caster_x
+
+        # Calculate 5-tile arc (3 forward + 2 sides)
+        self.arc_tiles = []
+        if abs(dy) >= abs(dx):  # Vertical dominant
+            if dy < 0:  # North
+                # Forward: NW, N, NE
+                self.arc_tiles.append((caster_y - TILE_SIZE, caster_x - TILE_SIZE))
+                self.arc_tiles.append((caster_y - TILE_SIZE, caster_x))
+                self.arc_tiles.append((caster_y - TILE_SIZE, caster_x + TILE_SIZE))
+                # Sides: W, E
+                self.arc_tiles.append((caster_y, caster_x - TILE_SIZE))
+                self.arc_tiles.append((caster_y, caster_x + TILE_SIZE))
+                self.swing_direction = "north"
+            else:  # South
+                self.arc_tiles.append((caster_y + TILE_SIZE, caster_x - TILE_SIZE))
+                self.arc_tiles.append((caster_y + TILE_SIZE, caster_x))
+                self.arc_tiles.append((caster_y + TILE_SIZE, caster_x + TILE_SIZE))
+                self.arc_tiles.append((caster_y, caster_x - TILE_SIZE))
+                self.arc_tiles.append((caster_y, caster_x + TILE_SIZE))
+                self.swing_direction = "south"
+        else:  # Horizontal dominant
+            if dx < 0:  # West
+                self.arc_tiles.append((caster_y - TILE_SIZE, caster_x - TILE_SIZE))
+                self.arc_tiles.append((caster_y, caster_x - TILE_SIZE))
+                self.arc_tiles.append((caster_y + TILE_SIZE, caster_x - TILE_SIZE))
+                self.arc_tiles.append((caster_y - TILE_SIZE, caster_x))
+                self.arc_tiles.append((caster_y + TILE_SIZE, caster_x))
+                self.swing_direction = "west"
+            else:  # East
+                self.arc_tiles.append((caster_y - TILE_SIZE, caster_x + TILE_SIZE))
+                self.arc_tiles.append((caster_y, caster_x + TILE_SIZE))
+                self.arc_tiles.append((caster_y + TILE_SIZE, caster_x + TILE_SIZE))
+                self.arc_tiles.append((caster_y - TILE_SIZE, caster_x))
+                self.arc_tiles.append((caster_y + TILE_SIZE, caster_x))
+                self.swing_direction = "east"
+
+        # Sweep order for animation (left-to-right or top-to-bottom)
+        self.sweep_tiles = list(self.arc_tiles)  # Will be sorted below
+        if self.swing_direction in ["north", "south"]:
+            # Sort left to right
+            self.sweep_tiles.sort(key=lambda pos: pos[1])
+        else:
+            # Sort top to bottom
+            self.sweep_tiles.sort(key=lambda pos: pos[0])
+
+        # Animation state
+        self.swing_progress = 0  # 0 to 1 across sweep
+        self.pedestal_trail = []  # Trail positions for visualization
+        self.impact_effects = []  # Burst particles at each tile
+        self.stone_debris = []  # Heavy rock chunks
+
+        # Infused-specific effects
+        self.potpourri_trail = [] if infused else None
+        self.fragrance_particles = [] if infused else None
+
+    def update(self, delta_time):
+        """Update demilune animation."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.phase == "windup":
+            # Caster pulls back pedestal (0.3s)
+            if self.timer < 0.3:
+                progress = self.timer / 0.3
+                if self.caster:
+                    # Pull back and lift
+                    self.caster.wind_up_rotation = -25 * progress
+                    self.caster.pry_stretch_y = 1.0 + (progress * 0.15)
+            else:
+                self.phase = "swing"
+                self.timer = 0
+
+        elif self.phase == "swing":
+            # Sweeping arc motion (0.4s)
+            if self.timer < 0.4:
+                progress = self.timer / 0.4
+                self.swing_progress = progress
+
+                if self.caster:
+                    # Swing through arc
+                    self.caster.wind_up_rotation = -25 + (progress * 55)  # -25 to +30
+                    self.caster.pry_stretch_y = 1.15 - (progress * 0.15)  # Back to normal
+
+                # Spawn impact effects as pedestal sweeps through tiles
+                tile_index = int(progress * len(self.sweep_tiles))
+                if tile_index < len(self.sweep_tiles) and tile_index not in [e['tile_index'] for e in self.impact_effects]:
+                    tile_y, tile_x = self.sweep_tiles[tile_index]
+
+                    # Stone impact burst
+                    for _ in range(15):
+                        angle = random.uniform(0, 2 * math.pi)
+                        speed = random.uniform(80, 200)
+                        self.stone_debris.append({
+                            'x': tile_x,
+                            'y': tile_y,
+                            'vx': math.cos(angle) * speed,
+                            'vy': math.sin(angle) * speed - 100,
+                            'lifetime': random.uniform(0.5, 1.0),
+                            'size': random.uniform(3, 8),
+                            'color': (120, 100, 80),
+                            'gravity': 500
+                        })
+
+                    self.impact_effects.append({'tile_index': tile_index, 'time': self.timer})
+
+                    # Infused: spawn potpourri trail particles
+                    if self.infused and self.potpourri_trail is not None:
+                        for _ in range(8):
+                            angle = random.uniform(0, 2 * math.pi)
+                            speed = random.uniform(20, 60)
+                            self.potpourri_trail.append({
+                                'x': tile_x,
+                                'y': tile_y,
+                                'vx': math.cos(angle) * speed,
+                                'vy': math.sin(angle) * speed - 40,
+                                'lifetime': random.uniform(0.8, 1.5),
+                                'size': random.uniform(3, 6),
+                                'color': random.choice([
+                                    (200, 100, 200),  # Purple
+                                    (255, 150, 200),  # Pink
+                                    (180, 100, 255),  # Violet
+                                    (255, 100, 150)   # Rose
+                                ]),
+                                'orbit_angle': angle,
+                                'orbit_speed': random.uniform(2.0, 4.0)
+                            })
+
+                        # Fragrance fumes (wispy, floating)
+                        if self.fragrance_particles is not None:
+                            for _ in range(5):
+                                offset_x = random.uniform(-20, 20)
+                                offset_y = random.uniform(-20, 20)
+                                self.fragrance_particles.append({
+                                    'x': tile_x + offset_x,
+                                    'y': tile_y + offset_y,
+                                    'vx': random.uniform(-15, 15),
+                                    'vy': random.uniform(-50, -20),
+                                    'lifetime': random.uniform(1.0, 2.0),
+                                    'size': random.uniform(8, 15),
+                                    'color': (220, 200, 180),  # Beige fume
+                                    'alpha_mod': 0.3
+                                })
+
+            else:
+                self.phase = "impact"
+                self.timer = 0
+                # Reset caster rotation
+                if self.caster:
+                    self.caster.wind_up_rotation = 0
+                    self.caster.pry_stretch_y = 1.0
+
+        elif self.phase == "impact":
+            # Final impact hold (0.2s)
+            if self.timer >= 0.2:
+                self.phase = "settling"
+                self.timer = 0
+
+        elif self.phase == "settling":
+            # Debris and effects settle (1.0s for regular, 1.5s for infused)
+            settle_time = 1.5 if self.infused else 1.0
+            if self.timer >= settle_time:
+                self.phase = "complete"
+                self.active = False
+
+        # Update stone debris
+        for debris in self.stone_debris[:]:
+            debris['x'] += debris['vx'] * delta_time
+            debris['y'] += debris['vy'] * delta_time
+            debris['vy'] += debris.get('gravity', 0) * delta_time
+            debris['lifetime'] -= delta_time
+            if debris['lifetime'] <= 0:
+                self.stone_debris.remove(debris)
+
+        # Update infused potpourri trail
+        if self.potpourri_trail is not None:
+            for particle in self.potpourri_trail[:]:
+                # Orbital motion
+                particle['orbit_angle'] += particle['orbit_speed'] * delta_time
+                particle['vx'] += math.cos(particle['orbit_angle']) * 30 * delta_time * 0.3
+                particle['vy'] += math.sin(particle['orbit_angle']) * 30 * delta_time * 0.3
+
+                # Move
+                particle['x'] += particle['vx'] * delta_time
+                particle['y'] += particle['vy'] * delta_time
+
+                # Age
+                particle['lifetime'] -= delta_time
+                if particle['lifetime'] <= 0:
+                    self.potpourri_trail.remove(particle)
+
+        # Update fragrance fumes
+        if self.fragrance_particles is not None:
+            for fume in self.fragrance_particles[:]:
+                fume['x'] += fume['vx'] * delta_time
+                fume['y'] += fume['vy'] * delta_time
+                fume['lifetime'] -= delta_time
+                if fume['lifetime'] <= 0:
+                    self.fragrance_particles.remove(fume)
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw the demilune swing animation."""
+        if not self.active and self.phase == "complete":
+            return
+
+        # Draw swept arc path (fading trail showing pedestal motion)
+        if self.phase == "swing" or self.phase == "impact":
+            for i, (tile_y, tile_x) in enumerate(self.sweep_tiles):
+                if i / len(self.sweep_tiles) <= self.swing_progress:
+                    # Arc trail indicator
+                    alpha = int(150 * (1.0 - (i / len(self.sweep_tiles))))
+                    if alpha > 0:
+                        color = (255, 215, 0, alpha) if self.infused else (169, 169, 169, alpha)  # Gold if infused
+                        arc_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                        # Draw arc segment
+                        pygame.draw.arc(arc_surf, color,
+                                      (0, 0, TILE_SIZE, TILE_SIZE),
+                                      0, math.pi, 6)
+                        surface.blit(arc_surf, (int(tile_x - TILE_SIZE // 2), int(tile_y - TILE_SIZE // 2)))
+
+        # Draw stone debris
+        for debris in self.stone_debris:
+            alpha = int(255 * (debris['lifetime'] / 1.0))
+            if alpha > 0:
+                color = (*debris['color'], alpha)
+                debris_surf = pygame.Surface((int(debris['size'] * 2), int(debris['size'] * 2)), pygame.SRCALPHA)
+                pygame.draw.circle(debris_surf, color,
+                                 (int(debris['size']), int(debris['size'])),
+                                 int(debris['size']))
+                surface.blit(debris_surf, (int(debris['x'] - debris['size']), int(debris['y'] - debris['size'])))
+
+        # Draw infused potpourri trail
+        if self.potpourri_trail is not None:
+            for particle in self.potpourri_trail:
+                if particle['lifetime'] > 0:
+                    alpha = int(200 * (particle['lifetime'] / 1.5))
+                    if alpha > 0:
+                        color = (*particle['color'], alpha)
+                        particle_surf = pygame.Surface((int(particle['size'] * 2), int(particle['size'] * 2)), pygame.SRCALPHA)
+                        pygame.draw.circle(particle_surf, color,
+                                         (int(particle['size']), int(particle['size'])),
+                                         int(particle['size']))
+                        # Add glow
+                        glow_size = particle['size'] + 2
+                        pygame.draw.circle(particle_surf, (*particle['color'], alpha // 3),
+                                         (int(particle['size']), int(particle['size'])),
+                                         int(glow_size))
+                        surface.blit(particle_surf, (int(particle['x'] - particle['size']), int(particle['y'] - particle['size'])))
+
+        # Draw fragrance fumes
+        if self.fragrance_particles is not None:
+            for fume in self.fragrance_particles:
+                if fume['lifetime'] > 0:
+                    alpha = int(100 * fume['alpha_mod'] * (fume['lifetime'] / 2.0))
+                    if alpha > 0:
+                        color = (*fume['color'], alpha)
+                        fume_surf = pygame.Surface((int(fume['size'] * 2), int(fume['size'] * 2)), pygame.SRCALPHA)
+                        # Wispy cloud
+                        pygame.draw.circle(fume_surf, color,
+                                         (int(fume['size']), int(fume['size'])),
+                                         int(fume['size']))
+                        surface.blit(fume_surf, (int(fume['x'] - fume['size']), int(fume['y'] - fume['size'])))
+
+class ModernRendererDemo:
+    """Demo showing modern rendering capabilities."""
+
+    def __init__(self):
+        pygame.init()
+
+        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+        pygame.display.set_caption(SCREEN_TITLE)
+        self.clock = pygame.time.Clock()
+
+        # Fonts
+        self.font = pygame.font.Font(None, 24)
+        self.small_font = pygame.font.Font(None, 18)
+        self.title_font = pygame.font.Font(None, 36)
+
+        # Effects
+        self.particle_emitter = ParticleEmitter()
+        self.floating_texts: List[FloatingText] = []
+        self.projectiles: List[SpinningGlaiveProjectile] = []
+        self.lightning_bolts: List[LightningBolt] = []
+        self.debris_particles: List[DebrisParticle] = []
+        self.cross_beams: List[CrossBeam] = []
+        self.jaw_clamps: List[JawClamp] = []
+        self.jawline_networks: List[JawlineNetwork] = []
+        self.expedite_rushes: List[ExpediteRush] = []
+        self.viseroy_traps: List[ViseroyTrap] = []
+        self.viseroy_releases: List[ViseroyRelease] = []
+        self.site_inspections: List[SiteInspectionScan] = []
+        self.site_inspection_buffs: List[SiteInspectionBuff] = []
+        self.pedestal_strikes: List[PedestalStrike] = []
+        self.infuse_effects: List[InfuseEffect] = []
+        self.demilune_swings: List[DemiluneSwing] = []
+
+        # Units
+        self.units: List[AnimatedUnit] = []
+
+        # Demo state
+        self.demo_timer = 0
+        self.demo_state = "idle"
+        self.demo_skill_index = 0  # Alternate between skills
+
+        # Active unit mode (which unit's animations to demo)
+        self.active_unit_mode = "POTPOURRIST"  # Can be "GLAIVEMAN", "MANDIBLE_FOREMAN", or "POTPOURRIST"
+
+        # Screen shake
+        self.screen_shake_intensity = 0
+        self.screen_shake_duration = 0
+
+        self.setup()
+        self.running = True
+
+    def load_svg(self, sprite_path, size):
+        """Load an SVG file and return a pygame surface."""
+        if not os.path.exists(sprite_path):
+            return None
+
+        try:
+            # Try to load SVG using cairosvg if available
+            if sprite_path.endswith('.svg'):
+                try:
+                    import cairosvg
+                    from io import BytesIO
+                    # Convert SVG to PNG in memory
+                    png_data = cairosvg.svg2png(url=sprite_path, output_width=size, output_height=size)
+                    return pygame.image.load(BytesIO(png_data))
+                except ImportError:
+                    print(f"Info: cairosvg not available for {sprite_path}")
+                    # Return None, will be filtered out
+                    return None
+            else:
+                sprite = pygame.image.load(sprite_path)
+                return pygame.transform.smoothscale(sprite, (size, size))
+        except Exception as e:
+            print(f"Warning: Could not load {sprite_path}: {e}")
+            return None
+
+    def setup(self):
+        """Set up the demo scene."""
+        # Get path to graphics directory
+        base_path = Path(__file__).parent / "graphics" / "units"
+
+        # Player 1 units - load based on active mode
+        if self.active_unit_mode == "GLAIVEMAN":
+            unit_sprites = [
+                ("GLAIVEMAN α", base_path / "glaiveman.svg"),
+                ("MANDIBLE FOREMAN β", base_path / "mandible_foreman.svg"),
+                ("POTPOURRIST γ", base_path / "potpourrist.svg")
+            ]
+            for i, (name, sprite_path) in enumerate(unit_sprites):
+                # Place GLAIVEMAN in center, 4 tiles in front of targets
+                if "GLAIVEMAN" in name:
+                    unit = AnimatedUnit(name, 1, 6, 2, COLOR_PLAYER1, str(sprite_path))
+                else:
+                    unit = AnimatedUnit(name, 1, i * 2, 1, COLOR_PLAYER1, str(sprite_path))
+                self.units.append(unit)
+
+        elif self.active_unit_mode == "MANDIBLE_FOREMAN":
+            unit_sprites = [
+                ("MANDIBLE FOREMAN α", base_path / "mandible_foreman.svg"),
+                ("GLAIVEMAN β", base_path / "glaiveman.svg"),
+                ("POTPOURRIST γ", base_path / "potpourrist.svg")
+            ]
+            for i, (name, sprite_path) in enumerate(unit_sprites):
+                # Place MANDIBLE FOREMAN in center, 4 tiles in front of targets
+                if "MANDIBLE FOREMAN" in name:
+                    unit = AnimatedUnit(name, 1, 6, 2, COLOR_PLAYER1, str(sprite_path))
+                else:
+                    unit = AnimatedUnit(name, 1, i * 2, 1, COLOR_PLAYER1, str(sprite_path))
+                self.units.append(unit)
+
+        elif self.active_unit_mode == "POTPOURRIST":
+            unit_sprites = [
+                ("POTPOURRIST α", base_path / "potpourrist.svg"),
+                ("GLAIVEMAN β", base_path / "glaiveman.svg"),
+                ("MANDIBLE FOREMAN γ", base_path / "mandible_foreman.svg")
+            ]
+            for i, (name, sprite_path) in enumerate(unit_sprites):
+                # Place POTPOURRIST in center, 4 tiles in front of targets
+                if "POTPOURRIST" in name:
+                    unit = AnimatedUnit(name, 1, 6, 2, COLOR_PLAYER1, str(sprite_path))
+                else:
+                    unit = AnimatedUnit(name, 1, i * 2, 1, COLOR_PLAYER1, str(sprite_path))
+                self.units.append(unit)
+
+        # Player 2 units - create fallback target dummies with high HP
+        target_names = ["TARGET α", "TARGET β", "TARGET γ"]
+
+        # Place them at grid positions 5, 6, 7 on row 6 (next to each other)
+        for i, name in enumerate(target_names):
+            # Create unit without sprite (will use fallback circle)
+            unit = AnimatedUnit(name, 2, 5 + i, 6, COLOR_PLAYER2, sprite_path=None)
+            unit.max_hp = 9999
+            unit.hp = 9999
+            self.units.append(unit)
+
+        self.schedule_next_demo()
+
+    def schedule_next_demo(self):
+        """Schedule the next demo action."""
+        # Cycle through skills based on active unit mode
+        if self.active_unit_mode == "GLAIVEMAN":
+            skills = ["glaive_melee", "glaive_judgement", "glaive_pry", "glaive_autoclave", "glaive_vault"]
+        elif self.active_unit_mode == "MANDIBLE_FOREMAN":
+            skills = ["mandible_site_inspection", "mandible_expedite", "mandible_viseroy", "mandible_release", "mandible_melee", "mandible_viseroy", "mandible_release", "mandible_jawline"]
+        elif self.active_unit_mode == "POTPOURRIST":
+            skills = ["potpourrist_infuse", "potpourrist_demilune", "potpourrist_demilune_infused", "potpourrist_melee"]
+        else:
+            skills = ["idle"]
+
+        # Get current skill index
+        current_skill_index = self.demo_skill_index % len(skills)
+
+        self.demo_state = skills[current_skill_index]
+        self.demo_skill_index += 1
+        self.demo_timer = random.uniform(2.5, 4.0)
+
+    def execute_demo_action(self):
+        """Execute a demo action to show off rendering."""
+        if not self.units:
+            return
+
+        # Find GLAIVEMAN for skill demos
+        glaiveman = None
+        for unit in self.units:
+            if "GLAIVEMAN" in unit.name:
+                glaiveman = unit
+                break
+
+        if self.demo_state == "move":
+            unit = random.choice(self.units)
+            new_x = random.randint(0, GRID_WIDTH - 1)
+            new_y = random.randint(0, GRID_HEIGHT - 1)
+            unit.move_to_grid(new_x, new_y)
+
+            # Trail particles
+            for _ in range(10):
+                self.particle_emitter.emit_trail(unit.x, unit.y, unit.color)
+
+        elif self.demo_state == "attack":
+            if len(self.units) >= 2:
+                attacker = random.choice(self.units)
+                targets = [u for u in self.units if u.player != attacker.player]
+                if targets:
+                    target = random.choice(targets)
+
+                    # Beam
+                    self.particle_emitter.emit_beam(
+                        attacker.x, attacker.y,
+                        target.x, target.y,
+                        (255, 150, 50)
+                    )
+
+                    # Impact
+                    self.particle_emitter.emit_burst(target.x, target.y, COLOR_DAMAGE, 15)
+
+                    # Damage
+                    damage = random.randint(2, 6)
+                    target.take_damage(damage)
+                    self.floating_texts.append(
+                        FloatingText(target.x, target.y - 20, f"-{damage}", COLOR_DAMAGE)
+                    )
+
+        elif self.demo_state == "skill":
+            unit = random.choice(self.units)
+            self.particle_emitter.emit_burst(unit.x, unit.y, COLOR_SKILL, 30)
+            self.floating_texts.append(
+                FloatingText(unit.x, unit.y - 30, "SKILL!", COLOR_SKILL)
+            )
+
+        elif self.demo_state == "heal":
+            unit = random.choice(self.units)
+            if unit.hp < unit.max_hp:
+                heal = random.randint(2, 5)
+                unit.heal(heal)
+                self.particle_emitter.emit_float(unit.x, unit.y, COLOR_HEAL, 15)
+                self.floating_texts.append(
+                    FloatingText(unit.x, unit.y - 20, f"+{heal}", COLOR_HEAL)
+                )
+
+        elif self.demo_state == "glaive_pry" and glaiveman:
+            # PRY: Launch enemy into ceiling, slam down with debris and splash damage
+            targets = [u for u in self.units if u.player != glaiveman.player and u.hp > 0]
+            if targets:
+                target = random.choice(targets)
+
+                # GLAIVEMAN prying lever motion
+                glaiveman.pry_lever_phase = "inserting"
+                glaiveman.pry_lever_timer = 0
+                glaiveman.original_x = glaiveman.x
+                glaiveman.original_y = glaiveman.y
+
+                # Mark target for PRY animation
+                target.pry_phase = "launching"
+                target.pry_timer = 0
+                target.pry_max_time = 1.5
+                target.original_y = target.y
+                target.pry_attacker = glaiveman
+
+                # Store adjacent units for splash damage
+                target.pry_adjacent_targets = []
+                for unit in self.units:
+                    if unit != target and unit.player != glaiveman.player and unit.hp > 0:
+                        dx = abs(unit.grid_x - target.grid_x)
+                        dy = abs(unit.grid_y - target.grid_y)
+                        if dx <= 1 and dy <= 1:  # Adjacent (including diagonals)
+                            target.pry_adjacent_targets.append(unit)
+
+                # Launch particles
+                for _ in range(30):
+                    angle = random.uniform(-math.pi/3, -2*math.pi/3)  # Upward cone
+                    speed = random.uniform(150, 300)
+                    self.particle_emitter.particles.append(
+                        Particle(target.x, target.y,
+                                math.cos(angle) * speed, math.sin(angle) * speed,
+                                (150, 200, 255), random.uniform(3, 7), 0.6)
+                    )
+
+                self.floating_texts.append(
+                    FloatingText(glaiveman.x, glaiveman.y - 30, "PRY!", (255, 150, 50))
+                )
+
+        elif self.demo_state == "glaive_vault" and glaiveman:
+            # VAULT: Leap with a flip animation (range 2 tiles)
+            # Find a target location 2 tiles away
+            possible_targets = []
+            for dy in range(-2, 3):
+                for dx in range(-2, 3):
+                    # Check if exactly 2 tiles away (chess distance)
+                    if max(abs(dx), abs(dy)) == 2:
+                        new_grid_x = glaiveman.grid_x + dx
+                        new_grid_y = glaiveman.grid_y + dy
+                        if 0 <= new_grid_x < GRID_WIDTH and 0 <= new_grid_y < GRID_HEIGHT:
+                            possible_targets.append((new_grid_x, new_grid_y))
+
+            if possible_targets:
+                new_grid_x, new_grid_y = random.choice(possible_targets)
+                target_x = new_grid_x * TILE_SIZE + TILE_SIZE // 2
+                target_y = new_grid_y * TILE_SIZE + TILE_SIZE // 2
+
+                # Set up vault animation
+                glaiveman.vault_phase = "vaulting"
+                glaiveman.vault_timer = 0
+                glaiveman.vault_duration = 0.6  # Total vault time
+                glaiveman.vault_start_x = glaiveman.x
+                glaiveman.vault_start_y = glaiveman.y
+                glaiveman.vault_target_x = target_x
+                glaiveman.vault_target_y = target_y
+                glaiveman.vault_target_grid_x = new_grid_x
+                glaiveman.vault_target_grid_y = new_grid_y
+
+                # Launch particles
+                for _ in range(20):
+                    angle = random.uniform(0, 2 * math.pi)
+                    speed = random.uniform(50, 150)
+                    particle = Particle(glaiveman.x, glaiveman.y,
+                                       math.cos(angle) * speed, math.sin(angle) * speed,
+                                       (100, 200, 255), random.uniform(2, 5), 0.4)
+                    self.particle_emitter.particles.append(particle)
+
+                self.floating_texts.append(
+                    FloatingText(glaiveman.x, glaiveman.y - 30, "VAULT!", COLOR_SKILL)
+                )
+
+        elif self.demo_state == "glaive_melee" and glaiveman:
+            # MELEE: Basic polearm glaive slash attack
+            targets = [u for u in self.units if u.player != glaiveman.player and u.hp > 0]
+            if targets:
+                # Find closest target
+                target = min(targets, key=lambda t:
+                           math.sqrt((t.x - glaiveman.x)**2 + (t.y - glaiveman.y)**2))
+
+                # Wind-up: Tilt back and to the side
+                glaiveman.melee_phase = "windup"
+                glaiveman.melee_timer = 0
+                glaiveman.melee_target = target
+                glaiveman.original_x = glaiveman.x
+                glaiveman.original_y = glaiveman.y
+
+                # Quick forward lunge
+                # Calculate direction toward target
+                dx = target.x - glaiveman.x
+                dy = target.y - glaiveman.y
+                dist = math.sqrt(dx*dx + dy*dy)
+                if dist > 0:
+                    glaiveman.melee_lunge_x = (dx / dist) * 30  # Lunge 30 pixels forward
+                    glaiveman.melee_lunge_y = (dy / dist) * 30
+                else:
+                    glaiveman.melee_lunge_x = 30
+                    glaiveman.melee_lunge_y = 0
+
+                # Wind-up particles (gathering energy)
+                for _ in range(10):
+                    angle = random.uniform(0, 2 * math.pi)
+                    distance = random.uniform(20, 40)
+                    px = glaiveman.x + math.cos(angle) * distance
+                    py = glaiveman.y + math.sin(angle) * distance
+                    particle = Particle(px, py,
+                                       -math.cos(angle) * 50, -math.sin(angle) * 50,
+                                       (200, 200, 220), 3, 0.4)
+                    self.particle_emitter.particles.append(particle)
+
+        elif self.demo_state == "glaive_judgement" and glaiveman:
+            # JUDGEMENT: Spinning sacred glaive projectile with ALL advanced techniques
+            targets = [u for u in self.units if u.player != glaiveman.player and u.hp > 0]
+            if targets:
+                target = random.choice(targets)
+
+                # 1. SPRITE TRANSFORMATION - Wind-up rotation for GLAIVEMAN
+                glaiveman.wind_up_rotation = 0
+                glaiveman.wind_up_phase = 0.3  # Duration in seconds
+
+                # 2. Create and launch SPINNING GLAIVE PROJECTILE
+                projectile = SpinningGlaiveProjectile(
+                    glaiveman.x, glaiveman.y,
+                    target.x, target.y,
+                    speed=500
+                )
+                self.projectiles.append(projectile)
+
+                # 3. SPARKLE PARTICLES around attacker during wind-up
+                for _ in range(15):
+                    angle = random.uniform(0, 2 * math.pi)
+                    distance = random.uniform(20, 40)
+                    px = glaiveman.x + math.cos(angle) * distance
+                    py = glaiveman.y + math.sin(angle) * distance
+                    self.particle_emitter.particles.append(
+                        Particle(px, py, 0, -30, (255, 235, 150), 2, 0.6)
+                    )
+
+                # Store impact data for when projectile hits
+                glaiveman.judgement_target = target
+                glaiveman.judgement_pending = True
+
+                self.floating_texts.append(
+                    FloatingText(glaiveman.x, glaiveman.y - 30, "JUDGEMENT!", (255, 215, 0))
+                )
+
+        elif self.demo_state == "glaive_autoclave" and glaiveman:
+            # AUTOCLAVE: Cross-shaped retaliation with expanding beams
+            # Reduce GLAIVEMAN to critical health to trigger it
+            if glaiveman.hp > glaiveman.max_hp * 0.3:
+                glaiveman.hp = int(glaiveman.max_hp * 0.25)  # Bring to critical
+
+            # White flash effect at GLAIVEMAN's position
+            self.golden_flash_alpha = 255
+            self.golden_flash_duration = 0.2
+
+            # Central explosion burst
+            self.particle_emitter.emit_burst(glaiveman.x, glaiveman.y, (255, 255, 255), 50)
+
+            # Create four expanding beams (up, right, down, left)
+            for direction in range(4):
+                beam = CrossBeam(glaiveman.x, glaiveman.y, direction, max_range=3)
+                self.cross_beams.append(beam)
+
+            # Energy ring expanding from center
+            for angle_deg in range(0, 360, 15):
+                angle = math.radians(angle_deg)
+                speed = 150
+                particle = Particle(glaiveman.x, glaiveman.y,
+                                   math.cos(angle) * speed, math.sin(angle) * speed,
+                                   (255, 200, 200), 4, 0.8)
+                self.particle_emitter.particles.append(particle)
+
+            # Screen shake
+            self.screen_shake_intensity = 10
+            self.screen_shake_duration = 0.4
+
+            # Mark units for damage (will be applied when beams reach them)
+            glaiveman.autoclave_targets = []
+            glaiveman.autoclave_total_damage = 0
+
+            # Check all units in cross pattern
+            for target in self.units:
+                if target.player != glaiveman.player and target.hp > 0:
+                    # Check if target is in cardinal directions
+                    dx = abs(target.x - glaiveman.x)
+                    dy = abs(target.y - glaiveman.y)
+                    max_range = 3 * TILE_SIZE + TILE_SIZE // 2
+
+                    # In cross pattern: either same column or same row, within range
+                    if (dx < TILE_SIZE // 2 and dy <= max_range) or (dy < TILE_SIZE // 2 and dx <= max_range):
+                        # Don't apply damage immediately - wait for beam to reach
+                        target.autoclave_hit_timer = 0.3  # Delay before damage
+                        glaiveman.autoclave_targets.append(target)
+
+            self.floating_texts.append(
+                FloatingText(glaiveman.x, glaiveman.y - 30, "AUTOCLAVE!", (255, 100, 100))
+            )
+
+        # MANDIBLE FOREMAN skills
+        elif self.demo_state == "mandible_melee":
+            # Find MANDIBLE FOREMAN
+            mandible = None
+            for unit in self.units:
+                if "MANDIBLE FOREMAN" in unit.name:
+                    mandible = unit
+                    break
+
+            if mandible:
+                targets = [u for u in self.units if u.player != mandible.player and u.hp > 0]
+                if targets:
+                    target = random.choice(targets)
+
+                    # MANDIBLE BITE ATTACK - mechanical jaws AND mandibles snapping shut
+                    # Create jaw clamp at target position
+                    jaw_clamp = JawClamp(target.x, target.y)
+                    self.jaw_clamps.append(jaw_clamp)
+
+                    # Save target reference for damage application
+                    jaw_clamp.damage_target = target
+                    target.original_x = target.x
+                    target.original_y = target.y
+
+                    # Store target for subsequent viseroy/release
+                    mandible.last_target = target
+
+                    self.floating_texts.append(
+                        FloatingText(target.x, target.y - 40, "BITE!", (180, 160, 140))
+                    )
+
+        elif self.demo_state == "mandible_expedite":
+            # Find MANDIBLE FOREMAN
+            mandible = None
+            for unit in self.units:
+                if "MANDIBLE FOREMAN" in unit.name:
+                    mandible = unit
+                    break
+
+            if mandible:
+                # EXPEDITE - Rush forward in a line, stopping at first enemy
+                targets = [u for u in self.units if u.player != mandible.player and u.hp > 0]
+                if targets:
+                    # Pick closest target for dramatic effect
+                    target = min(targets, key=lambda t: math.sqrt((t.x - mandible.x)**2 + (t.y - mandible.y)**2))
+
+                    # Calculate stop position (one tile before target)
+                    dx = target.x - mandible.x
+                    dy = target.y - mandible.y
+                    dist = math.sqrt(dx*dx + dy*dy)
+                    if dist > 0:
+                        # Stop one tile (64 pixels) before target
+                        stop_distance = max(0, dist - TILE_SIZE)
+                        stop_x = mandible.x + (dx / dist) * stop_distance
+                        stop_y = mandible.y + (dy / dist) * stop_distance
+                    else:
+                        stop_x = mandible.x
+                        stop_y = mandible.y
+
+                    # Create expedite rush animation
+                    rush = ExpediteRush(mandible.x, mandible.y, stop_x, stop_y, mandible)
+                    rush.target_unit = target
+                    self.expedite_rushes.append(rush)
+
+                    # Store target for subsequent viseroy/release
+                    mandible.last_target = target
+
+                    self.floating_texts.append(
+                        FloatingText(mandible.x, mandible.y - 40, "EXPEDITE!", (220, 220, 255))
+                    )
+
+        elif self.demo_state == "mandible_jawline":
+            # Find MANDIBLE FOREMAN
+            mandible = None
+            for unit in self.units:
+                if "MANDIBLE FOREMAN" in unit.name:
+                    mandible = unit
+                    break
+
+            if mandible:
+                # JAWLINE - Deploy network of bear trap jaws in 3x3 grid
+                # Self-targeted skill centered on MANDIBLE FOREMAN
+                jawline = JawlineNetwork(mandible.x, mandible.y)
+                self.jawline_networks.append(jawline)
+
+                # Find all enemy units in 3x3 grid for damage
+                for target in self.units:
+                    if target.player != mandible.player and target.hp > 0:
+                        # Check if target is within 3x3 grid (1 tile in each direction)
+                        dx = abs(target.grid_x - mandible.grid_x)
+                        dy = abs(target.grid_y - mandible.grid_y)
+                        if dx <= 1 and dy <= 1 and not (dx == 0 and dy == 0):  # Adjacent, not center
+                            jawline.damage_targets.append(target)
+                            target.original_x = target.x
+                            target.original_y = target.y
+
+                # Central explosion burst at FOREMAN's position
+                self.particle_emitter.emit_burst(mandible.x, mandible.y, (255, 102, 0), 30)
+
+                # Orange spark ring expanding from center
+                for angle_deg in range(0, 360, 30):
+                    angle = math.radians(angle_deg)
+                    speed = 100
+                    particle = Particle(mandible.x, mandible.y,
+                                       math.cos(angle) * speed, math.sin(angle) * speed,
+                                       (255, 150, 0), 3, 0.6)
+                    self.particle_emitter.particles.append(particle)
+
+                # Screen shake on deployment
+                self.screen_shake_intensity = 6
+                self.screen_shake_duration = 0.3
+
+                self.floating_texts.append(
+                    FloatingText(mandible.x, mandible.y - 40, "JAWLINE!", (255, 102, 0))
+                )
+
+        elif self.demo_state == "mandible_viseroy":
+            # Find MANDIBLE FOREMAN
+            mandible = None
+            for unit in self.units:
+                if "MANDIBLE FOREMAN" in unit.name:
+                    mandible = unit
+                    break
+
+            if mandible:
+                # Try to use the last targeted enemy from melee/expedite
+                target = None
+                if hasattr(mandible, 'last_target') and mandible.last_target and mandible.last_target.hp > 0:
+                    target = mandible.last_target
+                else:
+                    # Fallback to random enemy
+                    targets = [u for u in self.units if u.player != mandible.player and u.hp > 0]
+                    if targets:
+                        target = random.choice(targets)
+
+                if target:
+                    # VISEROY TRAP - grinding jaws that chew the target
+                    # Create Viseroy trap at target position
+                    trap = ViseroyTrap(target.x, target.y)
+                    self.viseroy_traps.append(trap)
+
+                    # Save target reference for damage application
+                    trap.damage_target = target
+                    target.original_x = target.x
+                    target.original_y = target.y
+
+                    # Store this target for the next release
+                    mandible.last_viseroy_target = target
+
+                    self.floating_texts.append(
+                        FloatingText(target.x, target.y - 40, "VISEROY!", (180, 160, 140))
+                    )
+
+        elif self.demo_state == "mandible_release":
+            # Find MANDIBLE FOREMAN
+            mandible = None
+            for unit in self.units:
+                if "MANDIBLE FOREMAN" in unit.name:
+                    mandible = unit
+                    break
+
+            if mandible:
+                # Try to use the last viseroy target
+                target = None
+                if hasattr(mandible, 'last_viseroy_target') and mandible.last_viseroy_target and mandible.last_viseroy_target.hp > 0:
+                    target = mandible.last_viseroy_target
+                else:
+                    # Fallback to random enemy
+                    targets = [u for u in self.units if u.player != mandible.player and u.hp > 0]
+                    if targets:
+                        target = random.choice(targets)
+
+                if target:
+                    # VISEROY RELEASE - jaws spring open to release the victim
+                    # Create release animation at target position
+                    release = ViseroyRelease(target.x, target.y)
+                    self.viseroy_releases.append(release)
+
+                    # Save target reference for position tracking
+                    release.damage_target = target
+                    target.original_x = target.x
+                    target.original_y = target.y
+
+                    self.floating_texts.append(
+                        FloatingText(target.x, target.y - 40, "RELEASED!", (140, 200, 140))
+                    )
+
+        elif self.demo_state == "mandible_site_inspection":
+            # Find MANDIBLE FOREMAN
+            mandible = None
+            for unit in self.units:
+                if "MANDIBLE FOREMAN" in unit.name:
+                    mandible = unit
+                    break
+
+            if mandible:
+                # Pick a location within skill range (3 tiles from FOREMAN)
+                skill_range = 3
+                # Random offset within range
+                offset_tiles_x = random.randint(-skill_range, skill_range)
+                offset_tiles_y = random.randint(-skill_range, skill_range)
+
+                # Calculate target position in pixels
+                target_x = mandible.x + offset_tiles_x * TILE_SIZE
+                target_y = mandible.y + offset_tiles_y * TILE_SIZE
+
+                # Clamp to screen bounds
+                target_x = max(TILE_SIZE, min(SCREEN_WIDTH - TILE_SIZE, target_x))
+                target_y = max(TILE_SIZE, min(SCREEN_HEIGHT - TILE_SIZE, target_y))
+
+                # SITE INSPECTION - laser level scanning a 3x3 area
+                scan = SiteInspectionScan(target_x, target_y)
+                self.site_inspections.append(scan)
+
+                self.floating_texts.append(
+                    FloatingText(target_x, target_y - 50, "SITE INSPECTION", (255, 200, 0))
+                )
+
+                # Show power-up animations on allies after scan completes
+                allies = [u for u in self.units if u.player == mandible.player]
+                for ally in allies:
+                    # Randomly decide buff type for demo
+                    is_full = random.random() < 0.6  # 60% chance of full buff
+                    # Delay buff indicator to trigger after scan completes
+                    buff = SiteInspectionBuff(ally.x, ally.y, is_full)
+                    buff.trigger_delay = 1.2  # Wait for scan to nearly complete
+                    buff.timer = -buff.trigger_delay  # Negative timer = waiting
+                    buff.phase = "waiting"
+                    self.site_inspection_buffs.append(buff)
+
+                    # Add floating text when buff triggers
+                    if is_full:
+                        # Full buff gets green text
+                        text = FloatingText(ally.x, ally.y - 30, "+ATK +MOV", (0, 255, 100))
+                    else:
+                        # Partial buff gets orange text
+                        text = FloatingText(ally.x, ally.y - 30, "+ATK", (255, 150, 0))
+                    # Delay the text to match buff appearance
+                    text.lifetime = 2.0 + 1.2  # Normal lifetime + delay
+                    text.timer = -1.2  # Start delayed
+                    self.floating_texts.append(text)
+
+        elif self.demo_state == "potpourrist_demilune":
+            # Find POTPOURRIST
+            potpourrist = None
+            for unit in self.units:
+                if "POTPOURRIST" in unit.name:
+                    potpourrist = unit
+                    break
+
+            if potpourrist:
+                targets = [u for u in self.units if u.player != potpourrist.player and u.hp > 0]
+                if targets:
+                    # Find closest target
+                    target = min(targets, key=lambda t:
+                               math.sqrt((t.x - potpourrist.x)**2 + (t.y - potpourrist.y)**2))
+
+                    # Create regular DEMILUNE swing animation
+                    demilune = DemiluneSwing(potpourrist.x, potpourrist.y, potpourrist,
+                                            target.x, target.y, infused=False)
+                    self.demilune_swings.append(demilune)
+
+                    # Deal damage to target (simulated)
+                    self.floating_texts.append(FloatingText(target.x, target.y - 30, "-3", COLOR_DAMAGE))
+                    target.take_damage(3)
+
+        elif self.demo_state == "potpourrist_demilune_infused":
+            # Find POTPOURRIST
+            potpourrist = None
+            for unit in self.units:
+                if "POTPOURRIST" in unit.name:
+                    potpourrist = unit
+                    break
+
+            if potpourrist:
+                targets = [u for u in self.units if u.player != potpourrist.player and u.hp > 0]
+                if targets:
+                    # Find closest target
+                    target = min(targets, key=lambda t:
+                               math.sqrt((t.x - potpourrist.x)**2 + (t.y - potpourrist.y)**2))
+
+                    # Create INFUSED DEMILUNE swing animation (with potpourri trail)
+                    demilune = DemiluneSwing(potpourrist.x, potpourrist.y, potpourrist,
+                                            target.x, target.y, infused=True)
+                    self.demilune_swings.append(demilune)
+
+                    # Deal damage to target (enhanced: 4 damage)
+                    self.floating_texts.append(FloatingText(target.x, target.y - 30, "-4", COLOR_SKILL))
+                    target.take_damage(4)
+
+                    # Deactivate aura after consuming potpourri
+                    potpourrist.potpourri_aura_active = False
+
+        elif self.demo_state == "potpourrist_melee":
+            # Find POTPOURRIST
+            potpourrist = None
+            for unit in self.units:
+                if "POTPOURRIST" in unit.name:
+                    potpourrist = unit
+                    break
+
+            if potpourrist:
+                targets = [u for u in self.units if u.player != potpourrist.player and u.hp > 0]
+                if targets:
+                    # Find closest target
+                    target = min(targets, key=lambda t:
+                               math.sqrt((t.x - potpourrist.x)**2 + (t.y - potpourrist.y)**2))
+
+                    # Wind-up: Lift pedestal overhead
+                    potpourrist.melee_phase = "windup"
+                    potpourrist.melee_timer = 0
+                    potpourrist.melee_target = target
+                    potpourrist.original_x = potpourrist.x
+                    potpourrist.original_y = potpourrist.y
+
+                    # No lunge forward - stays in place for overhead slam
+                    potpourrist.melee_lunge_x = 0
+                    potpourrist.melee_lunge_y = 0
+
+                    # Wind-up particles (gathering energy - purple potpourri theme)
+                    for _ in range(15):
+                        angle = random.uniform(0, 2 * math.pi)
+                        distance = random.uniform(20, 40)
+                        px = potpourrist.x + math.cos(angle) * distance
+                        py = potpourrist.y + math.sin(angle) * distance
+                        particle = Particle(px, py,
+                                           -math.cos(angle) * 50, -math.sin(angle) * 50,
+                                           (200, 100, 200), 3, 0.5)
+                        self.particle_emitter.particles.append(particle)
+
+        elif self.demo_state == "potpourrist_infuse":
+            # Find POTPOURRIST
+            potpourrist = None
+            for unit in self.units:
+                if "POTPOURRIST" in unit.name:
+                    potpourrist = unit
+                    break
+
+            if potpourrist:
+                # INFUSE - Create potpourri with swirling petals
+                infuse = InfuseEffect(potpourrist.x, potpourrist.y, potpourrist)
+                self.infuse_effects.append(infuse)
+
+                # Floating text
+                self.floating_texts.append(
+                    FloatingText(potpourrist.x, potpourrist.y - 40, "INFUSE!", (200, 100, 200))
+                )
+
+    def handle_events(self):
+        """Handle input events."""
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    self.running = False
+                elif event.key == pygame.K_SPACE:
+                    self.execute_demo_action()
+                    self.schedule_next_demo()
+                elif event.key == pygame.K_TAB:
+                    # Cycle between unit modes
+                    if self.active_unit_mode == "GLAIVEMAN":
+                        self.active_unit_mode = "MANDIBLE_FOREMAN"
+                    elif self.active_unit_mode == "MANDIBLE_FOREMAN":
+                        self.active_unit_mode = "POTPOURRIST"
+                    else:
+                        self.active_unit_mode = "GLAIVEMAN"
+
+                    # Reset and rebuild the scene
+                    self.units.clear()
+                    self.particle_emitter.particles.clear()
+                    self.floating_texts.clear()
+                    self.projectiles.clear()
+                    self.lightning_bolts.clear()
+                    self.debris_particles.clear()
+                    self.cross_beams.clear()
+                    self.jaw_clamps.clear()
+                    self.jawline_networks.clear()
+                    self.expedite_rushes.clear()
+                    self.viseroy_traps.clear()
+                    self.viseroy_releases.clear()
+                    self.site_inspections.clear()
+                    self.site_inspection_buffs.clear()
+                    self.pedestal_strikes.clear()
+                    self.infuse_effects.clear()
+                    self.demilune_swings.clear()
+                    self.demo_skill_index = 0
+                    self.setup()
+
+                    print(f"Switched to {self.active_unit_mode} demo mode")
+
+    def update(self, delta_time):
+        """Update game state."""
+        # Demo timer
+        self.demo_timer -= delta_time
+        if self.demo_timer <= 0:
+            # Check if we need to reset unit positions before next action
+            if hasattr(self, 'previous_demo_state'):
+                # Reset MANDIBLE FOREMAN after jawline (last skill)
+                if self.active_unit_mode == "MANDIBLE_FOREMAN" and self.previous_demo_state == "mandible_jawline":
+                    for unit in self.units:
+                        if "MANDIBLE FOREMAN" in unit.name:
+                            unit.grid_x = 6
+                            unit.grid_y = 2
+                            unit.x = 6 * TILE_SIZE + TILE_SIZE // 2
+                            unit.y = 2 * TILE_SIZE + TILE_SIZE // 2
+                            break
+
+                # Reset GLAIVEMAN after vault (last skill)
+                elif self.active_unit_mode == "GLAIVEMAN" and self.previous_demo_state == "glaive_vault":
+                    for unit in self.units:
+                        if "GLAIVEMAN" in unit.name:
+                            unit.grid_x = 6
+                            unit.grid_y = 2
+                            unit.x = 6 * TILE_SIZE + TILE_SIZE // 2
+                            unit.y = 2 * TILE_SIZE + TILE_SIZE // 2
+                            break
+
+            # Store current state before executing next action
+            if hasattr(self, 'demo_state'):
+                self.previous_demo_state = self.demo_state
+
+            self.execute_demo_action()
+            self.schedule_next_demo()
+
+        # Update screen shake
+        if self.screen_shake_duration > 0:
+            self.screen_shake_duration -= delta_time
+            if self.screen_shake_duration <= 0:
+                self.screen_shake_intensity = 0
+
+        # Update golden flash
+        if hasattr(self, 'golden_flash_duration') and self.golden_flash_duration > 0:
+            self.golden_flash_duration -= delta_time
+            self.golden_flash_alpha = int(255 * (self.golden_flash_duration / 0.15))
+
+        # Update units
+        for unit in self.units:
+            unit.update(delta_time)
+
+            # Update melee attack animation
+            if hasattr(unit, 'melee_phase') and unit.melee_phase:
+                unit.melee_timer += delta_time
+
+                # Check if this is POTPOURRIST (overhead pedestal swing)
+                is_potpourrist = "POTPOURRIST" in unit.name
+
+                if unit.melee_phase == "windup":
+                    if is_potpourrist:
+                        # POTPOURRIST: Lift pedestal overhead (0.25s)
+                        if unit.melee_timer < 0.25:
+                            progress = unit.melee_timer / 0.25
+                            unit.wind_up_rotation = -15 * progress  # Tilt back more
+                            # Stretch up slightly (anticipation)
+                            unit.pry_stretch_y = 1.0 + (progress * 0.1)
+                        else:
+                            unit.melee_phase = "lunge"
+                            unit.melee_timer = 0
+                            unit.pry_stretch_y = 1.0
+                    else:
+                        # GLAIVEMAN: Pull back and rotate slightly (0.15s)
+                        if unit.melee_timer < 0.15:
+                            progress = unit.melee_timer / 0.15
+                            unit.wind_up_rotation = -10 * progress  # Tilt back
+                            # Pull back slightly
+                            unit.x = unit.original_x - unit.melee_lunge_x * 0.2 * progress
+                            unit.y = unit.original_y - unit.melee_lunge_y * 0.2 * progress
+                        else:
+                            unit.melee_phase = "lunge"
+                            unit.melee_timer = 0
+
+                elif unit.melee_phase == "lunge":
+                    if is_potpourrist:
+                        # POTPOURRIST: Overhead slam straight down (0.15s)
+                        if unit.melee_timer < 0.15:
+                            progress = unit.melee_timer / 0.15
+                            # Accelerate (ease-in)
+                            eased = progress * progress
+                            unit.wind_up_rotation = -15 + eased * 35  # Swing to +20 degrees
+
+                            # Gray dust particles during slam
+                            if random.random() < 0.6:
+                                speed = random.uniform(80, 150)
+                                angle = math.atan2(unit.melee_target.y - unit.y,
+                                                   unit.melee_target.x - unit.x) + random.uniform(-0.3, 0.3)
+                                particle = Particle(unit.x, unit.y - 20,
+                                                   math.cos(angle) * speed,
+                                                   math.sin(angle) * speed,
+                                                   (150, 150, 150), random.uniform(4, 8), 0.4)
+                                self.particle_emitter.particles.append(particle)
+                        else:
+                            unit.melee_phase = "impact"
+                            unit.melee_timer = 0
+
+                            # POTPOURRIST impact - create PedestalStrike for effects
+                            if unit.melee_target and unit.melee_target.hp > 0:
+                                strike = PedestalStrike(unit.melee_target.x, unit.melee_target.y, unit.melee_target)
+                                self.pedestal_strikes.append(strike)
+
+                                # Damage number will be shown by PedestalStrike
+                                self.floating_texts.append(
+                                    FloatingText(unit.x, unit.y - 40, "PEDESTAL!", (200, 100, 200))
+                                )
+
+                                # Massive impact
+                                unit.melee_target.shake_intensity = 12
+                                self.screen_shake_intensity = 10
+                                self.screen_shake_duration = 0.35
+                    else:
+                        # GLAIVEMAN: Fast lunge forward (0.1s)
+                        if unit.melee_timer < 0.1:
+                            progress = unit.melee_timer / 0.1
+                            unit.wind_up_rotation = -10 + progress * 30  # Swing through
+                            # Lunge forward
+                            unit.x = unit.original_x + unit.melee_lunge_x * progress
+                            unit.y = unit.original_y + unit.melee_lunge_y * progress
+
+                            # Slash arc particles
+                            if random.random() < 0.5:
+                                arc_angle = math.atan2(unit.melee_target.y - unit.y,
+                                                       unit.melee_target.x - unit.x)
+                                arc_angle += random.uniform(-0.5, 0.5)
+                                speed = random.uniform(100, 200)
+                                particle = Particle(unit.x, unit.y,
+                                                   math.cos(arc_angle) * speed,
+                                                   math.sin(arc_angle) * speed,
+                                                   (220, 230, 255), random.uniform(3, 6), 0.3)
+                                self.particle_emitter.particles.append(particle)
+                        else:
+                            unit.melee_phase = "impact"
+                            unit.melee_timer = 0
+
+                            # Apply damage on impact
+                            if unit.melee_target and unit.melee_target.hp > 0:
+                                damage = random.randint(3, 5)
+                                unit.melee_target.take_damage(damage)
+                                self.floating_texts.append(
+                                    FloatingText(unit.melee_target.x, unit.melee_target.y - 20,
+                                               f"-{damage}", COLOR_DAMAGE)
+                                )
+                                # Impact effects
+                                self.particle_emitter.emit_burst(unit.melee_target.x,
+                                                                unit.melee_target.y,
+                                                                (255, 200, 150), 25)
+                                unit.melee_target.shake_intensity = 6
+                                self.screen_shake_intensity = 4
+                                self.screen_shake_duration = 0.15
+
+                elif unit.melee_phase == "impact":
+                    # Brief pause at full extension (0.05s)
+                    if unit.melee_timer >= 0.05:
+                        unit.melee_phase = "recovery"
+                        unit.melee_timer = 0
+
+                elif unit.melee_phase == "recovery":
+                    # Return to original position (0.2s)
+                    if unit.melee_timer < 0.2:
+                        progress = unit.melee_timer / 0.2
+                        # Smoothly return to original position
+                        if not is_potpourrist:
+                            unit.x = unit.original_x + unit.melee_lunge_x * (1.0 - progress)
+                            unit.y = unit.original_y + unit.melee_lunge_y * (1.0 - progress)
+                        unit.wind_up_rotation = 20 * (1.0 - progress)  # Return rotation
+                    else:
+                        # End animation
+                        unit.melee_phase = None
+                        unit.wind_up_rotation = 0
+                        unit.x = unit.original_x
+                        unit.y = unit.original_y
+
+            # Update vault animation with flip
+            if hasattr(unit, 'vault_phase') and unit.vault_phase == "vaulting":
+                unit.vault_timer += delta_time
+                progress = min(1.0, unit.vault_timer / unit.vault_duration)
+
+                # Horizontal movement (linear interpolation)
+                unit.x = unit.vault_start_x + (unit.vault_target_x - unit.vault_start_x) * progress
+                unit.y = unit.vault_start_y + (unit.vault_target_y - unit.vault_start_y) * progress
+
+                # Vertical arc (parabolic jump)
+                arc_height = 120  # Peak height of jump
+                vertical_offset = math.sin(progress * math.pi) * arc_height
+                unit.y -= vertical_offset
+
+                # FLIP ROTATION - Complete 360 degree rotation during vault
+                unit.wind_up_rotation = progress * 360  # Full rotation
+
+                # Trail particles along the arc
+                if random.random() < 0.3:
+                    # Leave trail particles at current position
+                    particle = Particle(unit.x, unit.y + vertical_offset,
+                                       random.uniform(-20, 20), random.uniform(-20, 20),
+                                       (100, 200, 255), random.uniform(3, 6), 0.5)
+                    self.particle_emitter.particles.append(particle)
+
+                # Landing phase
+                if progress >= 1.0:
+                    unit.vault_phase = "landing"
+                    unit.vault_timer = 0
+                    # Snap to target grid position
+                    unit.grid_x = unit.vault_target_grid_x
+                    unit.grid_y = unit.vault_target_grid_y
+                    unit.x = unit.vault_target_x
+                    unit.y = unit.vault_target_y
+                    unit.wind_up_rotation = 0  # Reset rotation
+
+                    # Landing effects
+                    self.particle_emitter.emit_burst(unit.x, unit.y, (100, 200, 255), 30)
+                    self.screen_shake_intensity = 5
+                    self.screen_shake_duration = 0.2
+
+                    # Dust cloud on landing
+                    for _ in range(15):
+                        angle = random.uniform(0, 2 * math.pi)
+                        speed = random.uniform(30, 80)
+                        particle = Particle(unit.x, unit.y + 20,
+                                           math.cos(angle) * speed, math.sin(angle) * speed - 10,
+                                           (180, 180, 200), random.uniform(4, 8), 0.6)
+                        particle.gravity = 100
+                        self.particle_emitter.particles.append(particle)
+
+            elif hasattr(unit, 'vault_phase') and unit.vault_phase == "landing":
+                # Brief landing recovery (0.1s)
+                unit.vault_timer += delta_time
+                if unit.vault_timer >= 0.1:
+                    unit.vault_phase = None
+
+            # Update PRY lever motion (GLAIVEMAN prying animation)
+            if hasattr(unit, 'pry_lever_phase') and unit.pry_lever_phase:
+                unit.pry_lever_timer += delta_time
+
+                if unit.pry_lever_phase == "inserting":
+                    # Phase 1: Insert polearm under target (0.15s)
+                    # Lean forward and down, rotate forward
+                    if unit.pry_lever_timer < 0.15:
+                        progress = unit.pry_lever_timer / 0.15
+                        unit.wind_up_rotation = progress * -20  # Lean forward
+                        # Move slightly toward target
+                        unit.y = unit.original_y + progress * 10  # Slight downward
+                    else:
+                        unit.pry_lever_phase = "levering"
+                        unit.pry_lever_timer = 0
+
+                elif unit.pry_lever_phase == "levering":
+                    # Phase 2: Pull back on lever to pry upward (0.2s)
+                    # Lean back strongly, polearm acts as fulcrum
+                    if unit.pry_lever_timer < 0.2:
+                        progress = unit.pry_lever_timer / 0.2
+                        # Rotate backward (levering motion)
+                        unit.wind_up_rotation = -20 + progress * 50  # Swing back from -20 to +30
+                        # Pull back position
+                        unit.y = unit.original_y + 10 - progress * 15  # Pull up and back
+
+                        # Strain particles (effort)
+                        if random.random() < 0.2:
+                            particle = Particle(unit.x, unit.y - 10,
+                                               random.uniform(-30, 30), random.uniform(-50, -20),
+                                               (255, 200, 100), random.uniform(2, 4), 0.3)
+                            self.particle_emitter.particles.append(particle)
+                    else:
+                        unit.pry_lever_phase = "release"
+                        unit.pry_lever_timer = 0
+
+                elif unit.pry_lever_phase == "release":
+                    # Phase 3: Release and return to stance (0.15s)
+                    if unit.pry_lever_timer < 0.15:
+                        progress = unit.pry_lever_timer / 0.15
+                        # Return to normal
+                        unit.wind_up_rotation = 30 * (1.0 - progress)
+                        unit.y = unit.original_y - 5 + progress * 5
+                        unit.x = unit.original_x
+                    else:
+                        # End animation
+                        unit.pry_lever_phase = None
+                        unit.wind_up_rotation = 0
+                        unit.x = unit.original_x
+                        unit.y = unit.original_y
+
+            # Old mandible bite animation removed - now using JawClamp class
+            # (kept for reference but disabled)
+            if False and hasattr(unit, 'mandible_bite_phase') and unit.mandible_bite_phase:
+                unit.mandible_bite_timer += delta_time
+
+                if unit.mandible_bite_phase == "opening":
+                    # Phase 1: Crushing jaws materialize and open around target (0.2s)
+                    if unit.mandible_bite_timer < 0.2:
+                        progress = unit.mandible_bite_timer / 0.2
+
+                        # Create/update jaw visualization
+                        if not hasattr(unit, 'jaw_opening'):
+                            unit.jaw_opening = 0
+                        unit.jaw_opening = progress * 50  # Jaws open to 50 pixels apart
+
+                        # Jaw materialization particles (from target position outward)
+                        if random.random() < 0.4:
+                            # Upper jaw particles
+                            particle = Particle(
+                                unit.mandible_bite_target.x + random.uniform(-20, 20),
+                                unit.mandible_bite_target.y - unit.jaw_opening,
+                                random.uniform(-10, 10), random.uniform(-20, 0),
+                                (150, 150, 160), random.uniform(3, 6), 0.3
+                            )
+                            self.particle_emitter.particles.append(particle)
+
+                            # Lower jaw particles
+                            particle = Particle(
+                                unit.mandible_bite_target.x + random.uniform(-20, 20),
+                                unit.mandible_bite_target.y + unit.jaw_opening,
+                                random.uniform(-10, 10), random.uniform(0, 20),
+                                (150, 150, 160), random.uniform(3, 6), 0.3
+                            )
+                            self.particle_emitter.particles.append(particle)
+                    else:
+                        unit.mandible_bite_phase = "crushing"
+                        unit.mandible_bite_timer = 0
+
+                elif unit.mandible_bite_phase == "crushing":
+                    # Phase 2: Jaws SLAM shut on target (0.1s) - VERY FAST
+                    if unit.mandible_bite_timer < 0.1:
+                        progress = unit.mandible_bite_timer / 0.1
+
+                        # Jaws closing rapidly
+                        unit.jaw_opening = 50 * (1.0 - progress)
+
+                        # Compression particles as jaws close
+                        if random.random() < 0.6:
+                            # Particles squeezed out from closing jaws
+                            side = random.choice([-1, 1])
+                            particle = Particle(
+                                unit.mandible_bite_target.x + side * random.uniform(10, 25),
+                                unit.mandible_bite_target.y,
+                                side * random.uniform(100, 200), random.uniform(-50, 50),
+                                (220, 200, 180), random.uniform(3, 7), 0.4
+                            )
+                            self.particle_emitter.particles.append(particle)
+                    else:
+                        unit.mandible_bite_phase = "clamped"
+                        unit.mandible_bite_timer = 0
+                        unit.jaw_opening = 0
+
+                        # IMPACT - jaws have closed completely
+                        if unit.mandible_bite_target and unit.mandible_bite_target.hp > 0:
+                            damage = random.randint(3, 5)
+                            unit.mandible_bite_target.take_damage(damage)
+                            self.floating_texts.append(
+                                FloatingText(unit.mandible_bite_target.x,
+                                           unit.mandible_bite_target.y - 20,
+                                           f"-{damage}", COLOR_DAMAGE)
+                            )
+
+                            # Massive impact burst
+                            self.particle_emitter.emit_burst(
+                                unit.mandible_bite_target.x,
+                                unit.mandible_bite_target.y,
+                                (255, 220, 150), 40
+                            )
+
+                            # Jaw teeth impact particles (radial)
+                            for i in range(20):
+                                angle = (i / 20) * 2 * math.pi
+                                speed = random.uniform(80, 150)
+                                particle = Particle(
+                                    unit.mandible_bite_target.x,
+                                    unit.mandible_bite_target.y,
+                                    math.cos(angle) * speed,
+                                    math.sin(angle) * speed,
+                                    (180, 160, 140), random.uniform(4, 8), 0.5
+                                )
+                                self.particle_emitter.particles.append(particle)
+
+                            # Heavy shake
+                            unit.mandible_bite_target.shake_intensity = 12
+                            self.screen_shake_intensity = 8
+                            self.screen_shake_duration = 0.2
+
+                elif unit.mandible_bite_phase == "clamped":
+                    # Phase 3: Jaws grind and crush (0.15s)
+                    if unit.mandible_bite_timer < 0.15:
+                        # Grinding vibration on target
+                        vibration_x = math.sin(unit.mandible_bite_timer * 80) * 3
+                        vibration_y = math.cos(unit.mandible_bite_timer * 80) * 3
+                        unit.mandible_bite_target.x = unit.mandible_bite_target.original_x + vibration_x
+                        unit.mandible_bite_target.y = unit.mandible_bite_target.original_y + vibration_y
+
+                        # Crushing pressure particles
+                        if random.random() < 0.5:
+                            angle = random.uniform(0, 2 * math.pi)
+                            speed = random.uniform(20, 50)
+                            particle = Particle(
+                                unit.mandible_bite_target.x,
+                                unit.mandible_bite_target.y,
+                                math.cos(angle) * speed,
+                                math.sin(angle) * speed,
+                                (200, 180, 150), random.uniform(2, 5), 0.4
+                            )
+                            self.particle_emitter.particles.append(particle)
+
+                        # Metal grinding sparks
+                        if random.random() < 0.3:
+                            particle = Particle(
+                                unit.mandible_bite_target.x + random.uniform(-10, 10),
+                                unit.mandible_bite_target.y + random.uniform(-10, 10),
+                                random.uniform(-40, 40),
+                                random.uniform(-60, -20),
+                                (255, 240, 100), random.uniform(2, 4), 0.25
+                            )
+                            self.particle_emitter.particles.append(particle)
+                    else:
+                        unit.mandible_bite_phase = "releasing"
+                        unit.mandible_bite_timer = 0
+
+                elif unit.mandible_bite_phase == "releasing":
+                    # Phase 4: Jaws open and dissipate (0.15s)
+                    if unit.mandible_bite_timer < 0.15:
+                        progress = unit.mandible_bite_timer / 0.15
+
+                        # Jaws opening back up
+                        unit.jaw_opening = progress * 40
+
+                        # Reset target position
+                        if hasattr(unit.mandible_bite_target, 'original_x'):
+                            unit.mandible_bite_target.x = unit.mandible_bite_target.original_x
+                            unit.mandible_bite_target.y = unit.mandible_bite_target.original_y
+
+                        # Jaw dissipation particles
+                        if random.random() < 0.3:
+                            # Upper and lower jaw fading
+                            for offset in [-1, 1]:
+                                particle = Particle(
+                                    unit.mandible_bite_target.x + random.uniform(-15, 15),
+                                    unit.mandible_bite_target.y + offset * unit.jaw_opening,
+                                    random.uniform(-20, 20),
+                                    offset * random.uniform(10, 30),
+                                    (140, 140, 150), random.uniform(3, 6), 0.4
+                                )
+                                particle.fade = True
+                                self.particle_emitter.particles.append(particle)
+                    else:
+                        # End animation
+                        unit.mandible_bite_phase = None
+                        unit.jaw_opening = 0
+                        if hasattr(unit.mandible_bite_target, 'original_x'):
+                            unit.mandible_bite_target.x = unit.mandible_bite_target.original_x
+                            unit.mandible_bite_target.y = unit.mandible_bite_target.original_y
+
+            # Update wind-up rotation
+            if hasattr(unit, 'wind_up_phase') and unit.wind_up_phase > 0:
+                unit.wind_up_phase -= delta_time
+                unit.wind_up_rotation = (1 - unit.wind_up_phase / 0.3) * 15
+                # Reset rotation when wind-up completes
+                if unit.wind_up_phase <= 0:
+                    unit.wind_up_rotation = 0
+
+            # Update jawline impact animation (compression from trap)
+            if hasattr(unit, 'jawline_impact_phase') and unit.jawline_impact_phase:
+                unit.jawline_impact_timer += delta_time
+
+                if unit.jawline_impact_phase == "compression":
+                    # Fast compression (0.1s)
+                    if unit.jawline_impact_timer < 0.1:
+                        progress = unit.jawline_impact_timer / 0.1
+                        # Squash vertically, expand horizontally
+                        unit.pry_stretch_y = 1.0 - progress * 0.4  # Compress to 0.6 height
+                    else:
+                        unit.jawline_impact_phase = "rebound"
+                        unit.jawline_impact_timer = 0
+                        unit.pry_stretch_y = 0.6
+
+                elif unit.jawline_impact_phase == "rebound":
+                    # Quick rebound back (0.15s)
+                    if unit.jawline_impact_timer < 0.15:
+                        progress = unit.jawline_impact_timer / 0.15
+                        # Elastic rebound - overshoot slightly then settle
+                        if progress < 0.7:
+                            # Expand back fast
+                            unit.pry_stretch_y = 0.6 + (progress / 0.7) * 0.5  # Go to 1.1
+                        else:
+                            # Settle back to 1.0
+                            overshoot_progress = (progress - 0.7) / 0.3
+                            unit.pry_stretch_y = 1.1 - overshoot_progress * 0.1
+                    else:
+                        # End animation
+                        unit.jawline_impact_phase = None
+                        unit.pry_stretch_y = 1.0
+
+            # Update cross decal
+            if hasattr(unit, 'cross_decal_duration') and unit.cross_decal_duration > 0:
+                unit.cross_decal_duration -= delta_time
+                unit.cross_decal_alpha = int(255 * (unit.cross_decal_duration / 1.0))
+
+            # Update Autoclave hit timer
+            if hasattr(unit, 'autoclave_hit_timer') and unit.autoclave_hit_timer > 0:
+                unit.autoclave_hit_timer -= delta_time
+                if unit.autoclave_hit_timer <= 0:
+                    # Apply damage when timer expires
+                    damage = max(1, 8 - unit.defense) if hasattr(unit, 'defense') else 8
+                    unit.take_damage(damage)
+                    self.floating_texts.append(
+                        FloatingText(unit.x, unit.y - 20, f"-{damage}", COLOR_DAMAGE)
+                    )
+                    # Impact burst
+                    self.particle_emitter.emit_burst(unit.x, unit.y, (255, 100, 100), 25)
+                    unit.shake_intensity = 8
+
+                    # Track damage for healing (find the glaiveman who cast it)
+                    for u in self.units:
+                        if hasattr(u, 'autoclave_targets') and unit in u.autoclave_targets:
+                            u.autoclave_total_damage += damage
+                            # If this was the last target, heal the glaiveman
+                            remaining_targets = sum(1 for t in u.autoclave_targets
+                                                   if hasattr(t, 'autoclave_hit_timer') and t.autoclave_hit_timer > 0)
+                            if remaining_targets == 0 and u.autoclave_total_damage > 0:
+                                heal = u.autoclave_total_damage // 2
+                                u.heal(heal)
+                                self.particle_emitter.emit_float(u.x, u.y, COLOR_HEAL, 30)
+                                self.floating_texts.append(
+                                    FloatingText(u.x, u.y - 20, f"+{heal}", COLOR_HEAL)
+                                )
+                                # Clean up
+                                del u.autoclave_targets
+                                del u.autoclave_total_damage
+
+            # Update PRY animation
+            if hasattr(unit, 'pry_phase') and unit.pry_phase:
+                unit.pry_timer += delta_time
+                progress = unit.pry_timer / unit.pry_max_time
+
+                if unit.pry_phase == "launching":
+                    # Launch upward MUCH faster and higher with stretch effect
+                    # Use exponential curve for faster initial velocity
+                    launch_curve = math.pow(progress, 0.6)  # Accelerating curve
+                    unit.pry_stretch_y = 1.0 + launch_curve * 0.8  # More stretch
+                    unit.y = unit.original_y - launch_curve * 400  # Much higher (was 150)
+
+                    if progress >= 0.25:  # Hit ceiling earlier (was 0.4)
+                        unit.pry_phase = "ceiling_impact"
+                        unit.pry_timer = 0
+                        # Ceiling impact flash (white, more intense)
+                        self.golden_flash_alpha = 255
+                        self.golden_flash_duration = 0.15
+                        # Impact particles at top (more dramatic)
+                        for _ in range(30):
+                            self.particle_emitter.particles.append(
+                                Particle(unit.x, unit.y,
+                                        random.uniform(-150, 150), random.uniform(-80, 80),
+                                        (255, 255, 255), random.uniform(3, 7), 0.5)
+                            )
+
+                elif unit.pry_phase == "ceiling_impact":
+                    # Brief pause at ceiling
+                    if unit.pry_timer >= 0.2:
+                        unit.pry_phase = "falling"
+                        unit.pry_timer = 0
+
+                elif unit.pry_phase == "falling":
+                    # Fall back down from much higher position
+                    fall_progress = min(1.0, unit.pry_timer / 0.4)
+                    unit.y = unit.original_y - 400 + fall_progress * 400  # Fall from 400 up
+
+                    if fall_progress >= 1.0:  # Impact ground
+                        unit.pry_phase = "impact"
+                        unit.pry_timer = 0
+                        unit.y = unit.original_y
+
+                        # SCREEN SHAKE
+                        self.screen_shake_intensity = 12
+                        self.screen_shake_duration = 0.4
+
+                        # DEBRIS PARTICLES
+                        for _ in range(25):
+                            angle = random.uniform(0, 2 * math.pi)
+                            speed = random.uniform(100, 250)
+                            size = random.uniform(6, 12)
+                            self.debris_particles.append(
+                                DebrisParticle(unit.x, unit.y,
+                                             math.cos(angle) * speed,
+                                             math.sin(angle) * speed - 100,
+                                             size, (120, 100, 80))
+                            )
+
+                        # Impact dust cloud
+                        self.particle_emitter.emit_burst(unit.x, unit.y, (150, 130, 100), 30)
+
+                        # Primary damage
+                        damage = 6
+                        unit.take_damage(damage)
+                        self.floating_texts.append(
+                            FloatingText(unit.x, unit.y - 20, f"-{damage}", COLOR_DAMAGE)
+                        )
+
+                        # Mark adjacent targets for delayed debris splash
+                        if hasattr(unit, 'pry_adjacent_targets'):
+                            unit.pry_splash_phase = "delay"
+                            unit.pry_splash_timer = 0
+
+                elif unit.pry_phase == "impact":
+                    # Squash effect on impact
+                    if unit.pry_timer < 0.15:
+                        squash = 1.0 - (unit.pry_timer / 0.15) * 0.3
+                        unit.pry_stretch_y = squash
+                    else:
+                        # End animation
+                        unit.pry_phase = None
+                        unit.pry_stretch_y = 1.0
+
+            # Handle delayed splash damage phase
+            if hasattr(unit, 'pry_splash_phase') and unit.pry_splash_phase:
+                unit.pry_splash_timer += delta_time
+
+                if unit.pry_splash_phase == "delay":
+                    # Delay before debris falls
+                    if unit.pry_splash_timer >= 0.3:  # 0.3s delay
+                        unit.pry_splash_phase = "raining"
+                        unit.pry_splash_timer = 0
+
+                        # Create falling debris from ceiling for each adjacent target
+                        if hasattr(unit, 'pry_adjacent_targets'):
+                            for adj_unit in unit.pry_adjacent_targets:
+                                # Mark adjacent unit for incoming debris
+                                adj_unit.pry_debris_incoming = True
+                                adj_unit.pry_debris_timer = 0
+                                adj_unit.pry_debris_hit_count = 0  # Track how many debris have hit
+
+                                # Spawn debris at top of screen above adjacent unit
+                                for _ in range(8):
+                                    # Start debris from ceiling
+                                    start_x = adj_unit.x + random.uniform(-30, 30)
+                                    start_y = 0  # Top of screen
+                                    vx = random.uniform(-20, 20)
+                                    vy = random.uniform(200, 300)  # Fast downward
+                                    size = random.uniform(5, 10)
+                                    debris = DebrisParticle(start_x, start_y, vx, vy, size, (120, 100, 80), target_unit=adj_unit)
+                                    debris.lifetime = 2.0  # Longer lifetime
+                                    self.debris_particles.append(debris)
+
+                elif unit.pry_splash_phase == "raining":
+                    # Check if all debris has hit targets or timeout
+                    all_debris_hit = True
+                    if hasattr(unit, 'pry_adjacent_targets'):
+                        for adj_unit in unit.pry_adjacent_targets:
+                            # Check if this unit has been hit by debris
+                            if not hasattr(adj_unit, 'pry_debris_hit_count') or adj_unit.pry_debris_hit_count == 0:
+                                all_debris_hit = False
+                                break
+
+                    # End after debris hits or 1 second timeout
+                    if all_debris_hit or unit.pry_splash_timer >= 1.0:
+                        # End splash phase
+                        unit.pry_splash_phase = None
+
+        # Update projectiles
+        for projectile in self.projectiles[:]:
+            still_active = projectile.update(delta_time)
+            if not still_active:
+                self.handle_judgement_impact(projectile)
+                self.projectiles.remove(projectile)
+
+        # Update lightning bolts
+        self.lightning_bolts = [bolt for bolt in self.lightning_bolts if bolt.update(delta_time)]
+
+        # Update cross beams (Autoclave)
+        self.cross_beams = [beam for beam in self.cross_beams if beam.update(delta_time)]
+
+        # Update jaw clamps (Mandible Foreman)
+        remaining_clamps = []
+        for jaw_clamp in self.jaw_clamps:
+            jaw_clamp.update(delta_time)
+
+            # Apply damage when jaws reach "clamped" phase
+            if jaw_clamp.phase == "clamped" and hasattr(jaw_clamp, 'damage_target'):
+                # Only apply damage once
+                if not hasattr(jaw_clamp, 'damage_applied'):
+                    target = jaw_clamp.damage_target
+                    if target and target.hp > 0:
+                        damage = random.randint(4, 6)
+                        target.take_damage(damage)
+                        self.floating_texts.append(
+                            FloatingText(target.x, target.y - 20, f"-{damage}", COLOR_DAMAGE)
+                        )
+
+                        # Massive crushing impact burst
+                        self.particle_emitter.emit_burst(target.x, target.y, (255, 220, 150), 40)
+
+                        # Metallic impact particles (radial)
+                        for i in range(25):
+                            angle = (i / 25) * 2 * math.pi
+                            speed = random.uniform(100, 180)
+                            particle = Particle(
+                                target.x, target.y,
+                                math.cos(angle) * speed,
+                                math.sin(angle) * speed,
+                                (180, 160, 140), random.uniform(4, 8), 0.5
+                            )
+                            self.particle_emitter.particles.append(particle)
+
+                        # Heavy shake
+                        target.shake_intensity = 14
+                        self.screen_shake_intensity = 10
+                        self.screen_shake_duration = 0.25
+
+                        jaw_clamp.damage_applied = True
+
+            # Grinding sparks, pressure particles, and target vibration during clamped phase
+            if jaw_clamp.phase == "clamped" and hasattr(jaw_clamp, 'damage_target'):
+                target = jaw_clamp.damage_target
+
+                # Apply grinding vibration to target
+                if hasattr(target, 'original_x'):
+                    vibration_x = math.sin(jaw_clamp.timer * 100) * 4
+                    vibration_y = math.cos(jaw_clamp.timer * 100) * 4
+                    target.x = target.original_x + vibration_x
+                    target.y = target.original_y + vibration_y
+
+                # Metal grinding sparks
+                if random.random() < 0.4:
+                    angle = random.uniform(0, 2 * math.pi)
+                    speed = random.uniform(50, 120)
+                    particle = Particle(
+                        jaw_clamp.target_x + random.uniform(-15, 15),
+                        jaw_clamp.target_y + random.uniform(-15, 15),
+                        math.cos(angle) * speed,
+                        math.sin(angle) * speed,
+                        (255, 240, 100), random.uniform(2, 4), 0.3
+                    )
+                    self.particle_emitter.particles.append(particle)
+
+                # Crushing pressure particles
+                if random.random() < 0.5:
+                    angle = random.uniform(0, 2 * math.pi)
+                    speed = random.uniform(30, 70)
+                    particle = Particle(
+                        jaw_clamp.target_x,
+                        jaw_clamp.target_y,
+                        math.cos(angle) * speed,
+                        math.sin(angle) * speed,
+                        (200, 180, 150), random.uniform(2, 5), 0.4
+                    )
+                    self.particle_emitter.particles.append(particle)
+
+            # Reset target position when releasing
+            if jaw_clamp.phase == "releasing" and hasattr(jaw_clamp, 'damage_target'):
+                target = jaw_clamp.damage_target
+                if hasattr(target, 'original_x'):
+                    target.x = target.original_x
+                    target.y = target.original_y
+
+            # Keep clamp if still active
+            if jaw_clamp.active:
+                remaining_clamps.append(jaw_clamp)
+        self.jaw_clamps = remaining_clamps
+
+        # Update Pedestal Strikes (POTPOURRIST melee)
+        remaining_strikes = []
+        for strike in self.pedestal_strikes:
+            strike.update(delta_time)
+
+            # Display damage number when damage is applied
+            if strike.damage_applied and not hasattr(strike, 'damage_displayed'):
+                if strike.target and strike.target.hp >= 0:
+                    self.floating_texts.append(
+                        FloatingText(strike.target_x, strike.target_y - 20, "-4", COLOR_DAMAGE)
+                    )
+                strike.damage_displayed = True
+
+            # Keep strike if still active
+            if strike.active:
+                remaining_strikes.append(strike)
+        self.pedestal_strikes = remaining_strikes
+
+        # Update Infuse Effects (POTPOURRIST INFUSE skill)
+        remaining_infuse = []
+        for infuse in self.infuse_effects:
+            infuse.update(delta_time)
+            if infuse.active:
+                remaining_infuse.append(infuse)
+
+        # Update Demilune Swings (POTPOURRIST)
+        for demilune in self.demilune_swings[:]:
+            if not demilune.update(delta_time):
+                self.demilune_swings.remove(demilune)
+        self.infuse_effects = remaining_infuse
+
+        # Update Jawline networks (MANDIBLE FOREMAN JAWLINE skill)
+        remaining_jawlines = []
+        for jawline in self.jawline_networks:
+            jawline.update(delta_time)
+
+            # Apply damage when jaws snap shut
+            if jawline.phase == "snapping" and jawline.damage_applied and not hasattr(jawline, 'damage_dealt'):
+                for target in jawline.damage_targets:
+                    if target.hp > 0:
+                        damage = 4
+                        target.take_damage(damage)
+                        self.floating_texts.append(
+                            FloatingText(target.x, target.y - 20, f"-{damage}", COLOR_DAMAGE)
+                        )
+
+                        # Major impact burst at each trapped enemy
+                        self.particle_emitter.emit_burst(target.x, target.y, (255, 102, 0), 30)
+
+                        # Metallic impact particles radiating outward
+                        for i in range(15):
+                            angle = (i / 15) * 2 * math.pi
+                            speed = random.uniform(80, 150)
+                            particle = Particle(
+                                target.x, target.y,
+                                math.cos(angle) * speed,
+                                math.sin(angle) * speed,
+                                (255, 150, 50), random.uniform(3, 6), 0.4
+                            )
+                            self.particle_emitter.particles.append(particle)
+
+                        # Teeth impact sparks (golden/white)
+                        for _ in range(10):
+                            angle = random.uniform(0, 2 * math.pi)
+                            speed = random.uniform(100, 200)
+                            particle = Particle(
+                                target.x, target.y,
+                                math.cos(angle) * speed,
+                                math.sin(angle) * speed,
+                                (255, 240, 150), random.uniform(2, 4), 0.3
+                            )
+                            self.particle_emitter.particles.append(particle)
+
+                        # Heavy shake the unit
+                        target.shake_intensity = 12
+
+                        # Compression impact animation - unit gets squished by trap
+                        target.jawline_impact_phase = "compression"
+                        target.jawline_impact_timer = 0
+                        if not hasattr(target, 'pry_stretch_y'):
+                            target.pry_stretch_y = 1.0
+
+                # Mark damage as dealt to prevent repeated application
+                jawline.damage_dealt = True
+
+                # Strong screen shake when all traps snap shut
+                self.screen_shake_intensity = 10
+                self.screen_shake_duration = 0.3
+
+            # Metal snapping sounds (sparks during snap phase)
+            if jawline.phase == "snapping":
+                for trap in jawline.trap_positions:
+                    if trap['deploy_progress'] >= 1.0 and random.random() < 0.3:
+                        # Sparks from each trap snapping shut
+                        trap_x = jawline.center_x + (trap['x'] - jawline.center_x)
+                        trap_y = jawline.center_y + (trap['y'] - jawline.center_y)
+                        angle = random.uniform(0, 2 * math.pi)
+                        speed = random.uniform(40, 80)
+                        particle = Particle(
+                            trap_x, trap_y,
+                            math.cos(angle) * speed,
+                            math.sin(angle) * speed,
+                            (255, 200, 100), random.uniform(2, 4), 0.25
+                        )
+                        self.particle_emitter.particles.append(particle)
+
+            # Apply vibration/grinding to trapped units during active phase
+            if jawline.phase == "active":
+                for target in jawline.damage_targets:
+                    if target.hp > 0 and hasattr(target, 'original_x'):
+                        # Violent vibration from trap grinding
+                        vibration_x = math.sin(jawline.timer * 100) * 3
+                        vibration_y = math.cos(jawline.timer * 100) * 3
+                        target.x = target.original_x + vibration_x
+                        target.y = target.original_y + vibration_y
+
+                # Pulsing orange particles during active phase
+                if random.random() < 0.15:
+                    # Random trap position
+                    trap = random.choice(jawline.trap_positions)
+                    trap_x = trap['x']
+                    trap_y = trap['y']
+                    # Small orange glow particles
+                    particle = Particle(
+                        trap_x + random.uniform(-15, 15),
+                        trap_y + random.uniform(-15, 15),
+                        random.uniform(-20, 20),
+                        random.uniform(-20, 20),
+                        (255, 150, 0), random.uniform(2, 3), 0.4
+                    )
+                    self.particle_emitter.particles.append(particle)
+
+            # Reset target positions when fading
+            if jawline.phase == "fading" and jawline.timer < 0.05:  # Once at start of fade
+                for target in jawline.damage_targets:
+                    if hasattr(target, 'original_x'):
+                        target.x = target.original_x
+                        target.y = target.original_y
+
+            # Keep jawline if still active
+            if jawline.active:
+                remaining_jawlines.append(jawline)
+        self.jawline_networks = remaining_jawlines
+
+        # Update Expedite rushes (MANDIBLE FOREMAN EXPEDITE skill)
+        remaining_rushes = []
+        for rush in self.expedite_rushes:
+            rush.update(delta_time)
+
+            # Apply damage and trap when impact occurs
+            if rush.phase == "impact" and not rush.damage_applied:
+                target = rush.target_unit
+                if target and target.hp > 0:
+                    damage = 6
+                    target.take_damage(damage)
+                    self.floating_texts.append(
+                        FloatingText(target.x, target.y - 20, f"-{damage}", COLOR_DAMAGE)
+                    )
+
+                    # Impact burst at target
+                    self.particle_emitter.emit_burst(target.x, target.y, (255, 100, 100), 30)
+
+                    # Create jaw trap at target position
+                    jaw_clamp = JawClamp(target.x, target.y)
+                    self.jaw_clamps.append(jaw_clamp)
+                    jaw_clamp.damage_target = None  # Don't apply damage again - already dealt by rush
+
+                    # Shake effects
+                    target.shake_intensity = 10
+                    self.screen_shake_intensity = 8
+                    self.screen_shake_duration = 0.25
+
+                    rush.damage_applied = True
+
+            # Keep rush if still active
+            if rush.active:
+                remaining_rushes.append(rush)
+        self.expedite_rushes = remaining_rushes
+
+        # Update Viseroy traps (grinding chewing animation)
+        remaining_traps = []
+        for trap in self.viseroy_traps:
+            trap.update(delta_time)
+
+            # Apply damage when trap transitions to grinding phase (single tick)
+            if trap.phase == "grinding" and not trap.damage_applied:
+                if hasattr(trap, 'damage_target'):
+                    target = trap.damage_target
+                    if target.hp > 0:
+                        damage = random.randint(2, 4)
+                        target.take_damage(damage)
+                        self.floating_texts.append(
+                            FloatingText(target.x, target.y - 20, f"-{damage}", COLOR_DAMAGE)
+                        )
+                        trap.damage_applied = True
+
+            # Grinding particles during chewing phase
+            if trap.phase == "grinding" or trap.phase == "clamped":
+                # Violent grinding sparks (less frequent when fully clamped)
+                spark_chance = 0.5 if trap.phase == "grinding" else 0.15
+                if random.random() < spark_chance:
+                    angle = random.uniform(0, 2 * math.pi)
+                    speed = random.uniform(60, 140)
+                    particle = Particle(
+                        trap.target_x + random.uniform(-12, 12),
+                        trap.target_y + random.uniform(-12, 12),
+                        math.cos(angle) * speed,
+                        math.sin(angle) * speed,
+                        (255, 240, 100), random.uniform(2, 5), 0.35
+                    )
+                    self.particle_emitter.particles.append(particle)
+
+                # Crushed material particles (only during grinding)
+                if trap.phase == "grinding" and random.random() < 0.4:
+                    angle = random.uniform(0, 2 * math.pi)
+                    speed = random.uniform(40, 90)
+                    particle = Particle(
+                        trap.target_x,
+                        trap.target_y,
+                        math.cos(angle) * speed,
+                        math.sin(angle) * speed,
+                        (180, 160, 140), random.uniform(2, 4), 0.5
+                    )
+                    self.particle_emitter.particles.append(particle)
+
+            # Target vibration during grinding and clamped phases
+            if (trap.phase == "grinding" or trap.phase == "clamped") and hasattr(trap, 'damage_target'):
+                if hasattr(trap.damage_target, 'original_x'):
+                    target = trap.damage_target
+                    if trap.phase == "grinding":
+                        # More intense vibration during grinding
+                        vibration_x = math.sin(trap.timer * 120) * 5
+                        vibration_y = math.cos(trap.timer * 120) * 5
+                    else:  # clamped
+                        # Subtle persistent vibration when clamped
+                        vibration_x = math.sin(trap.timer * 80) * 2
+                        vibration_y = math.cos(trap.timer * 80) * 2
+                    target.x = target.original_x + vibration_x
+                    target.y = target.original_y + vibration_y
+
+            # Reset target position when fading ends
+            if trap.phase == "fading" and hasattr(trap, 'damage_target'):
+                target = trap.damage_target
+                if hasattr(target, 'original_x'):
+                    target.x = target.original_x
+                    target.y = target.original_y
+
+            # Keep trap if still active
+            if trap.active:
+                remaining_traps.append(trap)
+        self.viseroy_traps = remaining_traps
+
+        # Update Viseroy releases (jaws opening animation)
+        remaining_releases = []
+        for release in self.viseroy_releases:
+            release.update(delta_time)
+
+            # Release particles during opening phase
+            if release.phase == "opening":
+                # Mechanical steam/pressure release particles
+                if random.random() < 0.4:
+                    angle = random.uniform(0, 2 * math.pi)
+                    speed = random.uniform(30, 80)
+                    particle = Particle(
+                        release.target_x + random.uniform(-15, 15),
+                        release.target_y + random.uniform(-15, 15),
+                        math.cos(angle) * speed,
+                        math.sin(angle) * speed,
+                        (200, 200, 210), random.uniform(2, 4), 0.4
+                    )
+                    self.particle_emitter.particles.append(particle)
+
+            # Reset target position when animation ends
+            if not release.active and hasattr(release, 'damage_target'):
+                target = release.damage_target
+                if hasattr(target, 'original_x'):
+                    target.x = target.original_x
+                    target.y = target.original_y
+
+            # Keep release if still active
+            if release.active:
+                remaining_releases.append(release)
+        self.viseroy_releases = remaining_releases
+
+        # Update site inspections (laser scanning)
+        remaining_scans = []
+        for scan in self.site_inspections:
+            scan.update(delta_time)
+
+            # Scanning particles
+            if scan.phase == "scanning":
+                # Laser sweep particles
+                if random.random() < 0.3:
+                    # Calculate current sweep position
+                    sweep_y = scan.center_y - scan.grid_size * 1.5 + scan.scan_progress * (scan.grid_size * 3)
+                    sweep_x = scan.center_x - scan.grid_size * 1.5 + scan.scan_progress * (scan.grid_size * 3)
+
+                    # Particles at sweep intersection
+                    particle = Particle(
+                        sweep_x + random.uniform(-5, 5),
+                        sweep_y + random.uniform(-5, 5),
+                        random.uniform(-20, 20),
+                        random.uniform(-20, 20),
+                        (255, 200, 100), random.uniform(1, 3), 0.3
+                    )
+                    self.particle_emitter.particles.append(particle)
+
+            # Keep scan if still active
+            if scan.active:
+                remaining_scans.append(scan)
+        self.site_inspections = remaining_scans
+
+        # Update site inspection buffs
+        remaining_buffs = []
+        for buff in self.site_inspection_buffs:
+            buff.update(delta_time)
+
+            # Keep buff if still active
+            if buff.active:
+                remaining_buffs.append(buff)
+        self.site_inspection_buffs = remaining_buffs
+
+        # Update debris particles with collision detection
+        remaining_debris = []
+        for debris in self.debris_particles:
+            still_alive = debris.update(delta_time)
+            if still_alive:
+                # Check collision with target unit
+                if debris.check_collision(self.units, self.particle_emitter):
+                    # Debris hit the target - apply damage
+                    if debris.target_unit and debris.target_unit.hp > 0:
+                        # Only apply damage on first hit from each debris chunk
+                        if not hasattr(debris, 'damage_applied'):
+                            splash_damage = 3
+                            debris.target_unit.take_damage(splash_damage)
+                            self.floating_texts.append(
+                                FloatingText(debris.target_unit.x, debris.target_unit.y - 20,
+                                           f"-{splash_damage}", (255, 150, 100))
+                            )
+                            # Shake the unit
+                            debris.target_unit.shake_intensity = 6
+
+                            # Track that this unit was hit
+                            if not hasattr(debris.target_unit, 'pry_debris_hit_count'):
+                                debris.target_unit.pry_debris_hit_count = 0
+                            debris.target_unit.pry_debris_hit_count += 1
+
+                            debris.damage_applied = True
+                    # Debris is removed after collision (lifetime set to 0)
+                else:
+                    remaining_debris.append(debris)
+        self.debris_particles = remaining_debris
+
+        # Update particles
+        self.particle_emitter.update(delta_time)
+
+        # Update floating texts
+        self.floating_texts = [t for t in self.floating_texts if t.update(delta_time)]
+
+    def handle_judgement_impact(self, projectile):
+        """Handle all the impact effects when JUDGEMENT hits."""
+        # Find the attacker and target
+        glaiveman = None
+        target = None
+        for unit in self.units:
+            if hasattr(unit, 'judgement_pending') and unit.judgement_pending:
+                glaiveman = unit
+                target = unit.judgement_target
+                unit.judgement_pending = False
+                break
+
+        if not target or not glaiveman:
+            return
+
+        # Screen shake
+        self.screen_shake_intensity = 8
+        self.screen_shake_duration = 0.3
+
+        # Golden flash
+        self.golden_flash_alpha = 255
+        self.golden_flash_duration = 0.15
+
+        # Impact burst
+        self.particle_emitter.emit_burst(target.x, target.y, (255, 215, 0), 40)
+
+        # Additional sparkles
+        for _ in range(20):
+            angle = random.uniform(0, 2 * math.pi)
+            speed = random.uniform(100, 250)
+            self.particle_emitter.particles.append(
+                Particle(target.x, target.y,
+                        math.cos(angle) * speed, math.sin(angle) * speed,
+                        (255, 255, 200), random.uniform(3, 6), 0.5)
+            )
+
+        # Check if critical
+        is_critical = target.hp < target.max_hp * 0.3
+        damage = 8 if is_critical else 4
+
+        # Cross decal and LIGHTNING on critical
+        if is_critical:
+            target.cross_decal_alpha = 255
+            target.cross_decal_duration = 1.0
+
+            # DIVINE LIGHTNING STRIKE!
+            lightning = LightningBolt(target.x, target.y)
+            self.lightning_bolts.append(lightning)
+
+            # White screen flash for lightning
+            self.golden_flash_alpha = 255
+            self.golden_flash_duration = 0.2
+
+            self.floating_texts.append(
+                FloatingText(target.x, target.y - 40, "DIVINE JUDGMENT!", (255, 215, 0))
+            )
+            self.screen_shake_intensity = 15
+            self.screen_shake_duration = 0.5
+
+            # Extra electric particles
+            for _ in range(30):
+                angle = random.uniform(0, 2 * math.pi)
+                speed = random.uniform(150, 300)
+                self.particle_emitter.particles.append(
+                    Particle(target.x, target.y,
+                            math.cos(angle) * speed, math.sin(angle) * speed,
+                            (200, 220, 255), random.uniform(2, 5), 0.4)
+                )
+
+        # Apply damage
+        target.take_damage(damage)
+        self.floating_texts.append(
+            FloatingText(target.x, target.y - 20, f"-{damage}", COLOR_DAMAGE)
+        )
+
+    def draw(self):
+        """Render the scene."""
+        # Apply screen shake offset
+        shake_offset_x = 0
+        shake_offset_y = 0
+        if self.screen_shake_intensity > 0:
+            shake_offset_x = random.uniform(-self.screen_shake_intensity, self.screen_shake_intensity)
+            shake_offset_y = random.uniform(-self.screen_shake_intensity, self.screen_shake_intensity)
+
+        # Create main surface with potential offset
+        main_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        main_surface.fill(COLOR_BG)
+
+        # Draw grid
+        for y in range(GRID_HEIGHT):
+            for x in range(GRID_WIDTH):
+                color = COLOR_GRID_DARK if (x + y) % 2 == 0 else COLOR_GRID_LIGHT
+                rect = pygame.Rect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+                pygame.draw.rect(main_surface, color, rect)
+                pygame.draw.rect(main_surface, (30, 34, 42), rect, 1)
+
+        # Draw units
+        for unit in self.units:
+            # Save original sprite
+            original_sprite = unit.sprite
+            original_rect = unit.sprite_rect if unit.sprite else None
+
+            # Apply wind-up rotation if active
+            if hasattr(unit, 'wind_up_rotation') and unit.wind_up_rotation != 0 and unit.sprite:
+                rotated = pygame.transform.rotate(unit.sprite, unit.wind_up_rotation)
+                unit.sprite = rotated
+                unit.sprite_rect = rotated.get_rect()
+
+            # Apply PRY stretch/squash if active
+            if hasattr(unit, 'pry_stretch_y') and unit.pry_stretch_y != 1.0 and unit.sprite:
+                new_height = int(TILE_SIZE * unit.pry_stretch_y)
+                new_width = int(TILE_SIZE * (2.0 - unit.pry_stretch_y))  # Inverse stretch horizontally
+                stretched = pygame.transform.scale(unit.sprite, (new_width, new_height))
+                unit.sprite = stretched
+                unit.sprite_rect = stretched.get_rect()
+
+            unit.draw(main_surface, self.small_font)
+
+            # Restore original sprite
+            if original_sprite:
+                unit.sprite = original_sprite
+                unit.sprite_rect = original_rect
+
+            # Draw cross decal overlay on critical hits
+            if hasattr(unit, 'cross_decal_alpha') and unit.cross_decal_alpha > 0:
+                cross_surf = pygame.Surface((64, 64), pygame.SRCALPHA)
+                alpha = unit.cross_decal_alpha
+                # Draw golden cross
+                pygame.draw.line(cross_surf, (255, 215, 0, alpha),
+                               (32, 10), (32, 54), 4)
+                pygame.draw.line(cross_surf, (255, 215, 0, alpha),
+                               (10, 32), (54, 32), 4)
+                # Outer glow
+                pygame.draw.line(cross_surf, (255, 235, 150, alpha // 2),
+                               (32, 10), (32, 54), 6)
+                pygame.draw.line(cross_surf, (255, 235, 150, alpha // 2),
+                               (10, 32), (54, 32), 6)
+                cross_rect = cross_surf.get_rect(center=(int(unit.x), int(unit.y)))
+                main_surface.blit(cross_surf, cross_rect)
+
+        # Draw projectiles
+        for projectile in self.projectiles:
+            projectile.draw(main_surface)
+
+        # Draw cross beams (Autoclave skill)
+        for beam in self.cross_beams:
+            beam.draw(main_surface)
+
+        # Draw jaw clamps (Mandible Foreman)
+        for jaw_clamp in self.jaw_clamps:
+            jaw_clamp.draw(main_surface)
+
+        # Draw Pedestal Strikes (POTPOURRIST)
+        for strike in self.pedestal_strikes:
+            strike.draw(main_surface)
+
+        # Draw Infuse Effects (POTPOURRIST)
+        for infuse in self.infuse_effects:
+            infuse.draw(main_surface)
+
+        # Draw Jawline networks (Mandible Foreman)
+        for jawline in self.jawline_networks:
+            jawline.draw(main_surface)
+
+        # Draw Expedite rushes (Mandible Foreman)
+        for rush in self.expedite_rushes:
+            rush.draw(main_surface)
+
+        # Draw Viseroy traps (Mandible Foreman)
+        for trap in self.viseroy_traps:
+            trap.draw(main_surface)
+
+        # Draw Viseroy releases (Mandible Foreman)
+        for release in self.viseroy_releases:
+            release.draw(main_surface)
+
+        # Draw site inspections (Mandible Foreman)
+        for scan in self.site_inspections:
+            scan.draw(main_surface)
+
+        # Draw site inspection buffs (Mandible Foreman)
+        for buff in self.site_inspection_buffs:
+            buff.draw(main_surface)
+
+        # Draw lightning bolts (on top of everything else)
+        for lightning in self.lightning_bolts:
+            lightning.draw(main_surface)
+
+        # Draw debris particles (falling rocks)
+        for debris in self.debris_particles:
+            debris.draw(main_surface)
+
+        # Draw particles
+        self.particle_emitter.draw(main_surface)
+
+        # Draw floating texts
+        for text in self.floating_texts:
+            text.draw(main_surface, self.font)
+
+        # Apply golden flash overlay
+        if hasattr(self, 'golden_flash_alpha') and self.golden_flash_alpha > 0:
+            flash_surf = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+            flash_surf.fill((255, 215, 0, self.golden_flash_alpha // 4))
+            main_surface.blit(flash_surf, (0, 0))
+
+        # Blit main surface to screen with shake offset
+        self.screen.blit(main_surface, (int(shake_offset_x), int(shake_offset_y)))
+
+        # Draw UI (not affected by shake)
+        self.draw_ui()
+
+        pygame.display.flip()
+
+    def draw_ui(self):
+        """Draw UI overlay."""
+        # Bottom panel
+        panel_height = 140
+        panel_surf = pygame.Surface((SCREEN_WIDTH, panel_height), pygame.SRCALPHA)
+        panel_surf.fill((0, 0, 0, 180))
+        self.screen.blit(panel_surf, (0, SCREEN_HEIGHT - panel_height))
+
+        # Title
+        title = self.title_font.render("Boneglaive - Modern Renderer Demo", True, (255, 255, 255))
+        self.screen.blit(title, (SCREEN_WIDTH // 2 - title.get_width() // 2, 10))
+
+        # Instructions
+        instructions = [
+            "GLAIVEMAN's Skill Showcase:",
+            "JUDGEMENT: Spinning glaive + lightning on crits",
+            "PRY: Launch enemy up, slam down with debris",
+            "",
+            "Advanced Techniques:",
+            "• Projectile sprites with motion blur",
+            "• Sprite transformations (rotation, stretch/squash)",
+            "• Screen shake & flash effects",
+            "• Debris physics with rotation",
+            "• Splash damage visualization",
+            "",
+            "Press SPACE to cast | ESC to exit"
+        ]
+
+        y = SCREEN_HEIGHT - panel_height + 10
+        for line in instructions:
+            text = self.small_font.render(line, True, (255, 255, 255))
+            self.screen.blit(text, (20, y))
+            y += 16
+
+        # Stats
+        stats = [
+            f"Particles: {len(self.particle_emitter.particles)}",
+            f"Units: {len(self.units)}",
+            f"FPS: {int(self.clock.get_fps())}"
+        ]
+        y = SCREEN_HEIGHT - panel_height + 10
+        for stat in stats:
+            text = self.small_font.render(stat, True, (255, 255, 100))
+            self.screen.blit(text, (SCREEN_WIDTH - 150, y))
+            y += 20
+
+    def run(self):
+        """Main game loop."""
+        while self.running:
+            delta_time = self.clock.tick(60) / 1000.0
+            self.handle_events()
+            self.update(delta_time)
+            self.draw()
+
+        pygame.quit()
+
+
+def main():
+    """Run the demo."""
+    print("=" * 60)
+    print("BONEGLAIVE MODERN RENDERER DEMO")
+    print("=" * 60)
+    print()
+    print("This demo shows what the game MIGHT look like with:")
+    print("  - SVG sprite rendering (simulated with circles)")
+    print("  - Particle effects for skills/attacks/healing")
+    print("  - Smooth animations and movement")
+    print("  - Z-layer rendering")
+    print("  - Modern UI with transparency")
+    print()
+    print("Note: In production, the colored circles would be")
+    print("      replaced with your actual SVG graphics.")
+    print()
+    print("Controls:")
+    print("  SPACE - Trigger random action")
+    print("  ESC   - Exit")
+    print()
+
+    demo = ModernRendererDemo()
+    demo.run()
+
+
+if __name__ == "__main__":
+    main()

@@ -45,6 +45,7 @@ class TerrainType(Enum):
     MINI_PUMPKIN = 27   # Mini decorative pumpkin, blocks movement but not line of sight
     POTPOURRI_BOWL = 28 # Decorative potpourri bowl, blocks movement but not line of sight
     MELANGE_FUME = 29   # Aromatic fumes from potpourri bowl, passable, provides healing aura
+    BLOOD_PLASMA = 30   # Blood plasma from upgraded Marrow Dike, passable, slows enemies
 
 
 class GameMap:
@@ -91,14 +92,14 @@ class GameMap:
         """Check if a position is passable (can be moved through)."""
         terrain = self.get_terrain_at(y, x)
         # All furniture types, pillars, limestone, stained stone, and marrow walls are impassable
-        # Rails, canyon floor, concrete floor, leaf pits, melange fumes, and mini pumpkins are passable by all units
-        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.CONCRETE_FLOOR, TerrainType.RAIL, TerrainType.LEAF_PIT, TerrainType.MELANGE_FUME, TerrainType.MINI_PUMPKIN]
+        # Rails, canyon floor, concrete floor, leaf pits, melange fumes, blood plasma, and mini pumpkins are passable by all units
+        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.CONCRETE_FLOOR, TerrainType.RAIL, TerrainType.LEAF_PIT, TerrainType.MELANGE_FUME, TerrainType.BLOOD_PLASMA, TerrainType.MINI_PUMPKIN]
     
     def can_place_unit(self, y: int, x: int) -> bool:
         """Check if a unit can be placed at this position."""
         terrain = self.get_terrain_at(y, x)
-        # Units can be placed on empty, dusty, canyon floor, concrete floor, rail tiles, leaf pits, melange fumes, or mini pumpkins
-        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.CONCRETE_FLOOR, TerrainType.RAIL, TerrainType.LEAF_PIT, TerrainType.MELANGE_FUME, TerrainType.MINI_PUMPKIN]
+        # Units can be placed on empty, dusty, canyon floor, concrete floor, rail tiles, leaf pits, melange fumes, blood plasma, or mini pumpkins
+        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.CONCRETE_FLOOR, TerrainType.RAIL, TerrainType.LEAF_PIT, TerrainType.MELANGE_FUME, TerrainType.BLOOD_PLASMA, TerrainType.MINI_PUMPKIN]
         
     def blocks_line_of_sight(self, y: int, x: int) -> bool:
         """Check if a position blocks line of sight for ranged attacks."""

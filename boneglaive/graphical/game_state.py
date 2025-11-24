@@ -126,7 +126,7 @@ class VisualUnit:
             effects['infusion'] = True
         if hasattr(game_unit, 'potpourri_held') and game_unit.potpourri_held:
             effects['infusion'] = True  # Potpourrist's infuse uses infusion icon
-        if hasattr(game_unit, 'ossified') and game_unit.ossified:
+        if hasattr(game_unit, 'ossify_active') and game_unit.ossify_active:
             effects['ossify'] = True
         if hasattr(game_unit, 'site_inspection_marked') and game_unit.site_inspection_marked:
             effects['site_inspection'] = True
@@ -327,8 +327,41 @@ class GameStateAdapter:
             game_unit = visual_unit.game_unit
             animated_unit = visual_unit.animated_unit
 
+            # Check for partition dissociation (emergency trigger) FIRST
+            # This must be checked BEFORE HP changes because dissociation prevents the HP change!
+            # Use partition_dissociation_caster (saved before clearing) instead of partition_shield_caster
+            if (hasattr(game_unit, 'partition_shield_blocked_fatal') and
+                game_unit.partition_shield_blocked_fatal and
+                hasattr(game_unit, 'partition_dissociation_caster') and
+                game_unit.partition_dissociation_caster):
+
+                # Only trigger if we haven't already animated this dissociation
+                if not hasattr(visual_unit, 'dissociation_animated') or not visual_unit.dissociation_animated:
+                    derelictionist = game_unit.partition_dissociation_caster
+                    print(f"[GameState] *** PARTITION DISSOCIATION DETECTED! *** {game_unit.get_display_name()} triggered emergency dissociation")
+                    print(f"  DERELICTIONIST: {derelictionist.get_display_name()}")
+                    print(f"  partition_shield_blocked_fatal: {game_unit.partition_shield_blocked_fatal}")
+                    print(f"  partition_dissociation_caster: {game_unit.partition_dissociation_caster}")
+
+                    events.append(AnimationEvent(
+                        "partition_dissociation",
+                        source_unit=derelictionist,  # DERELICTIONIST who cast partition
+                        target_unit=game_unit,  # Protected unit that triggered dissociation
+                    ))
+                    print(f"  Event created and appended to events list (total events: {len(events)})")
+
+                    # Mark as animated to prevent re-triggering
+                    visual_unit.dissociation_animated = True
+                    print(f"  Set dissociation_animated flag on visual_unit")
+            elif hasattr(visual_unit, 'dissociation_animated') and visual_unit.dissociation_animated:
+                # Reset flag when the game logic clears the blocked_fatal flag
+                if not (hasattr(game_unit, 'partition_shield_blocked_fatal') and game_unit.partition_shield_blocked_fatal):
+                    visual_unit.dissociation_animated = False
+                    print(f"[GameState DEBUG] Reset dissociation_animated flag for {game_unit.get_display_name()}")
+
             # Detect HP changes
             current_hp = game_unit.hp
+
             if current_hp != visual_unit.last_hp:
                 hp_delta = current_hp - visual_unit.last_hp
 
@@ -426,7 +459,54 @@ class GameStateAdapter:
                     # Clear the pending teleport flag
                     visual_unit.pending_teleport_skill = None
 
-                if not is_teleport:
+                # Check if this is a DERELICTIONIST defection teleport (partition dissociation)
+                is_defection_teleport = (hasattr(game_unit, 'pending_teleport_defection') and
+                                        game_unit.pending_teleport_defection)
+                if is_defection_teleport:
+                    print(f"[GameState] *** DERELICTIONIST DEFECTION TELEPORT DETECTED ***")
+                    origin = getattr(game_unit, 'teleport_origin', visual_unit.last_position)
+                    destination = getattr(game_unit, 'teleport_destination', current_pos)
+                    print(f"  Origin: {origin}, Destination: {destination}")
+
+                    # Generate teleport defection event
+                    events.append(AnimationEvent(
+                        "teleport_defection",
+                        source_unit=game_unit,
+                        origin_pos=origin,  # (y, x) in game coords
+                        destination_pos=destination  # (y, x) in game coords
+                    ))
+
+                    # Clear teleport flags
+                    game_unit.pending_teleport_defection = False
+                    if hasattr(game_unit, 'teleport_origin'):
+                        delattr(game_unit, 'teleport_origin')
+                    if hasattr(game_unit, 'teleport_destination'):
+                        delattr(game_unit, 'teleport_destination')
+
+                    # Update visual position directly (no walking)
+                    visual_unit.last_position = current_pos
+
+                    # Update grid coordinates
+                    animated_unit.grid_x = game_unit.x
+                    animated_unit.grid_y = game_unit.y
+
+                    # Calculate and update screen coordinates (must include GRID_OFFSET)
+                    from boneglaive.graphical.animations.core import TILE_SIZE
+                    from boneglaive.graphical.renderer import GRID_OFFSET_X, GRID_OFFSET_Y
+
+                    new_x = game_unit.x * TILE_SIZE + TILE_SIZE // 2 + GRID_OFFSET_X
+                    new_y = game_unit.y * TILE_SIZE + TILE_SIZE // 2 + GRID_OFFSET_Y
+
+                    # Set both current position and target position (so no walking animation)
+                    animated_unit.x = new_x
+                    animated_unit.y = new_y
+                    animated_unit.target_x = new_x
+                    animated_unit.target_y = new_y
+                    animated_unit.is_moving = False  # Important: disable walking animation
+
+                    print(f"[GameState] Teleport position synced: grid ({game_unit.x}, {game_unit.y}) -> screen ({new_x}, {new_y})")
+
+                elif not is_teleport:
                     # Normal movement - generate movement event and animate walking
                     events.append(AnimationEvent(
                         "movement",

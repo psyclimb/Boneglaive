@@ -64,6 +64,21 @@ from .delphic_appraiser import (
     MarketFuturesAnimation,
 )
 
+from .marrow_condenser import (
+    OssifyAnimation,
+    BoneTitheAnimation,
+    MarrowDikeAnimation,
+    MarrowDikeWallDespawnAnimation,
+)
+
+from .derelictionist import (
+    PartitionAnimation,
+    PartitionHitAnimation,
+    PartitionDissociationAnimation,
+    DerelictedApplicationAnimation,
+    DerelictionistDefectTeleportAnimation,
+)
+
 from .animation_factory import AnimationFactory
 
 __all__ = [
@@ -114,6 +129,17 @@ __all__ = [
     'DivineDrepreciationAnimation',
     'AuctionCurseAnimation',
     'MarketFuturesAnimation',
+    # Marrow Condenser
+    'OssifyAnimation',
+    'BoneTitheAnimation',
+    'MarrowDikeAnimation',
+    'MarrowDikeWallDespawnAnimation',
+    # Derelictionist
+    'PartitionAnimation',
+    'PartitionHitAnimation',
+    'PartitionDissociationAnimation',
+    'DerelictedApplicationAnimation',
+    'DerelictionistDefectTeleportAnimation',
     # Factory
     'AnimationFactory',
 ]

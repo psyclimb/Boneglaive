@@ -690,6 +690,7 @@ class GraniteGeasSkill(ActiveSkill):
             target.taunted_by = user
             target.taunt_duration = taunt_duration
             target.taunt_responded_this_turn = False
+            target.geas_affected = True  # For status icon display
 
             # Show geas binding animation - oils dripping and sealing
             if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):

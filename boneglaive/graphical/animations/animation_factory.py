@@ -40,6 +40,16 @@ from boneglaive.graphical.animations.delphic_appraiser import (
     AuctionCurseAnimation,
     MarketFuturesAnimation,
 )
+from boneglaive.graphical.animations.marrow_condenser import (
+    OssifyAnimation,
+    BoneTitheAnimation,
+    MarrowDikeAnimation,
+    MarrowDikeWallDespawnAnimation,
+)
+from boneglaive.graphical.animations.derelictionist import (
+    PartitionAnimation,
+    PartitionHitAnimation,
+)
 
 if TYPE_CHECKING:
     from boneglaive.game.units import Unit
@@ -81,10 +91,11 @@ class AnimationFactory:
         "GRAE_EXCHANGE": (GraeExchangeAnimation, {}),
         "GRÆ_EXCHANGE": (GraeExchangeAnimation, {}),  # Handle special character
 
-        # MARROW CONDENSER skills (TODO: Implement)
-        "OSSIFY": (None, {}),
-        "MARROW_DIKE": (None, {}),
-        "BONE_TITHE": (None, {}),
+        # MARROW CONDENSER skills
+        "OSSIFY": (OssifyAnimation, {}),
+        "MARROW_DIKE": (MarrowDikeAnimation, {}),
+        "BONE_TITHE": (BoneTitheAnimation, {}),
+        "MARROW_DIKE_WALL_DESPAWN": (MarrowDikeWallDespawnAnimation, {}),
 
         # FOWL CONTRIVANCE skills (TODO: Implement)
         "GAUSSIAN_DUSK": (None, {}),
@@ -109,10 +120,10 @@ class AnimationFactory:
         "KARRIER_RAVE_STRIKE": (KarrierRaveTripleStrike, {}),  # Triple melee attack
         "SCALAR_NODE": (None, {}),  # Trap placement (no animation - silent)
 
-        # DERELICTIONIST skills (TODO: Implement)
-        "VAGAL_RUN": (None, {}),
-        "DERELICT": (None, {}),
-        "PARTITION": (None, {}),
+        # DERELICTIONIST skills
+        "VAGAL_RUN": (None, {}),  # TODO: Implement
+        "DERELICT": (None, {}),  # TODO: Implement
+        "PARTITION": (PartitionAnimation, {}),
     }
 
     @classmethod
@@ -212,8 +223,9 @@ class AnimationFactory:
                 animation = anim_class(
                     start_x=caster_screen_x,
                     start_y=caster_screen_y,
-                    is_crit=is_crit,
-                    **kwargs
+                    target_x=kwargs.get('target_x', caster_screen_x),
+                    target_y=kwargs.get('target_y', caster_screen_y),
+                    is_crit=is_crit
                 )
             elif anim_class.__name__ == "CrossBeam":
                 # CrossBeam expects center_x, center_y, direction
@@ -471,6 +483,98 @@ class AnimationFactory:
                     units_list=units_list if units_list else [],
                     camera=camera,
                     game=kwargs.get('game')  # Pass game instance if needed
+                )
+            elif anim_class.__name__ == "OssifyAnimation":
+                # Ossify - self-buff defensive compression animation
+                # Requires: caster unit, standard callbacks
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_unit=None,  # Self-targeting
+                    target_pos=(caster_unit.grid_y, caster_unit.grid_x),  # Caster position
+                    is_crit=is_crit,
+                    is_infused=is_infused,
+                    particle_emitter=particle_emitter,
+                    debris_list=[],
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,
+                    units_list=units_list if units_list else [],
+                    camera=camera,
+                    game=kwargs.get('game')
+                )
+            elif anim_class.__name__ == "BoneTitheAnimation":
+                # Bone Tithe - AOE life drain from adjacent enemies
+                # Requires: caster unit, units_list (to detect adjacent enemies), standard callbacks
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_unit=None,  # AOE around caster
+                    target_pos=(caster_unit.grid_y, caster_unit.grid_x),  # Caster position
+                    is_crit=is_crit,
+                    is_infused=is_infused,
+                    particle_emitter=particle_emitter,
+                    debris_list=[],
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,
+                    units_list=units_list if units_list else [],
+                    camera=camera,
+                    game=kwargs.get('game')
+                )
+            elif anim_class.__name__ == "MarrowDikeAnimation":
+                # Marrow Dike - 5x5 perimeter wall eruption animation
+                # Requires: caster unit, game (for wall positions), camera, standard callbacks
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_unit=None,  # Self-targeting (walls around caster)
+                    target_pos=(caster_unit.grid_y, caster_unit.grid_x),  # Caster position
+                    is_crit=is_crit,
+                    is_infused=is_infused,
+                    particle_emitter=particle_emitter,
+                    debris_list=[],
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,
+                    units_list=units_list if units_list else [],
+                    camera=camera,
+                    game=kwargs.get('game')  # Required for wall position calculation
+                )
+
+            elif anim_class.__name__ == "MarrowDikeWallDespawnAnimation":
+                # Marrow Dike Wall Despawn - individual wall crumbling animation
+                # Requires: target_pos (wall position), camera, standard callbacks
+                if not target_pos:
+                    print("[AnimationFactory] MARROW_DIKE_WALL_DESPAWN requires a target position")
+                    return None
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_unit=None,
+                    target_pos=target_pos,  # Wall position (grid_y, grid_x)
+                    is_crit=is_crit,
+                    is_infused=is_infused,
+                    particle_emitter=particle_emitter,
+                    debris_list=[],
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,
+                    units_list=units_list if units_list else [],
+                    camera=camera,
+                    game=kwargs.get('game')
+                )
+            elif anim_class.__name__ == "PartitionAnimation":
+                # Partition - protective barrier around ally
+                # Requires: target_unit (ally), target_pos, camera, standard callbacks
+                if not target_unit:
+                    print("[AnimationFactory] PARTITION requires a target unit")
+                    return None
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_unit=target_unit,
+                    target_pos=target_pos,  # Ally position (grid_y, grid_x)
+                    is_crit=is_crit,
+                    is_infused=is_infused,
+                    particle_emitter=particle_emitter,
+                    debris_list=[],
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,
+                    units_list=units_list if units_list else [],
+                    camera=camera,
+                    game=kwargs.get('game')
                 )
             else:
                 # Most animations expect just target coordinates

@@ -52,6 +52,12 @@ def main():
     print("Initializing Boneglaive Graphical Renderer...")
     renderer = GraphicalRenderer(adapter)
 
+    # Create UI adapter and set it on the game for animations
+    from boneglaive.graphical.ui_adapter import GraphicalUIAdapter
+    ui_adapter = GraphicalUIAdapter(renderer)
+    adapter.game.set_ui_reference(ui_adapter)
+    print("Set UI reference on game for animations")
+
     # Sync units from game
     print("Syncing units from game...")
     renderer.sync_units_from_game()

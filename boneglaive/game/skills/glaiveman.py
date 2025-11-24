@@ -202,9 +202,9 @@ class Autoclave(PassiveSkill):
                     )
                     
                     # Show damage number if UI is available
-                    if ui and hasattr(ui, 'renderer'):
+                    if ui and hasattr(ui, 'renderer') and hasattr(ui.renderer, 'draw_damage_text'):
                         damage_text = f"-{damage}"
-                        
+
                         # Make damage text more prominent with flashing effect
                         for i in range(3):
                             ui.renderer.draw_damage_text(target.y-1, target.x*2, " " * len(damage_text), 7)
@@ -212,11 +212,12 @@ class Autoclave(PassiveSkill):
                             ui.renderer.draw_damage_text(target.y-1, target.x*2, damage_text, 7, attrs)
                             ui.renderer.refresh()
                             sleep_with_animation_speed(0.1)
-                        
+
                         # Final damage display (stays visible a bit longer)
                         ui.renderer.draw_damage_text(target.y-1, target.x*2, damage_text, 7, curses.A_BOLD)
                         ui.renderer.refresh()
                         sleep_with_animation_speed(0.2)
+                    # Graphical version handles damage display through animation system
                     
                     # Check if target was defeated and handle death properly
                     if target.hp <= 0:

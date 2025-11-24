@@ -4,6 +4,7 @@ Status Effects UI Component
 Displays status effects for selected unit with tooltips.
 """
 import pygame
+import os
 from typing import List, Dict, Optional, Tuple
 
 # Colors
@@ -112,6 +113,14 @@ STATUS_EFFECTS = {
         "duration_key": "shrapnel_duration",
         "check": lambda u: u.shrapnel_duration > 0
     },
+    "auction_curse_dot": {
+        "name": "Auction Curse",
+        "type": "debuff",
+        "icon": "AC",
+        "description": "Cursed by twisted auction, taking damage from nearby furniture, healing prevented",
+        "duration_key": "auction_curse_dot_duration",
+        "check": lambda u: hasattr(u, 'auction_curse_dot') and u.auction_curse_dot
+    },
 
     # Buffs
     "partition_shield_active": {
@@ -152,6 +161,30 @@ STATUS_EFFECTS = {
         "icon": "TP",
         "description": "Damage stored for later Abreaction",
         "check": lambda u: u.trauma_processing_active
+    },
+    "status_site_inspection": {
+        "name": "Site Inspection",
+        "type": "buff",
+        "icon": "SI",
+        "description": "+1 attack and +1 movement from clear terrain",
+        "duration_key": "status_site_inspection_duration",
+        "check": lambda u: hasattr(u, 'status_site_inspection') and u.status_site_inspection
+    },
+    "status_site_inspection_partial": {
+        "name": "Site Inspection",
+        "type": "buff",
+        "icon": "SI",
+        "description": "+1 attack from partially obstructed terrain",
+        "duration_key": "status_site_inspection_partial_duration",
+        "check": lambda u: hasattr(u, 'status_site_inspection_partial') and u.status_site_inspection_partial
+    },
+    "ossify_active": {
+        "name": "Ossify",
+        "type": "buff",
+        "icon": "O",
+        "description": "Compressed bone structure: +2 defense (+3 when upgraded), -1 movement",
+        "duration_key": "ossify_duration",
+        "check": lambda u: hasattr(u, 'ossify_active') and u.ossify_active
     },
 
     # Special/Neutral

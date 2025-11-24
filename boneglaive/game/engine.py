@@ -2178,6 +2178,8 @@ class Game:
                     unit.partition_shield_caster = None
                     unit.partition_shield_emergency_active = False
                     unit.partition_shield_blocked_fatal = False
+                    if hasattr(unit, 'partition_dissociation_caster'):
+                        unit.partition_dissociation_caster = None
                     unit.prt = 0  # Reset partition stat
                     
                     # Log the expiration
@@ -3329,6 +3331,20 @@ class Game:
             # Process removals and restore original terrain
             for tile_y, tile_x in tiles_to_remove:
                 tile = (tile_y, tile_x)
+
+                # Create wall despawn animation if UI with graphical renderer is available
+                # DISABLED: Animation implemented but not triggered
+                # if ui and hasattr(ui, 'renderer') and hasattr(ui.renderer, 'create_animation'):
+                #     # Check if this is graphical mode (has camera)
+                #     if hasattr(ui.renderer, 'camera'):
+                #         ui.renderer.create_animation(
+                #             skill_name="MARROW_DIKE_WALL_DESPAWN",
+                #             caster_unit=None,
+                #             target_pos=(tile_y, tile_x),
+                #             camera=ui.renderer.camera,
+                #             game=self
+                #         )
+
                 # Restore original terrain only if current terrain is still MARROW_WALL
                 # This prevents restoring incorrect terrain if overlapping occurred
                 if tile in self.marrow_dike_tiles and 'original_terrain' in self.marrow_dike_tiles[tile]:
@@ -3336,13 +3352,13 @@ class Game:
                     if current_terrain == TerrainType.MARROW_WALL:
                         original_terrain = self.marrow_dike_tiles[tile]['original_terrain']
                         self.map.set_terrain_at(tile_y, tile_x, original_terrain)
-                
+
                 # Remove from marrow_dike_tiles
                 if tile in self.marrow_dike_tiles:
                     dike_info = self.marrow_dike_tiles[tile]
                     owner = dike_info['owner']
                     del self.marrow_dike_tiles[tile]
-                    
+
                     # Log the expiration
                     message_log.add_message(
                         f"A section of {owner.get_display_name()}'s Marrow Dike crumbles away...",
@@ -3354,6 +3370,15 @@ class Game:
             if hasattr(self, 'marrow_dike_interior'):
                 for tile_y, tile_x in interior_to_remove:
                     tile = (tile_y, tile_x)
+
+                    # Restore original terrain if blood plasma was placed
+                    current_terrain = self.map.get_terrain_at(tile_y, tile_x)
+                    if current_terrain == TerrainType.BLOOD_PLASMA:
+                        if tile in self.previous_terrain:
+                            original_terrain = self.previous_terrain[tile]
+                            self.map.set_terrain_at(tile_y, tile_x, original_terrain)
+                            del self.previous_terrain[tile]
+
                     # Remove from marrow_dike_interior
                     if tile in self.marrow_dike_interior:
                         del self.marrow_dike_interior[tile]
@@ -3659,6 +3684,8 @@ class Game:
         protected_unit.partition_shield_emergency_active = False
         protected_unit.partition_shield_blocked_fatal = False
         protected_unit.partition_shield_caster = None
+        if hasattr(protected_unit, 'partition_dissociation_caster'):
+            protected_unit.partition_dissociation_caster = None
         
         message_log.add_message(
             f"{protected_unit.get_display_name()}'s partition emergency ends - {caster.get_display_name()} teleports away and abandonment trauma sets in",
@@ -3708,9 +3735,15 @@ class Game:
         if possible_positions:
             import random
             chosen_pos = random.choice(possible_positions)
+
+            # Mark as pending teleport for graphical animation system
+            derelictionist.pending_teleport_defection = True
+            derelictionist.teleport_destination = chosen_pos
+            derelictionist.teleport_origin = (start_y, start_x)
+
             derelictionist.y, derelictionist.x = chosen_pos
             logger.info(f"DERELICTIONIST teleported from ({start_y},{start_x}) to ({chosen_pos[0]},{chosen_pos[1]})")
-            
+
             # Add message log entry for teleportation
             message_log.add_message(
                 f"{derelictionist.get_display_name()} defects from ({start_y},{start_x}) to ({chosen_pos[0]},{chosen_pos[1]})",
@@ -4034,21 +4067,21 @@ class Game:
                     # Directly try to trigger Autoclave for the trapped unit
                     self.try_trigger_autoclave(unit, ui)
                 
-                # Show damage number if UI is available
-                if ui and hasattr(ui, 'renderer'):
+                # Show damage number if UI is available (ASCII version only)
+                if ui and hasattr(ui, 'renderer') and hasattr(ui.renderer, 'draw_damage_text'):
                     # Flash the unit to show damage
                     if hasattr(ui, 'asset_manager'):
                         # Flash the unit with damage colors
                         tile_ids = [ui.asset_manager.get_unit_tile(unit.type)] * 4
                         color_ids = [10, 3 if unit.player == 1 else 4] * 2  # Alternate red background with player color
                         durations = [0.1] * 4
-                        
+
                         # Use renderer's flash tile method
                         ui.renderer.flash_tile(unit.y, unit.x, tile_ids, color_ids, durations)
-                    
+
                     # Show damage number above target with same appearance as attack damage
                     damage_text = f"-{damage}"
-                    
+
                     # Make damage text more prominent
                     for i in range(3):
                         # First clear the area
@@ -4058,11 +4091,12 @@ class Game:
                         ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)  # White color (same as attack damage)
                         ui.renderer.refresh()
                         time.sleep(0.1)
-                    
+
                     # Final damage display (stays on screen slightly longer)
                     ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
                     ui.renderer.refresh()
                     time.sleep(0.3)  # Match the 0.3s delay used in attack damage
+                # Graphical version handles damage display through animation system
                 
                 # Check if the trapped unit was defeated
                 if unit.hp <= 0:

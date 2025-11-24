@@ -178,6 +178,7 @@ class GraphicalRenderer:
             TerrainType.CONCRETE_FLOOR: "graphics/terrain/concrete_floor.svg",
             TerrainType.LEAF_PIT: "graphics/terrain/leaf_pit.svg",
             TerrainType.MELANGE_FUME: "graphics/terrain/melange_fume.svg",
+            TerrainType.BLOOD_PLASMA: "graphics/terrain/blood_plasma.svg",
 
             # Furniture types
             TerrainType.FURNITURE: "graphics/furniture/furniture_generic.svg",
@@ -859,6 +860,77 @@ class GraphicalRenderer:
             else:
                 print(f"[TrapRelease] ERROR: Could not find visual unit for released unit")
 
+        elif event.event_type == "partition_dissociation":
+            # Play partition dissociation animation (emergency trigger)
+            print(f"[RENDERER DEBUG] *** RECEIVED partition_dissociation EVENT ***")
+            protected_unit = event.target_unit  # Unit that was protected
+            derelictionist = event.source_unit  # DERELICTIONIST who cast partition
+            print(f"  Protected unit: {protected_unit.get_display_name() if protected_unit else 'None'}")
+            print(f"  DERELICTIONIST: {derelictionist.get_display_name() if derelictionist else 'None'}")
+
+            protected_visual = self._get_visual_unit(protected_unit)
+            derelictionist_visual = self._get_visual_unit(derelictionist)
+            print(f"  Protected visual found: {protected_visual is not None}")
+            print(f"  DERELICTIONIST visual found: {derelictionist_visual is not None}")
+
+            if protected_visual and derelictionist_visual:
+                print(f"[PartitionDissociation] Creating dissociation animation for {protected_unit.get_display_name()}")
+
+                from boneglaive.graphical.animations import PartitionDissociationAnimation
+
+                dissociation_anim = PartitionDissociationAnimation(
+                    protected_unit=protected_visual.animated_unit,
+                    derelictionist_unit=derelictionist_visual.animated_unit,
+                    camera=self.camera,
+                    screen_shake_callback=self.trigger_screen_shake,
+                    screen_flash_callback=self.trigger_screen_flash,
+                    particle_emitter=self.particle_emitter
+                )
+
+                self.active_animations.append(dissociation_anim)
+                print(f"[PartitionDissociation] Dissociation animation CREATED and added to active_animations (count: {len(self.active_animations)})")
+            else:
+                if not protected_visual:
+                    print(f"[PartitionDissociation] ERROR: Could not find visual unit for protected unit {protected_unit.get_display_name()}")
+                if not derelictionist_visual:
+                    print(f"[PartitionDissociation] ERROR: Could not find visual unit for DERELICTIONIST {derelictionist.get_display_name()}")
+
+        elif event.event_type == "teleport_defection":
+            # Play DERELICTIONIST defection teleport animation
+            print(f"[RENDERER DEBUG] *** RECEIVED teleport_defection EVENT ***")
+            derelictionist = event.source_unit
+            origin_pos = event.kwargs.get("origin_pos")  # (y, x) in game coords
+            destination_pos = event.kwargs.get("destination_pos")  # (y, x) in game coords
+            print(f"  DERELICTIONIST: {derelictionist.get_display_name() if derelictionist else 'None'}")
+            print(f"  Origin: {origin_pos}, Destination: {destination_pos}")
+
+            derelictionist_visual = self._get_visual_unit(derelictionist)
+            print(f"  DERELICTIONIST visual found: {derelictionist_visual is not None}")
+
+            if derelictionist_visual and origin_pos and destination_pos:
+                print(f"[DefectTeleport] Creating defection teleport animation for {derelictionist.get_display_name()}")
+
+                from boneglaive.graphical.animations.derelictionist import DerelictionistDefectTeleportAnimation
+
+                teleport_anim = DerelictionistDefectTeleportAnimation(
+                    derelictionist_unit=derelictionist_visual.animated_unit,
+                    origin_pos=origin_pos,
+                    destination_pos=destination_pos,
+                    camera=self.camera,
+                    screen_shake_callback=self.trigger_screen_shake,
+                    particle_emitter=self.particle_emitter
+                )
+
+                self.active_animations.append(teleport_anim)
+                print(f"[DefectTeleport] Teleport animation CREATED and added to active_animations (count: {len(self.active_animations)})")
+            else:
+                if not derelictionist_visual:
+                    print(f"[DefectTeleport] ERROR: Could not find visual unit for DERELICTIONIST {derelictionist.get_display_name()}")
+                if not origin_pos:
+                    print(f"[DefectTeleport] ERROR: No origin position provided")
+                if not destination_pos:
+                    print(f"[DefectTeleport] ERROR: No destination position provided")
+
         elif event.event_type == "death":
             # Play death animation - blood explosion
             unit = event.source_unit
@@ -1124,6 +1196,12 @@ class GraphicalRenderer:
             # This event type is no longer used
             print(f"  [Renderer] WARNING: Received deprecated status_effect event")
 
+        elif event.event_type == "partition_dissociation":
+            # Partition dissociation is a dramatic emergency animation - show immediately
+            # This takes priority and should not be queued
+            self._show_event_immediately(event)
+            print(f"  [Renderer] Triggered partition dissociation animation immediately")
+
         elif event.event_type == "movement":
             # Animate unit movement - already handled in sync_state()
             # The AnimatedUnit.move_to_grid() is called automatically
@@ -1139,7 +1217,26 @@ class GraphicalRenderer:
         """
         from boneglaive.graphical.animations.core import StatusIconFlash
 
-        # Regular status icon flash for all effects
+        # Special handling for derelicted status - play full animation in addition to icon flash
+        if effect_name == 'derelicted':
+            from boneglaive.graphical.animations.derelictionist import DerelictedApplicationAnimation
+
+            print(f"  [Renderer] Creating Derelicted application animation (in addition to icon flash)...")
+            animation = DerelictedApplicationAnimation(
+                target_unit=animated_unit,
+                camera=self.camera,
+                screen_shake_callback=self.trigger_screen_shake,
+                screen_flash_callback=self.trigger_screen_flash,
+                particle_emitter=self.particle_emitter
+            )
+            if animation:
+                self.active_animations.append(animation)
+                print(f"  [Animation] Successfully triggered Derelicted application animation")
+            else:
+                print(f"  [Animation] WARNING: Failed to create Derelicted application animation")
+            # Continue to also create the icon flash below
+
+        # Regular status icon flash for all effects (including derelicted)
         print(f"  [Renderer] Creating status icon flash for {effect_name}...")
         animation = StatusIconFlash(animated_unit, effect_name)
         if animation:
@@ -1494,6 +1591,9 @@ class GraphicalRenderer:
 
         # Draw units
         for unit in self.units:
+            # Skip units that are hidden during teleport animation
+            if hasattr(unit, 'teleport_hidden') and unit.teleport_hidden:
+                continue
             unit.draw(main_surface, self.small_font)
 
         # Draw active animations
