@@ -918,8 +918,8 @@ class BoneTitheSkill(ActiveSkill):
                 actual_heal = user.heal(hp_gained, "bone marrow gain")
                 hp_gained = actual_heal  # Update for display purposes
                 
-                # Show healing number if UI is available
-                if ui and hasattr(ui, 'renderer') and hp_gained > 0:
+                # Show healing number if UI is available (ASCII mode only)
+                if ui and hasattr(ui, 'renderer') and hasattr(ui.renderer, 'draw_damage_text') and hp_gained > 0:
                     healing_text = f"+{hp_gained}"
                     
                     # Make healing text prominent with flashing effect (green color)

@@ -262,8 +262,8 @@ class Autoclave(PassiveSkill):
             actual_healing = user.heal(healing, "Autoclave life essence")
             healing = actual_healing  # Update healing variable for display purposes
             
-            # Show healing number if UI is available
-            if ui and hasattr(ui, 'renderer') and healing > 0:
+            # Show healing number if UI is available (ASCII mode only)
+            if ui and hasattr(ui, 'renderer') and hasattr(ui.renderer, 'draw_damage_text') and healing > 0:
                 healing_text = f"+{healing}"
                 
                 # Make healing text prominent with flashing effect (green color)

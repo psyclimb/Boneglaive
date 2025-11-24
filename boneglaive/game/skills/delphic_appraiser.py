@@ -961,8 +961,8 @@ class DivineDrepreciationSkill(ActiveSkill):
                 target_player=unit.player
             )
 
-            # Show damage number if UI is available
-            if ui and hasattr(ui, 'renderer') and actual_damage > 0:
+            # Show damage number if UI is available (ASCII mode only)
+            if ui and hasattr(ui, 'renderer') and hasattr(ui.renderer, 'draw_damage_text') and actual_damage > 0:
                 damage_text = f"-{actual_damage}"
                 
                 # Make damage text more prominent with flashing effect (like FOWL_CONTRIVANCE)
