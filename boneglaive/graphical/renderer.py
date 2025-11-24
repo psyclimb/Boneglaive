@@ -473,18 +473,16 @@ class GraphicalRenderer:
             if (grid_x, grid_y) in self.skill_positions:
                 game_unit = self._get_game_unit(self.selected_unit)
                 if game_unit:
-                    # Use the skill
+                    # Use the skill (this calls skill.use() which sets indicators and queues the action)
                     target_pos = (grid_y, grid_x)  # Convert to game coords
-                    # Plan the skill use (don't execute yet - wait for turn execution)
-                    game_unit.skill_target = target_pos
-                    game_unit.selected_skill = self.selected_skill  # Store the skill object, not name
-                    game_unit.took_no_actions = False
 
-                    # Track action order
-                    game_unit.action_timestamp = self.game_adapter.game.action_counter
-                    self.game_adapter.game.action_counter += 1
+                    # Call the skill's use() method to properly queue it and set indicators
+                    success = self.selected_skill.use(game_unit, target_pos, self.game_adapter.game)
 
-                    print(f"Skill planned: {self.selected_skill.name} at ({grid_y}, {grid_x})")
+                    if success:
+                        print(f"Skill planned: {self.selected_skill.name} at ({grid_y}, {grid_x})")
+                    else:
+                        print(f"Failed to use skill: {self.selected_skill.name}")
 
                     # Clear skill targeting mode
                     self.selected_skill = None
@@ -1589,6 +1587,9 @@ class GraphicalRenderer:
         # Draw imbued furniture effects (Market Futures)
         self.draw_imbued_furniture(main_surface)
 
+        # Draw skill target indicator shadows (semi-transparent unit previews)
+        self.draw_skill_shadows(main_surface)
+
         # Draw units
         for unit in self.units:
             # Skip units that are hidden during teleport animation
@@ -1899,6 +1900,114 @@ class GraphicalRenderer:
 
                         # Draw the main golden number
                         surface.blit(value_text, text_rect)
+
+    def draw_skill_shadows(self, surface: pygame.Surface):
+        """Draw semi-transparent wispy shadows of units at skill target indicator positions."""
+        if not self.game_adapter.game:
+            return
+
+        import time
+
+        # Pulse effect for wispy shadows (slower, more ethereal)
+        pulse_time = time.time()
+        pulse = (math.sin(pulse_time * 1.5) + 1) / 2  # 0 to 1, slower oscillation
+        base_alpha = int(80 + pulse * 40)  # 80 to 120 alpha (30-47% opacity)
+
+        # Check all units for skill target indicators
+        for unit in self.units:
+            if not unit or unit.hp <= 0:
+                continue
+
+            # Get corresponding game unit to check for indicators
+            game_unit = self._get_game_unit(unit)
+            if not game_unit:
+                continue
+
+            shadow_positions = []  # List of (grid_y, grid_x) positions to draw shadows
+
+            # Check for basic movement target (set when clicking to move)
+            if hasattr(game_unit, 'move_target') and game_unit.move_target:
+                shadow_positions.append(game_unit.move_target)
+
+            # Check for vault target indicator (GLAIVEMAN Vault)
+            if hasattr(game_unit, 'vault_target_indicator') and game_unit.vault_target_indicator:
+                shadow_positions.append(game_unit.vault_target_indicator)
+
+            # Check for teleport target indicator (GRAYMAN Teleport, Delta Config, Grae Exchange)
+            if hasattr(game_unit, 'teleport_target_indicator') and game_unit.teleport_target_indicator:
+                shadow_positions.append(game_unit.teleport_target_indicator)
+
+            # Check for Market Futures indicator (DELPHIC APPRAISER)
+            if hasattr(game_unit, 'market_futures_indicator') and game_unit.market_futures_indicator:
+                shadow_positions.append(game_unit.market_futures_indicator)
+
+            # Check for Divine Depreciation indicator (DELPHIC APPRAISER)
+            if hasattr(game_unit, 'divine_depreciation_indicator') and game_unit.divine_depreciation_indicator:
+                shadow_positions.append(game_unit.divine_depreciation_indicator)
+
+            # Check for Broaching Gas indicator (GAS MACHINIST)
+            if hasattr(game_unit, 'broaching_gas_indicator') and game_unit.broaching_gas_indicator:
+                shadow_positions.append(game_unit.broaching_gas_indicator)
+
+            # Check for Saft-E-Gas indicator (GAS MACHINIST)
+            if hasattr(game_unit, 'saft_e_gas_indicator') and game_unit.saft_e_gas_indicator:
+                shadow_positions.append(game_unit.saft_e_gas_indicator)
+
+            # Check for Gaussian Dusk indicator (FOWL CONTRIVANCE)
+            if hasattr(game_unit, 'gaussian_dusk_indicator') and game_unit.gaussian_dusk_indicator:
+                shadow_positions.append(game_unit.gaussian_dusk_indicator)
+
+            # Special handling for Expedite path indicator (GRAYMAN - shows movement path)
+            if hasattr(game_unit, 'expedite_path_indicator') and game_unit.expedite_path_indicator:
+                # Only show shadow at the final destination
+                if isinstance(game_unit.expedite_path_indicator, list) and len(game_unit.expedite_path_indicator) > 0:
+                    final_pos = game_unit.expedite_path_indicator[-1]  # Last position in path
+                    shadow_positions.append(final_pos)
+
+            # Note: Other special indicators not included (they show areas, not unit destination):
+            # - site_inspection_indicator (shows 3x3 area for inspection)
+            # - jawline_indicator (shows network area)
+            # - parabol_indicator (shows area)
+            # - fragcrest_indicator (shows cone)
+            # - auction_curse_ally_indicator, auction_curse_enemy_indicator (not movement targets)
+
+            # Draw shadow at each indicator position
+            for pos in shadow_positions:
+                grid_y, grid_x = pos
+
+                # Convert grid position to screen coordinates (center of tile)
+                shadow_x = GRID_OFFSET_X + grid_x * TILE_SIZE + TILE_SIZE // 2
+                shadow_y = GRID_OFFSET_Y + grid_y * TILE_SIZE + TILE_SIZE // 2
+
+                # Create shadow surface
+                if unit.sprite:
+                    # Use actual sprite with transparency
+                    shadow_sprite = unit.sprite.copy()
+
+                    # Apply tint for wispy effect (slight blue/white tint)
+                    tint_surface = pygame.Surface(shadow_sprite.get_size(), pygame.SRCALPHA)
+                    tint_color = (200, 220, 255, 40)  # Light blue-white tint, subtle
+                    tint_surface.fill(tint_color)
+                    shadow_sprite.blit(tint_surface, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+
+                    # Apply transparency
+                    shadow_sprite.set_alpha(base_alpha)
+
+                    # Draw shadow centered at position
+                    shadow_rect = shadow_sprite.get_rect(center=(shadow_x, shadow_y))
+                    surface.blit(shadow_sprite, shadow_rect)
+                else:
+                    # Fallback: draw semi-transparent circle
+                    shadow_color = (*unit.color[:3], base_alpha)
+                    shadow_surface = pygame.Surface((unit.radius * 2, unit.radius * 2), pygame.SRCALPHA)
+                    pygame.draw.circle(shadow_surface, shadow_color,
+                                     (unit.radius, unit.radius), unit.radius)
+                    # Add wispy outer glow
+                    glow_color = (200, 220, 255, base_alpha // 3)
+                    pygame.draw.circle(shadow_surface, glow_color,
+                                     (unit.radius, unit.radius), unit.radius + 4)
+                    surface.blit(shadow_surface,
+                               (shadow_x - unit.radius, shadow_y - unit.radius))
 
     def draw_imbued_furniture(self, surface: pygame.Surface):
         """Draw glowing currency symbol and gold sparkles on furniture imbued by Market Futures."""
