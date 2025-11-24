@@ -35,6 +35,11 @@ from boneglaive.graphical.animations.interferer import (
     KarrierRavePhaseOut,
     KarrierRaveTripleStrike,
 )
+from boneglaive.graphical.animations.delphic_appraiser import (
+    DivineDrepreciationAnimation,
+    AuctionCurseAnimation,
+    MarketFuturesAnimation,
+)
 
 if TYPE_CHECKING:
     from boneglaive.game.units import Unit
@@ -91,10 +96,10 @@ class AnimationFactory:
         "SAFT_E_GAS": (None, {}),
         "DIVERGE": (None, {}),
 
-        # DELPHIC APPRAISER skills (TODO: Implement)
-        "MARKET_FUTURES": (None, {}),
-        "AUCTION_CURSE": (None, {}),
-        "DIVINE_DEPRECIATION": (None, {}),
+        # DELPHIC APPRAISER skills
+        "MARKET_FUTURES": (MarketFuturesAnimation, {}),
+        "AUCTION_CURSE": (AuctionCurseAnimation, {}),
+        "DIVINE_DEPRECIATION": (DivineDrepreciationAnimation, {}),
 
         # INTERFERER skills
         "NEUTRON_ILLUMINANT_CARDINAL": (NeutronIlluminantCardinal, {}),
@@ -122,7 +127,8 @@ class AnimationFactory:
                         screen_flash_callback = None,
                         units_list = None,
                         damage_callback = None,
-                        camera = None):
+                        camera = None,
+                        game = None):
         """
         Create an animation for a skill.
 
@@ -158,6 +164,7 @@ class AnimationFactory:
 
         # Prepare animation kwargs
         kwargs = base_kwargs.copy()
+        kwargs['game'] = game  # Add game instance to kwargs
 
         # Use camera for coordinate conversion (if provided)
         # Falls back to default offsets for backwards compatibility
@@ -404,6 +411,66 @@ class AnimationFactory:
                 animation = anim_class(
                     target_x=kwargs.get('target_x', caster_screen_x),
                     target_y=kwargs.get('target_y', caster_screen_y)
+                )
+            elif anim_class.__name__ == "DivineDrepreciationAnimation":
+                # Divine Depreciation - reality-warping furniture reappraisal
+                # Requires: target_pos (furniture position), all standard callbacks, game instance
+                if not target_pos:
+                    print("[AnimationFactory] DIVINE_DEPRECIATION requires a target position (furniture)")
+                    return None
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_unit=target_unit,
+                    target_pos=target_pos,
+                    is_crit=is_crit,
+                    is_infused=is_infused,
+                    particle_emitter=particle_emitter,
+                    debris_list=[],  # Not used but required by signature
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,
+                    units_list=units_list if units_list else [],
+                    camera=camera,
+                    game=kwargs.get('game')  # Pass game instance for furniture detection
+                )
+            elif anim_class.__name__ == "AuctionCurseAnimation":
+                # Auction Curse - cursed auction with furniture detection
+                # Requires: target_pos (enemy unit), game instance for furniture within 2 tiles
+                if not target_pos:
+                    print("[AnimationFactory] AUCTION_CURSE requires a target position (enemy unit)")
+                    return None
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_unit=target_unit,
+                    target_pos=target_pos,
+                    is_crit=is_crit,
+                    is_infused=is_infused,
+                    particle_emitter=particle_emitter,
+                    debris_list=[],
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,
+                    units_list=units_list if units_list else [],
+                    camera=camera,
+                    game=kwargs.get('game')  # Pass game instance for furniture detection
+                )
+            elif anim_class.__name__ == "MarketFuturesAnimation":
+                # Market Futures - temporal investment energy infusion
+                # Requires: target_pos (furniture position), all standard callbacks, game instance
+                if not target_pos:
+                    print("[AnimationFactory] MARKET_FUTURES requires a target position (furniture)")
+                    return None
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_unit=target_unit,
+                    target_pos=target_pos,
+                    is_crit=is_crit,
+                    is_infused=is_infused,
+                    particle_emitter=particle_emitter,
+                    debris_list=[],  # Not used but required by signature
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,
+                    units_list=units_list if units_list else [],
+                    camera=camera,
+                    game=kwargs.get('game')  # Pass game instance if needed
                 )
             else:
                 # Most animations expect just target coordinates

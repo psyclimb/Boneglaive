@@ -115,6 +115,13 @@ class GraphicalRenderer:
         self.skill_positions: List[Tuple[int, int]] = []
         self.selected_skill = None
 
+        # Astral value display state
+        self.show_astral_values = False
+        self.astral_value_pulse_time = 0
+
+        # Imbued furniture sparkles (for Market Futures)
+        self.imbued_sparkles = []
+
         # UI Components
         self.skill_bar = SkillBar(self.font, self.small_font)
         self.combat_log = CombatLog(self.small_font)
@@ -428,6 +435,7 @@ class GraphicalRenderer:
                     self.show_movement_range = False
                     self.show_target_range = False
                     self.show_skill_range = False
+                    self.show_astral_values = False  # Hide astral values
                     self.valid_positions = []
                     self.attack_positions = []
                     self.skill_positions = []
@@ -514,6 +522,14 @@ class GraphicalRenderer:
                     self.status_effects_panel.update(game_unit)
                     self.unit_info_panel.update(unit, game_unit)
 
+                    # Check if selected unit is DELPHIC APPRAISER - show astral values
+                    from boneglaive.utils.constants import UnitType
+                    if game_unit.type == UnitType.DELPHIC_APPRAISER:
+                        self.show_astral_values = True
+                        print(f"Selected DELPHIC APPRAISER - showing astral values")
+                    else:
+                        self.show_astral_values = False
+
                     print(f"Selected: {unit.name} - {len(self.valid_positions)} moves, {len(self.attack_positions)} attacks available")
                 else:
                     self.valid_positions = []
@@ -545,6 +561,7 @@ class GraphicalRenderer:
                             self.selected_unit = None
                             self.show_movement_range = False
                             self.show_target_range = False
+                            self.show_astral_values = False  # Hide astral values
                             self.valid_positions = []
                             self.attack_positions = []
                             self.skill_bar.update(None, None)
@@ -625,6 +642,7 @@ class GraphicalRenderer:
                         # Clear selection and movement range
                         self.selected_unit = None
                         self.show_movement_range = False
+                        self.show_astral_values = False  # Hide astral values
                         self.valid_positions = []
                     else:
                         print(f"ERROR: Could not find game unit for {self.selected_unit.name}")
@@ -874,6 +892,27 @@ class GraphicalRenderer:
         """
         if self.paused:
             return
+
+        # Update astral value pulse animation
+        self.astral_value_pulse_time += delta_time
+
+        # Update imbued furniture sparkles
+        updated_sparkles = []
+        for sparkle in self.imbued_sparkles:
+            # Age the sparkle
+            sparkle['life'] += delta_time
+
+            # Remove if too old
+            if sparkle['life'] >= sparkle['max_life']:
+                continue
+
+            # Update position
+            sparkle['x'] += sparkle['vx'] * delta_time
+            sparkle['y'] += sparkle['vy'] * delta_time
+
+            updated_sparkles.append(sparkle)
+
+        self.imbued_sparkles = updated_sparkles
 
         # Update screen shake
         if self.screen_shake_duration > 0:
@@ -1338,7 +1377,8 @@ class GraphicalRenderer:
             screen_shake_callback=self.trigger_screen_shake,
             screen_flash_callback=self.trigger_screen_flash,
             units_list=self.units,
-            camera=self.camera
+            camera=self.camera,
+            game=self.game_adapter.game  # Pass game for furniture detection
         )
         if animation:
             self.active_animations.append(animation)
@@ -1445,6 +1485,13 @@ class GraphicalRenderer:
         if self.selected_unit:
             self.draw_selection_highlight(main_surface, self.selected_unit)
 
+        # Draw astral values if DELPHIC APPRAISER is selected
+        if self.show_astral_values:
+            self.draw_astral_values(main_surface)
+
+        # Draw imbued furniture effects (Market Futures)
+        self.draw_imbued_furniture(main_surface)
+
         # Draw units
         for unit in self.units:
             unit.draw(main_surface, self.small_font)
@@ -1481,8 +1528,9 @@ class GraphicalRenderer:
 
         # Draw flash overlay
         if self.flash_alpha > 0:
-            flash_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-            flash_surface.fill((*self.flash_color, self.flash_alpha))
+            flash_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+            flash_surface.set_alpha(int(self.flash_alpha))
+            flash_surface.fill(self.flash_color)
             self.screen.blit(flash_surface, (0, 0))
 
         pygame.display.flip()
@@ -1633,6 +1681,7 @@ class GraphicalRenderer:
         self.show_movement_range = False
         self.show_target_range = False
         self.show_skill_range = False
+        self.show_astral_values = False  # Hide astral values on turn execution
         self.valid_positions = []
         self.attack_positions = []
         self.skill_positions = []
@@ -1699,6 +1748,157 @@ class GraphicalRenderer:
         tile_x = GRID_OFFSET_X + grid_x * TILE_SIZE
         tile_y = GRID_OFFSET_Y + grid_y * TILE_SIZE
         surface.blit(highlight_surf, (tile_x, tile_y))
+
+    def draw_astral_values(self, surface: pygame.Surface):
+        """Draw pulsating golden astral values over furniture when DELPHIC APPRAISER is selected."""
+        if not self.game_adapter.game or not self.game_adapter.game.map:
+            return
+
+        game_map = self.game_adapter.game.map
+        current_player = self.game_adapter.game.current_player
+
+        # Calculate pulse effect (slower, more elegant)
+        import math
+        pulse = (math.sin(self.astral_value_pulse_time * 2) + 1) / 2  # 0 to 1
+        alpha = int(120 + pulse * 135)  # 120 to 255 (more transparent to fully opaque)
+        scale = 1.0 + pulse * 0.2  # 1.0 to 1.2x scale
+
+        # Scan all furniture on map
+        for y in range(GRID_HEIGHT):
+            for x in range(GRID_WIDTH):
+                if game_map.is_furniture(y, x):
+                    # Get astral value for current player
+                    astral_value = game_map.get_cosmic_value(y, x, current_player, self.game_adapter.game)
+
+                    if astral_value is not None:
+                        # Calculate screen position (center of tile)
+                        tile_x = GRID_OFFSET_X + x * TILE_SIZE + TILE_SIZE // 2
+                        tile_y = GRID_OFFSET_Y + y * TILE_SIZE + TILE_SIZE // 2
+
+                        # Render number with gold color and transparency
+                        font_size = int(48 * scale)  # Large number, scales with pulse
+                        # Create font at current size
+                        value_font = pygame.font.Font(None, font_size)
+
+                        # Render the number
+                        value_text = value_font.render(str(astral_value), True, (255, 215, 0))  # Gold
+
+                        # Apply transparency
+                        value_text.set_alpha(alpha)
+
+                        # Center the text on the tile
+                        text_rect = value_text.get_rect(center=(tile_x, tile_y))
+
+                        # Optional: Add dark outline for readability
+                        # Render slightly larger dark version behind
+                        outline_font = pygame.font.Font(None, font_size + 2)
+                        outline_text = outline_font.render(str(astral_value), True, (0, 0, 0))
+                        outline_text.set_alpha(alpha // 2)
+                        outline_rect = outline_text.get_rect(center=(tile_x, tile_y))
+                        surface.blit(outline_text, outline_rect)
+
+                        # Draw the main golden number
+                        surface.blit(value_text, text_rect)
+
+    def draw_imbued_furniture(self, surface: pygame.Surface):
+        """Draw glowing currency symbol and gold sparkles on furniture imbued by Market Futures."""
+        if not self.game_adapter.game:
+            return
+
+        game = self.game_adapter.game
+
+        # Check if there are any teleport anchors (Market Futures)
+        if not hasattr(game, 'teleport_anchors') or not game.teleport_anchors:
+            return
+
+        import math
+        import random
+
+        # Calculate wave effect for currency symbol
+        alpha = int(140 + math.sin(self.astral_value_pulse_time * 2.5) * 60)  # 80 to 200
+        wave_offset = math.sin(self.astral_value_pulse_time * 3) * 8  # Vertical wave amplitude
+
+        # Iterate through all teleport anchors
+        for anchor_pos, anchor_data in game.teleport_anchors.items():
+            # Only draw if furniture is still imbued
+            if not anchor_data.get('imbued', False):
+                continue
+
+            grid_y, grid_x = anchor_pos
+
+            # Calculate screen position (center of tile)
+            tile_x = GRID_OFFSET_X + grid_x * TILE_SIZE + TILE_SIZE // 2
+            tile_y = GRID_OFFSET_Y + grid_y * TILE_SIZE + TILE_SIZE // 2
+
+            # Draw waving currency symbol (¤) - 200% larger = 120pt (was 40pt)
+            font_size = 120
+            currency_font = pygame.font.Font(None, font_size)
+            currency_text = currency_font.render("¤", True, (255, 215, 0))  # Gold
+            currency_text.set_alpha(alpha)
+
+            # Apply wave offset to y position for undulating effect
+            wave_y = tile_y + wave_offset
+
+            # Center the symbol with wave offset
+            text_rect = currency_text.get_rect(center=(tile_x, int(wave_y)))
+
+            # Draw dark outline for visibility
+            outline_font = pygame.font.Font(None, font_size + 2)
+            outline_text = outline_font.render("¤", True, (0, 0, 0))
+            outline_text.set_alpha(alpha // 2)
+            outline_rect = outline_text.get_rect(center=(tile_x, int(wave_y)))
+            surface.blit(outline_text, outline_rect)
+
+            # Draw main currency symbol
+            surface.blit(currency_text, text_rect)
+
+            # Spawn new sparkles (1 every few frames on average)
+            # Use probability instead of guaranteed spawns
+            if random.random() < 0.3:  # 30% chance per frame = ~18 sparkles/sec at 60fps
+                spawn_count = 1
+            else:
+                spawn_count = 0
+            for _ in range(spawn_count):
+                # Random position within tile bounds
+                spawn_x = tile_x + random.uniform(-TILE_SIZE // 3, TILE_SIZE // 3)
+                spawn_y = tile_y + random.uniform(-TILE_SIZE // 3, TILE_SIZE // 3)
+
+                # Random velocity (upward with slight horizontal drift)
+                vx = random.uniform(-10, 10)  # Horizontal drift
+                vy = random.uniform(-40, -60)  # Upward speed (negative = up)
+
+                # Random properties
+                max_life = random.uniform(1.0, 1.5)  # Lifetime in seconds
+                size = random.randint(2, 4)
+                color = random.choice([(255, 235, 100), (255, 215, 0)])  # Bright gold or gold
+
+                self.imbued_sparkles.append({
+                    'x': spawn_x,
+                    'y': spawn_y,
+                    'vx': vx,
+                    'vy': vy,
+                    'life': 0,  # Current age
+                    'max_life': max_life,
+                    'size': size,
+                    'color': color
+                })
+
+        # Draw all active sparkles
+        for sparkle in self.imbued_sparkles:
+            # Calculate fade based on life
+            life_ratio = sparkle['life'] / sparkle['max_life']
+            sparkle_alpha = int(220 * (1.0 - life_ratio))  # Fade from 220 to 0
+
+            if sparkle_alpha > 0:
+                # Draw sparkle as a small circle
+                sparkle_surf = pygame.Surface((sparkle['size'] * 2, sparkle['size'] * 2), pygame.SRCALPHA)
+                pygame.draw.circle(
+                    sparkle_surf,
+                    (*sparkle['color'], sparkle_alpha),
+                    (sparkle['size'], sparkle['size']),
+                    sparkle['size']
+                )
+                surface.blit(sparkle_surf, (int(sparkle['x'] - sparkle['size']), int(sparkle['y'] - sparkle['size'])))
 
     def run(self):
         """Main game loop."""

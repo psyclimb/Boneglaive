@@ -58,6 +58,12 @@ from .interferer import (
     KarrierRaveTripleStrike,
 )
 
+from .delphic_appraiser import (
+    DivineDrepreciationAnimation,
+    AuctionCurseAnimation,
+    MarketFuturesAnimation,
+)
+
 from .animation_factory import AnimationFactory
 
 __all__ = [
@@ -104,6 +110,10 @@ __all__ = [
     'ScalarNodeTriggerAnimation',
     'KarrierRavePhaseOut',
     'KarrierRaveTripleStrike',
+    # Delphic Appraiser
+    'DivineDrepreciationAnimation',
+    'AuctionCurseAnimation',
+    'MarketFuturesAnimation',
     # Factory
     'AnimationFactory',
 ]

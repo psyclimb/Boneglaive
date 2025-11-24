@@ -177,7 +177,7 @@ class ShockwaveRing:
 
         # Expand outward
         progress = self.timer / self.duration
-        radius = int(progress * 150)  # Expand to 150px
+        radius = int(progress * 224)  # Expand to 224px (7 tiles × 64px / 2 = edges of 7×7 area)
 
         # Fade out as expanding
         alpha = int(255 * (1.0 - progress))
@@ -1287,3 +1287,458 @@ class AuctionCurseAnimation:
                             furniture_surf = pygame.Surface((20, 20), pygame.SRCALPHA)
                             pygame.draw.circle(furniture_surf, (58, 58, 58, furniture_alpha), (10, 10), 8)
                             surface.blit(furniture_surf, (int(fx - 10), int(fy - 10)))
+
+
+# ============================================================================
+# MARKET FUTURES ANIMATION
+# ============================================================================
+
+class GoldenScannerBeam:
+    """
+    Golden appraiser beam that sweeps across the furniture during assessment phase.
+    """
+    def __init__(self, center_x, center_y, angle, delay=0):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.angle = angle
+        self.timer = -delay
+        self.duration = 0.6
+        self.active = True
+
+    def update(self, delta_time):
+        self.timer += delta_time
+        if self.timer >= self.duration:
+            self.active = False
+        return self.active
+
+    def draw(self, surface):
+        if not self.active or self.timer < 0:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+
+        # Beam sweeps outward
+        beam_length = 60 * progress
+        end_x = self.center_x + math.cos(self.angle) * beam_length
+        end_y = self.center_y + math.sin(self.angle) * beam_length
+
+        # Golden scanner beam with fade
+        alpha = int(200 * (1 - progress * 0.5))
+        color = (255, 215, 0, alpha)  # Gold
+
+        # Draw beam
+        pygame.draw.line(surface, color,
+                        (int(self.center_x), int(self.center_y)),
+                        (int(end_x), int(end_y)), 3)
+
+        # Bright point at end
+        if beam_length > 10:
+            point_surf = pygame.Surface((8, 8), pygame.SRCALPHA)
+            pygame.draw.circle(point_surf, (255, 235, 100, alpha), (4, 4), 4)
+            surface.blit(point_surf, (int(end_x - 4), int(end_y - 4)))
+
+
+class TemporalRift:
+    """
+    Swirling golden portal/rift opening with clock particles and temporal distortion.
+    """
+    def __init__(self, center_x, center_y):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.timer = 0
+        self.duration = 0.8
+        self.active = True
+
+        # Clock particles - arrows and symbols
+        self.clock_particles = []
+        for i in range(12):
+            angle = (i / 12) * 2 * math.pi
+            self.clock_particles.append({
+                'angle': angle,
+                'base_distance': 25,
+                'symbol': i % 4  # 0: up arrow, 1: right, 2: down, 3: left
+            })
+
+    def update(self, delta_time):
+        self.timer += delta_time
+        if self.timer >= self.duration:
+            self.active = False
+        return self.active
+
+    def draw(self, surface):
+        if not self.active:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+
+        # Expanding rift rings
+        num_rings = 3
+        for i in range(num_rings):
+            ring_offset = i * 0.2
+            ring_progress = min(1.0, max(0, (progress - ring_offset) / (1 - ring_offset)))
+
+            if ring_progress > 0:
+                radius = int(15 + ring_progress * 35)
+                alpha = int(180 * (1 - ring_progress * 0.7))
+
+                # Gold to goldenrod gradient
+                if ring_progress < 0.5:
+                    color = (255, 215, 0, alpha)
+                else:
+                    color = (218, 165, 32, alpha)
+
+                ring_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+                pygame.draw.circle(ring_surf, color, (radius, radius), radius, 3)
+                surface.blit(ring_surf, (int(self.center_x - radius), int(self.center_y - radius)))
+
+        # Rotating clock particles
+        if progress > 0.2:
+            for p in self.clock_particles:
+                # Spiral inward
+                distance = p['base_distance'] * (1 + progress)
+                angle = p['angle'] + progress * math.pi * 2
+
+                px = self.center_x + math.cos(angle) * distance
+                py = self.center_y + math.sin(angle) * distance
+
+                alpha = int(220 * progress)
+
+                # Draw arrow based on symbol
+                arrow_surf = pygame.Surface((6, 6), pygame.SRCALPHA)
+                if p['symbol'] == 0:  # Up arrow
+                    points = [(3, 1), (1, 4), (5, 4)]
+                elif p['symbol'] == 1:  # Right arrow
+                    points = [(5, 3), (2, 1), (2, 5)]
+                elif p['symbol'] == 2:  # Down arrow
+                    points = [(3, 5), (1, 2), (5, 2)]
+                else:  # Left arrow
+                    points = [(1, 3), (4, 1), (4, 5)]
+
+                pygame.draw.polygon(arrow_surf, (255, 215, 0, alpha), points)
+                surface.blit(arrow_surf, (int(px - 3), int(py - 3)))
+
+
+class InvestmentAnchor:
+    """
+    Golden anchor symbol that materializes and embeds into furniture.
+    """
+    def __init__(self, center_x, center_y):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.timer = 0
+        self.duration = 0.7
+        self.active = True
+
+    def update(self, delta_time):
+        self.timer += delta_time
+        if self.timer >= self.duration:
+            self.active = False
+        return self.active
+
+    def draw(self, surface):
+        if not self.active:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+
+        # Anchor descends and solidifies
+        y_offset = int(-30 * (1 - progress))  # Descends from above
+        alpha = int(255 * progress)
+
+        anchor_y = self.center_y + y_offset
+
+        # Draw anchor symbol (T shape)
+        anchor_surf = pygame.Surface((20, 20), pygame.SRCALPHA)
+
+        # Horizontal bar
+        pygame.draw.line(anchor_surf, (255, 215, 0, alpha),
+                        (4, 6), (16, 6), 3)
+        # Vertical bar
+        pygame.draw.line(anchor_surf, (255, 215, 0, alpha),
+                        (10, 6), (10, 16), 3)
+        # Bottom hooks
+        pygame.draw.line(anchor_surf, (255, 215, 0, alpha),
+                        (10, 16), (7, 14), 2)
+        pygame.draw.line(anchor_surf, (255, 215, 0, alpha),
+                        (10, 16), (13, 14), 2)
+
+        # Outline for visibility
+        pygame.draw.line(anchor_surf, (218, 165, 32, alpha),
+                        (4, 6), (16, 6), 4)
+        pygame.draw.line(anchor_surf, (218, 165, 32, alpha),
+                        (10, 6), (10, 16), 4)
+
+        surface.blit(anchor_surf, (int(self.center_x - 10), int(anchor_y - 10)))
+
+        # Radiating waves when anchor embeds
+        if progress > 0.6:
+            embed_progress = (progress - 0.6) / 0.4
+            wave_radius = int(20 + embed_progress * 25)
+            wave_alpha = int(150 * (1 - embed_progress))
+
+            wave_surf = pygame.Surface((wave_radius * 2, wave_radius * 2), pygame.SRCALPHA)
+            pygame.draw.circle(wave_surf, (255, 215, 0, wave_alpha),
+                             (wave_radius, wave_radius), wave_radius, 2)
+            surface.blit(wave_surf, (int(self.center_x - wave_radius),
+                                    int(anchor_y - wave_radius)))
+
+
+class CurrencyOrbit:
+    """
+    Currency symbols ($, £, €, ¥) orbiting the furniture.
+    """
+    def __init__(self, center_x, center_y):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.timer = 0
+        self.duration = 1.0  # Continues for a while
+        self.active = True
+
+        # Currency symbols at different orbital positions
+        self.symbols = [
+            {'char': '$', 'offset': 0, 'radius': 30},
+            {'char': '£', 'offset': math.pi / 2, 'radius': 35},
+            {'char': '€', 'offset': math.pi, 'radius': 32},
+            {'char': '¥', 'offset': 3 * math.pi / 2, 'radius': 37}
+        ]
+
+    def update(self, delta_time):
+        self.timer += delta_time
+        if self.timer >= self.duration:
+            self.active = False
+        return self.active
+
+    def draw(self, surface):
+        if not self.active:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+
+        # Fade in, then stay visible
+        if progress < 0.3:
+            alpha = int(200 * (progress / 0.3))
+        else:
+            alpha = 200
+
+        font = pygame.font.Font(None, 24)
+
+        for sym in self.symbols:
+            # Orbital rotation
+            angle = sym['offset'] + self.timer * 2  # Rotate over time
+            sx = self.center_x + math.cos(angle) * sym['radius']
+            sy = self.center_y + math.sin(angle) * sym['radius']
+
+            # Render currency symbol
+            text = font.render(sym['char'], True, (255, 215, 0))
+            text.set_alpha(alpha)
+
+            # Outline for visibility
+            outline = font.render(sym['char'], True, (139, 69, 19))
+            outline.set_alpha(alpha // 2)
+
+            rect = text.get_rect(center=(int(sx), int(sy)))
+            outline_rect = outline.get_rect(center=(int(sx) + 1, int(sy) + 1))
+
+            surface.blit(outline, outline_rect)
+            surface.blit(text, rect)
+
+
+class MarketFuturesAnimation:
+    """
+    Market Futures skill animation for DELPHIC APPRAISER.
+    Infuses furniture with temporal investment energy, creating a teleportation anchor.
+
+    Phases:
+    1. Investment Assessment - Golden scanner beams sweep furniture
+    2. Temporal Rift Opening - Swirling golden portal opens
+    3. Anchor Manifestation - Anchor symbol descends and embeds
+    4. Investment Glow - Sustained golden aura with currency symbols
+    """
+
+    def __init__(self, caster_unit, target_unit, target_pos, is_crit, is_infused,
+                 particle_emitter, debris_list, screen_shake_callback,
+                 screen_flash_callback, units_list, camera, game=None):
+        """
+        Initialize Market Futures animation.
+
+        Args:
+            target_pos: (grid_y, grid_x) - the furniture being infused
+            game: Game instance to access map/furniture data
+            Other args standard from AnimationFactory
+        """
+        self.caster = caster_unit
+        self.target_pos = target_pos  # (grid_y, grid_x) furniture position
+        self.camera = camera
+        self.particle_emitter = particle_emitter
+        self.screen_shake_callback = screen_shake_callback
+        self.screen_flash_callback = screen_flash_callback
+        self.game = game
+
+        # Convert target grid position to screen coords using Camera
+        # target_pos is (grid_y, grid_x)
+        grid_y, grid_x = target_pos
+        self.target_x, self.target_y = camera.grid_to_screen(grid_x, grid_y, centered=True)
+
+        # Animation state
+        self.phase = "assessment"  # assessment -> rift -> anchor -> glow
+        self.timer = 0
+        self.active = True
+
+        # Sub-effects
+        self.scanner_beams = []
+        self.rift = None
+        self.anchor = None
+        self.currency_orbit = None
+
+        # Glow effect
+        self.glow_intensity = 0
+
+        # Start Phase 1: Investment Assessment
+        self._start_assessment_phase()
+
+    def _start_assessment_phase(self):
+        """Phase 1: Golden scanner beams assess the furniture."""
+        self.phase = "assessment"
+        self.timer = 0
+
+        # Create scanner beams from multiple angles
+        num_beams = 8
+        for i in range(num_beams):
+            angle = (i / num_beams) * 2 * math.pi
+            delay = i * 0.05  # Stagger beams
+            self.scanner_beams.append(
+                GoldenScannerBeam(self.target_x, self.target_y, angle, delay)
+            )
+
+        # Light shake for assessment
+        self.screen_shake_callback(2, 0.6)
+
+    def _start_rift_phase(self):
+        """Phase 2: Temporal rift opens."""
+        self.phase = "rift"
+        self.timer = 0
+
+        self.rift = TemporalRift(self.target_x, self.target_y)
+
+        # Medium shake for rift opening
+        self.screen_shake_callback(4, 0.8)
+
+    def _start_anchor_phase(self):
+        """Phase 3: Anchor manifests and embeds."""
+        self.phase = "anchor"
+        self.timer = 0
+
+        self.anchor = InvestmentAnchor(self.target_x, self.target_y)
+
+        # Light shake on anchor embedding
+        self.screen_shake_callback(3, 0.5)
+
+    def _start_glow_phase(self):
+        """Phase 4: Sustained investment glow."""
+        self.phase = "glow"
+        self.timer = 0
+
+        self.currency_orbit = CurrencyOrbit(self.target_x, self.target_y)
+
+    def update(self, delta_time):
+        """Update animation state."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Update glow intensity based on phase
+        if self.phase == "assessment":
+            self.glow_intensity = min(0.3, self.timer / 0.6)
+        elif self.phase == "rift":
+            self.glow_intensity = 0.3 + min(0.4, self.timer / 0.8)
+        elif self.phase == "anchor":
+            self.glow_intensity = 0.7 + min(0.3, self.timer / 0.7)
+        elif self.phase == "glow":
+            # Full glow, then fade
+            if self.timer < 0.2:
+                self.glow_intensity = 1.0
+            else:
+                self.glow_intensity = max(0.4, 1.0 - (self.timer - 0.2) / 0.2)
+
+        # Phase transitions
+        if self.phase == "assessment" and self.timer >= 0.6:
+            self._start_rift_phase()
+        elif self.phase == "rift" and self.timer >= 0.8:
+            self._start_anchor_phase()
+        elif self.phase == "anchor" and self.timer >= 0.7:
+            self._start_glow_phase()
+        elif self.phase == "glow" and self.timer >= 0.4:
+            self.active = False
+
+        # Update sub-effects
+        for beam in self.scanner_beams:
+            beam.update(delta_time)
+
+        if self.rift:
+            self.rift.update(delta_time)
+
+        if self.anchor:
+            self.anchor.update(delta_time)
+
+        if self.currency_orbit:
+            self.currency_orbit.update(delta_time)
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw animation."""
+        if not self.active:
+            return
+
+        # Draw glow on furniture
+        if self.glow_intensity > 0:
+            # Pulsing golden glow
+            radius = int(35 + 8 * math.sin(self.timer * 5))
+            alpha = int(self.glow_intensity * 140)
+
+            # Gold color
+            color = (255, 215, 0)
+
+            glow_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+            pygame.draw.circle(glow_surf, (*color, alpha), (radius, radius), radius)
+            surface.blit(glow_surf, (int(self.target_x - radius), int(self.target_y - radius)))
+
+            # Outer ring
+            outer_radius = int(radius * 1.3)
+            outer_alpha = int(alpha * 0.5)
+            outer_surf = pygame.Surface((outer_radius * 2, outer_radius * 2), pygame.SRCALPHA)
+            pygame.draw.circle(outer_surf, (218, 165, 32, outer_alpha),
+                             (outer_radius, outer_radius), outer_radius, 3)
+            surface.blit(outer_surf, (int(self.target_x - outer_radius),
+                                     int(self.target_y - outer_radius)))
+
+        # Draw phase-specific effects
+        for beam in self.scanner_beams:
+            beam.draw(surface)
+
+        if self.rift:
+            self.rift.draw(surface)
+
+        if self.anchor:
+            self.anchor.draw(surface)
+
+        if self.currency_orbit:
+            self.currency_orbit.draw(surface)
+
+        # Draw lingering sparkles in glow phase
+        if self.phase == "glow":
+            num_sparkles = 6
+            for i in range(num_sparkles):
+                angle = (i / num_sparkles) * 2 * math.pi + self.timer * 3
+                distance = 25 + 10 * math.sin(self.timer * 4 + i)
+                sx = self.target_x + math.cos(angle) * distance
+                sy = self.target_y + math.sin(angle) * distance
+
+                sparkle_alpha = int(180 * self.glow_intensity *
+                                  (0.5 + 0.5 * math.sin(self.timer * 8 + i)))
+
+                if sparkle_alpha > 0:
+                    sparkle_surf = pygame.Surface((4, 4), pygame.SRCALPHA)
+                    pygame.draw.circle(sparkle_surf, (255, 235, 100, sparkle_alpha), (2, 2), 2)
+                    surface.blit(sparkle_surf, (int(sx - 2), int(sy - 2)))
