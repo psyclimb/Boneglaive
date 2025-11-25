@@ -81,6 +81,11 @@ from .derelictionist import (
     VagalRunAbreactionAnimation,
 )
 
+from .fowl_contrivance import (
+    ParabolAnimation,
+    FragcrestAnimation,
+)
+
 from .animation_factory import AnimationFactory
 
 __all__ = [
@@ -144,6 +149,9 @@ __all__ = [
     'DerelictionistDefectTeleportAnimation',
     'VagalRunAnimation',
     'VagalRunAbreactionAnimation',
+    # Fowl Contrivance
+    'ParabolAnimation',
+    'FragcrestAnimation',
     # Factory
     'AnimationFactory',
 ]

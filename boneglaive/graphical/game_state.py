@@ -623,10 +623,17 @@ class GameStateAdapter:
                             if is_infused:
                                 print(f"[GameState] Potpourrist is holding potpourri - {skill_name} will be infused!")
 
+                        # Capture target unit BEFORE skill execution (units may move during execution)
+                        target_game_unit = None
+                        if skill_target:
+                            target_game_unit = self.game.get_unit_at(skill_target[0], skill_target[1])
+                            if target_game_unit:
+                                print(f"[GameState] Captured target unit: {target_game_unit.get_display_name()} at {skill_target}")
+
                         events.append(AnimationEvent(
                             "skill",
                             source_unit=game_unit,
-                            target_unit=None,
+                            target_unit=target_game_unit,  # Pass actual unit, not None
                             skill_name=skill_name,
                             skill_target=skill_target,
                             is_infused=is_infused

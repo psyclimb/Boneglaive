@@ -141,6 +141,37 @@ def update(self, delta_time):
 - Damage numbers queued during animations, shown when animations complete
 - See =pending_animation_events= and =flush_pending_events()= in renderer
 
+*** Pre-Execution Blocking Animations (NEW!)
+*Problem*: Some skills move units DURING execution (knockback, displacement), but we want animations to show effects at ORIGINAL positions before movement.
+
+*Solution*: Pre-execution blocking system allows animations to play BEFORE game logic executes.
+
+*Implementation* (in =renderer.py=):
+1. =PRE_EXECUTION_BLOCKING_SKILLS= list (line ~57) - Skills that block execution
+2. =execute_turn()= checks for blocking skills after pre-sync (line ~1873)
+3. If detected: flushes animations immediately, waits for completion, THEN executes turn
+4. =_update_animations_only()= helper updates visuals without game state sync
+
+*Adding Blocking Skills*:
+#+begin_src python
+# In renderer.py (top level, near color constants)
+PRE_EXECUTION_BLOCKING_SKILLS = [
+    "Fragcrest",      # Shows cone burst before knockback moves units
+    "FRAGCREST",      # Normalized variant
+    "YourSkill",      # Add your skill here
+    "YOUR_SKILL"      # Include normalized version
+]
+#+end_src
+
+*When to Use*:
+- Skills that displace/move targets (knockback, pulls, pushes)
+- Skills where visual order matters (effect THEN movement)
+- Skills that need targets at original positions for visual clarity
+
+*Example*: Fragcrest cone burst fires, shrapnel hits targets, THEN units are knocked back. Without blocking, units would already be at new positions when animation plays.
+
+*Performance*: Blocking loop runs at 60fps, updating only animations/visuals. No game state syncs during wait.
+
 *** Adding New Animations
 1. Create animation class in appropriate unit file (e.g., =glaiveman.py=)
 2. Add to =animation_factory.py= SKILL_ANIMATIONS dict

@@ -52,6 +52,10 @@ from boneglaive.graphical.animations.derelictionist import (
     VagalRunAnimation,
     VagalRunAbreactionAnimation,
 )
+from boneglaive.graphical.animations.fowl_contrivance import (
+    ParabolAnimation,
+    FragcrestAnimation,
+)
 
 if TYPE_CHECKING:
     from boneglaive.game.units import Unit
@@ -99,10 +103,11 @@ class AnimationFactory:
         "BONE_TITHE": (BoneTitheAnimation, {}),
         "MARROW_DIKE_WALL_DESPAWN": (MarrowDikeWallDespawnAnimation, {}),
 
-        # FOWL CONTRIVANCE skills (TODO: Implement)
-        "GAUSSIAN_DUSK": (None, {}),
-        "BIG_ARC": (None, {}),
-        "FRAGCREST": (None, {}),
+        # FOWL CONTRIVANCE skills
+        "GAUSSIAN_DUSK": (None, {}),  # TODO: Implement
+        "BIG_ARC": (ParabolAnimation, {}),  # Mortar barrage (skill name is Parabol)
+        "PARABOL": (ParabolAnimation, {}),  # Alternative name
+        "FRAGCREST": (FragcrestAnimation, {}),  # Directional fragmentation cone
 
         # GAS MACHINIST skills (TODO: Implement)
         "ENBROACHMENT_GAS": (None, {}),
@@ -630,6 +635,49 @@ class AnimationFactory:
                     units_list=units_list if units_list else [],
                     camera=camera,
                     game=kwargs.get('game')
+                )
+            elif anim_class.__name__ == "ParabolAnimation":
+                # Parabol - 3x3 mortar barrage with indirect fire
+                # Requires: target_pos (center of 3x3 area), camera, callbacks
+                if not target_pos:
+                    print("[AnimationFactory] PARABOL requires a target position")
+                    return None
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_unit=None,  # Area attack, no specific target unit
+                    target_pos=target_pos,  # Center of 3x3 area (grid_y, grid_x)
+                    is_crit=is_crit,
+                    is_infused=is_infused,
+                    particle_emitter=particle_emitter,
+                    debris_list=[],
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,
+                    units_list=units_list if units_list else [],
+                    camera=camera,
+                    game=kwargs.get('game')
+                )
+            elif anim_class.__name__ == "FragcrestAnimation":
+                # Fragcrest - directional fragmentation cone with knockback
+                # Requires: target_pos (primary target), target_unit, camera, callbacks, game
+                if not target_pos:
+                    print("[AnimationFactory] FRAGCREST requires a target position")
+                    return None
+                if not target_unit:
+                    print("[AnimationFactory] FRAGCREST requires a target unit")
+                    return None
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_unit=target_unit,  # Primary target for cone direction
+                    target_pos=target_pos,  # Primary target position (grid_y, grid_x)
+                    is_crit=is_crit,
+                    is_infused=is_infused,
+                    particle_emitter=particle_emitter,
+                    debris_list=[],
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,
+                    units_list=units_list if units_list else [],
+                    camera=camera,
+                    game=kwargs.get('game')  # Required for cone calculation
                 )
             else:
                 # Most animations expect just target coordinates

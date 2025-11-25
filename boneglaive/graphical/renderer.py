@@ -53,6 +53,9 @@ COLOR_SELECTION = (100, 200, 255)
 COLOR_TARGET = (255, 100, 100)
 COLOR_MOVEMENT = (100, 255, 100)
 
+# Skills that must animate BEFORE game logic executes (to show effects before displacement)
+PRE_EXECUTION_BLOCKING_SKILLS = ["Fragcrest", "FRAGCREST", "Parabol", "PARABOL", "BIG_ARC"]
+
 
 class GraphicalRenderer:
     """
@@ -953,6 +956,59 @@ class GraphicalRenderer:
             # Create skill animation from queued event
             self._create_skill_animation(event)
 
+    def _update_animations_only(self, delta_time: float):
+        """
+        Update only animations and visual effects (no game state sync).
+        Used for blocking pre-execution animations.
+
+        Args:
+            delta_time: Time since last frame in seconds
+        """
+        # Update screen shake
+        if self.screen_shake_duration > 0:
+            self.screen_shake_duration -= delta_time
+            if self.screen_shake_duration <= 0:
+                self.screen_shake_intensity = 0
+
+        # Update screen flash
+        if self.flash_duration > 0:
+            self.flash_duration -= delta_time
+            self.flash_alpha = int(255 * max(0, self.flash_duration / 0.2))
+
+        # Update units (for smooth visual movement)
+        for unit in self.units:
+            unit.update(delta_time)
+
+        # Update particles
+        updated_particles = []
+        for particle in self.particle_emitter.particles:
+            if particle.update(delta_time):
+                updated_particles.append(particle)
+        self.particle_emitter.particles = updated_particles
+
+        # Update debris particles
+        updated_debris = []
+        for debris in self.debris_particles:
+            if debris.update(delta_time):
+                updated_debris.append(debris)
+        self.debris_particles = updated_debris
+
+        # Update active animations
+        updated_animations = []
+        for anim in self.active_animations:
+            still_active = anim.update(delta_time)
+            if still_active:
+                updated_animations.append(anim)
+        self.active_animations = updated_animations
+
+        # Update floating texts
+        updated_texts = []
+        for text in self.floating_texts:
+            still_active = text.update(delta_time)
+            if still_active:
+                updated_texts.append(text)
+        self.floating_texts = updated_texts
+
     def update(self, delta_time: float):
         """
         Update game state and animations.
@@ -1434,15 +1490,30 @@ class GraphicalRenderer:
         # Find target unit if any
         target_unit = None
         target_pos = None
-        target_game_unit = None
+        target_game_unit = event.target_unit  # Use unit captured before skill execution
+
         if skill_target:
             target_grid_x = skill_target[1]  # Convert (y,x) to (x,y)
             target_grid_y = skill_target[0]
-            target_unit = self._get_unit_at_grid(target_grid_x, target_grid_y)
             # NOTE: target_pos is in (grid_y, grid_x) format to match caster_grid_pos format in animations
             target_pos = (target_grid_y, target_grid_x)
-            # Get game unit for crit check
-            target_game_unit = self.game_adapter.game.get_unit_at(skill_target[0], skill_target[1])
+
+            # Get visual unit - if event has target_game_unit, use it (unit may have moved)
+            if target_game_unit:
+                # Find the AnimatedUnit corresponding to this game unit
+                target_unit = self._find_animated_unit_by_game_unit(target_game_unit)
+                if target_unit:
+                    print(f"  [Renderer] Found target visual unit via captured game unit: {target_unit.name}")
+                else:
+                    print(f"  [Renderer] WARNING: Could not find AnimatedUnit for captured game unit")
+            else:
+                # Fallback: try position lookup (for backwards compatibility with skills that don't capture target)
+                target_unit = self._get_unit_at_grid(target_grid_x, target_grid_y)
+                if target_unit:
+                    target_game_unit = self.game_adapter.game.get_unit_at(skill_target[0], skill_target[1])
+                    print(f"  [Renderer] Found target unit at position {skill_target}")
+                else:
+                    print(f"  [Renderer] No target unit found at {skill_target}")
 
         # Check for critical hit (Judgement on low HP target)
         is_crit = False
@@ -1798,6 +1869,33 @@ class GraphicalRenderer:
         pre_events = self.game_adapter.sync_state()
         for event in pre_events:
             self.handle_animation_event(event)
+
+        # Check if any pre-execution events are blocking (must complete before game logic)
+        has_blocking_animations = any(
+            event.event_type == "skill" and
+            event.kwargs.get("skill_name") in PRE_EXECUTION_BLOCKING_SKILLS
+            for event in pre_events
+        )
+
+        if has_blocking_animations:
+            print("[Renderer] *** Blocking pre-execution animations detected - playing before turn execution ***")
+            # Flush pending events immediately
+            self.flush_pending_events()
+
+            # Wait for animations to complete
+            frames_waited = 0
+            while self.has_active_animations():
+                delta_time = self.clock.tick(60) / 1000.0
+                frames_waited += 1
+
+                # Update only animations and visual effects (no game state sync)
+                self._update_animations_only(delta_time)
+
+                # Draw frame
+                self.draw()
+                pygame.display.flip()
+
+            print(f"[Renderer] *** Pre-execution animations complete ({frames_waited} frames) - proceeding with turn execution ***")
 
         # Capture status effects snapshot BEFORE turn execution
         # This allows us to detect status effects that are applied and then cleared during execute_turn
