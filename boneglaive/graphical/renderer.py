@@ -54,7 +54,13 @@ COLOR_TARGET = (255, 100, 100)
 COLOR_MOVEMENT = (100, 255, 100)
 
 # Skills that must animate BEFORE game logic executes (to show effects before displacement)
-PRE_EXECUTION_BLOCKING_SKILLS = ["Fragcrest", "FRAGCREST", "Parabol", "PARABOL", "BIG_ARC"]
+PRE_EXECUTION_BLOCKING_SKILLS = [
+    "Fragcrest", "FRAGCREST",
+    "Parabol", "PARABOL", "BIG_ARC",
+    "Gaussian Dusk", "GAUSSIAN_DUSK",
+    "Gaussian Dusk Charge", "GAUSSIAN_DUSK_CHARGE",
+    "Gaussian Dusk Fire", "GAUSSIAN_DUSK_FIRE"
+]
 
 
 class GraphicalRenderer:
@@ -242,6 +248,19 @@ class GraphicalRenderer:
         except Exception as e:
             print(f"Warning: Could not load terrain SVG {svg_path}: {e}")
             return None
+
+    # ASCII renderer compatibility stubs
+    def animate_attack_sequence(self, y, x, sequence, color, duration):
+        """Stub for ASCII renderer compatibility. Graphical mode uses AnimationFactory instead."""
+        pass
+
+    def draw_damage_text(self, y, x, text, color, attrs=None):
+        """Stub for ASCII renderer compatibility. Graphical mode uses FloatingText instead."""
+        pass
+
+    def refresh(self):
+        """Stub for ASCII renderer compatibility. Graphical mode handles rendering differently."""
+        pass
 
     def sync_units_from_game(self):
         """
@@ -1871,11 +1890,20 @@ class GraphicalRenderer:
             self.handle_animation_event(event)
 
         # Check if any pre-execution events are blocking (must complete before game logic)
+        print(f"[Renderer] Checking for blocking animations in {len(pre_events)} pre-events...")
+        for event in pre_events:
+            if event.event_type == "skill":
+                skill_name = event.kwargs.get("skill_name")
+                is_blocking = skill_name in PRE_EXECUTION_BLOCKING_SKILLS
+                print(f"[Renderer]   Skill event: {skill_name} - Blocking: {is_blocking}")
+
         has_blocking_animations = any(
             event.event_type == "skill" and
             event.kwargs.get("skill_name") in PRE_EXECUTION_BLOCKING_SKILLS
             for event in pre_events
         )
+
+        print(f"[Renderer] Has blocking animations: {has_blocking_animations}")
 
         if has_blocking_animations:
             print("[Renderer] *** Blocking pre-execution animations detected - playing before turn execution ***")

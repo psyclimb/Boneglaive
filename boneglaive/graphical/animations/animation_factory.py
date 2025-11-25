@@ -55,6 +55,8 @@ from boneglaive.graphical.animations.derelictionist import (
 from boneglaive.graphical.animations.fowl_contrivance import (
     ParabolAnimation,
     FragcrestAnimation,
+    GaussianDuskChargeAnimation,
+    GaussianDuskFireAnimation,
 )
 
 if TYPE_CHECKING:
@@ -108,6 +110,8 @@ class AnimationFactory:
         "BIG_ARC": (ParabolAnimation, {}),  # Mortar barrage (skill name is Parabol)
         "PARABOL": (ParabolAnimation, {}),  # Alternative name
         "FRAGCREST": (FragcrestAnimation, {}),  # Directional fragmentation cone
+        "GAUSSIAN_DUSK_CHARGE": (GaussianDuskChargeAnimation, {}),  # Rail gun charging phase
+        "GAUSSIAN_DUSK_FIRE": (GaussianDuskFireAnimation, {}),  # Rail gun firing phase
 
         # GAS MACHINIST skills (TODO: Implement)
         "ENBROACHMENT_GAS": (None, {}),
@@ -162,22 +166,46 @@ class AnimationFactory:
         # Normalize skill name (remove spaces, uppercase)
         skill_key = skill_name.upper().replace(" ", "_")
 
+        # DEBUG: Log all Gaussian Dusk related calls
+        if "GAUSSIAN" in skill_key or "DUSK" in skill_key:
+            print(f"[AnimationFactory] ========== GAUSSIAN DUSK ANIMATION FACTORY ==========")
+            print(f"[AnimationFactory]   Original skill_name: '{skill_name}'")
+            print(f"[AnimationFactory]   Normalized skill_key: '{skill_key}'")
+            print(f"[AnimationFactory]   Caster unit: {caster_unit}")
+            if hasattr(caster_unit, 'game_unit'):
+                print(f"[AnimationFactory]   Caster game_unit: {caster_unit.game_unit}")
+                if hasattr(caster_unit.game_unit, 'charging_status'):
+                    print(f"[AnimationFactory]   charging_status: {caster_unit.game_unit.charging_status}")
+
         # Check for special variants
         if skill_key == "DEMILUNE":
             # Check if caster has infusion buff (TODO: implement check)
             # For now, use regular demilune
             pass
 
+        # Gaussian Dusk animations are now differentiated by skill name at event creation
+        # "Gaussian Dusk Charge" -> GAUSSIAN_DUSK_CHARGE
+        # "Gaussian Dusk Fire" -> GAUSSIAN_DUSK_FIRE
+        # No state checking needed here anymore
+
         # Get animation class and kwargs
         anim_data = cls.SKILL_ANIMATIONS.get(skill_key)
+
+        # DEBUG: Log lookup result
+        if "GAUSSIAN" in skill_key or "DUSK" in skill_key:
+            print(f"[AnimationFactory]   Looking up '{skill_key}' in SKILL_ANIMATIONS...")
+            print(f"[AnimationFactory]   Found: {anim_data is not None}")
+            if anim_data:
+                print(f"[AnimationFactory]   Animation class: {anim_data[0]}")
+
         if not anim_data:
-            print(f"[AnimationFactory] No animation defined for skill: {skill_name}")
+            print(f"[AnimationFactory] No animation defined for skill: {skill_name} (key: {skill_key})")
             return None
 
         anim_class, base_kwargs = anim_data
 
         if anim_class is None:
-            print(f"[AnimationFactory] Animation not implemented yet: {skill_name}")
+            print(f"[AnimationFactory] Animation not implemented yet: {skill_name} (key: {skill_key})")
             return None
 
         # Prepare animation kwargs
@@ -679,6 +707,52 @@ class AnimationFactory:
                     camera=camera,
                     game=kwargs.get('game')  # Required for cone calculation
                 )
+            elif anim_class.__name__ == "GaussianDuskChargeAnimation":
+                # Gaussian Dusk Charge - rail gun charging with map dimming
+                # Requires: caster_unit, camera, screen_shake and screen_flash callbacks
+                print(f"[AnimationFactory] Creating GaussianDuskChargeAnimation")
+                print(f"[AnimationFactory]   caster_unit: {caster_unit}")
+                print(f"[AnimationFactory]   camera: {camera}")
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_unit=None,  # Not needed for charge animation
+                    target_pos=None,
+                    is_crit=is_crit,
+                    is_infused=is_infused,
+                    particle_emitter=particle_emitter,
+                    debris_list=[],
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,  # Critical for map dimming!
+                    units_list=units_list if units_list else [],
+                    camera=camera,
+                    game=kwargs.get('game')
+                )
+                print(f"[AnimationFactory] GaussianDuskChargeAnimation created successfully")
+            elif anim_class.__name__ == "GaussianDuskFireAnimation":
+                # Gaussian Dusk Fire - rail gun beam firing across map
+                # Requires: caster_unit, target_pos (direction vector), camera, callbacks, game
+                print(f"[AnimationFactory] Creating GaussianDuskFireAnimation")
+                print(f"[AnimationFactory]   caster_unit: {caster_unit}")
+                print(f"[AnimationFactory]   target_pos (direction): {target_pos}")
+                print(f"[AnimationFactory]   camera: {camera}")
+                if not target_pos:
+                    print("[AnimationFactory] ERROR: GAUSSIAN_DUSK_FIRE requires a target position (direction)")
+                    return None
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_unit=target_unit,
+                    target_pos=target_pos,  # This is actually the direction vector (dy, dx)!
+                    is_crit=is_crit,
+                    is_infused=is_infused,
+                    particle_emitter=particle_emitter,
+                    debris_list=[],
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,  # Critical for clearing dimming!
+                    units_list=units_list if units_list else [],
+                    camera=camera,
+                    game=kwargs.get('game')  # Required for calculating firing line
+                )
+                print(f"[AnimationFactory] GaussianDuskFireAnimation created successfully")
             else:
                 # Most animations expect just target coordinates
                 animation = anim_class(**kwargs)

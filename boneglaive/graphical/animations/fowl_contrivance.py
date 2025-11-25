@@ -68,8 +68,8 @@ class LaunchSmoke:
 
 class MortarShell:
     """
-    Individual mortar shell following parabolic arc trajectory.
-    Orange trail showing shell path through the air.
+    Massive single mortar shell following parabolic arc trajectory.
+    Thick glowing orange/yellow trail showing the shell's devastating path.
     """
     def __init__(self, start_x, start_y, target_x, target_y, delay=0):
         self.start_x = start_x
@@ -77,7 +77,7 @@ class MortarShell:
         self.target_x = target_x
         self.target_y = target_y
         self.timer = -delay  # Negative for staggered start
-        self.duration = 0.6  # Arc travel time
+        self.duration = 0.7  # Slower arc for massive shell
         self.active = True
 
         # Calculate arc parameters
@@ -85,8 +85,8 @@ class MortarShell:
         self.dy = target_y - start_y
         self.distance = math.sqrt(self.dx * self.dx + self.dy * self.dy)
 
-        # Arc height based on distance (higher arc for longer shots)
-        self.arc_height = min(100, self.distance * 0.4)
+        # Higher arc for dramatic impact
+        self.arc_height = min(150, self.distance * 0.5)
 
         # Trail particles
         self.trail_points = []
@@ -111,7 +111,7 @@ class MortarShell:
             self.trail_points.append({
                 'x': current_x,
                 'y': current_y,
-                'lifetime': 0.2,  # Trail fades quickly
+                'lifetime': 0.3,  # Longer trail lifetime for visibility
                 'age': 0
             })
 
@@ -127,55 +127,73 @@ class MortarShell:
         return self.active
 
     def draw(self, surface):
-        """Draw shell and its trail."""
+        """Draw massive shell and its thick glowing trail."""
         if not self.active or self.timer < 0:
             return
 
-        # Draw trail as fading orange line segments
+        # Draw thick trail as fading orange line segments with glow
         if len(self.trail_points) > 1:
             for i in range(len(self.trail_points) - 1):
                 p1 = self.trail_points[i]
                 p2 = self.trail_points[i + 1]
 
                 # Fade based on age
-                alpha = int(200 * (1.0 - p1['age'] / p1['lifetime']))
+                alpha = int(220 * (1.0 - p1['age'] / p1['lifetime']))
 
                 if alpha > 20:
-                    trail_surf = pygame.Surface((abs(int(p2['x'] - p1['x'])) + 10,
-                                                abs(int(p2['y'] - p1['y'])) + 10), pygame.SRCALPHA)
+                    trail_surf = pygame.Surface((abs(int(p2['x'] - p1['x'])) + 24,
+                                                abs(int(p2['y'] - p1['y'])) + 24), pygame.SRCALPHA)
 
-                    # Bright orange trail
-                    start_local = (5, 5)
-                    end_local = (int(p2['x'] - p1['x'] + 5), int(p2['y'] - p1['y'] + 5))
+                    # Thick glowing trail with multiple layers
+                    start_local = (12, 12)
+                    end_local = (int(p2['x'] - p1['x'] + 12), int(p2['y'] - p1['y'] + 12))
 
-                    pygame.draw.line(trail_surf, (255, 150, 0, alpha),
-                                   start_local, end_local, 3)
+                    # Outer glow (widest)
+                    pygame.draw.line(trail_surf, (255, 150, 0, alpha // 3),
+                                   start_local, end_local, 12)
+                    # Mid layer
+                    pygame.draw.line(trail_surf, (255, 180, 0, alpha // 2),
+                                   start_local, end_local, 8)
+                    # Inner bright layer
+                    pygame.draw.line(trail_surf, (255, 220, 100, alpha),
+                                   start_local, end_local, 4)
 
-                    surface.blit(trail_surf, (int(p1['x']) - 5, int(p1['y']) - 5))
+                    surface.blit(trail_surf, (int(p1['x']) - 12, int(p1['y']) - 12))
 
-        # Draw shell as bright orange circle at current position
+        # Draw massive shell as large glowing orb at current position
         if self.trail_points:
             current = self.trail_points[-1]
-            shell_surf = pygame.Surface((12, 12), pygame.SRCALPHA)
-            pygame.draw.circle(shell_surf, (255, 204, 0, 255), (6, 6), 4)
-            pygame.draw.circle(shell_surf, (255, 150, 0, 200), (6, 6), 6)
-            surface.blit(shell_surf, (int(current['x']) - 6, int(current['y']) - 6))
+            shell_surf = pygame.Surface((32, 32), pygame.SRCALPHA)
+
+            # Outer glow (largest)
+            pygame.draw.circle(shell_surf, (255, 150, 0, 100), (16, 16), 16)
+            # Mid glow
+            pygame.draw.circle(shell_surf, (255, 180, 0, 150), (16, 16), 12)
+            # Main shell body
+            pygame.draw.circle(shell_surf, (255, 200, 50, 220), (16, 16), 9)
+            # Inner core
+            pygame.draw.circle(shell_surf, (255, 230, 150, 255), (16, 16), 6)
+            # Hot center
+            pygame.draw.circle(shell_surf, (255, 255, 255, 255), (16, 16), 3)
+
+            surface.blit(shell_surf, (int(current['x']) - 16, int(current['y']) - 16))
 
 
 class ExplosionFireball:
     """
     Orange/yellow fireball explosion at impact point.
     Rapidly expands then fades out.
+    Primary explosion is massive, splash explosions are smaller.
     """
     def __init__(self, center_x, center_y, is_primary=False):
         self.center_x = center_x
         self.center_y = center_y
         self.timer = 0
-        self.duration = 0.3
+        self.duration = 0.4 if is_primary else 0.3  # Primary lasts longer
         self.active = True
 
-        # Primary (center) explosion is larger
-        self.max_radius = 35 if is_primary else 28
+        # Primary (center) explosion is much larger for massive shell
+        self.max_radius = 55 if is_primary else 30
         self.is_primary = is_primary
 
     def update(self, delta_time):
@@ -289,13 +307,13 @@ class ShockwaveRing:
 
 class ParabolAnimation:
     """
-    Parabol (mortar barrage) skill animation for FOWL CONTRIVANCE.
-    Launches explosive mortar shells in a 3x3 area with indirect fire.
+    Parabol (massive mortar) skill animation for FOWL CONTRIVANCE.
+    Launches one huge explosive shell that creates splash damage in a 3x3 area.
 
     Phases:
-    1. Launch - Smoke puff at caster, screen shake
-    2. Arc Travel - 9 shells following parabolic trajectories
-    3. Impact - Sequential explosions with fireballs and shockwaves
+    1. Launch - Heavy smoke puff at caster, screen shake
+    2. Arc Travel - Single massive shell following dramatic parabolic arc
+    3. Impact - Central explosion with rippling splash damage to surrounding tiles
     4. Aftermath - Smoke dissipation and ember particles
     """
 
@@ -370,36 +388,34 @@ class ParabolAnimation:
         # Create launch smoke at caster
         self.launch_smoke = LaunchSmoke(self.caster_x, self.caster_y)
 
-        # Launch screen shake
-        self.screen_shake_callback(3, 0.3)
+        # Heavier launch screen shake for massive shell
+        self.screen_shake_callback(5, 0.4)
 
-        # Emit smoke particles at launch
+        # Emit more smoke particles at launch
         if self.particle_emitter:
-            self.particle_emitter.emit_burst(self.caster_x, self.caster_y, (90, 90, 90), count=15)
+            self.particle_emitter.emit_burst(self.caster_x, self.caster_y, (90, 90, 90), count=25)
 
     def _start_arc_travel(self):
-        """Phase 2: Arc Travel - Shells fly through the air."""
+        """Phase 2: Arc Travel - Single massive shell flies through the air."""
         self.phase = "arc_travel"
         self.timer = 0
 
-        # Create mortar shells for each impact position
-        for i, impact in enumerate(self.impact_positions):
-            # Stagger shell launches slightly
-            delay = i * 0.05
-            shell = MortarShell(self.caster_x, self.caster_y,
-                              impact['x'], impact['y'], delay=delay)
-            self.mortar_shells.append(shell)
+        # Create ONE massive mortar shell aimed at center target
+        shell = MortarShell(self.caster_x, self.caster_y,
+                          self.target_x, self.target_y, delay=0)
+        self.mortar_shells.append(shell)
 
     def _start_impact(self):
-        """Phase 3: Impact - Explosions at each target position."""
+        """Phase 3: Impact - Central explosion with rippling splash damage."""
         self.phase = "impact"
         self.timer = 0
 
-        # Create explosions and shockwaves for each impact
+        # Create explosions and shockwaves for each impact position
+        # Central explosion is immediate and massive, others ripple outward
         for impact in self.impact_positions:
             # Fireball explosion
             explosion = ExplosionFireball(impact['x'], impact['y'], is_primary=impact['is_primary'])
-            # Delay matches shell delay
+            # Delay matches distance from center (ripple effect)
             explosion.timer = -impact['delay']
             self.explosions.append(explosion)
 
@@ -407,12 +423,16 @@ class ParabolAnimation:
             shockwave = ShockwaveRing(impact['x'], impact['y'], delay=impact['delay'])
             self.shockwaves.append(shockwave)
 
-            # Emit burst particles at each impact (delayed to match)
-            if self.particle_emitter and impact['delay'] == 0:  # Primary impact immediate
-                self.particle_emitter.emit_burst(impact['x'], impact['y'], (255, 150, 0), count=30)
+            # Emit burst particles - more at center
+            if self.particle_emitter:
+                if impact['delay'] == 0:  # Central impact - massive particle burst
+                    self.particle_emitter.emit_burst(impact['x'], impact['y'], (255, 150, 0), count=50)
+                else:  # Splash damage - smaller bursts
+                    # Delay particle emission to match explosion delay
+                    pass  # Particles handled by aftermath phase
 
-        # Impact screen shake (heavier)
-        self.screen_shake_callback(5, 0.4)
+        # Massive impact screen shake
+        self.screen_shake_callback(8, 0.5)
 
     def _start_aftermath(self):
         """Phase 4: Aftermath - Smoke and embers dissipate."""
@@ -444,14 +464,14 @@ class ParabolAnimation:
         for shockwave in self.shockwaves:
             shockwave.update(delta_time)
 
-        # Phase transitions
+        # Phase transitions (adjusted timing for slower massive shell)
         if self.phase == "launch" and self.timer >= 0.4:
             self._start_arc_travel()
-        elif self.phase == "arc_travel" and self.timer >= 0.6:
+        elif self.phase == "arc_travel" and self.timer >= 0.7:  # Wait for slower shell
             self._start_impact()
-        elif self.phase == "impact" and self.timer >= 0.8:
+        elif self.phase == "impact" and self.timer >= 0.9:  # Longer impact for ripple effect
             self._start_aftermath()
-        elif self.phase == "aftermath" and self.timer >= 0.4:
+        elif self.phase == "aftermath" and self.timer >= 0.5:
             self.active = False  # Animation complete
 
         return self.active
@@ -1096,3 +1116,703 @@ class FragcrestAnimation:
             # Draw embedded shrapnel
             for embedded in self.embedded_shrapnel:
                 embedded.draw(surface)
+
+
+# ============================================================================
+# GAUSSIAN DUSK ANIMATIONS (Rail Gun Charging and Firing)
+# ============================================================================
+
+class ChargingCoil:
+    """
+    Pulsing cyan electromagnetic coil ring around the rail gun.
+    Expands and contracts with increasing intensity.
+    """
+    def __init__(self, center_x, center_y, delay=0):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.timer = -delay
+        self.duration = 2.0  # Lasts through entire charge
+        self.active = True
+        self.base_radius = 30
+        self.pulse_speed = 6.0
+
+    def update(self, delta_time):
+        """Update coil pulsing."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw pulsing electromagnetic coil."""
+        if not self.active or self.timer < 0:
+            return
+
+        progress = min(1.0, max(0, self.timer) / self.duration)
+
+        # Pulsing radius
+        pulse = math.sin(self.timer * self.pulse_speed) * 0.3 + 0.7
+        radius = int(self.base_radius * progress * pulse)
+
+        # Intensity increases over time
+        alpha = int(200 * progress * pulse)
+
+        if alpha > 20 and radius > 5:
+            coil_surf = pygame.Surface((radius * 2 + 10, radius * 2 + 10), pygame.SRCALPHA)
+            center = radius + 5
+
+            # Outer glow (cyan)
+            pygame.draw.circle(coil_surf, (0, 204, 255, alpha // 3),
+                             (center, center), radius + 5, 2)
+
+            # Main coil ring (bright cyan)
+            pygame.draw.circle(coil_surf, (0, 204, 255, alpha),
+                             (center, center), radius, 3)
+
+            # Inner bright ring
+            pygame.draw.circle(coil_surf, (100, 230, 255, min(255, alpha + 55)),
+                             (center, center), max(1, radius - 3), 2)
+
+            surface.blit(coil_surf, (int(self.center_x - center), int(self.center_y - center)))
+
+
+class EnergyParticle:
+    """
+    Small cyan particle spiraling into the rail gun.
+    Represents energy being drawn in during charging.
+    """
+    def __init__(self, start_x, start_y, center_x, center_y, delay=0):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.timer = -delay
+        self.duration = 1.2
+        self.active = True
+
+        # Start position (offset from center)
+        angle = random.uniform(0, math.pi * 2)
+        distance = random.uniform(60, 100)
+        self.start_x = center_x + math.cos(angle) * distance
+        self.start_y = center_y + math.sin(angle) * distance
+
+        # Spiral parameters
+        self.rotation_speed = random.uniform(4, 8)
+        self.initial_angle = angle
+
+    def update(self, delta_time):
+        """Update particle spiral motion."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw spiraling energy particle."""
+        if not self.active or self.timer < 0:
+            return
+
+        progress = min(1.0, max(0, self.timer) / self.duration)
+
+        # Spiral inward
+        distance = (1.0 - progress) * 80
+        angle = self.initial_angle + progress * self.rotation_speed
+
+        x = self.center_x + math.cos(angle) * distance
+        y = self.center_y + math.sin(angle) * distance
+
+        # Fade in then out
+        if progress < 0.3:
+            alpha = int(255 * (progress / 0.3))
+        else:
+            alpha = int(255 * (1.0 - (progress - 0.3) / 0.7))
+
+        if alpha > 20:
+            size = 4
+            particle_surf = pygame.Surface((size * 2, size * 2), pygame.SRCALPHA)
+
+            # Cyan glow
+            pygame.draw.circle(particle_surf, (0, 204, 255, alpha // 2),
+                             (size, size), size)
+            pygame.draw.circle(particle_surf, (100, 230, 255, alpha),
+                             (size, size), size // 2)
+
+            surface.blit(particle_surf, (int(x - size), int(y - size)))
+
+
+class RailChargeGlow:
+    """
+    Expanding cyan aura around the rail gun during charging.
+    Grows more intense as charge builds.
+    """
+    def __init__(self, center_x, center_y):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.timer = 0
+        self.duration = 2.5
+        self.active = True
+        self.max_radius = 50
+
+    def update(self, delta_time):
+        """Update glow expansion."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw expanding charge glow."""
+        if not self.active:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+
+        # Pulsing effect
+        pulse = math.sin(self.timer * 8) * 0.2 + 0.8
+
+        # Expand to full size
+        radius = int(self.max_radius * progress)
+
+        # Alpha increases with progress
+        alpha = int(180 * progress * pulse)
+
+        if alpha > 20 and radius > 0:
+            glow_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+
+            # Multiple layers for depth
+            # Outer layer
+            pygame.draw.circle(glow_surf, (0, 150, 200, alpha // 4),
+                             (radius, radius), radius)
+            # Mid layer
+            pygame.draw.circle(glow_surf, (0, 204, 255, alpha // 2),
+                             (radius, radius), int(radius * 0.7))
+            # Inner bright core
+            pygame.draw.circle(glow_surf, (100, 230, 255, alpha),
+                             (radius, radius), int(radius * 0.4))
+
+            surface.blit(glow_surf, (int(self.center_x - radius), int(self.center_y - radius)))
+
+
+class GaussianDuskChargeAnimation:
+    """
+    Gaussian Dusk charging animation for FOWL CONTRIVANCE.
+    Rail gun charges with electromagnetic energy, dimming the map like sunset.
+
+    Phases:
+    1. Charge Start (0.5s) - Energy gathering, coils appear
+    2. Charge Sustain (1.5s) - Pulsing glow, map dims to sunset colors
+    3. Charge Ready (0.5s) - Intense glow, fully charged
+    """
+
+    def __init__(self, caster_unit, target_unit, target_pos, is_crit, is_infused,
+                 particle_emitter, debris_list, screen_shake_callback,
+                 screen_flash_callback, units_list, camera, game=None):
+        """
+        Initialize Gaussian Dusk charging animation.
+
+        Args:
+            caster_unit: Unit charging the rail gun
+            camera: Camera instance for coordinate conversion
+            screen_flash_callback: For creating persistent sunset dimming effect
+        """
+        # Store references
+        self.caster = caster_unit
+        self.camera = camera
+        self.particle_emitter = particle_emitter
+        self.screen_shake_callback = screen_shake_callback
+        self.screen_flash_callback = screen_flash_callback
+        self.game = game
+
+        # Convert caster position to screen coords
+        self.caster_x, self.caster_y = camera.grid_to_screen(caster_unit.grid_x,
+                                                             caster_unit.grid_y,
+                                                             centered=True)
+
+        # Animation state
+        self.phase = "charge_start"
+        self.timer = 0
+        self.active = True
+
+        # Sub-effects
+        self.charging_coils = []
+        self.energy_particles = []
+        self.charge_glow = None
+
+        # Start Phase 1
+        self._start_charge_start()
+
+    def _start_charge_start(self):
+        """Phase 1: Charge Start - Energy gathering."""
+        self.phase = "charge_start"
+        self.timer = 0
+
+        # Create charging coil
+        coil = ChargingCoil(self.caster_x, self.caster_y)
+        self.charging_coils.append(coil)
+
+        # Create spiraling energy particles
+        for i in range(12):
+            delay = i * 0.04
+            particle = EnergyParticle(self.caster_x, self.caster_y,
+                                     self.caster_x, self.caster_y, delay=delay)
+            self.energy_particles.append(particle)
+
+        # Light screen shake
+        self.screen_shake_callback(2, 0.4)
+
+    def _start_charge_sustain(self):
+        """Phase 2: Charge Sustain - Pulsing glow."""
+        self.phase = "charge_sustain"
+        self.timer = 0
+
+        # Create charge glow
+        self.charge_glow = RailChargeGlow(self.caster_x, self.caster_y)
+
+        # Continue particles
+        for i in range(8):
+            delay = i * 0.08
+            particle = EnergyParticle(self.caster_x, self.caster_y,
+                                     self.caster_x, self.caster_y, delay=delay)
+            self.energy_particles.append(particle)
+
+        # Sustained shake
+        self.screen_shake_callback(3, 1.2)
+
+    def _start_charge_ready(self):
+        """Phase 3: Charge Ready - Intense glow, fully charged."""
+        self.phase = "charge_ready"
+        self.timer = 0
+
+        # Add more intense particles
+        for i in range(6):
+            delay = i * 0.05
+            particle = EnergyParticle(self.caster_x, self.caster_y,
+                                     self.caster_x, self.caster_y, delay=delay)
+            self.energy_particles.append(particle)
+
+        # Heavier shake
+        self.screen_shake_callback(4, 0.5)
+
+    def update(self, delta_time):
+        """Update animation state. MUST return True/False."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Update all sub-effects
+        for coil in self.charging_coils:
+            coil.update(delta_time)
+
+        for particle in self.energy_particles:
+            particle.update(delta_time)
+
+        if self.charge_glow:
+            self.charge_glow.update(delta_time)
+
+        # Phase transitions
+        if self.phase == "charge_start" and self.timer >= 0.5:
+            self._start_charge_sustain()
+        elif self.phase == "charge_sustain" and self.timer >= 1.5:
+            self._start_charge_ready()
+        elif self.phase == "charge_ready" and self.timer >= 0.5:
+            self.active = False  # Animation complete
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw animation to pygame surface."""
+        if not self.active:
+            return
+
+        # Draw charge glow first (background)
+        if self.charge_glow:
+            self.charge_glow.draw(surface)
+
+        # Draw charging coils
+        for coil in self.charging_coils:
+            coil.draw(surface)
+
+        # Draw energy particles (foreground)
+        for particle in self.energy_particles:
+            particle.draw(surface)
+
+
+# Rail Beam and Fire Animation classes
+class RailBeam:
+    """
+    Massive piercing rail gun beam that extends across the entire map.
+    Thick cyan/white energy beam with electric arcs.
+    """
+    def __init__(self, start_x, start_y, direction, positions, camera):
+        self.start_x = start_x
+        self.start_y = start_y
+        self.direction = direction  # (dy, dx) tuple
+        self.positions = positions  # List of (grid_y, grid_x) hit positions
+        self.camera = camera
+        self.timer = 0
+        self.duration = 0.8
+        self.active = True
+
+        # Convert all grid positions to screen coordinates
+        self.screen_positions = []
+        for grid_y, grid_x in positions:
+            screen_x, screen_y = camera.grid_to_screen(grid_x, grid_y, centered=True)
+            self.screen_positions.append((screen_x, screen_y))
+
+        # Calculate end position (last position in line)
+        if self.screen_positions:
+            self.end_x, self.end_y = self.screen_positions[-1]
+        else:
+            # Fallback if no positions
+            self.end_x, self.end_y = start_x, start_y
+
+    def update(self, delta_time):
+        """Update beam extension."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw piercing rail beam."""
+        if not self.active:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+
+        # Beam extends from start to end over time
+        current_end_x = self.start_x + (self.end_x - self.start_x) * progress
+        current_end_y = self.start_y + (self.end_y - self.start_y) * progress
+
+        # Pulsing intensity
+        pulse = math.sin(self.timer * 15) * 0.3 + 0.7
+
+        # Draw multiple layers for thick beam
+        # Outer glow (widest, faintest)
+        pygame.draw.line(surface, (0, 204, 255, int(80 * pulse)),
+                        (int(self.start_x), int(self.start_y)),
+                        (int(current_end_x), int(current_end_y)), 20)
+
+        # Mid layer (bright cyan)
+        pygame.draw.line(surface, (0, 230, 255, int(180 * pulse)),
+                        (int(self.start_x), int(self.start_y)),
+                        (int(current_end_x), int(current_end_y)), 12)
+
+        # Inner core (white-cyan)
+        pygame.draw.line(surface, (200, 250, 255, int(255 * pulse)),
+                        (int(self.start_x), int(self.start_y)),
+                        (int(current_end_x), int(current_end_y)), 6)
+
+        # Bright core
+        pygame.draw.line(surface, (255, 255, 255, 255),
+                        (int(self.start_x), int(self.start_y)),
+                        (int(current_end_x), int(current_end_y)), 2)
+
+
+class BeamImpact:
+    """
+    Explosion effect where the beam hits terrain or units.
+    Cyan/white burst with sparks.
+    """
+    def __init__(self, center_x, center_y, delay=0):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.timer = -delay
+        self.duration = 0.4
+        self.active = True
+        self.max_radius = 35
+
+    def update(self, delta_time):
+        """Update impact explosion."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw impact explosion."""
+        if not self.active or self.timer < 0:
+            return
+
+        progress = min(1.0, max(0, self.timer) / self.duration)
+
+        # Fast expansion
+        if progress < 0.3:
+            radius = int(self.max_radius * (progress / 0.3))
+        else:
+            radius = self.max_radius
+
+        # Fade out
+        alpha = int(255 * (1.0 - progress))
+
+        if alpha > 20 and radius > 0:
+            impact_surf = pygame.Surface((radius * 2 + 20, radius * 2 + 20), pygame.SRCALPHA)
+            center = radius + 10
+
+            # Outer cyan glow
+            pygame.draw.circle(impact_surf, (0, 204, 255, alpha // 3),
+                             (center, center), radius + 10)
+
+            # Main cyan explosion
+            pygame.draw.circle(impact_surf, (0, 230, 255, alpha),
+                             (center, center), radius)
+
+            # Inner white core
+            inner_radius = int(radius * 0.6)
+            pygame.draw.circle(impact_surf, (200, 250, 255, alpha),
+                             (center, center), inner_radius)
+
+            # Bright center
+            if progress < 0.4:
+                core_radius = int(radius * 0.3)
+                pygame.draw.circle(impact_surf, (255, 255, 255, alpha),
+                                 (center, center), core_radius)
+
+            surface.blit(impact_surf, (int(self.center_x - center), int(self.center_y - center)))
+
+
+class ElectricArc:
+    """
+    Sparking electric arc along the beam path.
+    Random jagged lightning bolts.
+    """
+    def __init__(self, x, y, delay=0):
+        self.x = x
+        self.y = y
+        self.timer = -delay
+        self.duration = 0.3
+        self.active = True
+
+        # Random arc direction
+        angle = random.uniform(0, math.pi * 2)
+        length = random.uniform(15, 30)
+        self.end_x = x + math.cos(angle) * length
+        self.end_y = y + math.sin(angle) * length
+
+    def update(self, delta_time):
+        """Update arc."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw electric arc."""
+        if not self.active or self.timer < 0:
+            return
+
+        progress = min(1.0, max(0, self.timer) / self.duration)
+
+        # Fade out
+        alpha = int(255 * (1.0 - progress))
+
+        if alpha > 30:
+            # Jagged lightning effect (simple)
+            pygame.draw.line(surface, (100, 230, 255, alpha),
+                           (int(self.x), int(self.y)),
+                           (int(self.end_x), int(self.end_y)), 2)
+
+
+class GaussianDuskFireAnimation:
+    """
+    Gaussian Dusk firing animation for FOWL CONTRIVANCE.
+    Massive rail gun beam pierces across the entire map.
+
+    Phases:
+    1. Pre-Fire (0.2s) - Bright flash, clear dimming
+    2. Beam Travel (0.8s) - Beam extends across map, impacts appear
+    3. Aftermath (0.6s) - Sparks, smoke, rail visual effects
+    """
+
+    def __init__(self, caster_unit, target_unit, target_pos, is_crit, is_infused,
+                 particle_emitter, debris_list, screen_shake_callback,
+                 screen_flash_callback, units_list, camera, game=None):
+        """
+        Initialize Gaussian Dusk firing animation.
+
+        Args:
+            caster_unit: Unit firing the rail gun
+            target_pos: Direction vector (dy, dx) for firing line
+            camera: Camera instance for coordinate conversion
+            game: Game instance to calculate firing line positions
+        """
+        # Store references
+        self.caster = caster_unit
+        self.target_pos = target_pos  # This is actually the direction vector!
+        self.camera = camera
+        self.particle_emitter = particle_emitter
+        self.screen_shake_callback = screen_shake_callback
+        self.screen_flash_callback = screen_flash_callback
+        self.game = game
+
+        # Convert caster position to screen coords
+        self.caster_x, self.caster_y = camera.grid_to_screen(caster_unit.grid_x,
+                                                             caster_unit.grid_y,
+                                                             centered=True)
+
+        # Calculate firing line positions
+        self.firing_positions = []
+        if game:
+            dy, dx = target_pos  # Direction vector
+            y, x = caster_unit.grid_y, caster_unit.grid_x
+
+            # Trace the line across the entire map
+            while 0 <= y + dy < game.map.height and 0 <= x + dx < game.map.width:
+                y += dy
+                x += dx
+                self.firing_positions.append((y, x))
+
+        # Animation state
+        self.phase = "pre_fire"
+        self.timer = 0
+        self.active = True
+
+        # Sub-effects
+        self.rail_beam = None
+        self.impacts = []
+        self.electric_arcs = []
+
+        # Start Phase 1
+        self._start_pre_fire()
+
+    def _start_pre_fire(self):
+        """Phase 1: Pre-Fire - Bright flash."""
+        self.phase = "pre_fire"
+        self.timer = 0
+
+        # Bright flash on firing
+        self.screen_flash_callback((200, 230, 255), 0.1)
+
+    def _start_beam_travel(self):
+        """Phase 2: Beam Travel - Beam extends across map."""
+        self.phase = "beam_travel"
+        self.timer = 0
+
+        # Create rail beam
+        if self.firing_positions:
+            self.rail_beam = RailBeam(self.caster_x, self.caster_y,
+                                     self.target_pos, self.firing_positions,
+                                     self.camera)
+
+        # Create impact explosions at positions along beam (staggered)
+        for i, (grid_y, grid_x) in enumerate(self.firing_positions):
+            screen_x, screen_y = self.camera.grid_to_screen(grid_x, grid_y, centered=True)
+            delay = i * 0.03  # Stagger impacts along beam path
+            impact = BeamImpact(screen_x, screen_y, delay=delay)
+            self.impacts.append(impact)
+
+            # Add electric arcs
+            for _ in range(2):
+                arc_delay = delay + random.uniform(0, 0.1)
+                arc = ElectricArc(screen_x, screen_y, delay=arc_delay)
+                self.electric_arcs.append(arc)
+
+        # Emit particles at caster position
+        if self.particle_emitter:
+            self.particle_emitter.emit_burst(self.caster_x, self.caster_y,
+                                            (0, 204, 255), count=40)
+
+        # MASSIVE screen shake on firing
+        self.screen_shake_callback(10, 0.6)
+
+        # Bright cyan flash
+        self.screen_flash_callback((0, 204, 255), 0.3)
+
+    def _start_aftermath(self):
+        """Phase 3: Aftermath - Sparks, smoke, effects."""
+        self.phase = "aftermath"
+        self.timer = 0
+
+        # Emit particles along beam path
+        if self.particle_emitter:
+            for grid_y, grid_x in self.firing_positions[::3]:  # Every 3rd position
+                screen_x, screen_y = self.camera.grid_to_screen(grid_x, grid_y, centered=True)
+                self.particle_emitter.emit_burst(screen_x, screen_y,
+                                                (100, 230, 255), count=10)
+
+    def update(self, delta_time):
+        """Update animation state. MUST return True/False."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Update all sub-effects
+        if self.rail_beam:
+            self.rail_beam.update(delta_time)
+
+        for impact in self.impacts:
+            impact.update(delta_time)
+
+        for arc in self.electric_arcs:
+            arc.update(delta_time)
+
+        # Phase transitions
+        if self.phase == "pre_fire" and self.timer >= 0.2:
+            self._start_beam_travel()
+        elif self.phase == "beam_travel" and self.timer >= 0.8:
+            self._start_aftermath()
+        elif self.phase == "aftermath" and self.timer >= 0.6:
+            self.active = False  # Animation complete
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw animation to pygame surface."""
+        if not self.active:
+            return
+
+        # Draw phase-specific effects
+        if self.phase == "pre_fire":
+            # Brief flash only (handled by screen flash)
+            pass
+
+        elif self.phase == "beam_travel":
+            # Draw beam first (background)
+            if self.rail_beam:
+                self.rail_beam.draw(surface)
+
+            # Draw electric arcs
+            for arc in self.electric_arcs:
+                arc.draw(surface)
+
+            # Draw impacts (foreground)
+            for impact in self.impacts:
+                impact.draw(surface)
+
+        elif self.phase == "aftermath":
+            # Draw fading impacts and arcs
+            for arc in self.electric_arcs:
+                arc.draw(surface)
+
+            for impact in self.impacts:
+                impact.draw(surface)

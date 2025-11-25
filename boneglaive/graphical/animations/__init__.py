@@ -84,6 +84,8 @@ from .derelictionist import (
 from .fowl_contrivance import (
     ParabolAnimation,
     FragcrestAnimation,
+    GaussianDuskChargeAnimation,
+    GaussianDuskFireAnimation,
 )
 
 from .animation_factory import AnimationFactory
@@ -152,6 +154,8 @@ __all__ = [
     # Fowl Contrivance
     'ParabolAnimation',
     'FragcrestAnimation',
+    'GaussianDuskChargeAnimation',
+    'GaussianDuskFireAnimation',
     # Factory
     'AnimationFactory',
 ]
