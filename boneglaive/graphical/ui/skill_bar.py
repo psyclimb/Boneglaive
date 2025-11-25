@@ -114,17 +114,9 @@ class SkillBar:
         if not selected_unit or not game_unit:
             return
 
-        # Get unit type and skills from registry
-        from boneglaive.game.skills.registry import UNIT_SKILLS
-
-        unit_type_name = game_unit.type.name
-        if unit_type_name not in UNIT_SKILLS:
-            return
-
-        unit_skills = UNIT_SKILLS[unit_type_name]
-
-        # Get active skills only (passive skills don't need UI slots)
-        active_skills = unit_skills.get("active", [])
+        # Get active skills from the actual unit instance (not registry templates)
+        # This ensures we display the correct current_cooldown values
+        active_skills = game_unit.active_skills
 
         # Create skill slots
         for i, skill in enumerate(active_skills):

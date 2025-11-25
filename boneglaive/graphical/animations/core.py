@@ -363,6 +363,16 @@ class AnimatedUnit:
             pygame.draw.circle(surface, self.color, (final_x, final_y), self.radius)
             pygame.draw.circle(surface, (255, 255, 255), (final_x, final_y), self.radius, 2)
 
+        # Draw player-colored tile-sized box around unit
+        # Green for Player 1, Blue for Player 2
+        # Calculate tile position (units already have offsets baked into x,y)
+        # So we need to calculate the tile corner from the unit's center position
+        outline_color = (100, 255, 100) if self.player == 1 else (100, 150, 255)
+        tile_x = self.x - TILE_SIZE // 2
+        tile_y = self.y - TILE_SIZE // 2
+        tile_rect = pygame.Rect(tile_x, tile_y, TILE_SIZE, TILE_SIZE)
+        pygame.draw.rect(surface, outline_color, tile_rect, 2)
+
         # HP bar and name hidden for cleaner demo
         # bar_width = 50
         # bar_height = 6
