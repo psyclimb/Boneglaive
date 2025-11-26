@@ -3128,6 +3128,9 @@ class Game:
         
         # Process each vapor's area effects
         for vapor_unit in vapor_units:
+            # Mark that this vapor just applied effects (for graphical animation triggering)
+            vapor_unit.just_applied_aoe = True
+
             # Apply the vapor's area effects only on owner's turn
             vapor_unit.apply_vapor_effects(self, ui)
             

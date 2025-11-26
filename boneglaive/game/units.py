@@ -945,7 +945,12 @@ class Unit:
                 if game.is_valid_position(ny, nx):
                     affected_area.append((ny, nx))
                     
-        # Play visual effect if UI is available
+        # Queue graphical animation if available
+        if ui and hasattr(ui, 'game_adapter') and hasattr(ui.game_adapter, 'queue_vapor_aoe_tick'):
+            # Graphical mode - queue AOE tick animation
+            ui.game_adapter.queue_vapor_aoe_tick(self)
+
+        # Play visual effect if UI is available (for ASCII mode)
         if ui and hasattr(ui, 'renderer'):
             # Get appropriate animation based on vapor type
             animation_name = f"vapor_{self.vapor_type.lower()}"

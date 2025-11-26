@@ -58,6 +58,11 @@ from boneglaive.graphical.animations.fowl_contrivance import (
     GaussianDuskChargeAnimation,
     GaussianDuskFireAnimation,
 )
+from boneglaive.graphical.animations.gas_machinist import (
+    VaporSpawnAnimation,
+    DivergeAnimation,
+    VaporAOETickAnimation,
+)
 
 if TYPE_CHECKING:
     from boneglaive.game.units import Unit
@@ -113,10 +118,17 @@ class AnimationFactory:
         "GAUSSIAN_DUSK_CHARGE": (GaussianDuskChargeAnimation, {}),  # Rail gun charging phase
         "GAUSSIAN_DUSK_FIRE": (GaussianDuskFireAnimation, {}),  # Rail gun firing phase
 
-        # GAS MACHINIST skills (TODO: Implement)
-        "ENBROACHMENT_GAS": (None, {}),
-        "SAFT_E_GAS": (None, {}),
-        "DIVERGE": (None, {}),
+        # GAS MACHINIST skills
+        "BROACHING_GAS": (VaporSpawnAnimation, {"vapor_type": "BROACHING"}),
+        "SAFT_E_GAS": (VaporSpawnAnimation, {"vapor_type": "SAFETY"}),
+        "COOLANT_GAS": (VaporSpawnAnimation, {"vapor_type": "COOLANT"}),
+        "CUTTING_GAS": (VaporSpawnAnimation, {"vapor_type": "CUTTING"}),
+        "DIVERGE": (DivergeAnimation, {}),  # Splits target into Coolant and Cutting vapors
+        # Vapor AOE tick effects
+        "VAPOR_AOE_BROACHING": (VaporAOETickAnimation, {"vapor_type": "BROACHING"}),
+        "VAPOR_AOE_SAFETY": (VaporAOETickAnimation, {"vapor_type": "SAFETY"}),
+        "VAPOR_AOE_COOLANT": (VaporAOETickAnimation, {"vapor_type": "COOLANT"}),
+        "VAPOR_AOE_CUTTING": (VaporAOETickAnimation, {"vapor_type": "CUTTING"}),
 
         # DELPHIC APPRAISER skills
         "MARKET_FUTURES": (MarketFuturesAnimation, {}),
@@ -163,8 +175,8 @@ class AnimationFactory:
         Returns:
             Animation instance, or None if no animation defined
         """
-        # Normalize skill name (remove spaces, uppercase)
-        skill_key = skill_name.upper().replace(" ", "_")
+        # Normalize skill name (remove spaces and hyphens, uppercase)
+        skill_key = skill_name.upper().replace(" ", "_").replace("-", "_")
 
         # DEBUG: Log all Gaussian Dusk related calls
         if "GAUSSIAN" in skill_key or "DUSK" in skill_key:
@@ -237,7 +249,9 @@ class AnimationFactory:
             kwargs['target_x'] = target_x
             kwargs['target_y'] = target_y
         elif target_pos:
-            target_x, target_y = grid_to_screen(target_pos[0], target_pos[1])
+            # NOTE: target_pos is (grid_y, grid_x) format from renderer
+            # Convert grid to screen: target_pos[1] is grid_x, target_pos[0] is grid_y
+            target_x, target_y = grid_to_screen(target_pos[1], target_pos[0])
             kwargs['target_x'] = target_x
             kwargs['target_y'] = target_y
         else:
@@ -753,6 +767,45 @@ class AnimationFactory:
                     game=kwargs.get('game')  # Required for calculating firing line
                 )
                 print(f"[AnimationFactory] GaussianDuskFireAnimation created successfully")
+            elif anim_class.__name__ == "VaporSpawnAnimation":
+                # Vapor spawn animation - needs target position and vapor type from kwargs
+                # target_pos is already set in kwargs by the factory
+                animation = anim_class(
+                    target_x=kwargs.get('target_x', 0),
+                    target_y=kwargs.get('target_y', 0),
+                    vapor_type=kwargs.get('vapor_type', 'BROACHING'),
+                    particle_emitter=particle_emitter,
+                    screen_shake_callback=screen_shake_callback
+                )
+            elif anim_class.__name__ == "DivergeAnimation":
+                # Diverge - splits target into two specialized vapors
+                # Requires target_pos (position of unit/vapor being split), game instance
+                if not target_pos:
+                    print("[AnimationFactory] DIVERGE requires a target position")
+                    return None
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_unit=target_unit,
+                    target_pos=target_pos,
+                    is_crit=is_crit,
+                    is_infused=is_infused,
+                    particle_emitter=particle_emitter,
+                    debris_list=[],
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,
+                    units_list=units_list if units_list else [],
+                    camera=camera,
+                    game=kwargs.get('game')
+                )
+            elif anim_class.__name__ == "VaporAOETickAnimation":
+                # Vapor AOE tick - pulsing effect when vapor applies area effects
+                animation = anim_class(
+                    target_x=kwargs.get('target_x', 0),
+                    target_y=kwargs.get('target_y', 0),
+                    vapor_type=kwargs.get('vapor_type', 'BROACHING'),
+                    particle_emitter=particle_emitter,
+                    screen_shake_callback=screen_shake_callback
+                )
             else:
                 # Most animations expect just target coordinates
                 animation = anim_class(**kwargs)

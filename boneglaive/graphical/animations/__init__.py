@@ -88,6 +88,12 @@ from .fowl_contrivance import (
     GaussianDuskFireAnimation,
 )
 
+from .gas_machinist import (
+    VaporSpawnAnimation,
+    DivergeAnimation,
+    VaporAOETickAnimation,
+)
+
 from .animation_factory import AnimationFactory
 
 __all__ = [
@@ -156,6 +162,10 @@ __all__ = [
     'FragcrestAnimation',
     'GaussianDuskChargeAnimation',
     'GaussianDuskFireAnimation',
+    # Gas Machinist
+    'VaporSpawnAnimation',
+    'DivergeAnimation',
+    'VaporAOETickAnimation',
     # Factory
     'AnimationFactory',
 ]

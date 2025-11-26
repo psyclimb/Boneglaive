@@ -752,10 +752,44 @@ class GameStateAdapter:
         if hasattr(self.game, 'scalar_nodes'):
             self.last_scalar_nodes = self.game.scalar_nodes.copy()
 
+        # Check for HEINOUS VAPOR units that just applied AOE effects
+        # (marked by execute_turn before applying effects)
+        if self.game:
+            from boneglaive.utils.constants import UnitType
+            for unit in self.game.units:
+                if (unit.is_alive() and
+                    unit.type == UnitType.HEINOUS_VAPOR and
+                    hasattr(unit, 'just_applied_aoe') and
+                    unit.just_applied_aoe and
+                    hasattr(unit, 'vapor_type')):
+
+                    # Queue vapor AOE tick animation
+                    vapor_type = unit.vapor_type
+                    skill_name = f"vapor_aoe_{vapor_type.lower()}"
+
+                    print(f"[GameState] Detected vapor AOE from {vapor_type} at ({unit.x}, {unit.y})")
+
+                    events.append(AnimationEvent(
+                        "skill",
+                        source_unit=unit,
+                        target_unit=None,
+                        skill_name=skill_name,
+                        skill_target=(unit.y, unit.x)  # Vapor's position
+                    ))
+
+                    # Clear the flag
+                    unit.just_applied_aoe = False
+
         # Clear Gaussian Dusk sync flags after processing
         for unit_id, visual_unit in self.visual_units.items():
             if hasattr(visual_unit, 'gaussian_dusk_fired_this_sync'):
                 visual_unit.gaussian_dusk_fired_this_sync = False
+
+        # Include any queued animation events (vapor AOE ticks, etc.)
+        if self.animation_queue:
+            print(f"[GameState] Adding {len(self.animation_queue)} queued animations to sync_state events")
+            events.extend(self.animation_queue)
+            self.animation_queue.clear()
 
         return events
 
@@ -775,6 +809,33 @@ class GameStateAdapter:
             target_unit=target,
             skill_name=skill_name,
             **kwargs
+        )
+        self.animation_queue.append(event)
+
+    def queue_vapor_aoe_tick(self, vapor_unit):
+        """
+        Queue a vapor AOE tick animation when vapor applies area effects.
+        Called as callback from vapor AOE processing.
+
+        Args:
+            vapor_unit: The HEINOUS_VAPOR unit applying AOE effects
+        """
+        if not vapor_unit or not hasattr(vapor_unit, 'vapor_type'):
+            return
+
+        # Create skill name for animation factory
+        vapor_type = vapor_unit.vapor_type
+        skill_name = f"vapor_aoe_{vapor_type.lower()}"
+
+        print(f"[GameState] Queueing vapor AOE tick animation for {vapor_type} at ({vapor_unit.x}, {vapor_unit.y})")
+
+        # Queue animation at vapor's position
+        event = AnimationEvent(
+            "skill",
+            source_unit=vapor_unit,
+            target_unit=None,
+            skill_name=skill_name,
+            target_pos=(vapor_unit.y, vapor_unit.x)  # Game coords (y, x)
         )
         self.animation_queue.append(event)
 

@@ -288,6 +288,25 @@ class GraphicalRenderer:
                 # Register in adapter
                 self.game_adapter.create_visual_unit(game_unit, animated_unit)
 
+                # If this is a HEINOUS VAPOR (but not Coolant or Cutting), trigger spawn animation
+                from boneglaive.utils.constants import UnitType
+                if hasattr(game_unit, 'type') and game_unit.type == UnitType.HEINOUS_VAPOR:
+                    vapor_type = getattr(game_unit, 'vapor_type', 'BROACHING')
+
+                    # Only trigger spawn animation for BROACHING and SAFETY vapors
+                    # Coolant and Cutting are spawned by Diverge which has its own animation
+                    if vapor_type in ['BROACHING', 'SAFETY']:
+                        skill_name = f"{vapor_type}_gas"
+                        print(f"[Renderer] New HEINOUS VAPOR detected: {vapor_type}, triggering spawn animation")
+
+                        # Queue spawn animation
+                        self.game_adapter.queue_skill_animation(
+                            skill_name=skill_name,
+                            caster=game_unit,
+                            target=None,
+                            target_pos=(game_unit.y, game_unit.x)  # Spawn position in game coords
+                        )
+
         # Remove visual units for dead game units
         dead_unit_ids = []
         for unit_id in self.game_adapter.visual_units.keys():
