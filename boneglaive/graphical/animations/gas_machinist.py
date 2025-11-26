@@ -1049,8 +1049,7 @@ class VaporAOETickAnimation:
         self.duration = 1.0
         self.active = True
 
-        # Visual elements
-        self.pulse_waves = []
+        # Visual elements (gaseous only - no hard circles/rings)
         self.wisps = []
         self.fog_clouds = []
         self.tile_pockets = []
@@ -1097,14 +1096,6 @@ class VaporAOETickAnimation:
                 TileGasPocket(tile_x, tile_y, self.colors, delay, vapor_type)
             )
 
-        # Create pulse waves (more waves for rolling effect)
-        num_waves = 8 if self.intensity == 'strong' else 6  # Increased from 4/3
-        for i in range(num_waves):
-            delay = i * 0.1  # Faster succession
-            self.pulse_waves.append(
-                VaporPulseWave(target_x, target_y, self.colors, delay, self.intensity)
-            )
-
         # Create wisps (more particles for gaseous effect)
         for i in range(self.wisp_count):
             angle = (i / self.wisp_count) * 2 * math.pi + random.uniform(-0.2, 0.2)
@@ -1127,10 +1118,6 @@ class VaporAOETickAnimation:
         for pocket in self.tile_pockets:
             pocket.update(delta_time)
 
-        # Update all waves
-        for wave in self.pulse_waves:
-            wave.update(delta_time)
-
         # Update all wisps
         for wisp in self.wisps:
             wisp.update(delta_time)
@@ -1143,7 +1130,7 @@ class VaporAOETickAnimation:
         return True
 
     def draw(self, surface):
-        """Draw the AOE tick animation in proper layering order."""
+        """Draw the AOE tick animation - gaseous elements only."""
         if not self.active:
             return
 
@@ -1151,28 +1138,10 @@ class VaporAOETickAnimation:
         for fog_cloud in self.fog_clouds:
             fog_cloud.draw(surface)
 
-        # Layer 2: Pulse waves (expanding rings)
-        for wave in self.pulse_waves:
-            wave.draw(surface)
-
-        # Layer 3: Tile gas pockets (tile-specific indicators)
+        # Layer 2: Tile gas pockets (tile-specific indicators)
         for pocket in self.tile_pockets:
             pocket.draw(surface)
 
-        # Layer 4: Center glow (pulses at vapor position)
-        glow_progress = (self.timer % 0.4) / 0.4  # Pulse every 0.4s
-        glow_intensity = 0.5 + math.sin(glow_progress * math.pi) * 0.5
-
-        glow_radius = int(20 * glow_intensity)  # Increased from 15
-        glow_alpha = int(100 * glow_intensity)  # Increased from 80
-
-        if glow_alpha > 0:
-            glow_surf = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
-            pygame.draw.circle(glow_surf, (*self.colors[1], glow_alpha),
-                             (glow_radius, glow_radius), glow_radius)
-            surface.blit(glow_surf, (int(self.target_x - glow_radius),
-                                    int(self.target_y - glow_radius)))
-
-        # Layer 5: Wisps (top layer - turbulent gas particles)
+        # Layer 3: Wisps (top layer - turbulent gas particles)
         for wisp in self.wisps:
             wisp.draw(surface)
