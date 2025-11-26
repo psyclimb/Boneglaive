@@ -473,6 +473,20 @@ class GameStateAdapter:
                         target_unit=game_unit
                     ))
 
+                    # Check for Rail Genesis death explosion (FOWL CONTRIVANCE passive)
+                    if (hasattr(game_unit, 'type') and
+                        str(game_unit.type) == "UnitType.FOWL_CONTRIVANCE"):
+                        # FOWL CONTRIVANCE died - trigger Rail Genesis explosion animation
+                        # Note: Rails may already be removed by game logic, but animation captures positions at init
+                        print(f"[GameState] FOWL CONTRIVANCE died with rails active - triggering Rail Genesis explosion")
+                        events.append(AnimationEvent(
+                            "skill",
+                            source_unit=game_unit,
+                            target_unit=None,
+                            skill_name="RAIL_GENESIS_DEATH_EXPLOSION",
+                            skill_target=None
+                        ))
+
             # Detect position changes
             # NOTE: Game uses (y, x) = (row, col), we need (x, y) = (col, row)
             current_pos = (game_unit.x, game_unit.y)

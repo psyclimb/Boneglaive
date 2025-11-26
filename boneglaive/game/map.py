@@ -329,6 +329,16 @@ class GameMap:
         """Get the original terrain that was at this position before a rail was placed."""
         return self.rail_original_terrain.get((y, x), TerrainType.EMPTY)
 
+    def remove_rail_network(self) -> None:
+        """
+        Remove all rail tiles and restore original terrain.
+        Called when the last FOWL CONTRIVANCE dies.
+        """
+        for (y, x), original_terrain in list(self.rail_original_terrain.items()):
+            if self.get_terrain_at(y, x) == TerrainType.RAIL:
+                self.set_terrain_at(y, x, original_terrain)
+        self.rail_original_terrain.clear()
+
     @classmethod
     def from_json(cls, file_path: str) -> 'GameMap':
         """

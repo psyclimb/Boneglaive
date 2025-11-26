@@ -1816,3 +1816,483 @@ class GaussianDuskFireAnimation:
 
             for impact in self.impacts:
                 impact.draw(surface)
+
+
+# ============================================================================
+# RAIL GENESIS DEATH EXPLOSION ANIMATION
+# ============================================================================
+
+class RailGlowPulse:
+    """
+    Pulsing orange energy glow on a rail tile during charge phase.
+    """
+    def __init__(self, center_x, center_y, delay=0):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.timer = -delay
+        self.duration = 0.4
+        self.active = True
+        self.max_radius = 20
+
+    def update(self, delta_time):
+        """Update pulse."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw pulsing glow on rail."""
+        if not self.active or self.timer < 0:
+            return
+
+        progress = min(1.0, max(0, self.timer) / self.duration)
+
+        # Pulsing effect
+        pulse = 0.5 + 0.5 * math.sin(progress * math.pi * 4)
+
+        # Growing intensity
+        intensity = progress * pulse
+        radius = int(self.max_radius * (0.5 + 0.5 * pulse))
+        alpha = int(180 * intensity)
+
+        if alpha > 20 and radius > 0:
+            glow_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+
+            # Orange glow layers
+            pygame.draw.circle(glow_surf, (255, 102, 0, alpha // 3),
+                             (radius, radius), radius)
+            pygame.draw.circle(glow_surf, (255, 150, 0, alpha // 2),
+                             (radius, radius), int(radius * 0.6))
+            pygame.draw.circle(glow_surf, (255, 200, 50, alpha),
+                             (radius, radius), int(radius * 0.3))
+
+            surface.blit(glow_surf, (int(self.center_x - radius), int(self.center_y - radius)))
+
+
+class RailExplosion:
+    """
+    Orange fireball explosion on a rail tile.
+    Rapidly expands then fades.
+    """
+    def __init__(self, center_x, center_y, delay=0):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.timer = -delay
+        self.duration = 0.35
+        self.active = True
+        self.max_radius = 30
+
+    def update(self, delta_time):
+        """Update explosion expansion."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw expanding fireball."""
+        if not self.active or self.timer < 0:
+            return
+
+        progress = min(1.0, max(0, self.timer) / self.duration)
+
+        # Fast expansion
+        if progress < 0.3:
+            radius = int(self.max_radius * (progress / 0.3))
+        else:
+            radius = self.max_radius
+
+        # Fade out
+        alpha = int(255 * (1.0 - progress))
+
+        if alpha > 0 and radius > 0:
+            fireball_surf = pygame.Surface((radius * 2 + 20, radius * 2 + 20), pygame.SRCALPHA)
+            center = radius + 10
+
+            # Outer orange glow
+            pygame.draw.circle(fireball_surf, (255, 80, 0, alpha // 3),
+                             (center, center), radius + 8)
+
+            # Main orange fireball
+            pygame.draw.circle(fireball_surf, (255, 102, 0, alpha),
+                             (center, center), radius)
+
+            # Inner yellow-orange core
+            inner_radius = int(radius * 0.6)
+            pygame.draw.circle(fireball_surf, (255, 150, 0, alpha),
+                             (center, center), inner_radius)
+
+            # Bright center
+            if progress < 0.3:
+                core_radius = int(radius * 0.3)
+                pygame.draw.circle(fireball_surf, (255, 200, 100, alpha),
+                                 (center, center), core_radius)
+
+            surface.blit(fireball_surf, (int(self.center_x - center), int(self.center_y - center)))
+
+
+class RailShockwave:
+    """
+    Expanding dark orange shockwave ring from rail explosion.
+    """
+    def __init__(self, center_x, center_y, delay=0):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.timer = -delay
+        self.duration = 0.4
+        self.active = True
+        self.max_radius = 40
+
+    def update(self, delta_time):
+        """Update shockwave expansion."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw expanding shockwave ring."""
+        if not self.active or self.timer < 0:
+            return
+
+        progress = min(1.0, max(0, self.timer) / self.duration)
+
+        # Expand outward
+        radius = int(self.max_radius * progress)
+
+        # Fade out as expanding
+        alpha = int(180 * (1.0 - progress))
+
+        if alpha > 20 and radius > 5:
+            ring_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+
+            # Dark orange shockwave ring
+            pygame.draw.circle(ring_surf, (200, 100, 0, alpha),
+                             (radius, radius), radius, 4)
+
+            # Inner darker ring
+            if alpha > 60:
+                pygame.draw.circle(ring_surf, (180, 80, 0, alpha // 2),
+                                 (radius, radius), radius - 2, 2)
+
+            surface.blit(ring_surf, (int(self.center_x - radius), int(self.center_y - radius)))
+
+
+class RailSmoke:
+    """
+    Grey smoke puff rising from rail explosion site.
+    """
+    def __init__(self, center_x, center_y, delay=0):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.timer = -delay
+        self.duration = 0.5
+        self.active = True
+        self.max_radius = 25
+
+    def update(self, delta_time):
+        """Update smoke expansion and rise."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw expanding smoke puff."""
+        if not self.active or self.timer < 0:
+            return
+
+        progress = min(1.0, max(0, self.timer) / self.duration)
+
+        # Expand and rise
+        radius = int(self.max_radius * progress)
+        rise_offset = int(15 * progress)  # Smoke rises up
+
+        # Fade out
+        alpha = int(150 * (1.0 - progress))
+
+        if alpha > 0 and radius > 0:
+            smoke_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+
+            # Dark grey smoke layers
+            for i in range(3):
+                layer_radius = radius - (i * 5)
+                if layer_radius > 0:
+                    layer_alpha = alpha - (i * 30)
+                    if layer_alpha > 0:
+                        pygame.draw.circle(smoke_surf, (90, 90, 90, layer_alpha),
+                                         (radius, radius), layer_radius)
+
+            surface.blit(smoke_surf, (int(self.center_x - radius),
+                                     int(self.center_y - radius - rise_offset)))
+
+
+class EmberParticle:
+    """
+    Small orange ember particle floating upward from explosion.
+    """
+    def __init__(self, start_x, start_y, delay=0):
+        self.x = start_x + random.uniform(-10, 10)
+        self.y = start_y
+        self.timer = -delay
+        self.duration = 0.6
+        self.active = True
+        self.size = random.randint(2, 4)
+        self.rise_speed = random.uniform(20, 40)
+        self.drift_x = random.uniform(-5, 5)
+
+    def update(self, delta_time):
+        """Update ember position."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.timer >= 0:
+            # Rise upward
+            self.y -= self.rise_speed * delta_time
+            self.x += self.drift_x * delta_time
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw floating ember."""
+        if not self.active or self.timer < 0:
+            return
+
+        progress = min(1.0, max(0, self.timer) / self.duration)
+
+        # Fade out
+        alpha = int(220 * (1.0 - progress))
+
+        if alpha > 30:
+            ember_surf = pygame.Surface((self.size * 3, self.size * 3), pygame.SRCALPHA)
+            center = int(self.size * 1.5)
+
+            # Orange glow
+            pygame.draw.circle(ember_surf, (255, 102, 0, alpha // 2),
+                             (center, center), self.size)
+            pygame.draw.circle(ember_surf, (255, 150, 0, alpha),
+                             (center, center), max(1, self.size // 2))
+
+            surface.blit(ember_surf, (int(self.x - center), int(self.y - center)))
+
+
+class RailGenesisDeathExplosionAnimation:
+    """
+    Rail Genesis death explosion animation for FOWL CONTRIVANCE.
+    When a FOWL CONTRIVANCE dies, the entire rail network detonates,
+    dealing damage to enemies standing on rails.
+
+    Phases:
+    1. Charge (0.4s) - Rails pulse with orange energy
+    2. Detonation (0.6s) - Staggered explosions along all rails
+    3. Shockwave (0.5s) - Orange shockwaves expand from each rail
+    4. Aftermath (0.5s) - Smoke and embers dissipate
+    """
+
+    def __init__(self, caster_unit, target_unit, target_pos, is_crit, is_infused,
+                 particle_emitter, debris_list, screen_shake_callback,
+                 screen_flash_callback, units_list, camera, game=None):
+        """
+        Initialize Rail Genesis death explosion animation.
+
+        Args:
+            caster_unit: FOWL CONTRIVANCE unit that died (at death position)
+            game: Game instance to access rail positions
+            camera: Camera instance for coordinate conversion
+        """
+        # Store references
+        self.caster = caster_unit
+        self.camera = camera
+        self.particle_emitter = particle_emitter
+        self.screen_shake_callback = screen_shake_callback
+        self.screen_flash_callback = screen_flash_callback
+        self.game = game
+
+        # Get all rail positions from the game map
+        self.rail_positions = []
+        if game and game.map.has_rails():
+            rail_grid_positions = game.map.get_rail_positions()
+
+            # Convert all rail positions to screen coordinates
+            for rail_y, rail_x in rail_grid_positions:
+                screen_x, screen_y = camera.grid_to_screen(rail_x, rail_y, centered=True)
+                self.rail_positions.append((screen_x, screen_y))
+
+        # Animation state
+        self.phase = "charge"
+        self.timer = 0
+        self.active = True
+
+        # Sub-effects
+        self.rail_glows = []
+        self.explosions = []
+        self.shockwaves = []
+        self.smoke_puffs = []
+        self.embers = []
+
+        # Start Phase 1: Charge
+        self._start_charge()
+
+    def _start_charge(self):
+        """Phase 1: Charge - Rails pulse with orange energy."""
+        self.phase = "charge"
+        self.timer = 0
+
+        # Create pulsing glows on all rails (staggered slightly)
+        for i, (rail_x, rail_y) in enumerate(self.rail_positions):
+            delay = (i % 10) * 0.02  # Stagger every 10th rail
+            glow = RailGlowPulse(rail_x, rail_y, delay=delay)
+            self.rail_glows.append(glow)
+
+        # Light screen shake
+        self.screen_shake_callback(3, 0.4)
+
+    def _start_detonation(self):
+        """Phase 2: Detonation - Explosions along all rails."""
+        self.phase = "detonation"
+        self.timer = 0
+
+        # Create explosions at all rail positions (staggered for visual spread)
+        for i, (rail_x, rail_y) in enumerate(self.rail_positions):
+            # Stagger explosions to create wave effect
+            delay = (i % 15) * 0.02
+            explosion = RailExplosion(rail_x, rail_y, delay=delay)
+            self.explosions.append(explosion)
+
+        # Heavy screen shake on detonation
+        self.screen_shake_callback(8, 0.6)
+
+        # Orange flash
+        self.screen_flash_callback((255, 102, 0), 0.3)
+
+        # Emit burst particles at random rail positions
+        if self.particle_emitter and len(self.rail_positions) > 0:
+            # Emit at a subset of rails for performance
+            sample_size = min(20, len(self.rail_positions))
+            sample_rails = random.sample(self.rail_positions, sample_size)
+            for rail_x, rail_y in sample_rails:
+                self.particle_emitter.emit_burst(rail_x, rail_y, (255, 102, 0), count=8)
+
+    def _start_shockwave(self):
+        """Phase 3: Shockwave - Orange shockwaves expand."""
+        self.phase = "shockwave"
+        self.timer = 0
+
+        # Create shockwaves at all rail positions (staggered)
+        for i, (rail_x, rail_y) in enumerate(self.rail_positions):
+            delay = (i % 15) * 0.02
+            shockwave = RailShockwave(rail_x, rail_y, delay=delay)
+            self.shockwaves.append(shockwave)
+
+    def _start_aftermath(self):
+        """Phase 4: Aftermath - Smoke and embers dissipate."""
+        self.phase = "aftermath"
+        self.timer = 0
+
+        # Create smoke puffs at rail positions (subset for performance)
+        if len(self.rail_positions) > 0:
+            sample_size = min(30, len(self.rail_positions))
+            sample_rails = random.sample(self.rail_positions, sample_size)
+
+            for i, (rail_x, rail_y) in enumerate(sample_rails):
+                delay = i * 0.01
+                smoke = RailSmoke(rail_x, rail_y, delay=delay)
+                self.smoke_puffs.append(smoke)
+
+                # Add ember particles
+                for _ in range(3):
+                    ember = EmberParticle(rail_x, rail_y, delay=delay)
+                    self.embers.append(ember)
+
+    def update(self, delta_time):
+        """Update animation state. MUST return True/False."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Update all sub-effects
+        for glow in self.rail_glows:
+            glow.update(delta_time)
+
+        for explosion in self.explosions:
+            explosion.update(delta_time)
+
+        for shockwave in self.shockwaves:
+            shockwave.update(delta_time)
+
+        for smoke in self.smoke_puffs:
+            smoke.update(delta_time)
+
+        for ember in self.embers:
+            ember.update(delta_time)
+
+        # Phase transitions
+        if self.phase == "charge" and self.timer >= 0.4:
+            self._start_detonation()
+        elif self.phase == "detonation" and self.timer >= 0.6:
+            self._start_shockwave()
+        elif self.phase == "shockwave" and self.timer >= 0.5:
+            self._start_aftermath()
+        elif self.phase == "aftermath" and self.timer >= 0.5:
+            self.active = False  # Animation complete
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw animation to pygame surface."""
+        if not self.active:
+            return
+
+        # Draw phase-specific effects
+        if self.phase == "charge":
+            for glow in self.rail_glows:
+                glow.draw(surface)
+
+        elif self.phase == "detonation":
+            for explosion in self.explosions:
+                explosion.draw(surface)
+
+        elif self.phase == "shockwave":
+            # Draw explosions still fading
+            for explosion in self.explosions:
+                explosion.draw(surface)
+
+            # Draw shockwaves
+            for shockwave in self.shockwaves:
+                shockwave.draw(surface)
+
+        elif self.phase == "aftermath":
+            # Draw smoke puffs
+            for smoke in self.smoke_puffs:
+                smoke.draw(surface)
+
+            # Draw embers
+            for ember in self.embers:
+                ember.draw(surface)

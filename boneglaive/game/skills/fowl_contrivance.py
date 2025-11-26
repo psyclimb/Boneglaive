@@ -133,7 +133,23 @@ class RailGenesis(PassiveSkill):
                 else:
                     # Check for critical health using centralized logic
                     game.check_critical_health(unit, user, previous_hp, ui)
-        
+
+        # Check if this was the last FOWL CONTRIVANCE - if so, remove rails
+        from boneglaive.utils.constants import UnitType
+        remaining_fowl = sum(1 for u in game.units
+                            if u.is_alive() and
+                            hasattr(u, 'type') and
+                            u.type == UnitType.FOWL_CONTRIVANCE)
+
+        if remaining_fowl == 0:
+            # Last FOWL CONTRIVANCE destroyed - remove rail network
+            game.map.remove_rail_network()
+            message_log.add_message(
+                "The rail network collapses and vanishes from the battlefield",
+                MessageType.ABILITY,
+                player=user.player
+            )
+
         # Note: Individual unit damage messages are already shown above, no summary needed
 
 

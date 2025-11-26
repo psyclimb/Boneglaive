@@ -86,6 +86,7 @@ from .fowl_contrivance import (
     FragcrestAnimation,
     GaussianDuskChargeAnimation,
     GaussianDuskFireAnimation,
+    RailGenesisDeathExplosionAnimation,
 )
 
 from .gas_machinist import (
@@ -162,6 +163,7 @@ __all__ = [
     'FragcrestAnimation',
     'GaussianDuskChargeAnimation',
     'GaussianDuskFireAnimation',
+    'RailGenesisDeathExplosionAnimation',
     # Gas Machinist
     'VaporSpawnAnimation',
     'DivergeAnimation',

@@ -57,6 +57,7 @@ from boneglaive.graphical.animations.fowl_contrivance import (
     FragcrestAnimation,
     GaussianDuskChargeAnimation,
     GaussianDuskFireAnimation,
+    RailGenesisDeathExplosionAnimation,
 )
 from boneglaive.graphical.animations.gas_machinist import (
     VaporSpawnAnimation,
@@ -117,6 +118,7 @@ class AnimationFactory:
         "FRAGCREST": (FragcrestAnimation, {}),  # Directional fragmentation cone
         "GAUSSIAN_DUSK_CHARGE": (GaussianDuskChargeAnimation, {}),  # Rail gun charging phase
         "GAUSSIAN_DUSK_FIRE": (GaussianDuskFireAnimation, {}),  # Rail gun firing phase
+        "RAIL_GENESIS_DEATH_EXPLOSION": (RailGenesisDeathExplosionAnimation, {}),  # Death explosion
 
         # GAS MACHINIST skills
         "BROACHING_GAS": (VaporSpawnAnimation, {"vapor_type": "BROACHING"}),
@@ -767,6 +769,23 @@ class AnimationFactory:
                     game=kwargs.get('game')  # Required for calculating firing line
                 )
                 print(f"[AnimationFactory] GaussianDuskFireAnimation created successfully")
+            elif anim_class.__name__ == "RailGenesisDeathExplosionAnimation":
+                # Rail Genesis death explosion - rail network detonation when FOWL CONTRIVANCE dies
+                # Requires: caster_unit (dead FOWL CONTRIVANCE), game (for rail positions), camera, callbacks
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_unit=None,
+                    target_pos=None,  # Not needed, uses all rail positions from game
+                    is_crit=is_crit,
+                    is_infused=is_infused,
+                    particle_emitter=particle_emitter,
+                    debris_list=[],
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,
+                    units_list=units_list if units_list else [],
+                    camera=camera,
+                    game=kwargs.get('game')  # Required for getting rail positions
+                )
             elif anim_class.__name__ == "VaporSpawnAnimation":
                 # Vapor spawn animation - needs target position and vapor type from kwargs
                 # target_pos is already set in kwargs by the factory
