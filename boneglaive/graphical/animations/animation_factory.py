@@ -26,6 +26,7 @@ from boneglaive.graphical.animations.grayman import (
     DeltaConfigAnimation,
     GraeExchangeAnimation,
     EstrangeBeam,
+    GraymanEchoDeathExplosionAnimation,
 )
 from boneglaive.graphical.animations.interferer import (
     NeutronIlluminantCardinal,
@@ -104,6 +105,7 @@ class AnimationFactory:
         "ESTRANGE": (EstrangeBeam, {}),
         "GRAE_EXCHANGE": (GraeExchangeAnimation, {}),
         "GRÆ_EXCHANGE": (GraeExchangeAnimation, {}),  # Handle special character
+        "GRAYMAN_ECHO_DEATH": (GraymanEchoDeathExplosionAnimation, {}),
 
         # MARROW CONDENSER skills
         "OSSIFY": (OssifyAnimation, {}),
@@ -357,6 +359,23 @@ class AnimationFactory:
                     target_pos=target_pos,
                     particle_emitter=particle_emitter,
                     camera=camera
+                )
+            elif anim_class.__name__ == "GraymanEchoDeathExplosionAnimation":
+                # GRAYMAN ECHO death explosion - psychic explosion affecting 3x3 area
+                # Requires: caster_unit (dead echo), camera, standard callbacks
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_unit=None,
+                    target_pos=(caster_unit.grid_y, caster_unit.grid_x) if caster_unit else target_pos,
+                    is_crit=is_crit,
+                    is_infused=is_infused,
+                    particle_emitter=particle_emitter,
+                    debris_list=[],
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=None,  # NO screen flash
+                    units_list=units_list if units_list else [],
+                    camera=camera,
+                    game=kwargs.get('game')
                 )
             elif anim_class.__name__ == "InfuseEffect":
                 # InfuseEffect needs caster position and caster unit

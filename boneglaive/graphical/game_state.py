@@ -805,6 +805,35 @@ class GameStateAdapter:
             events.extend(self.animation_queue)
             self.animation_queue.clear()
 
+        # Check for dead GRAYMAN ECHO units (before returning events)
+        # Detect echo deaths and trigger explosion animation
+        dead_echo_ids = []
+        for unit_id, visual_unit in list(self.visual_units.items()):
+            game_unit = visual_unit.game_unit
+
+            # Check if this is a dead echo
+            if (hasattr(game_unit, 'is_echo') and
+                game_unit.is_echo and
+                not game_unit.is_alive()):
+
+                # Check if we haven't already triggered death animation for this echo
+                if not hasattr(visual_unit, 'echo_death_animated') or not visual_unit.echo_death_animated:
+                    print(f"[GameState] *** GRAYMAN ECHO DEATH DETECTED! *** {game_unit.get_display_name()} at ({game_unit.y}, {game_unit.x})")
+
+                    # Queue death explosion animation
+                    events.append(AnimationEvent(
+                        "skill",
+                        source_unit=game_unit,
+                        target_unit=None,
+                        skill_name="GRAYMAN_ECHO_DEATH",
+                        skill_target=(game_unit.y, game_unit.x)
+                    ))
+
+                    # Mark as animated to prevent re-triggering
+                    visual_unit.echo_death_animated = True
+                    dead_echo_ids.append(unit_id)
+                    print(f"  Queued GRAYMAN_ECHO_DEATH animation event")
+
         return events
 
     def queue_skill_animation(self, skill_name: str, caster, target=None, **kwargs):

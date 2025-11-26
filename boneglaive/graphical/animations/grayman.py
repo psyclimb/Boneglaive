@@ -772,3 +772,393 @@ class EstrangeBeam:
                                  (flash_radius, flash_radius), flash_radius)
                 surface.blit(flash_surf, (int(self.target_x - flash_radius),
                                          int(self.target_y - flash_radius)))
+
+
+# ============================================================================
+# GRAYMAN ECHO DEATH EXPLOSION ANIMATION
+# ============================================================================
+
+class TileExplosionBurst:
+    """
+    Explosion burst effect on individual tiles in the 3x3 AOE.
+    Purple expanding circle with fade.
+    """
+    def __init__(self, tile_x, tile_y, delay=0):
+        self.tile_x = tile_x
+        self.tile_y = tile_y
+        self.timer = -delay
+        self.duration = 0.6
+        self.active = True
+        self.max_radius = 35
+
+        # Purple colors
+        self.color_outer = (170, 119, 255)
+        self.color_inner = (221, 187, 255)
+
+    def update(self, delta_time):
+        """Update explosion burst."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw explosion burst on tile."""
+        if not self.active or self.timer < 0:
+            return
+
+        progress = min(1.0, max(0, self.timer) / self.duration)
+
+        # Expand quickly then fade
+        if progress < 0.3:
+            radius = int(self.max_radius * (progress / 0.3))
+        else:
+            radius = self.max_radius
+
+        # Fade out
+        alpha = int(200 * (1.0 - progress))
+
+        if alpha < 20 or radius < 2:
+            return
+
+        burst_surf = pygame.Surface((radius * 2 + 20, radius * 2 + 20), pygame.SRCALPHA)
+        center = radius + 10
+
+        # Outer purple ring
+        pygame.draw.circle(burst_surf, (*self.color_outer, alpha // 2),
+                         (center, center), radius + 8)
+
+        # Main burst
+        pygame.draw.circle(burst_surf, (*self.color_inner, alpha),
+                         (center, center), radius)
+
+        # Bright center (early in animation)
+        if progress < 0.4:
+            inner_alpha = int(alpha * (1.0 - progress / 0.4))
+            inner_radius = int(radius * 0.5)
+            pygame.draw.circle(burst_surf, (255, 255, 255, inner_alpha),
+                             (center, center), inner_radius)
+
+        surface.blit(burst_surf, (int(self.tile_x - center), int(self.tile_y - center)))
+
+
+class PsychicWave:
+    """
+    Expanding wave from center across all tiles.
+    Shows the explosion propagating outward.
+    """
+    def __init__(self, center_x, center_y):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.timer = 0
+        self.duration = 0.5
+        self.active = True
+        self.max_radius = TILE_SIZE * 2  # Covers 3x3 area
+
+        # Purple colors
+        self.color_outer = (170, 119, 255)
+        self.color_inner = (221, 187, 255)
+
+    def update(self, delta_time):
+        """Update wave expansion."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw expanding wave."""
+        if not self.active:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+
+        # Wave expands outward
+        radius = int(self.max_radius * progress)
+
+        # Fade as it expands
+        alpha = int(180 * (1.0 - progress * 0.7))
+
+        if alpha < 20 or radius < 5:
+            return
+
+        # Draw expanding ring
+        ring_surf = pygame.Surface((radius * 2 + 20, radius * 2 + 20), pygame.SRCALPHA)
+        center = radius + 10
+
+        # Outer ring
+        pygame.draw.circle(ring_surf, (*self.color_outer, alpha // 2),
+                         (center, center), radius, 8)
+
+        # Inner ring
+        pygame.draw.circle(ring_surf, (*self.color_inner, alpha),
+                         (center, center), max(5, radius - 8), 4)
+
+        surface.blit(ring_surf, (int(self.center_x - center), int(self.center_y - center)))
+
+
+class ExplosionParticles:
+    """
+    Particles spreading outward from center during explosion.
+    """
+    def __init__(self, center_x, center_y):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.timer = 0
+        self.duration = 0.8
+        self.active = True
+
+        # Generate particles
+        self.particles = []
+        num_particles = 40
+        for i in range(num_particles):
+            angle = (i / num_particles) * 2 * math.pi
+            speed = random.uniform(100, 250)
+            self.particles.append({
+                'angle': angle,
+                'speed': speed,
+                'size': random.randint(2, 4),
+                'color_type': random.choice(['outer', 'inner', 'white'])
+            })
+
+        self.colors = {
+            'outer': (170, 119, 255),
+            'inner': (221, 187, 255),
+            'white': (255, 255, 255)
+        }
+
+    def update(self, delta_time):
+        """Update particles."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw explosion particles."""
+        if not self.active:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+
+        for particle in self.particles:
+            # Calculate position
+            distance = particle['speed'] * self.timer
+            px = self.center_x + math.cos(particle['angle']) * distance
+            py = self.center_y + math.sin(particle['angle']) * distance
+
+            # Fade out
+            alpha = int(220 * (1.0 - progress))
+
+            if alpha < 20:
+                continue
+
+            color = (*self.colors[particle['color_type']], alpha)
+
+            # Draw particle
+            particle_surf = pygame.Surface((particle['size'] * 2, particle['size'] * 2), pygame.SRCALPHA)
+            pygame.draw.circle(particle_surf, color,
+                             (particle['size'], particle['size']), particle['size'])
+
+            surface.blit(particle_surf, (int(px - particle['size']), int(py - particle['size'])))
+
+
+class GraymanEchoDeathExplosionAnimation:
+    """
+    GRAYMAN ECHO death explosion - psychic explosion affecting 3x3 AOE.
+    Simple explosion that expands outward and affects all tiles in range 1.
+
+    Phases:
+    1. Charge (0.3s) - Brief buildup at center
+    2. Explosion (0.6s) - Main burst with wave and tile effects
+    3. Dissipate (0.5s) - Particles fade
+    """
+
+    def __init__(self, caster_unit, target_unit, target_pos, is_crit, is_infused,
+                 particle_emitter, debris_list, screen_shake_callback,
+                 screen_flash_callback, units_list, camera, game=None):
+        """
+        Initialize GRAYMAN ECHO death explosion animation.
+
+        Args:
+            caster_unit: Dead echo unit (at death position)
+            target_pos: (grid_y, grid_x) - echo death position
+            camera: Camera instance for coordinate conversion
+            particle_emitter: Particle emitter for effects
+            screen_shake_callback: Callback for screen shake
+        """
+        # Store references
+        self.caster = caster_unit
+        self.camera = camera
+        self.particle_emitter = particle_emitter
+        self.screen_shake_callback = screen_shake_callback
+        self.game = game
+
+        # Convert echo position to screen coords
+        # CRITICAL: target_pos is (grid_y, grid_x), but grid_to_screen takes (grid_x, grid_y)!
+        grid_y, grid_x = target_pos
+        self.center_x, self.center_y = camera.grid_to_screen(grid_x, grid_y, centered=True)
+
+        # Calculate 3x3 tile positions (9 tiles total)
+        self.tile_positions = []
+        tile_offsets = [
+            (-TILE_SIZE, -TILE_SIZE), (0, -TILE_SIZE), (TILE_SIZE, -TILE_SIZE),
+            (-TILE_SIZE, 0),          (0, 0),          (TILE_SIZE, 0),
+            (-TILE_SIZE, TILE_SIZE),  (0, TILE_SIZE),  (TILE_SIZE, TILE_SIZE)
+        ]
+
+        for offset_x, offset_y in tile_offsets:
+            tile_x = self.center_x + offset_x
+            tile_y = self.center_y + offset_y
+            distance = math.sqrt(offset_x**2 + offset_y**2)
+            self.tile_positions.append({
+                'x': tile_x,
+                'y': tile_y,
+                'distance': distance,
+                'delay': distance / 300.0  # Stagger based on distance
+            })
+
+        # Purple colors
+        self.color_outer = (170, 119, 255)
+        self.color_inner = (221, 187, 255)
+
+        # Animation state
+        self.phase = "charge"
+        self.timer = 0
+        self.active = True
+
+        # Sub-effects
+        self.charge_glow_radius = 0
+        self.psychic_wave = None
+        self.tile_bursts = []
+        self.explosion_particles = None
+
+        # Start Phase 1: Charge
+        self._start_charge()
+
+    def _start_charge(self):
+        """Phase 1: Charge - Brief buildup."""
+        self.phase = "charge"
+        self.timer = 0
+
+        # Light screen shake
+        self.screen_shake_callback(3, 0.3)
+
+    def _start_explosion(self):
+        """Phase 2: Explosion - Main burst."""
+        self.phase = "explosion"
+        self.timer = 0
+
+        # Create expanding wave from center
+        self.psychic_wave = PsychicWave(self.center_x, self.center_y)
+
+        # Create explosion bursts on all 9 tiles (staggered)
+        for tile_info in self.tile_positions:
+            burst = TileExplosionBurst(tile_info['x'], tile_info['y'], tile_info['delay'])
+            self.tile_bursts.append(burst)
+
+        # Explosion particles spreading outward
+        self.explosion_particles = ExplosionParticles(self.center_x, self.center_y)
+
+        # Heavy screen shake
+        self.screen_shake_callback(7, 0.5)
+
+        # Emit particle burst
+        if self.particle_emitter:
+            self.particle_emitter.emit_burst(self.center_x, self.center_y,
+                                            self.color_inner, count=30)
+
+    def _start_dissipate(self):
+        """Phase 3: Dissipate - Fade out."""
+        self.phase = "dissipate"
+        self.timer = 0
+
+    def update(self, delta_time):
+        """Update animation state. MUST return True/False."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Update charge glow
+        if self.phase == "charge":
+            # Glow builds up
+            progress = min(1.0, self.timer / 0.3)
+            self.charge_glow_radius = 30 * progress
+
+        # Update sub-effects
+        if self.psychic_wave:
+            self.psychic_wave.update(delta_time)
+
+        for burst in self.tile_bursts:
+            burst.update(delta_time)
+
+        if self.explosion_particles:
+            self.explosion_particles.update(delta_time)
+
+        # Phase transitions
+        if self.phase == "charge" and self.timer >= 0.3:
+            self._start_explosion()
+        elif self.phase == "explosion" and self.timer >= 0.6:
+            self._start_dissipate()
+        elif self.phase == "dissipate" and self.timer >= 0.5:
+            self.active = False  # Animation complete
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw animation to pygame surface."""
+        if not self.active:
+            return
+
+        # Phase 1: Charge - Pulsing glow at center
+        if self.phase == "charge":
+            progress = self.timer / 0.3
+            alpha = int(150 * progress)
+            pulse = 0.8 + 0.2 * math.sin(self.timer * 20)
+
+            radius = int(self.charge_glow_radius * pulse)
+
+            if radius > 2 and alpha > 20:
+                glow_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+
+                # Outer glow
+                pygame.draw.circle(glow_surf, (*self.color_outer, alpha // 2),
+                                 (radius, radius), radius)
+
+                # Inner glow
+                inner_radius = int(radius * 0.6)
+                pygame.draw.circle(glow_surf, (*self.color_inner, alpha),
+                                 (radius, radius), inner_radius)
+
+                surface.blit(glow_surf, (int(self.center_x - radius),
+                                        int(self.center_y - radius)))
+
+        # Phase 2 & 3: Explosion effects
+        if self.phase in ["explosion", "dissipate"]:
+            # Draw expanding wave
+            if self.psychic_wave:
+                self.psychic_wave.draw(surface)
+
+            # Draw tile bursts
+            for burst in self.tile_bursts:
+                burst.draw(surface)
+
+            # Draw explosion particles (top layer)
+            if self.explosion_particles:
+                self.explosion_particles.draw(surface)

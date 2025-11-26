@@ -536,16 +536,42 @@ class AnimatedUnit:
             self.vapor_cloud.draw(surface, final_x, final_y)
         # Draw sprite or fallback to circle (for non-vapor units)
         elif self.sprite:
-            # Check if rotation is active (e.g., during vault flip)
+            # Check if this is a GRAYMAN ECHO (ethereal rendering)
+            is_echo = (hasattr(self.game_unit, 'is_echo') and
+                       self.game_unit.is_echo)
+
+            # Determine which sprite to use and its position
             if hasattr(self, 'wind_up_rotation') and self.wind_up_rotation != 0:
-                # Rotate sprite
-                rotated_sprite = pygame.transform.rotate(self.sprite, -self.wind_up_rotation)
-                rotated_rect = rotated_sprite.get_rect(center=(final_x, final_y))
-                surface.blit(rotated_sprite, rotated_rect)
+                sprite_to_use = pygame.transform.rotate(self.sprite, -self.wind_up_rotation)
+                sprite_rect = sprite_to_use.get_rect(center=(final_x, final_y))
             else:
-                # Position sprite centered at final position (no rotation)
-                self.sprite_rect.center = (final_x, final_y)
-                surface.blit(self.sprite, self.sprite_rect)
+                sprite_to_use = self.sprite
+                sprite_rect = self.sprite_rect.copy()
+                sprite_rect.center = (final_x, final_y)
+
+            # Apply echo effect if needed
+            if is_echo:
+                # Create ethereal purple semi-transparent version
+                echo_sprite = sprite_to_use.copy()
+
+                # Create purple tint overlay
+                purple_overlay = pygame.Surface(echo_sprite.get_size(), pygame.SRCALPHA)
+                purple_color = (170, 119, 255)  # Estrange purple
+
+                # Fill with semi-transparent purple
+                purple_overlay.fill((*purple_color, 180))  # ~70% opacity
+
+                # Apply tint using blend mode
+                echo_sprite.blit(purple_overlay, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+
+                # Reduce overall alpha for ethereal effect
+                echo_sprite.set_alpha(160)  # ~63% opacity
+
+                # Draw the ethereal echo sprite
+                surface.blit(echo_sprite, sprite_rect)
+            else:
+                # Draw normal sprite
+                surface.blit(sprite_to_use, sprite_rect)
         else:
             # Draw unit circle (fallback)
             pygame.draw.circle(surface, self.color, (final_x, final_y), self.radius)

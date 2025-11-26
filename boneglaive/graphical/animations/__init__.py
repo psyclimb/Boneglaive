@@ -47,6 +47,7 @@ from .grayman import (
     DeltaConfigAnimation,
     GraeExchangeAnimation,
     EstrangeBeam,
+    GraymanEchoDeathExplosionAnimation,
 )
 
 from .interferer import (
@@ -134,6 +135,7 @@ __all__ = [
     'DeltaConfigAnimation',
     'GraeExchangeAnimation',
     'EstrangeBeam',
+    'GraymanEchoDeathExplosionAnimation',
     # Interferer
     'NeutronIlluminantCardinal',
     'NeutronIlluminantDiagonal',
