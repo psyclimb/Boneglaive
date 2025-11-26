@@ -157,14 +157,175 @@ class ParticleEmitter:
             particle.draw(surface)
 
 
+class VaporParticleCloud:
+    """
+    Procedural particle-based rendering for HEINOUS VAPOR entities.
+    Creates swirling gaseous cloud with glowing eyes.
+    """
+
+    # Color palettes for different vapor types (matching GAS MACHINIST sprite bottles)
+    VAPOR_COLORS = {
+        'BROACHING': [(34, 139, 34), (50, 205, 50), (144, 238, 144)],    # Green bottle colors
+        'SAFETY': [(30, 144, 255), (65, 105, 225), (135, 206, 250)],     # Blue bottle colors
+        'COOLANT': [(240, 248, 255), (255, 255, 255), (248, 248, 255)],  # White
+        'CUTTING': [(220, 20, 60), (255, 99, 71), (255, 127, 80)]        # Red bottle colors
+    }
+
+    def __init__(self, vapor_type='BROACHING'):
+        """
+        Initialize vapor particle cloud.
+
+        Args:
+            vapor_type: Type of vapor (BROACHING, SAFETY, COOLANT, CUTTING)
+        """
+        self.vapor_type = vapor_type
+        self.colors = self.VAPOR_COLORS.get(vapor_type, self.VAPOR_COLORS['BROACHING'])
+
+        # Animation timers
+        self.time = 0
+        self.breathing_phase = 0
+        self.swirl_phase = 0
+        self.eye_pulse_phase = 0
+
+        # Particle system
+        self.particles = []
+        self._initialize_particles()
+
+    def _initialize_particles(self):
+        """Create initial particle cloud."""
+        particle_count = 70  # Increased from 50 for denser clouds
+        for i in range(particle_count):
+            # Distribute particles in layers (varying radii)
+            angle = random.uniform(0, 2 * math.pi)
+            radius = random.uniform(8, 28)
+
+            self.particles.append({
+                'angle': angle,
+                'base_radius': radius,
+                'radius': radius,
+                'orbit_speed': random.uniform(0.5, 1.5),
+                'size': random.uniform(2, 5),
+                'color': random.choice(self.colors),
+                'opacity': random.uniform(0.4, 0.8),
+                'z': random.uniform(0, 1),  # Depth layering
+                'drift_x': random.uniform(-5, 5),
+                'drift_y': random.uniform(-5, 5)
+            })
+
+    def update(self, delta_time):
+        """Update vapor cloud animation."""
+        self.time += delta_time
+        self.breathing_phase += delta_time * 1.5  # Breathing cycle
+        self.swirl_phase += delta_time * 0.8      # Swirling motion
+        self.eye_pulse_phase += delta_time * 3.0   # Eye pulsing
+
+        # Breathing effect (expand/contract)
+        breathing_scale = 1.0 + math.sin(self.breathing_phase) * 0.15
+
+        # Update each particle
+        for particle in self.particles:
+            # Orbital swirling motion
+            particle['angle'] += particle['orbit_speed'] * delta_time
+
+            # Apply breathing
+            particle['radius'] = particle['base_radius'] * breathing_scale
+
+            # Gentle drifting
+            particle['drift_x'] += random.uniform(-2, 2) * delta_time
+            particle['drift_y'] += random.uniform(-2, 2) * delta_time
+            # Clamp drift
+            particle['drift_x'] = max(-10, min(10, particle['drift_x']))
+            particle['drift_y'] = max(-10, min(10, particle['drift_y']))
+
+    def draw(self, surface, center_x, center_y):
+        """
+        Draw the vapor cloud at specified position.
+
+        Args:
+            surface: Pygame surface to draw on
+            center_x: Center X coordinate
+            center_y: Center Y coordinate
+        """
+        # Sort particles by z-depth for proper layering
+        sorted_particles = sorted(self.particles, key=lambda p: p['z'])
+
+        # Draw vapor particles
+        for particle in sorted_particles:
+            # Calculate particle position
+            px = center_x + math.cos(particle['angle']) * particle['radius'] + particle['drift_x']
+            py = center_y + math.sin(particle['angle']) * particle['radius'] + particle['drift_y']
+
+            # Calculate alpha based on depth and base opacity
+            alpha = int(255 * particle['opacity'] * (0.6 + 0.4 * particle['z']))
+            if alpha <= 0:
+                continue
+
+            color = (*particle['color'], alpha)
+            size = particle['size']
+
+            # Draw particle with glow
+            particle_surf = pygame.Surface((int(size * 4), int(size * 4)), pygame.SRCALPHA)
+
+            # Outer glow
+            glow_radius = size * 1.5
+            pygame.draw.circle(particle_surf, (*particle['color'], alpha // 3),
+                             (int(size * 2), int(size * 2)), int(glow_radius))
+
+            # Core particle
+            pygame.draw.circle(particle_surf, color,
+                             (int(size * 2), int(size * 2)), int(size))
+
+            surface.blit(particle_surf, (int(px - size * 2), int(py - size * 2)))
+
+        # Draw glowing eyes on top
+        self._draw_eyes(surface, center_x, center_y)
+
+    def _draw_eyes(self, surface, center_x, center_y):
+        """Draw glowing eyes within the vapor cloud."""
+        # Eye pulsing (0.7 to 1.0)
+        pulse = 0.7 + math.sin(self.eye_pulse_phase) * 0.15
+
+        # Eye positions (slightly offset from center)
+        eye_spacing = 10
+        left_eye_x = center_x - eye_spacing
+        right_eye_x = center_x + eye_spacing
+        eye_y = center_y - 3
+
+        # Eye color (bright yellow-green)
+        eye_color = (173, 255, 47)
+
+        # Draw each eye
+        for eye_x in [left_eye_x, right_eye_x]:
+            # Outer glow
+            glow_size = 8
+            glow_alpha = int(80 * pulse)
+            glow_surf = pygame.Surface((glow_size * 2, glow_size * 2), pygame.SRCALPHA)
+            pygame.draw.circle(glow_surf, (*eye_color, glow_alpha),
+                             (glow_size, glow_size), glow_size)
+            surface.blit(glow_surf, (int(eye_x - glow_size), int(eye_y - glow_size)))
+
+            # Main eye
+            eye_radius = 4
+            eye_alpha = int(230 * pulse)
+            pygame.draw.circle(surface, (*eye_color, eye_alpha),
+                             (int(eye_x), int(eye_y)), eye_radius)
+
+            # Bright highlight
+            highlight_radius = 2
+            highlight_alpha = int(255 * pulse)
+            pygame.draw.circle(surface, (255, 255, 200, highlight_alpha),
+                             (int(eye_x - 1), int(eye_y - 1)), highlight_radius)
+
+
 class AnimatedUnit:
     """Unit with smooth animation support."""
-    def __init__(self, name, player, grid_x, grid_y, color, sprite_path=None):
+    def __init__(self, name, player, grid_x, grid_y, color, sprite_path=None, game_unit=None):
         self.name = name
         self.player = player
         self.grid_x = grid_x
         self.grid_y = grid_y
         self.color = color
+        self.game_unit = game_unit  # Reference to game logic unit
 
         # Position
         self.x = grid_x * TILE_SIZE + TILE_SIZE // 2
@@ -187,6 +348,10 @@ class AnimatedUnit:
         self.potpourri_aura_active = False
         self.potpourri_aura_timer = 0
         self.potpourri_aura_particles = []
+
+        # Vapor particle cloud (for HEINOUS VAPOR)
+        self.vapor_cloud = None
+        self._detect_vapor_type()
 
         # Stats
         self.max_hp = 20
@@ -224,6 +389,22 @@ class AnimatedUnit:
             except Exception as e:
                 print(f"Warning: Could not load sprite {sprite_path}: {e}")
                 self.sprite = None
+
+    def _detect_vapor_type(self):
+        """Detect if this unit is a HEINOUS VAPOR and initialize particle cloud."""
+        if not self.game_unit:
+            return
+
+        # Check if this is a HEINOUS_VAPOR unit
+        try:
+            from boneglaive.utils.constants import UnitType
+            if hasattr(self.game_unit, 'type') and self.game_unit.type == UnitType.HEINOUS_VAPOR:
+                # Get vapor type from game unit
+                vapor_type = getattr(self.game_unit, 'vapor_type', 'BROACHING')
+                print(f"[VaporCloud] Detected HEINOUS VAPOR of type: {vapor_type}")
+                self.vapor_cloud = VaporParticleCloud(vapor_type)
+        except Exception as e:
+            print(f"[VaporCloud] Error detecting vapor type: {e}")
 
     def move_to_grid(self, grid_x, grid_y):
         """Start smooth movement to grid position."""
@@ -323,6 +504,10 @@ class AnimatedUnit:
                 if particle['lifetime'] <= 0:
                     self.potpourri_aura_particles.remove(particle)
 
+        # Update vapor cloud (for HEINOUS VAPOR)
+        if self.vapor_cloud:
+            self.vapor_cloud.update(delta_time)
+
     def draw(self, surface, font):
         # Calculate final position
         final_x = int(self.x + self.shake_x)
@@ -346,8 +531,11 @@ class AnimatedUnit:
                                          int(glow_size))
                         surface.blit(particle_surf, (int(particle['x'] - particle['size']), int(particle['y'] - particle['size'])))
 
-        # Draw sprite or fallback to circle
-        if self.sprite:
+        # Draw vapor cloud (for HEINOUS VAPOR) - takes priority over sprite/circle
+        if self.vapor_cloud:
+            self.vapor_cloud.draw(surface, final_x, final_y)
+        # Draw sprite or fallback to circle (for non-vapor units)
+        elif self.sprite:
             # Check if rotation is active (e.g., during vault flip)
             if hasattr(self, 'wind_up_rotation') and self.wind_up_rotation != 0:
                 # Rotate sprite

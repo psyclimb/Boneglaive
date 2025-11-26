@@ -343,7 +343,8 @@ class GraphicalRenderer:
             grid_x=game_unit.x,  # x is column
             grid_y=game_unit.y,  # y is row
             color=color,
-            sprite_path=sprite_path
+            sprite_path=sprite_path,
+            game_unit=game_unit  # Pass game unit for vapor type detection
         )
 
         # Set stats
