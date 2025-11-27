@@ -128,6 +128,12 @@ class Unit:
         
         # DELPHIC APPRAISER properties
         self.can_use_anchor = False  # Whether this unit can use Market Futures teleport anchors
+
+        # Market Futures investment tracking
+        self.market_futures_bonus_applied = False  # Whether unit has investment buff
+        self.market_futures_duration = 0  # Turns remaining for investment
+        self.market_futures_maturity = 1  # Current maturity level (1-3)
+        self.has_investment_effect = False  # Status icon indicator
         
         # DERELICTIONIST properties
         self.trauma_processing_active = False  # Whether affected by Trauma Processing
@@ -194,7 +200,25 @@ class Unit:
                     # Create a new instance of the skill for this unit
                     skill_class = skill.__class__
                     self.active_skills.append(skill_class())
-    
+
+    def get_active_skills(self) -> List['ActiveSkill']:
+        """
+        Get all active skills including dynamic skills.
+
+        Returns:
+            List of ActiveSkill instances including base skills and dynamic skills
+        """
+        skills = list(self.active_skills)  # Copy base skills
+
+        # Add Parallax skill dynamically if unit is adjacent to Market Futures anchor
+        if hasattr(self, 'can_use_anchor') and self.can_use_anchor:
+            # Import here to avoid circular imports
+            from boneglaive.game.skills.delphic_appraiser import ParallaxSkill
+            parallax_skill = ParallaxSkill()
+            skills.append(parallax_skill)
+
+        return skills
+
     def is_alive(self) -> bool:
         """Check if the unit is alive."""
         return self.hp > 0

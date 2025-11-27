@@ -523,6 +523,45 @@ class GraphicalRenderer:
 
                     if success:
                         print(f"Skill planned: {self.selected_skill.name} at ({grid_y}, {grid_x})")
+
+                        # Special handling for Parallax - it executes immediately, not during turn execution
+                        if self.selected_skill.name == "Parallax":
+                            print(f"[Renderer] Parallax executed immediately - triggering animation")
+
+                            # Create animation event for immediate execution
+                            from boneglaive.graphical.game_state import AnimationEvent
+                            anim_event = AnimationEvent(
+                                event_type="skill",
+                                source_unit=game_unit,
+                                target_unit=None,
+                                skill_name="Parallax",
+                                skill_target=target_pos,
+                                is_infused=False
+                            )
+
+                            # Create skill animation IMMEDIATELY (don't queue it)
+                            # This prevents it from being delayed by movement events
+                            self._create_skill_animation(anim_event)
+
+                            # Mark visual unit as teleporting to prevent walking animation
+                            # visual_units dict is keyed by UUID, not id()
+                            if hasattr(game_unit, 'uuid'):
+                                visual_unit = self.game_adapter.visual_units.get(game_unit.uuid)
+                                if visual_unit:
+                                    visual_unit.pending_teleport_skill = "Parallax"
+                                    print(f"[Renderer] Set pending_teleport_skill flag on visual unit")
+                                else:
+                                    print(f"[Renderer] WARNING: Could not find visual unit with UUID {game_unit.uuid}")
+                            else:
+                                print(f"[Renderer] WARNING: Game unit has no UUID!")
+
+                            # Sync state to update visual unit position
+                            sync_events = self.game_adapter.sync_state()
+                            for event in sync_events:
+                                if event.event_type != "skill":  # Skip skill events, we already handled it
+                                    self.handle_animation_event(event)
+
+                            print(f"[Renderer] Parallax animation triggered")
                     else:
                         print(f"Failed to use skill: {self.selected_skill.name}")
 

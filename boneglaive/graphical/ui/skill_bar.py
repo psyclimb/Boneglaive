@@ -116,7 +116,8 @@ class SkillBar:
 
         # Get active skills from the actual unit instance (not registry templates)
         # This ensures we display the correct current_cooldown values
-        active_skills = game_unit.active_skills
+        # Use get_active_skills() to include dynamic skills like Parallax
+        active_skills = game_unit.get_active_skills()
 
         # Create skill slots
         for i, skill in enumerate(active_skills):

@@ -185,12 +185,13 @@ class UnitInfoPanel:
 
             # Draw value (colored if different from base)
             if effective_value != base_value:
-                # Stat is modified
+                # Stat is modified - show the bonus/penalty amount
+                bonus = effective_value - base_value
                 if effective_value > base_value:
                     value_color = COLOR_HP_BAR_FULL  # Green for buff
                 else:
                     value_color = COLOR_HP_BAR_LOW  # Red for debuff
-                value_str = f"{effective_value} ({base_value:+})"
+                value_str = f"{effective_value} ({bonus:+})"
             else:
                 value_color = COLOR_TEXT
                 value_str = str(effective_value)

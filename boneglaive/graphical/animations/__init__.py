@@ -63,6 +63,7 @@ from .delphic_appraiser import (
     DivineDrepreciationAnimation,
     AuctionCurseAnimation,
     MarketFuturesAnimation,
+    MarketFuturesTeleportAnimation,
 )
 
 from .marrow_condenser import (
@@ -147,6 +148,7 @@ __all__ = [
     'DivineDrepreciationAnimation',
     'AuctionCurseAnimation',
     'MarketFuturesAnimation',
+    'MarketFuturesTeleportAnimation',
     # Marrow Condenser
     'OssifyAnimation',
     'BoneTitheAnimation',

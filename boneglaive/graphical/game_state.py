@@ -144,6 +144,10 @@ class VisualUnit:
             effects['auction_curse'] = True
         if hasattr(game_unit, 'investment_active') and game_unit.investment_active:
             effects['investment'] = True
+        if hasattr(game_unit, 'can_use_anchor') and game_unit.can_use_anchor:
+            effects['parallax'] = True
+        if hasattr(game_unit, 'market_futures_bonus_applied') and game_unit.market_futures_bonus_applied:
+            effects['investment'] = True
 
         return effects
 
@@ -678,7 +682,7 @@ class GameStateAdapter:
 
                         # Track if this is a teleport/movement skill that will change position
                         # These skills have their own animation and should not show walking animation
-                        teleport_skills = ["Delta Config", "Vault", "Græ Exchange", "Grae Exchange", "Expedite"]
+                        teleport_skills = ["Delta Config", "Vault", "Græ Exchange", "Grae Exchange", "Expedite", "Parallax"]
                         if skill_name in teleport_skills:
                             # Store this in visual_unit so we can check it when detecting position changes
                             visual_unit.pending_teleport_skill = skill_name
@@ -956,8 +960,11 @@ class GameStateAdapter:
         if game_unit.move_target:
             from_y, from_x = game_unit.move_target
 
-        # Get skill range
-        skill_range = skill.range
+        # Get skill range (check for dynamic range method first)
+        if hasattr(skill, 'get_skill_range') and callable(skill.get_skill_range):
+            skill_range = skill.get_skill_range(game_unit, self.game)
+        else:
+            skill_range = skill.range
 
         # Check all positions within range
         for y in range(max(0, from_y - skill_range), min(self.game.map.height, from_y + skill_range + 1)):

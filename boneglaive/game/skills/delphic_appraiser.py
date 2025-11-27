@@ -1106,3 +1106,131 @@ class DivineDrepreciationSkill(ActiveSkill):
         
         # Return the position closest to center
         return candidates[0][0]
+
+
+class ParallaxSkill(ActiveSkill):
+    """
+    Dynamic skill that appears when a unit is adjacent to a Market Futures anchor.
+    Allows allies to activate teleportation through the anchor.
+    """
+
+    def __init__(self):
+        super().__init__(
+            name="Parallax",
+            key="P",
+            description="Activate Market Futures teleportation. Select a destination within range of the nearby anchor. Gain maturing investment: +1 ATK (turn 1), +2 ATK (turn 2), +3 ATK (turn 3) with +1 Range for all 3 turns.",
+            target_type=TargetType.AREA,
+            cooldown=0,  # No cooldown, availability controlled by can_use_anchor flag
+            range_=1  # Default range, overridden by get_skill_range()
+        )
+
+    def get_skill_range(self, user: 'Unit', game: Optional['Game'] = None) -> int:
+        """Get dynamic range based on adjacent anchor's cosmic value (1-9)."""
+        if not game or not hasattr(user, 'can_use_anchor') or not user.can_use_anchor:
+            return 1  # Default if no anchor
+
+        # Find adjacent anchor
+        anchor_pos, anchor = self._find_adjacent_anchor(user, game)
+        if anchor_pos and anchor:
+            return anchor['cosmic_value']  # Range 1-9 based on furniture's astral value
+
+        return 1  # Fallback
+
+    def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        """Check if Parallax can be used (unit must be adjacent to an active anchor)."""
+        # Basic validation
+        if not super().can_use(user, target_pos, game):
+            return False
+        if not game or not target_pos:
+            return False
+
+        # Must have can_use_anchor flag set (adjacency checked by engine)
+        if not hasattr(user, 'can_use_anchor') or not user.can_use_anchor:
+            return False
+
+        # Find the anchor we're adjacent to
+        anchor_pos, anchor = self._find_adjacent_anchor(user, game)
+        if not anchor_pos or not anchor:
+            return False
+
+        # Check if target destination is valid
+        if not game.is_valid_position(target_pos[0], target_pos[1]):
+            return False
+
+        # Check if destination is passable and empty
+        if not game.map.is_passable(target_pos[0], target_pos[1]):
+            return False
+
+        if game.get_unit_at(target_pos[0], target_pos[1]) is not None:
+            return False
+
+        # Check if destination is within anchor's cosmic value range
+        cosmic_value = anchor['cosmic_value']
+        distance = game.chess_distance(anchor_pos[0], anchor_pos[1], target_pos[0], target_pos[1])
+        if distance > cosmic_value:
+            return False
+
+        return True
+
+    def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        """Execute Parallax teleportation immediately (not queued like other skills)."""
+        if not self.can_use(user, target_pos, game):
+            return False
+
+        # Parallax executes immediately, not during turn execution
+        # This matches the ASCII game behavior where teleport happens instantly
+        success = self.execute(user, target_pos, game, ui=None)
+
+        if success:
+            # Clear any skill selection after immediate teleport
+            user.skill_target = None
+            user.selected_skill = None
+
+        return success
+
+    def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
+        """Execute the Parallax teleportation."""
+        # Find the anchor we're adjacent to
+        anchor_pos, anchor = self._find_adjacent_anchor(user, game)
+        if not anchor_pos or not anchor:
+            message_log.add_message(
+                f"{user.get_display_name()} cannot find a nearby anchor",
+                MessageType.WARNING,
+                player=user.player
+            )
+            return False
+
+        # Use the Market Futures skill's activate_teleport method
+        # Since we're in the same file, just instantiate it directly
+        market_futures = MarketFuturesSkill()
+        success = market_futures.activate_teleport(
+            ally=user,
+            anchor_pos=anchor_pos,
+            destination=target_pos,
+            game=game,
+            ui=ui
+        )
+
+        return success
+
+    def _find_adjacent_anchor(self, user: 'Unit', game: 'Game') -> Tuple[Optional[tuple], Optional[dict]]:
+        """
+        Find the active anchor this unit is adjacent to.
+
+        Returns:
+            (anchor_pos, anchor_data) tuple, or (None, None) if not found
+        """
+        if not hasattr(game, 'teleport_anchors'):
+            return None, None
+
+        # Check all anchors for adjacency
+        for anchor_pos, anchor in game.teleport_anchors.items():
+            if not anchor['active']:
+                continue
+
+            # Check if user is adjacent to this anchor
+            if (anchor['creator'].player == user.player and
+                game.chess_distance(user.y, user.x, anchor_pos[0], anchor_pos[1]) <= 1):
+                return anchor_pos, anchor
+
+        return None, None

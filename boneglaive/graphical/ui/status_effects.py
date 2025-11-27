@@ -123,6 +123,21 @@ STATUS_EFFECTS = {
     },
 
     # Buffs
+    "can_use_anchor": {
+        "name": "Parallax",
+        "type": "buff",
+        "icon": "PX",
+        "description": "Adjacent to Market Futures anchor, can teleport via Parallax skill",
+        "check": lambda u: hasattr(u, 'can_use_anchor') and u.can_use_anchor
+    },
+    "market_futures_bonus_applied": {
+        "name": "Investment",
+        "type": "buff",
+        "icon": "INV",
+        "description": "Maturing investment from Market Futures teleport: +1/+2/+3 ATK over 3 turns, +1 Range",
+        "duration_key": "market_futures_duration",
+        "check": lambda u: hasattr(u, 'market_futures_bonus_applied') and u.market_futures_bonus_applied
+    },
     "partition_shield_active": {
         "name": "Partition",
         "type": "buff",

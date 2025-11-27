@@ -1742,3 +1742,307 @@ class MarketFuturesAnimation:
                     sparkle_surf = pygame.Surface((4, 4), pygame.SRCALPHA)
                     pygame.draw.circle(sparkle_surf, (255, 235, 100, sparkle_alpha), (2, 2), 2)
                     surface.blit(sparkle_surf, (int(sx - 2), int(sy - 2)))
+
+
+# ============================================================================
+# MARKET FUTURES TELEPORT ANIMATION (Parallax Skill)
+# ============================================================================
+
+class CurrencyParticle:
+    """
+    Currency symbol particle that streams from start to destination.
+    Dissolves unit into golden currency, streams along path, reconstitutes at destination.
+    """
+    def __init__(self, start_x, start_y, end_x, end_y, symbol, delay=0):
+        self.start_x = start_x
+        self.start_y = start_y
+        self.end_x = end_x
+        self.end_y = end_y
+        self.symbol = symbol  # '$', '£', '€', '¥'
+        self.timer = -delay
+        self.duration = 0.6
+        self.active = True
+
+    def update(self, delta_time):
+        self.timer += delta_time
+        if self.timer >= self.duration:
+            self.active = False
+        return self.active
+
+    def draw(self, surface):
+        if not self.active or self.timer < 0:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+
+        # Spiral motion along path
+        base_x = self.start_x + (self.end_x - self.start_x) * progress
+        base_y = self.start_y + (self.end_y - self.start_y) * progress
+
+        # Add spiral offset
+        spiral_radius = 15 * (0.5 - abs(progress - 0.5))  # Spiral outward then inward
+        spiral_angle = progress * math.pi * 4
+        px = base_x + math.cos(spiral_angle) * spiral_radius
+        py = base_y + math.sin(spiral_angle) * spiral_radius
+
+        # Alpha fades in and out
+        alpha = int(255 * (1.0 - abs(progress - 0.5) * 2))
+
+        # Render currency symbol
+        font = pygame.font.Font(None, 28)
+        text = font.render(self.symbol, True, (255, 215, 0))  # Gold
+        text.set_alpha(alpha)
+
+        rect = text.get_rect(center=(int(px), int(py)))
+        surface.blit(text, rect)
+
+
+class InvestmentOrbitParticle:
+    """
+    Orbiting currency symbol for investment buff visual.
+    """
+    def __init__(self, center_x, center_y, symbol, angle_offset, delay=0):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.symbol = symbol
+        self.angle_offset = angle_offset
+        self.timer = -delay
+        self.duration = 1.0  # Continues orbiting
+        self.active = True
+
+    def update(self, delta_time):
+        self.timer += delta_time
+        if self.timer >= self.duration:
+            self.active = False
+        return self.active
+
+    def draw(self, surface):
+        if not self.active or self.timer < 0:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+
+        # Orbital motion
+        angle = self.angle_offset + self.timer * 2
+        radius = 30 + 5 * math.sin(self.timer * 4)
+        px = self.center_x + math.cos(angle) * radius
+        py = self.center_y + math.sin(angle) * radius
+
+        # Fade in
+        alpha = int(200 * min(1.0, progress / 0.3))
+
+        # Render currency symbol
+        font = pygame.font.Font(None, 24)
+        text = font.render(self.symbol, True, (255, 215, 0))  # Gold
+        text.set_alpha(alpha)
+
+        rect = text.get_rect(center=(int(px), int(py)))
+        surface.blit(text, rect)
+
+
+class MarketFuturesTeleportAnimation:
+    """
+    Market Futures teleportation animation for Parallax skill.
+    Unit dissolves into golden currency particles, streams to destination, reconstitutes.
+
+    Phases:
+    1. Anchor Glow - Pulsing golden energy at anchor
+    2. Dissolve - Unit dissolves into golden currency particles
+    3. Transit - Particles stream along path with spiral pattern
+    4. Rematerialize - Particles converge and reform at destination
+    5. Investment Aura - Golden investment buff visual
+    """
+
+    def __init__(self, caster_unit, target_unit, target_pos, is_crit, is_infused,
+                 particle_emitter, debris_list, screen_shake_callback,
+                 screen_flash_callback, units_list, camera, game=None):
+        """
+        Initialize Market Futures Teleport animation.
+
+        Args:
+            caster_unit: Unit being teleported
+            target_pos: (grid_y, grid_x) - destination position
+            camera: Camera instance for coordinate conversion
+            Other args standard from AnimationFactory
+        """
+        self.caster = caster_unit
+        self.target_pos = target_pos  # (grid_y, grid_x) destination
+        self.camera = camera
+        self.particle_emitter = particle_emitter
+        self.screen_shake_callback = screen_shake_callback
+        self.screen_flash_callback = screen_flash_callback
+        self.game = game
+
+        # Convert positions to screen coords
+        # Start position (caster's current location)
+        self.start_x, self.start_y = camera.grid_to_screen(caster_unit.grid_x, caster_unit.grid_y, centered=True)
+
+        # End position (destination)
+        grid_y, grid_x = target_pos
+        self.end_x, self.end_y = camera.grid_to_screen(grid_x, grid_y, centered=True)
+
+        # Find the anchor position for anchor glow
+        self.anchor_x = None
+        self.anchor_y = None
+        if game and hasattr(game, 'teleport_anchors'):
+            for anchor_pos, anchor in game.teleport_anchors.items():
+                if anchor['active'] and anchor['creator'].player == caster_unit.player:
+                    # Check if caster is adjacent
+                    if game.chess_distance(caster_unit.grid_y, caster_unit.grid_x, anchor_pos[0], anchor_pos[1]) <= 1:
+                        anchor_grid_y, anchor_grid_x = anchor_pos
+                        self.anchor_x, self.anchor_y = camera.grid_to_screen(anchor_grid_x, anchor_grid_y, centered=True)
+                        break
+
+        # Animation state
+        self.phase = "anchor_glow"  # anchor_glow -> dissolve -> transit -> rematerialize -> investment
+        self.timer = 0
+        self.active = True
+
+        # Sub-effects
+        self.currency_particles = []
+        self.investment_particles = []
+        self.glow_intensity = 0
+
+        # Start Phase 1: Anchor Glow
+        self._start_anchor_glow_phase()
+
+    def _start_anchor_glow_phase(self):
+        """Phase 1: Anchor glows with golden energy."""
+        self.phase = "anchor_glow"
+        self.timer = 0
+        self.screen_shake_callback(2, 0.4)  # Light shake
+
+    def _start_dissolve_phase(self):
+        """Phase 2: Unit dissolves into currency particles."""
+        self.phase = "dissolve"
+        self.timer = 0
+
+        # Hide unit while dissolving (will reappear at destination)
+        self.caster.visible = False
+
+        # Create currency particles at start position
+        symbols = ['$', '£', '€', '¥']
+        for i in range(20):
+            symbol = symbols[i % len(symbols)]
+            delay = i * 0.02
+            # Particles will stream from start to end
+            self.currency_particles.append(
+                CurrencyParticle(self.start_x, self.start_y, self.end_x, self.end_y, symbol, delay)
+            )
+
+    def _start_transit_phase(self):
+        """Phase 3: Currency particles stream to destination."""
+        self.phase = "transit"
+        self.timer = 0
+
+    def _start_rematerialize_phase(self):
+        """Phase 4: Particles converge at destination."""
+        self.phase = "rematerialize"
+        self.timer = 0
+
+        # Move caster unit to destination position
+        grid_y, grid_x = self.target_pos
+        self.caster.grid_x = grid_x
+        self.caster.grid_y = grid_y
+        self.caster.x, self.caster.y = self.camera.grid_to_screen(grid_x, grid_y, centered=True)
+
+        # Show unit at new position
+        self.caster.visible = True
+
+    def _start_investment_phase(self):
+        """Phase 5: Investment buff visual with orbiting currency."""
+        self.phase = "investment"
+        self.timer = 0
+
+        # Create investment orbit particles
+        symbols = ['$', '£', '€', '¥']
+        for i, symbol in enumerate(symbols):
+            angle_offset = (i / len(symbols)) * 2 * math.pi
+            self.investment_particles.append(
+                InvestmentOrbitParticle(self.end_x, self.end_y, symbol, angle_offset, delay=0)
+            )
+
+        self.screen_shake_callback(3, 0.5)  # Medium shake on arrival
+
+    def update(self, delta_time):
+        """Update animation state."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Update glow intensity
+        if self.phase == "anchor_glow":
+            self.glow_intensity = min(1.0, self.timer / 0.4)
+        elif self.phase == "dissolve":
+            self.glow_intensity = max(0, 1.0 - self.timer / 0.3)
+        elif self.phase == "investment":
+            self.glow_intensity = min(1.0, self.timer / 0.3)
+
+        # Phase transitions
+        if self.phase == "anchor_glow" and self.timer >= 0.4:
+            self._start_dissolve_phase()
+        elif self.phase == "dissolve" and self.timer >= 0.3:
+            self._start_transit_phase()
+        elif self.phase == "transit" and self.timer >= 0.6:
+            self._start_rematerialize_phase()
+        elif self.phase == "rematerialize" and self.timer >= 0.3:
+            self._start_investment_phase()
+        elif self.phase == "investment" and self.timer >= 1.0:
+            self.active = False
+
+        # Update sub-effects
+        for particle in self.currency_particles:
+            particle.update(delta_time)
+
+        for particle in self.investment_particles:
+            particle.update(delta_time)
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw animation."""
+        if not self.active:
+            return
+
+        # Draw anchor glow (if anchor position is known)
+        if self.anchor_x and self.anchor_y and self.phase in ["anchor_glow", "dissolve"]:
+            radius = int(40 + 10 * math.sin(self.timer * 8))
+            alpha = int(self.glow_intensity * 150)
+            glow_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+            pygame.draw.circle(glow_surf, (255, 215, 0, alpha), (radius, radius), radius)
+            surface.blit(glow_surf, (int(self.anchor_x - radius), int(self.anchor_y - radius)))
+
+        # Draw dissolve/rematerialize glow at start/end positions
+        if self.phase in ["dissolve", "transit"]:
+            # Glow at start position (fading)
+            radius = int(35 + 8 * math.sin(self.timer * 6))
+            alpha = int(self.glow_intensity * 120)
+            if alpha > 0:
+                glow_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+                pygame.draw.circle(glow_surf, (255, 215, 0, alpha), (radius, radius), radius)
+                surface.blit(glow_surf, (int(self.start_x - radius), int(self.start_y - radius)))
+
+        if self.phase in ["rematerialize", "investment"]:
+            # Glow at end position (brightening)
+            radius = int(40 + 10 * math.sin(self.timer * 7))
+            alpha = int(self.glow_intensity * 160)
+            glow_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+            pygame.draw.circle(glow_surf, (255, 215, 0, alpha), (radius, radius), radius)
+            surface.blit(glow_surf, (int(self.end_x - radius), int(self.end_y - radius)))
+
+        # Draw currency particles
+        for particle in self.currency_particles:
+            particle.draw(surface)
+
+        # Draw investment orbit particles
+        for particle in self.investment_particles:
+            particle.draw(surface)
+
+        # Draw connecting golden line during transit
+        if self.phase == "transit":
+            line_alpha = int(100 * (0.5 + 0.5 * math.sin(self.timer * 10)))
+            if line_alpha > 0:
+                pygame.draw.line(surface, (218, 165, 32, line_alpha),
+                               (int(self.start_x), int(self.start_y)),
+                               (int(self.end_x), int(self.end_y)), 2)

@@ -40,6 +40,7 @@ from boneglaive.graphical.animations.delphic_appraiser import (
     DivineDrepreciationAnimation,
     AuctionCurseAnimation,
     MarketFuturesAnimation,
+    MarketFuturesTeleportAnimation,
 )
 from boneglaive.graphical.animations.marrow_condenser import (
     OssifyAnimation,
@@ -138,6 +139,7 @@ class AnimationFactory:
         "MARKET_FUTURES": (MarketFuturesAnimation, {}),
         "AUCTION_CURSE": (AuctionCurseAnimation, {}),
         "DIVINE_DEPRECIATION": (DivineDrepreciationAnimation, {}),
+        "PARALLAX": (MarketFuturesTeleportAnimation, {}),
 
         # INTERFERER skills
         "NEUTRON_ILLUMINANT_CARDINAL": (NeutronIlluminantCardinal, {}),
@@ -564,6 +566,26 @@ class AnimationFactory:
                     units_list=units_list if units_list else [],
                     camera=camera,
                     game=kwargs.get('game')  # Pass game instance if needed
+                )
+            elif anim_class.__name__ == "MarketFuturesTeleportAnimation":
+                # Parallax - Market Futures teleportation animation
+                # Requires: target_pos (destination), camera, game instance, standard callbacks
+                if not target_pos:
+                    print("[AnimationFactory] PARALLAX requires a target position (destination)")
+                    return None
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_unit=target_unit,
+                    target_pos=target_pos,
+                    is_crit=is_crit,
+                    is_infused=is_infused,
+                    particle_emitter=particle_emitter,
+                    debris_list=[],
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,
+                    units_list=units_list if units_list else [],
+                    camera=camera,
+                    game=kwargs.get('game')
                 )
             elif anim_class.__name__ == "OssifyAnimation":
                 # Ossify - self-buff defensive compression animation
