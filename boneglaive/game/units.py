@@ -99,9 +99,7 @@ class Unit:
         self.original_unit = None  # Reference to the original unit that created this echo
         
         # FOWL_CONTRIVANCE properties
-        self.charging_status = False  # Whether this unit has "charging" status effect
-        self.gaussian_charge_direction = None  # Direction for Gaussian Dusk charging
-        self.gaussian_dusk_indicator = None  # Visual indicator for Gaussian Dusk charging
+        self.gaussian_dusk_recharge = 0  # Number of turns remaining for Gaussian Dusk recharge
         self.parabol_indicator = None  # Visual indicator for Parabol area
         self.fragcrest_indicator = None  # Visual indicator for Fragcrest cone
         self.shrapnel_duration = 0  # Number of turns remaining for shrapnel damage
@@ -1087,10 +1085,16 @@ class Unit:
                     effects_cleansed = []
                     
                     # Check for status effects to cleanse
+                    if hasattr(unit, 'derelicted') and unit.derelicted:
+                        unit.derelicted = False
+                        if hasattr(unit, 'derelicted_duration'):
+                            unit.derelicted_duration = 0
+                        effects_cleansed.append("Derelicted")
+
                     if unit.estranged:
                         unit.estranged = False
                         effects_cleansed.append("Estrangement")
-                        
+
                     if unit.was_pried or (hasattr(unit, 'pry_active') and unit.pry_active):
                         unit.was_pried = False
                         if hasattr(unit, 'pry_active'):
@@ -1105,7 +1109,11 @@ class Unit:
                         if unit.move_range_bonus < 0:
                             unit.move_range_bonus = 0
                         effects_cleansed.append("Jawline immobilization")
-                        
+
+                    if hasattr(unit, 'gaussian_dusk_recharge') and unit.gaussian_dusk_recharge > 0:
+                        unit.gaussian_dusk_recharge = 0
+                        effects_cleansed.append("Recharging")
+
                     # Log cleansed effects
                     if effects_cleansed:
                         message_log.add_message(

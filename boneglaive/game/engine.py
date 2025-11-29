@@ -1935,12 +1935,27 @@ class Game:
                             player=unit.player
                         )
             
+            # Process Gaussian Dusk recharge state for FOWL CONTRIVANCE
+            if hasattr(unit, 'gaussian_dusk_recharge') and unit.gaussian_dusk_recharge > 0:
+                # Decrement the recharge counter
+                unit.gaussian_dusk_recharge -= 1
+                logger.debug(f"{unit.get_display_name()}'s Gaussian Dusk recharge: {unit.gaussian_dusk_recharge}")
+
+                # Check if recharge has completed
+                if unit.gaussian_dusk_recharge <= 0:
+                    # Log the completion
+                    message_log.add_message(
+                        f"{unit.get_display_name()}'s rail cannon has finished recharging.",
+                        MessageType.ABILITY,
+                        player=unit.player
+                    )
+
             # Bone Tithe no longer applies defensive buffs to allies
-            
+
             # Auction Curse DOT effect now processed at the end of turn
-            
+
             # Auction Curse no longer applies stat bonuses to allies via bid tokens
-                    
+
             # Process Market Futures investment maturation
             if hasattr(unit, 'market_futures_bonus_applied') and unit.market_futures_bonus_applied:
                 if hasattr(unit, 'market_futures_duration') and unit.market_futures_duration > 0:

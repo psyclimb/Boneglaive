@@ -387,9 +387,9 @@ class VagalRunSkill(ActiveSkill):
                 target.partition_shield_caster = None
             cleared_effects.append("Partition Shield")
             
-        if hasattr(target, 'charging_status') and target.charging_status:
-            target.charging_status = False
-            cleared_effects.append("Charging")
+        if hasattr(target, 'gaussian_dusk_recharge') and target.gaussian_dusk_recharge > 0:
+            target.gaussian_dusk_recharge = 0
+            cleared_effects.append("Recharging")
             
         if hasattr(target, 'first_turn_move_bonus') and target.first_turn_move_bonus:
             target.first_turn_move_bonus = False

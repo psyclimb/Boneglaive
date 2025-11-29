@@ -58,9 +58,9 @@ class UIRenderer:
             
         if hasattr(unit, 'auction_curse_dot') and unit.auction_curse_dot:
             effects.append(('auction_curse', '|', curses.A_BOLD))
-            
-        if hasattr(unit, 'charging_status') and unit.charging_status:
-            effects.append(('charging', '=', curses.A_BOLD))
+
+        if hasattr(unit, 'gaussian_dusk_recharge') and unit.gaussian_dusk_recharge > 0:
+            effects.append(('recharging', '=', curses.A_BOLD))
             
         # INTERFERER status effects
         if hasattr(unit, 'radiation_stacks') and unit.radiation_stacks:
@@ -918,32 +918,7 @@ class UIRenderer:
                                 tile = "*" if (y, x) == (target_y, target_x) else "."
                                 color_id = 3 if u.player == 1 else 4
                                 
-                        # Gaussian Dusk charging indicator
-                        elif u.selected_skill.name == "Gaussian Dusk" and hasattr(u, 'gaussian_dusk_indicator') and u.gaussian_dusk_indicator is not None:
-                            # Show direction indicator for Gaussian Dusk charging
-                            direction = u.gaussian_dusk_indicator
-                            if direction and (y, x) == (u.y, u.x):
-                                # Show direction arrow based on charge direction
-                                dy, dx = direction
-                                if dy < 0 and dx == 0:  # Up
-                                    tile = "^"
-                                elif dy < 0 and dx > 0:  # Up-right
-                                    tile = "^"
-                                elif dy == 0 and dx > 0:  # Right
-                                    tile = ">"
-                                elif dy > 0 and dx > 0:  # Down-right
-                                    tile = "v"
-                                elif dy > 0 and dx == 0:  # Down
-                                    tile = "v"
-                                elif dy > 0 and dx < 0:  # Down-left
-                                    tile = "v"
-                                elif dy == 0 and dx < 0:  # Left
-                                    tile = "<"
-                                elif dy < 0 and dx < 0:  # Up-left
-                                    tile = "^"
-                                else:
-                                    tile = "o"  # Default marker
-                                color_id = 3 if u.player == 1 else 4
+                        # Gaussian Dusk charging indicator no longer exists (fires immediately)
                                 
                         # Fragcrest cone indicator
                         elif u.selected_skill.name == "Fragcrest" and hasattr(u, 'fragcrest_indicator') and u.fragcrest_indicator is not None:
@@ -1374,6 +1349,8 @@ class UIRenderer:
             if hasattr(unit, 'radiation_stacks') and unit.radiation_stacks:
                 total_stacks = len(unit.radiation_stacks)
                 negative_effects.append(f"Radiation({total_stacks})")
+            if hasattr(unit, 'gaussian_dusk_recharge') and unit.gaussian_dusk_recharge > 0:
+                negative_effects.append(f"Recharging({unit.gaussian_dusk_recharge})")
             if hasattr(unit, 'carrier_rave_active') and unit.carrier_rave_active:
                 # Check if it has duration, otherwise just show boolean
                 if hasattr(unit, 'carrier_rave_duration') and unit.carrier_rave_duration > 0:
@@ -1382,8 +1359,6 @@ class UIRenderer:
                     positive_effects.append("Karrier Rave")
             if hasattr(unit, 'has_investment_effect') and unit.has_investment_effect:
                 positive_effects.append("Investment")
-            if hasattr(unit, 'charging_status') and unit.charging_status:
-                positive_effects.append("Charging")
             if hasattr(unit, 'ossify_active') and unit.ossify_active:
                 positive_effects.append("Ossify")
             if hasattr(unit, 'status_site_inspection') and unit.status_site_inspection:

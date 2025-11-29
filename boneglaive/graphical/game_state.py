@@ -102,8 +102,8 @@ class VisualUnit:
             effects['estranged'] = True
         if hasattr(game_unit, 'mired') and game_unit.mired:
             effects['mired'] = True
-        if hasattr(game_unit, 'charging_status') and game_unit.charging_status:
-            effects['charging'] = True
+        if hasattr(game_unit, 'gaussian_dusk_recharge') and game_unit.gaussian_dusk_recharge > 0:
+            effects['recharging'] = True
         if hasattr(game_unit, 'shrapnel_duration') and game_unit.shrapnel_duration > 0:
             effects['shrapnel'] = True
         if hasattr(game_unit, 'radiation_stacks') and len(game_unit.radiation_stacks) > 0:
@@ -627,39 +627,6 @@ class GameStateAdapter:
                     # Attack was cleared - reset our tracking
                     visual_unit.last_attack_target = None
 
-            # Special case: Detect Gaussian Dusk auto-firing BEFORE engine executes
-            # This happens ONLY in pre-execution sync (executing_turn=True)
-            # No turn tracking needed - executing_turn flag prevents duplicates
-            if (self.executing_turn and  # PRE-execution sync ONLY
-                hasattr(game_unit, 'charging_status') and game_unit.charging_status and
-                hasattr(game_unit, 'type') and str(game_unit.type) == "UnitType.FOWL_CONTRIVANCE" and
-                game_unit.player == self.game.current_player and
-                not hasattr(visual_unit, 'gaussian_dusk_fired_this_sync')):  # Prevent double-detection within same sync
-
-                # FOWL CONTRIVANCE is charged and it's their turn - auto-firing will happen
-                print(f"[GameState] ========== GAUSSIAN DUSK AUTO-FIRE DETECTION (PRE-EXECUTION) ==========")
-                print(f"[GameState]   Unit: {game_unit.get_display_name()}")
-                print(f"[GameState]   charging_status: {game_unit.charging_status}")
-                print(f"[GameState]   Current player: {self.game.current_player}, Unit player: {game_unit.player}")
-
-                # Get stored direction
-                direction = getattr(game_unit, 'gaussian_charge_direction', (1, 0))
-                print(f"[GameState]   Direction: {direction}")
-
-                # Create skill event for firing (BEFORE turn executes, will block)
-                events.append(AnimationEvent(
-                    "skill",
-                    source_unit=game_unit,
-                    target_unit=None,
-                    skill_name="Gaussian Dusk Fire",  # Use Fire animation directly
-                    skill_target=direction
-                ))
-                print(f"[GameState]   → Created Gaussian Dusk Fire event (will block until complete)")
-                print(f"[GameState] ==================================================================================")
-
-                # Mark that we've created the event in this sync cycle
-                visual_unit.gaussian_dusk_fired_this_sync = True
-
             # Detect skill usage ONLY during turn execution
             # Skills get set when planned, but we only want to animate them when executed
             if self.executing_turn:
@@ -672,26 +639,7 @@ class GameStateAdapter:
 
                         print(f"[GameState] Detected skill during turn execution: {skill_name} on {game_unit.get_display_name()}")
 
-                        # Special handling for Gaussian Dusk - differentiate charging vs firing
-                        if skill_name == "Gaussian Dusk":
-                            print(f"[GameState] ========== GAUSSIAN DUSK DEBUG ==========")
-                            print(f"[GameState]   Unit: {game_unit.get_display_name()}")
-                            print(f"[GameState]   Has charging_status attr: {hasattr(game_unit, 'charging_status')}")
-                            if hasattr(game_unit, 'charging_status'):
-                                print(f"[GameState]   charging_status value: {game_unit.charging_status}")
-                            print(f"[GameState]   skill_target: {skill_target}")
-
-                            # Check charging_status to determine which phase
-                            if hasattr(game_unit, 'charging_status') and game_unit.charging_status:
-                                # Unit is charged - this is the FIRING turn
-                                skill_name = "Gaussian Dusk Fire"
-                                print(f"[GameState]   → FIRING TURN - Changed skill_name to: {skill_name}")
-                            else:
-                                # Unit is not charged - this is the CHARGING turn
-                                skill_name = "Gaussian Dusk Charge"
-                                print(f"[GameState]   → CHARGING TURN - Changed skill_name to: {skill_name}")
-                            print(f"[GameState] ==========================================")
-
+                        # Gaussian Dusk no longer needs special handling (fires immediately, no charging)
 
                         # Track if this is a teleport/movement skill that will change position
                         # These skills have their own animation and should not show walking animation

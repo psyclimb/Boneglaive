@@ -2169,9 +2169,7 @@ class GraphicalRenderer:
             if hasattr(game_unit, 'saft_e_gas_indicator') and game_unit.saft_e_gas_indicator:
                 shadow_positions.append(game_unit.saft_e_gas_indicator)
 
-            # Check for Gaussian Dusk indicator (FOWL CONTRIVANCE)
-            if hasattr(game_unit, 'gaussian_dusk_indicator') and game_unit.gaussian_dusk_indicator:
-                shadow_positions.append(game_unit.gaussian_dusk_indicator)
+            # Gaussian Dusk charging indicator no longer exists (fires immediately)
 
             # Special handling for Expedite path indicator (GRAYMAN - shows movement path)
             if hasattr(game_unit, 'expedite_path_indicator') and game_unit.expedite_path_indicator:

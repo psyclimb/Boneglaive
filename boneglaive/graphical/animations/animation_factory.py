@@ -57,7 +57,6 @@ from boneglaive.graphical.animations.derelictionist import (
 from boneglaive.graphical.animations.fowl_contrivance import (
     ParabolAnimation,
     FragcrestAnimation,
-    GaussianDuskChargeAnimation,
     GaussianDuskFireAnimation,
     RailGenesisDeathExplosionAnimation,
 )
@@ -116,12 +115,10 @@ class AnimationFactory:
         "MARROW_DIKE_WALL_DESPAWN": (MarrowDikeWallDespawnAnimation, {}),
 
         # FOWL CONTRIVANCE skills
-        "GAUSSIAN_DUSK": (None, {}),  # TODO: Implement
+        "GAUSSIAN_DUSK": (GaussianDuskFireAnimation, {}),  # Rail gun firing (fires immediately)
         "BIG_ARC": (ParabolAnimation, {}),  # Mortar barrage (skill name is Parabol)
         "PARABOL": (ParabolAnimation, {}),  # Alternative name
         "FRAGCREST": (FragcrestAnimation, {}),  # Directional fragmentation cone
-        "GAUSSIAN_DUSK_CHARGE": (GaussianDuskChargeAnimation, {}),  # Rail gun charging phase
-        "GAUSSIAN_DUSK_FIRE": (GaussianDuskFireAnimation, {}),  # Rail gun firing phase
         "RAIL_GENESIS_DEATH_EXPLOSION": (RailGenesisDeathExplosionAnimation, {}),  # Death explosion
 
         # GAS MACHINIST skills
@@ -765,27 +762,6 @@ class AnimationFactory:
                     camera=camera,
                     game=kwargs.get('game')  # Required for cone calculation
                 )
-            elif anim_class.__name__ == "GaussianDuskChargeAnimation":
-                # Gaussian Dusk Charge - rail gun charging with map dimming
-                # Requires: caster_unit, camera, screen_shake and screen_flash callbacks
-                print(f"[AnimationFactory] Creating GaussianDuskChargeAnimation")
-                print(f"[AnimationFactory]   caster_unit: {caster_unit}")
-                print(f"[AnimationFactory]   camera: {camera}")
-                animation = anim_class(
-                    caster_unit=caster_unit,
-                    target_unit=None,  # Not needed for charge animation
-                    target_pos=None,
-                    is_crit=is_crit,
-                    is_infused=is_infused,
-                    particle_emitter=particle_emitter,
-                    debris_list=[],
-                    screen_shake_callback=screen_shake_callback,
-                    screen_flash_callback=screen_flash_callback,  # Critical for map dimming!
-                    units_list=units_list if units_list else [],
-                    camera=camera,
-                    game=kwargs.get('game')
-                )
-                print(f"[AnimationFactory] GaussianDuskChargeAnimation created successfully")
             elif anim_class.__name__ == "GaussianDuskFireAnimation":
                 # Gaussian Dusk Fire - rail gun beam firing across map
                 # Requires: caster_unit, target_pos (direction vector), camera, callbacks, game

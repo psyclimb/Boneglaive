@@ -1053,42 +1053,42 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'GAUSSIAN DUSK (Active) [Key: G]',
-                        'description': 'The FOWL CONTRIVANCE charges its rail cannon for one turn, disabling all movement, attacks, and skills. On the following turn, the cannon automatically fires a devastating beam in the chosen direction that pierces through all units and terrain in a straight line across the entire map. The beam deals 10 defense-piercing damage to every unit hit and places rail segments along its path. The skill cannot be canceled once charging begins.',
+                        'description': 'The FOWL CONTRIVANCE fires its rail cannon in a cardinal direction, unleashing a hypersonic projectile that pierces through all units and terrain in a straight line across the entire map. The beam deals 10 defense-piercing damage to every unit hit and places rail segments along its path. After firing, the rail cannon enters a recharge state for 1 turn, during which the FOWL CONTRIVANCE cannot move, attack, or use any skills.',
                         'details': [
-                            'Type: Active (Two-phase: Charging → Automatic Firing)',
-                            'Range: Unlimited (entire map in chosen direction)',
+                            'Type: Active',
+                            'Range: Unlimited (entire map in cardinal direction)',
                             'Damage: 10 (pierces defense)',
-                            'Effect: Charging (=) (disables all actions for 1 turn); places rails along beam path',
-                            'Cooldown: 4 turns (begins after firing)',
-                            'Special: Automatically fires on next turn after charging; destroys terrain; cannot be interrupted'
+                            'Effect: Recharging (=)',
+                            'Cooldown: 4 turns',
+                            'Special: Places rails along beam path.'
                         ]
                     },
                     {
                         'name': 'PARABOL (Active) [Key: P]',
-                        'description': 'The FOWL CONTRIVANCE launches explosive mortar shells in a high arc to bombard a 3x3 area at range. The indirect fire ignores line of sight and cannot target adjacent tiles (minimum range 2). The center tile takes 8 damage while the surrounding 8 tiles each take 5 damage. Cannot be used while Gaussian Dusk is charging.',
+                        'description': 'The FOWL CONTRIVANCE launches explosive mortar shells in a high arc to bombard a 3x3 area at range. The indirect fire ignores line of sight and cannot target adjacent tiles (minimum range 2). The center tile takes 8 damage while the surrounding 8 tiles each take 5 damage. Cannot be used while rail cannon is recharging.',
                         'details': [
                             'Type: Active',
                             'Range: 6 (minimum range 2)',
                             'Damage: 8 (center tile), 5 (surrounding 8 tiles)',
                             'Cooldown: 4 turns',
-                            'Special: Ignores line of sight; cannot target adjacent tiles; disabled while charging'
+                            'Special: Ignores line of sight; cannot target adjacent tiles; disabled while recharging'
                         ]
                     },
                     {
                         'name': 'FRAGCREST (Active) [Key: F]',
-                        'description': 'The FOWL CONTRIVANCE unfolds its mechanical tail feathers and fires a directional fragmentation burst in a 90-degree cone. The primary target takes 4 damage and is knocked back 2 tiles. All other enemies in the cone take 2 damage and are also knocked back. All hit enemies become embedded with Shrapnel, suffering 1 damage per turn for 3 turns. Requires line of sight to the primary target. Cannot be used while Gaussian Dusk is charging.',
+                        'description': 'The FOWL CONTRIVANCE unfolds its mechanical tail feathers and fires a directional fragmentation burst in a 90-degree cone. The primary target takes 4 damage and is knocked back 2 tiles. All other enemies in the cone take 2 damage and are also knocked back. All hit enemies become embedded with Shrapnel, suffering 1 damage per turn for 3 turns. Requires line of sight to the primary target. Cannot be used while rail cannon is recharging.',
                         'details': [
                             'Type: Active',
                             'Range: 4',
                             'Damage: 4 (primary target), 2 (cone targets); pushes enemies 2 tiles',
                             'Effect: Shrapnel (x) (1 damage/turn for 3 turns)',
                             'Cooldown: 3 turns',
-                            'Special: 90-degree cone; requires line of sight to primary target; disabled while charging'
+                            'Special: 90-degree cone; requires line of sight to primary target; disabled while recharging'
                         ]
                     }
                 ],
                 'tips': [
-                    '- Use Gaussian Dusk for maximum damage output but plan the charging turn carefully',
+                    '- Cardinal direction restriction requires careful positioning before firing Gaussian Dusk',
                     '- Parabol excels against clustered enemies and ignores line of sight restrictions',
                     '- Fragcrest provides crowd control through knockback and area denial via shrapnel',
                     '- High movement allows for repositioning between artillery strikes'
@@ -3354,7 +3354,20 @@ class GameModeManager(UIComponent):
                 if cursor_manager.selected_unit.is_echo:
                     # Don't show a message, just silently return
                     return
-                    
+
+                # Check if unit is recharging from Gaussian Dusk
+                if hasattr(cursor_manager.selected_unit, 'gaussian_dusk_recharge') and cursor_manager.selected_unit.gaussian_dusk_recharge > 0:
+                    # Use event system for message (UI only, not logged)
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message="Rail cannon is recharging - unit cannot take any actions",
+                            message_type=MessageType.WARNING,
+                            log_message=False  # Don't add to message log
+                        )
+                    )
+                    return
+
                 # Change mode (will publish mode changed event)
                 self.set_mode("move")
                 
@@ -3427,10 +3440,23 @@ class GameModeManager(UIComponent):
                 if cursor_manager.selected_unit.is_echo:
                     # Don't show a message, just silently return
                     return
-                    
+
+                # Check if unit is recharging from Gaussian Dusk
+                if hasattr(cursor_manager.selected_unit, 'gaussian_dusk_recharge') and cursor_manager.selected_unit.gaussian_dusk_recharge > 0:
+                    # Use event system for message (UI only, not logged)
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message="Rail cannon is recharging - unit cannot take any actions",
+                            message_type=MessageType.WARNING,
+                            log_message=False  # Don't add to message log
+                        )
+                    )
+                    return
+
                 # Previously there was a restriction that prevented using skills after moving
                 # This has been removed to allow move+skill combinations
-                
+
                 # Get available skills (not on cooldown)
                 available_skills = cursor_manager.selected_unit.get_available_skills()
                 
@@ -3516,7 +3542,20 @@ class GameModeManager(UIComponent):
                         )
                     )
                     return
-                
+
+                # Check if unit is recharging from Gaussian Dusk
+                if hasattr(cursor_manager.selected_unit, 'gaussian_dusk_recharge') and cursor_manager.selected_unit.gaussian_dusk_recharge > 0:
+                    # Use event system for message (UI only, not logged)
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message="Rail cannon is recharging - unit cannot take any actions",
+                            message_type=MessageType.WARNING,
+                            log_message=False  # Don't add to message log
+                        )
+                    )
+                    return
+
                 # Change mode (will publish mode changed event)
                 self.set_mode("attack")
                 
@@ -4911,27 +4950,30 @@ class ActionMenuComponent(UIComponent):
         self.actions = []
         self.menu_mode = "standard"
         
+        # Check if unit is recharging from Gaussian Dusk (blocks ALL actions)
+        unit_is_recharging = hasattr(unit, 'gaussian_dusk_recharge') and unit.gaussian_dusk_recharge > 0
+
         # Check if unit has already taken an action this turn
         # Note: moves don't end a unit's turn - they can move + attack/skill
         unit_has_action = (unit.attack_target or unit.skill_target or unit.selected_skill)
-        
+
         # Add standard actions with consistent labeling
-        # Disable move for trapped units, Jawline-affected units, charging units, Neural Shunt, echoes, or if already moved
+        # Disable move for trapped units, Jawline-affected units, recharging units, Neural Shunt, echoes, or if already moved
         # Note: units CAN move even if they have attack/skill planned (move executes first)
         # EXCEPTION: DERELICTIONIST can move after using a skill (Severance passive)
-        
+
         # DERELICTIONIST Severance exception: Can queue movement even after queuing a skill
-        derelictionist_severance_exception = (unit.type == UnitType.DERELICTIONIST and 
-                                       unit.skill_target is not None and 
+        derelictionist_severance_exception = (unit.type == UnitType.DERELICTIONIST and
+                                       unit.skill_target is not None and
                                        unit.selected_skill is not None)
-        
+
         unit_can_move = (unit is not None and
+                        not unit_is_recharging and  # Recharging blocks ALL actions
                         unit.trapped_by is None and
                         not unit.is_echo and
                         not unit.move_target and  # Can't move if already planned a move
                         (not (unit.skill_target and unit.selected_skill) or derelictionist_severance_exception) and  # Severance exception
                         not (hasattr(unit, 'jawline_affected') and unit.jawline_affected) and
-                        not (hasattr(unit, 'charging_status') and unit.charging_status) and
                         not (hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected) and
                         not (hasattr(unit, 'derelicted') and unit.derelicted))  # Derelicted units cannot move
         self.actions.append({
@@ -4941,9 +4983,9 @@ class ActionMenuComponent(UIComponent):
             'enabled': unit_can_move  # Enabled only if unit can move
         })
         
-        # Disable attack for charging units, Neural Shunt, units with actions, or HEINOUS_VAPOR units
-        unit_can_attack = (not unit_has_action and
-                          not (hasattr(unit, 'charging_status') and unit.charging_status) and
+        # Disable attack for recharging units, Neural Shunt, units with actions, or HEINOUS_VAPOR units
+        unit_can_attack = (not unit_is_recharging and  # Recharging blocks ALL actions
+                          not unit_has_action and
                           not (hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected) and
                           unit.type != UnitType.HEINOUS_VAPOR)
         self.actions.append({
@@ -4956,10 +4998,12 @@ class ActionMenuComponent(UIComponent):
         # Add skill action
         unit_has_skills = unit is not None and hasattr(unit, 'active_skills') and len(unit.get_available_skills()) > 0
         # Allow skills to be used even when a move is planned (the unit can cast from the new position)
-        # Disable skills when charging (except for Gaussian Dusk auto-firing which is handled differently), under Neural Shunt, or with actions
-        unit_can_use_skills = (unit_has_skills and unit.trapped_by is None and not unit.is_echo and
+        # Disable skills when recharging, under Neural Shunt, or with actions
+        unit_can_use_skills = (unit_has_skills and
+                              not unit_is_recharging and  # Recharging blocks ALL actions
+                              unit.trapped_by is None and
+                              not unit.is_echo and
                               not unit_has_action and
-                              not (hasattr(unit, 'charging_status') and unit.charging_status) and
                               not (hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected))
         self.actions.append({
             'key': 's',

@@ -203,12 +203,13 @@ STATUS_EFFECTS = {
     },
 
     # Special/Neutral
-    "charging_status": {
-        "name": "Charging",
-        "type": "special",
-        "icon": "C",
-        "description": "FOWL_CONTRIVANCE charging attack",
-        "check": lambda u: u.charging_status
+    "gaussian_dusk_recharge": {
+        "name": "Recharging",
+        "type": "debuff",
+        "icon": "=",
+        "description": "Rail cannon recharging - cannot take any actions",
+        "duration_key": "gaussian_dusk_recharge",
+        "check": lambda u: hasattr(u, 'gaussian_dusk_recharge') and u.gaussian_dusk_recharge > 0
     },
     "is_echo": {
         "name": "Echo",
