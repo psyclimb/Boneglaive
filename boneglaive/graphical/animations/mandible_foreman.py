@@ -514,6 +514,236 @@ class ViseroyTrap:
         surface.blit(mandible_surf, (int(x - mandible_length // 2), int(y - mandible_width // 2)))
 
 
+class JawTighten:
+    """Quick jaw tightening animation for periodic trap tick damage."""
+    def __init__(self, target_x, target_y):
+        self.target_x = target_x
+        self.target_y = target_y
+        self.phase = "squeeze"  # squeeze, hold, relax, fade
+        self.timer = 0
+        self.jaw_gap = 8  # Start with small resting gap
+        self.mandible_gap = 8
+        self.active = True
+
+    def update(self, delta_time):
+        """Update jaw tightening animation."""
+        self.timer += delta_time
+
+        if self.phase == "squeeze":
+            # Jaws squeeze tighter (0.15s)
+            if self.timer < 0.15:
+                progress = self.timer / 0.15
+                # Ease-in for crushing pressure
+                ease = progress * progress
+                self.jaw_gap = 8 * (1.0 - ease)
+                self.mandible_gap = 8 * (1.0 - ease)
+            else:
+                self.phase = "hold"
+                self.timer = 0
+                self.jaw_gap = 0
+                self.mandible_gap = 0
+
+        elif self.phase == "hold":
+            # Hold maximum pressure (0.1s)
+            if self.timer >= 0.1:
+                self.phase = "relax"
+                self.timer = 0
+
+        elif self.phase == "relax":
+            # Return to resting position (0.15s)
+            if self.timer < 0.15:
+                progress = self.timer / 0.15
+                # Ease-out for spring back
+                ease = 1.0 - (1.0 - progress) ** 2
+                self.jaw_gap = ease * 8
+                self.mandible_gap = ease * 8
+            else:
+                self.phase = "fade"
+                self.timer = 0
+                self.jaw_gap = 8
+                self.mandible_gap = 8
+
+        elif self.phase == "fade":
+            # Fade out (0.1s)
+            if self.timer >= 0.1:
+                self.active = False
+                return False
+
+        return True
+
+    def draw(self, surface):
+        """Draw the tightening jaws."""
+        if not self.active:
+            return
+
+        # Calculate alpha based on phase
+        if self.phase == "fade":
+            alpha = int(255 * (1.0 - self.timer / 0.1))
+        else:
+            alpha = 255
+
+        # Pulsing red tint during squeeze/hold for damage indication
+        if self.phase in ["squeeze", "hold"]:
+            pulse_intensity = 0.3 if self.phase == "hold" else (self.timer / 0.15) * 0.3
+
+        # Draw vertical jaws (top and bottom)
+        upper_jaw_y = self.target_y - self.jaw_gap
+        self.draw_vertical_jaw(surface, self.target_x, upper_jaw_y, True, alpha)
+
+        lower_jaw_y = self.target_y + self.jaw_gap
+        self.draw_vertical_jaw(surface, self.target_x, lower_jaw_y, False, alpha)
+
+        # Draw horizontal mandibles (left and right)
+        left_mandible_x = self.target_x - self.mandible_gap
+        self.draw_horizontal_mandible(surface, left_mandible_x, self.target_y, True, alpha)
+
+        right_mandible_x = self.target_x + self.mandible_gap
+        self.draw_horizontal_mandible(surface, right_mandible_x, self.target_y, False, alpha)
+
+        # Draw pressure particles during squeeze
+        if self.phase == "squeeze" or self.phase == "hold":
+            import random
+            # Small spark particles at jaw contact points
+            for _ in range(2):
+                offset_x = random.uniform(-5, 5)
+                offset_y = random.uniform(-5, 5)
+                spark_x = self.target_x + offset_x
+                spark_y = self.target_y + offset_y
+                spark_size = random.randint(2, 4)
+                spark_alpha = int(alpha * 0.8)
+                pygame.draw.circle(surface, (255, 200, 100, spark_alpha),
+                                 (int(spark_x), int(spark_y)), spark_size)
+
+    def draw_vertical_jaw(self, surface, x, y, is_upper, alpha):
+        """Draw vertical jaw (reusing JawClamp's method)."""
+        jaw_width = 70
+        jaw_height = 25
+
+        jaw_surf = pygame.Surface((jaw_width, jaw_height), pygame.SRCALPHA)
+
+        # Metal colors with red tint during pressure
+        metal_dark = (100, 100, 110, alpha)
+        metal_light = (160, 160, 170, alpha)
+        metal_highlight = (200, 200, 210, alpha)
+
+        # Main jaw body
+        pygame.draw.rect(jaw_surf, metal_dark, (0, 0, jaw_width, jaw_height))
+        pygame.draw.rect(jaw_surf, metal_light, (0, 0, jaw_width, jaw_height), 2)
+
+        # Sharp teeth pointing toward center
+        num_teeth = 7
+        tooth_width = jaw_width // num_teeth
+        for i in range(num_teeth):
+            tooth_x = i * tooth_width
+            if is_upper:
+                # Upper jaw teeth point downward
+                points = [
+                    (tooth_x + tooth_width // 2, jaw_height),
+                    (tooth_x + 2, jaw_height - 12),
+                    (tooth_x + tooth_width - 2, jaw_height - 12)
+                ]
+            else:
+                # Lower jaw teeth point upward
+                points = [
+                    (tooth_x + tooth_width // 2, 0),
+                    (tooth_x + 2, 12),
+                    (tooth_x + tooth_width - 2, 12)
+                ]
+            pygame.draw.polygon(jaw_surf, metal_light, points)
+            pygame.draw.polygon(jaw_surf, metal_highlight, points, 1)
+
+        # Rivets
+        for i in range(3):
+            pygame.draw.circle(jaw_surf, (80, 80, 90, alpha), (15 + i * 20, jaw_height // 2), 3)
+
+        surface.blit(jaw_surf, (int(x - jaw_width // 2), int(y - jaw_height // 2)))
+
+    def draw_horizontal_mandible(self, surface, x, y, is_left, alpha):
+        """Draw horizontal mandible (reusing JawClamp's method)."""
+        mandible_length = 70
+        mandible_width = 30
+
+        mandible_surf = pygame.Surface((mandible_length, mandible_width), pygame.SRCALPHA)
+
+        # Metal colors
+        metal_dark = (90, 90, 100, alpha)
+        metal_light = (150, 150, 160, alpha)
+        metal_highlight = (190, 190, 200, alpha)
+        metal_accent = (120, 120, 130, alpha)
+
+        if is_left:
+            # Left mandible - curved pincer pointing right toward center
+            mandible_curve = [
+                (0, mandible_width // 2),
+                (10, 5),
+                (35, 2),
+                (60, mandible_width // 2 - 2),
+                (70, mandible_width // 2),
+                (60, mandible_width // 2 + 2),
+                (35, mandible_width - 2),
+                (10, mandible_width - 5),
+            ]
+            pygame.draw.polygon(mandible_surf, metal_dark, mandible_curve)
+            pygame.draw.polygon(mandible_surf, metal_light, mandible_curve, 2)
+
+            # Inner serrated cutting edge
+            cutting_teeth = [40, 50, 55]
+            for tooth_x in cutting_teeth:
+                tooth_points = [
+                    (tooth_x, mandible_width // 2 - 3),
+                    (tooth_x + 5, mandible_width // 2),
+                    (tooth_x, mandible_width // 2 + 3)
+                ]
+                pygame.draw.polygon(mandible_surf, metal_highlight, tooth_points)
+
+            # Segmented exoskeleton plates
+            for i in range(4):
+                segment_x = 8 + i * 12
+                pygame.draw.line(mandible_surf, metal_accent,
+                               (segment_x, 8), (segment_x, mandible_width - 8), 2)
+
+            # Sharp tip highlight
+            pygame.draw.line(mandible_surf, metal_highlight,
+                           (60, mandible_width // 2 - 1), (70, mandible_width // 2), 2)
+
+        else:
+            # Right mandible - curved pincer pointing left toward center
+            mandible_curve = [
+                (mandible_length, mandible_width // 2),
+                (60, 5),
+                (35, 2),
+                (10, mandible_width // 2 - 2),
+                (0, mandible_width // 2),
+                (10, mandible_width // 2 + 2),
+                (35, mandible_width - 2),
+                (60, mandible_width - 5),
+            ]
+            pygame.draw.polygon(mandible_surf, metal_dark, mandible_curve)
+            pygame.draw.polygon(mandible_surf, metal_light, mandible_curve, 2)
+
+            # Inner serrated cutting edge
+            cutting_teeth = [30, 20, 15]
+            for tooth_x in cutting_teeth:
+                tooth_points = [
+                    (tooth_x, mandible_width // 2 - 3),
+                    (tooth_x - 5, mandible_width // 2),
+                    (tooth_x, mandible_width // 2 + 3)
+                ]
+                pygame.draw.polygon(mandible_surf, metal_highlight, tooth_points)
+
+            # Segmented exoskeleton plates
+            for i in range(4):
+                segment_x = 62 - i * 12
+                pygame.draw.line(mandible_surf, metal_accent,
+                               (segment_x, 8), (segment_x, mandible_width - 8), 2)
+
+            # Sharp tip highlight
+            pygame.draw.line(mandible_surf, metal_highlight,
+                           (10, mandible_width // 2 - 1), (0, mandible_width // 2), 2)
+
+        surface.blit(mandible_surf, (int(x - mandible_length // 2), int(y - mandible_width // 2)))
+
+
 class ViseroyRelease:
     """Animation for releasing a victim from Viseroy trap - jaws open dramatically."""
     def __init__(self, target_x, target_y):

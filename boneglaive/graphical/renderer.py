@@ -939,6 +939,37 @@ class GraphicalRenderer:
             else:
                 print(f"[TrapRelease] ERROR: Could not find visual unit for released unit")
 
+        elif event.event_type == "viseroy_tick":
+            # Trap tick damage - jaws tighten animation
+            target = event.target_unit  # Trapped victim taking damage
+            damage = event.kwargs.get("damage_amount", 0)
+            visual_unit = self._get_visual_unit(target)
+
+            if visual_unit:
+                animated_unit = visual_unit.animated_unit
+
+                # Convert unit position to screen coordinates
+                tick_x, tick_y = self.camera.grid_to_screen(animated_unit.grid_x, animated_unit.grid_y)
+
+                print(f"[ViseroyTick] {target.get_display_name()} takes {damage} trap tick damage at grid ({animated_unit.grid_x}, {animated_unit.grid_y}), screen ({tick_x}, {tick_y})")
+
+                # Create JawTighten animation
+                from boneglaive.graphical.animations.mandible_foreman import JawTighten
+                jaw_tighten = JawTighten(tick_x, tick_y)
+                self.active_animations.append(jaw_tighten)
+
+                # Show damage floating text
+                x = animated_unit.x
+                y = animated_unit.y - 20
+                self.floating_texts.append(FloatingText(x, y, f"-{damage}", COLOR_DAMAGE))
+
+                # Add screen shake for impact
+                animated_unit.shake_intensity = 8
+
+                print(f"[ViseroyTick] JawTighten animation created successfully!")
+            else:
+                print(f"[ViseroyTick] ERROR: Could not find visual unit for trapped target")
+
         elif event.event_type == "partition_dissociation":
             # Play partition dissociation animation (emergency trigger)
             print(f"[RENDERER DEBUG] *** RECEIVED partition_dissociation EVENT ***")
@@ -1290,7 +1321,7 @@ class GraphicalRenderer:
         Args:
             event: Animation event from game state
         """
-        if event.event_type == "damage" or event.event_type == "heal" or event.event_type == "geas_heal" or event.event_type == "scalar_trap" or event.event_type == "trap_release":
+        if event.event_type == "damage" or event.event_type == "heal" or event.event_type == "geas_heal" or event.event_type == "scalar_trap" or event.event_type == "trap_release" or event.event_type == "viseroy_tick":
             # If animations are active, queue the event for later
             if self.has_active_animations():
                 self.pending_animation_events.append(event)

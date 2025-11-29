@@ -2355,7 +2355,9 @@ class Game:
             # Start the spinner animation
             ui.start_spinner()
             ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-            time.sleep(0.3)  # Short delay before actions start
+            # Only sleep in ASCII mode - graphical mode doesn't need artificial delays
+            if not (hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'):
+                time.sleep(0.3)  # Short delay before actions start
         
         # Process each unit's actions in timestamp order
         for unit in units_with_actions:
@@ -2865,7 +2867,9 @@ class Game:
                 # Add a slight pause between actions for a unit and update spinner
                 if ui:
                     ui.advance_spinner()
-                    time.sleep(0.15)
+                    # Only sleep in ASCII mode - graphical mode doesn't need artificial pauses
+                    if not (hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'):
+                        time.sleep(0.15)
             
             # EXECUTE SKILL if unit has a skill target
             if unit.skill_target and unit.selected_skill:
@@ -2922,7 +2926,9 @@ class Game:
                 # Add a slight pause after the skill and update spinner
                 if ui:
                     ui.advance_spinner()
-                    time.sleep(0.15)
+                    # Only sleep in ASCII mode - graphical mode doesn't need artificial pauses
+                    if not (hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'):
+                        time.sleep(0.15)
             
             # EXECUTE VISEROY TRAP DAMAGE if this is a MANDIBLE_FOREMAN with trapped units
             elif hasattr(unit, 'auction_curse_dot_action') and unit.auction_curse_dot_action:
@@ -3072,17 +3078,20 @@ class Game:
             elif hasattr(unit, 'viseroy_trap_action') and unit.viseroy_trap_action:
                 # This is a special action but still counts as an action for health regeneration
                 unit.took_no_actions = False
-                
+
+                # Detect if running in graphical mode to avoid blocking sleeps
+                is_graphical = ui and hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'
+
                 # Find all units trapped by this foreman
                 trapped_units = [u for u in self.units if u.is_alive() and u.trapped_by == unit]
-                
-                # Apply trap damage to each trapped unit
+
+                # Apply trap damage to each trapped unit (ASCII mode only for animations)
                 for trapped_unit in trapped_units:
-                    # Play trap animation if UI is available
-                    if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+                    # Play trap animation if UI is available (ASCII mode only)
+                    if not is_graphical and ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
                         # Get animation sequence for Viseroy trap
                         animation_sequence = ui.asset_manager.get_skill_animation_sequence('viseroy_trap')
-                        
+
                         # Show jaw animation at trapped unit's position
                         ui.renderer.animate_attack_sequence(
                             trapped_unit.y, trapped_unit.x,
@@ -3091,13 +3100,13 @@ class Game:
                             0.2  # duration
                         )
                         time.sleep(0.2)
-                    
-                    # Play trap animation if UI is available but don't apply damage here
+
+                    # Play trap animation if UI is available but don't apply damage here (ASCII mode only)
                     # Actual damage is now handled centrally in _apply_trap_damage method
-                    if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+                    if not is_graphical and ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
                         # Get animation sequence for Viseroy trap
                         animation_sequence = ui.asset_manager.get_skill_animation_sequence('viseroy_trap')
-                        
+
                         # Show jaw animation at trapped unit's position (visual only)
                         ui.renderer.animate_attack_sequence(
                             trapped_unit.y, trapped_unit.x,
@@ -3106,16 +3115,18 @@ class Game:
                             0.2  # duration
                         )
                         time.sleep(0.2)
-                    
+
                     # No need to show a message here, trap visuals are enough
-                
+
                 # Clean up the special flag
                 unit.viseroy_trap_action = False
             
-            # Add a slight pause between units' actions and update spinner
+            # Add a slight pause between units' actions and update spinner (ASCII mode only)
             if ui:
                 ui.advance_spinner()
-                time.sleep(0.2)
+                # Only sleep in ASCII mode - graphical mode doesn't need artificial pauses
+                if not (hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'):
+                    time.sleep(0.2)
         
         # Apply trap damage for all trapped units
         self._apply_trap_damage()
@@ -4008,13 +4019,16 @@ class Game:
                 foreman.player == self.current_player and
                 not foreman.took_action):
                 logger.debug(f"Applying Viseroy trap damage to {unit.get_display_name()}")
-                
-                # Play trap animation if UI is available
+
+                # Detect if running in graphical mode to avoid blocking sleeps
                 ui = getattr(self, 'ui', None)
-                if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+                is_graphical = ui and hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'
+
+                # Play trap animation if UI is available (ASCII mode only)
+                if not is_graphical and ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
                     # Get animation sequence for Viseroy trap
                     animation_sequence = ui.asset_manager.get_skill_animation_sequence('viseroy_trap')
-                    
+
                     # Show jaw animation at trapped unit's position
                     ui.renderer.animate_attack_sequence(
                         unit.y, unit.x,
@@ -4070,8 +4084,8 @@ class Game:
                     # Directly try to trigger Autoclave for the trapped unit
                     self.try_trigger_autoclave(unit, ui)
                 
-                # Show damage number if UI is available (ASCII version only)
-                if ui and hasattr(ui, 'renderer') and hasattr(ui.renderer, 'draw_damage_text'):
+                # Show damage number if UI is available (ASCII mode only)
+                if not is_graphical and ui and hasattr(ui, 'renderer') and hasattr(ui.renderer, 'draw_damage_text'):
                     # Flash the unit to show damage
                     if hasattr(ui, 'asset_manager'):
                         # Flash the unit with damage colors

@@ -417,8 +417,21 @@ class GameStateAdapter:
                         ))
                         scalar_trap_triggered = True
 
-                    if not scalar_trap_triggered:
-                        # Regular damage (not from scalar trap)
+                    # Check if this is trap tick damage (unit is currently trapped)
+                    trap_tick_damage = False
+                    if hasattr(game_unit, 'trapped_by') and game_unit.trapped_by and not scalar_trap_triggered:
+                        # Unit is trapped - this damage is from trap tick
+                        print(f"[GameState] VISEROY TRAP TICK DETECTED! {game_unit.get_display_name()} took {abs(hp_delta)} trap damage")
+                        events.append(AnimationEvent(
+                            "viseroy_tick",
+                            source_unit=game_unit.trapped_by,  # MANDIBLE_FOREMAN who owns trap
+                            target_unit=game_unit,  # Trapped victim
+                            damage_amount=abs(hp_delta)
+                        ))
+                        trap_tick_damage = True
+
+                    if not scalar_trap_triggered and not trap_tick_damage:
+                        # Regular damage (not from scalar trap or Viseroy tick)
                         events.append(AnimationEvent(
                             "damage",
                             source_unit=None,  # TODO: Track damage source

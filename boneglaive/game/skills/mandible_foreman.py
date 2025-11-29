@@ -176,7 +176,10 @@ class DischargeSkill(ActiveSkill):
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
         import curses
-        
+
+        # Detect if running in graphical mode to avoid blocking sleeps
+        is_graphical = ui and hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'
+
         # Clear the expedite path indicator
         user.expedite_path_indicator = None
         
@@ -304,8 +307,8 @@ class DischargeSkill(ActiveSkill):
                         target_name=enemy_hit.get_display_name()
                     )
 
-        # Play animation if UI is available
-        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+        # Play animation if UI is available (ASCII mode only)
+        if not is_graphical and ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
             # Get animation sequence for rush animation
             rush_animation = ui.asset_manager.get_skill_animation_sequence('expedite_rush')
             
@@ -549,7 +552,9 @@ class SiteInspectionSkill(ActiveSkill):
         import time
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
-        
+        # Detect if running in graphical mode to avoid blocking sleeps
+        is_graphical = ui and hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'
+
         # Clear the site inspection indicator after execution
         user.site_inspection_indicator = None
         
@@ -577,9 +582,9 @@ class SiteInspectionSkill(ActiveSkill):
                 # Check if this position has impassable terrain
                 if not game.map.is_passable(check_y, check_x):
                     impassable_count += 1
-        
-        # Play animation if UI is available
-        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+
+        # Play animation if UI is available (ASCII mode only)
+        if not is_graphical and ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
             # Get the animation sequence
             inspection_animation = ui.asset_manager.get_skill_animation_sequence('site_inspection')
             if not inspection_animation:
@@ -895,11 +900,14 @@ class JawlineSkill(ActiveSkill):
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
         import curses
-        
+
+        # Detect if running in graphical mode to avoid blocking sleeps
+        is_graphical = ui and hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'
+
         # Update target position if unit has moved (due to move being executed before skill)
         # This ensures we deploy Jawline at the unit's final position after movement
         target_pos = (user.y, user.x)
-        
+
         # Clear the jawline indicator after execution
         user.jawline_indicator = None
         
@@ -924,9 +932,9 @@ class JawlineSkill(ActiveSkill):
                 # Check if position is valid
                 if game.is_valid_position(y, x):
                     area_positions.append((y, x))
-        
-        # Play animation if UI is available
-        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+
+        # Play animation if UI is available (ASCII mode only)
+        if not is_graphical and ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
             # First, show activation animation at the center
             # Get jaw activation animation
             trap_animation = ui.asset_manager.get_skill_animation_sequence('viseroy_trap')

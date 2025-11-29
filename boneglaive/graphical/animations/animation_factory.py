@@ -16,7 +16,7 @@ from boneglaive.graphical.animations.glaiveman import (
     PryImpactAnimation, VaultAnimationController
 )
 from boneglaive.graphical.animations.mandible_foreman import (
-    JawClamp, ViseroyTrap, ViseroyRelease, SiteInspectionBuff,
+    JawClamp, ViseroyTrap, ViseroyRelease, JawTighten, SiteInspectionBuff,
     SiteInspectionScan, ExpediteRush, JawlineNetwork
 )
 from boneglaive.graphical.animations.potpourrist import (
@@ -93,6 +93,7 @@ class AnimationFactory:
         "SITE_INSPECTION": (SiteInspectionScan, {}),  # Laser scan animation
         "JAWLINE": (JawlineNetwork, {}),  # Network of bear traps
         "VISEROY": (ViseroyTrap, {}),  # Passive (basic attack animation)
+        "VISEROY_TICK": (JawTighten, {}),  # Trap tick damage animation
 
         # POTPOURRIST skills
         "PEDESTAL_STRIKE": (PedestalStrike, {}),
