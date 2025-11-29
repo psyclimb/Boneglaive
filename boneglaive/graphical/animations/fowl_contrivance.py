@@ -1452,10 +1452,10 @@ class GaussianDuskChargeAnimation:
 
 
 # Rail Beam and Fire Animation classes
-class RailBeam:
+class HypersonicProjectile:
     """
-    Massive piercing rail gun beam that extends across the entire map.
-    Thick cyan/white energy beam with electric arcs.
+    Hypersonic rail projectile that travels across the entire map at extreme speed.
+    Leaves a bright glowing trail and shockwave effects as it moves.
     """
     def __init__(self, start_x, start_y, direction, positions, camera):
         self.start_x = start_x
@@ -1464,7 +1464,7 @@ class RailBeam:
         self.positions = positions  # List of (grid_y, grid_x) hit positions
         self.camera = camera
         self.timer = 0
-        self.duration = 0.8
+        self.duration = 0.25  # Much faster - travels full map in 0.25s
         self.active = True
 
         # Convert all grid positions to screen coordinates
@@ -1480,8 +1480,17 @@ class RailBeam:
             # Fallback if no positions
             self.end_x, self.end_y = start_x, start_y
 
+        # Calculate total distance for speed
+        dx = self.end_x - self.start_x
+        dy = self.end_y - self.start_y
+        self.total_distance = math.sqrt(dx * dx + dy * dy)
+
+        # Trail points for motion blur
+        self.trail_points = []
+        self.max_trail_length = 8  # Number of trail segments
+
     def update(self, delta_time):
-        """Update beam extension."""
+        """Update projectile movement."""
         if not self.active:
             return False
 
@@ -1493,39 +1502,82 @@ class RailBeam:
         return self.active
 
     def draw(self, surface):
-        """Draw piercing rail beam."""
+        """Draw hypersonic projectile with motion blur trail."""
         if not self.active:
             return
 
         progress = min(1.0, self.timer / self.duration)
 
-        # Beam extends from start to end over time
-        current_end_x = self.start_x + (self.end_x - self.start_x) * progress
-        current_end_y = self.start_y + (self.end_y - self.start_y) * progress
+        # Current projectile position
+        current_x = self.start_x + (self.end_x - self.start_x) * progress
+        current_y = self.start_y + (self.end_y - self.start_y) * progress
 
-        # Pulsing intensity
-        pulse = math.sin(self.timer * 15) * 0.3 + 0.7
+        # Calculate projectile direction vector for elongation
+        dx = self.end_x - self.start_x
+        dy = self.end_y - self.start_y
+        length = math.sqrt(dx * dx + dy * dy)
+        if length > 0:
+            dir_x = dx / length
+            dir_y = dy / length
+        else:
+            dir_x, dir_y = 0, 0
 
-        # Draw multiple layers for thick beam
-        # Outer glow (widest, faintest)
-        pygame.draw.line(surface, (0, 204, 255, int(80 * pulse)),
-                        (int(self.start_x), int(self.start_y)),
-                        (int(current_end_x), int(current_end_y)), 20)
+        # Projectile is elongated in direction of travel (like a streak)
+        projectile_length = 40
+        tail_x = current_x - dir_x * projectile_length
+        tail_y = current_y - dir_y * projectile_length
+
+        # Add current position to trail
+        self.trail_points.append((current_x, current_y))
+        if len(self.trail_points) > self.max_trail_length:
+            self.trail_points.pop(0)
+
+        # Draw motion blur trail (fading segments behind projectile)
+        for i, (tx, ty) in enumerate(self.trail_points[:-1]):
+            fade = (i + 1) / len(self.trail_points)  # Fade from 0 to 1
+            alpha = int(120 * fade)
+
+            # Trail segments get thinner and dimmer
+            trail_width = int(8 * fade)
+            pygame.draw.circle(surface, (0, 204, 255, alpha),
+                             (int(tx), int(ty)), trail_width)
+
+        # Draw shockwave rings at intervals
+        if progress < 0.9:  # Don't draw at the very end
+            # Create expanding ring effect
+            ring_progress = (progress * 5) % 1.0  # Multiple rings
+            ring_radius = int(20 + ring_progress * 30)
+            ring_alpha = int(180 * (1.0 - ring_progress))
+            if ring_alpha > 0:
+                pygame.draw.circle(surface, (200, 230, 255, ring_alpha),
+                                 (int(current_x), int(current_y)), ring_radius, 2)
+
+        # Draw the hypersonic projectile itself (elongated streak)
+        # Outer glow
+        pygame.draw.line(surface, (0, 204, 255, 100),
+                        (int(tail_x), int(tail_y)),
+                        (int(current_x), int(current_y)), 12)
 
         # Mid layer (bright cyan)
-        pygame.draw.line(surface, (0, 230, 255, int(180 * pulse)),
-                        (int(self.start_x), int(self.start_y)),
-                        (int(current_end_x), int(current_end_y)), 12)
+        pygame.draw.line(surface, (0, 230, 255, 200),
+                        (int(tail_x), int(tail_y)),
+                        (int(current_x), int(current_y)), 8)
 
         # Inner core (white-cyan)
-        pygame.draw.line(surface, (200, 250, 255, int(255 * pulse)),
-                        (int(self.start_x), int(self.start_y)),
-                        (int(current_end_x), int(current_end_y)), 6)
+        pygame.draw.line(surface, (200, 250, 255, 255),
+                        (int(tail_x), int(tail_y)),
+                        (int(current_x), int(current_y)), 4)
 
         # Bright core
         pygame.draw.line(surface, (255, 255, 255, 255),
-                        (int(self.start_x), int(self.start_y)),
-                        (int(current_end_x), int(current_end_y)), 2)
+                        (int(tail_x), int(tail_y)),
+                        (int(current_x), int(current_y)), 2)
+
+        # Projectile head (bright point)
+        pygame.draw.circle(surface, (255, 255, 255, 255),
+                         (int(current_x), int(current_y)), 4)
+        pygame.draw.circle(surface, (200, 250, 255, 200),
+                         (int(current_x), int(current_y)), 6)
 
 
 class BeamImpact:
@@ -1697,55 +1749,54 @@ class GaussianDuskFireAnimation:
         self.active = True
 
         # Sub-effects
-        self.rail_beam = None
+        self.projectile = None
         self.impacts = []
         self.electric_arcs = []
+        self.passed_positions = []  # Track which positions the projectile has passed
 
         # Start Phase 1
         self._start_pre_fire()
 
     def _start_pre_fire(self):
-        """Phase 1: Pre-Fire - Bright flash."""
+        """Phase 1: Pre-Fire - Brief muzzle flash."""
         self.phase = "pre_fire"
         self.timer = 0
 
-        # Bright flash on firing
-        self.screen_flash_callback((200, 230, 255), 0.1)
+        # Brief bright flash on firing
+        self.screen_flash_callback((200, 230, 255), 0.05)
 
     def _start_beam_travel(self):
-        """Phase 2: Beam Travel - Beam extends across map."""
+        """Phase 2: Projectile Travel - Hypersonic projectile screams across map."""
         self.phase = "beam_travel"
         self.timer = 0
 
-        # Create rail beam
+        # Create hypersonic projectile
         if self.firing_positions:
-            self.rail_beam = RailBeam(self.caster_x, self.caster_y,
-                                     self.target_pos, self.firing_positions,
-                                     self.camera)
+            self.projectile = HypersonicProjectile(self.caster_x, self.caster_y,
+                                                   self.target_pos, self.firing_positions,
+                                                   self.camera)
 
-        # Create impact explosions at positions along beam (staggered)
+        # Pre-create all impact objects but they'll activate as projectile passes
         for i, (grid_y, grid_x) in enumerate(self.firing_positions):
             screen_x, screen_y = self.camera.grid_to_screen(grid_x, grid_y, centered=True)
-            delay = i * 0.03  # Stagger impacts along beam path
-            impact = BeamImpact(screen_x, screen_y, delay=delay)
+            impact = BeamImpact(screen_x, screen_y, delay=999)  # Huge delay, will be triggered manually
             self.impacts.append(impact)
 
             # Add electric arcs
             for _ in range(2):
-                arc_delay = delay + random.uniform(0, 0.1)
-                arc = ElectricArc(screen_x, screen_y, delay=arc_delay)
+                arc = ElectricArc(screen_x, screen_y, delay=999)  # Huge delay, will be triggered manually
                 self.electric_arcs.append(arc)
 
-        # Emit particles at caster position
+        # Emit particles at caster position (muzzle flash)
         if self.particle_emitter:
             self.particle_emitter.emit_burst(self.caster_x, self.caster_y,
-                                            (0, 204, 255), count=40)
+                                            (0, 204, 255), count=50)
 
-        # MASSIVE screen shake on firing
-        self.screen_shake_callback(10, 0.6)
+        # Strong screen shake on firing (shorter but intense)
+        self.screen_shake_callback(12, 0.3)
 
         # Bright cyan flash
-        self.screen_flash_callback((0, 204, 255), 0.3)
+        self.screen_flash_callback((0, 204, 255), 0.15)
 
     def _start_aftermath(self):
         """Phase 3: Aftermath - Sparks, smoke, effects."""
@@ -1766,22 +1817,41 @@ class GaussianDuskFireAnimation:
 
         self.timer += delta_time
 
-        # Update all sub-effects
-        if self.rail_beam:
-            self.rail_beam.update(delta_time)
+        # Update projectile
+        if self.projectile:
+            self.projectile.update(delta_time)
 
+            # Check which positions the projectile has passed and trigger impacts
+            if self.phase == "beam_travel":
+                progress = min(1.0, self.projectile.timer / self.projectile.duration)
+                positions_passed = int(progress * len(self.firing_positions))
+
+                # Trigger impacts for newly passed positions
+                for i in range(len(self.passed_positions), positions_passed):
+                    if i < len(self.impacts):
+                        # Trigger this impact and arcs
+                        self.impacts[i].delay = 0  # Activate immediately
+                        # Activate corresponding arcs (2 per impact)
+                        arc_start = i * 2
+                        if arc_start < len(self.electric_arcs):
+                            self.electric_arcs[arc_start].delay = 0
+                        if arc_start + 1 < len(self.electric_arcs):
+                            self.electric_arcs[arc_start + 1].delay = 0
+                        self.passed_positions.append(i)
+
+        # Update all sub-effects
         for impact in self.impacts:
             impact.update(delta_time)
 
         for arc in self.electric_arcs:
             arc.update(delta_time)
 
-        # Phase transitions
-        if self.phase == "pre_fire" and self.timer >= 0.2:
+        # Phase transitions (much faster)
+        if self.phase == "pre_fire" and self.timer >= 0.1:
             self._start_beam_travel()
-        elif self.phase == "beam_travel" and self.timer >= 0.8:
+        elif self.phase == "beam_travel" and self.timer >= 0.35:  # 0.1 pre + 0.25 travel
             self._start_aftermath()
-        elif self.phase == "aftermath" and self.timer >= 0.6:
+        elif self.phase == "aftermath" and self.timer >= 0.5:  # Shorter aftermath
             self.active = False  # Animation complete
 
         return self.active
@@ -1797,17 +1867,17 @@ class GaussianDuskFireAnimation:
             pass
 
         elif self.phase == "beam_travel":
-            # Draw beam first (background)
-            if self.rail_beam:
-                self.rail_beam.draw(surface)
+            # Draw impacts first (background)
+            for impact in self.impacts:
+                impact.draw(surface)
 
             # Draw electric arcs
             for arc in self.electric_arcs:
                 arc.draw(surface)
 
-            # Draw impacts (foreground)
-            for impact in self.impacts:
-                impact.draw(surface)
+            # Draw hypersonic projectile on top (foreground)
+            if self.projectile:
+                self.projectile.draw(surface)
 
         elif self.phase == "aftermath":
             # Draw fading impacts and arcs
