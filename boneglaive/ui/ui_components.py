@@ -1208,46 +1208,46 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'VALUATION ORACLE (Passive)',
-                        'description': 'The DELPHIC APPRAISER\'s oracular sight pierces the material realm to perceive the "astral value" (random 1-9) of every furniture piece when the match begins. When standing adjacent to any appraised furniture, the APPRAISER channels its metaphysical energy to enhance their combat capabilities, gaining +1 defense and +1 attack range. These bonuses persist as long as the APPRAISER remains adjacent to at least one furniture piece.',
+                        'description': 'The DELPHIC APPRAISER\'s oracular sight pierces the material realm to perceive the "astral value" (random 1-9, max 14) of every furniture piece when the match begins. When allies stand adjacent to furniture with astral value 9 or greater, they channel its potent metaphysical energy to enhance their combat capabilities, gaining +1 defense and +1 attack range. These bonuses persist as long as they remain adjacent to high-value furniture.',
                         'details': [
                             'Type: Passive',
-                            'Effect: Valuation Oracle (@); +1 defense and +1 attack range while adjacent to furniture'
+                            'Effect: Valuation Oracle (@); allies gain +1 defense and +1 attack range when adjacent to furniture with value ≥9'
                         ]
                     },
                     {
                         'name': 'MARKET FUTURES (Active) [Key: M]',
-                        'description': 'The DELPHIC APPRAISER infuses a furniture piece with temporal investment energy, transforming it into a shimmering teleportation anchor. Allies standing adjacent to the imbued furniture enter Parallax—a state where they exist simultaneously in their current location and the potential destination. While in Parallax, the ally can activate the anchor to teleport up to a distance equal to the furniture\'s astral value (1-9 tiles). Upon teleporting, the ally receives a maturing investment effect that grants +1 attack range for 3 turns and attack bonuses that grow over time: +1 attack (turn 1), +2 attack (turn 2), +3 attack (turn 3). The investment bonuses apply immediately before each basic attack. After one ally uses the anchor, it deactivates.',
+                        'description': 'The DELPHIC APPRAISER infuses a furniture piece with temporal investment energy, transforming it into a shimmering teleportation anchor. Allies standing adjacent to the imbued furniture enter Parallax—a state where they exist simultaneously in their current location and the potential destination. While in Parallax, the ally can activate the anchor to teleport up to a distance equal to the furniture\'s astral value (1-14 tiles). Upon teleporting, the ally receives a maturing investment effect that grants +1 attack range for 3 turns and attack bonuses that grow over time: +1 attack (turn 1), +2 attack (turn 2), +3 attack (turn 3). The investment bonuses apply immediately before each basic attack. After one ally uses the anchor, it deactivates.',
                         'details': [
                             'Type: Active',
                             'Range: 4',
                             'Target: Furniture piece',
                             'Effect: Parallax (%) when adjacent to anchor; Investment ($) (3 turns) after teleport',
                             'Cooldown: 6 turns',
-                            'Special: Teleport range = astral value (1-9); Investment grants +1 range (constant) and maturing attack (+1/+2/+3)'
+                            'Special: Teleport range = astral value (1-14); Investment grants +1 range (constant) and maturing attack (+1/+2/+3)'
                         ]
                     },
                     {
                         'name': 'AUCTION CURSE (Active) [Key: A]',
-                        'description': 'The DELPHIC APPRAISER opens a twisted auction that surrounds the target enemy with astral auctioneers who manifest at nearby furniture (within 2 tiles). The curse duration equals the average astral value of surrounding furniture (rounded up, 1-9 turns). Each turn, the victim takes 1 damage as their life force is drained by the escalating bids, and all nearby furniture values inflate by +1 as the market frenzy intensifies. The curse also prevents all healing.',
+                        'description': 'The DELPHIC APPRAISER opens a twisted auction that surrounds the target enemy with astral auctioneers who manifest at nearby furniture (within 2 tiles). The curse duration equals the average astral value of surrounding furniture (rounded up, 1-14 turns). Each turn, the victim takes 1 damage as their life force is drained by the escalating bids, and all nearby furniture values inflate by +1 (capped at 14) as the market frenzy intensifies. The curse also prevents all healing.',
                         'details': [
                             'Type: Active',
                             'Range: 3',
                             'Target: Single enemy',
                             'Damage: 1 per turn',
-                            'Effect: Auction Curse (|); prevents healing; inflates nearby furniture +1 each turn',
+                            'Effect: Auction Curse (|); prevents healing; inflates nearby furniture +1 each turn (max 14)',
                             'Cooldown: 3 turns',
-                            'Special: Duration = avg astral value (1-9 turns); furniture within 2 tiles inflates +1 every turn'
+                            'Special: Duration = avg astral value (1-14 turns); furniture within 2 tiles inflates +1 every turn'
                         ]
                     },
                     {
                         'name': 'DIVINE DEPRECIATION (Active) [Key: D]',
-                        'description': 'The DELPHIC APPRAISER dramatically reappraises a furniture piece as cosmically worthless, causing its astral value to collapse from its original value to 1. The sudden devaluation creates a reality sinkhole in a 7x7 area as the floor buckles inward. All enemies in the area take piercing damage (bypasses defense) equal to the average astral value of OTHER furniture in the area minus 1. The reality distortion pulls enemies toward the center—pull distance equals (original target value - 1) minus each unit\'s movement value (minimum 1 tile). High-mobility units resist the pull better. Finally, the market chaos rerolls all OTHER furniture astral values randomly (1-9).',
+                        'description': 'The DELPHIC APPRAISER dramatically reappraises a furniture piece as cosmically worthless, causing its astral value to collapse from its original value to 1. The sudden devaluation creates a reality sinkhole in a 7x7 area as the floor buckles inward. All enemies in the area take piercing damage (bypasses defense) equal to the average astral value of OTHER furniture in the area minus 1 (max 13 damage). The reality distortion pulls enemies toward the center—pull distance equals (original target value - 1) minus each unit\'s movement value (minimum 1 tile). High-mobility units resist the pull better. Finally, the market chaos rerolls all OTHER furniture astral values randomly (1-9).',
                         'details': [
                             'Type: Active',
                             'Range: 3',
                             'Target: Furniture piece',
                             'Area: 7x7',
-                            'Damage: (Average of other furniture) - 1 (pierces defense)',
+                            'Damage: (Average of other furniture) - 1 (pierces defense, max 13)',
                             'Cooldown: 6 turns',
                             'Special: Sets target value to 1; pull = (original value - 1) - move (min 1); rerolls other furniture'
                         ]

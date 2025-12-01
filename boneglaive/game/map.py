@@ -57,8 +57,9 @@ class GameMap:
         self.terrain: Dict[Tuple[int, int], TerrainType] = {}
         self.name = "Generic Map"
 
-        # Dictionary to store astral values for furniture
-        self.cosmic_values: Dict[Tuple[int, int], int] = {}
+        # Dictionary to store astral values for furniture per player
+        # Format: {player: {(y, x): value}}
+        self.cosmic_values: Dict[int, Dict[Tuple[int, int], int]] = {}
         
         # Dictionary to store lighting effects
         self.lighting_effects: Dict[Tuple[int, int], Dict] = {}
@@ -109,16 +110,17 @@ class GameMap:
 
     def get_cosmic_value(self, y: int, x: int, player=None, game=None) -> Optional[int]:
         """
-        Get astral value at the given coordinates.
+        Get astral value at the given coordinates for a specific player.
         Returns None if no value is set or if the terrain is not furniture.
         The player parameter is used to check if the player can see the astral value.
         Only players with DELPHIC_APPRAISER units can see the values.
+        Each player has their own independent set of astral values.
         """
         # Check if the position has furniture
         terrain = self.get_terrain_at(y, x)
         if terrain not in [TerrainType.FURNITURE, TerrainType.COAT_RACK,
-                          TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE, 
-                          TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE, 
+                          TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE,
+                          TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE,
                           TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                           TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
                           TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
@@ -140,32 +142,42 @@ class GameMap:
         if not has_appraiser:
             return None
 
-        # Generate value if not already set
-        if (y, x) not in self.cosmic_values:
+        # Initialize player's cosmic values dict if it doesn't exist
+        if player not in self.cosmic_values:
+            self.cosmic_values[player] = {}
+
+        # Generate value if not already set for this player
+        if (y, x) not in self.cosmic_values[player]:
             import random
-            self.cosmic_values[(y, x)] = random.randint(1, 9)
+            self.cosmic_values[player][(y, x)] = random.randint(1, 9)
 
-        # Return the astral value
-        return self.cosmic_values.get((y, x))
+        # Return the astral value for this player
+        return self.cosmic_values[player].get((y, x))
 
-    def set_cosmic_value(self, y: int, x: int, value: int) -> bool:
+    def set_cosmic_value(self, y: int, x: int, value: int, player: int) -> bool:
         """
-        Set astral value at the given coordinates.
+        Set astral value at the given coordinates for a specific player.
         Returns True if successful, False if the terrain is not furniture.
+        Values are clamped to a maximum of 14.
+        Each player has their own independent set of astral values.
         """
         # Check if the position has furniture
         terrain = self.get_terrain_at(y, x)
         if terrain not in [TerrainType.FURNITURE, TerrainType.COAT_RACK,
-                          TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE, 
-                          TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE, 
+                          TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE,
+                          TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE,
                           TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                           TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
                           TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
                           TerrainType.POTPOURRI_BOWL]:
             return False
 
-        # Set the astral value
-        self.cosmic_values[(y, x)] = value
+        # Initialize player's cosmic values dict if it doesn't exist
+        if player not in self.cosmic_values:
+            self.cosmic_values[player] = {}
+
+        # Set the astral value for this player, capped at 14
+        self.cosmic_values[player][(y, x)] = min(value, 14)
         return True
 
     def is_furniture(self, y: int, x: int) -> bool:

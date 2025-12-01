@@ -201,6 +201,14 @@ STATUS_EFFECTS = {
         "duration_key": "ossify_duration",
         "check": lambda u: hasattr(u, 'ossify_active') and u.ossify_active
     },
+    "valuation_oracle_buff": {
+        "name": "Valuation Oracle",
+        "type": "buff",
+        "icon": "VO",
+        "description": "Adjacent to high-value furniture (≥9): +1 defense and +1 attack range",
+        "duration_key": "valuation_oracle_duration",
+        "check": lambda u: hasattr(u, 'valuation_oracle_buff') and u.valuation_oracle_buff
+    },
 
     # Special/Neutral
     "gaussian_dusk_recharge": {

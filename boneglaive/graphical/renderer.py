@@ -1308,6 +1308,12 @@ class GraphicalRenderer:
         # Check if all animations finished - if so, flush pending damage/heal/death events
         if self.pending_animation_events and not self.has_active_animations():
             self.flush_pending_events()
+        elif not self.has_active_animations() and hasattr(self.game_adapter, '_effects_to_show_after_damage') and self.game_adapter._effects_to_show_after_damage:
+            # No pending damage events, but we have status icons to show
+            print(f"[Renderer] No pending events, but showing {len(self.game_adapter._effects_to_show_after_damage)} status effect icons")
+            self._show_active_status_effects()
+            # Clear the list after showing to prevent repeated displays
+            self.game_adapter._effects_to_show_after_damage.clear()
 
         # After all animations complete (including status icons from flush), clean up dead units
         # This ensures death animations have access to visual_units before removal
