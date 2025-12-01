@@ -35,9 +35,11 @@ class Game:
         # Store player names (defaults to "Player 1" and "Player 2" if not provided)
         self.player_names = player_names if player_names else {1: "Player 1", 2: "Player 2"}
 
-        # Graphical mode callback - called before status effects are cleared
-        # This allows the graphical system to detect status effects before they're removed
+        # Graphical mode callbacks
+        # Called before status effects are cleared - allows detection before removal
         self.pre_status_clear_callback = None
+        # Called after passive skills are applied at turn start - allows detection of passive effects
+        self.post_passive_application_callback = None
 
         # Create the game map
         self.map = MapFactory.create_map(map_name)
@@ -847,7 +849,10 @@ class Game:
         
         # Assign Greek identifiers
         self._assign_unit_identifiers()
-        
+
+        # Trigger Valuation Oracle for DELPHIC_APPRAISER units
+        self._trigger_valuation_oracle_for_delphic_appraisers()
+
         # Skip setup phase when using test setup
         self.setup_phase = False
         self.setup_player = 1
@@ -3030,11 +3035,13 @@ class Game:
                             furniture_terrain = self.map.get_terrain_at(check_y, check_x)
                             furniture_name = furniture_terrain.name.replace('_', ' ').title()
 
-                            # Get current astral value (defaulting to 1 if none exists)
-                            current_value = self.map.cosmic_values.get((check_y, check_x), 1)
-                            # Increase by 1
-                            new_value = current_value + 1
-                            self.map.cosmic_values[(check_y, check_x)] = new_value
+                            # Get current astral value for the caster's player (defaulting to 1 if none exists)
+                            if caster_player not in self.map.cosmic_values:
+                                self.map.cosmic_values[caster_player] = {}
+                            current_value = self.map.cosmic_values[caster_player].get((check_y, check_x), 1)
+                            # Increase by 1, capped at 14
+                            new_value = min(current_value + 1, 14)
+                            self.map.cosmic_values[caster_player][(check_y, check_x)] = new_value
                             furniture_inflated += 1
 
                             # Show cycling numbers animation on this furniture
@@ -3825,6 +3832,11 @@ class Game:
                         unit.severance_duration = 0
                         # Always reset movement bonus to 0 at start of turn
                         unit.move_range_bonus = 0
+
+        # Call graphical callback after passive skills are applied
+        # This allows the graphical system to detect passive status effects (like Valuation Oracle)
+        if self.post_passive_application_callback:
+            self.post_passive_application_callback()
     
     
     def try_trigger_wretched_decension(self, attacker, target, ui=None):
@@ -5037,17 +5049,35 @@ class Game:
 
     def _trigger_valuation_oracle_for_delphic_appraisers(self):
         """Trigger astral value perception for all DELPHIC_APPRAISER units when the setup phase ends."""
+        print(f"[ENGINE DEBUG] *** _trigger_valuation_oracle_for_delphic_appraisers() CALLED ***")
         delphic_units = [unit for unit in self.units if unit.is_alive() and unit.type == UnitType.DELPHIC_APPRAISER]
+        print(f"[ENGINE DEBUG] Found {len(delphic_units)} DELPHIC_APPRAISER units")
 
         if not delphic_units:
+            print(f"[ENGINE DEBUG] No DELPHIC_APPRAISER units found, returning early")
             return
 
         for unit in delphic_units:
             # Check if this unit has the Valuation Oracle passive skill
             if unit.passive_skill and unit.passive_skill.__class__.__name__ == 'ValuationOracle':
+                # Track which units had Valuation Oracle BEFORE applying
+                units_without_buff_before = []
+                for ally in self.units:
+                    if ally.is_alive() and ally.player == unit.player:
+                        if not hasattr(ally, 'valuation_oracle_buff') or not ally.valuation_oracle_buff:
+                            units_without_buff_before.append(ally)
+
                 # Manually trigger the skill's astral value perception logic
                 unit.passive_skill.apply_passive(unit, self)
                 logger.debug(f"Triggered Valuation Oracle for {unit.get_display_name()}")
+
+                # Mark units that gained the buff during initialization for graphical icon flash
+                for ally in units_without_buff_before:
+                    if hasattr(ally, 'valuation_oracle_buff') and ally.valuation_oracle_buff:
+                        # Set a flag that the graphical adapter can check on first sync
+                        ally.valuation_oracle_initial_application = True
+                        logger.debug(f"Marked {ally.get_display_name()} for initial Valuation Oracle icon flash")
+                        print(f"[ENGINE DEBUG] *** MARKED {ally.get_display_name()} with valuation_oracle_initial_application = True ***")
 
     def _check_and_remove_rails_if_no_fowl_remaining(self, ui=None):
         """Check if any FOWL_CONTRIVANCE units remain alive, and if not, explode and remove all rails."""

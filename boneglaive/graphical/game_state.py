@@ -138,6 +138,8 @@ class VisualUnit:
             effects['site_inspection_partial'] = True
         if hasattr(game_unit, 'valuation_oracle_active') and game_unit.valuation_oracle_active:
             effects['valuation_oracle'] = True
+        if hasattr(game_unit, 'valuation_oracle_buff') and game_unit.valuation_oracle_buff:
+            effects['valuation_oracle'] = True
         if hasattr(game_unit, 'vagal_run_active') and game_unit.vagal_run_active:
             effects['vagal_run'] = True
         if hasattr(game_unit, 'auction_curse_dot') and game_unit.auction_curse_dot:
@@ -206,8 +208,9 @@ class GameStateAdapter:
             # Create new game instance
             self.game = Game(skip_setup=skip_setup, map_name=map_name)
 
-        # Register callback for detecting status effects before they're cleared
+        # Register callbacks for detecting status effects
         self.game.pre_status_clear_callback = self._detect_status_effects_callback
+        self.game.post_passive_application_callback = self._detect_passive_status_effects_callback
 
         # Add UUID system to all units for unique identification
         self._add_unit_ids()
@@ -277,9 +280,17 @@ class GameStateAdapter:
         but about to be cleared. Store them for display after damage numbers.
         """
         if not self.game or not self.executing_turn:
+            print(f"[GameState] *** CALLBACK SKIPPED: game={self.game is not None}, executing_turn={self.executing_turn} ***")
             return
 
         print(f"[GameState] *** STATUS DETECTION CALLBACK INVOKED ***")
+
+        # DEBUG: Check for initial Valuation Oracle flags BEFORE processing
+        vo_flagged_units = [u for u in self.game.units if hasattr(u, 'valuation_oracle_initial_application') and u.valuation_oracle_initial_application]
+        if vo_flagged_units:
+            print(f"[GameState] DEBUG: Found {len(vo_flagged_units)} units with valuation_oracle_initial_application flag:")
+            for u in vo_flagged_units:
+                print(f"[GameState]   - {u.get_display_name()}")
 
         # Clear any previous pending effects
         if not hasattr(self, '_effects_to_show_after_damage'):
@@ -314,6 +325,60 @@ class GameStateAdapter:
 
                         # Store this for showing after damage numbers
                         self._effects_to_show_after_damage.append((unit_id, effect_name))
+
+        # After detecting turn-based status effects, check for initial Valuation Oracle applications
+        # These were applied during game setup before any snapshot was taken
+        print(f"[GameState] DEBUG: Checking for initial Valuation Oracle applications...")
+        for unit in self.game.units:
+            if (unit.is_alive() and
+                hasattr(unit, 'valuation_oracle_initial_application') and
+                unit.valuation_oracle_initial_application):
+                # Queue this unit for status icon flash
+                unit_id = self._get_unit_id(unit)
+                print(f"[GameState] DEBUG: Unit {unit.get_display_name()} has flag, unit_id={unit_id}, in visual_units={unit_id in self.visual_units}")
+                if unit_id in self.visual_units:
+                    self._effects_to_show_after_damage.append((unit_id, 'valuation_oracle'))
+                    print(f"[GameState] *** QUEUED initial Valuation Oracle icon flash for {unit.get_display_name()} ***")
+                # Clear the flag so it only triggers once
+                unit.valuation_oracle_initial_application = False
+
+        print(f"[GameState] DEBUG: Final _effects_to_show_after_damage list has {len(self._effects_to_show_after_damage)} entries")
+
+    def _detect_passive_status_effects_callback(self):
+        """
+        Callback invoked by game engine AFTER passive skills are applied at turn start.
+        This detects status effects applied by passive skills (like Valuation Oracle).
+        """
+        if not self.game:
+            return
+
+        print(f"[GameState] *** PASSIVE STATUS DETECTION CALLBACK INVOKED ***")
+
+        # Initialize the effects list if needed
+        if not hasattr(self, '_effects_to_show_after_damage'):
+            self._effects_to_show_after_damage = []
+
+        # Check each unit for Valuation Oracle that was just applied
+        for unit in self.game.units:
+            if not unit.is_alive():
+                continue
+
+            # Check if this unit has the initial application flag
+            if (hasattr(unit, 'valuation_oracle_initial_application') and
+                unit.valuation_oracle_initial_application):
+
+                unit_id = self._get_unit_id(unit)
+                print(f"[GameState] *** PASSIVE CALLBACK: {unit.get_display_name()} gained Valuation Oracle ***")
+
+                if unit_id in self.visual_units:
+                    # Queue the status icon flash
+                    self._effects_to_show_after_damage.append((unit_id, 'valuation_oracle'))
+                    print(f"[GameState] *** QUEUED Valuation Oracle icon flash for {unit.get_display_name()} ***")
+
+                # Clear the flag
+                unit.valuation_oracle_initial_application = False
+
+        print(f"[GameState] PASSIVE CALLBACK: {len(self._effects_to_show_after_damage)} effects queued for display")
 
     def sync_state(self) -> List[AnimationEvent]:
         """

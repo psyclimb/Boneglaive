@@ -24,20 +24,20 @@ if TYPE_CHECKING:
 class ValuationOracle(PassiveSkill):
     """
     Passive skill for DELPHIC_APPRAISER.
-    Perceives the 'astral value' of furniture terrain and gains bonuses when adjacent.
+    Perceives the 'astral value' of furniture terrain and grants team-wide bonuses.
     """
-    
+
     def __init__(self):
         super().__init__(
             name="Valuation Oracle",
             key="V",
-            description="Perceives the 'astral value' (1-9) of furniture terrain. When adjacent to appraised furniture, gains +1 to defense and attack range."
+            description="Perceives the 'astral value' (1-14) of furniture terrain. Allies adjacent to furniture with astral value 9 or greater gain +1 to defense and attack range."
         )
         
     def apply_passive(self, user: 'Unit', game: Optional['Game'] = None, ui=None) -> None:
         """
         Apply the Valuation Oracle passive effect.
-        Checks if the user is adjacent to any furniture and applies bonuses if so.
+        Grants bonuses to ALL allies adjacent to furniture with astral value >= 9.
         """
         if not game:
             return
@@ -48,56 +48,66 @@ class ValuationOracle(PassiveSkill):
             # Cosmic values will be perceived when the game starts (see engine.py setup completion)
             return
 
-        # Check if adjacent to any furniture
-        adjacent_to_furniture = False
-        furniture_positions = []
+        # Process ALL ally units (including the DELPHIC_APPRAISER)
+        for ally in game.units:
+            if not ally.is_alive() or ally.player != user.player:
+                continue
 
-        # Check all eight adjacent positions
-        for dy in [-1, 0, 1]:
-            for dx in [-1, 0, 1]:
-                if dy == 0 and dx == 0:
-                    continue  # Skip the unit's own position
+            # Check if this ally is adjacent to any high-value furniture (>= 9)
+            adjacent_to_high_value = False
 
-                y, x = user.y + dy, user.x + dx
+            # Check all eight adjacent positions
+            for dy in [-1, 0, 1]:
+                for dx in [-1, 0, 1]:
+                    if dy == 0 and dx == 0:
+                        continue  # Skip the unit's own position
 
-                # Skip if out of bounds
-                if not game.is_valid_position(y, x):
-                    continue
+                    y, x = ally.y + dy, ally.x + dx
 
-                # Check if the tile is furniture
-                if game.map.is_furniture(y, x):
-                    adjacent_to_furniture = True
-                    furniture_positions.append((y, x))
+                    # Skip if out of bounds
+                    if not game.is_valid_position(y, x):
+                        continue
 
-                    # Get astral value with the appraiser's player
-                    cosmic_value = game.map.get_cosmic_value(y, x, player=user.player, game=game)
-                    # Value will be generated if it doesn't exist yet
+                    # Check if the tile is furniture
+                    if game.map.is_furniture(y, x):
+                        # Get astral value with the appraiser's player
+                        cosmic_value = game.map.get_cosmic_value(y, x, player=user.player, game=game)
 
-        # Apply bonuses if adjacent to furniture
-        if adjacent_to_furniture:
-            # If this is the first time applying the bonus this turn, log a message
-            if not hasattr(user, 'valuation_oracle_buff') or not user.valuation_oracle_buff:
-                message_log.add_message(
-                    f"{user.get_display_name()}'s Valuation Oracle senses the astral value of nearby furniture",
-                    MessageType.ABILITY,
-                    player=user.player
-                )
+                        # Check if astral value is 9 or greater
+                        if cosmic_value is not None and cosmic_value >= 9:
+                            adjacent_to_high_value = True
+                            break
 
-            # Set status effect flag and duration (lasts indefinitely while adjacent)
-            user.valuation_oracle_buff = True
-            user.valuation_oracle_duration = 999  # High value, will be refreshed each turn while adjacent
-            
-            # Apply bonuses to defense and attack range using *_bonus attributes
-            user.defense_bonus = 1
-            user.attack_range_bonus = 1
-        else:
-            # If no longer adjacent, remove the status effect immediately
-            if hasattr(user, 'valuation_oracle_buff') and user.valuation_oracle_buff:
-                user.valuation_oracle_buff = False
-                user.valuation_oracle_duration = 0
-                # Remove bonuses
-                user.defense_bonus = 0
-                user.attack_range_bonus = 0
+                if adjacent_to_high_value:
+                    break
+
+            # Apply or remove bonuses based on adjacency to high-value furniture
+            if adjacent_to_high_value:
+                # If this is the first time applying the bonus to this ally, log a message
+                if not hasattr(ally, 'valuation_oracle_buff') or not ally.valuation_oracle_buff:
+                    message_log.add_message(
+                        f"{ally.get_display_name()} is empowered by the DELPHIC APPRAISER's valuation",
+                        MessageType.ABILITY,
+                        player=ally.player
+                    )
+                    # Mark for initial application animation
+                    ally.valuation_oracle_initial_application = True
+
+                # Set status effect flag and duration (lasts indefinitely while adjacent)
+                ally.valuation_oracle_buff = True
+                ally.valuation_oracle_duration = 999  # High value, will be refreshed each turn while adjacent
+
+                # Apply bonuses to defense and attack range using *_bonus attributes
+                ally.defense_bonus = 1
+                ally.attack_range_bonus = 1
+            else:
+                # If no longer adjacent to high-value furniture, remove the status effect immediately
+                if hasattr(ally, 'valuation_oracle_buff') and ally.valuation_oracle_buff:
+                    ally.valuation_oracle_buff = False
+                    ally.valuation_oracle_duration = 0
+                    # Remove bonuses
+                    ally.defense_bonus = 0
+                    ally.attack_range_bonus = 0
 
 
 class MarketFuturesSkill(ActiveSkill):
@@ -769,9 +779,9 @@ class DivineDrepreciationSkill(ActiveSkill):
 
         # Store the original astral value BEFORE setting it to 1
         original_target_cosmic_value = original_cosmic_value
-        
-        # Set target furniture's astral value to 1
-        game.map.set_cosmic_value(target_pos[0], target_pos[1], 1)
+
+        # Set target furniture's astral value to 1 for this player
+        game.map.set_cosmic_value(target_pos[0], target_pos[1], 1, user.player)
 
         # Calculate effect value based on the difference between average value and target value (now 1)
         effect_value = max(1, avg_cosmic_value - 1)  # Ensure at least 1 damage/healing
@@ -853,9 +863,9 @@ class DivineDrepreciationSkill(ActiveSkill):
                     0.1  # Fast flashing
                 )
 
-            # Generate a new random astral value (1-9)
+            # Generate a new random astral value (1-9) for this player
             new_value = random.randint(1, 9)
-            game.map.set_cosmic_value(pos[0], pos[1], new_value)
+            game.map.set_cosmic_value(pos[0], pos[1], new_value, user.player)
 
         # Log the skill activation with details about the astral values
         message_log.add_message(
