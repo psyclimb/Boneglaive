@@ -2343,13 +2343,18 @@ class GraphicalRenderer:
 
 def main():
     """Entry point for graphical version."""
+    # Load config to get selected map
+    from boneglaive.utils.config import ConfigManager
+    config = ConfigManager()
+    selected_map = config.get('selected_map', 'edgecase')
+
     # Create game state adapter
     adapter = GameStateAdapter()
 
     # Initialize game with real game logic
     print("Initializing game...")
-    adapter.initialize_game(skip_setup=True)
-    print(f"Game created with {len(adapter.game.units)} units")
+    adapter.initialize_game(skip_setup=True, map_name=selected_map)
+    print(f"Game created with {len(adapter.game.units)} units on map: {selected_map}")
 
     # Create renderer
     renderer = GraphicalRenderer(adapter)
