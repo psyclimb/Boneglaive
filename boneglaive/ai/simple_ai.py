@@ -1671,43 +1671,21 @@ class SimpleAI:
         Process actions for a FOWL_CONTRIVANCE unit.
         Implements intelligent rail artillery tactics with emphasis on Gaussian Dusk
         targeting of immobilized or predictable enemies.
-        
+
         Args:
             unit: The FOWL_CONTRIVANCE unit to process
             use_coordination: Whether to use group coordination tactics
         """
-        # If fowl contrivance has charging status, use gaussian dusk skill again
-        if hasattr(unit, 'charging_status') and unit.charging_status:
-            logger.info(f"{unit.get_display_name()} has charging status - using Gaussian Dusk skill")
-            
-            # Find Gaussian Dusk skill
-            gaussian_dusk_skill = None
-            for skill in unit.skills:
-                if hasattr(skill, 'name') and skill.name == "Gaussian Dusk":
-                    gaussian_dusk_skill = skill
-                    break
-            
-            if gaussian_dusk_skill:
-                # Use the Gaussian Dusk skill again
-                result = gaussian_dusk_skill.use(unit, None, self.game)
-                logger.info(f"FOWL_CONTRIVANCE gaussian_dusk_skill.use() returned: {result}")
-                logger.info(f"FOWL_CONTRIVANCE targets after use(): skill_target={unit.skill_target}, selected_skill={unit.selected_skill.name if unit.selected_skill else None}")
-                if result:
-                    logger.info(f"FOWL_CONTRIVANCE successfully set up firing - RETURNING EARLY")
-                    return
-                else:
-                    logger.error(f"FOWL_CONTRIVANCE gaussian_dusk_skill.use() returned False while charging!")
-            
-            logger.error("Could not use Gaussian Dusk skill while charging")
+        # If unit is recharging from Gaussian Dusk, it cannot take ANY actions
+        if hasattr(unit, 'gaussian_dusk_recharge') and unit.gaussian_dusk_recharge > 0:
+            logger.info(f"{unit.get_display_name()} is recharging from Gaussian Dusk - cannot take any actions (recharge: {unit.gaussian_dusk_recharge})")
             return
-        
-        # Reset move and attack targets only when NOT charging (charging units need to preserve targets)
-        # SAFETY CHECK: Never clear targets if unit is charging
-        if not (hasattr(unit, 'charging_status') and unit.charging_status):
-            unit.move_target = None
-            unit.attack_target = None
-            unit.skill_target = None
-            unit.selected_skill = None
+
+        # Reset move and attack targets
+        unit.move_target = None
+        unit.attack_target = None
+        unit.skill_target = None
+        unit.selected_skill = None
         
         # Get a target based on the difficulty level or coordination
         target = None
@@ -4188,85 +4166,107 @@ class SimpleAI:
                 if distance > move_range:
                     continue
                     
-                score = self._evaluate_artillery_position(new_y, new_x, target)
+                score = self._evaluate_artillery_position(new_y, new_x, target, unit)
                 if score > best_score:
                     best_score = score
                     best_pos = (new_y, new_x)
-        
+
         # Only move if we found a significantly better position
-        current_score = self._evaluate_artillery_position(unit.y, unit.x, target)
+        current_score = self._evaluate_artillery_position(unit.y, unit.x, target, unit)
         if best_score > current_score + 10:  # Require significant improvement
             return best_pos
             
         return None
 
-    def _evaluate_artillery_position(self, y: int, x: int, target: 'Unit') -> float:
+    def _evaluate_artillery_position(self, y: int, x: int, target: 'Unit', unit: 'Unit') -> float:
         """
         Evaluate how good a position is for artillery tactics.
-        
+        Prioritizes cardinal alignment with target for Gaussian Dusk.
+
         Args:
             y, x: Position to evaluate
             target: The target enemy
-            
+            unit: The FOWL_CONTRIVANCE unit
+
         Returns:
             Score for the position (higher is better)
         """
         score = 0
-        
+
+        # HIGHEST PRIORITY: Cardinal alignment with target (for Gaussian Dusk)
+        dy = target.y - y
+        dx = target.x - x
+
+        # Check if target is in a cardinal line from this position
+        if dx == 0 and dy != 0:
+            # Vertically aligned (North/South)
+            score += 100
+            logger.debug(f"Position ({y},{x}) is vertically aligned with target (+100)")
+        elif dy == 0 and dx != 0:
+            # Horizontally aligned (East/West)
+            score += 100
+            logger.debug(f"Position ({y},{x}) is horizontally aligned with target (+100)")
+        else:
+            # Not cardinally aligned - penalize distance from alignment
+            # Calculate how far off from perfect cardinal alignment
+            min_offset = min(abs(dx), abs(dy))
+            score -= min_offset * 15  # Penalty for being off-axis
+
         # Prefer positions with clear line of sight to target
         temp_unit_pos = (y, x)
         if self._has_clear_line_of_sight_from_pos(temp_unit_pos, (target.y, target.x)):
             score += 30
-        
-        # Prefer positions that hit multiple enemies in potential Gaussian lines
+
+        # Prefer positions that hit multiple enemies in cardinal Gaussian lines
         max_enemies_in_line = 0
-        for dy in [-1, 0, 1]:
-            for dx in [-1, 0, 1]:
-                if dy == 0 and dx == 0:
-                    continue
-                enemies_in_line = self._count_enemies_in_line_from_pos((y, x), (dy, dx))
-                max_enemies_in_line = max(max_enemies_in_line, enemies_in_line)
-        
-        score += max_enemies_in_line * 15
-        
+        for direction in [(0, 1), (0, -1), (1, 0), (-1, 0)]:  # Only cardinal directions
+            enemies_in_line = self._count_enemies_in_line_from_pos((y, x), direction)
+            max_enemies_in_line = max(max_enemies_in_line, enemies_in_line)
+
+        score += max_enemies_in_line * 20
+
         # Prefer rails if available (FOWL_CONTRIVANCE rail bonuses)
         if self.game.map.has_rails() and self.game.map.is_rail_at(y, x):
             score += 20
-        
+
         # Prefer distance from enemies (artillery should stay back)
         min_enemy_distance = float('inf')
         for enemy in self.game.units:
-            if enemy.player != 2 and enemy.is_alive():  # Player 1 units
+            if enemy.player != unit.player and enemy.is_alive():
                 distance = self.game.chess_distance(y, x, enemy.y, enemy.x)
                 min_enemy_distance = min(min_enemy_distance, distance)
-        
+
         if min_enemy_distance > 3:
             score += 10  # Bonus for staying at safe distance
-        
+
         return score
 
     def _calculate_gaussian_direction(self, unit: 'Unit', target: 'Unit') -> Optional[Tuple[int, int]]:
         """
-        Calculate the direction for Gaussian Dusk to hit the target.
-        
+        Calculate the cardinal direction for Gaussian Dusk to hit the target.
+        Returns None if target is not in a cardinal line (N, S, E, W only).
+
         Args:
             unit: The FOWL_CONTRIVANCE unit
             target: The target enemy
-            
+
         Returns:
-            Direction tuple (dy, dx) or None if no clear shot
+            Cardinal direction tuple (dy, dx) or None if target not in cardinal line
         """
         dy = target.y - unit.y
         dx = target.x - unit.x
-        
-        # Normalize to one of 8 directions
+
+        # Snap to nearest cardinal direction (N, S, E, W only - NO diagonals)
         if abs(dx) > abs(dy):
-            direction = (0, 1 if dx > 0 else -1)
+            # Horizontal direction dominates
+            direction = (0, 1 if dx > 0 else -1)  # East or West
         elif abs(dy) > abs(dx):
-            direction = (1 if dy > 0 else -1, 0)
+            # Vertical direction dominates
+            direction = (1 if dy > 0 else -1, 0)  # South or North
         else:
-            direction = (1 if dy > 0 else -1, 1 if dx > 0 else -1)
-            
+            # Diagonal case (abs(dy) == abs(dx)) - Gaussian Dusk cannot fire diagonally
+            return None
+
         return direction
 
     def _is_good_gaussian_shot(self, unit: 'Unit', target: 'Unit', direction: Tuple[int, int]) -> bool:

@@ -1771,7 +1771,11 @@ class Game:
         # Check if this was the last FOWL_CONTRIVANCE and remove rails if so
         if dying_unit.type == UnitType.FOWL_CONTRIVANCE:
             self._check_and_remove_rails_if_no_fowl_remaining(ui)
-        
+
+        # Check if this was the last DELPHIC_APPRAISER and remove Valuation Oracle buffs if so
+        if dying_unit.type == UnitType.DELPHIC_APPRAISER:
+            self._check_and_remove_valuation_oracle_if_no_appraiser_remaining(dying_unit.player)
+
         # Handle Echo death by triggering chain reactions
         if dying_unit.is_echo:
             self._trigger_echo_death_effect(dying_unit, ui)
@@ -5138,7 +5142,41 @@ class Game:
         )
         
         logger.info(f"Removed {rail_count} rail tiles - no FOWL_CONTRIVANCE units remaining")
-    
+
+    def _check_and_remove_valuation_oracle_if_no_appraiser_remaining(self, player: int):
+        """Remove Valuation Oracle buffs when no DELPHIC_APPRAISER remains for a player.
+
+        Astral values persist in map.cosmic_values[player] for when DELPHIC_APPRAISER respawns,
+        but buffs are removed since there's no living appraiser to perceive them.
+
+        Args:
+            player: Player number to check
+        """
+        # Check if any DELPHIC_APPRAISER units are still alive for this player
+        appraisers_remaining = [unit for unit in self.units
+                               if unit.is_alive()
+                               and unit.type == UnitType.DELPHIC_APPRAISER
+                               and unit.player == player]
+
+        if appraisers_remaining:
+            return  # Still have DELPHIC_APPRAISER units for this player
+
+        # No DELPHIC_APPRAISER units left - remove Valuation Oracle buffs
+        buffs_removed = 0
+        for unit in self.units:
+            if unit.is_alive() and unit.player == player:
+                if hasattr(unit, 'valuation_oracle_buff') and unit.valuation_oracle_buff:
+                    unit.valuation_oracle_buff = False
+                    unit.valuation_oracle_duration = 0
+                    # Remove bonuses (use max to prevent going negative)
+                    unit.defense_bonus = max(0, unit.defense_bonus - 1)
+                    unit.attack_range_bonus = max(0, unit.attack_range_bonus - 1)
+                    buffs_removed += 1
+                    logger.debug(f"Removed Valuation Oracle buff from {unit.get_display_name()}")
+
+        if buffs_removed > 0:
+            logger.info(f"Removed Valuation Oracle buffs from {buffs_removed} units - no DELPHIC_APPRAISER remaining for player {player}")
+
     def update_anchor_status_effects(self):
         """Update anchor status effects for all units based on adjacency to friendly teleport anchors."""
         if not hasattr(self, 'teleport_anchors'):
