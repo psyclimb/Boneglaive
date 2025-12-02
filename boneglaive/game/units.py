@@ -818,8 +818,13 @@ class Unit:
                 
                 # Apply final damage
                 self._applying_damage = True
+                old_hp = self._hp
                 self._hp = max(0, self._hp - actual_damage)
                 self._applying_damage = False
+
+                # Check for death and award GP
+                if old_hp > 0 and self._hp == 0:
+                    self._handle_death()
             else:
                 # No PRT - apply damage normally
                 self.last_prt_absorbed = 0  # No PRT was applied
@@ -839,8 +844,13 @@ class Unit:
 
                 # Apply the (possibly halved) damage
                 self._applying_damage = True
+                old_hp = self._hp
                 self._hp = max(0, self._hp - actual_damage)
                 self._applying_damage = False
+
+                # Check for death and award GP
+                if old_hp > 0 and self._hp == 0:
+                    self._handle_death()
         else:
             # Normal HP setting (healing or non-damage changes)
             self.last_prt_absorbed = 0  # Clear PRT tracking for non-damage changes
@@ -850,7 +860,54 @@ class Unit:
         """Force unit expiration, bypassing invulnerability.
         Used when HEINOUS_VAPOR duration runs out."""
         self._hp = 0
-    
+
+    def _handle_death(self):
+        """Handle unit death - award GP and create DeadUnit entry for respawn."""
+        if not self._game:
+            return
+
+        from boneglaive.utils.constants import GP_ELIGIBLE_UNITS
+        from boneglaive.game.engine import DeadUnit
+        from boneglaive.utils.message_log import message_log, MessageType
+
+        # Check if this unit is GP-eligible (not a summon/echo)
+        if self.type in GP_ELIGIBLE_UNITS:
+            # Award GP to opposing player
+            opposing_player = 2 if self.player == 1 else 1
+            if opposing_player == 1:
+                self._game.player1_gp += 1
+                gp_total = self._game.player1_gp
+            else:
+                self._game.player2_gp += 1
+                gp_total = self._game.player2_gp
+
+            winner_name = self._game.get_player_name(opposing_player)
+
+            # Log GP award
+            message_log.add_message(
+                f"{winner_name} scores 1 GP! ({gp_total}/{self._game.gp_win_threshold})",
+                MessageType.SYSTEM,
+                player=opposing_player
+            )
+
+            # Create DeadUnit entry for respawn
+            dead_unit = DeadUnit(
+                unit_type=self.type,
+                player=self.player,
+                death_turn=self._game.turn,
+                greek_id=self.greek_id
+            )
+            self._game.dead_units.append(dead_unit)
+
+            # Remove from active units list
+            if self in self._game.units:
+                self._game.units.remove(self)
+
+            logger.info(f"GP SYSTEM: {self.get_display_name()} died, {winner_name} awarded 1 GP ({gp_total}/{self._game.gp_win_threshold})")
+        else:
+            # Summon/echo death - no GP awarded, no respawn
+            logger.info(f"GP SYSTEM: {self.get_display_name()} (summon/echo) died - no GP awarded")
+
     # Position properties with trap release functionality
     @property
     def y(self):

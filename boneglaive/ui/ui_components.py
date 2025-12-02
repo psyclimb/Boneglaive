@@ -2352,6 +2352,13 @@ class CursorManager(UIComponent):
         self.selected_unit = None
         self.highlighted_positions = []
         self.attack_range_positions = []  # Track attack range tiles (shown in player color)
+
+        # Respawn mode state
+        self.respawn_mode = False
+        self.respawn_selecting_unit = False  # True when selecting which unit to respawn
+        self.respawn_selecting_location = False  # True when selecting respawn location
+        self.selected_dead_unit = None
+        self.respawn_unit_index = 0  # Index in ready dead units list
     
     def _setup_event_handlers(self):
         """Set up event handlers for cursor manager."""
@@ -2773,20 +2780,20 @@ class CursorManager(UIComponent):
             
         # Get the current player
         current_player = self.game_ui.multiplayer.get_current_player()
-        
-        # Get a list of units belonging to the current player
-        player_units = [unit for unit in self.game_ui.game.units 
-                      if unit.is_alive() and 
-                         (unit.player == current_player or 
+
+        # Get a list of units belonging to the current player (alive only)
+        player_units = [unit for unit in self.game_ui.game.units
+                      if unit.is_alive() and
+                         (unit.player == current_player or
                           (self.game_ui.game.test_mode and unit.player in [1, 2]))]
-        
+
         if not player_units:
             self.game_ui.message = "No units available to cycle through"
             return
-        
+
         # Store reference to currently selected unit before deselecting
         previously_selected_unit = self.selected_unit
-        
+
         # If no unit was selected, select the first or last one depending on direction
         if not previously_selected_unit:
             # In reverse mode, start from the last unit
@@ -2795,7 +2802,7 @@ class CursorManager(UIComponent):
             # Find the index of the currently selected unit
             try:
                 current_index = player_units.index(previously_selected_unit)
-                
+
                 # Calculate the next index based on direction
                 if reverse:
                     # Select the previous unit (loop back to last if at the beginning)
@@ -2803,42 +2810,42 @@ class CursorManager(UIComponent):
                 else:
                     # Select the next unit (loop back to first if at the end)
                     next_index = (current_index + 1) % len(player_units)
-                    
+
                 next_unit = player_units[next_index]
             except ValueError:
                 # If the selected unit isn't in the player's units (could happen in test mode)
                 # In reverse mode, start from the last unit
                 next_unit = player_units[-1 if reverse else 0]
-        
+
         # Only deselect the current unit after finding the next one
         if previously_selected_unit:
             self._deselect_unit()
-            
+
         # Move cursor to the next unit's position
         previous_pos = self.cursor_pos
-        
+
         # Set position based on whether unit has a move target
         if next_unit.move_target:
             self.cursor_pos = Position(next_unit.move_target[0], next_unit.move_target[1])
         else:
             self.cursor_pos = Position(next_unit.y, next_unit.x)
-            
+
         # Publish cursor moved event if position changed
         if self.cursor_pos != previous_pos:
             self.publish_event(
-                EventType.CURSOR_MOVED, 
+                EventType.CURSOR_MOVED,
                 CursorMovedEventData(position=self.cursor_pos, previous_position=previous_pos)
             )
-        
+
         # Select the unit
         self.selected_unit = next_unit
-        
+
         # Publish unit selected event
         self.publish_event(
             EventType.UNIT_SELECTED,
             UnitSelectedEventData(unit=next_unit, position=self.cursor_pos)
         )
-        
+
         # Clear message to avoid redundancy with unit info display
         self.game_ui.message = ""
         
@@ -2855,10 +2862,10 @@ class CursorManager(UIComponent):
         
     def find_unit_by_ghost(self, y, x):
         """Find a unit that has a move target at the given position.
-        
+
         Args:
             y, x: The position to check for a ghost unit
-            
+
         Returns:
             The unit that has a move target at (y, x), or None if no such unit exists
         """
@@ -2866,6 +2873,87 @@ class CursorManager(UIComponent):
             if unit.is_alive() and unit.move_target == (y, x):
                 return unit
         return None
+
+    def start_respawn_mode(self):
+        """Start respawn mode - show list of ready-to-respawn units."""
+        current_player = self.game_ui.multiplayer.get_current_player()
+
+        # Get ready-to-respawn dead units for current player
+        ready_dead_units = [du for du in self.game_ui.game.dead_units
+                           if du.player == current_player and du.ready_for_respawn]
+
+        if not ready_dead_units:
+            self.game_ui.message = "No units ready to respawn"
+            return False
+
+        # Enter respawn unit selection mode
+        self.respawn_mode = True
+        self.respawn_selecting_unit = True
+        self.respawn_selecting_location = False
+        self.respawn_unit_index = 0
+        self.selected_dead_unit = None
+        self.game_ui.message = "Select unit to respawn (arrows/Enter to confirm, c to cancel)"
+        return True
+
+    def respawn_select_next_unit(self):
+        """Cycle to next ready-to-respawn unit."""
+        current_player = self.game_ui.multiplayer.get_current_player()
+        ready_dead_units = [du for du in self.game_ui.game.dead_units
+                           if du.player == current_player and du.ready_for_respawn]
+
+        if ready_dead_units:
+            self.respawn_unit_index = (self.respawn_unit_index + 1) % len(ready_dead_units)
+
+    def respawn_select_prev_unit(self):
+        """Cycle to previous ready-to-respawn unit."""
+        current_player = self.game_ui.multiplayer.get_current_player()
+        ready_dead_units = [du for du in self.game_ui.game.dead_units
+                           if du.player == current_player and du.ready_for_respawn]
+
+        if ready_dead_units:
+            self.respawn_unit_index = (self.respawn_unit_index - 1) % len(ready_dead_units)
+
+    def confirm_respawn_unit_selection(self):
+        """Confirm unit selection and enter location selection mode."""
+        current_player = self.game_ui.multiplayer.get_current_player()
+        ready_dead_units = [du for du in self.game_ui.game.dead_units
+                           if du.player == current_player and du.ready_for_respawn]
+
+        if not ready_dead_units:
+            self.exit_respawn_mode()
+            return False
+
+        # Set selected dead unit and enter location selection mode
+        self.selected_dead_unit = ready_dead_units[self.respawn_unit_index]
+        self.respawn_selecting_unit = False
+        self.respawn_selecting_location = True
+        self.game_ui.message = f"Select respawn location for {self.selected_dead_unit.greek_id} (Enter to confirm, c to cancel)"
+        return True
+
+    def confirm_respawn_location(self):
+        """Confirm respawn at current cursor position."""
+        if not self.selected_dead_unit:
+            return False
+
+        pos = (self.cursor_pos.y, self.cursor_pos.x)
+        success = self.game_ui.game.queue_respawn(self.selected_dead_unit, pos)
+
+        if success:
+            self.game_ui.message = f"{self.selected_dead_unit.greek_id} will respawn at ({pos[0]}, {pos[1]})"
+            self.exit_respawn_mode()
+            return True
+        else:
+            self.game_ui.message = "Invalid respawn location (blocked or occupied)"
+            return False
+
+    def exit_respawn_mode(self):
+        """Exit respawn mode."""
+        self.respawn_mode = False
+        self.respawn_selecting_unit = False
+        self.respawn_selecting_location = False
+        self.selected_dead_unit = None
+        self.respawn_unit_index = 0
+        self.game_ui.message = ""
 
 # Game mode manager component
 class GameOverPrompt(UIComponent):
@@ -6049,6 +6137,7 @@ class InputManager(UIComponent):
             GameAction.DEBUG_SAVE: self.game_ui.debug_component.handle_debug_save,
             GameAction.HELP: self._handle_help_request,
             GameAction.CHAT_MODE: self.game_ui.chat_component.toggle_chat_mode,
+            GameAction.RESPAWN_MODE: cursor_manager.start_respawn_mode,
             GameAction.CYCLE_UNITS: cursor_manager.cycle_units,
             GameAction.CYCLE_UNITS_REVERSE: cursor_manager.cycle_units_reverse,
             GameAction.LOG_HISTORY: self.game_ui.message_log_component.toggle_log_history,
@@ -6214,9 +6303,36 @@ class InputManager(UIComponent):
         if self.game_ui.chat_component.chat_mode:
             return self.game_ui.chat_component.handle_chat_input(key)
 
+        # Handle respawn mode input
+        if self.game_ui.cursor_manager.respawn_mode:
+            if self.game_ui.cursor_manager.respawn_selecting_unit:
+                # Unit selection phase
+                if key in [curses.KEY_UP, ord('k')]:
+                    self.game_ui.cursor_manager.respawn_select_prev_unit()
+                    return True
+                elif key in [curses.KEY_DOWN, ord('j')]:
+                    self.game_ui.cursor_manager.respawn_select_next_unit()
+                    return True
+                elif key in [curses.KEY_ENTER, 10, 13]:  # Enter
+                    self.game_ui.cursor_manager.confirm_respawn_unit_selection()
+                    return True
+                elif key == ord('c'):  # Cancel
+                    self.game_ui.cursor_manager.exit_respawn_mode()
+                    return True
+                return True  # Block all other input in unit selection
+            elif self.game_ui.cursor_manager.respawn_selecting_location:
+                # Location selection phase - allow movement and confirm
+                if key in [curses.KEY_ENTER, 10, 13]:  # Enter
+                    self.game_ui.cursor_manager.confirm_respawn_location()
+                    return True
+                elif key == ord('c'):  # Cancel
+                    self.game_ui.cursor_manager.exit_respawn_mode()
+                    return True
+                # Allow arrow keys for cursor movement - fall through to normal processing
+
         # Update input context based on current state
         self._update_input_context()
-        
+
         # Default processing
         return self.input_handler.process_input(key)
         

@@ -2,7 +2,7 @@
 import logging
 import curses
 import time
-from boneglaive.utils.constants import UnitType, HEIGHT, WIDTH, CRITICAL_HEALTH_PERCENT
+from boneglaive.utils.constants import UnitType, HEIGHT, WIDTH, CRITICAL_HEALTH_PERCENT, UNIT_SYMBOLS
 from boneglaive.game.units import Unit
 from boneglaive.game.map import GameMap, MapFactory, TerrainType
 from boneglaive.utils.coordinates import Position
@@ -13,6 +13,16 @@ from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 # Set up module logger if not already set up
 if 'logger' not in locals():
     logger = debug_config.setup_logging('game.engine')
+
+class DeadUnit:
+    """Represents a dead unit awaiting respawn."""
+    def __init__(self, unit_type, player, death_turn, greek_id):
+        self.unit_type = unit_type
+        self.player = player
+        self.death_turn = death_turn
+        self.respawn_timer = 3  # Turns until respawn available
+        self.greek_id = greek_id  # Preserve original identifier
+        self.ready_for_respawn = False
 
 class Game:
     def __init__(self, skip_setup=False, map_name="lime_foyer_arena", player_names=None):
@@ -34,6 +44,13 @@ class Game:
 
         # Store player names (defaults to "Player 1" and "Player 2" if not provided)
         self.player_names = player_names if player_names else {1: "Player 1", 2: "Player 2"}
+
+        # GP (Game Points) System
+        self.player1_gp = 0
+        self.player2_gp = 0
+        self.gp_win_threshold = 10  # First to 10 GP wins
+        self.dead_units = []  # List of DeadUnit objects awaiting respawn
+        self.pending_respawns = {1: [], 2: []}  # Respawns queued for execution phase
 
         # Graphical mode callbacks
         # Called before status effects are cleared - allows detection before removal
@@ -1223,7 +1240,83 @@ class Game:
         Returns True if the chess distance between them is 1.
         """
         return self.chess_distance(y1, x1, y2, x2) == 1
-        
+
+    def queue_respawn(self, dead_unit, position):
+        """
+        Queue a unit respawn for execution phase.
+
+        Args:
+            dead_unit: DeadUnit object to respawn
+            position: Tuple (y, x) for respawn location
+
+        Returns:
+            bool: True if respawn queued successfully, False if invalid position
+        """
+        if not self.is_valid_position(position[0], position[1]):
+            return False
+        if self.get_unit_at(position[0], position[1]):
+            return False  # Position occupied
+        if not self.map.is_passable(position[0], position[1]):
+            return False  # Position not passable
+
+        self.pending_respawns[self.current_player].append((dead_unit, position))
+        dead_unit.ready_for_respawn = False  # Mark as queued
+        logger.info(f"RESPAWN: Queued {dead_unit.greek_id} to respawn at {position}")
+        return True
+
+    def _execute_respawns(self, ui=None):
+        """Spawn queued units during execution phase."""
+        respawns = self.pending_respawns[self.current_player]
+        if not respawns:
+            return
+
+        for dead_unit, position in respawns:
+            # Create new Unit instance
+            unit = Unit(dead_unit.unit_type, dead_unit.player, position[0], position[1])
+            unit.greek_id = dead_unit.greek_id  # Restore identifier
+            unit._game = self
+
+            # Initialize skills
+            unit.initialize_skills()
+
+            # Restore HP to max
+            unit.hp = unit.max_hp
+
+            # Add to game
+            self.units.append(unit)
+
+            # Remove from dead units
+            if dead_unit in self.dead_units:
+                self.dead_units.remove(dead_unit)
+
+            # Log respawn
+            message_log.add_message(
+                f"{unit.get_display_name()} respawns!",
+                MessageType.SYSTEM,
+                player=unit.player
+            )
+
+            # Show respawn animation (ASCII mode)
+            if ui and hasattr(ui, 'renderer'):
+                # Check if it's graphical or ASCII renderer
+                if hasattr(ui.renderer, 'camera'):
+                    # Graphical mode - skip ASCII animation
+                    pass
+                else:
+                    # ASCII mode
+                    unit_symbol = UNIT_SYMBOLS.get(unit.type, "?")
+                    ui.renderer.animate_attack_sequence(
+                        position[0], position[1],
+                        ['·', 'o', 'O', '0', unit_symbol],
+                        3,  # Green color
+                        0.1
+                    )
+
+            logger.info(f"RESPAWN: {unit.get_display_name()} respawned at {position}")
+
+        # Clear respawn queue
+        self.pending_respawns[self.current_player] = []
+
     def has_line_of_sight(self, from_y, from_x, to_y, to_x):
         """
         Check if there is a clear line of sight between two positions.
@@ -3156,7 +3249,10 @@ class Game:
         
         # Apply trap damage for all trapped units
         self._apply_trap_damage()
-        
+
+        # Execute pending respawns
+        self._execute_respawns(ui)
+
         # Process HEINOUS_VAPOR effects for current player's vapors only
         vapor_units = [unit for unit in self.units if unit.is_alive() and 
                       unit.type == UnitType.HEINOUS_VAPOR and 
@@ -3683,6 +3779,14 @@ class Game:
                                 player=unit.player
                             )
 
+            # Decrement respawn timers for current player's dead units (before player switch)
+            for dead_unit in self.dead_units:
+                if dead_unit.player == self.current_player:
+                    dead_unit.respawn_timer -= 1
+                    if dead_unit.respawn_timer <= 0:
+                        dead_unit.ready_for_respawn = True
+                        logger.info(f"RESPAWN: {dead_unit.greek_id} ({dead_unit.unit_type.name}) is ready to respawn")
+
             # In single player mode, automatically toggle between player 1 and 2
             # In multiplayer modes, the multiplayer manager handles player switching
             if not self.local_multiplayer:
@@ -3691,7 +3795,7 @@ class Game:
                 # Increment turn counter when player 1's turn comes around again
                 if self.current_player == 1:
                     self.turn += 1
-                    
+
                 # Initialize the new player's turn
                 self.initialize_next_player_turn()
             
@@ -4002,19 +4106,19 @@ class Game:
         return True
     
     def check_game_over(self):
-        player1_alive = any(unit.is_alive() and unit.player == 1 for unit in self.units)
-        player2_alive = any(unit.is_alive() and unit.player == 2 for unit in self.units)
-        
-        if not player1_alive:
-            self.winner = 2
-            winner_name = self.get_player_name(2)
-            loser_name = self.get_player_name(1)
-            message_log.add_system_message(f"{winner_name} wins. All {loser_name} units have been defeated.")
-        elif not player2_alive:
+        # Check GP win condition
+        if self.player1_gp >= self.gp_win_threshold:
             self.winner = 1
             winner_name = self.get_player_name(1)
-            loser_name = self.get_player_name(2)
-            message_log.add_system_message(f"{winner_name} wins. All {loser_name} units have been defeated.")
+            message_log.add_system_message(
+                f"{winner_name} wins with {self.player1_gp} GP!"
+            )
+        elif self.player2_gp >= self.gp_win_threshold:
+            self.winner = 2
+            winner_name = self.get_player_name(2)
+            message_log.add_system_message(
+                f"{winner_name} wins with {self.player2_gp} GP!"
+            )
     
     def _apply_trap_damage(self):
         """Apply damage to units trapped by MANDIBLE_FOREMENs."""

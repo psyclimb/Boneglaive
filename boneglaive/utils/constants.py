@@ -70,6 +70,21 @@ UNIT_SYMBOLS = {
     UnitType.POTPOURRIST: 'P'  # P for POTPOURRIST
 }
 
+# GP (Game Points) System
+# Units that award GP when killed (main units only, no summons/echoes)
+GP_ELIGIBLE_UNITS = {
+    UnitType.GLAIVEMAN,
+    UnitType.MANDIBLE_FOREMAN,
+    UnitType.POTPOURRIST,
+    UnitType.GRAYMAN,
+    UnitType.INTERFERER,
+    UnitType.DELPHIC_APPRAISER,
+    UnitType.MARROW_CONDENSER,
+    UnitType.DERELICTIONIST,
+    UnitType.FOWL_CONTRIVANCE,
+    UnitType.GAS_MACHINIST
+}
+
 # Attack visual effects
 ATTACK_EFFECTS = {
     UnitType.GLAIVEMAN: "/",  # Glaive (melee)
