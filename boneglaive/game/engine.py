@@ -48,7 +48,7 @@ class Game:
         # GP (Game Points) System
         self.player1_gp = 0
         self.player2_gp = 0
-        self.gp_win_threshold = 10  # First to 10 GP wins
+        self.gp_win_threshold = 3  # First to 3 GP wins (testing)
         self.dead_units = []  # List of DeadUnit objects awaiting respawn
         self.pending_respawns = {1: [], 2: []}  # Respawns queued for execution phase
 

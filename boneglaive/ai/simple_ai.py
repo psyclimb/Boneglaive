@@ -74,9 +74,29 @@ class SimpleAI:
             
             # "AI is thinking..." message moved to multiplayer_manager.py
             # to avoid duplication
-                
+
+            # Check for units ready to respawn
+            ready_dead_units = [du for du in self.game.dead_units
+                               if du.player == self.player_number and du.ready_for_respawn]
+
+            if ready_dead_units:
+                logger.info(f"AI has {len(ready_dead_units)} units ready to respawn")
+                for dead_unit in ready_dead_units:
+                    try:
+                        spawn_location = self._find_respawn_location(dead_unit)
+                        if spawn_location:
+                            success = self.game.queue_respawn(dead_unit, spawn_location)
+                            if success:
+                                logger.info(f"AI queued respawn for {dead_unit.greek_id} at {spawn_location}")
+                            else:
+                                logger.warning(f"Failed to queue respawn for {dead_unit.greek_id}")
+                        else:
+                            logger.warning(f"No valid respawn location found for {dead_unit.greek_id}")
+                    except Exception as e:
+                        logger.error(f"Error respawning {dead_unit.greek_id}: {e}")
+
             # Get all units belonging to the AI player
-            ai_units = [unit for unit in self.game.units 
+            ai_units = [unit for unit in self.game.units
                       if unit.player == self.player_number and unit.is_alive()]
             
             # Log all AI units for debugging
@@ -257,7 +277,66 @@ class SimpleAI:
                 valid_positions.append((y, x))
         
         return valid_positions
-    
+
+    def _find_respawn_location(self, dead_unit) -> Optional[Tuple[int, int]]:
+        """
+        Find a valid respawn location for a dead unit.
+        Prefers locations near AI's other units for support.
+
+        Args:
+            dead_unit: DeadUnit object to find respawn location for
+
+        Returns:
+            Tuple (y, x) for best spawn location, or None if no valid location
+        """
+        # Get all AI units
+        ai_units = [unit for unit in self.game.units
+                   if unit.player == self.player_number and unit.is_alive()]
+
+        # Get all valid positions on the map
+        valid_positions = []
+        for y in range(self.game.map.height):
+            for x in range(self.game.map.width):
+                # Check if position is valid for respawn
+                if (self.game.is_valid_position(y, x) and
+                    self.game.map.is_passable(y, x) and
+                    not self.game.get_unit_at(y, x)):
+                    valid_positions.append((y, x))
+
+        if not valid_positions:
+            return None
+
+        # If no AI units alive, return random valid position
+        if not ai_units:
+            return random.choice(valid_positions)
+
+        # Score positions by distance to nearest ally
+        # Prefer positions within 3-5 tiles of allies for support
+        best_position = None
+        best_score = float('inf')
+
+        for pos in valid_positions:
+            # Find distance to nearest ally
+            min_distance = float('inf')
+            for ally in ai_units:
+                distance = self.game.chess_distance(pos[0], pos[1], ally.y, ally.x)
+                min_distance = min(min_distance, distance)
+
+            # Score: prefer distance of 3-5 tiles (close but not too close)
+            # Penalize positions too far or too close
+            if 3 <= min_distance <= 5:
+                score = min_distance  # Ideal range
+            elif min_distance < 3:
+                score = 10 + (3 - min_distance)  # Too close penalty
+            else:
+                score = min_distance  # Too far, but still better than nothing
+
+            if score < best_score:
+                best_score = score
+                best_position = pos
+
+        return best_position
+
     def _assign_targets_to_units(self, ai_units: List['Unit'], player_units: List['Unit']) -> None:
         """
         Assign appropriate targets to AI units based on tactical priorities.
