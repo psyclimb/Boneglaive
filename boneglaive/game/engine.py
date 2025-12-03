@@ -23,6 +23,7 @@ class DeadUnit:
         self.respawn_timer = 3  # Turns until respawn available
         self.greek_id = greek_id  # Preserve original identifier
         self.ready_for_respawn = False
+        self.respawn_preview = None  # Tuple (y, x) showing where unit will respawn
 
 class Game:
     def __init__(self, skip_setup=False, map_name="lime_foyer_arena", player_names=None):
@@ -1241,6 +1242,29 @@ class Game:
         """
         return self.chess_distance(y1, x1, y2, x2) == 1
 
+    def get_valid_respawn_tiles(self, player):
+        """
+        Get all valid tiles where a unit can be respawned for a given player.
+
+        Args:
+            player: Player number (1 or 2)
+
+        Returns:
+            List of (y, x) tuples representing valid respawn positions
+        """
+        valid_tiles = []
+
+        # Allow respawning on entire map - any passable, unoccupied tile
+        for y in range(HEIGHT):
+            for x in range(WIDTH):
+                # Check if position is valid, passable, and not occupied
+                if (self.is_valid_position(y, x) and
+                    self.map.is_passable(y, x) and
+                    self.get_unit_at(y, x) is None):
+                    valid_tiles.append((y, x))
+
+        return valid_tiles
+
     def queue_respawn(self, dead_unit, position):
         """
         Queue a unit respawn for execution phase.
@@ -1261,6 +1285,7 @@ class Game:
 
         self.pending_respawns[self.current_player].append((dead_unit, position))
         dead_unit.ready_for_respawn = False  # Mark as queued
+        dead_unit.respawn_preview = position  # Store preview location to show ghost
         logger.info(f"RESPAWN: Queued {dead_unit.greek_id} to respawn at {position}")
         return True
 

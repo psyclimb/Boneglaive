@@ -2359,6 +2359,7 @@ class CursorManager(UIComponent):
         self.respawn_selecting_location = False  # True when selecting respawn location
         self.selected_dead_unit = None
         self.respawn_unit_index = 0  # Index in ready dead units list
+        self.respawn_preview_location = None  # Preview location for respawn ghost
     
     def _setup_event_handlers(self):
         """Set up event handlers for cursor manager."""
@@ -2927,6 +2928,11 @@ class CursorManager(UIComponent):
         self.selected_dead_unit = ready_dead_units[self.respawn_unit_index]
         self.respawn_selecting_unit = False
         self.respawn_selecting_location = True
+
+        # Highlight valid respawn tiles in player color
+        valid_tiles = self.game_ui.game.get_valid_respawn_tiles(current_player)
+        self.highlighted_positions = [Position(y, x) for y, x in valid_tiles]
+
         self.game_ui.message = f"Select respawn location for {self.selected_dead_unit.greek_id} (Enter to confirm, c to cancel)"
         return True
 
@@ -2936,15 +2942,28 @@ class CursorManager(UIComponent):
             return False
 
         pos = (self.cursor_pos.y, self.cursor_pos.x)
-        success = self.game_ui.game.queue_respawn(self.selected_dead_unit, pos)
 
-        if success:
-            self.game_ui.message = f"{self.selected_dead_unit.greek_id} will respawn at ({pos[0]}, {pos[1]})"
-            self.exit_respawn_mode()
-            return True
+        # If no preview set yet, set preview first
+        if self.respawn_preview_location is None:
+            # Check if position is valid before setting preview
+            if pos in [(p.y, p.x) for p in self.highlighted_positions]:
+                self.respawn_preview_location = pos
+                self.game_ui.message = f"{self.selected_dead_unit.greek_id} will respawn here - Press Enter to confirm"
+                return True
+            else:
+                self.game_ui.message = "Invalid respawn location"
+                return False
         else:
-            self.game_ui.message = "Invalid respawn location (blocked or occupied)"
-            return False
+            # Preview already set, now confirm the respawn
+            success = self.game_ui.game.queue_respawn(self.selected_dead_unit, pos)
+
+            if success:
+                self.game_ui.message = f"{self.selected_dead_unit.greek_id} respawn queued"
+                self.exit_respawn_mode()
+                return True
+            else:
+                self.game_ui.message = "Invalid respawn location (blocked or occupied)"
+                return False
 
     def exit_respawn_mode(self):
         """Exit respawn mode."""
@@ -2953,6 +2972,8 @@ class CursorManager(UIComponent):
         self.respawn_selecting_location = False
         self.selected_dead_unit = None
         self.respawn_unit_index = 0
+        self.respawn_preview_location = None
+        self.highlighted_positions = []
         self.game_ui.message = ""
 
 # Game mode manager component

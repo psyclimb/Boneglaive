@@ -805,15 +805,15 @@ class UIRenderer:
                     # This is a move target location - draw a "ghost" of the moving unit
                     tile = self.game_ui.asset_manager.get_unit_tile(target_unit.type)
                     color_id = 8  # Gray preview color
-                    
+
                     # Check if it's selected (user selected the ghost)
                     is_selected = show_selection and cursor_manager.selected_unit and \
                                 cursor_manager.selected_unit == target_unit and \
                                 cursor_manager.selected_unit.move_target == (y, x)
-                    
+
                     # Check if cursor is here
                     is_cursor_here = (pos == cursor_manager.cursor_pos and show_cursor)
-                    
+
                     if is_selected:
                         # Draw as selected ghost (yellow background)
                         self.renderer.draw_tile(y, x, tile, 9, curses.A_DIM)
@@ -822,10 +822,46 @@ class UIRenderer:
                         # Draw with cursor color
                         self.renderer.draw_tile(y, x, tile, 2)
                         continue
-                    
+
                     # Otherwise draw normal ghost
                     self.renderer.draw_tile(y, x, tile, color_id, curses.A_DIM)
-                
+
+                # Check if this position is a respawn preview location
+                # First check cursor manager's temporary preview (during selection)
+                if cursor_manager.respawn_preview_location == (y, x) and cursor_manager.selected_dead_unit and not unit:
+                    # Draw ghost of unit being respawned
+                    tile = self.game_ui.asset_manager.get_unit_tile(cursor_manager.selected_dead_unit.unit_type)
+                    color_id = 8  # Gray preview color
+
+                    # Check if cursor is here
+                    is_cursor_here = (pos == cursor_manager.cursor_pos and show_cursor)
+
+                    if is_cursor_here:
+                        # Draw with cursor color
+                        self.renderer.draw_tile(y, x, tile, 2)
+                    else:
+                        # Draw as ghost with DIM attribute
+                        self.renderer.draw_tile(y, x, tile, color_id, curses.A_DIM)
+                    continue
+
+                # Check if any dead unit has a respawn preview at this location (persists after confirmation)
+                for dead_unit in self.game_ui.game.dead_units:
+                    if dead_unit.respawn_preview == (y, x) and not unit:
+                        # Draw ghost of unit that will respawn here
+                        tile = self.game_ui.asset_manager.get_unit_tile(dead_unit.unit_type)
+                        color_id = 8  # Gray preview color
+
+                        # Check if cursor is here
+                        is_cursor_here = (pos == cursor_manager.cursor_pos and show_cursor)
+
+                        if is_cursor_here:
+                            # Draw with cursor color
+                            self.renderer.draw_tile(y, x, tile, 2)
+                        else:
+                            # Draw as ghost with DIM attribute
+                            self.renderer.draw_tile(y, x, tile, color_id, curses.A_DIM)
+                        break  # Only show one ghost per position
+
                 # Check if this position is a vault target indicator
                 for u in self.game_ui.game.units:
                     if u.is_alive() and u.selected_skill and hasattr(u.selected_skill, 'name') and \
@@ -1216,7 +1252,7 @@ class UIRenderer:
                         current_player = self.game_ui.game.current_player
                         color_id = 17 if current_player == 1 else 18  # Player-specific colors
 
-                # Check if position is highlighted for movement, attack targets, or skill
+                # Check if position is highlighted for movement, attack targets, skill, or respawn
                 if pos in cursor_manager.highlighted_positions:
                     if mode_manager.mode == "move":
                         # Use player-specific move highlight colors
@@ -1228,6 +1264,10 @@ class UIRenderer:
                         # Use player-specific skill highlight colors
                         current_player = self.game_ui.game.current_player
                         color_id = 17 if current_player == 1 else 18  # Player-specific skill highlights
+                    elif cursor_manager.respawn_selecting_location:
+                        # Use player-specific colors for respawn highlights
+                        current_player = self.game_ui.game.current_player
+                        color_id = 17 if current_player == 1 else 18  # Player-specific respawn highlights
                 
                 # Cursor takes priority for visibility when it should be shown
                 if show_cursor and pos == cursor_manager.cursor_pos:
