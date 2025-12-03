@@ -1447,12 +1447,13 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'INFUSE (Active) [Key: I]',
-                        'description': 'The POTPOURRIST infuses their aromatic blend into a concentrated potpourri mixture, intensifying the healing vapors. This self-targeting ability enhances Melange Eminence\'s regeneration (from 1 HP to 2 HP per turn) and empowers both Demilune and Granite Geas with additional effects. Once created, the potpourri persists until consumed by casting Demilune or Granite Geas.',
+                        'description': 'The POTPOURRIST infuses their aromatic blend into a concentrated potpourri mixture, intensifying the healing vapors. This self-targeting ability enhances Melange Eminence\'s regeneration (from 1 HP to 2 HP per turn) and empowers both Demilune and Granite Geas with additional effects. The potpourri lasts 2 turns and goes on cooldown when consumed or when it expires.',
                         'details': [
                             'Type: Active',
                             'Range: Self',
                             'Effect: Infusion (*)',
-                            'Cooldown: 0 turns (gated by Infusion status)'
+                            'Duration: 2 turns',
+                            'Cooldown: 1 turn'
                         ]
                     },
                     {

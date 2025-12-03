@@ -3937,6 +3937,27 @@ class Game:
                 # POTPOURRIST Melange Eminence triggers on EVERY turn (not just their own)
                 if unit.type == UnitType.POTPOURRIST:
                     unit.apply_passive_skills(self, ui)
+
+                    # Handle potpourri expiration for current player's POTPOURRIST
+                    if unit.player == self.current_player and unit.potpourri_held:
+                        unit.potpourri_duration -= 1
+                        if unit.potpourri_duration <= 0:
+                            # Potpourri expired naturally
+                            unit.potpourri_held = False
+                            unit.potpourri_duration = 0
+
+                            # Trigger Infuse cooldown
+                            # Add 1 to account for cooldown decrement at start of next turn
+                            for skill in unit.active_skills:
+                                if skill.name == "Infuse":
+                                    skill.current_cooldown = skill.cooldown + 1
+                                    break
+
+                            message_log.add_message(
+                                f"{unit.get_display_name()}'s potpourri dissipates",
+                                MessageType.ABILITY,
+                                player=unit.player
+                            )
                 # Other units' passives only trigger on their own turn
                 elif unit.player == self.current_player:
                     unit.apply_passive_skills(self, ui)

@@ -109,9 +109,9 @@ class InfuseSkill(ActiveSkill):
         super().__init__(
             name="Infuse",
             key="1",
-            description="Creates potpourri that enhances next skill and increases Melange Eminence to 2 HP/turn.",
+            description="Creates potpourri that enhances next skill and increases Melange Eminence to 2 HP/turn. Lasts 2 turns.",
             target_type=TargetType.SELF,
-            cooldown=0,
+            cooldown=1,
             range_=0
         )
 
@@ -186,8 +186,9 @@ class InfuseSkill(ActiveSkill):
             if hasattr(ui, 'draw_board'):
                 ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
 
-        # Set potpourri held flag
+        # Set potpourri held flag and duration
         user.potpourri_held = True
+        user.potpourri_duration = 3  # Lasts 2 turns (decremented at start of each turn)
 
         return True
 
@@ -369,6 +370,15 @@ class DemiluneSkill(ActiveSkill):
         # Consume potpourri if held
         if user.potpourri_held:
             user.potpourri_held = False
+            user.potpourri_duration = 0
+
+            # Trigger Infuse cooldown when consumed
+            # Add 1 to account for cooldown decrement at start of next turn
+            for skill in user.active_skills:
+                if skill.name == "Infuse":
+                    skill.current_cooldown = skill.cooldown + 1
+                    break
+
             message_log.add_message(
                 f"{user.get_display_name()} infuses Demilune with his fragrant blend",
                 MessageType.ABILITY,
@@ -602,6 +612,15 @@ class GraniteGeasSkill(ActiveSkill):
         # Consume potpourri if held
         if user.potpourri_held:
             user.potpourri_held = False
+            user.potpourri_duration = 0
+
+            # Trigger Infuse cooldown when consumed
+            # Add 1 to account for cooldown decrement at start of next turn
+            for skill in user.active_skills:
+                if skill.name == "Infuse":
+                    skill.current_cooldown = skill.cooldown + 1
+                    break
+
             message_log.add_message(
                 f"{user.get_display_name()} infuses Granite Geas with his fragrant blend",
                 MessageType.ABILITY,

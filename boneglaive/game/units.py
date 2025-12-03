@@ -167,6 +167,7 @@ class Unit:
         self.taunt_responded_this_turn = False  # Track if unit attacked/skilled POTPOURRIST this turn
         self.geas_affected = False  # Whether unit is affected by Granite Geas (for status icon)
         self.potpourri_held = False  # Whether POTPOURRIST is holding potpourri (POTPOURRIST only)
+        self.potpourri_duration = 0  # Turns remaining for potpourri (POTPOURRIST only)
 
         # Experience and leveling
         self.level = 1
