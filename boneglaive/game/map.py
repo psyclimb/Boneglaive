@@ -337,6 +337,42 @@ class GameMap:
                 rail_positions.append((y, x))
         return rail_positions
 
+    def get_rail_type(self, y: int, x: int) -> str:
+        """
+        Determine which rail graphic variant to use based on adjacent rails.
+
+        Args:
+            y, x: Position of the rail tile
+
+        Returns:
+            "ns" for North-South vertical rails
+            "ew" for East-West horizontal rails
+            "cross" for 4-way junctions
+        """
+        if self.get_terrain_at(y, x) != TerrainType.RAIL:
+            return "ns"  # Default fallback
+
+        # Check adjacent tiles for rails (N, S, E, W)
+        has_north = (y > 0 and self.get_terrain_at(y - 1, x) == TerrainType.RAIL)
+        has_south = (y < self.height - 1 and self.get_terrain_at(y + 1, x) == TerrainType.RAIL)
+        has_east = (x < self.width - 1 and self.get_terrain_at(y, x + 1) == TerrainType.RAIL)
+        has_west = (x > 0 and self.get_terrain_at(y, x - 1) == TerrainType.RAIL)
+
+        # Count connections
+        vertical_connections = has_north or has_south
+        horizontal_connections = has_east or has_west
+
+        # Determine rail type based on connections
+        if vertical_connections and horizontal_connections:
+            # Both directions - use cross junction
+            return "cross"
+        elif horizontal_connections:
+            # Only horizontal connections - use EW rail
+            return "ew"
+        else:
+            # Only vertical connections or isolated - use NS rail
+            return "ns"
+
     def get_rail_original_terrain(self, y: int, x: int) -> TerrainType:
         """Get the original terrain that was at this position before a rail was placed."""
         return self.rail_original_terrain.get((y, x), TerrainType.EMPTY)

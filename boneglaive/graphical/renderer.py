@@ -144,6 +144,10 @@ class GraphicalRenderer:
         self.terrain_tiles: Dict[TerrainType, pygame.Surface] = {}
         self._init_terrain_furniture_mapping()
 
+        # Universal rail bomb overlay (single graphic for all rail tiles)
+        self.rail_universal: Optional[pygame.Surface] = None
+        self._load_rail_overlays()
+
         self.running = True
         self.paused = False
 
@@ -180,7 +184,7 @@ class GraphicalRenderer:
             TerrainType.DUST: "graphics/terrain/dust.svg",
             TerrainType.PILLAR: "graphics/terrain/pillar.svg",
             TerrainType.MARROW_WALL: "graphics/terrain/marrow_wall.svg",
-            TerrainType.RAIL: "graphics/terrain/rail.svg",
+            # RAIL is now rendered as overlay in Pass 2, not as terrain tile
             TerrainType.STAINED_STONE: "graphics/terrain/stained_stone.svg",
             TerrainType.CANYON_FLOOR: "graphics/terrain/canyon_floor.svg",
             TerrainType.HYDRAULIC_PRESS: "graphics/terrain/hydraulic_press.svg",
@@ -248,6 +252,35 @@ class GraphicalRenderer:
         except Exception as e:
             print(f"Warning: Could not load terrain SVG {svg_path}: {e}")
             return None
+
+    def _load_rail_overlays(self) -> None:
+        """
+        Load universal rail bomb overlay graphic.
+        This single explosive ordnance platform supports all cardinal directions.
+        """
+        svg_path = "graphics/terrain/rail_universal.svg"
+
+        if not os.path.exists(svg_path):
+            print(f"Warning: Universal rail overlay not found: {svg_path}")
+            return
+
+        try:
+            import cairosvg
+            from io import BytesIO
+            # Convert SVG to PNG in memory
+            png_data = cairosvg.svg2png(url=svg_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
+            surface = pygame.image.load(BytesIO(png_data))
+
+            # Set alpha for semi-transparent overlay effect
+            surface = surface.convert_alpha()
+
+            # Cache the universal rail surface
+            self.rail_universal = surface
+            print(f"Loaded universal rail bomb overlay")
+        except ImportError:
+            print(f"Info: cairosvg not available, cannot load universal rail overlay: {svg_path}")
+        except Exception as e:
+            print(f"Warning: Could not load universal rail overlay {svg_path}: {e}")
 
     # ASCII renderer compatibility stubs
     def animate_attack_sequence(self, y, x, sequence, color, duration):
@@ -1876,10 +1909,11 @@ class GraphicalRenderer:
         pygame.display.flip()
 
     def draw_grid(self, surface: pygame.Surface):
-        """Draw the game grid with terrain and furniture."""
+        """Draw the game grid with terrain and furniture using two-pass rendering for rails."""
         # Get game map if available
         game_map = self.game_adapter.game.map if self.game_adapter.game else None
 
+        # PASS 1: Draw base terrain and furniture
         for y in range(GRID_HEIGHT):
             for x in range(GRID_WIDTH):
                 # Calculate tile position
@@ -1891,6 +1925,11 @@ class GraphicalRenderer:
                 terrain_type = TerrainType.EMPTY
                 if game_map:
                     terrain_type = game_map.get_terrain_at(y, x)
+
+                # For rail tiles, render the underlying terrain instead
+                if terrain_type == TerrainType.RAIL and game_map:
+                    # Get original terrain before rail was placed
+                    terrain_type = game_map.get_rail_original_terrain(y, x)
 
                 # Determine base color (checkerboard pattern for empty/passable tiles)
                 base_color = COLOR_GRID_DARK if (x + y) % 2 == 0 else COLOR_GRID_LIGHT
@@ -1924,6 +1963,20 @@ class GraphicalRenderer:
 
                 # Draw grid lines
                 pygame.draw.rect(surface, (30, 34, 42), rect, 1)
+
+        # PASS 2: Draw universal rail bomb overlays on top of terrain
+        if game_map and self.rail_universal:
+            for y in range(GRID_HEIGHT):
+                for x in range(GRID_WIDTH):
+                    terrain_type = game_map.get_terrain_at(y, x)
+
+                    if terrain_type == TerrainType.RAIL:
+                        # Calculate tile position
+                        tile_x = GRID_OFFSET_X + x * TILE_SIZE
+                        tile_y = GRID_OFFSET_Y + y * TILE_SIZE
+
+                        # Blit the universal rail bomb overlay
+                        surface.blit(self.rail_universal, (tile_x, tile_y))
 
     def draw_range_indicators(self, surface: pygame.Surface):
         """Draw movement range, attack range, and skill range indicators."""
