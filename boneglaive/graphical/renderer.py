@@ -878,6 +878,59 @@ class GraphicalRenderer:
             else:
                 print(f"[GeasHeal] ERROR: Could not find visual units for animation")
 
+        elif event.event_type == "melange_heal":
+            # Melange Eminence passive healing animation
+            target = event.target_unit  # POTPOURRIST healing self
+            heal = event.kwargs.get("heal_amount", 1)
+            infused = event.kwargs.get("infused", False)
+
+            print(f"[MelangeHeal] Processing melange_heal event: {target.get_display_name() if target else 'None'} heals {heal} HP (infused: {infused})")
+
+            target_visual = self._get_visual_unit(target)
+
+            if target_visual:
+                target_animated = target_visual.animated_unit
+
+                # Determine which animation class to create directly
+                if infused:
+                    from boneglaive.graphical.animations.potpourrist import MelangeEminenceInfusedHealAnimation
+                    animation_class = MelangeEminenceInfusedHealAnimation
+                else:
+                    from boneglaive.graphical.animations.potpourrist import MelangeEminenceHealAnimation
+                    animation_class = MelangeEminenceHealAnimation
+
+                print(f"[MelangeHeal] Creating {animation_class.__name__} animation at ({target_animated.x:.1f}, {target_animated.y:.1f})")
+
+                # Create animation directly (bypass factory to pass heal_amount)
+                animation = animation_class(
+                    caster_unit=target_animated,
+                    target_unit=target_animated,
+                    target_pos=(target.y, target.x),  # grid position (grid_y, grid_x)
+                    is_crit=False,
+                    is_infused=infused,
+                    particle_emitter=self.particle_emitter,
+                    debris_list=self.debris_particles,
+                    screen_shake_callback=self.trigger_screen_shake,
+                    screen_flash_callback=self.trigger_screen_flash,
+                    units_list=self.units,
+                    camera=self.camera,
+                    game=self.game_adapter.game if hasattr(self, 'game_adapter') else None,
+                    heal_amount=heal
+                )
+
+                if animation:
+                    self.active_animations.append(animation)
+                    print(f"[MelangeHeal] Animation added to active_animations (count: {len(self.active_animations)})")
+
+                    # Also show floating heal text
+                    x = target_animated.x
+                    y = target_animated.y - 20
+                    self.floating_texts.append(FloatingText(x, y, f"+{heal}", COLOR_HEAL))
+
+                    print(f"[MelangeHeal] Animation created successfully!")
+            else:
+                print(f"[MelangeHeal] ERROR: Could not find visual unit for animation")
+
         elif event.event_type == "scalar_trap":
             # Scalar node trap triggered - standing wave explosion
             target = event.target_unit  # Victim who stepped on trap
@@ -1327,7 +1380,7 @@ class GraphicalRenderer:
         Args:
             event: Animation event from game state
         """
-        if event.event_type == "damage" or event.event_type == "heal" or event.event_type == "geas_heal" or event.event_type == "scalar_trap" or event.event_type == "trap_release" or event.event_type == "viseroy_tick":
+        if event.event_type == "damage" or event.event_type == "heal" or event.event_type == "geas_heal" or event.event_type == "melange_heal" or event.event_type == "scalar_trap" or event.event_type == "trap_release" or event.event_type == "viseroy_tick":
             # If animations are active, queue the event for later
             if self.has_active_animations():
                 self.pending_animation_events.append(event)

@@ -40,7 +40,9 @@ from .potpourrist import (
     LunacyEffect,
     GraniteGeasEffect,
     GeasBreakHeal,
-    MelangeEminence
+    MelangeEminence,
+    MelangeEminenceHealAnimation,
+    MelangeEminenceInfusedHealAnimation
 )
 
 from .grayman import (
@@ -62,6 +64,7 @@ from .interferer import (
 from .delphic_appraiser import (
     DivineDrepreciationAnimation,
     AuctionCurseAnimation,
+    AuctionCurseTickAnimation,
     MarketFuturesAnimation,
     MarketFuturesTeleportAnimation,
 )
@@ -132,6 +135,8 @@ __all__ = [
     'GraniteGeasEffect',
     'GeasBreakHeal',
     'MelangeEminence',
+    'MelangeEminenceHealAnimation',
+    'MelangeEminenceInfusedHealAnimation',
     # Grayman
     'DeltaConfigAnimation',
     'GraeExchangeAnimation',
@@ -147,6 +152,7 @@ __all__ = [
     # Delphic Appraiser
     'DivineDrepreciationAnimation',
     'AuctionCurseAnimation',
+    'AuctionCurseTickAnimation',
     'MarketFuturesAnimation',
     'MarketFuturesTeleportAnimation',
     # Marrow Condenser

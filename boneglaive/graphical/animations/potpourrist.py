@@ -923,6 +923,20 @@ class GeasBreakHeal:
         self.shockwave_radius = 0
         self.shockwave_active = True
 
+        # Pre-select shockwave colors to avoid random.choice() every frame
+        self.shockwave_colors = [
+            random.choice([
+                (255, 215, 0),    # Gold
+                (255, 105, 180),  # Hot pink
+                (255, 99, 71),    # Tomato
+                (255, 165, 0),    # Orange
+                (147, 112, 219),  # Medium purple
+                (186, 85, 211),   # Medium orchid
+                (0, 206, 209),    # Dark turquoise
+                (255, 20, 147)    # Deep pink
+            ]) for _ in range(3)  # Pre-select 3 colors for the 3 rings
+        ]
+
         # Screen shake effect
         self.screen_shake_intensity = 0
         self.screen_shake_duration = 0
@@ -1078,24 +1092,17 @@ class GeasBreakHeal:
                 ring_alpha = int(200 * ring_fade)
 
                 # Multiple expanding rings for dramatic effect
-                for ring_offset in [0, -5, -10]:
+                for ring_idx, ring_offset in enumerate([0, -5, -10]):
                     radius = int(self.shockwave_radius + ring_offset)
                     if radius > 0:
                         ring_surf = pygame.Surface((radius * 2 + 20, radius * 2 + 20), pygame.SRCALPHA)
                         center = radius + 10
 
-                        # Draw thick ring with gradient - tropical flower colors
+                        # Use pre-selected color for this ring
+                        ring_color = self.shockwave_colors[ring_idx]
+
+                        # Draw thick ring with gradient - use same color for all thickness layers
                         for thickness in range(5):
-                            ring_color = random.choice([
-                                (255, 215, 0),    # Gold
-                                (255, 105, 180),  # Hot pink
-                                (255, 99, 71),    # Tomato
-                                (255, 165, 0),    # Orange
-                                (147, 112, 219),  # Medium purple
-                                (186, 85, 211),   # Medium orchid
-                                (0, 206, 209),    # Dark turquoise
-                                (255, 20, 147)    # Deep pink
-                            ])
                             layer_alpha = ring_alpha // (thickness + 1)
                             pygame.draw.circle(ring_surf, (*ring_color, layer_alpha),
                                              (center, center), radius + thickness, 2)
@@ -1994,4 +2001,480 @@ class MelangeEminence:
                     rotated = pygame.transform.rotate(petal_surf, petal['rotation'])
                     rect = rotated.get_rect(center=(int(petal['x']), int(petal['y'])))
                     surface.blit(rotated, rect)
+
+
+# ============================================================================
+# MELANGE EMINENCE PASSIVE HEALING ANIMATIONS
+# ============================================================================
+
+class MelangeEminenceHealAnimation:
+    """
+    Normal Melange Eminence passive healing animation (1 HP).
+    Gentle, soothing green potpourri fumes restoring POTPOURRIST.
+
+    Phases:
+    1. Inhale - Particles converge toward POTPOURRIST
+    2. Restoration - Green healing aura pulses
+    3. Exhale - Particles disperse gently
+    """
+
+    # Tropical flower colors (subset of infused colors - softer palette)
+    HEAL_COLORS = [
+        (255, 215, 0),    # Gold
+        (255, 165, 0),    # Orange
+        (186, 85, 211),   # Medium orchid
+        (147, 112, 219),  # Medium purple
+    ]
+
+    def __init__(self, caster_unit, target_unit, target_pos, is_crit, is_infused,
+                 particle_emitter, debris_list, screen_shake_callback,
+                 screen_flash_callback, units_list, camera, game=None, heal_amount=1):
+        """Initialize normal Melange Eminence healing animation."""
+        self.caster = caster_unit
+        self.target_unit = target_unit
+        self.target_pos = target_pos
+        self.camera = camera
+        self.heal_amount = heal_amount
+
+        # Convert position to screen coords
+        grid_y, grid_x = target_pos
+        self.target_x, self.target_y = camera.grid_to_screen(grid_x, grid_y, centered=True)
+
+        # Animation state
+        self.phase = "inhale"
+        self.timer = 0
+        self.active = True
+
+        # Phase durations
+        self.inhale_duration = 0.3
+        self.restore_duration = 0.6
+        self.exhale_duration = 0.3
+
+        # Particle effects
+        self.fume_particles = []
+        self._spawn_initial_particles()
+
+        # Aura effect
+        self.aura_intensity = 0
+        self.aura_radius = 0
+
+    def _spawn_initial_particles(self):
+        """Spawn particles for inhale phase."""
+        num_particles = 12
+        for i in range(num_particles):
+            angle = (i / num_particles) * 2 * math.pi
+            distance = random.uniform(40, 60)
+
+            self.fume_particles.append({
+                'x': self.target_x + math.cos(angle) * distance,
+                'y': self.target_y + math.sin(angle) * distance,
+                'target_x': self.target_x,
+                'target_y': self.target_y,
+                'size': random.uniform(2, 4),
+                'color': random.choice(self.HEAL_COLORS),
+                'lifetime': 1.2,
+                'phase_offset': random.uniform(0, math.pi * 2)
+            })
+
+    def update(self, delta_time):
+        """Update animation state."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Phase transitions
+        if self.phase == "inhale":
+            if self.timer >= self.inhale_duration:
+                self.phase = "restore"
+                self.timer = 0
+
+        elif self.phase == "restore":
+            # Pulse aura
+            progress = self.timer / self.restore_duration
+            pulse = (math.sin(progress * math.pi * 4) + 1) / 2
+            self.aura_intensity = 0.7 + 0.3 * pulse
+            self.aura_radius = 30 + 10 * pulse
+
+            # Spawn restoration sparkles
+            if random.random() < 0.3:
+                angle = random.uniform(0, 2 * math.pi)
+                distance = random.uniform(15, 25)
+                self.fume_particles.append({
+                    'x': self.target_x + math.cos(angle) * distance,
+                    'y': self.target_y + math.sin(angle) * distance,
+                    'vx': 0,
+                    'vy': random.uniform(-20, -10),
+                    'size': random.uniform(2, 3),
+                    'color': random.choice(self.HEAL_COLORS),
+                    'lifetime': 0.5,
+                    'phase_offset': 0
+                })
+
+            if self.timer >= self.restore_duration:
+                self.phase = "exhale"
+                self.timer = 0
+                self._spawn_exhale_particles()
+
+        elif self.phase == "exhale":
+            # Fade out
+            self.aura_intensity = max(0, 1.0 - (self.timer / self.exhale_duration))
+
+            if self.timer >= self.exhale_duration:
+                self.active = False
+
+        # Update particles
+        for particle in self.fume_particles[:]:
+            particle['lifetime'] -= delta_time
+
+            if particle['lifetime'] <= 0:
+                self.fume_particles.remove(particle)
+                continue
+
+            if self.phase == "inhale":
+                # Move toward target
+                dx = particle['target_x'] - particle['x']
+                dy = particle['target_y'] - particle['y']
+                distance = math.sqrt(dx*dx + dy*dy)
+
+                if distance > 1:
+                    speed = 80
+                    particle['x'] += (dx / distance) * speed * delta_time
+                    particle['y'] += (dy / distance) * speed * delta_time
+
+            elif self.phase == "restore":
+                # Orbit gently
+                if 'vx' in particle and 'vy' in particle:
+                    particle['x'] += particle['vx'] * delta_time
+                    particle['y'] += particle['vy'] * delta_time
+
+            elif self.phase == "exhale":
+                # Disperse outward
+                if 'disperse_vx' in particle:
+                    particle['x'] += particle['disperse_vx'] * delta_time
+                    particle['y'] += particle['disperse_vy'] * delta_time
+
+        return self.active
+
+    def _spawn_exhale_particles(self):
+        """Spawn particles dispersing outward."""
+        for particle in self.fume_particles:
+            angle = random.uniform(0, 2 * math.pi)
+            speed = random.uniform(30, 50)
+            particle['disperse_vx'] = math.cos(angle) * speed
+            particle['disperse_vy'] = math.sin(angle) * speed
+
+    def draw(self, surface):
+        """Draw the healing animation."""
+        if not self.active:
+            return
+
+        # Draw healing aura
+        if self.phase == "restore" or self.phase == "exhale":
+            if self.aura_intensity > 0:
+                aura_alpha = int(120 * self.aura_intensity)
+                if aura_alpha > 0:
+                    aura_surf = pygame.Surface((int(self.aura_radius * 2), int(self.aura_radius * 2)), pygame.SRCALPHA)
+                    # Warm golden/purple aura instead of green
+                    pygame.draw.circle(aura_surf, (200, 150, 100, aura_alpha),
+                                     (int(self.aura_radius), int(self.aura_radius)),
+                                     int(self.aura_radius))
+                    surface.blit(aura_surf, (int(self.target_x - self.aura_radius),
+                                            int(self.target_y - self.aura_radius)))
+
+        # Draw fume particles
+        for particle in self.fume_particles:
+            fade = min(1.0, particle['lifetime'] / 0.3)
+            alpha = int(200 * fade)
+
+            if alpha > 0:
+                size = particle['size']
+                particle_surf = pygame.Surface((int(size * 2), int(size * 2)), pygame.SRCALPHA)
+                pygame.draw.circle(particle_surf, (*particle['color'], alpha),
+                                 (int(size), int(size)), int(size))
+                surface.blit(particle_surf, (int(particle['x'] - size), int(particle['y'] - size)))
+
+        # Draw healing text
+        if self.phase == "restore":
+            progress = self.timer / self.restore_duration
+            y_offset = -int(progress * 25)
+            text_alpha = int(255 * (1.0 - progress))
+
+            if text_alpha > 0:
+                font = pygame.font.Font(None, 28)
+                # Golden text instead of green
+                text = font.render(f"+{self.heal_amount}", True, (255, 200, 80))
+                text.set_alpha(text_alpha)
+
+                text_rect = text.get_rect(center=(int(self.target_x), int(self.target_y + y_offset - 20)))
+                surface.blit(text, text_rect)
+
+
+class MelangeEminenceInfusedHealAnimation:
+    """
+    Infused Melange Eminence passive healing animation (2 HP).
+    Vibrant, tropical potpourri burst with aromatic power.
+
+    Phases:
+    1. Inhale - Colorful particles swirl inward dramatically
+    2. Restoration - Multicolor aura pulses with tropical colors
+    3. Flourish - Explosive burst of petals radiating outward
+    """
+
+    # Tropical flower colors (from infused Demilune)
+    TROPICAL_COLORS = [
+        (255, 215, 0),    # Gold
+        (255, 105, 180),  # Hot pink
+        (255, 99, 71),    # Tomato
+        (255, 165, 0),    # Orange
+        (147, 112, 219),  # Medium purple
+        (186, 85, 211),   # Medium orchid
+        (0, 206, 209),    # Dark turquoise
+        (255, 20, 147)    # Deep pink
+    ]
+
+    def __init__(self, caster_unit, target_unit, target_pos, is_crit, is_infused,
+                 particle_emitter, debris_list, screen_shake_callback,
+                 screen_flash_callback, units_list, camera, game=None, heal_amount=2):
+        """Initialize infused Melange Eminence healing animation."""
+        self.caster = caster_unit
+        self.target_unit = target_unit
+        self.target_pos = target_pos
+        self.camera = camera
+        self.heal_amount = heal_amount
+
+        # Convert position to screen coords
+        grid_y, grid_x = target_pos
+        self.target_x, self.target_y = camera.grid_to_screen(grid_x, grid_y, centered=True)
+
+        # Animation state
+        self.phase = "inhale"
+        self.timer = 0
+        self.active = True
+
+        # Phase durations
+        self.inhale_duration = 0.4
+        self.restore_duration = 0.8
+        self.flourish_duration = 0.6
+
+        # Particle effects
+        self.petal_particles = []
+        self._spawn_initial_petals()
+
+        # Aura effect
+        self.aura_intensity = 0
+        self.aura_radius = 0
+        self.color_cycle = 0
+
+    def _spawn_initial_petals(self):
+        """Spawn petal particles for inhale phase."""
+        num_petals = 20
+        for i in range(num_petals):
+            angle = (i / num_petals) * 2 * math.pi + random.uniform(-0.2, 0.2)
+            distance = random.uniform(50, 80)
+
+            self.petal_particles.append({
+                'x': self.target_x + math.cos(angle) * distance,
+                'y': self.target_y + math.sin(angle) * distance,
+                'target_x': self.target_x,
+                'target_y': self.target_y,
+                'size': random.uniform(3, 6),
+                'color': random.choice(self.TROPICAL_COLORS),
+                'lifetime': 1.8,
+                'rotation': random.uniform(0, 360),
+                'rotation_speed': random.uniform(-180, 180),
+                'phase_offset': random.uniform(0, math.pi * 2)
+            })
+
+    def update(self, delta_time):
+        """Update animation state."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+        self.color_cycle += delta_time * 3
+
+        # Phase transitions
+        if self.phase == "inhale":
+            if self.timer >= self.inhale_duration:
+                self.phase = "restore"
+                self.timer = 0
+
+        elif self.phase == "restore":
+            # Strong pulsing aura
+            progress = self.timer / self.restore_duration
+            pulse = (math.sin(progress * math.pi * 6) + 1) / 2
+            self.aura_intensity = 0.8 + 0.2 * pulse
+            self.aura_radius = 35 + 15 * pulse
+
+            # Spawn restoration sparkles (more frequent than normal)
+            if random.random() < 0.5:
+                angle = random.uniform(0, 2 * math.pi)
+                distance = random.uniform(20, 30)
+                self.petal_particles.append({
+                    'x': self.target_x + math.cos(angle) * distance,
+                    'y': self.target_y + math.sin(angle) * distance,
+                    'vx': random.uniform(-10, 10),
+                    'vy': random.uniform(-30, -15),
+                    'size': random.uniform(3, 5),
+                    'color': random.choice(self.TROPICAL_COLORS),
+                    'lifetime': 0.6,
+                    'rotation': random.uniform(0, 360),
+                    'rotation_speed': random.uniform(-180, 180),
+                    'phase_offset': 0
+                })
+
+            if self.timer >= self.restore_duration:
+                self.phase = "flourish"
+                self.timer = 0
+                self._spawn_flourish_burst()
+
+        elif self.phase == "flourish":
+            # Fade out
+            self.aura_intensity = max(0, 1.0 - (self.timer / self.flourish_duration))
+
+            if self.timer >= self.flourish_duration:
+                self.active = False
+
+        # Update particles
+        for particle in self.petal_particles[:]:
+            particle['lifetime'] -= delta_time
+            particle['rotation'] += particle['rotation_speed'] * delta_time
+
+            if particle['lifetime'] <= 0:
+                self.petal_particles.remove(particle)
+                continue
+
+            if self.phase == "inhale":
+                # Spiral toward target
+                dx = particle['target_x'] - particle['x']
+                dy = particle['target_y'] - particle['y']
+                distance = math.sqrt(dx*dx + dy*dy)
+
+                if distance > 1:
+                    speed = 120
+                    # Add spiral motion
+                    angle = math.atan2(dy, dx) + math.sin(self.timer * 8) * 0.3
+                    particle['x'] += math.cos(angle) * speed * delta_time
+                    particle['y'] += math.sin(angle) * speed * delta_time
+
+            elif self.phase == "restore":
+                # Orbit with slight drift
+                if 'vx' in particle and 'vy' in particle:
+                    particle['x'] += particle['vx'] * delta_time
+                    particle['y'] += particle['vy'] * delta_time
+
+            elif self.phase == "flourish":
+                # Burst outward
+                if 'burst_vx' in particle:
+                    particle['x'] += particle['burst_vx'] * delta_time
+                    particle['y'] += particle['burst_vy'] * delta_time
+
+        return self.active
+
+    def _spawn_flourish_burst(self):
+        """Spawn explosive burst of petals."""
+        num_burst = 15
+        for i in range(num_burst):
+            angle = (i / num_burst) * 2 * math.pi
+            speed = random.uniform(80, 120)
+
+            self.petal_particles.append({
+                'x': self.target_x,
+                'y': self.target_y,
+                'burst_vx': math.cos(angle) * speed,
+                'burst_vy': math.sin(angle) * speed,
+                'size': random.uniform(4, 7),
+                'color': random.choice(self.TROPICAL_COLORS),
+                'lifetime': 0.6,
+                'rotation': random.uniform(0, 360),
+                'rotation_speed': random.uniform(-360, 360),
+                'phase_offset': 0
+            })
+
+        # Set burst velocities for existing particles
+        for particle in self.petal_particles:
+            if 'burst_vx' not in particle:
+                dx = particle['x'] - self.target_x
+                dy = particle['y'] - self.target_y
+                distance = math.sqrt(dx*dx + dy*dy)
+                if distance > 0:
+                    speed = random.uniform(60, 100)
+                    particle['burst_vx'] = (dx / distance) * speed
+                    particle['burst_vy'] = (dy / distance) * speed
+
+    def draw(self, surface):
+        """Draw the infused healing animation."""
+        if not self.active:
+            return
+
+        # Draw multicolor healing aura
+        if self.phase == "restore" or self.phase == "flourish":
+            if self.aura_intensity > 0:
+                # Cycle through colors
+                color_index = int(self.color_cycle) % len(self.TROPICAL_COLORS)
+                next_color_index = (color_index + 1) % len(self.TROPICAL_COLORS)
+
+                blend = (self.color_cycle % 1.0)
+                color1 = self.TROPICAL_COLORS[color_index]
+                color2 = self.TROPICAL_COLORS[next_color_index]
+
+                blended_color = tuple(int(c1 * (1 - blend) + c2 * blend) for c1, c2 in zip(color1, color2))
+
+                aura_alpha = int(150 * self.aura_intensity)
+                if aura_alpha > 0:
+                    aura_surf = pygame.Surface((int(self.aura_radius * 2), int(self.aura_radius * 2)), pygame.SRCALPHA)
+                    pygame.draw.circle(aura_surf, (*blended_color, aura_alpha),
+                                     (int(self.aura_radius), int(self.aura_radius)),
+                                     int(self.aura_radius))
+                    # Add golden glow layer
+                    pygame.draw.circle(aura_surf, (255, 215, 0, aura_alpha // 3),
+                                     (int(self.aura_radius), int(self.aura_radius)),
+                                     int(self.aura_radius * 1.2))
+                    surface.blit(aura_surf, (int(self.target_x - self.aura_radius),
+                                            int(self.target_y - self.aura_radius)))
+
+        # Draw petal particles
+        for particle in self.petal_particles:
+            fade = min(1.0, particle['lifetime'] / 0.4)
+            alpha = int(220 * fade)
+
+            if alpha > 0:
+                size = particle['size']
+                petal_surf = pygame.Surface((int(size * 3), int(size * 3)), pygame.SRCALPHA)
+                center = size * 1.5
+
+                # Draw petal shape
+                pygame.draw.circle(petal_surf, (*particle['color'], alpha),
+                                 (int(center), int(center)), int(size))
+                # Add shine
+                pygame.draw.circle(petal_surf, (255, 255, 255, alpha // 2),
+                                 (int(center * 0.7), int(center * 0.7)), int(size * 0.4))
+
+                # Rotate petal
+                rotated = pygame.transform.rotate(petal_surf, particle['rotation'])
+                rect = rotated.get_rect(center=(int(particle['x']), int(particle['y'])))
+                surface.blit(rotated, rect)
+
+        # Draw healing text with golden glow
+        if self.phase == "restore":
+            progress = self.timer / self.restore_duration
+            y_offset = -int(progress * 30)
+            text_alpha = int(255 * (1.0 - progress))
+
+            if text_alpha > 0:
+                font = pygame.font.Font(None, 36)
+                # Golden text
+                text = font.render(f"+{self.heal_amount}", True, (255, 215, 0))
+                text.set_alpha(text_alpha)
+
+                # Outline for visibility
+                outline = font.render(f"+{self.heal_amount}", True, (200, 100, 50))
+                outline.set_alpha(text_alpha // 2)
+
+                text_rect = text.get_rect(center=(int(self.target_x), int(self.target_y + y_offset - 25)))
+                outline_rect = outline.get_rect(center=(int(self.target_x + 1), int(self.target_y + y_offset - 24)))
+
+                surface.blit(outline, outline_rect)
+                surface.blit(text, text_rect)
 

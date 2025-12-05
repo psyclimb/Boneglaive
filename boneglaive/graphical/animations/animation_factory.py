@@ -20,7 +20,8 @@ from boneglaive.graphical.animations.mandible_foreman import (
     SiteInspectionScan, ExpediteRush, JawlineNetwork
 )
 from boneglaive.graphical.animations.potpourrist import (
-    PedestalStrike, InfuseEffect, DemiluneSwing, GraniteGeasEffect
+    PedestalStrike, InfuseEffect, DemiluneSwing, GraniteGeasEffect,
+    MelangeEminenceHealAnimation, MelangeEminenceInfusedHealAnimation
 )
 from boneglaive.graphical.animations.grayman import (
     DeltaConfigAnimation,
@@ -39,6 +40,7 @@ from boneglaive.graphical.animations.interferer import (
 from boneglaive.graphical.animations.delphic_appraiser import (
     DivineDrepreciationAnimation,
     AuctionCurseAnimation,
+    AuctionCurseTickAnimation,
     MarketFuturesAnimation,
     MarketFuturesTeleportAnimation,
 )
@@ -100,6 +102,8 @@ class AnimationFactory:
         "DEMILUNE": (DemiluneSwing, {}),
         "DEMILUNE_INFUSED": (DemiluneSwing, {"infused": True}),
         "GRANITE_GEAS": (GraniteGeasEffect, {}),
+        "MELANGE_EMINENCE_HEAL": (MelangeEminenceHealAnimation, {}),
+        "MELANGE_EMINENCE_INFUSED_HEAL": (MelangeEminenceInfusedHealAnimation, {}),
 
         # GRAYMAN skills
         "DELTA_CONFIG": (DeltaConfigAnimation, {}),
@@ -136,6 +140,7 @@ class AnimationFactory:
         # DELPHIC APPRAISER skills
         "MARKET_FUTURES": (MarketFuturesAnimation, {}),
         "AUCTION_CURSE": (AuctionCurseAnimation, {}),
+        "AUCTION_CURSE_TICK": (AuctionCurseTickAnimation, {}),
         "DIVINE_DEPRECIATION": (DivineDrepreciationAnimation, {}),
         "PARALLAX": (MarketFuturesTeleportAnimation, {}),
 
@@ -410,6 +415,31 @@ class AnimationFactory:
                     target_y=kwargs['target_y'],
                     target_unit=target_unit,
                     infused=is_infused  # Use the parameter from event
+                )
+            elif anim_class.__name__ in ["MelangeEminenceHealAnimation", "MelangeEminenceInfusedHealAnimation"]:
+                # Melange Eminence passive healing animations
+                # Requires: target_pos (POTPOURRIST position), camera, heal_amount from event
+                if not target_pos:
+                    print("[AnimationFactory] MELANGE_EMINENCE_HEAL requires a target position")
+                    return None
+
+                # Get heal_amount from kwargs (passed from animation event)
+                heal_amount = kwargs.get('heal_amount', 1 if anim_class.__name__ == "MelangeEminenceHealAnimation" else 2)
+
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_unit=target_unit,
+                    target_pos=target_pos,  # POTPOURRIST position (grid_y, grid_x)
+                    is_crit=is_crit,
+                    is_infused=is_infused,
+                    particle_emitter=particle_emitter,
+                    debris_list=[],
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,
+                    units_list=units_list if units_list else [],
+                    camera=camera,
+                    game=kwargs.get('game'),
+                    heal_amount=heal_amount
                 )
             elif anim_class.__name__ in ["NeutronIlluminantCardinal", "NeutronIlluminantDiagonal"]:
                 # Neutron Illuminant animations need caster position, particle emitter, and screen flash callback
@@ -842,6 +872,26 @@ class AnimationFactory:
                     vapor_type=kwargs.get('vapor_type', 'BROACHING'),
                     particle_emitter=particle_emitter,
                     screen_shake_callback=screen_shake_callback
+                )
+            elif anim_class.__name__ == "AuctionCurseTickAnimation":
+                # Auction Curse Tick - periodic DOT damage with furniture inflation
+                # Requires: target_pos (cursed unit position), game (for furniture), camera, callbacks
+                if not target_pos:
+                    print("[AnimationFactory] AUCTION_CURSE_TICK requires a target position")
+                    return None
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_unit=target_unit,
+                    target_pos=target_pos,  # Cursed unit position (grid_y, grid_x)
+                    is_crit=is_crit,
+                    is_infused=is_infused,
+                    particle_emitter=particle_emitter,
+                    debris_list=[],
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,
+                    units_list=units_list if units_list else [],
+                    camera=camera,
+                    game=kwargs.get('game')  # Required for finding nearby furniture
                 )
             else:
                 # Most animations expect just target coordinates

@@ -495,7 +495,32 @@ class GameStateAdapter:
                         ))
                         trap_tick_damage = True
 
-                    if not scalar_trap_triggered and not trap_tick_damage:
+                    # Check if this is Auction Curse DOT damage
+                    auction_curse_tick = False
+                    if hasattr(game_unit, 'auction_curse_dot') and game_unit.auction_curse_dot and not scalar_trap_triggered and not trap_tick_damage:
+                        # Unit is cursed - this damage is from Auction Curse DOT
+                        print(f"[GameState] AUCTION CURSE TICK DETECTED! {game_unit.get_display_name()} took {abs(hp_delta)} curse damage")
+
+                        # Find the DELPHIC_APPRAISER who cast the curse
+                        caster_player = 3 - game_unit.player  # Opposing player
+                        appraiser_unit = None
+                        for u in self.game.units:
+                            if u.is_alive() and u.player == caster_player:
+                                from boneglaive.utils.constants import UnitType
+                                if u.type == UnitType.DELPHIC_APPRAISER:
+                                    appraiser_unit = u
+                                    break
+
+                        events.append(AnimationEvent(
+                            "skill",
+                            source_unit=appraiser_unit,  # DELPHIC_APPRAISER who cast curse (may be None if dead)
+                            target_unit=game_unit,  # Cursed victim
+                            skill_name="AUCTION_CURSE_TICK",
+                            skill_target=(game_unit.y, game_unit.x)  # Position of cursed unit
+                        ))
+                        auction_curse_tick = True
+
+                    if not scalar_trap_triggered and not trap_tick_damage and not auction_curse_tick:
                         # Regular damage (not from scalar trap or Viseroy tick)
                         events.append(AnimationEvent(
                             "damage",
@@ -504,7 +529,7 @@ class GameStateAdapter:
                             damage_amount=abs(hp_delta)
                         ))
                 elif hp_delta > 0:
-                    # Healing - check if it's from geas break
+                    # Healing - check if it's from geas break or Melange Eminence
                     current_taunted = visual_unit._get_taunted_units(game_unit, self.game)
                     last_taunted = visual_unit.last_taunted_units
 
@@ -512,38 +537,61 @@ class GameStateAdapter:
                     print(f"  Last taunted units: {last_taunted}")
                     print(f"  Current taunted units: {current_taunted}")
 
-                    # Check for geas break: either taunt was removed OR duration decreased
-                    geas_break_unit = None
-                    if self.game:
-                        for unit in self.game.units:
-                            unit_id = id(unit)
-                            # Was this unit taunted before?
-                            if unit_id in last_taunted:
-                                last_duration = last_taunted[unit_id]
-                                current_duration = current_taunted.get(unit_id, 0)
+                    # Check if this is Melange Eminence passive healing (POTPOURRIST only)
+                    is_melange_heal = False
+                    from boneglaive.utils.constants import UnitType
+                    if game_unit.type == UnitType.POTPOURRIST:
+                        # Melange Eminence heals at start of turn
+                        # It heals 1 HP normally, 2 HP when holding potpourri
+                        if hp_delta in (1, 2):
+                            # This is likely Melange Eminence
+                            # TODO: Add more robust detection if needed
+                            is_melange_heal = True
+                            is_infused = getattr(game_unit, 'potpourri_held', False)
+                            print(f"  *** MELANGE EMINENCE DETECTED! {game_unit.get_display_name()} heals from passive (infused: {is_infused}) ***")
 
-                                # If duration decreased or taunt was cleared, that's a geas break
-                                if current_duration < last_duration:
-                                    geas_break_unit = unit
-                                    print(f"  *** GEAS BREAK DETECTED! {unit.get_display_name()} ignored geas (duration {last_duration}->{current_duration}), {game_unit.get_display_name()} heals! ***")
-                                    break
-
-                    if geas_break_unit:
-                        # Geas break heal - special animation
+                    if is_melange_heal:
+                        # Melange Eminence passive heal
                         events.append(AnimationEvent(
-                            "geas_heal",
-                            source_unit=geas_break_unit,  # Unit that had geas
-                            target_unit=game_unit,  # Potpourrist healing
-                            heal_amount=hp_delta
+                            "melange_heal",
+                            source_unit=game_unit,  # POTPOURRIST healing self
+                            target_unit=game_unit,
+                            heal_amount=hp_delta,
+                            infused=is_infused
                         ))
                     else:
-                        # Regular heal
-                        events.append(AnimationEvent(
-                            "heal",
-                            source_unit=None,
-                            target_unit=game_unit,
-                            heal_amount=hp_delta
-                        ))
+                        # Check for geas break: either taunt was removed OR duration decreased
+                        geas_break_unit = None
+                        if self.game:
+                            for unit in self.game.units:
+                                unit_id = id(unit)
+                                # Was this unit taunted before?
+                                if unit_id in last_taunted:
+                                    last_duration = last_taunted[unit_id]
+                                    current_duration = current_taunted.get(unit_id, 0)
+
+                                    # If duration decreased or taunt was cleared, that's a geas break
+                                    if current_duration < last_duration:
+                                        geas_break_unit = unit
+                                        print(f"  *** GEAS BREAK DETECTED! {unit.get_display_name()} ignored geas (duration {last_duration}->{current_duration}), {game_unit.get_display_name()} heals! ***")
+                                        break
+
+                        if geas_break_unit:
+                            # Geas break heal - special animation
+                            events.append(AnimationEvent(
+                                "geas_heal",
+                                source_unit=geas_break_unit,  # Unit that had geas
+                                target_unit=game_unit,  # Potpourrist healing
+                                heal_amount=hp_delta
+                            ))
+                        else:
+                            # Regular heal
+                            events.append(AnimationEvent(
+                                "heal",
+                                source_unit=None,
+                                target_unit=game_unit,
+                                heal_amount=hp_delta
+                            ))
 
                 visual_unit.last_hp = current_hp
 

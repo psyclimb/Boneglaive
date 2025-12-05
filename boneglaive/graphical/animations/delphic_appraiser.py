@@ -2046,3 +2046,482 @@ class MarketFuturesTeleportAnimation:
                 pygame.draw.line(surface, (218, 165, 32, line_alpha),
                                (int(self.start_x), int(self.start_y)),
                                (int(self.end_x), int(self.end_y)), 2)
+
+
+# ============================================================================
+# AUCTION CURSE TICK ANIMATION (DOT Effect)
+# ============================================================================
+
+class CurseSeethingEffect:
+    """
+    Dark curse energy seething and bubbling around the afflicted unit.
+    Particles orbit and pulse with malevolent energy.
+    """
+    def __init__(self, center_x, center_y):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.timer = 0
+        self.duration = 0.5
+        self.active = True
+
+        # Create orbiting curse particles
+        self.particles = []
+        num_particles = 12
+        for i in range(num_particles):
+            angle = (i / num_particles) * 2 * math.pi
+            self.particles.append({
+                'base_angle': angle,
+                'orbit_radius': random.uniform(20, 35),
+                'orbit_speed': random.uniform(3, 5),
+                'size': random.uniform(3, 6),
+                'pulse_offset': random.uniform(0, math.pi * 2)
+            })
+
+    def update(self, delta_time):
+        self.timer += delta_time
+        if self.timer >= self.duration:
+            self.active = False
+        return self.active
+
+    def draw(self, surface):
+        if not self.active:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+
+        # Pulsing dark aura around cursed unit
+        pulse = (math.sin(self.timer * 12) + 1) / 2
+        aura_radius = int(30 + 10 * pulse * progress)
+        aura_alpha = int(140 * progress)
+
+        if aura_alpha > 0:
+            aura_surf = pygame.Surface((aura_radius * 2, aura_radius * 2), pygame.SRCALPHA)
+            pygame.draw.circle(aura_surf, (44, 44, 44, aura_alpha), (aura_radius, aura_radius), aura_radius)
+            surface.blit(aura_surf, (int(self.center_x - aura_radius), int(self.center_y - aura_radius)))
+
+        # Orbiting curse particles
+        for p in self.particles:
+            angle = p['base_angle'] + self.timer * p['orbit_speed']
+            radius = p['orbit_radius'] * progress
+
+            px = self.center_x + math.cos(angle) * radius
+            py = self.center_y + math.sin(angle) * radius
+
+            # Pulsing size
+            size_pulse = (math.sin(self.timer * 8 + p['pulse_offset']) + 1) / 2
+            size = p['size'] * (0.7 + 0.3 * size_pulse) * progress
+
+            alpha = int(200 * progress)
+
+            if size > 0.5 and alpha > 0:
+                particle_surf = pygame.Surface((int(size * 2), int(size * 2)), pygame.SRCALPHA)
+                pygame.draw.circle(particle_surf, (42, 42, 42, alpha), (int(size), int(size)), int(size))
+                surface.blit(particle_surf, (int(px - size), int(py - size)))
+
+
+class CurseRadiationWave:
+    """
+    Expanding wave of curse energy radiating from the afflicted unit.
+    Shows corruption spreading outward to furniture.
+    """
+    def __init__(self, center_x, center_y, delay=0):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.timer = -delay
+        self.duration = 0.6
+        self.active = True
+
+    def update(self, delta_time):
+        self.timer += delta_time
+        if self.timer >= self.duration:
+            self.active = False
+        return self.active
+
+    def draw(self, surface):
+        if not self.active or self.timer < 0:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+
+        # Expanding ring of dark curse energy
+        radius = int(progress * 160)  # Expands to reach 2.5 tiles (160px = ~2.5 tiles)
+        alpha = int(180 * (1.0 - progress * 0.7))  # Fade as expanding
+
+        if radius > 0 and alpha > 0:
+            ring_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+            # Dark gray curse color
+            pygame.draw.circle(ring_surf, (44, 44, 44, alpha), (radius, radius), radius, 4)
+            surface.blit(ring_surf, (int(self.center_x - radius), int(self.center_y - radius)))
+
+            # Inner darker ring for depth
+            inner_radius = int(radius * 0.8)
+            inner_alpha = int(alpha * 0.6)
+            if inner_radius > 0:
+                pygame.draw.circle(ring_surf, (42, 42, 42, inner_alpha), (radius, radius), inner_radius, 2)
+
+
+class CurseTendril:
+    """
+    Dark energy tendril reaching from cursed unit to furniture piece.
+    Shows curse corrupting and inflating furniture value.
+    """
+    def __init__(self, start_x, start_y, end_x, end_y, delay=0):
+        self.start_x = start_x
+        self.start_y = start_y
+        self.end_x = end_x
+        self.end_y = end_y
+        self.timer = -delay
+        self.duration = 0.4
+        self.active = True
+
+    def update(self, delta_time):
+        self.timer += delta_time
+        if self.timer >= self.duration:
+            self.active = False
+        return self.active
+
+    def draw(self, surface):
+        if not self.active or self.timer < 0:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+
+        # Tendril extends from cursed unit to furniture
+        current_end_x = self.start_x + (self.end_x - self.start_x) * progress
+        current_end_y = self.start_y + (self.end_y - self.start_y) * progress
+
+        # Dark curse color with fade
+        alpha = int(200 * progress * (1.0 - progress * 0.5))
+
+        if alpha > 0:
+            # Wavy tendril effect
+            num_segments = 10
+            points = []
+            for i in range(num_segments + 1):
+                t = i / num_segments
+                base_x = self.start_x + (current_end_x - self.start_x) * t
+                base_y = self.start_y + (current_end_y - self.start_y) * t
+
+                # Sine wave perpendicular to direction
+                wave_offset = math.sin(t * math.pi * 3 + self.timer * 10) * 3
+                dx = current_end_y - self.start_y
+                dy = -(current_end_x - self.start_x)
+                length = math.sqrt(dx*dx + dy*dy)
+                if length > 0:
+                    dx /= length
+                    dy /= length
+                    base_x += dx * wave_offset
+                    base_y += dy * wave_offset
+
+                points.append((int(base_x), int(base_y)))
+
+            # Draw tendril as connected line segments
+            for i in range(len(points) - 1):
+                pygame.draw.line(surface, (44, 44, 44, alpha), points[i], points[i+1], 2)
+
+
+class FurnitureCorruptionFlash:
+    """
+    Furniture piece pulses when hit by curse energy.
+    Shows corruption affecting the furniture.
+    """
+    def __init__(self, center_x, center_y, delay=0):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.timer = -delay
+        self.duration = 0.4
+        self.active = True
+
+    def update(self, delta_time):
+        self.timer += delta_time
+        if self.timer >= self.duration:
+            self.active = False
+        return self.active
+
+    def draw(self, surface):
+        if not self.active or self.timer < 0:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+
+        # Flash effect: quick bright pulse then fade
+        if progress < 0.3:
+            # Initial flash (bright)
+            flash_progress = progress / 0.3
+            alpha = int(220 * flash_progress)
+            color = (139, 69, 19, alpha)  # Brown curse corruption
+        else:
+            # Fade out
+            fade_progress = (progress - 0.3) / 0.7
+            alpha = int(180 * (1.0 - fade_progress))
+            # Shift to darker color
+            color = (int(139 - 95 * fade_progress), int(69 - 25 * fade_progress), int(19 + 25 * fade_progress), alpha)
+
+        if alpha > 0:
+            # Pulsing circle
+            pulse = (math.sin(self.timer * 15) + 1) / 2
+            radius = int(25 + 8 * pulse)
+
+            glow_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+            pygame.draw.circle(glow_surf, color, (radius, radius), radius)
+            surface.blit(glow_surf, (int(self.center_x - radius), int(self.center_y - radius)))
+
+
+class ValueInflationNumber:
+    """
+    Shows "+1" inflation effect on furniture.
+    Gold/brown colors showing value being corrupted upward.
+    """
+    def __init__(self, center_x, center_y, delay=0):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.timer = -delay
+        self.duration = 0.6
+        self.active = True
+
+    def update(self, delta_time):
+        self.timer += delta_time
+        if self.timer >= self.duration:
+            self.active = False
+        return self.active
+
+    def draw(self, surface):
+        if not self.active or self.timer < 0:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+
+        # +1 rises and fades
+        y_offset = -int(progress * 20)  # Rise upward
+        alpha = int(255 * (1.0 - progress))
+
+        if alpha > 0:
+            # Gold color for greed/inflation
+            font = pygame.font.Font(None, 32)
+            text = font.render("+1", True, (255, 215, 0))
+            text.set_alpha(alpha)
+
+            # Outline for visibility
+            outline = font.render("+1", True, (139, 69, 19))
+            outline.set_alpha(alpha // 2)
+
+            text_rect = text.get_rect(center=(int(self.center_x), int(self.center_y + y_offset)))
+            outline_rect = outline.get_rect(center=(int(self.center_x + 1), int(self.center_y + y_offset + 1)))
+
+            surface.blit(outline, outline_rect)
+            surface.blit(text, text_rect)
+
+
+class AuctionCurseTickAnimation:
+    """
+    Auction Curse periodic damage tick animation.
+    Shows curse seething from afflicted unit, radiating to furniture, inflating values.
+
+    Phases:
+    1. Curse Seething - Dark energy bubbles around cursed unit
+    2. Curse Radiation - Energy waves expand outward to furniture
+    3. Furniture Corruption - Furniture pulses and values inflate
+    4. Damage Feedback - Energy contracts, damage dealt
+    """
+
+    def __init__(self, caster_unit, target_unit, target_pos, is_crit, is_infused,
+                 particle_emitter, debris_list, screen_shake_callback,
+                 screen_flash_callback, units_list, camera, game=None):
+        """
+        Initialize Auction Curse Tick animation.
+
+        Args:
+            target_pos: (grid_y, grid_x) - position of cursed unit taking damage
+            game: Game instance to find nearby furniture
+        """
+        self.caster = caster_unit
+        self.target_unit = target_unit
+        self.target_pos = target_pos
+        self.camera = camera
+        self.screen_shake_callback = screen_shake_callback
+        self.screen_flash_callback = screen_flash_callback
+        self.game = game
+
+        # Convert cursed unit position to screen coords
+        grid_y, grid_x = target_pos
+        self.target_x, self.target_y = camera.grid_to_screen(grid_x, grid_y, centered=True)
+
+        # Animation state
+        self.phase = "seething"  # seething -> radiation -> corruption -> feedback
+        self.timer = 0
+        self.active = True
+
+        # Sub-effects
+        self.seething_effect = None
+        self.radiation_waves = []
+        self.curse_tendrils = []
+        self.corruption_flashes = []
+        self.inflation_numbers = []
+        self.furniture_positions = []  # Screen coords of nearby furniture
+
+        # Find nearby furniture
+        self._find_nearby_furniture()
+
+        # Start Phase 1
+        self._start_seething_phase()
+
+    def _find_nearby_furniture(self):
+        """Find all furniture within 2 tiles of cursed unit."""
+        if not self.game or not hasattr(self.game, 'map') or not self.game.map:
+            return
+
+        grid_y, grid_x = self.target_pos
+
+        from boneglaive.game.map import TerrainType
+        furniture_types = {
+            TerrainType.FURNITURE, TerrainType.COAT_RACK, TerrainType.OTTOMAN,
+            TerrainType.CONSOLE, TerrainType.DEC_TABLE, TerrainType.TIFFANY_LAMP,
+            TerrainType.EASEL, TerrainType.SCULPTURE, TerrainType.BENCH,
+            TerrainType.PODIUM, TerrainType.VASE, TerrainType.WORKBENCH,
+            TerrainType.COUCH, TerrainType.TOOLBOX, TerrainType.COT,
+            TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN, TerrainType.POTPOURRI_BOWL
+        }
+
+        # Check 2-tile radius (5×5 area)
+        for dy in range(-2, 3):
+            for dx in range(-2, 3):
+                tile_grid_x = grid_x + dx
+                tile_grid_y = grid_y + dy
+
+                # Check bounds
+                if (0 <= tile_grid_y < self.game.map.height and
+                    0 <= tile_grid_x < self.game.map.width):
+
+                    terrain = self.game.map.terrain.get((tile_grid_y, tile_grid_x), TerrainType.EMPTY)
+                    if terrain in furniture_types:
+                        # Convert to screen coords
+                        screen_x, screen_y = self.camera.grid_to_screen(
+                            tile_grid_x, tile_grid_y, centered=True
+                        )
+                        # Store with distance for staggering
+                        distance = abs(dx) + abs(dy)
+                        self.furniture_positions.append((screen_x, screen_y, distance))
+
+    def _start_seething_phase(self):
+        """Phase 1: Curse seethes around afflicted unit."""
+        self.phase = "seething"
+        self.timer = 0
+
+        self.seething_effect = CurseSeethingEffect(self.target_x, self.target_y)
+        self.screen_shake_callback(3, 0.5)
+
+    def _start_radiation_phase(self):
+        """Phase 2: Curse radiates outward to furniture."""
+        self.phase = "radiation"
+        self.timer = 0
+
+        # Create radiation waves
+        self.radiation_waves = [
+            CurseRadiationWave(self.target_x, self.target_y, delay=0),
+            CurseRadiationWave(self.target_x, self.target_y, delay=0.15),
+            CurseRadiationWave(self.target_x, self.target_y, delay=0.3),
+        ]
+
+        # Create tendrils to furniture (staggered by distance)
+        for fx, fy, distance in self.furniture_positions:
+            delay = distance * 0.05
+            self.curse_tendrils.append(
+                CurseTendril(self.target_x, self.target_y, fx, fy, delay=delay)
+            )
+
+    def _start_corruption_phase(self):
+        """Phase 3: Furniture corrupted, values inflate."""
+        self.phase = "corruption"
+        self.timer = 0
+
+        # Create corruption effects on furniture
+        for fx, fy, distance in self.furniture_positions:
+            delay = distance * 0.05
+            self.corruption_flashes.append(
+                FurnitureCorruptionFlash(fx, fy, delay=delay)
+            )
+            self.inflation_numbers.append(
+                ValueInflationNumber(fx, fy, delay=delay + 0.1)
+            )
+
+        self.screen_shake_callback(2, 0.3)
+
+    def _start_feedback_phase(self):
+        """Phase 4: Damage feedback to cursed unit."""
+        self.phase = "feedback"
+        self.timer = 0
+
+    def update(self, delta_time):
+        """Update animation state."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Phase transitions
+        if self.phase == "seething" and self.timer >= 0.5:
+            self._start_radiation_phase()
+        elif self.phase == "radiation" and self.timer >= 0.6:
+            self._start_corruption_phase()
+        elif self.phase == "corruption" and self.timer >= 0.5:
+            self._start_feedback_phase()
+        elif self.phase == "feedback" and self.timer >= 0.2:
+            self.active = False
+
+        # Update sub-effects
+        if self.seething_effect:
+            self.seething_effect.update(delta_time)
+
+        for wave in self.radiation_waves:
+            wave.update(delta_time)
+
+        for tendril in self.curse_tendrils:
+            tendril.update(delta_time)
+
+        for flash in self.corruption_flashes:
+            flash.update(delta_time)
+
+        for number in self.inflation_numbers:
+            number.update(delta_time)
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw animation."""
+        if not self.active:
+            return
+
+        # Draw radiation waves
+        for wave in self.radiation_waves:
+            wave.draw(surface)
+
+        # Draw seething effect
+        if self.seething_effect:
+            self.seething_effect.draw(surface)
+
+        # Draw curse tendrils
+        for tendril in self.curse_tendrils:
+            tendril.draw(surface)
+
+        # Draw corruption flashes
+        for flash in self.corruption_flashes:
+            flash.draw(surface)
+
+        # Draw inflation numbers
+        for number in self.inflation_numbers:
+            number.draw(surface)
+
+        # Draw damage feedback (golden X on cursed unit)
+        if self.phase == "feedback":
+            progress = self.timer / 0.2
+            alpha = int(220 * (1.0 - progress))
+
+            if alpha > 0:
+                # Pulsing golden X (heal-block indicator)
+                x_size = 12
+                pygame.draw.line(surface, (255, 215, 0, alpha),
+                               (int(self.target_x - x_size), int(self.target_y - x_size)),
+                               (int(self.target_x + x_size), int(self.target_y + x_size)), 4)
+                pygame.draw.line(surface, (255, 215, 0, alpha),
+                               (int(self.target_x + x_size), int(self.target_y - x_size)),
+                               (int(self.target_x - x_size), int(self.target_y + x_size)), 4)
