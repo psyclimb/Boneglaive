@@ -1026,9 +1026,10 @@ class UnitHelpComponent(UIComponent):
                     'The FOWL CONTRIVANCE is a mechanical peacock rail artillery platform that transforms the',
                     'battlefield through devastating long-range bombardment and explosive infrastructure. Upon',
                     'deployment, this unit establishes a permanent rail network that detonates catastrophically',
-                    'whenever any FOWL CONTRIVANCE falls. Combining extreme mobility with overwhelming firepower,',
-                    'this glass cannon excels at indirect fire support—raining mortar shells, unleashing piercing',
-                    'rail cannon shots, and deploying directional fragmentation bursts that shred clustered enemies.',
+                    'whenever any FOWL CONTRIVANCE falls, blasting enemies on rails and embedding shrapnel in',
+                    'adjacent units. This heavy artillery platform excels at indirect fire support—raining mortar',
+                    'shells, unleashing piercing rail cannon shots, and deploying directional fragmentation bursts',
+                    'that shred clustered enemies.',
                     '',
                     'Role: Burst Damage / Displacer',
                     'Difficulty: ***'
@@ -1037,18 +1038,19 @@ class UnitHelpComponent(UIComponent):
                     'HP: 18',
                     'Attack: 4',
                     'Defense: 0',
-                    'Movement: 4',
+                    'Movement: 2',
                     'Range: 2',
                     'Symbol: T'
                 ],
                 'skills': [
                     {
                         'name': 'RAIL GENESIS (Passive)',
-                        'description': 'The first FOWL CONTRIVANCE to deploy establishes a permanent rail network across passable terrain. This infrastructure persists throughout the match and is shared by all FOWL CONTRIVANCES. Whenever any FOWL CONTRIVANCE dies, the rail network detonates, dealing 4 damage to all enemy units standing on rail tiles. When the last FOWL CONTRIVANCE dies, the rail network is destroyed and removed from the battlefield.',
+                        'description': 'The first FOWL CONTRIVANCE to deploy establishes a permanent rail network across passable terrain. This infrastructure persists throughout the match and is shared by all FOWL CONTRIVANCES. Whenever any FOWL CONTRIVANCE dies, the rail network detonates, dealing 6 damage to all enemy units standing on rail tiles and applying Shrapnel (1 damage per turn for 3 turns) to enemies adjacent to rails. When the last FOWL CONTRIVANCE dies, the rail network is destroyed and removed from the battlefield.',
                         'details': [
                             'Type: Passive',
-                            'Effect: Rail network across map; 4 damage to enemies on rails when any FOWL CONTRIVANCE dies; network removed when last one dies',
-                            'Special: Rail network is permanent until last FOWL dies; shared across all FOWL CONTRIVANCES; explodes on every FOWL death'
+                            'Effect: Rail network across map; 6 damage to enemies on rails; Shrapnel (1 dmg/turn for 3 turns) to enemies adjacent to rails; network removed when last FOWL dies',
+                            'Special: Rail network is permanent until last FOWL dies; shared across all FOWL CONTRIVANCES; explodes on every FOWL death',
+                            'Synergy: Shrapnel effect matches Fragcrest ability for thematic consistency'
                         ]
                     },
                     {
@@ -1091,7 +1093,7 @@ class UnitHelpComponent(UIComponent):
                     '- Cardinal direction restriction requires careful positioning before firing Gaussian Dusk',
                     '- Parabol excels against clustered enemies and ignores line of sight restrictions',
                     '- Fragcrest provides crowd control through knockback and area denial via shrapnel',
-                    '- High movement allows for repositioning between artillery strikes'
+                    '- Low movement range demands deliberate positioning and rail network access'
                 ],
                 'tactical': [
                     '- Strong against: Clustered enemies, static formations, low-mobility units, units with high defence',

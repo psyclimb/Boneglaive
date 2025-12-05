@@ -60,22 +60,23 @@ class RailGenesis(PassiveSkill):
     def handle_unit_death(self, user: 'Unit', game: 'Game', ui=None) -> None:
         """
         Handle death explosion when FOWL_CONTRIVANCE dies.
-        Deals 4 damage to enemy units standing on rail tiles.
+        Deals 6 damage to enemy units standing on rail tiles.
+        Applies Shrapnel to enemy units adjacent to rails.
         """
         if not game or not game.map.has_rails():
             return
-        
+
         rail_positions = game.map.get_rail_positions()
         units_hit = 0
         total_damage = 0
-        
+
         # Check each rail position for enemy units
         for rail_y, rail_x in rail_positions:
             unit = game.get_unit_at(rail_y, rail_x)
-            
+
             # Only damage enemy units (not allies)
             if unit and unit.is_alive() and unit.player != user.player:
-                damage = 4  # Fixed death explosion damage
+                damage = 6  # Fixed death explosion damage (buffed from 4)
                 
                 # Store previous HP for critical health check
                 previous_hp = unit.hp
@@ -122,7 +123,7 @@ class RailGenesis(PassiveSkill):
                     attacker_name=user.get_display_name(),
                     target_name=unit.get_display_name(),
                     damage=damage,
-                    ability="Rail Genesis Death Explosion",
+                    ability="Rail Genesis Death Explosion (on-rail)",
                     attacker_player=user.player,
                     target_player=unit.player
                 )
@@ -133,6 +134,61 @@ class RailGenesis(PassiveSkill):
                 else:
                     # Check for critical health using centralized logic
                     game.check_critical_health(unit, user, previous_hp, ui)
+
+        # Apply Shrapnel to enemies adjacent to rails (blast radius effect)
+        shrapnel_applied_units = set()  # Track which units already took direct damage
+        shrapnel_units_hit = 0
+
+        # Build set of units that took direct damage (on rails)
+        for rail_y, rail_x in rail_positions:
+            unit = game.get_unit_at(rail_y, rail_x)
+            if unit and unit.is_alive() and unit.player != user.player:
+                shrapnel_applied_units.add(unit)
+
+        # Check adjacent tiles around each rail for enemy units
+        for rail_y, rail_x in rail_positions:
+            # Check all 8 adjacent tiles (N, S, E, W, NE, NW, SE, SW)
+            for dy in [-1, 0, 1]:
+                for dx in [-1, 0, 1]:
+                    if dy == 0 and dx == 0:
+                        continue  # Skip the rail tile itself
+
+                    adj_y = rail_y + dy
+                    adj_x = rail_x + dx
+
+                    # Check if position is valid
+                    if not game.is_valid_position(adj_y, adj_x):
+                        continue
+
+                    unit = game.get_unit_at(adj_y, adj_x)
+
+                    # Only affect enemy units not already hit by direct damage
+                    if unit and unit.is_alive() and unit.player != user.player and unit not in shrapnel_applied_units:
+                        # Apply shrapnel effect (ongoing damage) if not immune
+                        if unit.is_immune_to_effects():
+                            # Log immunity message
+                            message_log.add_message(
+                                f"{unit.get_display_name()} is immune to shrapnel due to Stasiality",
+                                MessageType.ABILITY,
+                                player=unit.player
+                            )
+                        else:
+                            if not hasattr(unit, 'shrapnel_duration'):
+                                unit.shrapnel_duration = 0
+                            previous_shrapnel = unit.shrapnel_duration
+                            unit.shrapnel_duration = max(unit.shrapnel_duration, 3)
+
+                            # Log shrapnel embedding if it's a new effect or extended
+                            if unit.shrapnel_duration > previous_shrapnel:
+                                message_log.add_message(
+                                    f"Rail explosion shrapnel embeds in {unit.get_display_name()}",
+                                    MessageType.COMBAT,
+                                    player=user.player
+                                )
+                                shrapnel_units_hit += 1
+
+                        # Add to set to prevent duplicate application from multiple adjacent rails
+                        shrapnel_applied_units.add(unit)
 
         # Check if this was the last FOWL CONTRIVANCE - if so, remove rails
         from boneglaive.utils.constants import UnitType
