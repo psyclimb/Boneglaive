@@ -139,6 +139,9 @@ class MenuScreen:
             for button in self.buttons:
                 if button.handle_click(event.pos):
                     break
+        elif event.type == pygame.KEYUP and event.key == pygame.K_ESCAPE:
+            # ESC key to go back - use KEYUP to prevent key-through
+            return "back"
         return None
 
     def update(self, delta_time: float, mouse_pos: Tuple[int, int], mouse_pressed: bool):

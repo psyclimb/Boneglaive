@@ -27,7 +27,7 @@ class AboutScreen:
 
     def handle_event(self, event: pygame.event.Event) -> Optional[str]:
         """Handle events - any key/click returns to menu."""
-        if event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONUP:
+        if event.type == pygame.KEYUP or event.type == pygame.MOUSEBUTTONUP:
             return "back"
         return None
 
