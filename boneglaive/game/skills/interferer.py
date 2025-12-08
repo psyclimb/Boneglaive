@@ -464,12 +464,12 @@ class ScalarNodeSkill(ActiveSkill):
         super().__init__(
             name="Scalar Node",
             key="S",
-            description="Place invisible trap on empty terrain (range 3). Triggers when enemy ends turn on tile, dealing 12 damage. Silent deployment and activation.",
+            description="Place invisible trap on empty terrain (range 3). Triggers when enemy ends turn on tile, dealing 8 damage. Silent deployment and activation.",
             target_type=TargetType.AREA,
-            cooldown=3,
+            cooldown=2,
             range_=3
         )
-        self.damage = 12
+        self.damage = 8
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         if not super().can_use(user, target_pos, game):

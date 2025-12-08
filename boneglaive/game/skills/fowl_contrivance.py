@@ -223,11 +223,11 @@ class GaussianDuskSkill(ActiveSkill):
             key="G",
             description="Fires a devastating rail gun shot in a cardinal direction. After firing, the unit must recharge for 1 turn and cannot take any actions.",
             target_type=TargetType.AREA,
-            cooldown=4,
+            cooldown=5,
             range_=999,  # Entire map range
             area=0
         )
-        self.damage = 10
+        self.damage = 9
         self.recharge_duration = 1  # Number of turns unit is locked after firing
         
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
@@ -390,28 +390,8 @@ class GaussianDuskSkill(ActiveSkill):
                     # Check for critical health using centralized logic
                     game.check_critical_health(unit, user, previous_hp, ui)
 
-        # Place rails along the firing path after all damage and terrain destruction
-        # Since terrain has already been destroyed, we can now place an unbroken rail path
-        rails_placed = 0
-        for pos_y, pos_x in positions_in_line:
-            current_terrain = game.map.get_terrain_at(pos_y, pos_x)
-            # Place rails on all passable terrain (destructible terrain has already been cleared to empty)
-            # Skip only existing rails and truly impassable terrain that couldn't be destroyed
-            if current_terrain != TerrainType.RAIL and game.map.is_passable(pos_y, pos_x):
-                # Store original terrain before placing rail (using the same system)
-                game.map.rail_original_terrain[(pos_y, pos_x)] = current_terrain
-                game.map.set_terrain_at(pos_y, pos_x, TerrainType.RAIL)
-                rails_placed += 1
-
         # Log results
-        if rails_placed > 0:
-            message_log.add_message(
-                f"The hypersonic projectile leaves {rails_placed} rail {'segment' if rails_placed == 1 else 'segments'} in its wake",
-                MessageType.ABILITY,
-                player=user.player
-            )
-
-        if units_hit == 0 and terrain_destroyed == 0 and rails_placed == 0:
+        if units_hit == 0 and terrain_destroyed == 0:
             message_log.add_message(
                 "The rail cannon's beam finds no targets",
                 MessageType.ABILITY,

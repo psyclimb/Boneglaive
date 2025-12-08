@@ -1036,7 +1036,7 @@ class UnitHelpComponent(UIComponent):
                 ],
                 'stats': [
                     'HP: 18',
-                    'Attack: 4',
+                    'Attack: 3',
                     'Defense: 0',
                     'Movement: 2',
                     'Range: 2',
@@ -1055,14 +1055,14 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'GAUSSIAN DUSK (Active) [Key: G]',
-                        'description': 'The FOWL CONTRIVANCE fires its rail cannon in a cardinal direction, unleashing a hypersonic projectile that pierces through all units and terrain in a straight line across the entire map. The beam deals 10 defense-piercing damage to every unit hit and places rail segments along its path. After firing, the rail cannon enters a recharge state for 1 turn, during which the FOWL CONTRIVANCE cannot move, attack, or use any skills.',
+                        'description': 'The FOWL CONTRIVANCE fires its rail cannon in a cardinal direction, unleashing a hypersonic projectile that pierces through all units and destructible terrain in a straight line across the entire map. The beam deals 9 defense-piercing damage to every unit hit and obliterates all destructible terrain in its path. After firing, the rail cannon enters a recharge state for 1 turn, during which the FOWL CONTRIVANCE cannot move, attack, or use any skills.',
                         'details': [
                             'Type: Active',
                             'Range: Unlimited (entire map in cardinal direction)',
-                            'Damage: 10 (pierces defense)',
+                            'Damage: 9 (pierces defense)',
                             'Effect: Recharging (=)',
-                            'Cooldown: 4 turns',
-                            'Special: Places rails along beam path.'
+                            'Cooldown: 5 turns',
+                            'Special: Destroys all destructible terrain in path; must fire in cardinal direction only'
                         ]
                     },
                     {
@@ -1319,12 +1319,12 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'SCALAR NODE (Active) [Key: S]',
-                        'description': 'The INTERFERER triangulates coordinates with the tower array to create an invisible standing wave energy trap at a specific location (range 3). The trap placement is completely silent—no message appears when setting it. When any enemy ends their turn on the trapped tile, the standing wave collapses violently, dealing 12 damage and announcing the trap\'s detonation. The trap persists until triggered.',
+                        'description': 'The INTERFERER triangulates coordinates with the tower array to create an invisible standing wave energy trap at a specific location (range 3). The trap placement is completely silent—no message appears when setting it. When any enemy ends their turn on the trapped tile, the standing wave collapses violently, dealing 8 damage and announcing the trap\'s detonation. The trap persists until triggered.',
                         'details': [
                             'Type: Active',
                             'Range: 3',
-                            'Damage: 12',
-                            'Cooldown: 3 turns',
+                            'Damage: 8',
+                            'Cooldown: 2 turns',
                             'Special: Invisible trap; silent placement only; triggers when enemy ends turn on tile'
                         ]
                     }

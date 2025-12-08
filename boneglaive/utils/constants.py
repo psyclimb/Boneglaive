@@ -45,7 +45,7 @@ UNIT_STATS = {
     UnitType.MANDIBLE_FOREMAN: (22, 3, 1, 2, 1),
     UnitType.GRAYMAN: (18, 3, 0, 3, 5),
     UnitType.MARROW_CONDENSER: (20, 3, 2, 2, 1),
-    UnitType.FOWL_CONTRIVANCE: (18, 4, 0, 2, 2),
+    UnitType.FOWL_CONTRIVANCE: (18, 3, 0, 2, 2),
     UnitType.GAS_MACHINIST: (20, 3, 1, 2, 1),
     UnitType.HEINOUS_VAPOR: (1, 0, 0, 3, 1),
     UnitType.DELPHIC_APPRAISER: (20, 4, 0, 3, 1),
