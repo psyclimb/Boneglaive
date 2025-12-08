@@ -188,18 +188,33 @@ class ProfileStatsScreen(MenuScreen):
         self.screen_width = screen_width
         self.screen_height = screen_height
         self.profile = profile_manager.get_current_profile()
+        self.activation_timer = 0.0
 
         # No buttons, just display stats
         self.buttons = []
 
+    def on_enter(self):
+        """Called when screen becomes active."""
+        super().on_enter()
+        self.activation_timer = 0.0  # Reset timer when entering screen
+
     def handle_event(self, event: pygame.event.Event) -> Optional[str]:
         """Handle events - any key/click returns to menu."""
+        # Only accept input after 200ms to prevent click-through
+        if self.activation_timer < 0.2:
+            return None
+
         if event.type == pygame.KEYUP and event.key != pygame.K_ESCAPE:
             # Any key except ESC (prevents immediate exit from ESC press on previous screen)
             return "back"
         elif event.type == pygame.MOUSEBUTTONUP:
             return "back"
         return None
+
+    def update(self, delta_time: float, mouse_pos, mouse_pressed):
+        """Update screen state."""
+        super().update(delta_time, mouse_pos, mouse_pressed)
+        self.activation_timer += delta_time
 
     def draw(self, surface: pygame.Surface):
         """Draw the profile stats screen."""

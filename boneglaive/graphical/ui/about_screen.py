@@ -16,10 +16,11 @@ class AboutScreen:
         self.large_font = large_font
         self.screen_width = screen_width
         self.screen_height = screen_height
+        self.activation_timer = 0.0
 
     def on_enter(self):
         """Called when screen becomes active."""
-        pass
+        self.activation_timer = 0.0  # Reset timer when entering screen
 
     def on_exit(self):
         """Called when leaving screen."""
@@ -27,6 +28,10 @@ class AboutScreen:
 
     def handle_event(self, event: pygame.event.Event) -> Optional[str]:
         """Handle events - any key/click returns to menu."""
+        # Only accept input after 200ms to prevent click-through
+        if self.activation_timer < 0.2:
+            return None
+
         if event.type == pygame.KEYUP and event.key != pygame.K_ESCAPE:
             # Any key except ESC (ESC is handled by base MenuScreen class)
             return "back"
@@ -36,7 +41,7 @@ class AboutScreen:
 
     def update(self, delta_time: float, mouse_pos, mouse_pressed):
         """Update screen state."""
-        pass
+        self.activation_timer += delta_time
 
     def draw(self, surface: pygame.Surface):
         """Draw the about screen."""
