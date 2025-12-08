@@ -389,8 +389,8 @@ class UIRenderer:
                     tile = self.game_ui.asset_manager.get_terrain_tile("pillar")
                     color_id = 13  # White for pillars
                 # Different furniture types
-                elif terrain == TerrainType.FURNITURE:
-                    tile = self.game_ui.asset_manager.get_terrain_tile("furniture")
+                elif terrain == TerrainType.RADIO_CONSOLE:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("radio_console")
                     color_id = 14  # White for furniture
                     tile_attr = curses.A_DIM  # Dim white/gray via dim attribute
 
@@ -433,8 +433,8 @@ class UIRenderer:
                         color_id = teleport_anchor_color  # Player-specific color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
 
-                elif terrain == TerrainType.DEC_TABLE:
-                    tile = self.game_ui.asset_manager.get_terrain_tile("dec_table")
+                elif terrain == TerrainType.CURIOSITY_SHELF:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("curiosity_shelf")
                     color_id = 14  # White for furniture
                     tile_attr = curses.A_DIM  # Dim white/gray via dim attribute
 
@@ -536,7 +536,7 @@ class UIRenderer:
                         color_id = teleport_anchor_color  # Player-specific color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
                         
-                # Edge Case map terrain types (gray color scheme like other maps)
+                # Hard Pressed map terrain types (gray color scheme like other maps)
                 elif terrain == TerrainType.HYDRAULIC_PRESS:
                     tile = self.game_ui.asset_manager.get_terrain_tile("hydraulic_press")
                     color_id = 12  # White for hydraulic press machinery

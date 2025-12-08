@@ -319,11 +319,11 @@ class GaussianDuskSkill(ActiveSkill):
                 TerrainType.LIMESTONE,     # Limestone formations
                 TerrainType.PILLAR,        # Limestone pillars
                 TerrainType.MARROW_WALL,   # Marrow Dike walls
-                TerrainType.FURNITURE,     # Generic furniture
+                TerrainType.RADIO_CONSOLE,     # Vintage radio console
                 TerrainType.COAT_RACK,     # Coat racks
                 TerrainType.OTTOMAN,       # Ottoman seating
                 TerrainType.CONSOLE,       # Console tables
-                TerrainType.DEC_TABLE,     # Decorative tables
+                TerrainType.CURIOSITY_SHELF,     # Decorative tables
                 TerrainType.TIFFANY_LAMP,  # Tiffany-style decorative lamp
                 TerrainType.STAINED_STONE, # Stained stone formation
                 TerrainType.EASEL,         # Artist's easel with canvas

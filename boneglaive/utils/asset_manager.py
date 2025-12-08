@@ -61,11 +61,11 @@ class AssetManager:
             'limestone': '#',  # Limestone powder piles use hash symbol
             'dust': ',',       # Light limestone dusting use a comma
             'pillar': 'O',     # Pillars use capital O
-            'furniture': '#',  # Generic furniture uses hash symbol
+            'radio_console': '%',  # Vintage radio console (speaker grills/dials)
             'coat_rack': 'Y',  # Coat rack uses Y
-            'ottoman': '=',    # Ottoman uses equals sign
+            'ottoman': 'u',    # Ottoman cushioned seating
             'console': '=',    # Console table (flat surface)
-            'dec_table': '=',  # Decorative table (flat surface)
+            'curiosity_shelf': 'E',  # Victorian curiosity shelf (stacked shelves)
             'marrow_wall': '#',  # Marrow Dike wall uses hash character
             'rail': '+',      # Rail track uses cross symbol for intersections
             # Stained Stones map terrain
@@ -77,7 +77,7 @@ class AssetManager:
             'podium': '^',     # Elevated podium platform
             'vase': 'v',       # Lowercase v resembles vase shape
             'canyon_floor': '.',  # Canyon floor sediment
-            # Edge Case map terrain - Industrial warehouse converted to home
+            # Hard Pressed map terrain - Industrial warehouse converted to home
             'hydraulic_press': 'O',  # Round shape for massive hydraulic press
             'workbench': 'I',  # I-beam shape for industrial workbench
             'couch': 'u',      # Lowercase u resembles couch shape

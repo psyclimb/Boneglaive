@@ -193,7 +193,7 @@ class GameStateAdapter:
         # Maps (y, x) position -> {'owner': unit, 'damage': int, 'active': bool}
         self.last_scalar_nodes: Dict[Tuple[int, int], Dict[str, Any]] = {}
 
-    def initialize_game(self, game_instance=None, skip_setup=True, map_name="edgecase"):
+    def initialize_game(self, game_instance=None, skip_setup=True, map_name="hard_pressed"):
         """
         Initialize or attach to a game instance.
 

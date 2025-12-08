@@ -69,7 +69,7 @@ class PygameGameUI:
                     'LIMESTONE': 'limestone',
                     'PILLAR': 'pillar',
                     'MARROW_WALL': 'marrow_wall',
-                    'FURNITURE': 'furniture',
+                    'RADIO_CONSOLE': 'radio_console',
                     'RAIL': 'rail',
                     'TIFFANY_LAMP': 'tiffany_lamp',
                     'STAINED_STONE': 'stained_stone',

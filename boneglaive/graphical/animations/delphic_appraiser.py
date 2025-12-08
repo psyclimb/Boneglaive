@@ -447,8 +447,8 @@ class DivineDrepreciationAnimation:
                         tile_terrain = self.game.map.terrain.get((tile_grid_y, tile_grid_x), TerrainType.EMPTY)
                         # Only actual furniture types (not terrain/walls)
                         furniture_types = {
-                            TerrainType.FURNITURE, TerrainType.COAT_RACK, TerrainType.OTTOMAN,
-                            TerrainType.CONSOLE, TerrainType.DEC_TABLE, TerrainType.TIFFANY_LAMP,
+                            TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK, TerrainType.OTTOMAN,
+                            TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF, TerrainType.TIFFANY_LAMP,
                             TerrainType.EASEL, TerrainType.SCULPTURE, TerrainType.BENCH,
                             TerrainType.PODIUM, TerrainType.VASE, TerrainType.WORKBENCH,
                             TerrainType.COUCH, TerrainType.TOOLBOX, TerrainType.COT,
@@ -1064,8 +1064,8 @@ class AuctionCurseAnimation:
 
         from boneglaive.game.map import TerrainType
         furniture_types = {
-            TerrainType.FURNITURE, TerrainType.COAT_RACK, TerrainType.OTTOMAN,
-            TerrainType.CONSOLE, TerrainType.DEC_TABLE, TerrainType.TIFFANY_LAMP,
+            TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK, TerrainType.OTTOMAN,
+            TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF, TerrainType.TIFFANY_LAMP,
             TerrainType.EASEL, TerrainType.SCULPTURE, TerrainType.BENCH,
             TerrainType.PODIUM, TerrainType.VASE, TerrainType.WORKBENCH,
             TerrainType.COUCH, TerrainType.TOOLBOX, TerrainType.COT,
@@ -2374,8 +2374,8 @@ class AuctionCurseTickAnimation:
 
         from boneglaive.game.map import TerrainType
         furniture_types = {
-            TerrainType.FURNITURE, TerrainType.COAT_RACK, TerrainType.OTTOMAN,
-            TerrainType.CONSOLE, TerrainType.DEC_TABLE, TerrainType.TIFFANY_LAMP,
+            TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK, TerrainType.OTTOMAN,
+            TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF, TerrainType.TIFFANY_LAMP,
             TerrainType.EASEL, TerrainType.SCULPTURE, TerrainType.BENCH,
             TerrainType.PODIUM, TerrainType.VASE, TerrainType.WORKBENCH,
             TerrainType.COUCH, TerrainType.TOOLBOX, TerrainType.COT,

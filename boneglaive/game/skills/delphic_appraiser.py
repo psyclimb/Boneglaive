@@ -140,8 +140,8 @@ class MarketFuturesSkill(ActiveSkill):
 
         # Target must be a furniture piece
         terrain = game.map.get_terrain_at(target_pos[0], target_pos[1])
-        if terrain not in [TerrainType.FURNITURE, TerrainType.COAT_RACK,
-                         TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE, 
+        if terrain not in [TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
+                         TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF, 
                          TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE, 
                          TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                          TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
@@ -365,11 +365,11 @@ class MarketFuturesSkill(ActiveSkill):
     def _get_furniture_name(self, terrain_type) -> str:
         """Convert TerrainType enum to readable furniture name."""
         terrain_names = {
-            TerrainType.FURNITURE: "Furniture",
+            TerrainType.RADIO_CONSOLE: "Radio Console",
             TerrainType.COAT_RACK: "Coat Rack", 
             TerrainType.OTTOMAN: "Ottoman",
             TerrainType.CONSOLE: "Console",
-            TerrainType.DEC_TABLE: "Decorative Table",
+            TerrainType.CURIOSITY_SHELF: "Curiosity Shelf",
             TerrainType.TIFFANY_LAMP: "Tiffany Lamp",
             TerrainType.EASEL: "Easel",
             TerrainType.SCULPTURE: "Sculpture", 
@@ -384,7 +384,7 @@ class MarketFuturesSkill(ActiveSkill):
             TerrainType.MINI_PUMPKIN: "Mini Pumpkin",
             TerrainType.POTPOURRI_BOWL: "Potpourri Bowl"
         }
-        return terrain_names.get(terrain_type, "Furniture")
+        return terrain_names.get(terrain_type, "Radio Console")
 
 
 class AuctionCurseSkill(ActiveSkill):
@@ -477,8 +477,8 @@ class AuctionCurseSkill(ActiveSkill):
         for y in range(max(0, target_pos[0] - 2), min(game.map.height, target_pos[0] + 3)):
             for x in range(max(0, target_pos[1] - 2), min(game.map.width, target_pos[1] + 3)):
                 terrain = game.map.get_terrain_at(y, x)
-                if terrain in [TerrainType.FURNITURE, TerrainType.COAT_RACK,
-                             TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE, 
+                if terrain in [TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
+                             TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF, 
                              TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE, 
                              TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                              TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
@@ -630,11 +630,11 @@ class DivineDrepreciationSkill(ActiveSkill):
     def _get_furniture_name(self, terrain_type) -> str:
         """Convert TerrainType enum to readable furniture name."""
         terrain_names = {
-            TerrainType.FURNITURE: "Furniture",
+            TerrainType.RADIO_CONSOLE: "Radio Console",
             TerrainType.COAT_RACK: "Coat Rack", 
             TerrainType.OTTOMAN: "Ottoman",
             TerrainType.CONSOLE: "Console",
-            TerrainType.DEC_TABLE: "Decorative Table",
+            TerrainType.CURIOSITY_SHELF: "Curiosity Shelf",
             TerrainType.TIFFANY_LAMP: "Tiffany Lamp",
             TerrainType.EASEL: "Easel",
             TerrainType.SCULPTURE: "Sculpture", 
@@ -649,7 +649,7 @@ class DivineDrepreciationSkill(ActiveSkill):
             TerrainType.MINI_PUMPKIN: "Mini Pumpkin",
             TerrainType.POTPOURRI_BOWL: "Potpourri Bowl"
         }
-        return terrain_names.get(terrain_type, "Furniture")
+        return terrain_names.get(terrain_type, "Radio Console")
 
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Check if Divine Depreciation can be used."""
@@ -665,8 +665,8 @@ class DivineDrepreciationSkill(ActiveSkill):
 
         # Target must be a furniture piece
         terrain = game.map.get_terrain_at(target_pos[0], target_pos[1])
-        if terrain not in [TerrainType.FURNITURE, TerrainType.COAT_RACK,
-                         TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE, 
+        if terrain not in [TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
+                         TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF, 
                          TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE, 
                          TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                          TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
@@ -751,8 +751,8 @@ class DivineDrepreciationSkill(ActiveSkill):
         for pos in affected_area:
             if pos != target_pos:  # Skip the target furniture
                 terrain = game.map.get_terrain_at(pos[0], pos[1])
-                if terrain in [TerrainType.FURNITURE, TerrainType.COAT_RACK,
-                             TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE, 
+                if terrain in [TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
+                             TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF, 
                              TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE, 
                              TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                              TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,

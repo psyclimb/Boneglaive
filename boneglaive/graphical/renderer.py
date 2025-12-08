@@ -194,11 +194,11 @@ class GraphicalRenderer:
             TerrainType.BLOOD_PLASMA: "graphics/terrain/blood_plasma.svg",
 
             # Furniture types
-            TerrainType.FURNITURE: "graphics/furniture/furniture_generic.svg",
+            TerrainType.RADIO_CONSOLE: "graphics/furniture/radio_console.svg",
             TerrainType.COAT_RACK: "graphics/furniture/coat_rack.svg",
             TerrainType.OTTOMAN: "graphics/furniture/ottoman.svg",
             TerrainType.CONSOLE: "graphics/furniture/console_table.svg",
-            TerrainType.DEC_TABLE: "graphics/furniture/dec_table.svg",
+            TerrainType.CURIOSITY_SHELF: "graphics/furniture/curiosity_shelf.svg",
             TerrainType.TIFFANY_LAMP: "graphics/furniture/tiffany_lamp.svg",
             TerrainType.EASEL: "graphics/furniture/easel.svg",
             TerrainType.SCULPTURE: "graphics/furniture/sculpture.svg",
@@ -773,11 +773,11 @@ class GraphicalRenderer:
         """Convert TerrainType to readable furniture name."""
         # Map terrain types to readable names
         furniture_names = {
-            TerrainType.FURNITURE: "Furniture",
+            TerrainType.RADIO_CONSOLE: "Radio Console",
             TerrainType.COAT_RACK: "Coat Rack",
             TerrainType.OTTOMAN: "Ottoman",
             TerrainType.CONSOLE: "Console Table",
-            TerrainType.DEC_TABLE: "Decorative Table",
+            TerrainType.CURIOSITY_SHELF: "Curiosity Shelf",
             TerrainType.TIFFANY_LAMP: "Tiffany Lamp",
             TerrainType.EASEL: "Easel",
             TerrainType.SCULPTURE: "Sculpture",
@@ -2452,7 +2452,7 @@ def main():
     # Load config to get selected map
     from boneglaive.utils.config import ConfigManager
     config = ConfigManager()
-    selected_map = config.get('selected_map', 'edgecase')
+    selected_map = config.get('selected_map', 'hard_pressed')
 
     # Create game state adapter
     adapter = GameStateAdapter()
