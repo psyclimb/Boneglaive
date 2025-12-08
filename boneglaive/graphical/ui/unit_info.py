@@ -8,8 +8,8 @@ from typing import Optional
 
 # Colors
 COLOR_BG = (30, 34, 42)
-COLOR_PLAYER1 = (100, 150, 255)
-COLOR_PLAYER2 = (255, 100, 100)
+COLOR_PLAYER1 = (100, 255, 100)  # Green
+COLOR_PLAYER2 = (100, 150, 255)  # Blue
 COLOR_TEXT = (255, 255, 255)
 COLOR_TEXT_DIM = (180, 180, 180)
 COLOR_HP_BAR_BG = (60, 60, 60)

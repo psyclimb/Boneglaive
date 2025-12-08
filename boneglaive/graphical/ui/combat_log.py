@@ -13,8 +13,8 @@ COLOR_TEXT_COMBAT = (255, 200, 100)
 COLOR_TEXT_ABILITY = (200, 150, 255)
 COLOR_TEXT_MOVEMENT = (150, 200, 150)
 COLOR_TEXT_ERROR = (255, 100, 100)
-COLOR_TEXT_PLAYER1 = (100, 150, 255)
-COLOR_TEXT_PLAYER2 = (255, 100, 100)
+COLOR_TEXT_PLAYER1 = (100, 255, 100)  # Green
+COLOR_TEXT_PLAYER2 = (100, 150, 255)  # Blue
 
 LOG_WIDTH = 270  # Fits in 280px panel with padding
 LOG_HEIGHT = 180  # Slightly shorter
@@ -127,30 +127,51 @@ class CombatLog:
         title_text = self.font.render("Combat Log", True, (255, 255, 255))
         surface.blit(title_text, (x + LOG_PADDING, y + 5))
 
-        # Calculate visible messages
-        max_visible_lines = (log_height - 35) // LINE_HEIGHT
-        start_idx = max(0, len(self.messages) - max_visible_lines - self.scroll_offset)
-        end_idx = len(self.messages) - self.scroll_offset
-        visible_messages = self.messages[start_idx:end_idx]
+        # Wrap messages and calculate total wrapped lines
+        wrapped_messages = []
+        for message in self.messages:
+            wrapped_lines = self._wrap_text(message['text'], LOG_WIDTH - LOG_PADDING * 2 - 5)
+            wrapped_messages.append({
+                'lines': wrapped_lines,
+                'type': message['type'],
+                'player': message.get('player')
+            })
 
-        # Draw messages from bottom up
+        # Calculate which wrapped messages to show
+        max_visible_lines = (log_height - 35) // LINE_HEIGHT
+
+        # Flatten wrapped messages into lines (oldest to newest)
+        all_lines = []
+        for wrapped_msg in wrapped_messages:
+            for line in wrapped_msg['lines']:
+                all_lines.append({
+                    'text': line,
+                    'type': wrapped_msg['type'],
+                    'player': wrapped_msg['player']
+                })
+
+        # Apply scroll offset and limit (show most recent at bottom)
+        # When scroll_offset is 0, show the most recent messages
+        total_lines = len(all_lines)
+        if total_lines <= max_visible_lines:
+            visible_lines = all_lines
+        else:
+            # Show most recent lines, offset from the end
+            start_idx = max(0, total_lines - max_visible_lines - self.scroll_offset)
+            end_idx = total_lines - self.scroll_offset
+            visible_lines = all_lines[start_idx:end_idx]
+
+        # Draw lines from bottom up (most recent at bottom)
         text_y = y + log_height - LOG_PADDING - LINE_HEIGHT
-        for message in reversed(visible_messages):
+        for line_data in reversed(visible_lines):
             if text_y < y + 30:  # Don't draw over title
                 break
 
             # Choose color based on message type
-            color = self._get_message_color(message)
+            color = self._get_message_color(line_data)
 
             # Render and draw text
-            text = message['text']
-            # Truncate based on actual pixel width to prevent overflow
-            # Approximate: 16 pixels per character for this font
-            max_chars = (LOG_WIDTH - LOG_PADDING * 2 - 5) // 10  # ~25 chars for 270px width
-            if len(text) > max_chars:
-                text = text[:max_chars-3] + "..."
-
-            text_surface = self.font.render(text, True, color)
+            text_surface = self.font.render(line_data['text'], True, color)
             surface.blit(text_surface, (x + LOG_PADDING, text_y))
 
             text_y -= LINE_HEIGHT
@@ -182,6 +203,58 @@ class CombatLog:
             return COLOR_TEXT_ERROR
         else:
             return COLOR_TEXT_SYSTEM
+
+    def _wrap_text(self, text: str, max_width: int) -> List[str]:
+        """
+        Wrap text to fit within max_width pixels.
+
+        Args:
+            text: Text to wrap
+            max_width: Maximum width in pixels
+
+        Returns:
+            List of wrapped lines
+        """
+        if not text:
+            return [""]
+
+        # Estimate characters per line based on font size
+        # For 16px font, roughly 8-10 pixels per character
+        approx_chars_per_line = max_width // 8
+
+        # If text fits on one line, return it
+        test_surface = self.font.render(text, True, (255, 255, 255))
+        if test_surface.get_width() <= max_width:
+            return [text]
+
+        # Wrap text by words
+        words = text.split()
+        lines = []
+        current_line = ""
+
+        for word in words:
+            # Test if adding this word would exceed width
+            test_line = current_line + (" " if current_line else "") + word
+            test_surface = self.font.render(test_line, True, (255, 255, 255))
+
+            if test_surface.get_width() <= max_width:
+                current_line = test_line
+            else:
+                # Word doesn't fit, start new line
+                if current_line:
+                    lines.append(current_line)
+                    current_line = word
+                else:
+                    # Single word is too long, truncate it
+                    current_line = word[:approx_chars_per_line-3] + "..."
+                    lines.append(current_line)
+                    current_line = ""
+
+        # Add last line
+        if current_line:
+            lines.append(current_line)
+
+        return lines if lines else [""]
 
     def handle_scroll(self, direction: int):
         """

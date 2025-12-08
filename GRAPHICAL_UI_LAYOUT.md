@@ -235,8 +235,8 @@ The graphical version features a clean three-zone layout with **dedicated spaces
 ## Color Scheme
 
 **Players:**
-- Player 1: Cyan-blue `(100, 150, 255)`
-- Player 2: Coral-red `(255, 100, 100)`
+- Player 1: Green `(100, 255, 100)`
+- Player 2: Blue `(100, 150, 255)`
 
 **UI Elements:**
 - Background: Dark blue-gray `(30, 34, 42)`
