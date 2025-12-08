@@ -97,8 +97,8 @@ class SkillBar:
         self.hovered_slot: Optional[SkillSlot] = None
         self.selected_skill = None
 
-        # Hotkey mapping (matches ASCII version)
-        self.hotkeys = ['1', '2', '3', '4', 'Q', 'W', 'E', 'R']
+        # Hotkey mapping (E and R reserved for Execute and Respawn in action menu)
+        self.hotkeys = ['1', '2', '3', '4', 'Q', 'W']
 
     def update(self, selected_unit, game_unit):
         """

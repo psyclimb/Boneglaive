@@ -16,10 +16,10 @@ COLOR_TEXT_ERROR = (255, 100, 100)
 COLOR_TEXT_PLAYER1 = (100, 150, 255)
 COLOR_TEXT_PLAYER2 = (255, 100, 100)
 
-LOG_WIDTH = 350
-LOG_HEIGHT = 200
-LOG_PADDING = 10
-LINE_HEIGHT = 18
+LOG_WIDTH = 270  # Fits in 280px panel with padding
+LOG_HEIGHT = 180  # Slightly shorter
+LOG_PADDING = 8
+LINE_HEIGHT = 16  # Tighter line spacing
 
 
 class CombatLog:

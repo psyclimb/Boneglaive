@@ -16,7 +16,7 @@ import os
 
 
 # Constants (shared across all modules)
-TILE_SIZE = 64
+TILE_SIZE = 46  # Scaled down to fit dedicated UI panels (920px / 20 tiles)
 
 # Attack animation colors
 COLOR_MELEE_SLASH = (255, 200, 100)  # Orange-yellow for melee slash

@@ -28,22 +28,37 @@ from .ui.skill_bar import SkillBar
 from .ui.combat_log import CombatLog
 from .ui.status_effects import StatusEffectsPanel
 from .ui.unit_info import UnitInfoPanel
+from .ui.top_bar import TopBar
+from .ui.unit_status_bar import UnitStatusBar
+from .ui.action_menu import ActionMenu
 from .ui_adapter import GraphicalUIAdapter
 
 # Import TerrainType for terrain/furniture rendering
 from boneglaive.game.map import TerrainType
 
 
-# Screen constants
-SCREEN_WIDTH = 1480  # Increased to fit 20-column grid (20*64 + 100 offset + margin)
+# Screen constants (must match menu system)
+SCREEN_WIDTH = 1480
 SCREEN_HEIGHT = 800
 SCREEN_TITLE = "Boneglaive"
+
+# Layout constants - Dedicated panel design (no overlays)
+TOP_BAR_HEIGHT = 50
+BOTTOM_BAR_HEIGHT = 80
+LEFT_PANEL_WIDTH = 280  # Dedicated left panel
+RIGHT_PANEL_WIDTH = 280  # Dedicated right panel
+GAME_BOARD_WIDTH = SCREEN_WIDTH - LEFT_PANEL_WIDTH - RIGHT_PANEL_WIDTH  # 920px
 
 # Grid constants - Match game map size (20 cols x 10 rows)
 GRID_WIDTH = 20
 GRID_HEIGHT = 10
-GRID_OFFSET_X = 100  # Offset to leave room for UI panels
-GRID_OFFSET_Y = 50
+# Tiles scaled to fit in dedicated game board area
+TILE_SIZE = GAME_BOARD_WIDTH // GRID_WIDTH  # 920 / 20 = 46px per tile
+GAME_BOARD_HEIGHT = GRID_HEIGHT * TILE_SIZE  # 10 * 46 = 460px
+
+# Grid positioned in center area (after left panel)
+GRID_OFFSET_X = LEFT_PANEL_WIDTH  # 280px - right after left panel
+GRID_OFFSET_Y = TOP_BAR_HEIGHT + ((SCREEN_HEIGHT - TOP_BAR_HEIGHT - BOTTOM_BAR_HEIGHT - GAME_BOARD_HEIGHT) // 2)  # Centered vertically
 
 # Colors
 COLOR_BG = (40, 44, 52)
@@ -132,10 +147,16 @@ class GraphicalRenderer:
         self.imbued_sparkles = []
 
         # UI Components
+        self.top_bar = TopBar(self.font, self.small_font, self.large_font)
+        self.unit_status_bar = UnitStatusBar(self.font, self.small_font)
         self.skill_bar = SkillBar(self.font, self.small_font)
         self.combat_log = CombatLog(self.small_font)
         self.status_effects_panel = StatusEffectsPanel(self.font, self.small_font)
         self.unit_info_panel = UnitInfoPanel(self.font, self.small_font, self.large_font)
+        self.action_menu = ActionMenu(self.font, self.small_font)
+
+        # Track current action mode for top bar display
+        self.current_action_mode = "SELECT"
 
         # UI Adapter for animations
         self.ui_adapter = GraphicalUIAdapter(self)
@@ -463,15 +484,24 @@ class GraphicalRenderer:
                 elif event.key == pygame.K_SPACE:
                     self.paused = not self.paused
                 elif event.key == pygame.K_t:
-                    # End turn (changed from E to avoid conflict with skill hotkeys)
+                    # End turn (T key for backwards compatibility)
                     self.execute_turn()
+
+                # Check action menu hotkeys first
+                elif event.key in [pygame.K_m, pygame.K_a, pygame.K_r, pygame.K_e, pygame.K_c]:
+                    action = self.action_menu.handle_hotkey(event.key)
+                    if action:
+                        self._handle_action_menu_click(action)
+
+                # Then check skill hotkeys
                 elif event.key in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4,
-                                  pygame.K_q, pygame.K_w, pygame.K_e, pygame.K_r]:
-                    # Handle skill hotkeys
+                                  pygame.K_q, pygame.K_w]:
+                    # Handle skill hotkeys (removed E and R to avoid conflicts)
                     skill = self.skill_bar.handle_hotkey(event.key)
                     if skill and self.selected_unit:
                         print(f"Skill selected: {skill.name}")
                         self.selected_skill = skill
+                        self.current_action_mode = "SKILL"
 
                         # Query skill range
                         game_unit = self._get_game_unit(self.selected_unit)
@@ -492,17 +522,59 @@ class GraphicalRenderer:
                 # Update hovered grid position
                 self.hovered_grid_pos = self.screen_to_grid(event.pos[0], event.pos[1])
 
-                # Update skill bar hover
+                # Update UI component hovers
                 self.skill_bar.handle_mouse_motion(event.pos)
-
-                # Update status effects hover (for tooltips)
                 self.status_effects_panel.handle_mouse_motion(event.pos)
+                self.unit_status_bar.handle_mouse_motion(event.pos)
+                self.action_menu.handle_mouse_motion(event.pos)
 
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:  # Left click
-                    grid_pos = self.screen_to_grid(event.pos[0], event.pos[1])
-                    if grid_pos:
-                        self.handle_grid_click(grid_pos[0], grid_pos[1])
+                    # Check if clicking on UI components first
+                    clicked_handled = False
+
+                    # Check skill bar click
+                    skill = self.skill_bar.handle_click(event.pos)
+                    if skill and self.selected_unit:
+                        print(f"Skill selected via click: {skill.name}")
+                        self.selected_skill = skill
+                        game_unit = self._get_game_unit(self.selected_unit)
+                        if game_unit:
+                            self.skill_positions = self.game_adapter.get_skill_range(game_unit, skill)
+                            self.show_movement_range = False
+                            self.show_target_range = False
+                            self.show_skill_range = True
+                            self.current_action_mode = "SKILL"
+                        clicked_handled = True
+
+                    # Check unit status bar click
+                    if not clicked_handled:
+                        clicked_unit = self.unit_status_bar.handle_click(event.pos)
+                        if clicked_unit:
+                            # Select this unit
+                            for visual_unit in self.units:
+                                if (visual_unit.grid_x == clicked_unit.x and
+                                    visual_unit.grid_y == clicked_unit.y):
+                                    self.selected_unit = visual_unit
+                                    self.skill_bar.update(visual_unit, clicked_unit)
+                                    self.unit_info_panel.update(visual_unit, clicked_unit)
+                                    self.status_effects_panel.update(clicked_unit)
+                                    print(f"Selected unit: {clicked_unit.get_display_name()}")
+                                    clicked_handled = True
+                                    break
+
+                    # Check action menu click
+                    if not clicked_handled:
+                        action = self.action_menu.handle_click(event.pos)
+                        if action:
+                            self._handle_action_menu_click(action)
+                            clicked_handled = True
+
+                    # If no UI clicked, check grid click
+                    if not clicked_handled:
+                        grid_pos = self.screen_to_grid(event.pos[0], event.pos[1])
+                        if grid_pos:
+                            self.handle_grid_click(grid_pos[0], grid_pos[1])
 
                 elif event.button == 3:  # Right click
                     # Cancel selection and skill mode
@@ -623,6 +695,7 @@ class GraphicalRenderer:
                 self.selected_unit = unit
                 self.show_movement_range = True
                 self.show_target_range = True
+                self.current_action_mode = "SELECT"
 
                 # Query movement range and attack range from game logic
                 game_unit = self._get_game_unit(unit)
@@ -768,6 +841,58 @@ class GraphicalRenderer:
         if not unit:
             return None
         return unit.name  # TODO: Use proper unit ID
+
+    def _handle_action_menu_click(self, action: str):
+        """
+        Handle action menu button clicks.
+
+        Args:
+            action: Action string (move, attack, respawn, execute, concede)
+        """
+        if action == "move":
+            if self.selected_unit:
+                print("Move mode activated")
+                self.current_action_mode = "MOVE"
+                # Show movement range
+                game_unit = self._get_game_unit(self.selected_unit)
+                if game_unit:
+                    self.valid_positions = self.game_adapter.get_movement_range(game_unit)
+                    self.show_movement_range = True
+                    self.show_target_range = False
+                    self.show_skill_range = False
+
+        elif action == "attack":
+            if self.selected_unit:
+                print("Attack mode activated")
+                self.current_action_mode = "ATTACK"
+                # Show attack range
+                game_unit = self._get_game_unit(self.selected_unit)
+                if game_unit:
+                    self.attack_positions = self.game_adapter.get_attack_range(game_unit)
+                    self.show_target_range = True
+                    self.show_movement_range = False
+                    self.show_skill_range = False
+
+        elif action == "respawn":
+            print("Respawn mode activated")
+            self.current_action_mode = "RESPAWN"
+            # TODO: Implement respawn UI
+            # For now, just log it
+            if self.game_adapter.game:
+                ready_units = [du for du in self.game_adapter.game.dead_units
+                              if du.player == self.game_adapter.game.current_player
+                              and du.ready_for_respawn]
+                print(f"Units available for respawn: {len(ready_units)}")
+
+        elif action == "execute":
+            print("Executing turn...")
+            self.execute_turn()
+
+        elif action == "concede":
+            print("Concede requested")
+            # TODO: Add confirmation dialog
+            # For now, just log it
+            self.combat_log.add_message("Concede not yet implemented", "system")
 
     def _get_furniture_name(self, terrain_type) -> str:
         """Convert TerrainType to readable furniture name."""
@@ -1883,17 +2008,11 @@ class GraphicalRenderer:
         for debris in self.debris_particles:
             debris.draw(main_surface)
 
-        # Draw UI
+        # Draw UI (includes all panels and components)
         self.draw_ui(main_surface)
 
-        # Draw unit info panel (top-right corner) - includes status effects
-        self.unit_info_panel.draw(main_surface, SCREEN_WIDTH - 320, 10)
-
-        # Draw skill bar
+        # Draw skill bar (bottom center, in bottom bar)
         self.skill_bar.draw(main_surface, SCREEN_WIDTH, SCREEN_HEIGHT)
-
-        # Draw combat log (bottom-left corner)
-        self.combat_log.draw(main_surface, 10, SCREEN_HEIGHT - 230)
 
         # Apply shake offset and blit to screen
         self.screen.fill(COLOR_BG)
@@ -2017,42 +2136,87 @@ class GraphicalRenderer:
                 )
 
     def draw_ui(self, surface: pygame.Surface):
-        """Draw UI elements (skill bar, unit info, etc.)."""
-        # Draw game state info (top-left corner)
-        game_state = self.game_adapter.get_game_state()
+        """Draw UI elements using new three-zone layout."""
+        # Update UI components with current game state
+        game = self.game_adapter.game
+        if game:
+            # Get selected game unit (not visual unit)
+            selected_game_unit = None
+            if self.selected_unit:
+                # Find corresponding game unit
+                for unit in game.units:
+                    if unit.is_alive() and unit.x == self.selected_unit.grid_x and unit.y == self.selected_unit.grid_y:
+                        selected_game_unit = unit
+                        break
 
-        info_lines = [
-            f"Turn: {game_state.get('turn', 0)}",
-            f"Phase: {game_state.get('phase', 'idle')}",
-        ]
+            # Update top bar
+            self.top_bar.update(game, self.current_action_mode)
 
-        if self.selected_unit:
-            info_lines.append(f"Selected: {self.selected_unit.name}")
-            info_lines.append(f"HP: {self.selected_unit.hp}/{self.selected_unit.max_hp}")
+            # Update unit status bar
+            self.unit_status_bar.update(game, selected_game_unit)
 
-        y_offset = 10
-        for line in info_lines:
-            text = self.font.render(line, True, (255, 255, 255))
-            surface.blit(text, (10, y_offset))
-            y_offset += 25
+            # Update action menu
+            has_actions = any(u.move_target or u.attack_target or u.skill_target for u in game.units if u.is_alive())
+            self.action_menu.update(game, selected_game_unit, self.current_action_mode, has_actions)
 
-        # Draw controls help (bottom-left)
-        help_text = [
-            "ESC - Quit",
-            "SPACE - Pause",
-            "T - End Turn",
-            "1-4,Q-R - Skills",
-            "LClick - Select/Move/Attack",
-            "RClick - Cancel",
-        ]
+        # Draw top bar (full width)
+        self.top_bar.draw(surface, SCREEN_WIDTH)
 
-        y_offset = SCREEN_HEIGHT - len(help_text) * 20 - 10
-        for line in help_text:
-            text = self.small_font.render(line, True, (150, 150, 150))
-            surface.blit(text, (10, y_offset))
-            y_offset += 20
+        # Calculate available height for side panels
+        panel_height = SCREEN_HEIGHT - TOP_BAR_HEIGHT - BOTTOM_BAR_HEIGHT
 
-        # TODO: Draw skill bar, AP indicator, turn order, etc.
+        # === LEFT PANEL (Dedicated Space) ===
+        left_panel_x = 0  # Starts at left edge
+        left_panel_y = TOP_BAR_HEIGHT
+
+        # Draw solid background
+        left_panel_surface = pygame.Surface((LEFT_PANEL_WIDTH, panel_height))
+        left_panel_surface.fill((30, 34, 42))  # Solid dark background
+        surface.blit(left_panel_surface, (left_panel_x, left_panel_y))
+
+        # Draw border on right side
+        pygame.draw.line(surface, (60, 64, 72),
+                        (LEFT_PANEL_WIDTH - 1, TOP_BAR_HEIGHT),
+                        (LEFT_PANEL_WIDTH - 1, SCREEN_HEIGHT - BOTTOM_BAR_HEIGHT), 2)
+
+        # Draw unit status bar (top of left panel)
+        unit_bar_height = self.unit_status_bar.get_height()
+        self.unit_status_bar.draw(surface, left_panel_x + 5, left_panel_y + 5)
+
+        # Draw combat log (below unit status bar)
+        log_y = left_panel_y + unit_bar_height + 10
+        self.combat_log.draw(surface, left_panel_x + 10, log_y)
+
+        # === RIGHT PANEL (Dedicated Space) ===
+        right_panel_x = SCREEN_WIDTH - RIGHT_PANEL_WIDTH  # Starts at right edge - panel width
+        right_panel_y = TOP_BAR_HEIGHT
+
+        # Draw solid background
+        right_panel_surface = pygame.Surface((RIGHT_PANEL_WIDTH, panel_height))
+        right_panel_surface.fill((30, 34, 42))  # Solid dark background
+        surface.blit(right_panel_surface, (right_panel_x, right_panel_y))
+
+        # Draw border on left side
+        pygame.draw.line(surface, (60, 64, 72),
+                        (right_panel_x, TOP_BAR_HEIGHT),
+                        (right_panel_x, SCREEN_HEIGHT - BOTTOM_BAR_HEIGHT), 2)
+
+        # Draw unit info panel (top of right panel)
+        self.unit_info_panel.draw(surface, right_panel_x + 10, right_panel_y + 5)
+
+        # Draw status effects panel (below unit info)
+        status_effects_y = right_panel_y + 240
+        if game and self.selected_unit:
+            # Find game unit
+            for unit in game.units:
+                if unit.is_alive() and unit.x == self.selected_unit.grid_x and unit.y == self.selected_unit.grid_y:
+                    self.status_effects_panel.update(unit)
+                    self.status_effects_panel.draw(surface, right_panel_x + 10, status_effects_y)
+                    break
+
+        # Draw action menu (below status effects)
+        action_menu_y = status_effects_y + 140
+        self.action_menu.draw(surface, right_panel_x + 5, action_menu_y)
 
     def execute_turn(self):
         """Execute the current turn (process all planned actions)."""
