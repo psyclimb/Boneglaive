@@ -31,6 +31,7 @@ from .ui.unit_info import UnitInfoPanel
 from .ui.top_bar import TopBar
 from .ui.unit_status_bar import UnitStatusBar
 from .ui.action_menu import ActionMenu
+from .ui.motor_animation import MotorAnimation
 from .ui_adapter import GraphicalUIAdapter
 
 # Import TerrainType for terrain/furniture rendering
@@ -154,6 +155,7 @@ class GraphicalRenderer:
         self.status_effects_panel = StatusEffectsPanel(self.font, self.small_font)
         self.unit_info_panel = UnitInfoPanel(self.font, self.small_font, self.large_font)
         self.action_menu = ActionMenu(self.font, self.small_font)
+        self.motor_animation = MotorAnimation()
 
         # Track current action mode for top bar display
         self.current_action_mode = "SELECT"
@@ -970,6 +972,10 @@ class GraphicalRenderer:
         # and show icons for any that are currently active
         self._show_active_status_effects()
 
+        # Stop motor animation when all animations complete
+        if self.motor_animation.is_running and not self.has_active_animations():
+            self.motor_animation.stop()
+
     def _show_event_immediately(self, event):
         """Show a damage/heal/death/skill event immediately (helper for flushing queue)."""
         if event.event_type == "damage":
@@ -1321,6 +1327,9 @@ class GraphicalRenderer:
                 updated_animations.append(anim)
         self.active_animations = updated_animations
 
+        # Update motor animation
+        self.motor_animation.update(delta_time)
+
         # Update floating texts
         updated_texts = []
         for text in self.floating_texts:
@@ -1516,6 +1525,9 @@ class GraphicalRenderer:
 
         self.active_animations = updated_animations
 
+        # Update motor animation
+        self.motor_animation.update(delta_time)
+
         # Check if all animations finished - if so, flush pending damage/heal/death events
         if self.pending_animation_events and not self.has_active_animations():
             self.flush_pending_events()
@@ -1525,6 +1537,10 @@ class GraphicalRenderer:
             self._show_active_status_effects()
             # Clear the list after showing to prevent repeated displays
             self.game_adapter._effects_to_show_after_damage.clear()
+
+        # Stop motor if it's running and turn execution is complete (no more animations)
+        if self.motor_animation.is_running and not self.has_active_animations() and not self.game_adapter.executing_turn:
+            self.motor_animation.stop()
 
         # After all animations complete (including status icons from flush), clean up dead units
         # This ensures death animations have access to visual_units before removal
@@ -2205,8 +2221,12 @@ class GraphicalRenderer:
         # Draw unit info panel (top of right panel)
         self.unit_info_panel.draw(surface, right_panel_x + 10, right_panel_y + 5)
 
-        # Draw status effects panel (below unit info)
-        status_effects_y = right_panel_y + 240
+        # Draw motor animation (below unit info panel)
+        motor_y = right_panel_y + 245  # Just below unit info
+        self.motor_animation.draw(surface, right_panel_x + 15, motor_y)
+
+        # Draw status effects panel (below motor)
+        status_effects_y = motor_y + 190  # Below motor animation
         if game and self.selected_unit:
             # Find game unit
             for unit in game.units:
@@ -2226,6 +2246,9 @@ class GraphicalRenderer:
             return
 
         print(f"\n=== Executing Turn {self.game_adapter.game.turn} ===")
+
+        # Start motor animation
+        self.motor_animation.start()
 
         # Log turn start
         self.combat_log.add_message(
@@ -2307,6 +2330,8 @@ class GraphicalRenderer:
 
         self.game_adapter.executing_turn = False
         print("[Renderer] Setting executing_turn = False")
+
+        # Note: Motor will stop when animations finish (in flush_pending_events or update loop)
 
         # Fetch messages from game log
         from boneglaive.utils.message_log import message_log
