@@ -193,8 +193,11 @@ class ProfileStatsScreen(MenuScreen):
         self.buttons = []
 
     def handle_event(self, event: pygame.event.Event) -> Optional[str]:
-        """Handle events - any key returns to menu."""
-        if event.type == pygame.KEYUP or event.type == pygame.MOUSEBUTTONUP:
+        """Handle events - any key/click returns to menu."""
+        if event.type == pygame.KEYUP and event.key != pygame.K_ESCAPE:
+            # Any key except ESC (prevents immediate exit from ESC press on previous screen)
+            return "back"
+        elif event.type == pygame.MOUSEBUTTONUP:
             return "back"
         return None
 
