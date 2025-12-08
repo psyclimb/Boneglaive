@@ -99,19 +99,23 @@ class CombatLog:
         if self.scroll_offset == 0:
             self.auto_scroll = True
 
-    def draw(self, surface: pygame.Surface, x: int, y: int):
+    def draw(self, surface: pygame.Surface, x: int, y: int, height: int = None):
         """
         Draw the combat log.
 
         Args:
             surface: Surface to draw on
             x, y: Position to draw at (top-left)
+            height: Optional custom height (uses LOG_HEIGHT if None)
         """
         if not self.messages:
             return
 
+        # Use custom height if provided, otherwise use default
+        log_height = height if height is not None else LOG_HEIGHT
+
         # Draw background panel
-        panel_rect = pygame.Rect(x, y, LOG_WIDTH, LOG_HEIGHT)
+        panel_rect = pygame.Rect(x, y, LOG_WIDTH, log_height)
         panel_surface = pygame.Surface((panel_rect.width, panel_rect.height), pygame.SRCALPHA)
         panel_surface.fill((*COLOR_BG, 200))
         surface.blit(panel_surface, (panel_rect.x, panel_rect.y))
@@ -124,13 +128,13 @@ class CombatLog:
         surface.blit(title_text, (x + LOG_PADDING, y + 5))
 
         # Calculate visible messages
-        max_visible_lines = (LOG_HEIGHT - 35) // LINE_HEIGHT
+        max_visible_lines = (log_height - 35) // LINE_HEIGHT
         start_idx = max(0, len(self.messages) - max_visible_lines - self.scroll_offset)
         end_idx = len(self.messages) - self.scroll_offset
         visible_messages = self.messages[start_idx:end_idx]
 
         # Draw messages from bottom up
-        text_y = y + LOG_HEIGHT - LOG_PADDING - LINE_HEIGHT
+        text_y = y + log_height - LOG_PADDING - LINE_HEIGHT
         for message in reversed(visible_messages):
             if text_y < y + 30:  # Don't draw over title
                 break
@@ -140,9 +144,11 @@ class CombatLog:
 
             # Render and draw text
             text = message['text']
-            # Truncate if too long
-            if len(text) > 45:
-                text = text[:42] + "..."
+            # Truncate based on actual pixel width to prevent overflow
+            # Approximate: 16 pixels per character for this font
+            max_chars = (LOG_WIDTH - LOG_PADDING * 2 - 5) // 10  # ~25 chars for 270px width
+            if len(text) > max_chars:
+                text = text[:max_chars-3] + "..."
 
             text_surface = self.font.render(text, True, color)
             surface.blit(text_surface, (x + LOG_PADDING, text_y))

@@ -2183,9 +2183,10 @@ class GraphicalRenderer:
         unit_bar_height = self.unit_status_bar.get_height()
         self.unit_status_bar.draw(surface, left_panel_x + 5, left_panel_y + 5)
 
-        # Draw combat log (below unit status bar)
+        # Draw combat log (below unit status bar, extends to bottom)
         log_y = left_panel_y + unit_bar_height + 10
-        self.combat_log.draw(surface, left_panel_x + 10, log_y)
+        log_height = panel_height - unit_bar_height - 20  # Fill remaining space with padding
+        self.combat_log.draw(surface, left_panel_x + 10, log_y, height=log_height)
 
         # === RIGHT PANEL (Dedicated Space) ===
         right_panel_x = SCREEN_WIDTH - RIGHT_PANEL_WIDTH  # Starts at right edge - panel width
