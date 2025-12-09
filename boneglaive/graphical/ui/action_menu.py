@@ -100,6 +100,7 @@ class ActionMenu:
             ActionButton("move", "M", "MOVE"),
             ActionButton("attack", "A", "ATTACK"),
             ActionButton("respawn", "R", "RESPAWN"),
+            ActionButton("help", "H", "HELP"),
             ActionButton("execute", "E", "EXECUTE TURN"),
             ActionButton("concede", "C", "CONCEDE"),
         ]
@@ -143,6 +144,9 @@ class ActionMenu:
             elif button.action == "respawn":
                 button.enabled = self.has_respawns_available
                 button.active = (self.current_mode == "respawn")
+            elif button.action == "help":
+                button.enabled = True
+                button.active = False
             elif button.action == "execute":
                 button.enabled = self.has_actions_queued
                 button.active = False
@@ -201,6 +205,7 @@ class ActionMenu:
             pygame.K_m: 'M',
             pygame.K_a: 'A',
             pygame.K_r: 'R',
+            pygame.K_h: 'H',
             pygame.K_e: 'E',
             pygame.K_c: 'C',
         }

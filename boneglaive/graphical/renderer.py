@@ -32,6 +32,7 @@ from .ui.top_bar import TopBar
 from .ui.unit_status_bar import UnitStatusBar
 from .ui.action_menu import ActionMenu
 from .ui.motor_animation import MotorAnimation
+from .ui.help_page import HelpPage
 from .ui_adapter import GraphicalUIAdapter
 
 # Import TerrainType for terrain/furniture rendering
@@ -156,6 +157,7 @@ class GraphicalRenderer:
         self.unit_info_panel = UnitInfoPanel(self.font, self.small_font, self.large_font)
         self.action_menu = ActionMenu(self.font, self.small_font)
         self.motor_animation = MotorAnimation()
+        self.help_page = HelpPage(self.font, self.small_font)
 
         # Track current action mode for top bar display
         self.current_action_mode = "SELECT"
@@ -481,6 +483,17 @@ class GraphicalRenderer:
                 self.running = False
 
             elif event.type == pygame.KEYDOWN:
+                # Check if help page is open first
+                if self.help_page.visible:
+                    if event.key == pygame.K_ESCAPE:
+                        self.help_page.hide()
+                    elif event.key == pygame.K_UP:
+                        self.help_page.handle_scroll(-1)
+                    elif event.key == pygame.K_DOWN:
+                        self.help_page.handle_scroll(1)
+                    # Ignore all other keys when help is open
+                    continue
+
                 if event.key == pygame.K_ESCAPE:
                     self.running = False
                 elif event.key == pygame.K_SPACE:
@@ -490,7 +503,7 @@ class GraphicalRenderer:
                     self.execute_turn()
 
                 # Check action menu hotkeys first
-                elif event.key in [pygame.K_m, pygame.K_a, pygame.K_r, pygame.K_e, pygame.K_c]:
+                elif event.key in [pygame.K_m, pygame.K_a, pygame.K_r, pygame.K_e, pygame.K_c, pygame.K_h]:
                     action = self.action_menu.handle_hotkey(event.key)
                     if action:
                         self._handle_action_menu_click(action)
@@ -594,6 +607,14 @@ class GraphicalRenderer:
                     self.unit_info_panel.update(None, None)
                     # Also clear furniture info if showing
                     self.unit_info_panel.furniture_info = None
+
+                elif event.button == 4:  # Mouse wheel up
+                    if self.help_page.visible:
+                        self.help_page.handle_scroll(-1)
+
+                elif event.button == 5:  # Mouse wheel down
+                    if self.help_page.visible:
+                        self.help_page.handle_scroll(1)
 
     def handle_grid_click(self, grid_x: int, grid_y: int):
         """
@@ -885,6 +906,17 @@ class GraphicalRenderer:
                               if du.player == self.game_adapter.game.current_player
                               and du.ready_for_respawn]
                 print(f"Units available for respawn: {len(ready_units)}")
+
+        elif action == "help":
+            print("Help button clicked")
+            # Show help page for selected unit
+            if self.selected_unit:
+                game_unit = self._get_game_unit(self.selected_unit)
+                if game_unit:
+                    self.help_page.show(game_unit.type)
+                    print(f"Showing help for {game_unit.type}")
+            else:
+                print("No unit selected for help")
 
         elif action == "execute":
             print("Executing turn...")
@@ -2041,6 +2073,9 @@ class GraphicalRenderer:
             flash_surface.fill(self.flash_color)
             self.screen.blit(flash_surface, (0, 0))
 
+        # Draw help page overlay (must be drawn last, on top of everything)
+        self.help_page.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
+
         pygame.display.flip()
 
     def draw_grid(self, surface: pygame.Surface):
@@ -2226,7 +2261,7 @@ class GraphicalRenderer:
         self.motor_animation.draw(surface, right_panel_x + 15, motor_y)
 
         # Draw status effects panel (below motor)
-        status_effects_y = motor_y + 160  # Below motor animation (moved up from 190)
+        status_effects_y = motor_y + 150  # Below motor animation (moved up)
         if game and self.selected_unit:
             # Find game unit
             for unit in game.units:
@@ -2236,7 +2271,7 @@ class GraphicalRenderer:
                     break
 
         # Draw action menu (below status effects)
-        action_menu_y = status_effects_y + 110  # Moved up from 140
+        action_menu_y = status_effects_y + 60  # Moved up to accommodate Help button
         self.action_menu.draw(surface, right_panel_x + 5, action_menu_y)
 
     def execute_turn(self):
