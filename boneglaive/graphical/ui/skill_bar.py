@@ -4,7 +4,8 @@ Skill Bar UI Component
 Displays available skills for the selected unit with hotkeys.
 """
 import pygame
-from typing import Optional, List, Tuple
+import os
+from typing import Optional, List, Tuple, Dict
 
 # Colors
 COLOR_BG = (30, 34, 42)
@@ -22,17 +23,61 @@ SKILL_SLOT_WIDTH = 180
 SKILL_SLOT_HEIGHT = 60
 SKILL_SLOT_PADDING = 10
 SKILL_BAR_PADDING = 20
+SKILL_ICON_SIZE = 40  # Size of skill icons
 
 
 class SkillSlot:
     """Individual skill slot in the skill bar."""
 
-    def __init__(self, skill, hotkey: str, index: int):
+    def __init__(self, skill, hotkey: str, index: int, icon_cache: Dict):
         self.skill = skill
         self.hotkey = hotkey
         self.index = index
         self.rect = None
         self.hovered = False
+        self.icon_cache = icon_cache
+        self.icon_surface = self._load_icon()
+
+    def _load_icon(self) -> Optional[pygame.Surface]:
+        """Load skill icon from file."""
+        skill_name = self.skill.name.lower().replace(' ', '_')
+
+        # Check cache first
+        if skill_name in self.icon_cache:
+            return self.icon_cache[skill_name]
+
+        icon_path = f"graphics/skill_icons/{skill_name}.svg"
+
+        if not os.path.exists(icon_path):
+            return None
+
+        try:
+            # Try to load SVG using cairosvg
+            import cairosvg
+            from io import BytesIO
+            png_data = cairosvg.svg2png(url=icon_path, output_width=SKILL_ICON_SIZE, output_height=SKILL_ICON_SIZE)
+            icon_surface = pygame.image.load(BytesIO(png_data))
+            icon_surface = icon_surface.convert_alpha()
+            self.icon_cache[skill_name] = icon_surface
+            return icon_surface
+        except ImportError:
+            pass  # cairosvg not available, try PNG fallback
+        except Exception as e:
+            pass
+
+        # Fallback: Try PNG version
+        png_path = f"graphics/skill_icons/{skill_name}.png"
+        if os.path.exists(png_path):
+            try:
+                icon_surface = pygame.image.load(png_path)
+                icon_surface = pygame.transform.scale(icon_surface, (SKILL_ICON_SIZE, SKILL_ICON_SIZE))
+                icon_surface = icon_surface.convert_alpha()
+                self.icon_cache[skill_name] = icon_surface
+                return icon_surface
+            except Exception:
+                pass
+
+        return None
 
     def is_available(self) -> bool:
         """Check if skill can be used (not on cooldown)."""
@@ -63,12 +108,32 @@ class SkillSlot:
         hotkey_text = small_font.render(f"[{self.hotkey}]", True, text_color)
         surface.blit(hotkey_text, (x + 5, y + 5))
 
-        # Draw skill name
+        # Draw skill icon on the left side
+        icon_x = x + 10
+        icon_y = y + (SKILL_SLOT_HEIGHT - SKILL_ICON_SIZE) // 2
+
+        if self.icon_surface:
+            # Apply grayscale if on cooldown
+            if not self.is_available():
+                # Create grayscale version
+                gray_icon = self.icon_surface.copy()
+                arr = pygame.surfarray.pixels3d(gray_icon)
+                gray = (arr[:,:,0] * 0.3 + arr[:,:,1] * 0.59 + arr[:,:,2] * 0.11).astype('uint8')
+                arr[:,:,0] = gray
+                arr[:,:,1] = gray
+                arr[:,:,2] = gray
+                del arr
+                surface.blit(gray_icon, (icon_x, icon_y))
+            else:
+                surface.blit(self.icon_surface, (icon_x, icon_y))
+
+        # Draw skill name to the right of the icon
         text_color = COLOR_TEXT_DISABLED if not self.is_available() else COLOR_TEXT
         name_text = font.render(self.skill.name, True, text_color)
-        # Center horizontally, position near top
-        name_x = x + (SKILL_SLOT_WIDTH - name_text.get_width()) // 2
-        surface.blit(name_text, (name_x, y + 20))
+        # Position to the right of icon
+        name_x = icon_x + SKILL_ICON_SIZE + 10
+        name_y = y + (SKILL_SLOT_HEIGHT - name_text.get_height()) // 2
+        surface.blit(name_text, (name_x, name_y))
 
         # Draw cooldown if active
         if self.skill.current_cooldown > 0:
@@ -96,6 +161,7 @@ class SkillBar:
         self.skill_slots: List[SkillSlot] = []
         self.hovered_slot: Optional[SkillSlot] = None
         self.selected_skill = None
+        self.icon_cache: Dict[str, pygame.Surface] = {}  # Cache for loaded icons
 
         # Hotkey mapping (E and R reserved for Execute and Respawn in action menu)
         self.hotkeys = ['1', '2', '3', '4', 'Q', 'W']
@@ -122,7 +188,7 @@ class SkillBar:
         # Create skill slots
         for i, skill in enumerate(active_skills):
             if i < len(self.hotkeys):
-                slot = SkillSlot(skill, self.hotkeys[i], i)
+                slot = SkillSlot(skill, self.hotkeys[i], i, self.icon_cache)
                 self.skill_slots.append(slot)
 
     def draw(self, surface: pygame.Surface, screen_width: int, screen_height: int):

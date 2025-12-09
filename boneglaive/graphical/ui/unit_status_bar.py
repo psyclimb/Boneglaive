@@ -4,6 +4,7 @@ Unit Status Bar UI Component
 Displays grid of unit cards showing alive/dead/selected status.
 """
 import pygame
+import os
 from typing import List, Optional, Tuple, Dict
 from boneglaive.utils.constants import UNIT_SYMBOLS
 
@@ -24,11 +25,12 @@ COLOR_HP_BAR_LOW = (255, 100, 100)
 
 PANEL_WIDTH = 280  # Narrower panel
 UNIT_CARD_WIDTH = 84  # Slightly smaller cards
-UNIT_CARD_HEIGHT = 40  # Compact height
+UNIT_CARD_HEIGHT = 70  # Increased height to fit sprite + text
 CARD_PADDING = 6  # Tighter spacing
 CARDS_PER_ROW = 3
 TITLE_HEIGHT = 25  # Smaller title
 HP_BAR_HEIGHT = 4
+SPRITE_SIZE = 32  # Size of unit sprite in card
 
 
 class UnitCard:
@@ -39,11 +41,54 @@ class UnitCard:
         self.is_dead = is_dead
         self.rect = None
         self.hovered = False
+        self.sprite_surface = None  # Cached sprite
 
         # Dead unit attributes (from DeadUnit class)
         self.respawn_timer = 0
         if is_dead and hasattr(game_unit, 'respawn_timer'):
             self.respawn_timer = game_unit.respawn_timer
+
+        # Load sprite
+        self._load_sprite()
+
+    def _load_sprite(self):
+        """Load and cache the unit's sprite."""
+        try:
+            # Get unit type
+            if self.is_dead:
+                unit_type = self.game_unit.unit_type
+            else:
+                unit_type = self.game_unit.type
+
+            # Convert unit type to sprite filename
+            unit_type_name = str(unit_type).split('.')[-1].lower()
+            sprite_path = f"graphics/units/{unit_type_name}.svg"
+
+            if not os.path.exists(sprite_path):
+                return
+
+            # Try to load SVG using cairosvg
+            try:
+                import cairosvg
+                from io import BytesIO
+                # Convert SVG to PNG in memory
+                png_data = cairosvg.svg2png(url=sprite_path, output_width=SPRITE_SIZE, output_height=SPRITE_SIZE)
+                self.sprite_surface = pygame.image.load(BytesIO(png_data))
+                self.sprite_surface = self.sprite_surface.convert_alpha()
+                return
+            except ImportError:
+                pass  # cairosvg not available, try PNG fallback below
+            except Exception as e:
+                pass  # SVG loading failed, try PNG fallback below
+
+            # Fallback: Try to load PNG version if it exists
+            png_path = f"graphics/units/{unit_type_name}.png"
+            if os.path.exists(png_path):
+                self.sprite_surface = pygame.image.load(png_path)
+                self.sprite_surface = pygame.transform.scale(self.sprite_surface, (SPRITE_SIZE, SPRITE_SIZE))
+                self.sprite_surface = self.sprite_surface.convert_alpha()
+        except Exception as e:
+            pass  # Sprite loading failed, will fall back to text-only
 
     def get_unit_symbol(self) -> str:
         """Get the display symbol for this unit."""
@@ -114,7 +159,27 @@ class UnitCard:
         border_width = 3 if (self.hovered or is_selected) else 2
         pygame.draw.rect(surface, border_color, self.rect, border_width)
 
-        # Draw unit symbol (large)
+        # Draw unit sprite at top (if available)
+        sprite_y_offset = 5
+        if self.sprite_surface:
+            sprite_x = x + (UNIT_CARD_WIDTH - SPRITE_SIZE) // 2
+            sprite_y = y + sprite_y_offset
+
+            # Apply gray tint for dead units
+            if self.is_dead:
+                # Create grayscale version
+                gray_sprite = self.sprite_surface.copy()
+                arr = pygame.surfarray.pixels3d(gray_sprite)
+                gray = (arr[:,:,0] * 0.3 + arr[:,:,1] * 0.59 + arr[:,:,2] * 0.11).astype('uint8')
+                arr[:,:,0] = gray
+                arr[:,:,1] = gray
+                arr[:,:,2] = gray
+                del arr
+                surface.blit(gray_sprite, (sprite_x, sprite_y))
+            else:
+                surface.blit(self.sprite_surface, (sprite_x, sprite_y))
+
+        # Draw unit symbol and Greek ID below sprite
         symbol = self.get_unit_symbol()
         greek_id = self.get_greek_id()
 
@@ -129,8 +194,10 @@ class UnitCard:
         else:
             text_color = player_color
 
-        text_surface = font.render(display_text, True, text_color)
-        text_rect = text_surface.get_rect(center=(x + UNIT_CARD_WIDTH // 2, y + 15))
+        # Position text below sprite with more spacing
+        text_y = y + sprite_y_offset + SPRITE_SIZE + 10
+        text_surface = small_font.render(display_text, True, text_color)
+        text_rect = text_surface.get_rect(center=(x + UNIT_CARD_WIDTH // 2, text_y))
         surface.blit(text_surface, text_rect)
 
         # Draw HP bar for alive units

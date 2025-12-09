@@ -2226,7 +2226,7 @@ class GraphicalRenderer:
         self.motor_animation.draw(surface, right_panel_x + 15, motor_y)
 
         # Draw status effects panel (below motor)
-        status_effects_y = motor_y + 190  # Below motor animation
+        status_effects_y = motor_y + 160  # Below motor animation (moved up from 190)
         if game and self.selected_unit:
             # Find game unit
             for unit in game.units:
@@ -2236,7 +2236,7 @@ class GraphicalRenderer:
                     break
 
         # Draw action menu (below status effects)
-        action_menu_y = status_effects_y + 140
+        action_menu_y = status_effects_y + 110  # Moved up from 140
         self.action_menu.draw(surface, right_panel_x + 5, action_menu_y)
 
     def execute_turn(self):
