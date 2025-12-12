@@ -2352,18 +2352,14 @@ class AutoclaveAnimationV2:
             self.glaives.append(glaive)
 
     def _start_impact_healing(self):
-        """Phase 3: Impact & Healing - Flashes occur, damage triggers, healing begins."""
+        """Phase 3: Impact & Healing - Damage triggers, healing begins."""
         self.phase = "impact_healing"
         self.timer = 0
 
         # **DAMAGE TRIGGER: This is when damage happens (delayed execution like Parabol)**
         self.damage_triggered = True
 
-        # Create impact flashes at each tile
-        for tile in self.affected_tiles:
-            delay = tile['distance'] * 0.05
-            flash = AutoclaveImpactFlash(tile['x'], tile['y'], delay=delay)
-            self.impact_flashes.append(flash)
+        # Removed: Impact flashes at each tile (no longer creating fireball explosions)
 
         # Healing effect will be created when heal_amount is set by game
         # (This happens after damage is calculated)
@@ -2397,8 +2393,7 @@ class AutoclaveAnimationV2:
         for glaive in self.glaives:
             glaive.update(delta_time)
 
-        for flash in self.impact_flashes:
-            flash.update(delta_time)
+        # Removed: Impact flash updates (no longer used)
 
         if self.healing_effect:
             self.healing_effect.update(delta_time)
@@ -2441,9 +2436,7 @@ class AutoclaveAnimationV2:
             for glaive in self.glaives:
                 glaive.draw(surface, self.glaive_rotation)
 
-            # Draw impact flashes
-            for flash in self.impact_flashes:
-                flash.draw(surface)
+            # Removed: Impact flashes drawing (no longer used)
 
             # Draw healing effect
             if self.healing_effect:
