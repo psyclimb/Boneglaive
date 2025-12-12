@@ -176,6 +176,16 @@ class GraphicalRenderer:
         self.rail_universal: Optional[pygame.Surface] = None
         self._load_rail_overlays()
 
+        # Performance: Pre-create reusable surfaces to avoid allocations every frame
+        self._main_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        self._indicator_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+        self._left_panel_surface = pygame.Surface((LEFT_PANEL_WIDTH, SCREEN_HEIGHT - TOP_BAR_HEIGHT - BOTTOM_BAR_HEIGHT))
+        self._right_panel_surface = pygame.Surface((RIGHT_PANEL_WIDTH, SCREEN_HEIGHT - TOP_BAR_HEIGHT - BOTTOM_BAR_HEIGHT))
+        self._flash_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+
+        # Cache for sparkle surfaces (different sizes)
+        self._sparkle_surf_cache: Dict[int, pygame.Surface] = {}
+
         self.running = True
         self.paused = False
 
@@ -2014,8 +2024,8 @@ class GraphicalRenderer:
         # Update camera shake offset (for animations that use camera)
         self.camera.set_shake(shake_offset_x, shake_offset_y)
 
-        # Create main surface
-        main_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        # Reuse main surface (performance: avoid allocation)
+        main_surface = self._main_surface
         main_surface.fill(COLOR_BG)
 
         # Draw grid
@@ -2069,12 +2079,11 @@ class GraphicalRenderer:
         self.screen.fill(COLOR_BG)
         self.screen.blit(main_surface, (int(shake_offset_x), int(shake_offset_y)))
 
-        # Draw flash overlay
+        # Draw flash overlay (performance: reuse surface)
         if self.flash_alpha > 0:
-            flash_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-            flash_surface.set_alpha(int(self.flash_alpha))
-            flash_surface.fill(self.flash_color)
-            self.screen.blit(flash_surface, (0, 0))
+            self._flash_surface.set_alpha(int(self.flash_alpha))
+            self._flash_surface.fill(self.flash_color)
+            self.screen.blit(self._flash_surface, (0, 0))
 
         # Draw help page overlay (must be drawn last, on top of everything)
         self.help_page.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
@@ -2153,14 +2162,16 @@ class GraphicalRenderer:
 
     def draw_range_indicators(self, surface: pygame.Surface):
         """Draw movement range, attack range, and skill range indicators."""
-        indicator_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+        # Performance: Reuse cached surface instead of creating new one
+        indicator_surf = self._indicator_surf
+        indicator_rect = indicator_surf.get_rect()
 
         # Draw movement range (green)
         if self.show_movement_range and self.valid_positions:
             for grid_x, grid_y in self.valid_positions:
                 indicator_surf.fill((0, 0, 0, 0))
-                pygame.draw.rect(indicator_surf, (*COLOR_MOVEMENT, 80), indicator_surf.get_rect())
-                pygame.draw.rect(indicator_surf, (*COLOR_MOVEMENT, 150), indicator_surf.get_rect(), 2)
+                pygame.draw.rect(indicator_surf, (*COLOR_MOVEMENT, 80), indicator_rect)
+                pygame.draw.rect(indicator_surf, (*COLOR_MOVEMENT, 150), indicator_rect, 2)
                 surface.blit(
                     indicator_surf,
                     (GRID_OFFSET_X + grid_x * TILE_SIZE, GRID_OFFSET_Y + grid_y * TILE_SIZE)
@@ -2170,8 +2181,8 @@ class GraphicalRenderer:
         if self.show_target_range and self.attack_positions:
             for grid_x, grid_y in self.attack_positions:
                 indicator_surf.fill((0, 0, 0, 0))
-                pygame.draw.rect(indicator_surf, (*COLOR_TARGET, 80), indicator_surf.get_rect())
-                pygame.draw.rect(indicator_surf, (*COLOR_TARGET, 150), indicator_surf.get_rect(), 2)
+                pygame.draw.rect(indicator_surf, (*COLOR_TARGET, 80), indicator_rect)
+                pygame.draw.rect(indicator_surf, (*COLOR_TARGET, 150), indicator_rect, 2)
                 surface.blit(
                     indicator_surf,
                     (GRID_OFFSET_X + grid_x * TILE_SIZE, GRID_OFFSET_Y + grid_y * TILE_SIZE)
@@ -2182,8 +2193,8 @@ class GraphicalRenderer:
             skill_color = (200, 150, 255)  # Purple for skills
             for grid_x, grid_y in self.skill_positions:
                 indicator_surf.fill((0, 0, 0, 0))
-                pygame.draw.rect(indicator_surf, (*skill_color, 80), indicator_surf.get_rect())
-                pygame.draw.rect(indicator_surf, (*skill_color, 150), indicator_surf.get_rect(), 2)
+                pygame.draw.rect(indicator_surf, (*skill_color, 80), indicator_rect)
+                pygame.draw.rect(indicator_surf, (*skill_color, 150), indicator_rect, 2)
                 surface.blit(
                     indicator_surf,
                     (GRID_OFFSET_X + grid_x * TILE_SIZE, GRID_OFFSET_Y + grid_y * TILE_SIZE)
@@ -2223,10 +2234,9 @@ class GraphicalRenderer:
         left_panel_x = 0  # Starts at left edge
         left_panel_y = TOP_BAR_HEIGHT
 
-        # Draw solid background
-        left_panel_surface = pygame.Surface((LEFT_PANEL_WIDTH, panel_height))
-        left_panel_surface.fill((30, 34, 42))  # Solid dark background
-        surface.blit(left_panel_surface, (left_panel_x, left_panel_y))
+        # Draw solid background (performance: reuse cached surface)
+        self._left_panel_surface.fill((30, 34, 42))  # Solid dark background
+        surface.blit(self._left_panel_surface, (left_panel_x, left_panel_y))
 
         # Draw border on right side
         pygame.draw.line(surface, (60, 64, 72),
@@ -2246,10 +2256,9 @@ class GraphicalRenderer:
         right_panel_x = SCREEN_WIDTH - RIGHT_PANEL_WIDTH  # Starts at right edge - panel width
         right_panel_y = TOP_BAR_HEIGHT
 
-        # Draw solid background
-        right_panel_surface = pygame.Surface((RIGHT_PANEL_WIDTH, panel_height))
-        right_panel_surface.fill((30, 34, 42))  # Solid dark background
-        surface.blit(right_panel_surface, (right_panel_x, right_panel_y))
+        # Draw solid background (performance: reuse cached surface)
+        self._right_panel_surface.fill((30, 34, 42))  # Solid dark background
+        surface.blit(self._right_panel_surface, (right_panel_x, right_panel_y))
 
         # Draw border on left side
         pygame.draw.line(surface, (60, 64, 72),
@@ -2653,15 +2662,21 @@ class GraphicalRenderer:
             sparkle_alpha = int(220 * (1.0 - life_ratio))  # Fade from 220 to 0
 
             if sparkle_alpha > 0:
-                # Draw sparkle as a small circle
-                sparkle_surf = pygame.Surface((sparkle['size'] * 2, sparkle['size'] * 2), pygame.SRCALPHA)
+                # Performance: Get or create cached sparkle surface for this size
+                size = sparkle['size']
+                cache_key = size * 2  # Surface size
+                if cache_key not in self._sparkle_surf_cache:
+                    self._sparkle_surf_cache[cache_key] = pygame.Surface((cache_key, cache_key), pygame.SRCALPHA)
+
+                sparkle_surf = self._sparkle_surf_cache[cache_key]
+                sparkle_surf.fill((0, 0, 0, 0))  # Clear surface
                 pygame.draw.circle(
                     sparkle_surf,
                     (*sparkle['color'], sparkle_alpha),
-                    (sparkle['size'], sparkle['size']),
-                    sparkle['size']
+                    (size, size),
+                    size
                 )
-                surface.blit(sparkle_surf, (int(sparkle['x'] - sparkle['size']), int(sparkle['y'] - sparkle['size'])))
+                surface.blit(sparkle_surf, (int(sparkle['x'] - size), int(sparkle['y'] - size)))
 
     def run(self):
         """Main game loop."""

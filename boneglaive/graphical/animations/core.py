@@ -546,29 +546,36 @@ class AnimatedUnit:
                 sprite_rect = sprite_to_use.get_rect(center=(final_x, final_y))
             else:
                 sprite_to_use = self.sprite
-                sprite_rect = self.sprite_rect.copy()
-                sprite_rect.center = (final_x, final_y)
+                # Performance: reuse sprite_rect instead of copying
+                self.sprite_rect.center = (final_x, final_y)
+                sprite_rect = self.sprite_rect
 
             # Apply echo effect if needed
             if is_echo:
-                # Create ethereal purple semi-transparent version
-                echo_sprite = sprite_to_use.copy()
+                # Performance: Cache echo sprite instead of recreating every frame
+                if not hasattr(self, '_echo_sprite_cache'):
+                    # Create ethereal purple semi-transparent version
+                    echo_sprite = sprite_to_use.copy()
 
-                # Create purple tint overlay
-                purple_overlay = pygame.Surface(echo_sprite.get_size(), pygame.SRCALPHA)
-                purple_color = (170, 119, 255)  # Estrange purple
+                    # Create purple tint overlay
+                    purple_overlay = pygame.Surface(echo_sprite.get_size(), pygame.SRCALPHA)
+                    purple_color = (170, 119, 255)  # Estrange purple
 
-                # Fill with semi-transparent purple
-                purple_overlay.fill((*purple_color, 180))  # ~70% opacity
+                    # Fill with semi-transparent purple
+                    purple_overlay.fill((*purple_color, 180))  # ~70% opacity
 
-                # Apply tint using blend mode
-                echo_sprite.blit(purple_overlay, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+                    # Apply tint using blend mode
+                    echo_sprite.blit(purple_overlay, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
 
-                # Reduce overall alpha for ethereal effect
-                echo_sprite.set_alpha(160)  # ~63% opacity
+                    # Reduce overall alpha for ethereal effect
+                    echo_sprite.set_alpha(160)  # ~63% opacity
 
-                # Draw the ethereal echo sprite
-                surface.blit(echo_sprite, sprite_rect)
+                    self._echo_sprite_cache = echo_sprite
+                    self._echo_sprite_rect = echo_sprite.get_rect()
+
+                # Use cached echo sprite
+                self._echo_sprite_rect.center = (final_x, final_y)
+                surface.blit(self._echo_sprite_cache, self._echo_sprite_rect)
             else:
                 # Draw normal sprite
                 surface.blit(sprite_to_use, sprite_rect)
@@ -810,13 +817,16 @@ class StatusIconFlash:
             fade_out_progress = (self.timer - self.fade_in_duration - self.hold_duration) / self.fade_out_duration
             alpha = int(180 * (1.0 - fade_out_progress))
 
-        # Create a copy with the current alpha
-        icon_copy = self.icon_surface.copy()
-        icon_copy.set_alpha(alpha)
+        # Performance: Set alpha directly on original surface instead of copying
+        # Note: This modifies the surface but it's acceptable for status icons
+        # as they're animated temporarily and alpha changes each frame anyway
+        self.icon_surface.set_alpha(alpha)
 
         # Draw centered on unit's position
-        icon_rect = icon_copy.get_rect(center=(int(self.unit.x), int(self.unit.y - 10)))  # Slightly above unit center
-        surface.blit(icon_copy, icon_rect)
+        if not hasattr(self, '_icon_rect'):
+            self._icon_rect = self.icon_surface.get_rect()
+        self._icon_rect.center = (int(self.unit.x), int(self.unit.y - 10))  # Slightly above unit center
+        surface.blit(self.icon_surface, self._icon_rect)
 
 
 class BasicMeleeAttackAnimation:
