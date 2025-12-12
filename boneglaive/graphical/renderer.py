@@ -33,6 +33,7 @@ from .ui.unit_status_bar import UnitStatusBar
 from .ui.action_menu import ActionMenu
 from .ui.motor_animation import MotorAnimation
 from .ui.help_page import HelpPage
+from .ui.respawn_window import RespawnWindow
 from .ui_adapter import GraphicalUIAdapter
 
 # Import TerrainType for terrain/furniture rendering
@@ -161,9 +162,18 @@ class GraphicalRenderer:
         self.action_menu = ActionMenu(self.font, self.small_font)
         self.motor_animation = MotorAnimation()
         self.help_page = HelpPage(self.font, self.small_font)
+        self.respawn_window = RespawnWindow(self.font, self.small_font)
 
         # Track current action mode for top bar display
         self.current_action_mode = "SELECT"
+
+        # Respawn state
+        self.respawn_mode = False
+        self.respawn_selecting_unit = False
+        self.respawn_selecting_location = False
+        self.selected_dead_unit = None
+        self.respawn_valid_tiles = []
+        self.respawn_ghost_pos = None  # Grid position for ghost preview
 
         # UI Adapter for animations
         self.ui_adapter = GraphicalUIAdapter(self)
@@ -507,6 +517,26 @@ class GraphicalRenderer:
                     # Ignore all other keys when help is open
                     continue
 
+                # Handle respawn mode input
+                if self.respawn_mode:
+                    if self.respawn_selecting_unit:
+                        # Unit selection phase
+                        if event.key == pygame.K_ESCAPE:
+                            self.exit_respawn_mode()
+                        elif event.key == pygame.K_UP:
+                            self.respawn_window.select_prev()
+                        elif event.key == pygame.K_DOWN:
+                            self.respawn_window.select_next()
+                        elif event.key == pygame.K_RETURN:
+                            self.confirm_respawn_unit_selection()
+                    elif self.respawn_selecting_location:
+                        # Location selection phase
+                        if event.key == pygame.K_ESCAPE:
+                            self.exit_respawn_mode()
+                        elif event.key == pygame.K_RETURN:
+                            self.confirm_respawn_location()
+                    continue  # Ignore all other keys in respawn mode
+
                 if event.key == pygame.K_ESCAPE:
                     self.running = False
                 elif event.key == pygame.K_SPACE:
@@ -547,6 +577,15 @@ class GraphicalRenderer:
                         print("Select a unit first to use skills")
 
             elif event.type == pygame.MOUSEMOTION:
+                # Handle respawn window mouse motion
+                if self.respawn_selecting_unit:
+                    self.respawn_window.handle_mouse_motion(event.pos)
+                # Handle respawn location preview
+                elif self.respawn_selecting_location:
+                    grid_pos = self.screen_to_grid(event.pos[0], event.pos[1])
+                    if grid_pos:
+                        self.respawn_ghost_pos = grid_pos
+
                 # Update hovered grid position
                 self.hovered_grid_pos = self.screen_to_grid(event.pos[0], event.pos[1])
 
@@ -558,6 +597,16 @@ class GraphicalRenderer:
 
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:  # Left click
+                    # Handle respawn window clicks
+                    if self.respawn_selecting_unit:
+                        if self.respawn_window.handle_click(event.pos):
+                            self.confirm_respawn_unit_selection()
+                        continue
+                    elif self.respawn_selecting_location:
+                        # Click to confirm respawn location
+                        self.confirm_respawn_location()
+                        continue
+
                     # Check if clicking on UI components first
                     clicked_handled = False
 
@@ -911,14 +960,7 @@ class GraphicalRenderer:
 
         elif action == "respawn":
             print("Respawn mode activated")
-            self.current_action_mode = "RESPAWN"
-            # TODO: Implement respawn UI
-            # For now, just log it
-            if self.game_adapter.game:
-                ready_units = [du for du in self.game_adapter.game.dead_units
-                              if du.player == self.game_adapter.game.current_player
-                              and du.ready_for_respawn]
-                print(f"Units available for respawn: {len(ready_units)}")
+            self.start_respawn_mode()
 
         elif action == "help":
             print("Help button clicked")
@@ -2088,6 +2130,10 @@ class GraphicalRenderer:
         # Draw help page overlay (must be drawn last, on top of everything)
         self.help_page.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
 
+        # Draw respawn window (on top of everything except help page)
+        if self.respawn_mode and self.respawn_selecting_unit:
+            self.respawn_window.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
+
         pygame.display.flip()
 
     def draw_grid(self, surface: pygame.Surface):
@@ -2199,6 +2245,37 @@ class GraphicalRenderer:
                     indicator_surf,
                     (GRID_OFFSET_X + grid_x * TILE_SIZE, GRID_OFFSET_Y + grid_y * TILE_SIZE)
                 )
+
+        # Draw respawn valid tiles (cyan/green)
+        if self.respawn_selecting_location and self.respawn_valid_tiles:
+            respawn_color = (100, 255, 150)  # Green for respawn
+            for y, x in self.respawn_valid_tiles:
+                indicator_surf.fill((0, 0, 0, 0))
+                pygame.draw.rect(indicator_surf, (*respawn_color, 80), indicator_rect)
+                pygame.draw.rect(indicator_surf, (*respawn_color, 180), indicator_rect, 3)
+                surface.blit(
+                    indicator_surf,
+                    (GRID_OFFSET_X + x * TILE_SIZE, GRID_OFFSET_Y + y * TILE_SIZE)
+                )
+
+        # Draw respawn ghost preview
+        if self.respawn_selecting_location and self.respawn_ghost_pos and self.selected_dead_unit:
+            ghost_x, ghost_y = self.respawn_ghost_pos
+            # Draw semi-transparent unit preview
+            ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+            ghost_surf.fill((100, 255, 150, 60))  # Green tint
+            # Draw unit type name
+            if hasattr(self.selected_dead_unit, 'unit_type'):
+                text = self.small_font.render(
+                    self.selected_dead_unit.unit_type.name[:3],  # First 3 letters
+                    True, (255, 255, 255)
+                )
+                text_rect = text.get_rect(center=(TILE_SIZE // 2, TILE_SIZE // 2))
+                ghost_surf.blit(text, text_rect)
+            surface.blit(
+                ghost_surf,
+                (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE)
+            )
 
     def draw_ui(self, surface: pygame.Surface):
         """Draw UI elements using new three-zone layout."""
@@ -2677,6 +2754,106 @@ class GraphicalRenderer:
                     size
                 )
                 surface.blit(sparkle_surf, (int(sparkle['x'] - size), int(sparkle['y'] - size)))
+
+    def start_respawn_mode(self):
+        """Start respawn mode - show list of ready-to-respawn units."""
+        if not self.game_adapter.game:
+            return
+
+        current_player = self.game_adapter.game.current_player
+
+        # Get ready-to-respawn dead units for current player
+        ready_dead_units = [du for du in self.game_adapter.game.dead_units
+                           if du.player == current_player and du.ready_for_respawn]
+
+        if not ready_dead_units:
+            self.combat_log.add_message("No units ready to respawn", "system")
+            return
+
+        # Enter respawn unit selection mode
+        self.respawn_mode = True
+        self.respawn_selecting_unit = True
+        self.respawn_selecting_location = False
+        self.current_action_mode = "RESPAWN"
+
+        # Show respawn window
+        self.respawn_window.show(ready_dead_units)
+
+        self.combat_log.add_message(f"Select unit to respawn ({len(ready_dead_units)} available)", "system")
+        print(f"[Respawn] Showing {len(ready_dead_units)} units ready for respawn")
+
+    def confirm_respawn_unit_selection(self):
+        """Confirm unit selection and enter location selection mode."""
+        if not self.respawn_selecting_unit:
+            return
+
+        selected_unit = self.respawn_window.get_selected_unit()
+        if not selected_unit:
+            return
+
+        # Set selected dead unit and enter location selection mode
+        self.selected_dead_unit = selected_unit
+        self.respawn_selecting_unit = False
+        self.respawn_selecting_location = True
+
+        # Hide respawn window
+        self.respawn_window.hide()
+
+        # Get valid respawn tiles
+        if self.game_adapter.game:
+            valid_tiles = self.game_adapter.game.get_valid_respawn_tiles(
+                self.game_adapter.game.current_player
+            )
+            self.respawn_valid_tiles = valid_tiles
+            print(f"[Respawn] {len(valid_tiles)} valid spawn locations")
+
+        self.combat_log.add_message(
+            f"Select respawn location for {selected_unit.greek_id}",
+            "system"
+        )
+
+    def confirm_respawn_location(self):
+        """Confirm respawn at current ghost position."""
+        if not self.respawn_selecting_location or not self.selected_dead_unit:
+            return
+
+        if not self.respawn_ghost_pos:
+            self.combat_log.add_message("No location selected", "system")
+            return
+
+        pos = (self.respawn_ghost_pos[1], self.respawn_ghost_pos[0])  # Convert to (y, x)
+
+        # Check if position is valid
+        if pos not in self.respawn_valid_tiles:
+            self.combat_log.add_message("Invalid respawn location", "system")
+            return
+
+        # Queue the respawn
+        success = self.game_adapter.game.queue_respawn(self.selected_dead_unit, pos)
+
+        if success:
+            self.combat_log.add_message(
+                f"{self.selected_dead_unit.greek_id} respawn queued at {pos}",
+                "system"
+            )
+            self.exit_respawn_mode()
+        else:
+            self.combat_log.add_message("Invalid respawn location (blocked or occupied)", "system")
+
+    def exit_respawn_mode(self):
+        """Exit respawn mode."""
+        self.respawn_mode = False
+        self.respawn_selecting_unit = False
+        self.respawn_selecting_location = False
+        self.selected_dead_unit = None
+        self.respawn_valid_tiles = []
+        self.respawn_ghost_pos = None
+        self.current_action_mode = "SELECT"
+
+        # Hide respawn window
+        self.respawn_window.hide()
+
+        print("[Respawn] Exited respawn mode")
 
     def run(self):
         """Main game loop."""
