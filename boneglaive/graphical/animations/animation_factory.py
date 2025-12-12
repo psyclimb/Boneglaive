@@ -12,8 +12,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from boneglaive.graphical.animations.core import AnimatedUnit, TILE_SIZE
 from boneglaive.graphical.animations.glaiveman import (
-    LightningBolt, CrossBeam, AutoclaveAnimation, SpinningGlaiveProjectile,
-    PryImpactAnimation, VaultAnimationController
+    LightningBolt, CrossBeam, AutoclaveAnimation, AutoclaveAnimationV2, SpinningGlaiveProjectile,
+    PryImpactAnimation, VaultAnimationController, PryAnimation, JudgementAnimation
 )
 from boneglaive.graphical.animations.mandible_foreman import (
     JawClamp, ViseroyTrap, ViseroyRelease, JawTighten, SiteInspectionBuff,
@@ -83,10 +83,10 @@ class AnimationFactory:
     # Skill name → (animation_class, kwargs)
     SKILL_ANIMATIONS = {
         # GLAIVEMAN skills
-        "JUDGEMENT": (SpinningGlaiveProjectile, {}),
-        "PRY": (PryImpactAnimation, {}),  # Simplified impact + debris effect (no displacement)
+        "JUDGEMENT": (JudgementAnimation, {}),  # New full animation: wind-up, flight, impact (lightning on crit)
+        "PRY": (PryAnimation, {}),  # New full animation: pry up, ceiling impact, falling debris, ground explosion
         "VAULT": (VaultAnimationController, {}),  # Acrobatic leap with flip
-        "AUTOCLAVE": (AutoclaveAnimation, {}),  # Cross-shaped steam beams in 4 directions
+        "AUTOCLAVE": (AutoclaveAnimationV2, {}),  # Enhanced: fire burst, steam cross, spinning glaives on every tile, healing
 
         # MANDIBLE FOREMAN skills
         "EXPEDITE": (ExpediteRush, {}),  # Discharge skill is named "Expedite"
@@ -287,8 +287,28 @@ class AnimationFactory:
                 caster_screen_x, caster_screen_y = kwargs.get('target_x', 0), kwargs.get('target_y', 0)
 
             # Most animations expect target_x, target_y (or center_x, center_y)
-            # SpinningGlaiveProjectile expects start_x, start_y, target_x, target_y, is_crit
-            if anim_class.__name__ == "SpinningGlaiveProjectile":
+            # JudgementAnimation - New full animation with wind-up, flight, and impact (lightning on crit)
+            if anim_class.__name__ == "JudgementAnimation":
+                # Requires: target_pos, game instance, camera, callbacks
+                if not target_pos:
+                    print("[AnimationFactory] JUDGEMENT requires a target position")
+                    return None
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_unit=target_unit,
+                    target_pos=target_pos,
+                    is_crit=is_crit,
+                    is_infused=is_infused,
+                    particle_emitter=particle_emitter,
+                    debris_list=[],
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,
+                    units_list=units_list if units_list else [],
+                    camera=camera,
+                    game=kwargs.get('game')
+                )
+            # SpinningGlaiveProjectile expects start_x, start_y, target_x, target_y, is_crit (legacy)
+            elif anim_class.__name__ == "SpinningGlaiveProjectile":
                 animation = anim_class(
                     start_x=caster_screen_x,
                     start_y=caster_screen_y,
@@ -304,23 +324,48 @@ class AnimationFactory:
                     direction=0  # TODO: determine direction based on caster facing
                 )
             elif anim_class.__name__ == "AutoclaveAnimation":
-                # AutoclaveAnimation creates all 4 beams at caster position
+                # AutoclaveAnimation creates all 4 beams at caster position (legacy)
                 animation = anim_class(
                     center_x=caster_screen_x,
                     center_y=caster_screen_y,
                     max_range=3  # Autoclave has range 3
                 )
-            elif anim_class.__name__ == "PryImpactAnimation":
-                # PryImpactAnimation needs special args (particle-based, no debris_list)
-                if not target_unit:
-                    print("[AnimationFactory] PRY requires a target unit")
+            elif anim_class.__name__ == "AutoclaveAnimationV2":
+                # AutoclaveAnimationV2 - Enhanced version with fire burst, glaives on every tile, healing
+                # Requires: caster_unit, game instance, camera, standard callbacks
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_unit=None,  # Passive AOE around caster
+                    target_pos=(caster_unit.grid_y, caster_unit.grid_x) if caster_unit else None,
+                    is_crit=is_crit,
+                    is_infused=is_infused,
+                    particle_emitter=particle_emitter,
+                    debris_list=[],
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,
+                    units_list=units_list if units_list else [],
+                    camera=camera,
+                    game=kwargs.get('game')
+                )
+            elif anim_class.__name__ == "PryAnimation":
+                # PryAnimation - New full animation with ceiling impact and falling debris
+                # Requires: target_pos, game instance, camera, callbacks
+                if not target_pos:
+                    print("[AnimationFactory] PRY requires a target position")
                     return None
                 animation = anim_class(
-                    target_unit=target_unit,
                     caster_unit=caster_unit,
+                    target_unit=target_unit,
+                    target_pos=target_pos,
+                    is_crit=is_crit,
+                    is_infused=is_infused,
                     particle_emitter=particle_emitter,
+                    debris_list=[],
                     screen_shake_callback=screen_shake_callback,
-                    units_list=units_list
+                    screen_flash_callback=screen_flash_callback,
+                    units_list=units_list if units_list else [],
+                    camera=camera,
+                    game=kwargs.get('game')
                 )
             elif anim_class.__name__ == "VaultAnimationController":
                 # VaultAnimationController needs target position

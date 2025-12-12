@@ -716,3 +716,1737 @@ class PryImpactAnimation:
         pass
 
 
+# ============================================================================
+# PRY ANIMATION (New Version - Follows Skill Description)
+# ============================================================================
+
+class PryLeverEffect:
+    """
+    Glaive lever at caster position prying target upward.
+    Orange/brown beam showing the prying motion.
+    """
+    def __init__(self, caster_x, caster_y, target_x, target_y):
+        self.caster_x = caster_x
+        self.caster_y = caster_y
+        self.target_x = target_x
+        self.target_y = target_y
+        self.timer = 0
+        self.duration = 0.35
+        self.active = True
+
+    def update(self, delta_time):
+        """Update lever animation."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw glaive lever beam."""
+        if not self.active:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+        alpha = int(220 * (1.0 - progress))  # Fade out
+
+        if alpha > 20:
+            # Orange/brown lever beam (GLAIVEMAN colors)
+            lever_surf = pygame.Surface((abs(int(self.target_x - self.caster_x)) + 20,
+                                        abs(int(self.target_y - self.caster_y)) + 20), pygame.SRCALPHA)
+
+            # Calculate local coordinates
+            start_local = (10, 10)
+            end_local = (int(self.target_x - self.caster_x + 10), int(self.target_y - self.caster_y + 10))
+
+            # Outer orange glow (#ff6600 from GLAIVEMAN cross emblem)
+            pygame.draw.line(lever_surf, (255, 102, 0, alpha // 2),
+                           start_local, end_local, 10)
+            # Inner bright orange (#ff9944 glow)
+            pygame.draw.line(lever_surf, (255, 153, 68, alpha),
+                           start_local, end_local, 6)
+            # Core white line
+            pygame.draw.line(lever_surf, (255, 255, 255, alpha),
+                           start_local, end_local, 2)
+
+            surface.blit(lever_surf, (int(min(self.caster_x, self.target_x)) - 10,
+                                     int(min(self.caster_y, self.target_y)) - 10))
+
+
+class PryLaunchTrail:
+    """
+    Particle trail as target is launched upward.
+    Gray/white particles matching armor colors.
+    """
+    def __init__(self, start_x, start_y):
+        self.start_x = start_x
+        self.start_y = start_y
+        self.timer = 0
+        self.duration = 0.4
+        self.active = True
+        self.particles = []
+
+    def update(self, delta_time):
+        """Update launch trail particles."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Spawn trail particles as target moves up
+        if self.timer < self.duration and len(self.particles) < 20:
+            # Calculate current target position (moving upward)
+            progress = self.timer / self.duration
+            current_y = self.start_y - 200 * progress  # Moving up 200 pixels
+
+            self.particles.append({
+                'x': self.start_x + random.uniform(-10, 10),
+                'y': current_y,
+                'lifetime': 0.3,
+                'age': 0,
+                'size': random.uniform(3, 6),
+                'color': random.choice([
+                    (192, 192, 192),  # Silver (#c0c0c0 from glaive)
+                    (138, 138, 138),  # Gray (#8a8a8a from rivets)
+                    (106, 106, 106),  # Darker gray (#6a6a6a from armor)
+                ])
+            })
+
+        # Age particles
+        for particle in self.particles:
+            particle['age'] += delta_time
+
+        self.particles = [p for p in self.particles if p['age'] < p['lifetime']]
+
+        if self.timer >= self.duration and not self.particles:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw trail particles."""
+        if not self.active:
+            return
+
+        for particle in self.particles:
+            alpha = int(200 * (1.0 - particle['age'] / particle['lifetime']))
+            if alpha > 20:
+                particle_surf = pygame.Surface((int(particle['size'] * 2), int(particle['size'] * 2)), pygame.SRCALPHA)
+                pygame.draw.circle(particle_surf, (*particle['color'], alpha),
+                                 (int(particle['size']), int(particle['size'])), int(particle['size']))
+                surface.blit(particle_surf, (int(particle['x'] - particle['size']), int(particle['y'] - particle['size'])))
+
+
+class PryCeilingImpact:
+    """
+    Impact flash at ceiling when target hits.
+    White/orange flash matching GLAIVEMAN colors.
+    """
+    def __init__(self, center_x, center_y):
+        self.center_x = center_x
+        self.center_y = center_y - 200  # At ceiling height
+        self.timer = 0
+        self.duration = 0.25
+        self.active = True
+        self.max_radius = 40
+
+    def update(self, delta_time):
+        """Update ceiling impact flash."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw ceiling impact flash."""
+        if not self.active:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+
+        # Flash expands quickly then fades
+        if progress < 0.3:
+            radius = int(self.max_radius * (progress / 0.3))
+        else:
+            radius = self.max_radius
+
+        alpha = int(255 * (1.0 - progress))
+
+        if alpha > 20 and radius > 0:
+            flash_surf = pygame.Surface((radius * 2 + 20, radius * 2 + 20), pygame.SRCALPHA)
+            center = radius + 10
+
+            # Outer orange glow (#ff6600)
+            pygame.draw.circle(flash_surf, (255, 102, 0, alpha // 3), (center, center), radius + 8)
+            # Inner white flash
+            pygame.draw.circle(flash_surf, (255, 255, 255, alpha), (center, center), radius)
+            # Bright core
+            if progress < 0.2:
+                pygame.draw.circle(flash_surf, (255, 255, 255, alpha), (center, center), radius // 2)
+
+            surface.blit(flash_surf, (int(self.center_x - center), int(self.center_y - center)))
+
+
+class PryDebrisChunk:
+    """
+    Individual debris chunk falling from ceiling.
+    Gray stone colors matching armor/structure.
+    Lands on ground and creates impact, then fades out.
+    """
+    def __init__(self, x, y, vx, vy, size, delay=0, ground_y=None):
+        self.x = x
+        self.y = y
+        self.vx = vx
+        self.vy = vy
+        self.size = size
+        self.rotation = random.uniform(0, 360)
+        self.rotation_speed = random.uniform(-500, 500)
+        self.timer = -delay
+        self.lifetime = 2.0
+        self.gravity = 600
+        self.active = True
+        self.has_landed = False
+        self.land_timer = 0
+        self.land_fade_duration = 0.3  # Fade out over 0.3s after landing
+        # Ground Y position (where debris should land)
+        self.ground_y = ground_y if ground_y else y + 200
+        # Gray stone colors (#6a6a6a, #5a5a5a, #8a8a8a)
+        self.color = random.choice([
+            (106, 106, 106),  # #6a6a6a
+            (90, 90, 90),     # #5a5a5a
+            (138, 138, 138),  # #8a8a8a
+        ])
+
+    def update(self, delta_time):
+        """Update debris falling with gravity, landing, and fade out."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.timer >= 0:  # Only move after delay
+            if not self.has_landed:
+                # Still falling
+                self.x += self.vx * delta_time
+                self.y += self.vy * delta_time
+                self.vy += self.gravity * delta_time  # Gravity acceleration
+                self.rotation += self.rotation_speed * delta_time
+
+                # Check if reached ground
+                if self.y >= self.ground_y:
+                    self.y = self.ground_y  # Snap to ground
+                    self.has_landed = True
+                    self.land_timer = 0
+                    # Stop horizontal movement, slow rotation
+                    self.vx = 0
+                    self.vy = 0
+                    self.rotation_speed *= 0.1  # Slow down rotation on landing
+            else:
+                # Landed - fade out
+                self.land_timer += delta_time
+                self.rotation += self.rotation_speed * delta_time  # Slight rotation while fading
+
+                if self.land_timer >= self.land_fade_duration:
+                    self.active = False
+
+        if self.timer >= self.lifetime:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw spinning debris chunk with fade out on landing."""
+        if not self.active or self.timer < 0:
+            return
+
+        # Calculate alpha - fade out when landed
+        if self.has_landed:
+            fade_progress = min(1.0, self.land_timer / self.land_fade_duration)
+            alpha = int(255 * (1.0 - fade_progress))
+        else:
+            alpha = 255
+
+        if alpha <= 10:
+            return
+
+        # Draw as jagged rock chunk
+        debris_surf = pygame.Surface((int(self.size * 2), int(self.size * 2)), pygame.SRCALPHA)
+        center = int(self.size)
+
+        # Main chunk
+        pygame.draw.circle(debris_surf, (*self.color, alpha), (center, center), int(self.size))
+        # Darker outline
+        pygame.draw.circle(debris_surf, (80, 70, 60, alpha), (center, center), int(self.size), 2)
+
+        # Rotate
+        rotated = pygame.transform.rotate(debris_surf, self.rotation)
+        rect = rotated.get_rect(center=(int(self.x), int(self.y)))
+        surface.blit(rotated, rect)
+
+
+class PryGroundExplosion:
+    """
+    Ground impact explosion with orange fireball + gray dust.
+    Uses GLAIVEMAN orange colors.
+    """
+    def __init__(self, center_x, center_y, is_primary=False):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.timer = 0
+        self.duration = 0.5 if is_primary else 0.35
+        self.active = True
+        self.max_radius = 50 if is_primary else 30
+        self.is_primary = is_primary
+
+    def update(self, delta_time):
+        """Update explosion expansion."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw orange fireball explosion."""
+        if not self.active:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+
+        # Fast expansion
+        if progress < 0.3:
+            radius = int(self.max_radius * (progress / 0.3))
+        else:
+            radius = self.max_radius
+
+        # Fade out
+        alpha = int(255 * (1.0 - progress))
+
+        if alpha > 20 and radius > 0:
+            explosion_surf = pygame.Surface((radius * 2 + 20, radius * 2 + 20), pygame.SRCALPHA)
+            center = radius + 10
+
+            # Outer orange glow (#ff6600 from GLAIVEMAN cross)
+            pygame.draw.circle(explosion_surf, (255, 102, 0, alpha // 3), (center, center), radius + 8)
+            # Main orange fireball (#ff9944 glow)
+            pygame.draw.circle(explosion_surf, (255, 153, 68, alpha), (center, center), radius)
+            # Inner bright core
+            if progress < 0.4:
+                inner_radius = int(radius * 0.5)
+                pygame.draw.circle(explosion_surf, (255, 255, 255, alpha), (center, center), inner_radius)
+
+            surface.blit(explosion_surf, (int(self.center_x - center), int(self.center_y - center)))
+
+
+class PryShockwave:
+    """
+    Expanding shockwave ring on ground impact.
+    Orange/brown colors from GLAIVEMAN theme.
+    """
+    def __init__(self, center_x, center_y, delay=0):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.timer = -delay
+        self.duration = 0.6
+        self.active = True
+        self.max_radius = 60
+
+    def update(self, delta_time):
+        """Update shockwave expansion."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw expanding shockwave ring."""
+        if not self.active or self.timer < 0:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+
+        radius = int(self.max_radius * progress)
+        alpha = int(200 * (1.0 - progress))
+
+        if alpha > 20 and radius > 5:
+            ring_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+
+            # Orange shockwave ring (#ff6600)
+            pygame.draw.circle(ring_surf, (255, 102, 0, alpha), (radius, radius), radius, 4)
+            # Inner darker ring (brown #8b4513 from shaft)
+            if alpha > 60:
+                pygame.draw.circle(ring_surf, (139, 69, 19, alpha // 2), (radius, radius), radius - 2, 2)
+
+            surface.blit(ring_surf, (int(self.center_x - radius), int(self.center_y - radius)))
+
+
+class PryAnimation:
+    """
+    Pry skill animation for GLAIVEMAN - New version following skill description exactly.
+
+    "Pry forces an enemy unit straight up into the air where they slam into
+    the ceiling or skybox, breaking loose debris that crashes down with them."
+
+    Uses GLAIVEMAN color scheme from SVG sprite:
+    - Orange (#ff6600, #ff9944) for impacts and lever
+    - Gray/silver (#6a6a6a, #c0c0c0, #8a8a8a) for debris and trails
+    - Brown (#8b4513) for shockwave accents
+
+    Phases:
+    1. Prying Up (0.4s) - Lever appears, target launches upward with trail
+    2. Ceiling Impact (0.5s) - Target hits ceiling, debris spawns
+    3. Falling (0.8s) - Target and debris fall together
+    4. Ground Impact (0.6s) - Orange explosion + gray dust, splash damage to adjacents, DAMAGE TRIGGERS
+
+    Total duration: 2.3 seconds
+    Damage timing: 1.7s (start of Phase 4 - ground impact, delayed execution like Parabol)
+    """
+
+    def __init__(self, caster_unit, target_unit, target_pos, is_crit, is_infused,
+                 particle_emitter, debris_list, screen_shake_callback,
+                 screen_flash_callback, units_list, camera, game=None):
+        """
+        Initialize Pry animation.
+
+        Args:
+            target_pos: (grid_y, grid_x) - primary target position
+            camera: Camera instance for coordinate conversion
+            units_list: All units for finding adjacents
+            screen_shake_callback: For prying, ceiling, and ground impacts
+        """
+        # Store references
+        self.caster = caster_unit
+        self.target_unit = target_unit
+        self.target_pos = target_pos
+        self.camera = camera
+        self.particle_emitter = particle_emitter
+        self.screen_shake_callback = screen_shake_callback
+        self.game = game
+
+        # Convert caster position to screen coords
+        self.caster_x, self.caster_y = camera.grid_to_screen(caster_unit.grid_x,
+                                                             caster_unit.grid_y,
+                                                             centered=True)
+
+        # Convert target grid position to screen coords
+        # CRITICAL: target_pos is (grid_y, grid_x), but grid_to_screen takes (grid_x, grid_y)!
+        grid_y, grid_x = target_pos
+        self.target_x, self.target_y = camera.grid_to_screen(grid_x, grid_y, centered=True)
+
+        # Calculate adjacent positions for splash damage (3x3 around target)
+        self.splash_positions = []
+        for dy in range(-1, 2):
+            for dx in range(-1, 2):
+                if dy == 0 and dx == 0:
+                    continue  # Skip center (primary target)
+
+                splash_grid_y = grid_y + dy
+                splash_grid_x = grid_x + dx
+                splash_x, splash_y = camera.grid_to_screen(splash_grid_x, splash_grid_y, centered=True)
+
+                self.splash_positions.append({
+                    'x': splash_x,
+                    'y': splash_y,
+                    'delay': 0.05 * (abs(dy) + abs(dx))  # Slight stagger
+                })
+
+        # Animation state
+        self.phase = "prying_up"
+        self.timer = 0
+        self.active = True
+
+        # Sub-effects
+        self.lever = None
+        self.launch_trail = None
+        self.ceiling_impact = None
+        self.debris_chunks = []
+        self.ground_explosion = None
+        self.splash_explosions = []
+        self.shockwaves = []
+
+        # Damage trigger flag
+        self.damage_triggered = False
+
+        # Target unit movement state (attribute-based animation like Vault)
+        if self.target_unit:
+            self.target_unit.pry_start_x = self.target_unit.x
+            self.target_unit.pry_start_y = self.target_unit.y
+            self.target_unit.pry_phase = "launching"
+            self.target_unit.pry_timer = 0
+            self.target_unit.pry_duration = 0.4  # Phase 1: launching duration
+
+        # Start Phase 1
+        self._start_prying_up()
+
+    def _start_prying_up(self):
+        """Phase 1: Prying Up - Glaive lever pries target upward."""
+        self.phase = "prying_up"
+        self.timer = 0
+
+        # Create lever effect from caster to target
+        self.lever = PryLeverEffect(self.caster_x, self.caster_y, self.target_x, self.target_y)
+
+        # Create launch trail
+        self.launch_trail = PryLaunchTrail(self.target_x, self.target_y)
+
+        # Prying screen shake (light)
+        self.screen_shake_callback(4, 0.3)
+
+        # Launch dust particles
+        if self.particle_emitter:
+            self.particle_emitter.emit_burst(self.target_x, self.target_y, (138, 138, 138), count=15)
+
+    def _start_ceiling_impact(self):
+        """Phase 2: Ceiling Impact - Target hits ceiling, debris spawns."""
+        self.phase = "ceiling_impact"
+        self.timer = 0
+
+        # Create ceiling impact flash
+        self.ceiling_impact = PryCeilingImpact(self.target_x, self.target_y)
+
+        # Spawn debris chunks falling from ceiling
+        for _ in range(20):
+            debris_x = self.target_x + random.uniform(-40, 40)
+            debris_y = self.target_y - 200  # Start at ceiling
+            debris_vx = random.uniform(-30, 30)
+            debris_vy = random.uniform(20, 60)  # Initial downward velocity
+            debris_size = random.uniform(4, 10)
+            delay = random.uniform(0, 0.1)  # Slight stagger
+
+            # Pass ground_y so debris knows where to land (target's ground level)
+            self.debris_chunks.append(PryDebrisChunk(debris_x, debris_y, debris_vx, debris_vy, debris_size, delay, ground_y=self.target_y))
+
+        # Ceiling impact screen shake (medium)
+        self.screen_shake_callback(6, 0.4)
+
+        # Ceiling impact particles
+        if self.particle_emitter:
+            ceiling_y = self.target_y - 200
+            self.particle_emitter.emit_burst(self.target_x, ceiling_y, (192, 192, 192), count=25)
+
+    def _start_falling(self):
+        """Phase 3: Falling - Target and debris fall together."""
+        self.phase = "falling"
+        self.timer = 0
+
+        # No new effects - debris already falling from Phase 2
+        # Just let gravity do its work
+
+    def _start_ground_impact(self):
+        """Phase 4: Ground Impact - Massive explosion with splash damage."""
+        self.phase = "ground_impact"
+        self.timer = 0
+
+        # **DAMAGE TRIGGER: This is when damage happens (delayed execution like Parabol)**
+        # Game logic will apply damage at this moment (1.7s into animation)
+        self.damage_triggered = True
+
+        # Primary explosion at target
+        self.ground_explosion = PryGroundExplosion(self.target_x, self.target_y, is_primary=True)
+
+        # Primary shockwave
+        self.shockwaves.append(PryShockwave(self.target_x, self.target_y, delay=0))
+
+        # Splash explosions at adjacent tiles
+        for splash in self.splash_positions:
+            explosion = PryGroundExplosion(splash['x'], splash['y'], is_primary=False)
+            explosion.timer = -splash['delay']  # Stagger
+            self.splash_explosions.append(explosion)
+
+            shockwave = PryShockwave(splash['x'], splash['y'], delay=splash['delay'])
+            self.shockwaves.append(shockwave)
+
+        # Ground impact screen shake (heavy)
+        self.screen_shake_callback(8, 0.5)
+
+        # Ground impact particles
+        if self.particle_emitter:
+            # Primary target - large orange burst
+            self.particle_emitter.emit_burst(self.target_x, self.target_y, (255, 102, 0), count=40)
+            # Gray dust
+            self.particle_emitter.emit_burst(self.target_x, self.target_y, (106, 106, 106), count=30)
+
+    def update(self, delta_time):
+        """Update animation state. MUST return True/False."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Update target unit position (attribute-based animation, like VaultAnimationController)
+        if self.target_unit and hasattr(self.target_unit, 'pry_phase') and self.target_unit.pry_phase:
+            # Increment unit's own timer
+            self.target_unit.pry_timer += delta_time
+            progress = min(1.0, self.target_unit.pry_timer / self.target_unit.pry_duration)
+
+            if self.target_unit.pry_phase == "launching":
+                # Phase 1: Moving upward - smooth linear interpolation
+                self.target_unit.y = self.target_unit.pry_start_y - (200 * progress)
+
+            elif self.target_unit.pry_phase == "at_ceiling":
+                # Phase 2: At ceiling - hold position
+                self.target_unit.y = self.target_unit.pry_start_y - 200
+
+            elif self.target_unit.pry_phase == "falling":
+                # Phase 3: Falling down - accelerating fall (gravity simulation)
+                self.target_unit.y = (self.target_unit.pry_start_y - 200) + (200 * progress * progress)
+
+            elif self.target_unit.pry_phase == "landed":
+                # Phase 4: Back at ground - hold at original position
+                self.target_unit.y = self.target_unit.pry_start_y
+
+        # Update sub-effects
+        if self.lever:
+            self.lever.update(delta_time)
+
+        if self.launch_trail:
+            self.launch_trail.update(delta_time)
+
+        if self.ceiling_impact:
+            self.ceiling_impact.update(delta_time)
+
+        for debris in self.debris_chunks:
+            debris.update(delta_time)
+
+        if self.ground_explosion:
+            self.ground_explosion.update(delta_time)
+
+        for explosion in self.splash_explosions:
+            explosion.update(delta_time)
+
+        for shockwave in self.shockwaves:
+            shockwave.update(delta_time)
+
+        # Phase transitions
+        if self.phase == "prying_up" and self.timer >= 0.4:
+            if self.target_unit and hasattr(self.target_unit, 'pry_phase'):
+                self.target_unit.pry_phase = "at_ceiling"
+                self.target_unit.pry_timer = 0  # Reset timer for new phase
+                self.target_unit.pry_duration = 0.5  # Phase 2: at_ceiling duration
+            self._start_ceiling_impact()
+        elif self.phase == "ceiling_impact" and self.timer >= 0.5:
+            if self.target_unit and hasattr(self.target_unit, 'pry_phase'):
+                self.target_unit.pry_phase = "falling"
+                self.target_unit.pry_timer = 0  # Reset timer for new phase
+                self.target_unit.pry_duration = 0.8  # Phase 3: falling duration
+            self._start_falling()
+        elif self.phase == "falling" and self.timer >= 0.8:
+            if self.target_unit and hasattr(self.target_unit, 'pry_phase'):
+                self.target_unit.pry_phase = "landed"
+                self.target_unit.pry_timer = 0  # Reset timer for new phase
+                self.target_unit.pry_duration = 0.6  # Phase 4: landed duration
+            self._start_ground_impact()
+        elif self.phase == "ground_impact" and self.timer >= 0.6:
+            # Reset target unit state - animation complete
+            if self.target_unit and hasattr(self.target_unit, 'pry_phase'):
+                self.target_unit.pry_phase = None
+                self.target_unit.pry_timer = 0
+                self.target_unit.y = self.target_unit.pry_start_y
+            self.active = False  # Animation complete
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw animation to pygame surface."""
+        if not self.active:
+            return
+
+        # Draw phase-specific effects
+        if self.phase == "prying_up":
+            if self.lever:
+                self.lever.draw(surface)
+            if self.launch_trail:
+                self.launch_trail.draw(surface)
+
+        elif self.phase == "ceiling_impact":
+            if self.ceiling_impact:
+                self.ceiling_impact.draw(surface)
+            # Start drawing falling debris
+            for debris in self.debris_chunks:
+                debris.draw(surface)
+
+        elif self.phase == "falling":
+            # Draw falling debris
+            for debris in self.debris_chunks:
+                debris.draw(surface)
+
+        elif self.phase == "ground_impact":
+            # Draw explosions and shockwaves
+            for shockwave in self.shockwaves:
+                shockwave.draw(surface)
+
+            if self.ground_explosion:
+                self.ground_explosion.draw(surface)
+
+            for explosion in self.splash_explosions:
+                explosion.draw(surface)
+
+
+# ============================================================================
+# JUDGEMENT ANIMATION (New Version - Follows Skill Description)
+# ============================================================================
+
+class JudgementGlaiveProjectile:
+    """
+    Sacred spinning glaive projectile for Judgement skill.
+    Golden six-bladed glaive with motion blur trail.
+    Reuses visual design from SpinningGlaiveProjectile.
+    """
+    def __init__(self, start_x, start_y, target_x, target_y, speed=700):
+        self.x = start_x
+        self.y = start_y
+        self.target_x = target_x
+        self.target_y = target_y
+        self.speed = speed
+        self.rotation = 0
+        self.rotation_speed = 1080  # 3 full rotations per second
+        self.active = True
+        self.trail_positions = []
+
+        # Calculate direction
+        dx = target_x - start_x
+        dy = target_y - start_y
+        distance = math.sqrt(dx*dx + dy*dy)
+        if distance > 0:
+            self.vx = (dx / distance) * speed
+            self.vy = (dy / distance) * speed
+        else:
+            self.vx = 0
+            self.vy = 0
+
+        # Create glaive sprite
+        self.size = 32
+        self.create_glaive_surface()
+
+    def create_glaive_surface(self):
+        """Create the spinning golden glaive sprite (same as SpinningGlaiveProjectile)."""
+        self.base_surface = pygame.Surface((self.size, self.size), pygame.SRCALPHA)
+        center = self.size // 2
+
+        # Golden/white color scheme (#ffd700, #ffeb64, #ffffff)
+        gold = (255, 215, 0)
+        light_gold = (255, 235, 100)
+        white = (255, 255, 255)
+
+        # Draw six pointed blades
+        blade_length = self.size // 2 - 2
+        for i in range(6):
+            angle = (i * 60) * math.pi / 180
+
+            tip_x = center + math.cos(angle) * blade_length
+            tip_y = center + math.sin(angle) * blade_length
+
+            angle_offset = 15 * math.pi / 180
+            side1_x = center + math.cos(angle - angle_offset) * (blade_length * 0.7)
+            side1_y = center + math.sin(angle - angle_offset) * (blade_length * 0.7)
+            side2_x = center + math.cos(angle + angle_offset) * (blade_length * 0.7)
+            side2_y = center + math.sin(angle + angle_offset) * (blade_length * 0.7)
+
+            pygame.draw.polygon(self.base_surface, gold,
+                              [(center, center), (tip_x, tip_y), (side1_x, side1_y)])
+            pygame.draw.polygon(self.base_surface, gold,
+                              [(center, center), (tip_x, tip_y), (side2_x, side2_y)])
+            pygame.draw.line(self.base_surface, light_gold,
+                           (center, center), (tip_x, tip_y), 2)
+
+        # Center hub
+        pygame.draw.circle(self.base_surface, white, (center, center), 6)
+        pygame.draw.circle(self.base_surface, gold, (center, center), 6, 2)
+        pygame.draw.circle(self.base_surface, (200, 180, 0), (center, center), 3)
+
+    def update(self, delta_time):
+        """Update projectile position and rotation."""
+        if not self.active:
+            return False
+
+        # Store position for trail
+        self.trail_positions.append((self.x, self.y, self.rotation))
+        if len(self.trail_positions) > 8:
+            self.trail_positions.pop(0)
+
+        # Move towards target
+        self.x += self.vx * delta_time
+        self.y += self.vy * delta_time
+        self.rotation += self.rotation_speed * delta_time
+
+        # Check if reached target
+        dx = self.target_x - self.x
+        dy = self.target_y - self.y
+        distance = math.sqrt(dx*dx + dy*dy)
+
+        if distance < self.speed * delta_time:
+            self.active = False
+            return False
+
+        return True
+
+    def draw(self, surface):
+        """Draw spinning glaive with motion blur trail."""
+        if not self.active:
+            return
+
+        # Draw motion blur trail
+        for i, (trail_x, trail_y, trail_rot) in enumerate(self.trail_positions):
+            alpha = int(100 * (i / len(self.trail_positions)))
+            trail_surface = pygame.transform.rotate(self.base_surface, trail_rot)
+            trail_surface.set_alpha(alpha)
+            trail_rect = trail_surface.get_rect(center=(int(trail_x), int(trail_y)))
+            surface.blit(trail_surface, trail_rect)
+
+        # Draw main glaive
+        rotated_surface = pygame.transform.rotate(self.base_surface, self.rotation)
+        rect = rotated_surface.get_rect(center=(int(self.x), int(self.y)))
+        surface.blit(rotated_surface, rect)
+
+        # Add golden glow
+        glow_surf = pygame.Surface((self.size + 20, self.size + 20), pygame.SRCALPHA)
+        glow_radius = self.size // 2 + 10
+        pygame.draw.circle(glow_surf, (255, 215, 0, 50), (glow_radius, glow_radius), glow_radius)
+        glow_rect = glow_surf.get_rect(center=(int(self.x), int(self.y)))
+        surface.blit(glow_surf, glow_rect)
+
+
+class JudgementImpactFlash:
+    """
+    Impact flash when glaive hits target.
+    Golden/white/orange burst.
+    """
+    def __init__(self, center_x, center_y):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.timer = 0
+        self.duration = 0.25
+        self.active = True
+        self.max_radius = 45
+
+    def update(self, delta_time):
+        """Update flash expansion."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw golden impact flash."""
+        if not self.active:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+
+        # Fast expansion
+        if progress < 0.3:
+            radius = int(self.max_radius * (progress / 0.3))
+        else:
+            radius = self.max_radius
+
+        alpha = int(255 * (1.0 - progress))
+
+        if alpha > 20 and radius > 0:
+            flash_surf = pygame.Surface((radius * 2 + 20, radius * 2 + 20), pygame.SRCALPHA)
+            center = radius + 10
+
+            # Outer orange glow (#ff6600)
+            pygame.draw.circle(flash_surf, (255, 102, 0, alpha // 3), (center, center), radius + 8)
+            # Main golden flash (#ffd700)
+            pygame.draw.circle(flash_surf, (255, 215, 0, alpha), (center, center), radius)
+            # Inner white core
+            if progress < 0.4:
+                inner_radius = int(radius * 0.6)
+                pygame.draw.circle(flash_surf, (255, 255, 255, alpha), (center, center), inner_radius)
+
+            surface.blit(flash_surf, (int(self.center_x - center), int(self.center_y - center)))
+
+
+class JudgementShockwave:
+    """
+    Expanding shockwave ring on impact.
+    Orange/brown colors from GLAIVEMAN theme.
+    """
+    def __init__(self, center_x, center_y, delay=0, is_crit=False):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.timer = -delay
+        self.duration = 0.4
+        self.active = True
+        self.max_radius = 70 if is_crit else 50
+        self.is_crit = is_crit
+
+    def update(self, delta_time):
+        """Update shockwave expansion."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw expanding shockwave ring."""
+        if not self.active or self.timer < 0:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+        radius = int(self.max_radius * progress)
+        alpha = int(220 * (1.0 - progress))
+
+        if alpha > 20 and radius > 5:
+            ring_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+
+            # Orange shockwave ring (#ff6600)
+            thickness = 5 if self.is_crit else 3
+            pygame.draw.circle(ring_surf, (255, 102, 0, alpha), (radius, radius), radius, thickness)
+            # Inner gold accent (#ffd700)
+            if alpha > 60:
+                pygame.draw.circle(ring_surf, (255, 215, 0, alpha // 2), (radius, radius), radius - 2, 2)
+
+            surface.blit(ring_surf, (int(self.center_x - radius), int(self.center_y - radius)))
+
+
+class JudgementCriticalEffect:
+    """
+    Critical hit effect - lightning bolt strikes glaive on impact.
+    Uses existing LightningBolt class.
+    """
+    def __init__(self, target_x, target_y):
+        self.target_x = target_x
+        self.target_y = target_y
+        self.lightning = LightningBolt(target_x, target_y)
+        self.flash_timer = 0.3
+        self.active = True
+
+    def update(self, delta_time):
+        """Update lightning and flash."""
+        if not self.active:
+            return False
+
+        self.flash_timer -= delta_time
+        lightning_active = self.lightning.update(delta_time)
+
+        if not lightning_active and self.flash_timer <= 0:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw lightning bolt and bright flash."""
+        if not self.active:
+            return
+
+        # Draw lightning
+        self.lightning.draw(surface)
+
+        # Draw bright white flash at impact point
+        if self.flash_timer > 0:
+            flash_alpha = int(255 * (self.flash_timer / 0.3))
+            flash_radius = int(60 * (1.0 - self.flash_timer / 0.3))
+
+            flash_surf = pygame.Surface((flash_radius * 2, flash_radius * 2), pygame.SRCALPHA)
+            pygame.draw.circle(flash_surf, (255, 255, 255, flash_alpha), (flash_radius, flash_radius), flash_radius)
+            flash_rect = flash_surf.get_rect(center=(int(self.target_x), int(self.target_y)))
+            surface.blit(flash_surf, flash_rect)
+
+
+class JudgementAnimation:
+    """
+    Judgement skill animation for GLAIVEMAN - New version following skill description.
+
+    "Throw a sacred glaive at an enemy. Deals pierce damage that ignores defense.
+    Against targets at critical health, deals double damage."
+
+    Uses GLAIVEMAN color scheme:
+    - Gold (#ffd700, #ffeb64) for glaive
+    - Orange (#ff6600) for impact flash and shockwave
+    - White/Yellow lightning for critical hits
+
+    Phases:
+    1. Wind-up (0.3s) - GLAIVEMAN prepares throw, glaive glows
+    2. Flight (0.7s) - Golden spinning glaive flies to target with trail
+    3. Impact (0.5s) - Golden flash + shockwave (or LIGHTNING BOLT for critical), DAMAGE TRIGGERS
+
+    Total duration: 1.5 seconds
+    Damage timing: 1.0s (start of Phase 3 - impact, delayed execution like Parabol)
+    Critical: Lightning strikes glaive when target is at critical HP
+    """
+
+    def __init__(self, caster_unit, target_unit, target_pos, is_crit, is_infused,
+                 particle_emitter, debris_list, screen_shake_callback,
+                 screen_flash_callback, units_list, camera, game=None):
+        """
+        Initialize Judgement animation.
+
+        Args:
+            is_crit: True if target is at critical health (doubles damage, triggers lightning)
+        """
+        # Store references
+        self.caster = caster_unit
+        self.target_unit = target_unit
+        self.target_pos = target_pos
+        self.camera = camera
+        self.particle_emitter = particle_emitter
+        self.screen_shake_callback = screen_shake_callback
+        self.game = game
+
+        # Convert positions to screen coords
+        self.caster_x, self.caster_y = camera.grid_to_screen(caster_unit.grid_x,
+                                                             caster_unit.grid_y,
+                                                             centered=True)
+
+        grid_y, grid_x = target_pos
+        self.target_x, self.target_y = camera.grid_to_screen(grid_x, grid_y, centered=True)
+
+        # Determine if critical hit (target at critical HP)
+        from boneglaive.utils.constants import CRITICAL_HEALTH_PERCENT
+        critical_threshold = int(target_unit.max_hp * CRITICAL_HEALTH_PERCENT) if target_unit else 0
+        self.is_crit = is_crit or (target_unit and target_unit.hp <= critical_threshold)
+
+        # Animation state
+        self.phase = "wind_up"
+        self.timer = 0
+        self.active = True
+
+        # Sub-effects
+        self.projectile = None
+        self.impact_flash = None
+        self.shockwave = None
+        self.critical_effect = None
+
+        # Damage trigger flag
+        self.damage_triggered = False
+
+        # Start Phase 1
+        self._start_wind_up()
+
+    def _start_wind_up(self):
+        """Phase 1: Wind-up - GLAIVEMAN prepares to throw."""
+        self.phase = "wind_up"
+        self.timer = 0
+
+        # Light screen shake for wind-up
+        self.screen_shake_callback(3, 0.2)
+
+        # Glow particles at caster
+        if self.particle_emitter:
+            self.particle_emitter.emit_burst(self.caster_x, self.caster_y, (255, 215, 0), count=10)
+
+    def _start_flight(self):
+        """Phase 2: Flight - Glaive flies toward target."""
+        self.phase = "flight"
+        self.timer = 0
+
+        # Create projectile
+        self.projectile = JudgementGlaiveProjectile(self.caster_x, self.caster_y,
+                                                    self.target_x, self.target_y)
+
+    def _start_impact(self):
+        """Phase 3: Impact - Glaive hits target."""
+        self.phase = "impact"
+        self.timer = 0
+
+        # **DAMAGE TRIGGER: This is when damage happens (delayed execution like Parabol)**
+        self.damage_triggered = True
+
+        # Create impact flash
+        self.impact_flash = JudgementImpactFlash(self.target_x, self.target_y)
+
+        # Create shockwave
+        self.shockwave = JudgementShockwave(self.target_x, self.target_y, is_crit=self.is_crit)
+
+        # Critical effect - LIGHTNING BOLT
+        if self.is_crit:
+            self.critical_effect = JudgementCriticalEffect(self.target_x, self.target_y)
+            # Stronger screen shake for critical
+            self.screen_shake_callback(7, 0.4)
+        else:
+            # Regular screen shake
+            self.screen_shake_callback(5, 0.3)
+
+        # Impact particles
+        if self.particle_emitter:
+            # Golden burst
+            self.particle_emitter.emit_burst(self.target_x, self.target_y, (255, 215, 0), count=25)
+            if self.is_crit:
+                # Extra white particles for critical
+                self.particle_emitter.emit_burst(self.target_x, self.target_y, (255, 255, 255), count=15)
+
+    def update(self, delta_time):
+        """Update animation state. MUST return True/False."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Update sub-effects
+        if self.projectile:
+            self.projectile.update(delta_time)
+
+        if self.impact_flash:
+            self.impact_flash.update(delta_time)
+
+        if self.shockwave:
+            self.shockwave.update(delta_time)
+
+        if self.critical_effect:
+            self.critical_effect.update(delta_time)
+
+        # Phase transitions
+        if self.phase == "wind_up" and self.timer >= 0.3:
+            self._start_flight()
+        elif self.phase == "flight" and self.timer >= 0.7:
+            self._start_impact()
+        elif self.phase == "impact" and self.timer >= 0.5:
+            self.active = False  # Animation complete
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw animation to pygame surface."""
+        if not self.active:
+            return
+
+        # Draw phase-specific effects
+        if self.phase == "wind_up":
+            # Wind-up is primarily particles (handled by particle emitter)
+            pass
+
+        elif self.phase == "flight":
+            if self.projectile:
+                self.projectile.draw(surface)
+
+        elif self.phase == "impact":
+            # Draw in order: shockwave, impact flash, critical effect (lightning on top)
+            if self.shockwave:
+                self.shockwave.draw(surface)
+
+            if self.impact_flash:
+                self.impact_flash.draw(surface)
+
+            if self.critical_effect:
+                self.critical_effect.draw(surface)
+
+
+# ============================================================================
+# AUTOCLAVE ANIMATION V2 (New Version - Enhanced with Fire Burst & Tile Glaives)
+# ============================================================================
+
+class AutoclaveFireBurst:
+    """
+    Fire burst explosion at GLAIVEMAN's center tile.
+    Orange/red fireball with white core.
+    """
+    def __init__(self, center_x, center_y):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.timer = 0
+        self.duration = 0.4
+        self.active = True
+        self.max_radius = 60
+
+    def update(self, delta_time):
+        """Update fire burst expansion."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw orange/red fireball explosion."""
+        if not self.active:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+
+        # Fast expansion then fade
+        if progress < 0.3:
+            radius = int(self.max_radius * (progress / 0.3))
+        else:
+            radius = self.max_radius
+
+        alpha = int(255 * (1.0 - progress))
+
+        if alpha > 20 and radius > 0:
+            fire_surf = pygame.Surface((radius * 2 + 20, radius * 2 + 20), pygame.SRCALPHA)
+            center = radius + 10
+
+            # Outer red glow (#ff0000)
+            pygame.draw.circle(fire_surf, (255, 0, 0, alpha // 3), (center, center), radius + 10)
+            # Main orange fireball (#ff6600)
+            pygame.draw.circle(fire_surf, (255, 102, 0, alpha), (center, center), radius)
+            # Inner bright core (white)
+            if progress < 0.5:
+                inner_radius = int(radius * 0.6)
+                pygame.draw.circle(fire_surf, (255, 255, 255, alpha), (center, center), inner_radius)
+
+            surface.blit(fire_surf, (int(self.center_x - center), int(self.center_y - center)))
+
+
+class AutoclaveSteamJet:
+    """
+    Steam jet particles expanding in one direction.
+    White/blue wispy particles (similar to CrossBeam).
+    """
+    def __init__(self, center_x, center_y, direction, max_range_tiles=3):
+        """
+        direction: 0=up, 1=right, 2=down, 3=left
+        max_range_tiles: number of tiles to expand
+        """
+        self.center_x = center_x
+        self.center_y = center_y
+        self.direction = direction
+        self.max_range = max_range_tiles * TILE_SIZE
+        self.current_range = 0
+        self.expand_speed = 600  # pixels per second
+        self.timer = 0
+        self.duration = 1.5
+        self.width = 20
+        self.active = True
+
+    def update(self, delta_time):
+        """Update steam jet expansion."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Expand
+        if self.current_range < self.max_range:
+            self.current_range += self.expand_speed * delta_time
+            if self.current_range > self.max_range:
+                self.current_range = self.max_range
+
+        # Fade out after expansion
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw wispy steam particles along jet."""
+        if not self.active or self.current_range < 10:
+            return
+
+        # Alpha based on lifetime
+        alpha_mult = 1.0 if self.timer < 0.8 else (1.5 - self.timer) / 0.7
+        alpha_mult = max(0, min(1.0, alpha_mult))
+
+        # Steam particles along the jet
+        num_steam = int(self.current_range / 15)
+        for i in range(num_steam):
+            progress = (i / num_steam) if num_steam > 0 else 0
+
+            # Calculate position along jet
+            if self.direction == 0:  # Up
+                px = self.center_x + random.uniform(-self.width//2, self.width//2)
+                py = self.center_y - progress * self.current_range
+            elif self.direction == 1:  # Right
+                px = self.center_x + progress * self.current_range
+                py = self.center_y + random.uniform(-self.width//2, self.width//2)
+            elif self.direction == 2:  # Down
+                px = self.center_x + random.uniform(-self.width//2, self.width//2)
+                py = self.center_y + progress * self.current_range
+            else:  # Left
+                px = self.center_x - progress * self.current_range
+                py = self.center_y + random.uniform(-self.width//2, self.width//2)
+
+            # Steam puffs
+            steam_size = random.uniform(8, 16) * (1.0 - progress * 0.3)
+            steam_alpha = int(alpha_mult * 100 * (1.0 - progress * 0.5))
+
+            # Multiple overlapping circles for wispy effect
+            for _ in range(3):
+                offset_x = random.uniform(-steam_size * 0.3, steam_size * 0.3)
+                offset_y = random.uniform(-steam_size * 0.3, steam_size * 0.3)
+                steam_surf = pygame.Surface((int(steam_size * 3), int(steam_size * 3)), pygame.SRCALPHA)
+                pygame.draw.circle(steam_surf, (240, 240, 255, steam_alpha),
+                                 (int(steam_size * 1.5 + offset_x), int(steam_size * 1.5 + offset_y)),
+                                 int(steam_size))
+                surface.blit(steam_surf, (int(px - steam_size * 1.5), int(py - steam_size * 1.5)))
+
+
+class AutoclaveGlaive:
+    """
+    Spinning glaive at a specific tile position.
+    Silver/white coloring (Autoclave theme).
+    6-bladed design.
+    """
+    def __init__(self, tile_x, tile_y, delay=0):
+        self.tile_x = tile_x
+        self.tile_y = tile_y
+        self.timer = -delay
+        self.duration = 1.5
+        self.active = False  # Activates after delay
+        self.size = 24  # Larger than Judgement glaives
+
+        # Create glaive sprite
+        self.create_glaive_surface()
+
+    def create_glaive_surface(self):
+        """Create silver/white spinning glaive sprite."""
+        self.base_surface = pygame.Surface((self.size * 2, self.size * 2), pygame.SRCALPHA)
+        center = self.size
+
+        # Silver/white color scheme (Autoclave theme)
+        silver = (192, 192, 192)  # #c0c0c0
+        light_silver = (224, 224, 224)  # #e0e0e0
+        white = (255, 255, 255)
+
+        # Draw six pointed blades
+        blade_length = self.size - 2
+        for i in range(6):
+            angle = (i * 60) * math.pi / 180
+
+            tip_x = center + math.cos(angle) * blade_length
+            tip_y = center + math.sin(angle) * blade_length
+
+            angle_offset = 15 * math.pi / 180
+            side1_x = center + math.cos(angle - angle_offset) * (blade_length * 0.7)
+            side1_y = center + math.sin(angle - angle_offset) * (blade_length * 0.7)
+            side2_x = center + math.cos(angle + angle_offset) * (blade_length * 0.7)
+            side2_y = center + math.sin(angle + angle_offset) * (blade_length * 0.7)
+
+            pygame.draw.polygon(self.base_surface, silver,
+                              [(center, center), (tip_x, tip_y), (side1_x, side1_y)])
+            pygame.draw.polygon(self.base_surface, silver,
+                              [(center, center), (tip_x, tip_y), (side2_x, side2_y)])
+            pygame.draw.line(self.base_surface, light_silver,
+                           (center, center), (tip_x, tip_y), 2)
+
+        # Center hub
+        pygame.draw.circle(self.base_surface, white, (center, center), 6)
+        pygame.draw.circle(self.base_surface, silver, (center, center), 6, 2)
+        pygame.draw.circle(self.base_surface, (160, 160, 160), (center, center), 3)
+
+    def update(self, delta_time):
+        """Update glaive state."""
+        if not self.active and self.timer < 0:
+            self.timer += delta_time
+            if self.timer >= 0:
+                self.active = True
+            return True
+
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.timer >= self.duration:
+            self.active = False
+            return False
+
+        return True
+
+    def draw(self, surface, rotation):
+        """Draw spinning glaive at tile position."""
+        if not self.active:
+            return
+
+        # Alpha fade in/out
+        if self.timer < 0.2:
+            alpha = int(255 * (self.timer / 0.2))
+        elif self.timer > self.duration - 0.3:
+            alpha = int(255 * ((self.duration - self.timer) / 0.3))
+        else:
+            alpha = 255
+
+        if alpha <= 10:
+            return
+
+        # Rotate glaive (synchronized with all others)
+        rotated = pygame.transform.rotate(self.base_surface, rotation)
+        rotated.set_alpha(alpha)
+        rect = rotated.get_rect(center=(int(self.tile_x), int(self.tile_y)))
+        surface.blit(rotated, rect)
+
+
+class AutoclaveHealingEffect:
+    """
+    Healing effect at GLAIVEMAN position.
+    Green glow and rising particles.
+    """
+    def __init__(self, center_x, center_y, heal_amount):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.heal_amount = heal_amount
+        self.timer = 0
+        self.duration = 0.8
+        self.active = True
+        self.particles = []
+
+        # Create rising heal particles
+        for _ in range(15):
+            self.particles.append({
+                'x': center_x + random.uniform(-20, 20),
+                'y': center_y + random.uniform(-10, 10),
+                'vy': random.uniform(-80, -40),  # Rising speed
+                'lifetime': random.uniform(0.5, 0.8),
+                'age': 0,
+                'size': random.uniform(3, 6)
+            })
+
+    def update(self, delta_time):
+        """Update healing glow and particles."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Update particles
+        for particle in self.particles:
+            particle['age'] += delta_time
+            particle['y'] += particle['vy'] * delta_time
+
+        # Remove old particles
+        self.particles = [p for p in self.particles if p['age'] < p['lifetime']]
+
+        if self.timer >= self.duration and not self.particles:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw green healing glow and rising particles."""
+        if not self.active:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+
+        # Green glow at center
+        if self.timer < 0.6:
+            glow_alpha = int(150 * (1.0 - self.timer / 0.6))
+            glow_radius = int(40 + (self.timer / 0.6) * 20)
+
+            if glow_alpha > 20:
+                glow_surf = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
+                pygame.draw.circle(glow_surf, (0, 255, 0, glow_alpha),
+                                 (glow_radius, glow_radius), glow_radius)
+                pygame.draw.circle(glow_surf, (136, 255, 136, glow_alpha // 2),
+                                 (glow_radius, glow_radius), glow_radius - 5)
+                surface.blit(glow_surf, (int(self.center_x - glow_radius), int(self.center_y - glow_radius)))
+
+        # Rising green particles
+        for particle in self.particles:
+            alpha = int(200 * (1.0 - particle['age'] / particle['lifetime']))
+            if alpha > 20:
+                p_surf = pygame.Surface((int(particle['size'] * 2), int(particle['size'] * 2)), pygame.SRCALPHA)
+                pygame.draw.circle(p_surf, (0, 255, 0, alpha),
+                                 (int(particle['size']), int(particle['size'])), int(particle['size']))
+                surface.blit(p_surf, (int(particle['x'] - particle['size']), int(particle['y'] - particle['size'])))
+
+
+class AutoclaveImpactFlash:
+    """
+    Flash at hit tile positions.
+    White/orange flash.
+    """
+    def __init__(self, tile_x, tile_y, delay=0):
+        self.tile_x = tile_x
+        self.tile_y = tile_y
+        self.timer = -delay
+        self.duration = 0.25
+        self.active = False  # Activates after delay
+
+    def update(self, delta_time):
+        """Update flash."""
+        self.timer += delta_time
+
+        if self.timer >= 0:
+            self.active = True
+
+        if self.timer >= self.duration:
+            self.active = False
+            return False
+
+        return True
+
+    def draw(self, surface):
+        """Draw white/orange flash."""
+        if not self.active or self.timer < 0:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+        radius = int(25 * (1.0 - progress * 0.5))  # Shrinks slightly
+        alpha = int(255 * (1.0 - progress))
+
+        if alpha > 20 and radius > 0:
+            flash_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+            # Orange flash (#ff6600)
+            pygame.draw.circle(flash_surf, (255, 102, 0, alpha), (radius, radius), radius)
+            # White core
+            pygame.draw.circle(flash_surf, (255, 255, 255, alpha), (radius, radius), radius // 2)
+            surface.blit(flash_surf, (int(self.tile_x - radius), int(self.tile_y - radius)))
+
+
+class AutoclaveAnimationV2:
+    """
+    Autoclave passive animation for GLAIVEMAN - Enhanced version.
+
+    "When GLAIVEMAN reaches critical HP, unleashes cross-shaped attack in 4 directions (range 3).
+    Deals 8 damage to all enemies, heals for half damage dealt."
+
+    Enhancements:
+    - Fire burst at GLAIVEMAN's center tile (eruption source)
+    - Steam jets expanding in 4 directions (cross pattern)
+    - Spinning glaive on EVERY tile in AOE (not just scattered)
+    - Healing effect with green glow and rising particles
+    - Delayed damage execution
+
+    Phases:
+    1. Ignition (0.4s) - Fire burst at center, cross emblem flash, steam starts
+    2. Cross Expansion (0.8s) - Steam expands, glaive appears on each tile
+    3. Impact & Healing (0.8s) - Impacts flash, DAMAGE TRIGGERS, healing glow
+
+    Total duration: 2.0 seconds
+    Damage timing: 1.2s (start of Phase 3, delayed execution like Parabol)
+    """
+
+    def __init__(self, caster_unit, target_unit, target_pos, is_crit, is_infused,
+                 particle_emitter, debris_list, screen_shake_callback,
+                 screen_flash_callback, units_list, camera, game=None):
+        """
+        Initialize Autoclave animation.
+
+        Args:
+            caster_unit: GLAIVEMAN triggering Autoclave
+            camera: Camera instance for coordinate conversion
+        """
+        # Store references
+        self.caster = caster_unit
+        self.camera = camera
+        self.particle_emitter = particle_emitter
+        self.screen_shake_callback = screen_shake_callback
+        self.game = game
+
+        # Convert caster position to screen coords
+        self.caster_x, self.caster_y = camera.grid_to_screen(caster_unit.grid_x,
+                                                             caster_unit.grid_y,
+                                                             centered=True)
+
+        # Calculate affected tiles (cross pattern, range 3, stops at terrain)
+        self.affected_tiles = self._calculate_affected_tiles()
+
+        # Animation state
+        self.phase = "ignition"
+        self.timer = 0
+        self.active = True
+
+        # Sub-effects
+        self.fire_burst = None
+        self.steam_jets = []
+        self.glaives = []
+        self.impact_flashes = []
+        self.healing_effect = None
+
+        # Glaive rotation (synchronized for all glaives)
+        self.glaive_rotation = 0
+
+        # Damage trigger flag
+        self.damage_triggered = False
+
+        # Healing amount (will be set by game logic)
+        self.heal_amount = 0
+
+        # Start Phase 1
+        self._start_ignition()
+
+    def _calculate_affected_tiles(self):
+        """Calculate all tiles in cross pattern AOE."""
+        tiles = []
+        directions = [(-1, 0), (0, 1), (1, 0), (0, -1)]  # up, right, down, left
+
+        for direction_idx, (dy, dx) in enumerate(directions):
+            for distance in range(1, 4):  # Range 1-3
+                grid_y = self.caster.grid_y + (dy * distance)
+                grid_x = self.caster.grid_x + (dx * distance)
+
+                # Check if position is valid
+                if self.game and not self.game.is_valid_position(grid_y, grid_x):
+                    break
+
+                # Check terrain passability
+                if self.game and not self.game.map.is_passable(grid_y, grid_x):
+                    # Add this tile but stop beam here
+                    tile_x, tile_y = self.camera.grid_to_screen(grid_x, grid_y, centered=True)
+                    tiles.append({
+                        'x': tile_x,
+                        'y': tile_y,
+                        'grid_x': grid_x,
+                        'grid_y': grid_y,
+                        'direction': direction_idx,
+                        'distance': distance
+                    })
+                    break
+
+                # Convert to screen coords
+                tile_x, tile_y = self.camera.grid_to_screen(grid_x, grid_y, centered=True)
+                tiles.append({
+                    'x': tile_x,
+                    'y': tile_y,
+                    'grid_x': grid_x,
+                    'grid_y': grid_y,
+                    'direction': direction_idx,
+                    'distance': distance
+                })
+
+        return tiles
+
+    def _start_ignition(self):
+        """Phase 1: Ignition - Fire burst erupts at center."""
+        self.phase = "ignition"
+        self.timer = 0
+
+        # Create fire burst at GLAIVEMAN
+        self.fire_burst = AutoclaveFireBurst(self.caster_x, self.caster_y)
+
+        # Strong screen shake
+        self.screen_shake_callback(8, 0.3)
+
+        # Fire particles at center
+        if self.particle_emitter:
+            self.particle_emitter.emit_burst(self.caster_x, self.caster_y, (255, 102, 0), count=30)
+
+    def _start_cross_expansion(self):
+        """Phase 2: Cross Expansion - Steam and glaives expand outward."""
+        self.phase = "cross_expansion"
+        self.timer = 0
+
+        # Create steam jets in 4 directions
+        for direction in range(4):
+            steam = AutoclaveSteamJet(self.caster_x, self.caster_y, direction, max_range_tiles=3)
+            self.steam_jets.append(steam)
+
+        # Create glaive at each affected tile
+        for tile in self.affected_tiles:
+            # Stagger glaive appearance by distance
+            delay = tile['distance'] * 0.15
+            glaive = AutoclaveGlaive(tile['x'], tile['y'], delay=delay)
+            self.glaives.append(glaive)
+
+    def _start_impact_healing(self):
+        """Phase 3: Impact & Healing - Flashes occur, damage triggers, healing begins."""
+        self.phase = "impact_healing"
+        self.timer = 0
+
+        # **DAMAGE TRIGGER: This is when damage happens (delayed execution like Parabol)**
+        self.damage_triggered = True
+
+        # Create impact flashes at each tile
+        for tile in self.affected_tiles:
+            delay = tile['distance'] * 0.05
+            flash = AutoclaveImpactFlash(tile['x'], tile['y'], delay=delay)
+            self.impact_flashes.append(flash)
+
+        # Healing effect will be created when heal_amount is set by game
+        # (This happens after damage is calculated)
+
+        # Screen shake for impacts
+        self.screen_shake_callback(6, 0.4)
+
+    def set_heal_amount(self, amount):
+        """Set healing amount (called by game after damage calculation)."""
+        self.heal_amount = amount
+        if amount > 0 and not self.healing_effect:
+            self.healing_effect = AutoclaveHealingEffect(self.caster_x, self.caster_y, amount)
+
+    def update(self, delta_time):
+        """Update animation state. MUST return True/False."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Update glaive rotation (synchronized for all)
+        self.glaive_rotation = (self.glaive_rotation + 720 * delta_time) % 360
+
+        # Update sub-effects
+        if self.fire_burst:
+            self.fire_burst.update(delta_time)
+
+        for steam in self.steam_jets:
+            steam.update(delta_time)
+
+        for glaive in self.glaives:
+            glaive.update(delta_time)
+
+        for flash in self.impact_flashes:
+            flash.update(delta_time)
+
+        if self.healing_effect:
+            self.healing_effect.update(delta_time)
+
+        # Phase transitions
+        if self.phase == "ignition" and self.timer >= 0.4:
+            self._start_cross_expansion()
+        elif self.phase == "cross_expansion" and self.timer >= 0.8:
+            self._start_impact_healing()
+        elif self.phase == "impact_healing" and self.timer >= 0.8:
+            self.active = False  # Animation complete
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw animation to pygame surface."""
+        if not self.active:
+            return
+
+        # Draw phase-specific effects
+        if self.phase == "ignition":
+            if self.fire_burst:
+                self.fire_burst.draw(surface)
+
+        elif self.phase == "cross_expansion":
+            # Draw steam jets
+            for steam in self.steam_jets:
+                steam.draw(surface)
+
+            # Draw glaives (on top of steam)
+            for glaive in self.glaives:
+                glaive.draw(surface, self.glaive_rotation)
+
+        elif self.phase == "impact_healing":
+            # Continue drawing steam (fading out)
+            for steam in self.steam_jets:
+                steam.draw(surface)
+
+            # Draw glaives (still spinning)
+            for glaive in self.glaives:
+                glaive.draw(surface, self.glaive_rotation)
+
+            # Draw impact flashes
+            for flash in self.impact_flashes:
+                flash.draw(surface)
+
+            # Draw healing effect
+            if self.healing_effect:
+                self.healing_effect.draw(surface)
+
+

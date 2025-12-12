@@ -19,7 +19,10 @@ from .glaiveman import (
     CrossBeam,
     AutoclaveAnimation,
     PryImpactAnimation,
-    VaultAnimationController
+    VaultAnimationController,
+    PryAnimation,
+    JudgementAnimation,
+    AutoclaveAnimationV2
 )
 
 from .mandible_foreman import (
@@ -118,6 +121,9 @@ __all__ = [
     'AutoclaveAnimation',
     'PryImpactAnimation',
     'VaultAnimationController',
+    'PryAnimation',
+    'JudgementAnimation',
+    'AutoclaveAnimationV2',
     # Mandible Foreman
     'JawClamp',
     'JawRelease',

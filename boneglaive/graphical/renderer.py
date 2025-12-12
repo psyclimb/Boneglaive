@@ -76,7 +76,10 @@ PRE_EXECUTION_BLOCKING_SKILLS = [
     "Parabol", "PARABOL", "BIG_ARC",
     "Gaussian Dusk", "GAUSSIAN_DUSK",
     "Gaussian Dusk Charge", "GAUSSIAN_DUSK_CHARGE",
-    "Gaussian Dusk Fire", "GAUSSIAN_DUSK_FIRE"
+    "Gaussian Dusk Fire", "GAUSSIAN_DUSK_FIRE",
+    "Pry", "PRY",
+    "Judgement", "JUDGEMENT",
+    "Autoclave", "AUTOCLAVE"
 ]
 
 
