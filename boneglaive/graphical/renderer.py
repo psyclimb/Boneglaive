@@ -99,10 +99,16 @@ class GraphicalRenderer:
         pygame.display.set_caption(SCREEN_TITLE)
         self.clock = pygame.time.Clock()
 
-        # Fonts
-        self.font = pygame.font.Font(None, 24)
-        self.small_font = pygame.font.Font(None, 18)
-        self.large_font = pygame.font.Font(None, 36)
+        # Fonts - use Arial (most widely available across all platforms)
+        try:
+            self.font = pygame.font.SysFont('arial', 22)
+            self.small_font = pygame.font.SysFont('arial', 16)
+            self.large_font = pygame.font.SysFont('arial', 32)
+        except:
+            # Fallback to default if Arial not available
+            self.font = pygame.font.Font(None, 22)
+            self.small_font = pygame.font.Font(None, 16)
+            self.large_font = pygame.font.Font(None, 32)
 
         # Camera system (centralizes coordinate conversion)
         self.camera = Camera(
@@ -609,6 +615,8 @@ class GraphicalRenderer:
                 # Handle setup window mouse motion
                 elif self.setup_selecting_unit:
                     self.setup_window.handle_mouse_motion(event.pos)
+                    # Also update help panel for button hover
+                    self.setup_unit_help.handle_mouse_motion(event.pos)
                 # Handle setup placement preview
                 elif self.setup_placing_unit:
                     grid_pos = self.screen_to_grid(event.pos[0], event.pos[1])
@@ -664,7 +672,11 @@ class GraphicalRenderer:
                         # Check if clicking help panel first
                         if hasattr(self, 'setup_help_panel_rect') and self.setup_help_panel_rect:
                             if self.setup_help_panel_rect.collidepoint(event.pos):
-                                # Clicked on help panel - give it focus
+                                # Clicked on help panel - handle it
+                                if self.setup_unit_help.handle_click(event.pos):
+                                    # Click was handled (e.g., button clicked)
+                                    continue
+                                # Give it focus
                                 self.setup_unit_help.has_focus = True
                                 continue
 

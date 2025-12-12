@@ -1111,7 +1111,7 @@ class UnitHelpComponent(UIComponent):
                     'The GAS MACHINIST excels at area control and sustained utility through vapor deployment.',
                     '',
                     'Role: Summoner / Utility / Healer',
-                    'Difficulty: *****'
+                    'Difficulty: ****'
                 ],
                 'stats': [
                     'HP: 20',
