@@ -34,6 +34,8 @@ from .ui.action_menu import ActionMenu
 from .ui.motor_animation import MotorAnimation
 from .ui.help_page import HelpPage
 from .ui.respawn_window import RespawnWindow
+from .ui.setup_window import SetupWindow
+from .ui.setup_unit_help import SetupUnitHelp
 from .ui_adapter import GraphicalUIAdapter
 
 # Import TerrainType for terrain/furniture rendering
@@ -163,6 +165,8 @@ class GraphicalRenderer:
         self.motor_animation = MotorAnimation()
         self.help_page = HelpPage(self.font, self.small_font)
         self.respawn_window = RespawnWindow(self.font, self.small_font)
+        self.setup_window = SetupWindow(self.font, self.small_font)
+        self.setup_unit_help = SetupUnitHelp(self.font, self.small_font)
 
         # Track current action mode for top bar display
         self.current_action_mode = "SELECT"
@@ -174,6 +178,14 @@ class GraphicalRenderer:
         self.selected_dead_unit = None
         self.respawn_valid_tiles = []
         self.respawn_ghost_pos = None  # Grid position for ghost preview
+
+        # Setup phase state
+        self.setup_mode = False
+        self.setup_selecting_unit = False
+        self.setup_placing_unit = False
+        self.selected_unit_type = None
+        self.setup_ghost_pos = None  # Grid position for ghost preview
+        self.setup_valid_tiles = []
 
         # UI Adapter for animations
         self.ui_adapter = GraphicalUIAdapter(self)
@@ -537,6 +549,15 @@ class GraphicalRenderer:
                             self.confirm_respawn_location()
                     continue  # Ignore all other keys in respawn mode
 
+                # Handle setup mode input (mouse-only, but allow ESC to exit)
+                if self.setup_mode:
+                    if self.setup_placing_unit:
+                        # During placement, ESC returns to unit selection
+                        if event.key == pygame.K_ESCAPE:
+                            self.return_to_unit_selection()
+                    # Ignore all other keys in setup mode
+                    continue
+
                 if event.key == pygame.K_ESCAPE:
                     self.running = False
                 elif event.key == pygame.K_SPACE:
@@ -585,6 +606,14 @@ class GraphicalRenderer:
                     grid_pos = self.screen_to_grid(event.pos[0], event.pos[1])
                     if grid_pos:
                         self.respawn_ghost_pos = grid_pos
+                # Handle setup window mouse motion
+                elif self.setup_selecting_unit:
+                    self.setup_window.handle_mouse_motion(event.pos)
+                # Handle setup placement preview
+                elif self.setup_placing_unit:
+                    grid_pos = self.screen_to_grid(event.pos[0], event.pos[1])
+                    if grid_pos:
+                        self.setup_ghost_pos = grid_pos
 
                 # Update hovered grid position
                 self.hovered_grid_pos = self.screen_to_grid(event.pos[0], event.pos[1])
@@ -596,7 +625,30 @@ class GraphicalRenderer:
                 self.action_menu.handle_mouse_motion(event.pos)
 
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1:  # Left click
+                # Handle mouse wheel scrolling
+                if event.button == 4:  # Scroll up
+                    if self.setup_selecting_unit:
+                        # Check if scrolling in help panel (when focused)
+                        if hasattr(self, 'setup_help_panel_rect') and self.setup_unit_help.has_focus:
+                            if self.setup_help_panel_rect and self.setup_help_panel_rect.collidepoint(event.pos):
+                                self.setup_unit_help.handle_scroll(1)
+                        else:
+                            self.setup_window.handle_scroll(1)
+                    elif self.respawn_selecting_unit:
+                        # Add scroll support for respawn window too
+                        pass
+                elif event.button == 5:  # Scroll down
+                    if self.setup_selecting_unit:
+                        # Check if scrolling in help panel (when focused)
+                        if hasattr(self, 'setup_help_panel_rect') and self.setup_unit_help.has_focus:
+                            if self.setup_help_panel_rect and self.setup_help_panel_rect.collidepoint(event.pos):
+                                self.setup_unit_help.handle_scroll(-1)
+                        else:
+                            self.setup_window.handle_scroll(-1)
+                    elif self.respawn_selecting_unit:
+                        # Add scroll support for respawn window too
+                        pass
+                elif event.button == 1:  # Left click
                     # Handle respawn window clicks
                     if self.respawn_selecting_unit:
                         if self.respawn_window.handle_click(event.pos):
@@ -605,6 +657,34 @@ class GraphicalRenderer:
                     elif self.respawn_selecting_location:
                         # Click to confirm respawn location
                         self.confirm_respawn_location()
+                        continue
+
+                    # Handle setup window clicks
+                    if self.setup_selecting_unit:
+                        # Check if clicking help panel first
+                        if hasattr(self, 'setup_help_panel_rect') and self.setup_help_panel_rect:
+                            if self.setup_help_panel_rect.collidepoint(event.pos):
+                                # Clicked on help panel - give it focus
+                                self.setup_unit_help.has_focus = True
+                                continue
+
+                        # Otherwise, handle setup window click
+                        self.setup_unit_help.has_focus = False  # Remove focus from help panel
+                        unit_selected, confirm_clicked, unit_type_to_place = self.setup_window.handle_click(event.pos)
+                        if confirm_clicked:
+                            # Confirm button was clicked - exit setup
+                            self.confirm_setup_complete()
+                        elif unit_type_to_place:
+                            # User double-clicked a unit, start placement immediately
+                            self.confirm_unit_type_selection()
+                        elif unit_selected:
+                            # Unit was selected, update help panel
+                            display_unit = self.setup_window.get_display_unit()
+                            self.setup_unit_help.update(display_unit)
+                        continue
+                    elif self.setup_placing_unit:
+                        # Click to place unit at cursor position
+                        self.confirm_unit_placement()
                         continue
 
                     # Check if clicking on UI components first
@@ -1435,6 +1515,12 @@ class GraphicalRenderer:
         if self.paused:
             return
 
+        # Check if we need to enter setup mode
+        if (self.game_adapter.game and
+            self.game_adapter.game.setup_phase and
+            not self.setup_mode):
+            self.start_setup_mode()
+
         # Update astral value pulse animation
         self.astral_value_pulse_time += delta_time
 
@@ -2095,6 +2181,16 @@ class GraphicalRenderer:
             # Skip units that are hidden during teleport animation
             if hasattr(unit, 'teleport_hidden') and unit.teleport_hidden:
                 continue
+
+            # During setup phase, hide opponent's units
+            if self.setup_mode and self.game_adapter.game and self.game_adapter.game.setup_phase:
+                setup_player = self.game_adapter.game.setup_player
+                # Get the game unit to check player
+                game_unit = self._get_game_unit(unit)
+                if game_unit and game_unit.player != setup_player:
+                    # Hide units from the other player during their setup
+                    continue
+
             unit.draw(main_surface, self.small_font)
 
         # Draw active animations
@@ -2133,6 +2229,17 @@ class GraphicalRenderer:
         # Draw respawn window (on top of everything except help page)
         if self.respawn_mode and self.respawn_selecting_unit:
             self.respawn_window.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
+
+        # Draw setup window (on top of everything except help page)
+        if self.setup_mode and self.setup_selecting_unit:
+            self.setup_window.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
+            # Draw unit help panel - large horizontal panel to the right of setup window
+            # Setup window: x=100, width=500, so ends at x=600
+            help_panel_x = 620  # Start 20px after setup window
+            help_panel_y = 50
+            help_panel_width = SCREEN_WIDTH - help_panel_x - 20  # Fill remaining width
+            help_panel_height = SCREEN_HEIGHT - 100
+            self.setup_help_panel_rect = self.setup_unit_help.draw(self.screen, help_panel_x, help_panel_y, help_panel_width, help_panel_height)
 
         pygame.display.flip()
 
@@ -2272,6 +2379,43 @@ class GraphicalRenderer:
                 )
                 text_rect = text.get_rect(center=(TILE_SIZE // 2, TILE_SIZE // 2))
                 ghost_surf.blit(text, text_rect)
+            surface.blit(
+                ghost_surf,
+                (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE)
+            )
+
+        # Draw setup valid tiles (blue/cyan)
+        if self.setup_placing_unit and self.setup_valid_tiles:
+            setup_color = (100, 200, 255)  # Blue/cyan for setup
+            for y, x in self.setup_valid_tiles:
+                indicator_surf.fill((0, 0, 0, 0))
+                pygame.draw.rect(indicator_surf, (*setup_color, 80), indicator_rect)
+                pygame.draw.rect(indicator_surf, (*setup_color, 200), indicator_rect, 3)
+                surface.blit(
+                    indicator_surf,
+                    (GRID_OFFSET_X + x * TILE_SIZE, GRID_OFFSET_Y + y * TILE_SIZE)
+                )
+
+        # Draw setup ghost preview
+        if self.setup_placing_unit and self.setup_ghost_pos and self.selected_unit_type:
+            ghost_x, ghost_y = self.setup_ghost_pos  # screen_to_grid returns (grid_x, grid_y)
+            # Draw semi-transparent unit preview
+            ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+
+            # Check if position is valid (game logic uses (y, x) format)
+            pos_valid = (ghost_y, ghost_x) in self.setup_valid_tiles
+            if pos_valid:
+                ghost_surf.fill((100, 200, 255, 80))  # Blue tint for valid
+            else:
+                ghost_surf.fill((255, 100, 100, 80))  # Red tint for invalid
+
+            # Draw unit type name
+            text = self.small_font.render(
+                self.selected_unit_type.name[:3],  # First 3 letters
+                True, (255, 255, 255)
+            )
+            text_rect = text.get_rect(center=(TILE_SIZE // 2, TILE_SIZE // 2))
+            ghost_surf.blit(text, text_rect)
             surface.blit(
                 ghost_surf,
                 (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE)
@@ -2464,6 +2608,23 @@ class GraphicalRenderer:
         # NOTE: DO NOT sync_units_from_game() here!
         # Dead units must remain in visual_units dict until their death animations play
         # They will be removed in the update loop after animations complete
+
+        # In local multiplayer, manually switch players after turn execution
+        # (The game engine doesn't do this automatically when local_multiplayer=True)
+        if self.game_adapter.game.local_multiplayer:
+            old_player = self.game_adapter.game.current_player
+            # Toggle between player 1 and 2
+            self.game_adapter.game.current_player = 3 - self.game_adapter.game.current_player
+            # Increment turn counter when player 1's turn comes around again
+            if self.game_adapter.game.current_player == 1:
+                self.game_adapter.game.turn += 1
+
+            # Initialize the new player's turn
+            self.game_adapter.game.initialize_next_player_turn()
+
+            # Log player switch
+            print(f"[Local Multiplayer] Switched from Player {old_player} to Player {self.game_adapter.game.current_player}")
+            self.combat_log.add_message(f"Player {self.game_adapter.game.current_player}'s turn", "system")
 
         print(f"Turn {self.game_adapter.game.turn} - Current player: {self.game_adapter.game.current_player}\n")
 
@@ -2855,6 +3016,210 @@ class GraphicalRenderer:
 
         print("[Respawn] Exited respawn mode")
 
+    def start_setup_mode(self):
+        """Start setup mode - show unit selection window."""
+        if not self.game_adapter.game:
+            return
+
+        current_player = self.game_adapter.game.setup_player
+        units_remaining = self.game_adapter.game.setup_units_remaining[current_player]
+
+        # Count how many of each type already placed
+        unit_counts = {}
+        from boneglaive.utils.constants import UnitType
+        for unit_type in UnitType:
+            unit_counts[unit_type] = self.game_adapter.game.count_player_units_by_type(current_player, unit_type)
+
+        # Enter setup unit selection mode
+        self.setup_mode = True
+        self.setup_selecting_unit = True
+        self.setup_placing_unit = False
+        self.current_action_mode = "SETUP"
+
+        # Show setup window
+        self.setup_window.show(current_player, units_remaining, unit_counts)
+
+        # Initialize help panel with first unit
+        display_unit = self.setup_window.get_display_unit()
+        self.setup_unit_help.update(display_unit)
+
+        self.combat_log.add_message(f"Player {current_player}, select and place your units!", "system")
+        print(f"[Setup] Player {current_player} setup mode started - {units_remaining} units remaining")
+
+    def confirm_unit_type_selection(self):
+        """Confirm unit type selection and enter placement mode."""
+        if not self.setup_selecting_unit:
+            return
+
+        selected_type = self.setup_window.get_selected_unit_type()
+        if not selected_type:
+            return
+
+        # Check if this type is already maxed out (2 of same type limit)
+        if self.setup_window.is_unit_type_maxed(selected_type):
+            self.combat_log.add_message(f"Cannot place more than 2 {selected_type.name} units", "system")
+            return
+
+        # Set selected type and enter placement mode
+        self.selected_unit_type = selected_type
+        self.setup_selecting_unit = False
+        self.setup_placing_unit = True
+
+        # Get valid placement tiles
+        if self.game_adapter.game:
+            # All tiles that can have units placed are valid
+            valid_tiles = []
+            for y in range(self.game_adapter.game.map.height):
+                for x in range(self.game_adapter.game.map.width):
+                    if (self.game_adapter.game.map.can_place_unit(y, x) and
+                        self.game_adapter.game.is_valid_position(y, x)):
+                        valid_tiles.append((y, x))
+            self.setup_valid_tiles = valid_tiles
+            print(f"[Setup] {len(valid_tiles)} valid placement tiles")
+
+        # Hide setup window
+        self.setup_window.hide()
+
+        self.combat_log.add_message(
+            f"Place {selected_type.name} unit on the map (ESC to go back)",
+            "system"
+        )
+
+    def confirm_unit_placement(self):
+        """Confirm unit placement at current cursor position."""
+        if not self.setup_placing_unit or not self.selected_unit_type:
+            return
+
+        if not self.setup_ghost_pos:
+            self.combat_log.add_message("No location selected", "system")
+            return
+
+        grid_x, grid_y = self.setup_ghost_pos  # screen_to_grid returns (grid_x, grid_y)
+
+        # Convert to game logic coordinates (y, x)
+        y, x = grid_y, grid_x
+
+        # Check if position is valid
+        pos_tuple = (y, x)
+        if pos_tuple not in self.setup_valid_tiles:
+            self.combat_log.add_message("Invalid placement location", "system")
+            return
+
+        # Place the unit
+        result = self.game_adapter.game.place_setup_unit(y, x, self.selected_unit_type)
+
+        if result is True:
+            # Success! Sync the new unit
+            self.sync_units_from_game()
+
+            current_player = self.game_adapter.game.setup_player
+            units_remaining = self.game_adapter.game.setup_units_remaining[current_player]
+
+            self.combat_log.add_message(
+                f"{self.selected_unit_type.name} placed! {units_remaining} remaining",
+                "system"
+            )
+
+            # Check if all units placed
+            if units_remaining == 0:
+                # Return to unit selection to show confirm button
+                self.return_to_unit_selection()
+            else:
+                # Return to unit selection for next placement
+                self.return_to_unit_selection()
+
+        elif result == "max_unit_type_limit":
+            self.combat_log.add_message(f"Cannot place more than 2 {self.selected_unit_type.name} units", "system")
+        elif result == "position_occupied":
+            self.combat_log.add_message("Position occupied by your unit", "system")
+        else:
+            self.combat_log.add_message("Invalid placement location", "system")
+
+    def return_to_unit_selection(self):
+        """Return from placement mode to unit selection."""
+        self.setup_placing_unit = False
+        self.setup_selecting_unit = True
+        self.selected_unit_type = None
+        self.setup_ghost_pos = None
+        self.setup_valid_tiles = []
+
+        # Update and re-show setup window
+        current_player = self.game_adapter.game.setup_player
+        units_remaining = self.game_adapter.game.setup_units_remaining[current_player]
+
+        # Count how many of each type already placed
+        unit_counts = {}
+        from boneglaive.utils.constants import UnitType
+        for unit_type in UnitType:
+            unit_counts[unit_type] = self.game_adapter.game.count_player_units_by_type(current_player, unit_type)
+
+        self.setup_window.update_state(units_remaining, unit_counts)
+        self.setup_window.visible = True
+
+    def confirm_setup_complete(self):
+        """Confirm setup is complete and proceed to next phase."""
+        if not self.setup_mode:
+            return
+
+        current_player = self.game_adapter.game.setup_player
+        units_remaining = self.game_adapter.game.setup_units_remaining[current_player]
+
+        # Make sure all units have been placed
+        if units_remaining > 0:
+            self.combat_log.add_message(f"Place all {units_remaining} units before confirming", "system")
+            return
+
+        # Confirm setup with game engine
+        game_start = self.game_adapter.game.confirm_setup()
+
+        if game_start:
+            # Game is starting! Exit setup mode
+            self.exit_setup_mode()
+            self.combat_log.add_message("Setup complete! Game starting...", "system")
+            self.combat_log.add_message(f"Player {self.game_adapter.game.current_player}'s turn", "system")
+
+            # Sync units now that setup is complete
+            self.sync_units_from_game()
+        else:
+            # Player 2's turn to set up (local multiplayer)
+            self.exit_setup_mode()
+            self.start_setup_mode()  # Start setup for player 2
+
+    def exit_setup_mode(self):
+        """Exit setup mode."""
+        self.setup_mode = False
+        self.setup_selecting_unit = False
+        self.setup_placing_unit = False
+        self.selected_unit_type = None
+        self.setup_valid_tiles = []
+        self.setup_ghost_pos = None
+        self.current_action_mode = "SELECT"
+
+        # Hide setup window
+        self.setup_window.hide()
+
+        print("[Setup] Exited setup mode")
+
+    def _handle_cursor_movement(self, key):
+        """Handle cursor movement during setup placement."""
+        if not self.setup_ghost_pos:
+            # Start at center of map
+            self.setup_ghost_pos = (5, 10)
+            return
+
+        y, x = self.setup_ghost_pos
+
+        if key == pygame.K_UP:
+            y = max(0, y - 1)
+        elif key == pygame.K_DOWN:
+            y = min(self.game_adapter.game.map.height - 1, y + 1)
+        elif key == pygame.K_LEFT:
+            x = max(0, x - 1)
+        elif key == pygame.K_RIGHT:
+            x = min(self.game_adapter.game.map.width - 1, x + 1)
+
+        self.setup_ghost_pos = (y, x)
+
     def run(self):
         """Main game loop."""
         while self.running:
@@ -2879,8 +3244,9 @@ def main():
 
     # Initialize game with real game logic
     print("Initializing game...")
-    adapter.initialize_game(skip_setup=True, map_name=selected_map)
-    print(f"Game created with {len(adapter.game.units)} units on map: {selected_map}")
+    # skip_setup=False means game starts in setup phase
+    adapter.initialize_game(skip_setup=False, map_name=selected_map)
+    print(f"Game created - starting in setup phase on map: {selected_map}")
 
     # Create renderer
     renderer = GraphicalRenderer(adapter)

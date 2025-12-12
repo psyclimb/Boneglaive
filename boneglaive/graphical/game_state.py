@@ -193,19 +193,20 @@ class GameStateAdapter:
         # Maps (y, x) position -> {'owner': unit, 'damage': int, 'active': bool}
         self.last_scalar_nodes: Dict[Tuple[int, int], Dict[str, Any]] = {}
 
-    def initialize_game(self, game_instance=None, skip_setup=True, map_name="hard_pressed"):
+    def initialize_game(self, game_instance=None, skip_setup=False, map_name="hard_pressed"):
         """
         Initialize or attach to a game instance.
 
         Args:
             game_instance: Existing game instance, or None to create new
-            skip_setup: If True, creates game with default units (for testing)
+            skip_setup: If False (default), game starts in setup phase where players place units
             map_name: Name of the map to use
         """
         if game_instance:
             self.game = game_instance
         else:
             # Create new game instance
+            # skip_setup=False means game starts in setup phase
             self.game = Game(skip_setup=skip_setup, map_name=map_name)
 
         # Register callbacks for detecting status effects

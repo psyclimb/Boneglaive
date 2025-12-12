@@ -31,8 +31,22 @@ def run_game():
 
     # Initialize game with selected configuration
     print(f"Initializing game on map: {selected_map}...")
-    adapter.initialize_game(skip_setup=True, map_name=selected_map)
-    print(f"Game created with {len(adapter.game.units)} units")
+    # skip_setup=False means game starts in setup phase
+    adapter.initialize_game(skip_setup=False, map_name=selected_map)
+
+    # Set multiplayer mode based on config
+    from boneglaive.utils.config import NetworkMode
+    network_mode = config.get('network_mode', NetworkMode.VS_AI.value)
+    print(f"[DEBUG] network_mode from config: {network_mode}")
+    print(f"[DEBUG] LOCAL_MULTIPLAYER.value: {NetworkMode.LOCAL_MULTIPLAYER.value}")
+    if network_mode == NetworkMode.LOCAL_MULTIPLAYER.value:
+        adapter.game.local_multiplayer = True
+        print(f"Game created - starting in setup phase (LOCAL MULTIPLAYER)")
+        print(f"[DEBUG] adapter.game.local_multiplayer = {adapter.game.local_multiplayer}")
+    else:
+        adapter.game.local_multiplayer = False
+        print(f"Game created - starting in setup phase (VS AI)")
+        print(f"[DEBUG] adapter.game.local_multiplayer = {adapter.game.local_multiplayer}")
 
     # Create renderer
     print("Initializing Boneglaive Graphical Renderer...")

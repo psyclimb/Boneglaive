@@ -973,19 +973,22 @@ class Game:
     def confirm_setup(self):
         """
         Confirm the current player's setup and proceed.
-        
+
         Returns:
             True if game should now start, False otherwise
         """
         # Make sure all units have been placed
         if self.setup_units_remaining[self.setup_player] > 0:
             return False
-            
+
         # Mark this player's setup as confirmed
         self.setup_confirmed[self.setup_player] = True
-        
+
         # Check if we're in single player mode
+        print(f"[DEBUG confirm_setup] self.local_multiplayer = {self.local_multiplayer}")
+        print(f"[DEBUG confirm_setup] setup_player = {self.setup_player}")
         is_single_player = not self.local_multiplayer
+        print(f"[DEBUG confirm_setup] is_single_player = {is_single_player}")
         
         # If player 1 is done, handle based on mode
         if self.setup_player == 1:

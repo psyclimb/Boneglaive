@@ -301,7 +301,15 @@ class UnitStatusBar:
             self.unit_cards.append(UnitCard(dead_unit, is_dead=True))
 
         # Sort by greek_id for consistent display
-        self.unit_cards.sort(key=lambda card: getattr(card.game_unit, 'greek_id', 'ω'))
+        # During setup phase, greek_id might be None, so handle that case
+        def sort_key(card):
+            greek_id = getattr(card.game_unit, 'greek_id', None)
+            if greek_id is None:
+                # Use position as fallback during setup phase
+                return (999, getattr(card.game_unit, 'y', 0), getattr(card.game_unit, 'x', 0))
+            return (0, greek_id)
+
+        self.unit_cards.sort(key=sort_key)
 
     def draw(self, surface: pygame.Surface, x: int, y: int):
         """
