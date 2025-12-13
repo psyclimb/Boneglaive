@@ -269,6 +269,9 @@ class UnitStatusBar:
         self.hovered_card: Optional[UnitCard] = None
         self.selected_unit = None  # Reference to selected game unit
 
+        # PERFORMANCE FIX: Cache unit cards to avoid recreating them every frame
+        self._unit_card_cache: Dict[int, UnitCard] = {}  # id(unit) -> UnitCard
+
     def update(self, game, selected_unit):
         """
         Update unit status bar with current game state.
@@ -282,7 +285,9 @@ class UnitStatusBar:
 
         self.current_player = game.current_player
         self.selected_unit = selected_unit
-        self.unit_cards.clear()
+
+        # PERFORMANCE FIX: Only rebuild cards when units actually change
+        # Instead of clearing and recreating every frame, reuse cached cards
 
         # Get alive units for current player
         alive_units = [u for u in game.units
@@ -292,13 +297,53 @@ class UnitStatusBar:
         dead_units = [du for du in game.dead_units
                      if du.player == self.current_player]
 
-        # Create cards for alive units
-        for unit in alive_units:
-            self.unit_cards.append(UnitCard(unit, is_dead=False))
+        # Build set of current unit IDs
+        current_unit_ids = set()
 
-        # Create cards for dead units
+        # Collect cards (reuse from cache or create new)
+        new_unit_cards = []
+
+        # Process alive units
+        for unit in alive_units:
+            unit_id = id(unit)
+            current_unit_ids.add(unit_id)
+
+            if unit_id in self._unit_card_cache:
+                # Reuse existing card
+                card = self._unit_card_cache[unit_id]
+                card.is_dead = False  # Update status
+            else:
+                # Create new card and cache it
+                card = UnitCard(unit, is_dead=False)
+                self._unit_card_cache[unit_id] = card
+
+            new_unit_cards.append(card)
+
+        # Process dead units
         for dead_unit in dead_units:
-            self.unit_cards.append(UnitCard(dead_unit, is_dead=True))
+            unit_id = id(dead_unit)
+            current_unit_ids.add(unit_id)
+
+            if unit_id in self._unit_card_cache:
+                # Reuse existing card
+                card = self._unit_card_cache[unit_id]
+                card.is_dead = True  # Update status
+                card.respawn_timer = getattr(dead_unit, 'respawn_timer', 0)
+            else:
+                # Create new card and cache it
+                card = UnitCard(dead_unit, is_dead=True)
+                self._unit_card_cache[unit_id] = card
+
+            new_unit_cards.append(card)
+
+        # Clean up cache - remove cards for units that no longer exist
+        cached_ids = set(self._unit_card_cache.keys())
+        stale_ids = cached_ids - current_unit_ids
+        for stale_id in stale_ids:
+            del self._unit_card_cache[stale_id]
+
+        # Update card list
+        self.unit_cards = new_unit_cards
 
         # Sort by greek_id for consistent display
         # During setup phase, greek_id might be None, so handle that case

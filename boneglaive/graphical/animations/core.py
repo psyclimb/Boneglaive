@@ -31,6 +31,9 @@ COLOR_SKILL = (200, 100, 255)
 
 class Particle:
     """Simple particle for effects."""
+    # Class-level cache for particle surfaces (shared across all particles)
+    _surface_cache = {}
+
     def __init__(self, x, y, vx, vy, color, size, lifetime):
         self.x = x
         self.y = y
@@ -56,9 +59,18 @@ class Particle:
         alpha = int(255 * (self.lifetime / self.max_lifetime)) if self.fade else 255
         color = (*self.color[:3], alpha)
 
-        # Create a surface with per-pixel alpha
-        particle_surf = pygame.Surface((int(self.size * 2), int(self.size * 2)), pygame.SRCALPHA)
-        pygame.draw.circle(particle_surf, color, (int(self.size), int(self.size)), int(self.size))
+        # Performance: Use cached surface for this particle size
+        size_int = int(self.size)
+        if size_int not in Particle._surface_cache:
+            surf_size = size_int * 2
+            Particle._surface_cache[size_int] = pygame.Surface((surf_size, surf_size), pygame.SRCALPHA)
+
+        # Get cached surface and clear it
+        particle_surf = Particle._surface_cache[size_int]
+        particle_surf.fill((0, 0, 0, 0))
+
+        # Draw particle on cached surface
+        pygame.draw.circle(particle_surf, color, (size_int, size_int), size_int)
         surface.blit(particle_surf, (int(self.x - self.size), int(self.y - self.size)))
 
 
@@ -191,6 +203,10 @@ class VaporParticleCloud:
         self.particles = []
         self._initialize_particles()
 
+        # Performance: Cache particle and glow surfaces
+        self._particle_surface_cache = {}  # size -> surface
+        self._eye_glow_surface = None  # Cached eye glow surface
+
     def _initialize_particles(self):
         """Create initial particle cloud."""
         particle_count = 70  # Increased from 50 for denser clouds
@@ -263,8 +279,15 @@ class VaporParticleCloud:
             color = (*particle['color'], alpha)
             size = particle['size']
 
-            # Draw particle with glow
-            particle_surf = pygame.Surface((int(size * 4), int(size * 4)), pygame.SRCALPHA)
+            # Performance: Use cached surface for this particle size
+            size_int = int(size)
+            if size_int not in self._particle_surface_cache:
+                surf_size = size_int * 4
+                self._particle_surface_cache[size_int] = pygame.Surface((surf_size, surf_size), pygame.SRCALPHA)
+
+            # Get cached surface and clear it
+            particle_surf = self._particle_surface_cache[size_int]
+            particle_surf.fill((0, 0, 0, 0))
 
             # Outer glow
             glow_radius = size * 1.5
@@ -294,12 +317,18 @@ class VaporParticleCloud:
         # Eye color (bright yellow-green)
         eye_color = (173, 255, 47)
 
+        # Performance: Create cached eye glow surface once
+        if self._eye_glow_surface is None:
+            glow_size = 8
+            self._eye_glow_surface = pygame.Surface((glow_size * 2, glow_size * 2), pygame.SRCALPHA)
+
         # Draw each eye
         for eye_x in [left_eye_x, right_eye_x]:
-            # Outer glow
+            # Outer glow (using cached surface)
             glow_size = 8
             glow_alpha = int(80 * pulse)
-            glow_surf = pygame.Surface((glow_size * 2, glow_size * 2), pygame.SRCALPHA)
+            glow_surf = self._eye_glow_surface
+            glow_surf.fill((0, 0, 0, 0))
             pygame.draw.circle(glow_surf, (*eye_color, glow_alpha),
                              (glow_size, glow_size), glow_size)
             surface.blit(glow_surf, (int(eye_x - glow_size), int(eye_y - glow_size)))
@@ -352,6 +381,9 @@ class AnimatedUnit:
         # Vapor particle cloud (for HEINOUS VAPOR)
         self.vapor_cloud = None
         self._detect_vapor_type()
+
+        # Performance: Cache particle surfaces to avoid creating new ones every frame
+        self._particle_surface_cache = {}  # size -> surface mapping
 
         # Stats
         self.max_hp = 20
@@ -519,17 +551,29 @@ class AnimatedUnit:
                 if particle['lifetime'] > 0:
                     alpha = int(200 * (particle['lifetime'] / particle['max_lifetime']))
                     if alpha > 0:
+                        # Performance: Use cached surface for this particle size
+                        size_key = int(particle['size'])
+                        if size_key not in self._particle_surface_cache:
+                            # Create and cache a base surface for this size
+                            surf_size = size_key * 2 + 8  # Extra space for glow
+                            base_surf = pygame.Surface((surf_size, surf_size), pygame.SRCALPHA)
+                            self._particle_surface_cache[size_key] = base_surf
+
+                        # Get cached surface and clear it
+                        particle_surf = self._particle_surface_cache[size_key]
+                        particle_surf.fill((0, 0, 0, 0))  # Clear previous frame
+
+                        # Draw particle and glow on cached surface
+                        center = particle_surf.get_width() // 2
                         color = (*particle['color'], alpha)
-                        particle_surf = pygame.Surface((int(particle['size'] * 2), int(particle['size'] * 2)), pygame.SRCALPHA)
-                        pygame.draw.circle(particle_surf, color,
-                                         (int(particle['size']), int(particle['size'])),
-                                         int(particle['size']))
+                        pygame.draw.circle(particle_surf, color, (center, center), size_key)
+
                         # Add glow
-                        glow_size = particle['size'] + 2
+                        glow_size = size_key + 2
                         pygame.draw.circle(particle_surf, (*particle['color'], alpha // 3),
-                                         (int(particle['size']), int(particle['size'])),
-                                         int(glow_size))
-                        surface.blit(particle_surf, (int(particle['x'] - particle['size']), int(particle['y'] - particle['size'])))
+                                         (center, center), glow_size)
+
+                        surface.blit(particle_surf, (int(particle['x'] - center), int(particle['y'] - center)))
 
         # Draw vapor cloud (for HEINOUS VAPOR) - takes priority over sprite/circle
         if self.vapor_cloud:

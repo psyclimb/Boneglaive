@@ -214,6 +214,11 @@ class GraphicalRenderer:
         # Cache for sparkle surfaces (different sizes)
         self._sparkle_surf_cache: Dict[int, pygame.Surface] = {}
 
+        # FPS counter (for troubleshooting)
+        self.show_fps = True  # Set to False to hide FPS counter
+        self.fps_values = []  # Rolling window of recent FPS values
+        self.fps_display = 0  # Smoothed FPS to display
+
         self.running = True
         self.paused = False
 
@@ -1566,9 +1571,24 @@ class GraphicalRenderer:
             self.flash_alpha = int(255 * max(0, self.flash_duration / 0.2))
 
         # Sync with game state
-        animation_events = self.game_adapter.sync_state()
-        for event in animation_events:
-            self.handle_animation_event(event)
+        # PERFORMANCE FIX: Don't call sync_state every frame - it's 534 lines of checks!
+        # Only sync when something actually happened that could change game state:
+        # - After execute_turn() (already handled in execute_turn method)
+        # - When animations are playing (state might be changing)
+        # - When explicitly requested via _force_sync flag
+        #
+        # During idle frames (setup phase, waiting for input), skip sync entirely
+        should_sync = (
+            len(self.active_animations) > 0 or  # Animations playing
+            hasattr(self, '_force_sync') and self._force_sync  # Forced sync flag
+        )
+
+        if should_sync:
+            animation_events = self.game_adapter.sync_state()
+            for event in animation_events:
+                self.handle_animation_event(event)
+            if hasattr(self, '_force_sync'):
+                self._force_sync = False
 
         # Update units
         for unit in self.units:
@@ -2252,6 +2272,22 @@ class GraphicalRenderer:
             help_panel_width = SCREEN_WIDTH - help_panel_x - 20  # Fill remaining width
             help_panel_height = SCREEN_HEIGHT - 100
             self.setup_help_panel_rect = self.setup_unit_help.draw(self.screen, help_panel_x, help_panel_y, help_panel_width, help_panel_height)
+
+        # Draw FPS counter (for troubleshooting)
+        if self.show_fps:
+            fps_text = f"FPS: {self.fps_display:.1f}"
+            fps_surface = self.small_font.render(fps_text, True, (100, 255, 100))
+            # Position in top-right corner with small padding
+            fps_x = SCREEN_WIDTH - fps_surface.get_width() - 10
+            fps_y = 5
+            # Draw semi-transparent background
+            bg_rect = pygame.Rect(fps_x - 5, fps_y - 2, fps_surface.get_width() + 10, fps_surface.get_height() + 4)
+            bg_surface = pygame.Surface((bg_rect.width, bg_rect.height))
+            bg_surface.set_alpha(180)
+            bg_surface.fill((20, 20, 20))
+            self.screen.blit(bg_surface, (bg_rect.x, bg_rect.y))
+            # Draw FPS text
+            self.screen.blit(fps_surface, (fps_x, fps_y))
 
         pygame.display.flip()
 
@@ -3236,6 +3272,17 @@ class GraphicalRenderer:
         """Main game loop."""
         while self.running:
             delta_time = self.clock.tick(60) / 1000.0  # Convert to seconds
+
+            # Update FPS counter
+            if self.show_fps:
+                current_fps = self.clock.get_fps()
+                self.fps_values.append(current_fps)
+                # Keep only last 30 frames for smoothing
+                if len(self.fps_values) > 30:
+                    self.fps_values.pop(0)
+                # Calculate average FPS
+                if len(self.fps_values) > 0:
+                    self.fps_display = sum(self.fps_values) / len(self.fps_values)
 
             self.handle_events()
             self.update(delta_time)
