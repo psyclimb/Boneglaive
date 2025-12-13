@@ -1022,3 +1022,170 @@ class BasicMeleeAttackAnimation:
         pass
 
 
+class RetchAnimation:
+    """
+    Animation for when a unit reaches critical health and retches.
+    Shows a sickly yellow-green particle burst and unit recoil.
+    """
+
+    # Sickly yellow-green colors for retching
+    RETCH_COLORS = [
+        (154, 205, 50),   # Yellow-green (#9ACD32)
+        (173, 255, 47),   # Green-yellow (#ADFF2F)
+        (127, 255, 0),    # Chartreuse (#7FFF00)
+        (218, 165, 32),   # Goldenrod (sickly yellow)
+        (184, 134, 11)    # Dark goldenrod
+    ]
+
+    def __init__(self, center_x, center_y, camera=None):
+        """
+        Initialize retch animation.
+
+        Args:
+            center_x: Screen X position of unit center
+            center_y: Screen Y position of unit center
+            camera: Camera object for shake effects
+        """
+        self.center_x = center_x
+        self.center_y = center_y
+        self.camera = camera
+        self.timer = 0
+        self.duration = 0.8  # Total animation duration
+        self.active = True
+
+        # Animation phases
+        self.phase = "recoil"  # recoil -> burst -> recovery
+        self.recoil_duration = 0.15
+        self.burst_duration = 0.4
+        self.recovery_duration = 0.25
+
+        # Recoil parameters
+        self.recoil_offset_y = 0
+        self.max_recoil = -4  # Pixels to shift up
+
+        # Particle list for burst effect
+        self.particles = []
+
+    def update(self, delta_time) -> bool:
+        """
+        Update animation state.
+
+        Args:
+            delta_time: Time elapsed since last frame
+
+        Returns:
+            True if animation is still active, False if finished
+        """
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Phase: Recoil
+        if self.phase == "recoil":
+            # Ease into recoil
+            progress = min(1.0, self.timer / self.recoil_duration)
+            # Quadratic ease-in
+            self.recoil_offset_y = self.max_recoil * (progress * progress)
+
+            if self.timer >= self.recoil_duration:
+                self.phase = "burst"
+                self.timer = 0
+                self._create_particle_burst()
+
+        # Phase: Burst
+        elif self.phase == "burst":
+            # Hold recoil briefly, then ease back
+            burst_progress = self.timer / self.burst_duration
+
+            if burst_progress < 0.3:
+                # Hold recoil for first 30% of burst
+                self.recoil_offset_y = self.max_recoil
+            else:
+                # Ease back to normal
+                ease_progress = (burst_progress - 0.3) / 0.7
+                self.recoil_offset_y = self.max_recoil * (1 - ease_progress)
+
+            # Update particles
+            self.particles = [p for p in self.particles if p.update(delta_time)]
+
+            if self.timer >= self.burst_duration:
+                self.phase = "recovery"
+                self.timer = 0
+
+        # Phase: Recovery
+        elif self.phase == "recovery":
+            # Unit fully back to normal, just wait for particles to fade
+            self.recoil_offset_y = 0
+
+            # Update remaining particles
+            self.particles = [p for p in self.particles if p.update(delta_time)]
+
+            if self.timer >= self.recovery_duration:
+                self.phase = "done"
+                self.active = False
+
+        return self.active
+
+    def _create_particle_burst(self):
+        """Create cone-shaped projectile vomit effect."""
+        particle_count = 25  # More particles for denser vomit stream
+
+        # Vomit shoots downward in a cone
+        cone_center_angle = math.pi / 2  # 90 degrees (straight down)
+        cone_spread = math.pi / 4  # 45 degree cone spread (total)
+
+        for i in range(particle_count):
+            # Create cone shape - particles spread within cone angle
+            spread_ratio = (i / particle_count) - 0.5  # -0.5 to 0.5
+            angle = cone_center_angle + (spread_ratio * cone_spread) + random.uniform(-0.15, 0.15)
+
+            # Vary speed to create stream effect (faster = further)
+            # Inner cone particles go further, outer particles spread more
+            distance_from_center = abs(spread_ratio)
+            speed = random.uniform(100, 180) * (1.2 - distance_from_center * 0.5)
+
+            vx = math.cos(angle) * speed
+            vy = math.sin(angle) * speed
+
+            # Random sickly color with more variety
+            color = random.choice(self.RETCH_COLORS)
+
+            # Larger chunks for projectile vomit
+            size = random.uniform(3.5, 7.0)
+
+            # Longer lifetime for projectile effect
+            lifetime = random.uniform(0.5, 0.9)
+
+            particle = Particle(
+                self.center_x,
+                self.center_y,
+                vx, vy,
+                color,
+                size,
+                lifetime
+            )
+            particle.gravity = 150  # Stronger gravity for arc trajectory
+            self.particles.append(particle)
+
+    def get_recoil_offset(self) -> Tuple[float, float]:
+        """
+        Get current recoil offset for unit rendering.
+
+        Returns:
+            (offset_x, offset_y) tuple
+        """
+        return (0, self.recoil_offset_y)
+
+    def draw(self, surface):
+        """
+        Draw retch particles.
+
+        Args:
+            surface: Pygame surface to draw on
+        """
+        # Draw particles
+        for particle in self.particles:
+            particle.draw(surface)
+
+

@@ -207,6 +207,10 @@ class GraphicalRenderer:
         self.rail_universal: Optional[pygame.Surface] = None
         self._load_rail_overlays()
 
+        # Scalar node trap overlay (revealed INTERFERER traps)
+        self.scalar_node_trap: Optional[pygame.Surface] = None
+        self._load_scalar_node_overlay()
+
         # Performance: Pre-create reusable surfaces to avoid allocations every frame
         self._main_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
         self._indicator_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
@@ -355,6 +359,35 @@ class GraphicalRenderer:
             print(f"Info: cairosvg not available, cannot load universal rail overlay: {svg_path}")
         except Exception as e:
             print(f"Warning: Could not load universal rail overlay {svg_path}: {e}")
+
+    def _load_scalar_node_overlay(self) -> None:
+        """
+        Load scalar node trap overlay graphic.
+        This semi-transparent graphic shows revealed INTERFERER traps.
+        """
+        svg_path = "graphics/terrain/scalar_node_trap.svg"
+
+        if not os.path.exists(svg_path):
+            print(f"Warning: Scalar node trap overlay not found: {svg_path}")
+            return
+
+        try:
+            import cairosvg
+            from io import BytesIO
+            # Convert SVG to PNG in memory
+            png_data = cairosvg.svg2png(url=svg_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
+            surface = pygame.image.load(BytesIO(png_data))
+
+            # Set alpha for semi-transparent overlay effect
+            surface = surface.convert_alpha()
+
+            # Cache the scalar node trap surface
+            self.scalar_node_trap = surface
+            print(f"Loaded scalar node trap overlay")
+        except ImportError:
+            print(f"Info: cairosvg not available, cannot load scalar node trap overlay: {svg_path}")
+        except Exception as e:
+            print(f"Warning: Could not load scalar node trap overlay {svg_path}: {e}")
 
     # ASCII renderer compatibility stubs
     def animate_attack_sequence(self, y, x, sequence, color, duration):
@@ -1374,6 +1407,38 @@ class GraphicalRenderer:
             else:
                 print(f"[ViseroyTick] ERROR: Could not find visual unit for trapped target")
 
+        elif event.event_type == "retch":
+            # Unit reached critical health - show retch animation
+            target = event.target_unit  # Unit that is retching
+            visual_unit = self._get_visual_unit(target)
+
+            if visual_unit:
+                animated_unit = visual_unit.animated_unit
+
+                # Use the animated unit's actual screen position (center of sprite)
+                # This makes the vomit emanate from the unit itself
+                retch_x = animated_unit.x
+                retch_y = animated_unit.y
+
+                print(f"[Retch] {target.get_display_name()} retches at critical health at grid ({animated_unit.grid_x}, {animated_unit.grid_y}), screen ({retch_x}, {retch_y})")
+
+                # Create RetchAnimation
+                from boneglaive.graphical.animations.core import RetchAnimation
+                retch_animation = RetchAnimation(retch_x, retch_y, self.camera)
+                self.active_animations.append(retch_animation)
+
+                # Show "RETCH!" floating text in yellow
+                x = animated_unit.x
+                y = animated_unit.y - 20
+                self.floating_texts.append(FloatingText(x, y, "RETCH!", (255, 255, 0)))
+
+                # Add screen shake for critical state
+                animated_unit.shake_intensity = 10
+
+                print(f"[Retch] RetchAnimation created successfully!")
+            else:
+                print(f"[Retch] ERROR: Could not find visual unit for retching unit")
+
         elif event.event_type == "partition_dissociation":
             # Play partition dissociation animation (emergency trigger)
             print(f"[RENDERER DEBUG] *** RECEIVED partition_dissociation EVENT ***")
@@ -1762,7 +1827,7 @@ class GraphicalRenderer:
         Args:
             event: Animation event from game state
         """
-        if event.event_type == "damage" or event.event_type == "heal" or event.event_type == "geas_heal" or event.event_type == "melange_heal" or event.event_type == "scalar_trap" or event.event_type == "trap_release" or event.event_type == "viseroy_tick":
+        if event.event_type == "damage" or event.event_type == "heal" or event.event_type == "geas_heal" or event.event_type == "melange_heal" or event.event_type == "scalar_trap" or event.event_type == "trap_release" or event.event_type == "viseroy_tick" or event.event_type == "retch":
             # If animations are active, queue the event for later
             if self.has_active_animations():
                 self.pending_animation_events.append(event)
@@ -2194,6 +2259,9 @@ class GraphicalRenderer:
         # Draw grid
         self.draw_grid(main_surface)
 
+        # Draw revealed scalar node traps (after grid, before range indicators)
+        self.draw_revealed_traps(main_surface)
+
         # Draw movement/target range indicators
         self.draw_range_indicators(main_surface)
 
@@ -2363,6 +2431,30 @@ class GraphicalRenderer:
 
                         # Blit the universal rail bomb overlay
                         surface.blit(self.rail_universal, (tile_x, tile_y))
+
+    def draw_revealed_traps(self, surface: pygame.Surface):
+        """Draw revealed scalar node traps on the map."""
+        # Check if we have scalar nodes in the game
+        if not self.game_adapter.game or not hasattr(self.game_adapter.game, 'scalar_nodes'):
+            return
+
+        # Get revealed nodes from game state adapter
+        revealed_nodes = getattr(self.game_adapter, 'revealed_scalar_nodes', set())
+
+        # If no trap overlay loaded, skip rendering
+        if not self.scalar_node_trap:
+            return
+
+        # Draw overlay on each revealed trap position
+        for node_pos in revealed_nodes:
+            y, x = node_pos
+
+            # Calculate tile position
+            tile_x = GRID_OFFSET_X + x * TILE_SIZE
+            tile_y = GRID_OFFSET_Y + y * TILE_SIZE
+
+            # Blit the scalar node trap overlay
+            surface.blit(self.scalar_node_trap, (tile_x, tile_y))
 
     def draw_range_indicators(self, surface: pygame.Surface):
         """Draw movement range, attack range, and skill range indicators."""

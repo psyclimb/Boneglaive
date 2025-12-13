@@ -193,6 +193,10 @@ class GameStateAdapter:
         # Maps (y, x) position -> {'owner': unit, 'damage': int, 'active': bool}
         self.last_scalar_nodes: Dict[Tuple[int, int], Dict[str, Any]] = {}
 
+        # Revealed scalar node traps (for visual display in graphical mode)
+        # Set of (y, x) positions that have been revealed by Site Inspection
+        self.revealed_scalar_nodes: set = set()
+
     def initialize_game(self, game_instance=None, skip_setup=False, map_name="hard_pressed"):
         """
         Initialize or attach to a game instance.
@@ -461,6 +465,19 @@ class GameStateAdapter:
                 hp_delta = current_hp - visual_unit.last_hp
 
                 if hp_delta < 0:
+                    # Check if unit just entered critical health (retching)
+                    # Must check BEFORE updating last_hp
+                    if (visual_unit.last_hp > game_unit.get_critical_threshold() and
+                        game_unit.is_at_critical_health()):
+                        # Unit just crossed into critical health - trigger retch animation!
+                        print(f"[GameState] *** CRITICAL HEALTH DETECTED! *** {game_unit.get_display_name()} retches (HP: {current_hp}/{game_unit.max_hp}, threshold: {game_unit.get_critical_threshold()})")
+
+                        events.append(AnimationEvent(
+                            "retch",
+                            source_unit=None,
+                            target_unit=game_unit
+                        ))
+
                     # Damage taken - check if from scalar node trap
                     unit_pos = (game_unit.y, game_unit.x)
                     scalar_trap_triggered = False
@@ -785,6 +802,28 @@ class GameStateAdapter:
                             skill_target=skill_target,
                             is_infused=is_infused
                         ))
+
+                        # Special handling for Site Inspection: mark revealed scalar nodes
+                        if skill_name == "Site Inspection" and skill_target and hasattr(self.game, 'scalar_nodes'):
+                            # Site Inspection reveals enemy scalar nodes in 3x3 area around target
+                            y, x = skill_target
+                            for dy in [-1, 0, 1]:
+                                for dx in [-1, 0, 1]:
+                                    check_y = y + dy
+                                    check_x = x + dx
+                                    check_pos = (check_y, check_x)
+
+                                    # Check if there's a scalar node at this position
+                                    if check_pos in self.game.scalar_nodes:
+                                        node_info = self.game.scalar_nodes[check_pos]
+                                        owner = node_info['owner']
+
+                                        # Only reveal enemy scalar nodes
+                                        if owner.player != game_unit.player:
+                                            # Mark this node as revealed for visual display
+                                            self.revealed_scalar_nodes.add(check_pos)
+                                            print(f"[GameState] Site Inspection revealed scalar node at {check_pos}")
+
                         visual_unit.last_skill = game_unit.selected_skill
                 elif visual_unit.last_skill is not None:
                     # Skill was cleared - reset our tracking
@@ -844,6 +883,17 @@ class GameStateAdapter:
         # Update scalar node tracking for next sync
         if hasattr(self.game, 'scalar_nodes'):
             self.last_scalar_nodes = self.game.scalar_nodes.copy()
+
+            # Clean up revealed nodes that have been triggered/destroyed
+            # Remove positions from revealed set if node no longer exists
+            revealed_to_remove = []
+            for revealed_pos in self.revealed_scalar_nodes:
+                if revealed_pos not in self.game.scalar_nodes:
+                    revealed_to_remove.append(revealed_pos)
+
+            for pos in revealed_to_remove:
+                self.revealed_scalar_nodes.discard(pos)
+                print(f"[GameState] Removed triggered scalar node from revealed set: {pos}")
 
         # Check for HEINOUS VAPOR units that just applied AOE effects
         # (marked by execute_turn before applying effects)
