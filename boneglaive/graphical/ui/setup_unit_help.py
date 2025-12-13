@@ -451,7 +451,7 @@ class SetupUnitHelp:
             return self.skill_icon_cache[cache_key]
 
         # Convert skill name to filename
-        icon_name = skill_name.lower().replace(' ', '_').replace('-', '_')
+        icon_name = skill_name.lower().replace(' ', '_')
         icon_path = f"graphics/skill_icons/{icon_name}.svg"
 
         try:
