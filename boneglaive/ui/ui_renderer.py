@@ -64,7 +64,7 @@ class UIRenderer:
             
         # INTERFERER status effects
         if hasattr(unit, 'radiation_stacks') and unit.radiation_stacks:
-            effects.append(('radiation_sickness', 'r', curses.A_BOLD))
+            effects.append(('radiation_burn', 'r', curses.A_BOLD))
             
         if hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected:
             effects.append(('neural_shunt', '?', curses.A_BOLD))

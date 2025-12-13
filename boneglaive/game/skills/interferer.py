@@ -23,15 +23,15 @@ if TYPE_CHECKING:
 class NeutronIlluminant(PassiveSkill):
     """
     Passive skill for INTERFERER.
-    On successful attack, causes radiation sickness in directional pattern.
+    On successful attack, causes radiation burn in directional pattern.
     Cardinal attacks radiate diagonally, diagonal attacks radiate cardinally.
     """
-    
+
     def __init__(self):
         super().__init__(
             name="Neutron Illuminant",
             key="N",
-            description="On attack, causes radiation sickness around the INTERFERER. Cardinal attacks radiate diagonally, diagonal attacks radiate cardinally. 1 damage/turn for 2 turns per stack."
+            description="On attack, causes radiation burn around the INTERFERER. Cardinal attacks radiate diagonally, diagonal attacks radiate cardinally. 1 damage/turn for 2 turns per stack."
         )
         self.current_cooldown = 0
         self.cooldown = 0  # No cooldown
@@ -52,7 +52,7 @@ class NeutronIlluminant(PassiveSkill):
     
     def trigger_flash_effect(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> None:
         """Trigger the neutron flash animation effect that always plays on INTERFERER attacks."""
-        # Always show the flash effect regardless of radiation sickness application
+        # Always show the flash effect regardless of radiation burn application
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
             # Get interferer attack animation sequence
             flash_animation = ui.asset_manager.get_skill_animation_sequence('interferer_attack')
@@ -106,7 +106,7 @@ class NeutronIlluminant(PassiveSkill):
             ]
 
     def trigger_radiation(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> None:
-        """Trigger radiation sickness in directional pattern around the INTERFERER."""
+        """Trigger radiation burn in directional pattern around the INTERFERER."""
         if not self.can_trigger():
             return
             
@@ -131,7 +131,7 @@ class NeutronIlluminant(PassiveSkill):
                     immune_units.append(target)
                     continue
 
-                # Apply radiation sickness
+                # Apply radiation burn
                 if not hasattr(target, 'radiation_stacks'):
                     target.radiation_stacks = []
 

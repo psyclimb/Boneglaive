@@ -321,11 +321,11 @@ class VagalRunSkill(ActiveSkill):
             if isinstance(target.radiation_stacks, list):
                 if len(target.radiation_stacks) > 0:
                     target.radiation_stacks = []
-                    cleared_effects.append("Radiation Sickness")
+                    cleared_effects.append("Radiation Burn")
             else:
                 if target.radiation_stacks > 0:
                     target.radiation_stacks = 0
-                    cleared_effects.append("Radiation Sickness")
+                    cleared_effects.append("Radiation Burn")
         
         # Clear positive status effects (but not permanent abilities or vagal run)
         if hasattr(target, 'carrier_rave_active') and target.carrier_rave_active:

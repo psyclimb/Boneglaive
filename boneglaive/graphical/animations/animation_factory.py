@@ -510,7 +510,8 @@ class AnimationFactory:
                     caster_unit=caster_unit,
                     target_unit=target_unit,
                     particle_emitter=particle_emitter,
-                    screen_flash_callback=screen_flash_callback
+                    screen_flash_callback=screen_flash_callback,
+                    screen_shake_callback=screen_shake_callback
                 )
             elif anim_class.__name__ == "KarrierRavePhaseOut":
                 # Karrier Rave phase-out (self-buff)

@@ -107,7 +107,7 @@ class VisualUnit:
         if hasattr(game_unit, 'shrapnel_duration') and game_unit.shrapnel_duration > 0:
             effects['shrapnel'] = True
         if hasattr(game_unit, 'radiation_stacks') and len(game_unit.radiation_stacks) > 0:
-            effects['radiation_sickness'] = True
+            effects['radiation_burn'] = True
         if hasattr(game_unit, 'neural_shunt_affected') and game_unit.neural_shunt_affected:
             effects['neural_shunt'] = True
         if hasattr(game_unit, 'carrier_rave_active') and game_unit.carrier_rave_active:

@@ -292,7 +292,7 @@ class NeuralShuntAnimation:
     """
 
     def __init__(self, caster_x, caster_y, target_x, target_y, caster_unit, target_unit,
-                 particle_emitter, screen_flash_callback=None):
+                 particle_emitter, screen_flash_callback=None, screen_shake_callback=None):
         """
         Args:
             caster_x: Screen X position of INTERFERER
@@ -303,6 +303,7 @@ class NeuralShuntAnimation:
             target_unit: AnimatedUnit for target
             particle_emitter: ParticleEmitter for spawning particles
             screen_flash_callback: Callback to trigger screen flash
+            screen_shake_callback: Callback to trigger screen shake
         """
         self.caster_x = caster_x
         self.caster_y = caster_y
@@ -312,12 +313,13 @@ class NeuralShuntAnimation:
         self.target_unit = target_unit
         self.particle_emitter = particle_emitter
         self.screen_flash_callback = screen_flash_callback
+        self.screen_shake_callback = screen_shake_callback
 
         # Animation timing
         self.phase = "windup"  # windup, strike, converge, shock
         self.timer = 0
         self.windup_duration = 0.2
-        self.strike_duration = 0.15
+        self.strike_duration = 0.4  # Increased for dual carabiner swing
         self.converge_duration = 0.35
         self.shock_duration = 0.25
         self.finished = False
@@ -327,6 +329,9 @@ class NeuralShuntAnimation:
         self.color_inner = (0, 206, 209)  # Dark turquoise
         self.color_bright = (255, 255, 255)
         self.color_static = (150, 200, 255)  # Lighter blue for static
+        self.color_cyan_glow = (0, 230, 255)  # Cyan EM glow
+        self.color_metal_dark = (100, 100, 120)  # Dark metal
+        self.color_metal_light = (200, 200, 220)  # Light metal
 
         # Calculate 3 radio tower positions (triangulation around target)
         angles = [0, 2.094, 4.189]  # 0°, 120°, 240°
@@ -341,9 +346,15 @@ class NeuralShuntAnimation:
         self.wave_rings = []  # List of expanding rings from each tower
         self.interference_points = []  # Points where waves intersect
 
-        # Strike state
+        # Dual carabiner strike state
         self.strike_spawned = False
+        self.strike_progress = 0
         self.converge_progress = 0
+
+        # Flash tracking for tile illumination
+        self.flash_triggered = False
+        self.flash_timer = 0
+        self.flash_display_duration = 0.2
 
     def update(self, delta_time):
         """Update animation state."""
@@ -356,24 +367,38 @@ class NeuralShuntAnimation:
                 self.timer = 0
 
         elif self.phase == "strike":
-            # INTERFERER strikes with plutonium carabiners
-            if not self.strike_spawned:
-                # Carabiner strike particles at INTERFERER position
-                for _ in range(20):
+            # INTERFERER strikes with dual carabiners - visible weapon swing
+            self.strike_progress = min(1.0, self.timer / self.strike_duration)
+
+            if not self.strike_spawned and self.strike_progress >= 0.8:
+                # Impact particles at INTERFERER position on strike completion
+                for _ in range(30):
                     angle = random.uniform(0, 2 * math.pi)
-                    speed = random.uniform(60, 140)
+                    speed = random.uniform(80, 180)
                     vx = math.cos(angle) * speed
                     vy = math.sin(angle) * speed
-                    color = random.choice([self.color_outer, self.color_inner, self.color_bright])
-                    particle = Particle(self.caster_x, self.caster_y, vx, vy, color, random.uniform(3, 6), 0.4)
+                    color = random.choice([self.color_cyan_glow, self.color_bright])
+                    particle = Particle(self.caster_x, self.caster_y, vx, vy, color, random.uniform(3, 7), 0.5)
                     particle.fade = True
                     self.particle_emitter.particles.append(particle)
 
-                # Blue screen flash on strike
+                # Cyan EM flash on impact
                 if self.screen_flash_callback:
-                    self.screen_flash_callback(self.color_outer, 0.1)
+                    self.screen_flash_callback(self.color_cyan_glow, 0.1)
+
+                # Screen shake on impact - same as basic attack
+                if self.screen_shake_callback:
+                    self.screen_shake_callback(6, 0.18)
+
+                # Trigger tile flash at INTERFERER position
+                self.flash_triggered = True
+                self.flash_timer = 0
 
                 self.strike_spawned = True
+
+            # Update flash timer for tile illumination
+            if self.flash_triggered:
+                self.flash_timer += delta_time
 
             if self.timer >= self.strike_duration:
                 self.phase = "converge"
@@ -383,28 +408,28 @@ class NeuralShuntAnimation:
             # Radio waves emanate from three towers and converge on target
             self.converge_progress = min(1.0, self.timer / self.converge_duration)
 
-            # Spawn new radio wave rings periodically
-            if self.timer % 0.08 < delta_time:  # Every ~80ms
+            # Spawn new radio wave rings periodically - MORE FREQUENT
+            if self.timer % 0.05 < delta_time:  # Every ~50ms (was 80ms)
                 for tower_x, tower_y in self.tower_positions:
                     self.wave_rings.append({
                         'x': tower_x,
                         'y': tower_y,
                         'radius': 5,
                         'max_radius': TILE_SIZE * 2.5,
-                        'alpha': 200
+                        'alpha': 255  # Brighter (was 200)
                     })
 
             # Update existing wave rings (expand and fade)
             updated_rings = []
             for ring in self.wave_rings:
-                ring['radius'] += 150 * delta_time  # Expand
-                ring['alpha'] = max(0, ring['alpha'] - 300 * delta_time)  # Fade
+                ring['radius'] += 180 * delta_time  # Expand faster (was 150)
+                ring['alpha'] = max(0, ring['alpha'] - 250 * delta_time)  # Fade slower (was 300)
                 if ring['radius'] < ring['max_radius'] and ring['alpha'] > 0:
                     updated_rings.append(ring)
             self.wave_rings = updated_rings
 
-            # Spawn interference particles moving toward target
-            if random.random() < 0.5:
+            # Spawn MORE interference particles moving toward target
+            if random.random() < 0.9:  # Much more frequent (was 0.5)
                 tower_x, tower_y = random.choice(self.tower_positions)
                 # Particle somewhere between tower and target
                 t = random.uniform(0.3, 0.9)
@@ -416,13 +441,13 @@ class NeuralShuntAnimation:
                 dy = self.target_y - y
                 dist = math.sqrt(dx*dx + dy*dy)
                 if dist > 0:
-                    vx = (dx / dist) * 100
-                    vy = (dy / dist) * 100
+                    vx = (dx / dist) * 120  # Faster (was 100)
+                    vy = (dy / dist) * 120
                 else:
                     vx = vy = 0
 
-                color = random.choice([self.color_outer, self.color_static])
-                particle = Particle(x, y, vx, vy, color, 3, 0.3)
+                color = random.choice([self.color_outer, self.color_static, self.color_bright])
+                particle = Particle(x, y, vx, vy, color, random.uniform(4, 7), 0.4)  # Larger, longer-lived
                 particle.fade = True
                 self.particle_emitter.particles.append(particle)
 
@@ -469,47 +494,135 @@ class NeuralShuntAnimation:
                                             int(tower_y - glow_radius)))
 
         elif self.phase == "strike":
-            # Draw carabiner strike glow at INTERFERER
-            progress = self.timer / self.strike_duration
-            glow_radius = int(25 * (1.0 - progress * 0.3))  # Slightly shrinks
+            # Draw dual carabiner swing - TWO weapon arcs
+            progress = self.strike_progress
 
-            # Outer blue glow
-            glow_surf = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
-            pygame.draw.circle(glow_surf, (*self.color_outer, int(180 * (1 - progress))),
-                             (glow_radius, glow_radius), glow_radius)
-            surface.blit(glow_surf, (int(self.caster_x - glow_radius),
-                                    int(self.caster_y - glow_radius)),
-                       special_flags=pygame.BLEND_ADD)
+            # Calculate direction toward target
+            dx = self.target_x - self.caster_x
+            dy = self.target_y - self.caster_y
+            distance = math.sqrt(dx * dx + dy * dy)
+            if distance > 0:
+                dx /= distance
+                dy /= distance
 
-            # Inner bright core
-            inner_radius = int(glow_radius * 0.5)
-            glow_surf2 = pygame.Surface((inner_radius * 2, inner_radius * 2), pygame.SRCALPHA)
-            pygame.draw.circle(glow_surf2, (*self.color_bright, int(220 * (1 - progress))),
-                             (inner_radius, inner_radius), inner_radius)
-            surface.blit(glow_surf2, (int(self.caster_x - inner_radius),
-                                     int(self.caster_y - inner_radius)),
-                       special_flags=pygame.BLEND_ADD)
+            # Perpendicular vector for arc
+            perp_x = -dy
+            perp_y = dx
+
+            # Weapon swing parameters
+            carabiner_length = TILE_SIZE * 1.5
+            arc_width = TILE_SIZE * 0.4
+            num_segments = 15
+
+            # Draw TWO carabiner arcs (left and right)
+            for carabiner_idx in range(2):
+                # Offset for left/right carabiner
+                side_offset = (carabiner_idx - 0.5) * 20
+
+                # Calculate arc points
+                points = []
+                for i in range(num_segments):
+                    seg_progress = i / (num_segments - 1)
+                    swing_progress = progress * seg_progress
+
+                    # Base position along swing direction
+                    base_x = self.caster_x + dx * carabiner_length * swing_progress
+                    base_y = self.caster_y + dy * carabiner_length * swing_progress
+
+                    # Arc offset using sine curve
+                    arc_offset = math.sin(swing_progress * math.pi) * arc_width
+                    point_x = base_x + perp_x * (arc_offset + side_offset)
+                    point_y = base_y + perp_y * (arc_offset + side_offset)
+
+                    points.append((int(point_x), int(point_y)))
+
+                # Draw carabiner weapon trail
+                if len(points) >= 2:
+                    # Outer cyan EM glow
+                    pygame.draw.lines(surface, self.color_cyan_glow, False, points, 8)
+                    # Metallic core
+                    pygame.draw.lines(surface, self.color_metal_dark, False, points, 5)
+                    pygame.draw.lines(surface, self.color_metal_light, False, points, 3)
+
+            # Draw tile flash at INTERFERER position
+            if self.flash_triggered and self.flash_timer < self.flash_display_duration:
+                flash_progress = self.flash_timer / self.flash_display_duration
+                alpha = int(220 * (1 - flash_progress))
+
+                # Draw bright cyan glow at INTERFERER position (like Neutron Illuminant)
+                for radius_mult in [1.5, 1.0, 0.5]:
+                    radius = int(TILE_SIZE * 0.8 * radius_mult)
+                    glow_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+
+                    # Outer cyan glow
+                    layer_alpha = alpha // (int(1.0 / radius_mult) + 1)
+                    color = (*self.color_cyan_glow, layer_alpha)
+                    pygame.draw.circle(glow_surf, color, (radius, radius), radius)
+
+                    # Bright center
+                    if radius_mult <= 0.7:
+                        core_alpha = min(255, int(alpha * 1.5))
+                        core_color = (255, 255, 255, core_alpha)  # White bright core
+                        core_radius = radius // 2
+                        pygame.draw.circle(glow_surf, core_color, (radius, radius), core_radius)
+
+                    surface.blit(glow_surf,
+                               (int(self.caster_x - radius), int(self.caster_y - radius)),
+                               special_flags=pygame.BLEND_ADD)
 
         elif self.phase == "converge":
-            # Draw radio wave rings expanding from towers
+            # Draw visible radio tower positions with pulsing glow
+            pulse = 0.7 + 0.3 * math.sin(self.timer * 8)
+            for tower_x, tower_y in self.tower_positions:
+                # Large glowing tower marker
+                tower_radius = int(18 * pulse)
+                tower_surf = pygame.Surface((tower_radius * 2, tower_radius * 2), pygame.SRCALPHA)
+                pygame.draw.circle(tower_surf, (*self.color_outer, 200),
+                                 (tower_radius, tower_radius), tower_radius)
+                # Bright core
+                core_radius = int(tower_radius * 0.5)
+                pygame.draw.circle(tower_surf, (*self.color_bright, 255),
+                                 (tower_radius, tower_radius), core_radius)
+                surface.blit(tower_surf, (int(tower_x - tower_radius),
+                                         int(tower_y - tower_radius)),
+                           special_flags=pygame.BLEND_ADD)
+
+            # Draw radio wave rings expanding from towers - THICKER
             for ring in self.wave_rings:
                 radius = int(ring['radius'])
                 alpha = int(ring['alpha'])
                 if radius > 0 and alpha > 0:
-                    # Draw expanding ring
+                    # Draw expanding ring with thicker width
                     ring_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
                     pygame.draw.circle(ring_surf, (*self.color_outer, alpha),
-                                     (radius, radius), radius, 2)  # Width=2
+                                     (radius, radius), radius, 4)  # Width=4 (was 2)
                     surface.blit(ring_surf, (int(ring['x'] - radius),
                                             int(ring['y'] - radius)))
 
-            # Draw interference glow at target (waves converging)
-            interference_radius = int(30 * self.converge_progress)
+            # Draw beam lines from towers to target
+            for tower_x, tower_y in self.tower_positions:
+                beam_alpha = int(120 * self.converge_progress)
+                if beam_alpha > 10:
+                    # Draw thick beam line
+                    pygame.draw.line(surface, (*self.color_static, beam_alpha),
+                                   (int(tower_x), int(tower_y)),
+                                   (int(self.target_x), int(self.target_y)), 3)
+                    # Brighter inner line
+                    pygame.draw.line(surface, (*self.color_bright, beam_alpha // 2),
+                                   (int(tower_x), int(tower_y)),
+                                   (int(self.target_x), int(self.target_y)), 1)
+
+            # Draw MUCH larger interference glow at target (waves converging)
+            interference_radius = int(50 * self.converge_progress)  # Bigger (was 30)
             if interference_radius > 5:
                 glow_surf = pygame.Surface((interference_radius * 2, interference_radius * 2), pygame.SRCALPHA)
-                alpha = int(150 * self.converge_progress)
+                alpha = int(200 * self.converge_progress)  # Brighter (was 150)
                 pygame.draw.circle(glow_surf, (*self.color_static, alpha),
                                  (interference_radius, interference_radius), interference_radius)
+                # Add bright core
+                core_radius = int(interference_radius * 0.5)
+                pygame.draw.circle(glow_surf, (*self.color_bright, int(alpha * 0.7)),
+                                 (interference_radius, interference_radius), core_radius)
                 surface.blit(glow_surf, (int(self.target_x - interference_radius),
                                         int(self.target_y - interference_radius)),
                            special_flags=pygame.BLEND_ADD)
@@ -1612,3 +1725,273 @@ class KarrierRaveTripleStrike:
 
         # Note: INTERFERER sprite stays at original position - the blur trail and glowing
         # aura show his rapid movement. He's moving so fast you only see afterimages!
+
+
+
+# ============================================================================
+# INTERFERER BASIC ATTACK - DUAL CARABINER SWING
+# ============================================================================
+
+class InterfererDualCarabinerAttack:
+    """
+    INTERFERER basic attack animation - swings both huge carabiners.
+    Two metallic arcs with cyan EM glow + Neutron Illuminant flash on impact.
+    """
+
+    def __init__(self, attacker_unit, target_unit, particle_emitter, screen_shake_callback, screen_flash_callback=None):
+        """
+        Args:
+            attacker_unit: AnimatedUnit doing the attacking
+            target_unit: AnimatedUnit being attacked
+            particle_emitter: ParticleEmitter for effects
+            screen_shake_callback: Function(intensity, duration)
+            screen_flash_callback: Function(color, intensity, duration) for EM flash
+        """
+        self.attacker = attacker_unit
+        self.target = target_unit
+        self.particle_emitter = particle_emitter
+        self.screen_shake = screen_shake_callback
+        self.screen_flash = screen_flash_callback
+
+        # Calculate attack vector
+        self.dx = target_unit.x - attacker_unit.x
+        self.dy = target_unit.y - attacker_unit.y
+        distance = math.sqrt(self.dx * self.dx + self.dy * self.dy)
+
+        if distance > 0:
+            self.dx /= distance
+            self.dy /= distance
+
+        self.distance = distance
+
+        # Animation state
+        self.phase = "windup"  # windup → swing → impact → done
+        self.timer = 0
+        self.active = True
+
+        # Phase durations
+        self.windup_duration = 0.1
+        self.swing_duration = 0.25
+        self.impact_duration = 0.15
+
+        # Swing progress for weapon drawing
+        self.swing_progress = 0.0
+
+        # Carabiner colors
+        self.color_metal_dark = (105, 105, 105)    # #696969
+        self.color_metal_light = (211, 211, 211)   # #d3d3d3
+        self.color_cyan_glow = (0, 191, 255)       # #00bfff
+
+        # Track flash for tile illumination
+        self.flash_triggered = False
+        self.flash_timer = 0
+        self.flash_display_duration = 0.2
+
+    def _trigger_windup(self):
+        """Phase 1: Windup dual carabiner swing."""
+        # Cyan EM particles as carabiners charge
+        for _ in range(8):
+            angle = random.uniform(0, 2 * math.pi)
+            speed = random.uniform(40, 70)
+            vx = math.cos(angle) * speed
+            vy = math.sin(angle) * speed
+
+            from .core import Particle
+            particle = Particle(self.attacker.x, self.attacker.y, vx, vy, 
+                              self.color_cyan_glow,
+                              size=random.uniform(2, 3), lifetime=0.12)
+            particle.gravity = 0
+            self.particle_emitter.particles.append(particle)
+
+    def _trigger_swing(self):
+        """Phase 2: Swing dual carabiners (visual only)."""
+        # Cyan EM sparks along swing path
+        for i in range(12):
+            progress = i / 12
+            x = self.attacker.x + self.dx * self.distance * progress * 0.7
+            y = self.attacker.y + self.dy * self.distance * progress * 0.7
+
+            vx = self.dx * 100
+            vy = self.dy * 100
+
+            from .core import Particle
+            particle = Particle(x, y, vx, vy, self.color_cyan_glow,
+                              size=random.uniform(2, 3), lifetime=0.18)
+            particle.gravity = 0
+            self.particle_emitter.particles.append(particle)
+
+    def _trigger_impact(self):
+        """Phase 3: Dual carabiner impact with Neutron Illuminant flash."""
+        # Metallic impact with cyan EM burst
+        for _ in range(20):
+            angle = random.uniform(0, 2 * math.pi)
+            speed = random.uniform(80, 170)
+            vx = math.cos(angle) * speed
+            vy = math.sin(angle) * speed
+
+            # Mix of metallic and cyan colors
+            color = random.choice([
+                self.color_metal_light,
+                self.color_cyan_glow,
+                (255, 255, 255),
+            ])
+
+            from .core import Particle
+            particle = Particle(self.target.x, self.target.y, vx, vy, color,
+                              size=random.uniform(2, 4), lifetime=random.uniform(0.15, 0.25))
+            particle.gravity = 120
+            self.particle_emitter.particles.append(particle)
+
+        # Trigger Neutron Illuminant cyan EM flash (screen and tiles)
+        if self.screen_flash:
+            self.screen_flash(self.color_cyan_glow, 0.1)
+
+        # Mark that flash was triggered for tile illumination
+        self.flash_triggered = True
+        self.flash_timer = 0
+
+        # Strong metallic impact
+        self.target.shake_intensity = 12
+        self.screen_shake(6, 0.18)
+
+    def update(self, delta_time):
+        """Update animation state."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Update flash timer if flash is active
+        if self.flash_triggered:
+            self.flash_timer += delta_time
+
+        if self.phase == "windup":
+            if self.timer == 0 or not hasattr(self, "_windup_triggered"):
+                self._trigger_windup()
+                self._windup_triggered = True
+
+            if self.timer >= self.windup_duration:
+                self.phase = "swing"
+                self.timer = 0
+                self._trigger_swing()
+
+        elif self.phase == "swing":
+            # Update swing progress for weapon drawing
+            self.swing_progress = min(1.0, self.timer / self.swing_duration)
+
+            if self.timer >= self.swing_duration:
+                self.phase = "impact"
+                self.timer = 0
+                self._trigger_impact()
+
+        elif self.phase == "impact":
+            if self.timer >= self.impact_duration:
+                self.phase = "done"
+                self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw dual carabiner swing."""
+        import pygame
+
+        # Draw windup cyan glow
+        if self.phase == "windup":
+            progress = self.timer / self.windup_duration
+            glow_radius = int(18 * progress)
+
+            if glow_radius > 2:
+                glow_surf = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
+                pygame.draw.circle(glow_surf, (*self.color_cyan_glow, int(100 * progress)),
+                                 (glow_radius, glow_radius), glow_radius)
+                surface.blit(glow_surf, (int(self.attacker.x - glow_radius),
+                                        int(self.attacker.y - glow_radius)))
+
+        # Draw dual carabiner swing arcs during swing phase
+        if self.phase == "swing":
+            # Calculate perpendicular vector for arc sweep
+            perp_x = -self.dy
+            perp_y = self.dx
+
+            # Draw TWO carabiner arcs (left and right)
+            for carabiner_idx in range(2):
+                # Offset each carabiner arc slightly (one on each side)
+                side_offset = (carabiner_idx - 0.5) * 20  # Left and right spread
+
+                arc_width = 30  # Arc width
+                carabiner_length = self.distance + 20
+
+                # Calculate arc points
+                points = []
+                num_segments = 15
+
+                for i in range(num_segments):
+                    progress = (i / (num_segments - 1)) * self.swing_progress
+
+                    # Position along attack vector
+                    base_x = self.attacker.x + self.dx * carabiner_length * progress
+                    base_y = self.attacker.y + self.dy * carabiner_length * progress
+
+                    # Arc offset (sine curve) + side offset for dual weapons
+                    arc_offset = math.sin(progress * math.pi) * arc_width + side_offset
+
+                    # Calculate point position
+                    point_x = base_x + perp_x * arc_offset
+                    point_y = base_y + perp_y * arc_offset
+
+                    points.append((int(point_x), int(point_y)))
+
+                # Draw carabiner arc
+                if len(points) >= 2:
+                    # Draw cyan EM glow (outer)
+                    pygame.draw.lines(surface, self.color_cyan_glow, False, points, 8)
+                    # Draw metallic core
+                    pygame.draw.lines(surface, self.color_metal_dark, False, points, 5)
+                    pygame.draw.lines(surface, self.color_metal_light, False, points, 3)
+
+        # Draw impact flash
+        if self.phase == "impact":
+            progress = self.timer / self.impact_duration
+            if progress < 0.5:
+                flash_alpha = int(255 * (1.0 - progress / 0.5))
+                flash_radius = int(32 * (1.0 + progress))
+
+                # Cyan-white flash
+                flash_surf = pygame.Surface((flash_radius * 2, flash_radius * 2), pygame.SRCALPHA)
+                pygame.draw.circle(flash_surf, (255, 255, 255, flash_alpha),
+                                 (flash_radius, flash_radius), flash_radius)
+                # Cyan center
+                center_radius = int(flash_radius * 0.6)
+                pygame.draw.circle(flash_surf, (*self.color_cyan_glow, flash_alpha),
+                                 (flash_radius, flash_radius), center_radius)
+
+                surface.blit(flash_surf, (int(self.target.x - flash_radius),
+                                         int(self.target.y - flash_radius)))
+
+        # Draw Neutron Illuminant tile flash at INTERFERER position (not target)
+        if self.flash_triggered and self.flash_timer < self.flash_display_duration:
+            progress = self.flash_timer / self.flash_display_duration
+            alpha = int(220 * (1 - progress))
+
+            # Draw bright cyan glow at INTERFERER position (like Neutron Illuminant)
+            for radius_mult in [1.5, 1.0, 0.5]:
+                from .core import TILE_SIZE
+                radius = int(TILE_SIZE * 0.8 * radius_mult)
+                glow_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+
+                # Outer cyan glow
+                layer_alpha = alpha // (int(1.0 / radius_mult) + 1)
+                color = (*self.color_cyan_glow, layer_alpha)
+                pygame.draw.circle(glow_surf, color, (radius, radius), radius)
+
+                # Bright center
+                if radius_mult <= 0.7:
+                    core_alpha = min(255, int(alpha * 1.5))
+                    core_color = (255, 255, 255, core_alpha)  # White bright core
+                    core_radius = radius // 2
+                    pygame.draw.circle(glow_surf, core_color, (radius, radius), core_radius)
+
+                surface.blit(glow_surf,
+                           (int(self.attacker.x - radius), int(self.attacker.y - radius)),
+                           special_flags=pygame.BLEND_ADD)
+

@@ -150,7 +150,7 @@ UNIT_DISPLAY_NAMES = {
 # Status effect symbols
 STATUS_EFFECT_SYMBOLS = {
     'MIRED': 'm',             # Movement reduction from upgraded marrow dike
-    'RADIATION_SICKNESS': '*', # Radiation damage over time
+    'RADIATION_BURN': '*',    # Radiation damage over time
     'NEURAL_SHUNT': '?',      # Random action control
     'KARRIER_RAVE': '!',      # Phased/untargetable state
     'DERELICTED': '&',        # Immobilization from psychological abandonment
