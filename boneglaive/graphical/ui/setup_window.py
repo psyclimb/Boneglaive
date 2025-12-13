@@ -58,7 +58,7 @@ class SetupWindow:
             UnitType.DERELICTIONIST,
             UnitType.POTPOURRIST,
             "LANDSCAPER",  # Placeholder 11th unit
-            "AETHERIC_CURLER"  # Placeholder 12th unit
+            "PELOTARI"  # Placeholder 12th unit
         ]
 
         # Unit display names
@@ -74,7 +74,7 @@ class SetupWindow:
             UnitType.DERELICTIONIST: "DERELICTIONIST",
             UnitType.POTPOURRIST: "POTPOURRIST",
             "LANDSCAPER": "LANDSCAPER",  # Placeholder
-            "AETHERIC_CURLER": "AETHERIC CURLER"  # Placeholder
+            "PELOTARI": "PELOTARI"  # Placeholder
         }
 
         # State
@@ -397,8 +397,8 @@ class SetupWindow:
 
             if is_placeholder:
                 # Draw glaives for placeholder unit
-                # Only AETHERIC_CURLER flashes, others are static
-                should_flash = unit_type == "AETHERIC_CURLER"
+                # Only PELOTARI flashes, others are static
+                should_flash = unit_type == "PELOTARI"
 
                 if should_flash:
                     import time
