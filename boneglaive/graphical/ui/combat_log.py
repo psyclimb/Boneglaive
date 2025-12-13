@@ -41,10 +41,14 @@ class CombatLog:
             msg_type: Type of message (system, combat, ability, movement, error)
             player: Player number associated with message
         """
+        # PERFORMANCE FIX: Wrap text once when adding message, not every frame
+        wrapped_lines = self._wrap_text(text, LOG_WIDTH - LOG_PADDING * 2 - 5)
+
         message = {
             'text': text,
             'type': msg_type,
-            'player': player
+            'player': player,
+            'wrapped_lines': wrapped_lines  # Cache wrapped text
         }
 
         self.messages.append(message)
@@ -127,10 +131,11 @@ class CombatLog:
         title_text = self.font.render("Combat Log", True, (255, 255, 255))
         surface.blit(title_text, (x + LOG_PADDING, y + 5))
 
-        # Wrap messages and calculate total wrapped lines
+        # PERFORMANCE FIX: Use cached wrapped lines instead of wrapping every frame
         wrapped_messages = []
         for message in self.messages:
-            wrapped_lines = self._wrap_text(message['text'], LOG_WIDTH - LOG_PADDING * 2 - 5)
+            # Use pre-wrapped lines from cache (added in add_message)
+            wrapped_lines = message.get('wrapped_lines', [message['text']])
             wrapped_messages.append({
                 'lines': wrapped_lines,
                 'type': message['type'],

@@ -157,6 +157,9 @@ class GraphicalRenderer:
         self.show_astral_values = False
         self.astral_value_pulse_time = 0
 
+        # PERFORMANCE: Cache astral value fonts to avoid creating them every frame
+        self._astral_value_font_cache = {}  # size -> font
+
         # Imbued furniture sparkles (for Market Futures)
         self.imbued_sparkles = []
 
@@ -2729,8 +2732,18 @@ class GraphicalRenderer:
 
                         # Render number with gold color and transparency
                         font_size = int(48 * scale)  # Large number, scales with pulse
-                        # Create font at current size
-                        value_font = pygame.font.Font(None, font_size)
+
+                        # PERFORMANCE FIX: Use cached fonts instead of creating new ones
+                        # Get or create main font
+                        if font_size not in self._astral_value_font_cache:
+                            self._astral_value_font_cache[font_size] = pygame.font.Font(None, font_size)
+                        value_font = self._astral_value_font_cache[font_size]
+
+                        # Get or create outline font
+                        outline_size = font_size + 2
+                        if outline_size not in self._astral_value_font_cache:
+                            self._astral_value_font_cache[outline_size] = pygame.font.Font(None, outline_size)
+                        outline_font = self._astral_value_font_cache[outline_size]
 
                         # Render the number
                         value_text = value_font.render(str(astral_value), True, (255, 215, 0))  # Gold
@@ -2741,9 +2754,7 @@ class GraphicalRenderer:
                         # Center the text on the tile
                         text_rect = value_text.get_rect(center=(tile_x, tile_y))
 
-                        # Optional: Add dark outline for readability
-                        # Render slightly larger dark version behind
-                        outline_font = pygame.font.Font(None, font_size + 2)
+                        # Add dark outline for readability
                         outline_text = outline_font.render(str(astral_value), True, (0, 0, 0))
                         outline_text.set_alpha(alpha // 2)
                         outline_rect = outline_text.get_rect(center=(tile_x, tile_y))
