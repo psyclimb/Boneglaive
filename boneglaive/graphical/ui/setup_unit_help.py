@@ -45,7 +45,9 @@ class SetupUnitHelp:
             UnitType.DELPHIC_APPRAISER: "DELPHIC APPRAISER",
             UnitType.INTERFERER: "INTERFERER",
             UnitType.DERELICTIONIST: "DERELICTIONIST",
-            UnitType.POTPOURRIST: "POTPOURRIST"
+            UnitType.POTPOURRIST: "POTPOURRIST",
+            "LANDSCAPER": "LANDSCAPER",
+            "AETHERIC_CURLER": "AETHERIC CURLER"
         }
 
         # Sprite cache
@@ -308,6 +310,52 @@ class SetupUnitHelp:
                         'desc': 'Creates a protective psychological partition on an ally that reduces incoming damage. If the ally would die while shielded, they dissociate completely to ignore fatal damage.'
                     }
                 ]
+            },
+            "LANDSCAPER": {
+                'difficulty': 5,  # Out of 5
+                'role': '??? / ??? / ???',
+                'overview': 'A mysterious terrain manipulator with unknown capabilities. Details unknown. Coming soon...',
+                'passive': {
+                    'name': '???',
+                    'desc': 'Placeholder ability description. This unit is not yet available.'
+                },
+                'skills': [
+                    {
+                        'name': '???',
+                        'desc': 'Placeholder skill description. This unit is not yet available.'
+                    },
+                    {
+                        'name': '???',
+                        'desc': 'Placeholder skill description. This unit is not yet available.'
+                    },
+                    {
+                        'name': '???',
+                        'desc': 'Placeholder skill description. This unit is not yet available.'
+                    }
+                ]
+            },
+            "AETHERIC_CURLER": {
+                'difficulty': 5,  # Out of 5
+                'role': '??? / ??? / ???',
+                'overview': 'A mysterious entity shrouded in aetheric energy. Details unknown. Coming soon...',
+                'passive': {
+                    'name': '???',
+                    'desc': 'Placeholder ability description. This unit is not yet available.'
+                },
+                'skills': [
+                    {
+                        'name': '???',
+                        'desc': 'Placeholder skill description. This unit is not yet available.'
+                    },
+                    {
+                        'name': '???',
+                        'desc': 'Placeholder skill description. This unit is not yet available.'
+                    },
+                    {
+                        'name': '???',
+                        'desc': 'Placeholder skill description. This unit is not yet available.'
+                    }
+                ]
             }
         }
 
@@ -369,11 +417,16 @@ class SetupUnitHelp:
             scroll_delta = 30 * scroll_amount
             self.scroll_offset = max(0, min(self.scroll_offset - scroll_delta, self.max_scroll))
 
-    def _load_unit_sprite(self, unit_type: UnitType, size: int = 80) -> Optional[pygame.Surface]:
+    def _load_unit_sprite(self, unit_type, size: int = 80) -> Optional[pygame.Surface]:
         """Load unit sprite from SVG at specified size."""
         cache_key = (unit_type, size)
         if cache_key in self.sprite_cache:
             return self.sprite_cache[cache_key]
+
+        # Skip loading for placeholder units (strings)
+        if isinstance(unit_type, str):
+            self.sprite_cache[cache_key] = None
+            return None
 
         sprite_name = unit_type.name.lower()
         sprite_path = f"graphics/units/{sprite_name}.svg"
@@ -505,15 +558,30 @@ class SetupUnitHelp:
         glaive_spacing = 40
         glaive_y = current_y + 10
 
-        for i in range(5):
-            # Position relative to center glaive
-            x = sprite_center_x + ((i - 2) * glaive_spacing)
-            if i < difficulty:
-                # Illuminated glaive
-                self._draw_glaive(content_surface, x, glaive_y, glaive_size, 255, (220, 220, 255))
-            else:
-                # Dimmed glaive
-                self._draw_glaive(content_surface, x, glaive_y, glaive_size, 60, (100, 100, 100))
+        # Check if this is the AETHERIC_CURLER for flashing effect (only this one flashes)
+        should_flash = self.unit_type == "AETHERIC_CURLER"
+
+        if should_flash and difficulty == 5:
+            # Flash all 5 glaives for max difficulty placeholder
+            import time
+            import math
+            flash_speed = 3.0  # Hz
+            alpha = int(128 + 127 * math.sin(time.time() * flash_speed * 2 * math.pi))
+
+            for i in range(5):
+                x = sprite_center_x + ((i - 2) * glaive_spacing)
+                self._draw_glaive(content_surface, x, glaive_y, glaive_size, alpha, (220, 180, 255))
+        else:
+            # Normal difficulty indicator
+            for i in range(5):
+                # Position relative to center glaive
+                x = sprite_center_x + ((i - 2) * glaive_spacing)
+                if i < difficulty:
+                    # Illuminated glaive
+                    self._draw_glaive(content_surface, x, glaive_y, glaive_size, 255, (220, 220, 255))
+                else:
+                    # Dimmed glaive
+                    self._draw_glaive(content_surface, x, glaive_y, glaive_size, 60, (100, 100, 100))
         current_y += 40
 
         # Draw unit sprite (2x larger - 160x160 instead of 80x80)
@@ -522,11 +590,18 @@ class SetupUnitHelp:
         if large_sprite:
             sprite_rect = large_sprite.get_rect(center=(sprite_center_x, current_y + 80))
             content_surface.blit(large_sprite, sprite_rect)
+        else:
+            # Draw placeholder for missing sprite (like for AETHERIC CURLER)
+            placeholder_font = pygame.font.Font(None, 120)
+            placeholder_text = placeholder_font.render("?", True, (180, 140, 200))
+            placeholder_rect = placeholder_text.get_rect(center=(sprite_center_x, current_y + 80))
+            content_surface.blit(placeholder_text, placeholder_rect)
         current_y += 165
 
         # Draw unit name
-        unit_name = self.unit_names.get(self.unit_type, self.unit_type.name)
-        title_text = self.font.render(unit_name, True, COLOR_GOLD)
+        unit_name = self.unit_names.get(self.unit_type, self.unit_type if isinstance(self.unit_type, str) else self.unit_type.name)
+        name_color = (180, 140, 200) if isinstance(self.unit_type, str) else COLOR_GOLD
+        title_text = self.font.render(unit_name, True, name_color)
         title_rect = title_text.get_rect(center=(width // 2, current_y))
         content_surface.blit(title_text, title_rect)
         current_y += 25
@@ -785,19 +860,23 @@ class SetupUnitHelp:
             screen.blit(no_unit_text, no_unit_rect)
             return panel_rect
 
+        # Check if this is AETHERIC_CURLER that needs animation (flashing glaives)
+        needs_animation = self.unit_type == "AETHERIC_CURLER"
+
         # Render content if needed (choose simplified or full based on show_advanced flag)
-        if not self.content_surface:
+        # For AETHERIC_CURLER, always re-render to animate the flashing glaives
+        if not self.content_surface or (needs_animation and not self.show_advanced):
             if self.show_advanced:
                 # Check if full help data exists
                 if self.unit_type not in self.unit_help_data:
-                    error_text = self.small_font.render(f"No help data for {self.unit_type.name}", True, (255, 100, 100))
+                    error_text = self.small_font.render(f"No help data for {self.unit_type if isinstance(self.unit_type, str) else self.unit_type.name}", True, (255, 100, 100))
                     screen.blit(error_text, (x + 15, y + 15))
                     return panel_rect
                 self.content_surface = self._render_content(width)
             else:
                 # Check if simplified data exists
                 if self.unit_type not in self.simplified_info:
-                    error_text = self.small_font.render(f"No info for {self.unit_type.name}", True, (255, 100, 100))
+                    error_text = self.small_font.render(f"No info for {self.unit_type if isinstance(self.unit_type, str) else self.unit_type.name}", True, (255, 100, 100))
                     screen.blit(error_text, (x + 15, y + 15))
                     return panel_rect
                 self.content_surface = self._render_simplified_content(width)
