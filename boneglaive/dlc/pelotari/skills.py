@@ -21,137 +21,206 @@ if TYPE_CHECKING:
 class Riposte(PassiveSkill):
     """
     Passive skill for PELOTARI.
-    Grants +2 attack range. Refreshes every 3 turns.
-    When knocked off, converts to spread shot (6 balls, 4 damage each, 120° cone).
+    Grants +2 defense. When hit by basic attack, fires 4 diagonal balls (2 damage each).
+    Goes on 3 turn cooldown after triggering.
     """
 
     def __init__(self):
         super().__init__(
             name="Riposte",
             key="R",
-            description="Grants +2 attack range. Refreshes every 3 turns. When knocked off, converts to 120° spread shot."
+            description="Grants +2 DEF. When hit by basic attack, fires 4 diagonal balls (2 damage, 1 ricochet). 3 turn CD."
         )
-        self.range_bonus = 2
-        self.refresh_turns = 3
-        self.turns_until_refresh = 0
+        self.defense_bonus = 2
+        self.cooldown_turns = 3
+        self.ball_damage = 2
+        self.ball_range = 4
 
     def apply_passive(self, user: 'Unit', game: Optional['Game'] = None, ui=None) -> None:
         """
         Apply Riposte passive effect.
-        Grants +2 range and handles buff refresh timing.
+        Grants +2 defense and handles cooldown refresh.
         """
         if not game:
             return
 
-        # Initialize buff state if needed
-        if not hasattr(user, 'riposte_buff_active'):
-            user.riposte_buff_active = True  # Start with buff active
-            user.riposte_turns_without_buff = 0
-            user.attack_range_bonus = self.range_bonus
-            logger.debug(f"{user.get_display_name()} starts with Riposte buff (+{self.range_bonus} range)")
+        # Initialize state if needed
+        if not hasattr(user, 'riposte_active'):
+            user.riposte_active = True  # Start with buff active
+            user.riposte_cooldown = 0
+            user.defense_bonus = self.defense_bonus
+            logger.debug(f"{user.get_display_name()} starts with Riposte (+{self.defense_bonus} DEF)")
 
-        # Track turns for refresh
-        if not user.riposte_buff_active:
-            user.riposte_turns_without_buff += 1
-            if user.riposte_turns_without_buff >= self.refresh_turns:
+        # Handle cooldown refresh
+        if not user.riposte_active and user.riposte_cooldown > 0:
+            user.riposte_cooldown -= 1
+            if user.riposte_cooldown == 0:
                 # Refresh buff
-                user.riposte_buff_active = True
-                user.riposte_turns_without_buff = 0
-                user.attack_range_bonus = self.range_bonus
+                user.riposte_active = True
+                user.defense_bonus = self.defense_bonus
                 message_log.add_message(
-                    f"{user.get_display_name()}'s Riposte buff refreshes",
+                    f"{user.get_display_name()}'s Riposte recharges (+{self.defense_bonus} DEF)",
                     MessageType.ABILITY,
                     player=user.player
                 )
-                logger.debug(f"{user.get_display_name()} Riposte buff refreshed")
+                logger.debug(f"{user.get_display_name()} Riposte recharged")
+        elif user.riposte_active:
+            # Ensure defense bonus is applied
+            if user.defense_bonus < self.defense_bonus:
+                user.defense_bonus = self.defense_bonus
 
-    def knock_off_buff(self, user: 'Unit', game: 'Game', ui=None) -> None:
+    def trigger_on_hit(self, user: 'Unit', attacker: 'Unit', game: 'Game', ui=None) -> None:
         """
-        Knock off the Riposte buff and trigger spread shot.
+        Trigger Riposte when PELOTARI is hit by basic attack.
+        Fires 4 diagonal balls and puts Riposte on cooldown.
 
         Args:
-            user: PELOTARI unit losing the buff
+            user: PELOTARI unit that was hit
+            attacker: Unit that attacked
             game: Game instance
             ui: UI instance for animations
         """
-        if not hasattr(user, 'riposte_buff_active') or not user.riposte_buff_active:
-            return  # No buff to knock off
+        if not hasattr(user, 'riposte_active') or not user.riposte_active:
+            return  # Riposte not active
 
-        # Remove buff
-        user.riposte_buff_active = False
-        user.attack_range_bonus = 0
-        user.riposte_turns_without_buff = 0
+        # Remove DEF bonus and start cooldown
+        user.riposte_active = False
+        user.defense_bonus = 0
+        user.riposte_cooldown = self.cooldown_turns
 
         message_log.add_message(
-            f"{user.get_display_name()}'s Riposte converts to spread shot!",
+            f"{user.get_display_name()}'s Riposte triggers! Diagonal spread!",
             MessageType.ABILITY,
             player=user.player
         )
 
-        # Trigger spread shot
-        self._execute_spread_shot(user, game, ui)
+        # Execute diagonal spread shot
+        self._execute_diagonal_spread(user, game, ui)
 
-    def _execute_spread_shot(self, user: 'Unit', game: 'Game', ui=None) -> None:
+    def _execute_diagonal_spread(self, user: 'Unit', game: 'Game', ui=None) -> None:
         """
-        Execute the Riposte spread shot (6 balls, 120° cone, 4 damage each).
+        Execute diagonal spread shot (4 balls: NE, NW, SE, SW).
+        Each ball: 2 damage, max 4 range, 1 ricochet.
 
         Args:
             user: PELOTARI unit
             game: Game instance
             ui: UI instance
         """
-        from .physics import calculate_spread_shot_trajectories
+        # Diagonal directions: NE, NW, SE, SW
+        directions = [(-1, 1), (-1, -1), (1, -1), (1, 1)]
 
-        # Get toggle mode
-        ricochet_mode = getattr(user, 'pelotari_ricochet_mode', True)
+        for direction in directions:
+            trajectory = self._calculate_diagonal_trajectory(
+                start_pos=(user.y, user.x),
+                direction=direction,
+                max_range=self.ball_range,
+                game=game
+            )
 
-        # Calculate spread shot trajectories (120° cone, 6 balls)
-        # Direction: away from user's current facing or outward from center
-        trajectories = calculate_spread_shot_trajectories(
-            start_pos=(user.y, user.x),
-            cone_angle=120,
-            ball_count=6,
-            ricochet_mode=ricochet_mode,
-            game=game
-        )
+            # Animate and execute trajectory
+            self._execute_ball_trajectory(trajectory, user=user, game=game, ui=ui)
 
-        # Execute each ball trajectory
-        for trajectory in trajectories:
-            self._execute_ball_trajectory(trajectory, damage=4, user=user, game=game, ui=ui)
+        logger.debug(f"Riposte diagonal spread executed: 4 balls")
 
-        logger.debug(f"Riposte spread shot executed: {len(trajectories)} balls")
+    def _calculate_diagonal_trajectory(self, start_pos: tuple, direction: tuple,
+                                       max_range: int, game: 'Game') -> list:
+        """
+        Calculate diagonal trajectory with ricochet capability.
 
-    def _execute_ball_trajectory(self, trajectory: list, damage: int, user: 'Unit',
+        Args:
+            start_pos: Starting (y, x)
+            direction: Direction tuple (dy, dx)
+            max_range: Maximum range
+            game: Game instance
+
+        Returns:
+            List of (y, x) positions
+        """
+        trajectory = []
+        current_y, current_x = start_pos
+        dy, dx = direction
+        bounced = False
+
+        for step in range(max_range):
+            next_y = current_y + dy
+            next_x = current_x + dx
+
+            # Check bounds
+            if not game.is_valid_position(next_y, next_x):
+                # Hit edge - ricochet once
+                if not bounced:
+                    bounced = True
+                    # Reflect off edge
+                    if next_y < 0 or next_y >= game.map.height:
+                        dy = -dy
+                    if next_x < 0 or next_x >= game.map.width:
+                        dx = -dx
+                    continue
+                else:
+                    break
+
+            # Check impassable terrain
+            if not game.map.is_passable(next_y, next_x):
+                # Hit wall - ricochet once
+                if not bounced:
+                    bounced = True
+                    # Simple ricochet: reverse direction
+                    dy, dx = -dy, -dx
+                    continue
+                else:
+                    break
+
+            trajectory.append((next_y, next_x))
+            current_y, current_x = next_y, next_x
+
+        return trajectory
+
+    def _execute_ball_trajectory(self, trajectory: list, user: 'Unit',
                                   game: 'Game', ui=None) -> None:
         """
-        Execute a single ball trajectory and apply damage.
+        Execute a single ball trajectory with animation and damage.
 
         Args:
             trajectory: List of (y, x) positions
-            damage: Damage per hit
             user: Source unit
             game: Game instance
             ui: UI instance
         """
-        # Check each position in trajectory for units
+        # Animate trajectory
+        if ui and hasattr(ui, 'renderer'):
+            for pos in trajectory:
+                ui.renderer.draw_tile(pos[0], pos[1], 'o', 6)  # Yellow ball
+                ui.renderer.refresh()
+                sleep_with_animation_speed(0.08)
+
+        # Check each position for enemy units
         for pos in trajectory:
             target = game.get_unit_at(pos[0], pos[1])
             if target and target.player != user.player and target.is_alive():
-                # Deal damage
-                actual_damage = target.deal_damage(damage)
+                # Deal damage (respect defense)
+                damage_after_defense = max(1, self.ball_damage - target.defense)
+                target.hp -= damage_after_defense
+                target.hp = max(0, target.hp)
+
+                # Log damage
                 message_log.add_combat_message(
                     attacker_name=user.get_display_name(),
                     target_name=target.get_display_name(),
-                    damage=actual_damage,
-                    ability="Riposte Spread Shot",
+                    damage=damage_after_defense,
+                    ability="Riposte",
                     attacker_player=user.player,
                     target_player=target.player
                 )
 
-                # Ball disappears after hitting unit
-                break
+                # Show damage number
+                if ui and hasattr(ui, 'renderer'):
+                    ui.renderer.draw_tile(target.y - 1, target.x * 2, f"-{damage_after_defense}", 1)
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.15)
 
-        # TODO: Add animation for ball trajectory
+                # Ball stops after hitting
+                break
 
 
 class Poach(ActiveSkill):

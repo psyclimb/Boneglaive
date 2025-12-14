@@ -2860,6 +2860,12 @@ class Game:
                         if ui:
                             ui.show_attack_animation(unit, target, actual_damage)
 
+                        # Check for PELOTARI Riposte trigger (after taking damage)
+                        if (hasattr(target, 'passive_skill') and target.passive_skill and
+                            target.passive_skill.name == "Riposte" and target.hp > 0):
+                            # Trigger diagonal spread shot
+                            target.passive_skill.trigger_on_hit(target, unit, self, ui)
+
                         # Check for taunt response (Granite Geas)
                         if (hasattr(unit, 'taunted_by') and unit.taunted_by and
                             target.type == UnitType.POTPOURRIST and unit.taunted_by == target):
