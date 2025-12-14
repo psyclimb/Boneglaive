@@ -29,7 +29,7 @@ class Riposte(PassiveSkill):
         super().__init__(
             name="Riposte",
             key="R",
-            description="Grants +2 DEF. When hit by basic attack, fires 4 diagonal balls (3 damage, 1 ricochet). 3 turn CD."
+            description="Grants +2 DEF. When hit by basic attack, fires 4 diagonal balls (3 damage, 1 ricochet). 3 turn CD. Cannot be Poached - triggers counterattack instead."
         )
         self.defense_bonus = 2
         self.cooldown_turns = 3
@@ -259,14 +259,13 @@ class Poach(ActiveSkill):
         'status_site_inspection_partial': ('Site Inspection Partial', 'status_site_inspection_partial_duration', ['attack_bonus']),
         'ossify_active': ('Ossify', 'ossify_duration', ['defense_bonus', 'move_range_bonus', 'ossify_upgraded']),
         'valuation_oracle_buff': ('Valuation Oracle', 'valuation_oracle_duration', ['defense_bonus', 'attack_range_bonus']),
-        'riposte_active': ('Riposte', None, ['defense_bonus', 'riposte_cooldown', 'riposte_last_turn']),
     }
 
     def __init__(self):
         super().__init__(
             name="Poach",
             key="1",
-            description="4 damage (6 on ricochet). Must ricochet to steal buffs. Buff becomes steal-able projectile. Random if multiple buffs.",
+            description="4 damage (6 on ricochet). Must ricochet to steal buffs. Buff becomes steal-able projectile. Enemy Riposte triggers counterattack instead.",
             target_type=TargetType.AREA,
             cooldown=3,
             range_=6
@@ -824,25 +823,27 @@ class Poach(ActiveSkill):
         logger.debug(f"Applied {buff_name} to {ally.get_display_name()}")
 
 
-class ResonantBackhand(ActiveSkill):
+class Backhand(ActiveSkill):
     """
     Active skill for PELOTARI.
-    Counter stance that reflects attacks/skills back as ball projectiles.
+    Counter stance that reflects single-target skills back as ricochet ball projectiles.
     """
 
     def __init__(self):
         super().__init__(
-            name="Resonant Backhand",
+            name="Backhand",
             key="2",
-            description="Counter stance. Reflects enemy attacks/skills back as ball projectiles.",
+            description="Counter stance. Reflects enemy single-target skills back as ricochet ball (2 bounces). Full effects apply to anyone hit.",
             target_type=TargetType.SELF,
             cooldown=4,
             range_=0
         )
+        self.ricochet_range = 6
+        self.max_bounces = 2
 
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None,
                 game: Optional['Game'] = None) -> bool:
-        """Check if Resonant Backhand can be used."""
+        """Check if Backhand can be used."""
         # Basic validation
         if not super().can_use(user, target_pos, game):
             return False
@@ -855,12 +856,12 @@ class ResonantBackhand(ActiveSkill):
 
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None,
             game: Optional['Game'] = None) -> bool:
-        """Activate Resonant Backhand counter stance."""
+        """Activate Backhand counter stance."""
         if not self.can_use(user, target_pos, game):
             return False
 
         # Set counter stance flag
-        user.resonant_backhand_active = True
+        user.backhand_active = True
         user.skill_target = (user.y, user.x)
         user.selected_skill = self
 
@@ -871,7 +872,7 @@ class ResonantBackhand(ActiveSkill):
         self.current_cooldown = self.cooldown
 
         message_log.add_message(
-            f"{user.get_display_name()} readies Resonant Backhand",
+            f"{user.get_display_name()} readies Backhand",
             MessageType.ABILITY,
             player=user.player
         )
@@ -880,12 +881,12 @@ class ResonantBackhand(ActiveSkill):
 
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """
-        Execute Resonant Backhand (sets up counter for the turn).
-        Actual reflection happens when attacked.
+        Execute Backhand (sets up counter for the turn).
+        Actual reflection happens when targeted by skill.
         """
         # Stance is already active, just confirm
-        user.resonant_backhand_active = True
-        logger.debug(f"{user.get_display_name()} Resonant Backhand stance active")
+        user.backhand_active = True
+        logger.debug(f"{user.get_display_name()} Backhand stance active")
         return True
 
     def trigger_counter(self, user: 'Unit', attacker: 'Unit', damage: int,
