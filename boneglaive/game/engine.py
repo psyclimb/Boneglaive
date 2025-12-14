@@ -2868,8 +2868,8 @@ class Game:
 
                         # Check for taunt response (Granite Geas)
                         if (hasattr(unit, 'taunted_by') and unit.taunted_by and
-                            target.type == UnitType.POTPOURRIST and unit.taunted_by == target):
-                            # Attacker attacked the POTPOURRIST that taunted them
+                            unit.taunted_by == target):
+                            # Attacker attacked the unit that taunted them
                             unit.taunt_responded_this_turn = True
                             logger.debug(f"TAUNT RESPONSE: {unit.get_display_name()} responded to {target.get_display_name()}'s taunt")
 
@@ -3079,14 +3079,12 @@ class Game:
                 else:
                     logger.warning(f"Skill {skill.name} has no execute method")
 
-                # Check for taunt response (Granite Geas) - if skill targeted taunting POTPOURRIST
+                # Check for taunt response (Granite Geas) - if skill targeted taunting unit
                 if hasattr(unit, 'taunted_by') and unit.taunted_by:
-                    # Check if the skill targeted the taunting POTPOURRIST
+                    # Check if the skill targeted the unit that taunted them
                     target_unit = self.get_unit_at(target_pos[0], target_pos[1])
-                    if (target_unit and
-                        target_unit.type == UnitType.POTPOURRIST and
-                        unit.taunted_by == target_unit):
-                        # Unit used skill on the POTPOURRIST that taunted them
+                    if (target_unit and unit.taunted_by == target_unit):
+                        # Unit used skill on the unit that taunted them
                         unit.taunt_responded_this_turn = True
                         logger.debug(f"TAUNT RESPONSE (skill): {unit.get_display_name()} responded to {target_unit.get_display_name()}'s taunt with skill")
 
