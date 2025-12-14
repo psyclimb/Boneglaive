@@ -991,10 +991,7 @@ class Game:
         self.setup_confirmed[self.setup_player] = True
 
         # Check if we're in single player mode
-        print(f"[DEBUG confirm_setup] self.local_multiplayer = {self.local_multiplayer}")
-        print(f"[DEBUG confirm_setup] setup_player = {self.setup_player}")
         is_single_player = not self.local_multiplayer
-        print(f"[DEBUG confirm_setup] is_single_player = {is_single_player}")
         
         # If player 1 is done, handle based on mode
         if self.setup_player == 1:

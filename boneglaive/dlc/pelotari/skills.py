@@ -11,6 +11,7 @@ from typing import Optional, TYPE_CHECKING
 from boneglaive.game.skills.core import PassiveSkill, ActiveSkill, TargetType
 from boneglaive.utils.message_log import message_log, MessageType
 from boneglaive.utils.debug import logger
+from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
 if TYPE_CHECKING:
     from boneglaive.game.units import Unit
@@ -506,19 +507,21 @@ class Matador(ActiveSkill):
     Active skill for PELOTARI.
     Massive ball nuke that deals 8 damage and displaces units/furniture.
     The killer shot - finishing blow in jai alai.
+    Always travels in a straight line to target, ignoring toggle mode.
+    Can ricochet up to 2 times if targets are pinned/blocked.
     """
 
     def __init__(self):
         super().__init__(
             name="Matador",
             key="3",
-            description="Massive ball nuke. 8 damage + knockback. Launches furniture 3-4 tiles. +4 slam damage.",
+            description="Massive targeted ball. 8 damage + 3-tile knockback. Ricochets up to 2x off walls/pinned targets. +2 slam damage.",
             target_type=TargetType.AREA,
             cooldown=6,
-            range_=4
+            range_=6
         )
         self.base_damage = 8
-        self.slam_damage = 4
+        self.slam_damage = 2
         self.displacement_distance = 3  # Can be 3-4 tiles
 
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None,
@@ -571,45 +574,332 @@ class Matador(ActiveSkill):
 
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute Matador nuke."""
-        from .physics import calculate_cannonball_trajectory
-
         message_log.add_message(
             f"{user.get_display_name()} launches Matador!",
             MessageType.ABILITY,
             player=user.player
         )
 
-        # Get toggle mode
-        ricochet_mode = getattr(user, 'pelotari_ricochet_mode', True)
+        # Charging animation at user position
+        if ui and hasattr(ui, 'renderer'):
+            charging_frames = ['o', 'O', '@', 'O']
+            for frame in charging_frames:
+                ui.renderer.draw_tile(user.y, user.x, frame, 6)  # Yellow/gold
+                ui.renderer.refresh()
+                sleep_with_animation_speed(0.15)
 
-        # Calculate trajectory
-        trajectory = calculate_cannonball_trajectory(
+        # Calculate straight-line trajectory to target
+        # Matador always goes straight - doesn't use ricochet/phase toggle
+        trajectory = self._calculate_straight_trajectory(
             start_pos=(user.y, user.x),
             target_pos=target_pos,
-            ricochet_mode=ricochet_mode,
             game=game
         )
 
-        # Execute along trajectory
-        for i, pos in enumerate(trajectory):
-            # Check for unit hit
-            target = game.get_unit_at(pos[0], pos[1])
-            if target and target.is_alive():
-                self._hit_unit(target, user, game, trajectory, i, ui)
-                break
+        # Execute along trajectory - hit first thing in path
+        # We'll animate as we go, stopping animation at collision points
+        ball_active = True
+        bounce_count = 0
+        max_bounces = 2  # Ball can ricochet up to 2 times
+        current_trajectory = trajectory
 
-            # Check for furniture hit (ricochet mode only)
-            if ricochet_mode and game.map.is_furniture(pos[0], pos[1]):
-                self._hit_furniture(pos, user, game, trajectory, i, ui)
-                # Ball continues after hitting furniture in ricochet mode
-                continue
+        while ball_active and current_trajectory:
+            # Animate only up to the collision point
+            collision_index = self._find_collision_index(current_trajectory, user, game)
+            animation_trajectory = current_trajectory[:collision_index + 1] if collision_index >= 0 else current_trajectory
+            self._animate_cannonball_trajectory(animation_trajectory, user, game, ui)
 
-        # TODO: Add animation for giant cannonball
+            for i, pos in enumerate(current_trajectory):
+                # Check for unit hit (enemy units only)
+                target = game.get_unit_at(pos[0], pos[1])
+                if target and target.is_alive() and target.player != user.player:
+                    # Try to displace unit - if blocked, ricochet
+                    if self._hit_unit(target, user, game, current_trajectory, i, ui, bounce_count > 0):
+                        ball_active = False
+                        break
+                    else:
+                        # Unit blocked - ricochet if haven't exceeded max bounces
+                        if bounce_count < max_bounces:
+                            bounce_count += 1
+                            ricochet_trajectory = self._calculate_ricochet(pos, user, game)
+                            if ricochet_trajectory:
+                                # Animate ricochet sparks
+                                if ui and hasattr(ui, 'renderer'):
+                                    ricochet_frames = ['/', '\\', '|']
+                                    for frame in ricochet_frames:
+                                        ui.renderer.draw_tile(pos[0], pos[1], frame, 6)
+                                        ui.renderer.refresh()
+                                        sleep_with_animation_speed(0.1)
+
+                                # Continue with ricochet trajectory (animation happens at loop start)
+                                current_trajectory = ricochet_trajectory
+                                break
+                        ball_active = False
+                        break
+
+                # Check for furniture hit
+                if game.map.is_furniture(pos[0], pos[1]):
+                    # Try to displace furniture - if blocked, ricochet
+                    if self._hit_furniture(pos, user, game, current_trajectory, i, ui, bounce_count > 0):
+                        ball_active = False
+                        break
+                    else:
+                        # Furniture blocked - ricochet if haven't exceeded max bounces
+                        if bounce_count < max_bounces:
+                            bounce_count += 1
+                            ricochet_trajectory = self._calculate_ricochet(pos, user, game)
+                            if ricochet_trajectory:
+                                # Animate ricochet sparks
+                                if ui and hasattr(ui, 'renderer'):
+                                    ricochet_frames = ['/', '\\', '|']
+                                    for frame in ricochet_frames:
+                                        ui.renderer.draw_tile(pos[0], pos[1], frame, 6)
+                                        ui.renderer.refresh()
+                                        sleep_with_animation_speed(0.1)
+
+                                # Continue with ricochet trajectory (animation happens at loop start)
+                                current_trajectory = ricochet_trajectory
+                                break
+                        ball_active = False
+                        break
+
+                # Check for impassable terrain (walls) - ricochet off them
+                if not game.map.is_passable(pos[0], pos[1]):
+                    if bounce_count < max_bounces:
+                        bounce_count += 1
+                        ricochet_trajectory = self._calculate_ricochet(pos, user, game)
+                        if ricochet_trajectory:
+                            # Animate ricochet sparks
+                            if ui and hasattr(ui, 'renderer'):
+                                ricochet_frames = ['/', '\\', '|']
+                                for frame in ricochet_frames:
+                                    # Draw ricochet at last valid position before wall
+                                    ricochet_y, ricochet_x = current_trajectory[i-1] if i > 0 else pos
+                                    ui.renderer.draw_tile(ricochet_y, ricochet_x, frame, 6)
+                                    ui.renderer.refresh()
+                                    sleep_with_animation_speed(0.1)
+
+                            # Continue with ricochet trajectory (animation happens at loop start)
+                            current_trajectory = ricochet_trajectory
+                            break
+                    ball_active = False
+                    break
+            else:
+                # Reached end of trajectory (map edge) - try to ricochet
+                if bounce_count < max_bounces and len(current_trajectory) > 0:
+                    last_pos = current_trajectory[-1]
+                    bounce_count += 1
+                    ricochet_trajectory = self._calculate_edge_ricochet(last_pos, user, game)
+                    if ricochet_trajectory:
+                        # Animate ricochet sparks
+                        if ui and hasattr(ui, 'renderer'):
+                            ricochet_frames = ['/', '\\', '|']
+                            for frame in ricochet_frames:
+                                ui.renderer.draw_tile(last_pos[0], last_pos[1], frame, 6)
+                                ui.renderer.refresh()
+                                sleep_with_animation_speed(0.1)
+
+                        # Continue with ricochet trajectory (animation happens at loop start)
+                        current_trajectory = ricochet_trajectory
+                    else:
+                        ball_active = False
+                else:
+                    ball_active = False
 
         return True
 
+    def _find_collision_index(self, trajectory: list, user: 'Unit', game: 'Game') -> int:
+        """
+        Find the first collision point in a trajectory.
+
+        Args:
+            trajectory: List of (y, x) positions
+            user: PELOTARI unit
+            game: Game instance
+
+        Returns:
+            int: Index of first collision, or -1 if no collision
+        """
+        for i, pos in enumerate(trajectory):
+            # Check for enemy unit
+            target = game.get_unit_at(pos[0], pos[1])
+            if target and target.is_alive() and target.player != user.player:
+                return i
+
+            # Check for furniture
+            if game.map.is_furniture(pos[0], pos[1]):
+                return i
+
+            # Check for impassable terrain
+            if not game.map.is_passable(pos[0], pos[1]):
+                return i - 1 if i > 0 else 0  # Stop before the wall
+
+        return -1  # No collision found
+
+    def _calculate_straight_trajectory(self, start_pos: tuple, target_pos: tuple,
+                                       game: 'Game') -> list:
+        """
+        Calculate straight-line trajectory from start to target and beyond to map edge.
+
+        Args:
+            start_pos: Starting position (y, x)
+            target_pos: Target position (y, x)
+            game: Game instance
+
+        Returns:
+            List of (y, x) positions along straight path
+        """
+        # Calculate direction vector
+        dy = target_pos[0] - start_pos[0]
+        dx = target_pos[1] - start_pos[1]
+
+        # Normalize to unit direction
+        if dy != 0:
+            dy = dy // abs(dy)
+        if dx != 0:
+            dx = dx // abs(dx)
+
+        # Build trajectory from start to map edge in that direction
+        trajectory = []
+        current_y, current_x = start_pos
+
+        # Travel up to 50 tiles (more than any map dimension)
+        for step in range(50):
+            next_y = current_y + dy
+            next_x = current_x + dx
+
+            # Check if we've hit map edge
+            if not game.is_valid_position(next_y, next_x):
+                break
+
+            trajectory.append((next_y, next_x))
+            current_y, current_x = next_y, next_x
+
+        return trajectory
+
+    def _calculate_edge_ricochet(self, last_pos: tuple, user: 'Unit', game: 'Game') -> list:
+        """
+        Calculate ricochet trajectory after hitting map edge.
+
+        Args:
+            last_pos: Last valid position before hitting edge
+            user: PELOTARI unit
+            game: Game instance
+
+        Returns:
+            List of (y, x) positions for ricochet trajectory
+        """
+        # Calculate incoming direction
+        incoming_dir = (
+            last_pos[0] - user.y,
+            last_pos[1] - user.x
+        )
+
+        # Normalize
+        if incoming_dir[0] != 0:
+            incoming_dir = (incoming_dir[0] // abs(incoming_dir[0]), incoming_dir[1])
+        if incoming_dir[1] != 0:
+            incoming_dir = (incoming_dir[0], incoming_dir[1] // abs(incoming_dir[1]))
+
+        # Determine which edge was hit and calculate reflection
+        reflection = list(incoming_dir)
+
+        # Check if we're at or near top/bottom edge
+        if last_pos[0] == 0 or last_pos[0] == game.map.height - 1:
+            # Hit top or bottom edge - flip vertical component
+            reflection[0] = -reflection[0]
+
+        # Check if we're at or near left/right edge
+        if last_pos[1] == 0 or last_pos[1] == game.map.width - 1:
+            # Hit left or right edge - flip horizontal component
+            reflection[1] = -reflection[1]
+
+        # Build trajectory in reflection direction
+        trajectory = []
+        current_pos = last_pos
+        max_range = 6  # Ricochet travels up to 6 tiles
+
+        for step in range(max_range):
+            next_y = current_pos[0] + reflection[0]
+            next_x = current_pos[1] + reflection[1]
+
+            # Check bounds
+            if not game.is_valid_position(next_y, next_x):
+                break
+
+            trajectory.append((next_y, next_x))
+            current_pos = (next_y, next_x)
+
+        return trajectory
+
+    def _calculate_ricochet(self, impact_pos: tuple, user: 'Unit', game: 'Game') -> list:
+        """
+        Calculate ricochet trajectory after hitting blocked target.
+
+        Args:
+            impact_pos: Position where ball hit blocked target
+            user: PELOTARI unit
+            game: Game instance
+
+        Returns:
+            List of (y, x) positions for ricochet trajectory, or empty list if no valid ricochet
+        """
+        from .physics import calculate_bounce, calculate_surface_normal
+
+        # Calculate incoming direction
+        incoming_dir = (
+            impact_pos[0] - user.y,
+            impact_pos[1] - user.x
+        )
+
+        # Normalize
+        if incoming_dir[0] != 0:
+            incoming_dir = (incoming_dir[0] // abs(incoming_dir[0]), incoming_dir[1])
+        if incoming_dir[1] != 0:
+            incoming_dir = (incoming_dir[0], incoming_dir[1] // abs(incoming_dir[1]))
+
+        # Calculate surface normal at impact
+        normal = calculate_surface_normal(impact_pos, game)
+        if not normal:
+            return []
+
+        # Calculate reflection direction
+        dot_product = incoming_dir[0] * normal[0] + incoming_dir[1] * normal[1]
+        reflection = (
+            incoming_dir[0] - 2 * dot_product * normal[0],
+            incoming_dir[1] - 2 * dot_product * normal[1]
+        )
+
+        # Normalize reflection
+        if reflection[0] != 0:
+            reflection = (reflection[0] // abs(reflection[0]), reflection[1])
+        if reflection[1] != 0:
+            reflection = (reflection[0], reflection[1] // abs(reflection[1]))
+
+        # Build trajectory in reflection direction
+        trajectory = []
+        current_pos = impact_pos
+        max_range = 6  # Ricochet travels up to 6 tiles
+
+        for step in range(max_range):
+            next_y = current_pos[0] + reflection[0]
+            next_x = current_pos[1] + reflection[1]
+
+            # Check bounds
+            if not game.is_valid_position(next_y, next_x):
+                break
+
+            # Stop at impassable terrain
+            if not game.map.is_passable(next_y, next_x):
+                break
+
+            trajectory.append((next_y, next_x))
+            current_pos = (next_y, next_x)
+
+        return trajectory
+
     def _hit_unit(self, target: 'Unit', user: 'Unit', game: 'Game',
-                  trajectory: list, hit_index: int, ui=None) -> None:
+                  trajectory: list, hit_index: int, ui=None, bounced: bool = False) -> bool:
         """
         Handle Matador hitting a unit.
 
@@ -620,42 +910,128 @@ class Matador(ActiveSkill):
             trajectory: Full trajectory path
             hit_index: Index in trajectory where hit occurred
             ui: UI instance
+            bounced: Whether ball has already bounced
+
+        Returns:
+            bool: True if hit was successful, False if unit blocked and ball should ricochet
         """
-        # Deal base damage
-        actual_damage = target.deal_damage(self.base_damage)
+        # Store original position for animation
+        original_pos = (target.y, target.x)
 
-        # Calculate knockback direction (continue along trajectory)
-        if hit_index + 1 < len(trajectory):
-            knockback_dir = (
-                trajectory[hit_index + 1][0] - trajectory[hit_index][0],
-                trajectory[hit_index + 1][1] - trajectory[hit_index][1]
+        # Show impact animation
+        self._animate_impact(target.y, target.x, ui, slam=False)
+
+        # Deal base damage (respecting defense)
+        damage_after_defense = max(1, self.base_damage - target.defense)
+        target.hp -= damage_after_defense
+        target.hp = max(0, target.hp)
+        actual_damage = damage_after_defense
+
+        # Show damage number
+        if ui and hasattr(ui, 'renderer'):
+            damage_text = f"-{actual_damage}"
+            for flash in range(3):
+                ui.renderer.draw_tile(target.y - 1, target.x * 2, damage_text, 1)
+                ui.renderer.refresh()
+                sleep_with_animation_speed(0.1)
+
+        # Check if target died from initial hit
+        if not target.is_alive():
+            message_log.add_combat_message(
+                attacker_name=user.get_display_name(),
+                target_name=target.get_display_name(),
+                damage=actual_damage,
+                ability="Matador",
+                attacker_player=user.player,
+                target_player=target.player
             )
-        else:
-            # Use direction from previous to current
-            knockback_dir = (
-                trajectory[hit_index][0] - trajectory[hit_index - 1][0],
-                trajectory[hit_index][1] - trajectory[hit_index - 1][1]
-            ) if hit_index > 0 else (0, 0)
+            return True  # Hit successful - unit died
 
-        # Displace unit
+        # Calculate knockback direction: FROM user TO target (direction ball was traveling)
+        knockback_dir = (
+            target.y - user.y,
+            target.x - user.x
+        )
+
+        # Normalize to unit vector (-1, 0, 1 for each component)
+        if knockback_dir[0] != 0:
+            knockback_dir = (knockback_dir[0] // abs(knockback_dir[0]), knockback_dir[1])
+        if knockback_dir[1] != 0:
+            knockback_dir = (knockback_dir[0], knockback_dir[1] // abs(knockback_dir[1]))
+
+        # Try to displace unit
+        original_unit_pos = (target.y, target.x)
         final_pos = self._displace_unit(target, knockback_dir, self.displacement_distance, game)
+
+        # Check if unit was actually displaced
+        if final_pos == original_unit_pos:
+            # Unit couldn't be displaced (blocked immediately) - ball should ricochet
+            # Still log the combat damage
+            message_log.add_combat_message(
+                attacker_name=user.get_display_name(),
+                target_name=target.get_display_name(),
+                damage=actual_damage,
+                ability="Matador (RICOCHET)",
+                attacker_player=user.player,
+                target_player=target.player
+            )
+
+            message_log.add_message(
+                f"{target.get_display_name()} is pinned! Ball ricochets!",
+                MessageType.ABILITY,
+                player=user.player
+            )
+
+            # Check if target died from damage even though pinned
+            if not target.is_alive():
+                logger.debug(f"{target.get_display_name()} died from Matador ricochet (total: {actual_damage} damage)")
+                return True  # Unit died, don't ricochet
+
+            return False  # Unit blocked - ricochet
+
+        # Animate knockback
+        if ui and hasattr(ui, 'renderer') and final_pos != original_unit_pos:
+            # Show unit being pushed back
+            message_log.add_message(
+                f"{target.get_display_name()} is knocked back!",
+                MessageType.ABILITY,
+                player=user.player
+            )
+            sleep_with_animation_speed(0.2)
 
         # Check for slam damage
         slam_occurred = False
-        if final_pos != (target.y, target.x):
+        slam_dmg = 0
+        if final_pos != original_pos:
             # Check if slammed into terrain
             check_y = final_pos[0] + knockback_dir[0]
             check_x = final_pos[1] + knockback_dir[1]
             if game.is_valid_position(check_y, check_x):
                 if not game.map.is_passable(check_y, check_x):
                     slam_occurred = True
-                    slam_dmg = target.deal_damage(self.slam_damage)
+                    # Apply slam damage (respecting defense)
+                    slam_damage_after_defense = max(1, self.slam_damage - target.defense)
+                    target.hp -= slam_damage_after_defense
+                    target.hp = max(0, target.hp)
+                    slam_dmg = slam_damage_after_defense
                     actual_damage += slam_dmg
+
+                    # Show slam impact animation
+                    self._animate_impact(final_pos[0], final_pos[1], ui, slam=True)
+
                     message_log.add_message(
                         f"{target.get_display_name()} slams into terrain (+{slam_dmg} damage)!",
                         MessageType.ABILITY,
                         player=user.player
                     )
+
+                    # Show slam damage number
+                    if ui and hasattr(ui, 'renderer'):
+                        slam_text = f"-{slam_dmg}!"
+                        for flash in range(3):
+                            ui.renderer.draw_tile(final_pos[0] - 1, final_pos[1] * 2, slam_text, 1)
+                            ui.renderer.refresh()
+                            sleep_with_animation_speed(0.1)
 
         # Log combat
         message_log.add_combat_message(
@@ -667,8 +1043,14 @@ class Matador(ActiveSkill):
             target_player=target.player
         )
 
+        # Check if target died
+        if not target.is_alive():
+            logger.debug(f"{target.get_display_name()} died from Matador (total: {actual_damage} damage)")
+
+        return True  # Hit successful - unit took damage and was displaced
+
     def _hit_furniture(self, furniture_pos: tuple, user: 'Unit', game: 'Game',
-                       trajectory: list, hit_index: int, ui=None) -> None:
+                       trajectory: list, hit_index: int, ui=None, bounced: bool = False) -> bool:
         """
         Handle Matador hitting furniture (launches it).
 
@@ -679,26 +1061,55 @@ class Matador(ActiveSkill):
             trajectory: Full trajectory path
             hit_index: Index where furniture was hit
             ui: UI instance
+            bounced: Whether ball has already bounced
+
+        Returns:
+            bool: True if hit was successful, False if furniture blocked and ball should ricochet
         """
-        # Calculate launch direction
-        if hit_index + 1 < len(trajectory):
-            launch_dir = (
-                trajectory[hit_index + 1][0] - trajectory[hit_index][0],
-                trajectory[hit_index + 1][1] - trajectory[hit_index][1]
-            )
-        else:
-            launch_dir = (0, 0)
+        from boneglaive.game.map import TerrainType
+
+        # Get furniture type before moving it
+        furniture_type = game.map.get_terrain_at(furniture_pos[0], furniture_pos[1])
+
+        # Calculate launch direction: FROM user TO furniture (direction ball was traveling)
+        launch_dir = (
+            furniture_pos[0] - user.y,
+            furniture_pos[1] - user.x
+        )
+
+        # Normalize to unit vector
+        if launch_dir[0] != 0:
+            launch_dir = (launch_dir[0] // abs(launch_dir[0]), launch_dir[1])
+        if launch_dir[1] != 0:
+            launch_dir = (launch_dir[0], launch_dir[1] // abs(launch_dir[1]))
 
         message_log.add_message(
-            f"Furniture launches from {furniture_pos}!",
+            f"Furniture launches from ({furniture_pos[0]}, {furniture_pos[1]})!",
             MessageType.ABILITY,
             player=user.player
         )
 
-        # Calculate furniture trajectory
+        # Calculate furniture trajectory (3-4 tiles)
         furniture_trajectory = self._calculate_furniture_displacement(
             furniture_pos, launch_dir, self.displacement_distance + 1, game
         )
+
+        # Check if furniture can actually be displaced
+        if len(furniture_trajectory) <= 1:
+            # Furniture blocked immediately - ball should ricochet
+            message_log.add_message(
+                f"Furniture is pinned! Ball ricochets!",
+                MessageType.ABILITY,
+                player=user.player
+            )
+            return False
+
+        # Animate furniture tumbling through the air
+        if ui and hasattr(ui, 'renderer'):
+            for furn_pos in furniture_trajectory[1:]:  # Skip starting position
+                ui.renderer.draw_tile(furn_pos[0], furn_pos[1], '*', 7)  # White tumbling furniture
+                ui.renderer.refresh()
+                sleep_with_animation_speed(0.1)
 
         # Check for units hit by flying furniture
         for furn_pos in furniture_trajectory[1:]:  # Skip starting position
@@ -715,10 +1126,42 @@ class Matador(ActiveSkill):
                     target_player=unit_hit.player
                 )
 
+                # Show damage number
+                if ui and hasattr(ui, 'renderer'):
+                    damage_text = f"-{furniture_damage}"
+                    for flash in range(2):
+                        ui.renderer.draw_tile(unit_hit.y - 1, unit_hit.x * 2, damage_text, 7)
+                        ui.renderer.refresh()
+                        sleep_with_animation_speed(0.1)
+
         # Move furniture to final position
         final_furn_pos = furniture_trajectory[-1]
-        # TODO: Implement furniture relocation in game engine
+
+        # Clear old position
+        game.map.set_terrain_at(furniture_pos[0], furniture_pos[1], TerrainType.EMPTY)
+
+        # Place furniture at new position
+        game.map.set_terrain_at(final_furn_pos[0], final_furn_pos[1], furniture_type)
+
+        # Transfer cosmic values if DELPHIC_APPRAISER system is in use
+        if hasattr(game.map, 'cosmic_values'):
+            for player in list(game.map.cosmic_values.keys()):
+                if furniture_pos in game.map.cosmic_values[player]:
+                    # Transfer the value to new position
+                    value = game.map.cosmic_values[player].pop(furniture_pos)
+                    game.map.cosmic_values[player][final_furn_pos] = value
+
+        # Show dust cloud on landing
+        if ui and hasattr(ui, 'renderer'):
+            dust_frames = ['.', ':', '.']
+            for frame in dust_frames:
+                ui.renderer.draw_tile(final_furn_pos[0], final_furn_pos[1], frame, 7)
+                ui.renderer.refresh()
+                sleep_with_animation_speed(0.08)
+
         logger.debug(f"Furniture relocated from {furniture_pos} to {final_furn_pos}")
+
+        return True  # Furniture was successfully displaced
 
     def _displace_unit(self, unit: 'Unit', direction: tuple, max_distance: int,
                        game: 'Game') -> tuple:
@@ -775,6 +1218,89 @@ class Matador(ActiveSkill):
             current_y, current_x = new_y, new_x
 
         return path
+
+    def _animate_cannonball_trajectory(self, trajectory: list, user: 'Unit',
+                                       game: 'Game', ui=None) -> None:
+        """
+        Animate the massive cannonball traveling along its trajectory.
+
+        Args:
+            trajectory: List of (y, x) positions the ball travels through
+            user: PELOTARI unit
+            game: Game instance
+            ui: UI instance for rendering
+        """
+        if not ui or not hasattr(ui, 'renderer'):
+            return
+
+        # Get toggle mode for visual style
+        ricochet_mode = getattr(user, 'pelotari_ricochet_mode', True)
+
+        # Ball character and color
+        ball_char = 'O'  # Massive ball
+        trail_char = 'o'  # Smaller trail
+        ball_color = 7  # Bright white for ricochet
+        trail_color = 7
+
+        # Phase mode: ghostly appearance
+        if not ricochet_mode:
+            ball_color = 14  # Cyan/ghostly (if available, fallback to 6)
+            trail_color = 6
+
+        # Animate ball moving through trajectory
+        for i, pos in enumerate(trajectory):
+            y, x = pos
+
+            # Draw the massive ball
+            ui.renderer.draw_tile(y, x, ball_char, ball_color)
+            ui.renderer.refresh()
+            sleep_with_animation_speed(0.08)
+
+            # Leave a brief trail
+            if i > 0:
+                prev_y, prev_x = trajectory[i-1]
+                ui.renderer.draw_tile(prev_y, prev_x, trail_char, trail_color)
+
+            ui.renderer.refresh()
+
+            # Clear trail after a moment
+            if i > 1:
+                old_y, old_x = trajectory[i-2]
+                # Restore terrain at old position
+                terrain_type = game.map.get_terrain_at(old_y, old_x)
+                # Just clear it - the renderer will handle terrain display
+                ui.renderer.refresh()
+
+    def _animate_impact(self, y: int, x: int, ui=None, slam: bool = False) -> None:
+        """
+        Animate explosive impact when ball hits target.
+
+        Args:
+            y, x: Impact position
+            ui: UI instance for rendering
+            slam: If True, show extra dramatic slam effect
+        """
+        if not ui or not hasattr(ui, 'renderer'):
+            return
+
+        # Impact sequence
+        if slam:
+            # More dramatic slam animation
+            impact_frames = ['*', '#', '!', '#', '*', 'X']
+            impact_color = 1  # Red for slam
+        else:
+            # Standard impact
+            impact_frames = ['*', '#', '*', 'X']
+            impact_color = 7  # White
+
+        # Show impact animation
+        for frame in impact_frames:
+            ui.renderer.draw_tile(y, x, frame, impact_color)
+            ui.renderer.refresh()
+            sleep_with_animation_speed(0.12)
+
+        # Brief pause
+        sleep_with_animation_speed(0.15)
 
 
 # Export skills for plugin registration
