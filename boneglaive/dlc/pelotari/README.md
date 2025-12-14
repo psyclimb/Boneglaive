@@ -15,6 +15,7 @@ The PELOTARI is a high-skill ranged specialist inspired by jai alai (Basque pelo
 - **Defense**: 1
 - **Movement**: 4
 - **Range**: 4 (base), 6 (with Riposte buff)
+- **Symbol**: J
 
 ## Abilities
 

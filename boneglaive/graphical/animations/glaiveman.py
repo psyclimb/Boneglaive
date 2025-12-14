@@ -2443,3 +2443,194 @@ class AutoclaveAnimationV2:
                 self.healing_effect.draw(surface)
 
 
+class GlaivemanPolearmAttack:
+    """
+    GLAIVEMAN basic attack animation - simple, impactful polearm sweep.
+    Clean metallic blade arc with solid impact. No magic effects.
+    """
+
+    def __init__(self, attacker_unit, target_unit, particle_emitter, screen_shake_callback):
+        """
+        Args:
+            attacker_unit: AnimatedUnit doing the attacking
+            target_unit: AnimatedUnit being attacked
+            particle_emitter: ParticleEmitter for effects
+            screen_shake_callback: Function(intensity, duration)
+        """
+        self.attacker = attacker_unit
+        self.target = target_unit
+        self.particle_emitter = particle_emitter
+        self.screen_shake = screen_shake_callback
+
+        # Calculate attack vector
+        self.dx = target_unit.x - attacker_unit.x
+        self.dy = target_unit.y - attacker_unit.y
+        distance = math.sqrt(self.dx * self.dx + self.dy * self.dy)
+
+        if distance > 0:
+            self.dx /= distance
+            self.dy /= distance
+
+        self.distance = distance
+
+        # Animation state
+        self.phase = "windup"  # windup → sweep → impact → done
+        self.timer = 0
+        self.active = True
+
+        # Phase durations
+        self.windup_duration = 0.1
+        self.sweep_duration = 0.25
+        self.impact_duration = 0.15
+
+        # Weapon arc drawing state
+        self.sweep_progress = 0.0  # 0.0 to 1.0 during sweep phase
+
+    def _trigger_windup(self):
+        """Phase 1: Pull back polearm."""
+        self.attacker.shake_intensity = 5
+
+    def _trigger_sweep(self):
+        """Phase 2: Wide sweeping arc - silver blade trail."""
+        # Calculate perpendicular vector for arc
+        perp_x = -self.dy
+        perp_y = self.dx
+
+        # Create wide arc sweep (25 particles)
+        particle_count = 25
+        arc_width = 30  # Width of arc in pixels
+
+        for i in range(particle_count):
+            progress = i / particle_count
+
+            # Position along attack vector
+            base_x = self.attacker.x + self.dx * self.distance * progress
+            base_y = self.attacker.y + self.dy * self.distance * progress
+
+            # Arc offset (sine curve for natural sweep)
+            arc_offset = math.sin(progress * math.pi) * arc_width
+
+            # Final particle position
+            particle_x = base_x + perp_x * arc_offset
+            particle_y = base_y + perp_y * arc_offset
+
+            # Velocity continues in sweep direction
+            speed = random.uniform(300, 500)
+            vx = self.dx * speed + perp_x * arc_offset * 3
+            vy = self.dy * speed + perp_y * arc_offset * 3
+
+            # Silver/white metallic colors only
+            color = random.choice([
+                (192, 192, 192),  # Silver
+                (232, 232, 232),  # Light silver
+                (255, 255, 255),  # White
+            ])
+
+            size = random.uniform(4, 7)
+            lifetime = random.uniform(0.15, 0.25)
+
+            particle = Particle(particle_x, particle_y, vx, vy, color, size, lifetime)
+            particle.gravity = 0  # No gravity for blade sweep
+            self.particle_emitter.particles.append(particle)
+
+    def _trigger_impact(self):
+        """Phase 3: Metal impact sparks at target."""
+        # Impact sparks - white/silver only (metal on metal)
+        for _ in range(20):
+            angle = random.uniform(0, 2 * math.pi)
+            speed = random.uniform(100, 200)
+            vx = math.cos(angle) * speed
+            vy = math.sin(angle) * speed
+
+            # Metallic impact colors
+            color = random.choice([
+                (255, 255, 255),  # White
+                (240, 240, 240),  # Bright white
+                (200, 200, 200),  # Silver
+            ])
+
+            size = random.uniform(3, 6)
+            lifetime = random.uniform(0.1, 0.2)
+
+            particle = Particle(self.target.x, self.target.y, vx, vy, color, size, lifetime)
+            particle.gravity = 150
+            self.particle_emitter.particles.append(particle)
+
+        # Strong impact feel
+        self.target.shake_intensity = 14
+        self.screen_shake(7, 0.15)
+
+    def update(self, delta_time):
+        """Update animation state."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.phase == "windup":
+            if self.timer >= self.windup_duration:
+                self.phase = "sweep"
+                self.timer = 0
+                self._trigger_sweep()
+
+        elif self.phase == "sweep":
+            # Update sweep progress for weapon drawing
+            self.sweep_progress = min(1.0, self.timer / self.sweep_duration)
+
+            if self.timer >= self.sweep_duration:
+                self.phase = "impact"
+                self.timer = 0
+                self._trigger_impact()
+
+        elif self.phase == "impact":
+            if self.timer >= self.impact_duration:
+                self.phase = "done"
+                self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw the actual polearm blade arc during sweep phase."""
+        import pygame
+
+        # Only draw weapon during sweep phase
+        if self.phase != "sweep":
+            return
+
+        # Calculate perpendicular vector for arc sweep
+        perp_x = -self.dy
+        perp_y = self.dx
+
+        # Draw the blade arc as a thick line/polygon
+        # The blade sweeps from one side to the other
+        arc_width = 35  # How wide the arc spreads
+        blade_length = self.distance + 20  # Extend past target slightly
+
+        # Calculate arc points along the sweep
+        points = []
+        num_segments = 15
+
+        for i in range(num_segments):
+            progress = (i / (num_segments - 1)) * self.sweep_progress
+
+            # Position along attack vector
+            base_x = self.attacker.x + self.dx * blade_length * progress
+            base_y = self.attacker.y + self.dy * blade_length * progress
+
+            # Arc offset (sine curve for natural weapon sweep)
+            arc_offset = math.sin(progress * math.pi) * arc_width
+
+            # Calculate point position
+            point_x = base_x + perp_x * arc_offset
+            point_y = base_y + perp_y * arc_offset
+
+            points.append((int(point_x), int(point_y)))
+
+        # Draw the blade arc as a thick line
+        if len(points) >= 2:
+            # Draw white core (the blade itself)
+            pygame.draw.lines(surface, (255, 255, 255), False, points, 4)
+            # Draw silver outline for depth
+            pygame.draw.lines(surface, (180, 180, 180), False, points, 6)
+
+

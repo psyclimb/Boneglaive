@@ -1162,3 +1162,251 @@ class GraymanEchoDeathExplosionAnimation:
             # Draw explosion particles (top layer)
             if self.explosion_particles:
                 self.explosion_particles.draw(surface)
+
+
+class GraymanPsychicAttack:
+    """
+    GRAYMAN basic attack animation - psychic/psionic energy projection.
+    Purple/violet energy wave that travels from attacker to target.
+    """
+
+    def __init__(self, attacker_unit, target_unit, particle_emitter, screen_shake_callback):
+        """
+        Args:
+            attacker_unit: AnimatedUnit doing the attacking
+            target_unit: AnimatedUnit being attacked
+            particle_emitter: ParticleEmitter for effects
+            screen_shake_callback: Function(intensity, duration)
+        """
+        self.attacker = attacker_unit
+        self.target = target_unit
+        self.particle_emitter = particle_emitter
+        self.screen_shake = screen_shake_callback
+
+        # Calculate attack vector
+        self.dx = target_unit.x - attacker_unit.x
+        self.dy = target_unit.y - attacker_unit.y
+        distance = math.sqrt(self.dx * self.dx + self.dy * self.dy)
+
+        if distance > 0:
+            self.dx /= distance
+            self.dy /= distance
+
+        self.distance = distance
+
+        # Animation state
+        self.phase = "charge"  # charge → project → impact → done
+        self.timer = 0
+        self.active = True
+
+        # Phase durations
+        self.charge_duration = 0.15
+        self.project_duration = 0.3
+        self.impact_duration = 0.2
+
+        # Psychic wave drawing state
+        self.wave_progress = 0.0  # 0.0 to 1.0 during project phase
+
+        # Purple/violet colors matching GRAYMAN's Psi symbol
+        self.color_outer = (170, 119, 255)  # #aa77ff
+        self.color_inner = (221, 187, 255)  # #ddbbff
+        self.color_bright = (255, 255, 255)
+
+    def _trigger_charge(self):
+        """Phase 1: Charge psychic energy."""
+        # Spawn charging particles at attacker
+        for _ in range(12):
+            angle = random.uniform(0, 2 * math.pi)
+            distance = random.uniform(25, 40)
+            x = self.attacker.x + math.cos(angle) * distance
+            y = self.attacker.y + math.sin(angle) * distance
+            # Particles move toward center
+            vx = -math.cos(angle) * 120
+            vy = -math.sin(angle) * 120
+            color = self.color_outer if random.random() > 0.5 else self.color_inner
+            particle = Particle(x, y, vx, vy, color, size=3, lifetime=0.2)
+            self.particle_emitter.particles.append(particle)
+
+    def _trigger_project(self):
+        """Phase 2: Project psychic wave toward target."""
+        # Create trailing particles along the wave
+        for i in range(15):
+            progress = i / 15
+            x = self.attacker.x + self.dx * self.distance * progress
+            y = self.attacker.y + self.dy * self.distance * progress
+
+            # Add some perpendicular spread
+            perp_x = -self.dy
+            perp_y = self.dx
+            spread = random.uniform(-15, 15)
+
+            vx = self.dx * 200 + perp_x * spread * 2
+            vy = self.dy * 200 + perp_y * spread * 2
+
+            color = random.choice([self.color_outer, self.color_inner])
+            size = random.uniform(3, 5)
+            lifetime = random.uniform(0.2, 0.3)
+
+            particle = Particle(x, y, vx, vy, color, size, lifetime)
+            particle.gravity = 0  # No gravity for psychic energy
+            self.particle_emitter.particles.append(particle)
+
+    def _trigger_impact(self):
+        """Phase 3: Psychic impact at target."""
+        # Impact burst - purple/violet explosion
+        for _ in range(25):
+            angle = random.uniform(0, 2 * math.pi)
+            speed = random.uniform(100, 220)
+            vx = math.cos(angle) * speed
+            vy = math.sin(angle) * speed
+
+            color = random.choice([
+                self.color_outer,
+                self.color_inner,
+                self.color_bright,
+            ])
+
+            size = random.uniform(3, 6)
+            lifetime = random.uniform(0.15, 0.25)
+
+            particle = Particle(self.target.x, self.target.y, vx, vy, color, size, lifetime)
+            particle.gravity = 120
+            self.particle_emitter.particles.append(particle)
+
+        # Psychic impact shake
+        self.target.shake_intensity = 12
+        self.screen_shake(6, 0.18)
+
+    def update(self, delta_time):
+        """Update animation state."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.phase == "charge":
+            if self.timer == 0 or not hasattr(self, '_charge_triggered'):
+                self._trigger_charge()
+                self._charge_triggered = True
+
+            if self.timer >= self.charge_duration:
+                self.phase = "project"
+                self.timer = 0
+                self._trigger_project()
+
+        elif self.phase == "project":
+            # Update wave progress for drawing
+            self.wave_progress = min(1.0, self.timer / self.project_duration)
+
+            if self.timer >= self.project_duration:
+                self.phase = "impact"
+                self.timer = 0
+                self._trigger_impact()
+
+        elif self.phase == "impact":
+            if self.timer >= self.impact_duration:
+                self.phase = "done"
+                self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw the psychic energy wave during project phase."""
+        import pygame
+
+        # Draw charging glow
+        if self.phase == "charge":
+            progress = self.timer / self.charge_duration
+            glow_radius = int(20 * progress)
+
+            if glow_radius > 3:
+                glow_surf = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
+                pygame.draw.circle(glow_surf, (*self.color_outer, int(120 * progress)),
+                                 (glow_radius, glow_radius), glow_radius)
+                surface.blit(glow_surf, (int(self.attacker.x - glow_radius),
+                                        int(self.attacker.y - glow_radius)))
+
+                # Inner glow
+                inner_radius = int(glow_radius * 0.6)
+                if inner_radius > 2:
+                    inner_surf = pygame.Surface((inner_radius * 2, inner_radius * 2), pygame.SRCALPHA)
+                    pygame.draw.circle(inner_surf, (*self.color_inner, int(180 * progress)),
+                                     (inner_radius, inner_radius), inner_radius)
+                    surface.blit(inner_surf, (int(self.attacker.x - inner_radius),
+                                             int(self.attacker.y - inner_radius)))
+
+        # Draw psychic wave during project phase
+        if self.phase == "project":
+            # Calculate perpendicular vector for wave width
+            perp_x = -self.dy
+            perp_y = self.dx
+
+            # Draw the energy wave as expanding oval/ellipse
+            wave_length = self.distance * self.wave_progress
+            wave_width = 25  # Width of the wave
+
+            # Create wave front points
+            points = []
+            num_segments = 12
+
+            for i in range(num_segments + 1):
+                # Parameter from -1 to 1 (across wave width)
+                t = (i / num_segments) * 2 - 1
+
+                # Calculate position at wave front
+                front_x = self.attacker.x + self.dx * wave_length
+                front_y = self.attacker.y + self.dy * wave_length
+
+                # Add perpendicular offset
+                offset = t * wave_width
+                point_x = front_x + perp_x * offset
+                point_y = front_y + perp_y * offset
+
+                points.append((int(point_x), int(point_y)))
+
+            # Draw the wave as filled polygon with transparency
+            if len(points) >= 3:
+                # Create transparent surface for wave
+                wave_surf = pygame.Surface((int(self.distance + 100), int(wave_width * 3)), pygame.SRCALPHA)
+
+                # Transform points to local coordinates
+                min_x = min(p[0] for p in points)
+                min_y = min(p[1] for p in points)
+                local_points = [(p[0] - min_x + 50, p[1] - min_y + wave_width) for p in points]
+
+                # Draw outer glow
+                pygame.draw.polygon(wave_surf, (*self.color_outer, 100), local_points)
+
+                # Draw inner bright core (narrower)
+                inner_points = []
+                for i in range(num_segments + 1):
+                    t = (i / num_segments) * 2 - 1
+                    front_x = self.attacker.x + self.dx * wave_length
+                    front_y = self.attacker.y + self.dy * wave_length
+                    offset = t * wave_width * 0.5
+                    point_x = front_x + perp_x * offset
+                    point_y = front_y + perp_y * offset
+                    inner_points.append((int(point_x - min_x + 50), int(point_y - min_y + wave_width)))
+
+                if len(inner_points) >= 3:
+                    pygame.draw.polygon(wave_surf, (*self.color_inner, 160), inner_points)
+
+                # Draw bright center line
+                center_start = (int(self.attacker.x - min_x + 50), int(self.attacker.y - min_y + wave_width))
+                center_end = (int(front_x - min_x + 50), int(front_y - min_y + wave_width))
+                pygame.draw.line(wave_surf, self.color_bright, center_start, center_end, 3)
+
+                surface.blit(wave_surf, (min_x - 50, min_y - wave_width))
+
+        # Draw impact flash
+        if self.phase == "impact":
+            progress = self.timer / self.impact_duration
+            if progress < 0.4:
+                flash_alpha = int(255 * (1.0 - progress / 0.4))
+                flash_radius = int(35 * (1.0 + progress))
+
+                flash_surf = pygame.Surface((flash_radius * 2, flash_radius * 2), pygame.SRCALPHA)
+                pygame.draw.circle(flash_surf, (*self.color_bright, flash_alpha),
+                                 (flash_radius, flash_radius), flash_radius)
+                surface.blit(flash_surf, (int(self.target.x - flash_radius),
+                                         int(self.target.y - flash_radius)))

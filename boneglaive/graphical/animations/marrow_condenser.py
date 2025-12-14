@@ -1868,3 +1868,263 @@ class MarrowDikeWallDespawnAnimation:
                 fragment.draw(surface)
             for dust in self.dust_particles:
                 dust.draw(surface)
+
+
+# ============================================================================
+# MARROW CONDENSER BASIC ATTACK - BONE BALL BASH
+# ============================================================================
+
+class MarrowCondenserBoneAttack:
+    """
+    MARROW CONDENSER basic attack animation - wadded ball of bone chunks and marrow.
+    Gathers bone/marrow particles into a rotating mass, launches it at target, explodes on impact.
+    """
+
+    def __init__(self, attacker_unit, target_unit, particle_emitter, screen_shake_callback):
+        """
+        Args:
+            attacker_unit: AnimatedUnit doing the attacking
+            target_unit: AnimatedUnit being attacked
+            particle_emitter: ParticleEmitter for effects
+            screen_shake_callback: Function(intensity, duration)
+        """
+        self.attacker = attacker_unit
+        self.target = target_unit
+        self.particle_emitter = particle_emitter
+        self.screen_shake = screen_shake_callback
+
+        # Calculate attack vector
+        self.dx = target_unit.x - attacker_unit.x
+        self.dy = target_unit.y - attacker_unit.y
+        distance = math.sqrt(self.dx * self.dx + self.dy * self.dy)
+
+        if distance > 0:
+            self.dx /= distance
+            self.dy /= distance
+
+        self.distance = distance
+
+        # Animation state
+        self.phase = "gather"  # gather → launch → impact → done
+        self.timer = 0
+        self.active = True
+
+        # Phase durations
+        self.gather_duration = 0.2
+        self.launch_duration = 0.25
+        self.impact_duration = 0.2
+
+        # Ball position and rotation
+        self.ball_x = attacker_unit.x
+        self.ball_y = attacker_unit.y
+        self.ball_rotation = 0.0
+
+        # Bone and marrow colors from MARROW_CONDENSER sprite
+        self.color_bone_white = (240, 232, 216)  # #f0e8d8
+        self.color_bone_cream = (224, 213, 197)  # #e0d5c5
+        self.color_marrow_red = (200, 69, 69)    # #c84545
+        self.color_marrow_dark = (184, 69, 69)   # #b84545
+
+    def _trigger_gather(self):
+        """Phase 1: Gather bone and marrow chunks."""
+        # Spawn gathering particles (swirling toward attacker)
+        for _ in range(20):
+            angle = random.uniform(0, 2 * math.pi)
+            distance = random.uniform(30, 50)
+            x = self.attacker.x + math.cos(angle) * distance
+            y = self.attacker.y + math.sin(angle) * distance
+
+            # Particles move toward center
+            vx = -math.cos(angle) * 150
+            vy = -math.sin(angle) * 150
+
+            # Mix of bone (white) and marrow (red) particles
+            color = random.choice([
+                self.color_bone_white,
+                self.color_bone_cream,
+                self.color_marrow_red,
+                self.color_marrow_dark,
+            ])
+
+            from .core import Particle
+            particle = Particle(x, y, vx, vy, color, size=random.uniform(3, 5), lifetime=0.25)
+            particle.gravity = 0
+            self.particle_emitter.particles.append(particle)
+
+    def _trigger_launch(self):
+        """Phase 2: Launch wadded bone ball toward target."""
+        # Create trailing particles as ball moves
+        for i in range(12):
+            progress = i / 12
+            trail_x = self.attacker.x + self.dx * self.distance * progress * 0.3
+            trail_y = self.attacker.y + self.dy * self.distance * progress * 0.3
+
+            # Perpendicular spread
+            perp_x = -self.dy
+            perp_y = self.dx
+            spread = random.uniform(-8, 8)
+
+            vx = self.dx * 120 + perp_x * spread
+            vy = self.dy * 120 + perp_y * spread
+
+            # Mix of colors
+            color = random.choice([
+                self.color_bone_cream,
+                self.color_marrow_red,
+            ])
+
+            from .core import Particle
+            particle = Particle(trail_x, trail_y, vx, vy, color,
+                              size=random.uniform(2, 4), lifetime=0.2)
+            particle.gravity = 0
+            self.particle_emitter.particles.append(particle)
+
+    def _trigger_impact(self):
+        """Phase 3: Bone and marrow explosion on impact."""
+        # Impact explosion - mixed bone shards and marrow splatter
+        for _ in range(30):
+            angle = random.uniform(0, 2 * math.pi)
+            speed = random.uniform(80, 200)
+            vx = math.cos(angle) * speed
+            vy = math.sin(angle) * speed
+
+            # 60% bone, 40% marrow
+            if random.random() < 0.6:
+                color = random.choice([self.color_bone_white, self.color_bone_cream])
+                size = random.uniform(2, 5)
+            else:
+                color = random.choice([self.color_marrow_red, self.color_marrow_dark])
+                size = random.uniform(3, 6)
+
+            from .core import Particle
+            particle = Particle(self.target.x, self.target.y, vx, vy, color,
+                              size, lifetime=random.uniform(0.2, 0.35))
+            particle.gravity = 180
+            self.particle_emitter.particles.append(particle)
+
+        # Strong impact
+        self.target.shake_intensity = 13
+        self.screen_shake(6, 0.18)
+
+    def update(self, delta_time):
+        """Update animation state."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.phase == "gather":
+            if self.timer == 0 or not hasattr(self, '_gather_triggered'):
+                self._trigger_gather()
+                self._gather_triggered = True
+
+            if self.timer >= self.gather_duration:
+                self.phase = "launch"
+                self.timer = 0
+                self._trigger_launch()
+
+        elif self.phase == "launch":
+            # Update ball position (lerp from attacker to target)
+            progress = min(1.0, self.timer / self.launch_duration)
+            self.ball_x = self.attacker.x + self.dx * self.distance * progress
+            self.ball_y = self.attacker.y + self.dy * self.distance * progress
+
+            # Rotate ball as it travels
+            self.ball_rotation += delta_time * 15
+
+            if self.timer >= self.launch_duration:
+                self.phase = "impact"
+                self.timer = 0
+                self._trigger_impact()
+
+        elif self.phase == "impact":
+            if self.timer >= self.impact_duration:
+                self.phase = "done"
+                self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw the wadded bone ball."""
+        import pygame
+
+        # Draw gathering glow
+        if self.phase == "gather":
+            progress = self.timer / self.gather_duration
+            glow_radius = int(25 * progress)
+
+            if glow_radius > 3:
+                # Mixed bone/marrow glow
+                glow_surf = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
+                pygame.draw.circle(glow_surf, (*self.color_bone_white, int(100 * progress)),
+                                 (glow_radius, glow_radius), glow_radius)
+                surface.blit(glow_surf, (int(self.attacker.x - glow_radius),
+                                        int(self.attacker.y - glow_radius)))
+
+                # Red marrow core
+                core_radius = int(glow_radius * 0.6)
+                if core_radius > 2:
+                    core_surf = pygame.Surface((core_radius * 2, core_radius * 2), pygame.SRCALPHA)
+                    pygame.draw.circle(core_surf, (*self.color_marrow_red, int(140 * progress)),
+                                     (core_radius, core_radius), core_radius)
+                    surface.blit(core_surf, (int(self.attacker.x - core_radius),
+                                            int(self.attacker.y - core_radius)))
+
+        # Draw wadded ball during launch
+        if self.phase == "launch":
+            # Draw ball as cluster of overlapping circles (bone + marrow)
+            ball_radius = 15
+
+            # Create surface for ball
+            ball_surf = pygame.Surface((ball_radius * 4, ball_radius * 4), pygame.SRCALPHA)
+            center = ball_radius * 2
+
+            # Draw 8-10 overlapping chunks at different angles
+            num_chunks = 9
+            for i in range(num_chunks):
+                angle = (i / num_chunks) * 2 * math.pi + self.ball_rotation
+                offset_dist = ball_radius * 0.4
+                chunk_x = center + math.cos(angle) * offset_dist
+                chunk_y = center + math.sin(angle) * offset_dist
+
+                # Alternate bone and marrow chunks
+                if i % 3 == 0:
+                    color = (*self.color_marrow_red, 220)
+                    chunk_size = int(ball_radius * 0.6)
+                elif i % 3 == 1:
+                    color = (*self.color_bone_white, 240)
+                    chunk_size = int(ball_radius * 0.5)
+                else:
+                    color = (*self.color_bone_cream, 230)
+                    chunk_size = int(ball_radius * 0.5)
+
+                pygame.draw.circle(ball_surf, color,
+                                 (int(chunk_x), int(chunk_y)), chunk_size)
+
+            # Draw darker marrow core in center
+            pygame.draw.circle(ball_surf, (*self.color_marrow_dark, 200),
+                             (center, center), int(ball_radius * 0.4))
+
+            # Blit ball to surface
+            surface.blit(ball_surf, (int(self.ball_x - ball_radius * 2),
+                                    int(self.ball_y - ball_radius * 2)))
+
+        # Draw impact flash
+        if self.phase == "impact":
+            progress = self.timer / self.impact_duration
+            if progress < 0.5:
+                flash_alpha = int(255 * (1.0 - progress / 0.5))
+                flash_radius = int(40 * (1.0 + progress))
+
+                # Mixed bone/marrow flash
+                flash_surf = pygame.Surface((flash_radius * 2, flash_radius * 2), pygame.SRCALPHA)
+                # White outer flash
+                pygame.draw.circle(flash_surf, (255, 255, 255, flash_alpha),
+                                 (flash_radius, flash_radius), flash_radius)
+                # Red marrow center
+                center_radius = int(flash_radius * 0.6)
+                pygame.draw.circle(flash_surf, (*self.color_marrow_red, flash_alpha),
+                                 (flash_radius, flash_radius), center_radius)
+
+                surface.blit(flash_surf, (int(self.target.x - flash_radius),
+                                         int(self.target.y - flash_radius)))

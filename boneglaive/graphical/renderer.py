@@ -2003,12 +2003,32 @@ class GraphicalRenderer:
 
                 # Check if this attack has carrier_rave flag (captured from game state BEFORE execution cleared it)
                 has_carrier_rave = event.kwargs.get("has_carrier_rave", False)
+                use_basic_attack = not has_carrier_rave  # Use dual carabiner swing for basic attacks
+
                 if has_carrier_rave:
                     print(f"  [Renderer] *** CARRIER RAVE FLAG DETECTED - using triple strike animation ***")
 
                 from boneglaive.graphical.animations.animation_factory import AnimationFactory
 
-                if has_carrier_rave:
+                if use_basic_attack and target_unit:
+                    # Use dual carabiner swing for basic attacks with Neutron Illuminant flash
+                    print(f"  [Renderer] Using dual carabiner swing for basic attack with flash")
+                    from boneglaive.graphical.animations.interferer import InterfererDualCarabinerAttack
+
+                    carabiner_attack = InterfererDualCarabinerAttack(
+                        attacker_unit=attacker_animated,
+                        target_unit=target_unit,
+                        particle_emitter=self.particle_emitter,
+                        screen_shake_callback=self.trigger_screen_shake,
+                        screen_flash_callback=self.trigger_screen_flash
+                    )
+                    if carabiner_attack:
+                        self.active_animations.append(carabiner_attack)
+                        print(f"  [Animation] Successfully triggered INTERFERER dual carabiner swing with flash")
+                    else:
+                        print(f"  [Animation] WARNING: Failed to create INTERFERER carabiner attack")
+
+                elif has_carrier_rave:
                     # Use triple strike animation
                     print(f"  [Renderer] Creating KARRIER_RAVE_STRIKE animation (triple strike)")
 
@@ -2077,8 +2097,144 @@ class GraphicalRenderer:
                     print(f"  [Animation] Successfully triggered JawClamp animation on MANDIBLE_FOREMAN hit")
                 else:
                     print(f"  [Animation] WARNING: Failed to create JawClamp animation")
+
+            # Check if attacker is GLAIVEMAN and trigger polearm sweep animation
+            elif attacker.type == UnitType.GLAIVEMAN and attack_target and target_unit:
+                print(f"  [Renderer] *** GLAIVEMAN ATTACK DETECTED ***")
+                from boneglaive.graphical.animations.glaiveman import GlaivemanPolearmAttack
+
+                polearm_animation = GlaivemanPolearmAttack(
+                    attacker_unit=attacker_animated,
+                    target_unit=target_unit,
+                    particle_emitter=self.particle_emitter,
+                    screen_shake_callback=self.trigger_screen_shake
+                )
+                if polearm_animation:
+                    self.active_animations.append(polearm_animation)
+                    print(f"  [Animation] Successfully triggered GLAIVEMAN polearm sweep animation")
+                else:
+                    print(f"  [Animation] WARNING: Failed to create GLAIVEMAN polearm animation")
+
+            # Check if attacker is GRAYMAN and trigger psychic attack animation
+            elif attacker.type == UnitType.GRAYMAN and attack_target and target_unit:
+                print(f"  [Renderer] *** GRAYMAN ATTACK DETECTED ***")
+                from boneglaive.graphical.animations.grayman import GraymanPsychicAttack
+
+                psychic_animation = GraymanPsychicAttack(
+                    attacker_unit=attacker_animated,
+                    target_unit=target_unit,
+                    particle_emitter=self.particle_emitter,
+                    screen_shake_callback=self.trigger_screen_shake
+                )
+                if psychic_animation:
+                    self.active_animations.append(psychic_animation)
+                    print(f"  [Animation] Successfully triggered GRAYMAN psychic attack animation")
+                else:
+                    print(f"  [Animation] WARNING: Failed to create GRAYMAN psychic animation")
+
+            # Check if attacker is MARROW_CONDENSER and trigger bone ball attack animation
+            elif attacker.type == UnitType.MARROW_CONDENSER and attack_target and target_unit:
+                print(f"  [Renderer] *** MARROW_CONDENSER ATTACK DETECTED ***")
+                from boneglaive.graphical.animations.marrow_condenser import MarrowCondenserBoneAttack
+
+                bone_attack = MarrowCondenserBoneAttack(
+                    attacker_unit=attacker_animated,
+                    target_unit=target_unit,
+                    particle_emitter=self.particle_emitter,
+                    screen_shake_callback=self.trigger_screen_shake
+                )
+                if bone_attack:
+                    self.active_animations.append(bone_attack)
+                    print(f"  [Animation] Successfully triggered MARROW_CONDENSER bone ball attack animation")
+                else:
+                    print(f"  [Animation] WARNING: Failed to create MARROW_CONDENSER bone attack")
+
+            # Check if attacker is FOWL_CONTRIVANCE and trigger electromagnetic bolt attack animation
+            elif attacker.type == UnitType.FOWL_CONTRIVANCE and attack_target and target_unit:
+                print(f"  [Renderer] *** FOWL_CONTRIVANCE ATTACK DETECTED ***")
+                from boneglaive.graphical.animations.fowl_contrivance import FowlContrivanceElectromagneticAttack
+
+                em_attack = FowlContrivanceElectromagneticAttack(
+                    attacker_unit=attacker_animated,
+                    target_unit=target_unit,
+                    particle_emitter=self.particle_emitter,
+                    screen_shake_callback=self.trigger_screen_shake
+                )
+                if em_attack:
+                    self.active_animations.append(em_attack)
+                    print(f"  [Animation] Successfully triggered FOWL_CONTRIVANCE electromagnetic bolt animation")
+                else:
+                    print(f"  [Animation] WARNING: Failed to create FOWL_CONTRIVANCE EM attack")
+
+            # Check if attacker is DELPHIC_APPRAISER and trigger astral appraisal attack animation
+            elif attacker.type == UnitType.DELPHIC_APPRAISER and attack_target and target_unit:
+                print(f"  [Renderer] *** DELPHIC_APPRAISER ATTACK DETECTED ***")
+                from boneglaive.graphical.animations.delphic_appraiser import DelphicAppraiserAstralAttack
+
+                astral_attack = DelphicAppraiserAstralAttack(
+                    attacker_unit=attacker_animated,
+                    target_unit=target_unit,
+                    particle_emitter=self.particle_emitter,
+                    screen_shake_callback=self.trigger_screen_shake
+                )
+                if astral_attack:
+                    self.active_animations.append(astral_attack)
+                    print(f"  [Animation] Successfully triggered DELPHIC_APPRAISER astral attack animation")
+                else:
+                    print(f"  [Animation] WARNING: Failed to create DELPHIC_APPRAISER astral attack")
+
+            # Check if attacker is GAS_MACHINIST and trigger pressurized gas jet attack animation
+            elif attacker.type == UnitType.GAS_MACHINIST and attack_target and target_unit:
+                print(f"  [Renderer] *** GAS_MACHINIST ATTACK DETECTED ***")
+                from boneglaive.graphical.animations.gas_machinist import GasMachinistPressurizedAttack
+
+                gas_attack = GasMachinistPressurizedAttack(
+                    attacker_unit=attacker_animated,
+                    target_unit=target_unit,
+                    particle_emitter=self.particle_emitter,
+                    screen_shake_callback=self.trigger_screen_shake
+                )
+                if gas_attack:
+                    self.active_animations.append(gas_attack)
+                    print(f"  [Animation] Successfully triggered GAS_MACHINIST pressurized gas attack animation")
+                else:
+                    print(f"  [Animation] WARNING: Failed to create GAS_MACHINIST gas attack")
+
+            # Check if attacker is DERELICTIONIST and trigger psychic void attack animation
+            elif attacker.type == UnitType.DERELICTIONIST and attack_target and target_unit:
+                print(f"  [Renderer] *** DERELICTIONIST ATTACK DETECTED ***")
+                from boneglaive.graphical.animations.derelictionist import DerelictionistVoidAttack
+
+                void_attack = DerelictionistVoidAttack(
+                    attacker_unit=attacker_animated,
+                    target_unit=target_unit,
+                    particle_emitter=self.particle_emitter,
+                    screen_shake_callback=self.trigger_screen_shake
+                )
+                if void_attack:
+                    self.active_animations.append(void_attack)
+                    print(f"  [Animation] Successfully triggered DERELICTIONIST void attack animation")
+                else:
+                    print(f"  [Animation] WARNING: Failed to create DERELICTIONIST void attack")
+
+            # Check if attacker is POTPOURRIST and trigger aromatic potpourri scatter attack animation
+            elif attacker.type == UnitType.POTPOURRIST and attack_target and target_unit:
+                print(f"  [Renderer] *** POTPOURRIST ATTACK DETECTED ***")
+                from boneglaive.graphical.animations.potpourrist import PotpourristAromaticAttack
+
+                aromatic_attack = PotpourristAromaticAttack(
+                    attacker_unit=attacker_animated,
+                    target_unit=target_unit,
+                    particle_emitter=self.particle_emitter,
+                    screen_shake_callback=self.trigger_screen_shake
+                )
+                if aromatic_attack:
+                    self.active_animations.append(aromatic_attack)
+                    print(f"  [Animation] Successfully triggered POTPOURRIST aromatic scatter animation")
+                else:
+                    print(f"  [Animation] WARNING: Failed to create POTPOURRIST aromatic attack")
             else:
-                print(f"  [DEBUG] Not INTERFERER or MANDIBLE_FOREMAN, or no attack target")
+                print(f"  [DEBUG] Not INTERFERER, MANDIBLE_FOREMAN, GLAIVEMAN, GRAYMAN, MARROW_CONDENSER, FOWL_CONTRIVANCE, DELPHIC_APPRAISER, GAS_MACHINIST, DERELICTIONIST, or POTPOURRIST, or no attack target")
 
     def _create_skill_animation(self, event):
         """

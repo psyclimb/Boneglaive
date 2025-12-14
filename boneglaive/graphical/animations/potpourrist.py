@@ -2478,3 +2478,217 @@ class MelangeEminenceInfusedHealAnimation:
                 surface.blit(outline, outline_rect)
                 surface.blit(text, text_rect)
 
+
+
+
+# ============================================================================
+# POTPOURRIST BASIC ATTACK - PEDESTAL SWING WITH AROMATIC SCATTER
+# ============================================================================
+
+class PotpourristAromaticAttack:
+    """
+    POTPOURRIST basic attack animation - swings massive granite pedestal.
+    Pedestal arc swing releases colorful potpourri scatter on impact.
+    """
+
+    def __init__(self, attacker_unit, target_unit, particle_emitter, screen_shake_callback):
+        """
+        Args:
+            attacker_unit: AnimatedUnit doing the attacking
+            target_unit: AnimatedUnit being attacked
+            particle_emitter: ParticleEmitter for effects
+            screen_shake_callback: Function(intensity, duration)
+        """
+        self.attacker = attacker_unit
+        self.target = target_unit
+        self.particle_emitter = particle_emitter
+        self.screen_shake = screen_shake_callback
+
+        # Calculate attack vector
+        self.dx = target_unit.x - attacker_unit.x
+        self.dy = target_unit.y - attacker_unit.y
+        distance = math.sqrt(self.dx * self.dx + self.dy * self.dy)
+
+        if distance > 0:
+            self.dx /= distance
+            self.dy /= distance
+
+        self.distance = distance
+
+        # Animation state
+        self.phase = "windup"  # windup → swing → impact → done
+        self.timer = 0
+        self.active = True
+
+        # Phase durations
+        self.windup_duration = 0.12
+        self.swing_duration = 0.28
+        self.impact_duration = 0.2
+
+        # Swing progress for weapon drawing
+        self.swing_progress = 0.0
+
+        # Vibrant potpourri colors from the bowl
+        self.colors = [
+            (255, 215, 0),    # Gold
+            (147, 112, 219),  # Purple/Lavender
+            (255, 99, 71),    # Red/Tomato
+            (255, 105, 180),  # Pink/Hot Pink
+            (0, 206, 209),    # Cyan/Turquoise
+            (255, 165, 0),    # Orange
+            (218, 112, 214),  # Orchid
+            (255, 255, 0),    # Yellow
+        ]
+
+    def _trigger_windup(self):
+        """Phase 1: Windup pedestal swing."""
+        # Small dust particles as pedestal pulls back
+        for _ in range(6):
+            angle = random.uniform(0, 2 * math.pi)
+            speed = random.uniform(30, 60)
+            vx = math.cos(angle) * speed
+            vy = math.sin(angle) * speed
+
+            # Gray granite dust
+            color = random.choice([(169, 169, 169), (128, 128, 128)])
+
+            from .core import Particle
+            particle = Particle(self.attacker.x, self.attacker.y, vx, vy, color,
+                              size=random.uniform(1, 2), lifetime=0.15)
+            particle.gravity = 150
+            self.particle_emitter.particles.append(particle)
+
+    def _trigger_swing(self):
+        """Phase 2: Swing pedestal (no particles during swing)."""
+        # Just the visual arc swing - no potpourri flies out until impact
+        pass
+
+    def _trigger_impact(self):
+        """Phase 3: Potpourri impact burst."""
+        # Colorful aromatic burst at target
+        for _ in range(25):
+            angle = random.uniform(0, 2 * math.pi)
+            speed = random.uniform(60, 150)
+            vx = math.cos(angle) * speed
+            vy = math.sin(angle) * speed
+
+            color = random.choice(self.colors)
+
+            from .core import Particle
+            particle = Particle(self.target.x, self.target.y, vx, vy, color,
+                              size=random.uniform(3, 7), lifetime=random.uniform(0.2, 0.4))
+            particle.gravity = 120
+            self.particle_emitter.particles.append(particle)
+
+        # Moderate impact
+        self.target.shake_intensity = 10
+        self.screen_shake(5, 0.16)
+
+    def update(self, delta_time):
+        """Update animation state."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.phase == "windup":
+            if self.timer == 0 or not hasattr(self, "_windup_triggered"):
+                self._trigger_windup()
+                self._windup_triggered = True
+
+            if self.timer >= self.windup_duration:
+                self.phase = "swing"
+                self.timer = 0
+                self._trigger_swing()
+
+        elif self.phase == "swing":
+            # Update swing progress for weapon drawing
+            self.swing_progress = min(1.0, self.timer / self.swing_duration)
+
+            if self.timer >= self.swing_duration:
+                self.phase = "impact"
+                self.timer = 0
+                self._trigger_impact()
+
+        elif self.phase == "impact":
+            if self.timer >= self.impact_duration:
+                self.phase = "done"
+                self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw pedestal swing with potpourri scatter."""
+        import pygame
+
+        # Draw windup tension (slight gray aura)
+        if self.phase == "windup":
+            progress = self.timer / self.windup_duration
+            glow_radius = int(15 * progress)
+
+            if glow_radius > 2:
+                glow_surf = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
+                pygame.draw.circle(glow_surf, (128, 128, 128, int(80 * progress)),
+                                 (glow_radius, glow_radius), glow_radius)
+                surface.blit(glow_surf, (int(self.attacker.x - glow_radius),
+                                        int(self.attacker.y - glow_radius)))
+
+        # Draw visible pedestal swing arc during swing phase
+        if self.phase == "swing":
+            # Calculate perpendicular vector for arc sweep
+            perp_x = -self.dy
+            perp_y = self.dx
+
+            # Draw the pedestal as it swings
+            arc_width = 35  # Wide arc for heavy pedestal
+            pedestal_length = self.distance + 25
+
+            # Calculate arc points along the swing
+            points = []
+            num_segments = 15
+
+            for i in range(num_segments):
+                progress = (i / (num_segments - 1)) * self.swing_progress
+
+                # Position along attack vector
+                base_x = self.attacker.x + self.dx * pedestal_length * progress
+                base_y = self.attacker.y + self.dy * pedestal_length * progress
+
+                # Arc offset (sine curve for natural weapon sweep)
+                arc_offset = math.sin(progress * math.pi) * arc_width
+
+                # Calculate point position
+                point_x = base_x + perp_x * arc_offset
+                point_y = base_y + perp_y * arc_offset
+
+                points.append((int(point_x), int(point_y)))
+
+            # Draw the pedestal arc
+            if len(points) >= 2:
+                # Draw granite pedestal arc - gray stone color matching the sprite
+                # Outer darker outline
+                pygame.draw.lines(surface, (105, 105, 105), False, points, 10)  # #696969 - darker gray outline
+                # Inner lighter granite
+                pygame.draw.lines(surface, (169, 169, 169), False, points, 6)   # #a9a9a9 - lighter gray core
+
+        # Draw impact burst (multi-colored explosion)
+        if self.phase == "impact":
+            progress = self.timer / self.impact_duration
+            if progress < 0.6:
+                flash_alpha = int(200 * (1.0 - progress / 0.6))
+                flash_radius = int(30 * (1.0 + progress * 0.6))
+
+                # Multi-colored potpourri burst
+                for i, color in enumerate(self.colors):
+                    angle_offset = (i / len(self.colors)) * 2 * math.pi
+                    offset_x = math.cos(angle_offset) * 10 * progress
+                    offset_y = math.sin(angle_offset) * 10 * progress
+
+                    layer_radius = int(flash_radius * (1.0 - i * 0.08))
+                    if layer_radius > 2:
+                        flash_surf = pygame.Surface((layer_radius * 2, layer_radius * 2), pygame.SRCALPHA)
+                        pygame.draw.circle(flash_surf, (*color, flash_alpha // (i + 1)),
+                                         (layer_radius, layer_radius), layer_radius)
+                        surface.blit(flash_surf, (int(self.target.x - layer_radius + offset_x),
+                                                 int(self.target.y - layer_radius + offset_y)))
+

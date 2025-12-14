@@ -2366,3 +2366,229 @@ class RailGenesisDeathExplosionAnimation:
             # Draw embers
             for ember in self.embers:
                 ember.draw(surface)
+
+
+# ============================================================================
+# FOWL CONTRIVANCE BASIC ATTACK - ELECTROMAGNETIC BOLT
+# ============================================================================
+
+class FowlContrivanceElectromagneticAttack:
+    """
+    FOWL CONTRIVANCE basic attack animation - electromagnetic bolt from rail gun.
+    Quick cyan energy shot that travels straight to target.
+    """
+
+    def __init__(self, attacker_unit, target_unit, particle_emitter, screen_shake_callback):
+        """
+        Args:
+            attacker_unit: AnimatedUnit doing the attacking
+            target_unit: AnimatedUnit being attacked
+            particle_emitter: ParticleEmitter for effects
+            screen_shake_callback: Function(intensity, duration)
+        """
+        self.attacker = attacker_unit
+        self.target = target_unit
+        self.particle_emitter = particle_emitter
+        self.screen_shake = screen_shake_callback
+
+        # Calculate attack vector
+        self.dx = target_unit.x - attacker_unit.x
+        self.dy = target_unit.y - attacker_unit.y
+        distance = math.sqrt(self.dx * self.dx + self.dy * self.dy)
+
+        if distance > 0:
+            self.dx /= distance
+            self.dy /= distance
+
+        self.distance = distance
+
+        # Animation state
+        self.phase = "charge"  # charge → fire → impact → done
+        self.timer = 0
+        self.active = True
+
+        # Phase durations
+        self.charge_duration = 0.1
+        self.fire_duration = 0.2
+        self.impact_duration = 0.15
+
+        # Bolt position
+        self.bolt_progress = 0.0
+
+        # Cyan electromagnetic colors
+        self.color_cyan = (0, 204, 255)      # #00ccff
+        self.color_light_cyan = (100, 230, 255)
+        self.color_white = (255, 255, 255)
+
+    def _trigger_charge(self):
+        """Phase 1: Brief electromagnetic charge."""
+        # Small cyan particles converge at attacker
+        for _ in range(8):
+            angle = random.uniform(0, 2 * math.pi)
+            distance = random.uniform(15, 25)
+            x = self.attacker.x + math.cos(angle) * distance
+            y = self.attacker.y + math.sin(angle) * distance
+
+            # Particles move toward gun
+            vx = -math.cos(angle) * 200
+            vy = -math.sin(angle) * 200
+
+            color = self.color_cyan if random.random() > 0.5 else self.color_light_cyan
+
+            from .core import Particle
+            particle = Particle(x, y, vx, vy, color, size=2, lifetime=0.12)
+            particle.gravity = 0
+            self.particle_emitter.particles.append(particle)
+
+    def _trigger_fire(self):
+        """Phase 2: Fire electromagnetic bolt."""
+        # Create trailing particles along bolt path
+        for i in range(8):
+            progress = i / 8
+            trail_x = self.attacker.x + self.dx * self.distance * progress * 0.2
+            trail_y = self.attacker.y + self.dy * self.distance * progress * 0.2
+
+            vx = self.dx * 150
+            vy = self.dy * 150
+
+            color = random.choice([self.color_cyan, self.color_light_cyan])
+
+            from .core import Particle
+            particle = Particle(trail_x, trail_y, vx, vy, color,
+                              size=random.uniform(2, 3), lifetime=0.15)
+            particle.gravity = 0
+            self.particle_emitter.particles.append(particle)
+
+    def _trigger_impact(self):
+        """Phase 3: Electromagnetic impact."""
+        # Cyan spark burst
+        for _ in range(15):
+            angle = random.uniform(0, 2 * math.pi)
+            speed = random.uniform(60, 150)
+            vx = math.cos(angle) * speed
+            vy = math.sin(angle) * speed
+
+            color = random.choice([
+                self.color_cyan,
+                self.color_light_cyan,
+                self.color_white,
+            ])
+
+            from .core import Particle
+            particle = Particle(self.target.x, self.target.y, vx, vy, color,
+                              size=random.uniform(2, 4), lifetime=random.uniform(0.15, 0.25))
+            particle.gravity = 100
+            self.particle_emitter.particles.append(particle)
+
+        # Light impact
+        self.target.shake_intensity = 8
+        self.screen_shake(4, 0.12)
+
+    def update(self, delta_time):
+        """Update animation state."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.phase == "charge":
+            if self.timer == 0 or not hasattr(self, '_charge_triggered'):
+                self._trigger_charge()
+                self._charge_triggered = True
+
+            if self.timer >= self.charge_duration:
+                self.phase = "fire"
+                self.timer = 0
+                self._trigger_fire()
+
+        elif self.phase == "fire":
+            # Update bolt progress
+            self.bolt_progress = min(1.0, self.timer / self.fire_duration)
+
+            if self.timer >= self.fire_duration:
+                self.phase = "impact"
+                self.timer = 0
+                self._trigger_impact()
+
+        elif self.phase == "impact":
+            if self.timer >= self.impact_duration:
+                self.phase = "done"
+                self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw electromagnetic bolt."""
+        import pygame
+
+        # Draw charging glow
+        if self.phase == "charge":
+            progress = self.timer / self.charge_duration
+            glow_radius = int(15 * progress)
+
+            if glow_radius > 2:
+                glow_surf = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
+                pygame.draw.circle(glow_surf, (*self.color_cyan, int(100 * progress)),
+                                 (glow_radius, glow_radius), glow_radius)
+                surface.blit(glow_surf, (int(self.attacker.x - glow_radius),
+                                        int(self.attacker.y - glow_radius)))
+
+                # Bright center
+                core_radius = int(glow_radius * 0.5)
+                if core_radius > 1:
+                    core_surf = pygame.Surface((core_radius * 2, core_radius * 2), pygame.SRCALPHA)
+                    pygame.draw.circle(core_surf, (*self.color_light_cyan, int(180 * progress)),
+                                     (core_radius, core_radius), core_radius)
+                    surface.blit(core_surf, (int(self.attacker.x - core_radius),
+                                            int(self.attacker.y - core_radius)))
+
+        # Draw electromagnetic bolt during fire phase
+        if self.phase == "fire":
+            # Calculate bolt position
+            bolt_x = self.attacker.x + self.dx * self.distance * self.bolt_progress
+            bolt_y = self.attacker.y + self.dy * self.distance * self.bolt_progress
+
+            # Draw bolt as elongated streak
+            bolt_length = 20
+            tail_x = bolt_x - self.dx * bolt_length
+            tail_y = bolt_y - self.dy * bolt_length
+
+            # Outer glow (widest)
+            pygame.draw.line(surface, (*self.color_cyan, 80),
+                           (int(tail_x), int(tail_y)),
+                           (int(bolt_x), int(bolt_y)), 10)
+
+            # Mid layer (bright cyan)
+            pygame.draw.line(surface, (*self.color_light_cyan, 160),
+                           (int(tail_x), int(tail_y)),
+                           (int(bolt_x), int(bolt_y)), 6)
+
+            # Inner core (white-cyan)
+            pygame.draw.line(surface, self.color_white,
+                           (int(tail_x), int(tail_y)),
+                           (int(bolt_x), int(bolt_y)), 3)
+
+            # Bolt head (bright point)
+            pygame.draw.circle(surface, self.color_white,
+                             (int(bolt_x), int(bolt_y)), 4)
+            pygame.draw.circle(surface, (*self.color_light_cyan, 180),
+                             (int(bolt_x), int(bolt_y)), 6)
+
+        # Draw impact flash
+        if self.phase == "impact":
+            progress = self.timer / self.impact_duration
+            if progress < 0.5:
+                flash_alpha = int(255 * (1.0 - progress / 0.5))
+                flash_radius = int(25 * (1.0 + progress))
+
+                flash_surf = pygame.Surface((flash_radius * 2, flash_radius * 2), pygame.SRCALPHA)
+                # White outer flash
+                pygame.draw.circle(flash_surf, (255, 255, 255, flash_alpha),
+                                 (flash_radius, flash_radius), flash_radius)
+                # Cyan center
+                center_radius = int(flash_radius * 0.6)
+                pygame.draw.circle(flash_surf, (*self.color_cyan, flash_alpha),
+                                 (flash_radius, flash_radius), center_radius)
+
+                surface.blit(flash_surf, (int(self.target.x - flash_radius),
+                                         int(self.target.y - flash_radius)))

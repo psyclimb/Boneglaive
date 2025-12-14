@@ -1145,3 +1145,242 @@ class VaporAOETickAnimation:
         # Layer 3: Wisps (top layer - turbulent gas particles)
         for wisp in self.wisps:
             wisp.draw(surface)
+
+
+
+# ============================================================================
+# GAS MACHINIST BASIC ATTACK - PRESSURIZED GAS JET
+# ============================================================================
+
+class GasMachinistPressurizedAttack:
+    """
+    GAS MACHINIST basic attack animation - pressurized gas jet spray.
+    Releases a multi-colored gas stream from the industrial cylinders.
+    """
+
+    def __init__(self, attacker_unit, target_unit, particle_emitter, screen_shake_callback):
+        """
+        Args:
+            attacker_unit: AnimatedUnit doing the attacking
+            target_unit: AnimatedUnit being attacked
+            particle_emitter: ParticleEmitter for effects
+            screen_shake_callback: Function(intensity, duration)
+        """
+        self.attacker = attacker_unit
+        self.target = target_unit
+        self.particle_emitter = particle_emitter
+        self.screen_shake = screen_shake_callback
+
+        # Calculate attack vector
+        self.dx = target_unit.x - attacker_unit.x
+        self.dy = target_unit.y - attacker_unit.y
+        distance = math.sqrt(self.dx * self.dx + self.dy * self.dy)
+
+        if distance > 0:
+            self.dx /= distance
+            self.dy /= distance
+
+        self.distance = distance
+
+        # Animation state
+        self.phase = "pressurize"  # pressurize → release → impact → done
+        self.timer = 0
+        self.active = True
+
+        # Phase durations
+        self.pressurize_duration = 0.12
+        self.release_duration = 0.3
+        self.impact_duration = 0.15
+
+        # Gas colors from the three cylinders
+        self.color_green = (34, 139, 34)    # #228b22 - Broaching Gas
+        self.color_red = (220, 20, 60)      # #dc143c - Cutting Gas
+        self.color_blue = (30, 144, 255)    # #1e90ff - Saft-E-Gas
+
+    def _trigger_pressurize(self):
+        """Phase 1: Pressurization - valves open."""
+        # Small puffs at attacker as pressure builds
+        for _ in range(8):
+            angle = random.uniform(-math.pi/4, math.pi/4)
+            vx = self.dx * 50 + math.cos(angle) * 30
+            vy = self.dy * 50 + math.sin(angle) * 30
+
+            # Mix of gas colors
+            color = random.choice([self.color_green, self.color_red, self.color_blue])
+
+            from .core import Particle
+            particle = Particle(self.attacker.x, self.attacker.y, vx, vy, color,
+                              size=2, lifetime=0.15)
+            particle.gravity = 0
+            self.particle_emitter.particles.append(particle)
+
+    def _trigger_release(self):
+        """Phase 2: Release pressurized gas jet."""
+        # Create streaming gas particles along attack path
+        for i in range(25):
+            progress = i / 25
+            x = self.attacker.x + self.dx * self.distance * progress
+            y = self.attacker.y + self.dy * self.distance * progress
+
+            # Spread perpendicular to jet direction
+            perp_x = -self.dy
+            perp_y = self.dx
+            spread = random.uniform(-12, 12)
+
+            vx = self.dx * 180 + perp_x * spread * 1.5
+            vy = self.dy * 180 + perp_y * spread * 1.5
+
+            # Stratified layers - different gases
+            if i % 3 == 0:
+                color = self.color_green
+            elif i % 3 == 1:
+                color = self.color_red
+            else:
+                color = self.color_blue
+
+            from .core import Particle
+            particle = Particle(x, y, vx, vy, color,
+                              size=random.uniform(3, 5), lifetime=random.uniform(0.25, 0.35))
+            particle.gravity = 0
+            self.particle_emitter.particles.append(particle)
+
+    def _trigger_impact(self):
+        """Phase 3: Gas cloud impact."""
+        # Mixed gas cloud explosion at target
+        for _ in range(22):
+            angle = random.uniform(0, 2 * math.pi)
+            speed = random.uniform(50, 130)
+            vx = math.cos(angle) * speed
+            vy = math.sin(angle) * speed
+
+            # Equal mix of all three gas colors
+            color = random.choice([
+                self.color_green,
+                self.color_red,
+                self.color_blue,
+            ])
+
+            from .core import Particle
+            particle = Particle(self.target.x, self.target.y, vx, vy, color,
+                              size=random.uniform(3, 6), lifetime=random.uniform(0.2, 0.35))
+            particle.gravity = 50  # Slow settle
+            self.particle_emitter.particles.append(particle)
+
+        # Light impact
+        self.target.shake_intensity = 7
+        self.screen_shake(3, 0.15)
+
+    def update(self, delta_time):
+        """Update animation state."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.phase == "pressurize":
+            if self.timer == 0 or not hasattr(self, "_pressurize_triggered"):
+                self._trigger_pressurize()
+                self._pressurize_triggered = True
+
+            if self.timer >= self.pressurize_duration:
+                self.phase = "release"
+                self.timer = 0
+                self._trigger_release()
+
+        elif self.phase == "release":
+            if self.timer >= self.release_duration:
+                self.phase = "impact"
+                self.timer = 0
+                self._trigger_impact()
+
+        elif self.phase == "impact":
+            if self.timer >= self.impact_duration:
+                self.phase = "done"
+                self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw pressurized gas jet."""
+        import pygame
+
+        # Draw pressurizing effect (valve glow)
+        if self.phase == "pressurize":
+            progress = self.timer / self.pressurize_duration
+            
+            # Three colored glows (one for each cylinder)
+            for i, color in enumerate([self.color_green, self.color_red, self.color_blue]):
+                offset = (i - 1) * 8  # Spread glows left/right
+                glow_x = self.attacker.x + offset
+                glow_y = self.attacker.y
+                glow_radius = int(10 * progress)
+
+                if glow_radius > 2:
+                    glow_surf = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
+                    pygame.draw.circle(glow_surf, (*color, int(120 * progress)),
+                                     (glow_radius, glow_radius), glow_radius)
+                    surface.blit(glow_surf, (int(glow_x - glow_radius),
+                                            int(glow_y - glow_radius)))
+
+        # Draw gas jet stream during release phase
+        if self.phase == "release":
+            progress = self.timer / self.release_duration
+            
+            # Draw streaming gas cone
+            jet_length = self.distance * progress
+            jet_width = 15
+
+            # Calculate perpendicular vector
+            perp_x = -self.dy
+            perp_y = self.dx
+
+            # Draw three layered gas streams (RGB)
+            for layer_idx, color in enumerate([self.color_green, self.color_red, self.color_blue]):
+                # Stagger layers slightly
+                layer_offset = (layer_idx - 1) * 5
+                
+                # Create points for gas stream polygon
+                num_segments = 8
+                for seg in range(num_segments):
+                    seg_progress = seg / num_segments
+                    if seg_progress > progress:
+                        break
+
+                    pos_x = self.attacker.x + self.dx * jet_length * seg_progress
+                    pos_y = self.attacker.y + self.dy * jet_length * seg_progress
+
+                    # Width increases with distance
+                    width = jet_width * (0.5 + seg_progress * 0.5)
+
+                    # Draw gas puff at this segment
+                    puff_radius = int(width)
+                    if puff_radius > 2:
+                        alpha = int(100 * (1.0 - seg_progress * 0.5))
+                        puff_surf = pygame.Surface((puff_radius * 2, puff_radius * 2), pygame.SRCALPHA)
+                        pygame.draw.circle(puff_surf, (*color, alpha),
+                                         (puff_radius, puff_radius), puff_radius)
+                        
+                        offset_x = perp_x * layer_offset
+                        offset_y = perp_y * layer_offset
+                        surface.blit(puff_surf, (int(pos_x - puff_radius + offset_x),
+                                                int(pos_y - puff_radius + offset_y)))
+
+        # Draw impact cloud flash
+        if self.phase == "impact":
+            progress = self.timer / self.impact_duration
+            if progress < 0.6:
+                flash_alpha = int(200 * (1.0 - progress / 0.6))
+                flash_radius = int(30 * (1.0 + progress * 0.5))
+
+                # Multi-colored gas cloud flash
+                for i, color in enumerate([self.color_green, self.color_red, self.color_blue]):
+                    angle_offset = (i / 3) * 2 * math.pi
+                    offset_x = math.cos(angle_offset) * 8
+                    offset_y = math.sin(angle_offset) * 8
+
+                    flash_surf = pygame.Surface((flash_radius * 2, flash_radius * 2), pygame.SRCALPHA)
+                    pygame.draw.circle(flash_surf, (*color, flash_alpha // 2),
+                                     (flash_radius, flash_radius), flash_radius)
+                    surface.blit(flash_surf, (int(self.target.x - flash_radius + offset_x),
+                                             int(self.target.y - flash_radius + offset_y)))
+
