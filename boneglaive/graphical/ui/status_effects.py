@@ -216,6 +216,14 @@ STATUS_EFFECTS = {
         "description": "+2 defense. When hit by basic attack, fires 4 diagonal balls (3 damage each, 1 ricochet). 3 turn CD.",
         "check": lambda u: hasattr(u, 'riposte_active') and u.riposte_active
     },
+    "backhand_active": {
+        "name": "Backhand",
+        "type": "buff",
+        "icon": "<",
+        "description": "Counter stance. Reflects enemy single-target skills back as ricochet ball (2 bounces). Full effects apply to anyone hit.",
+        "duration_key": "backhand_duration",
+        "check": lambda u: hasattr(u, 'backhand_active') and u.backhand_active
+    },
 
     # Special/Neutral
     "gaussian_dusk_recharge": {

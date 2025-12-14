@@ -75,13 +75,17 @@ class UIRenderer:
         # DELPHIC APPRAISER status effects
         if hasattr(unit, 'can_use_anchor') and unit.can_use_anchor:
             effects.append(('anchor', '%', curses.A_BOLD))
-            
+
         # DERELICTIONIST positive status effects
         if hasattr(unit, 'severance_active') and unit.severance_active:
             effects.append(('severance', '\\', curses.A_BOLD))
-            
+
         if hasattr(unit, 'partition_shield_active') and unit.partition_shield_active:
             effects.append(('partition', ')', curses.A_BOLD))
+
+        # PELOTARI status effects
+        if hasattr(unit, 'backhand_active') and unit.backhand_active:
+            effects.append(('backhand', '<', curses.A_BOLD))
             
         # Medium priority effects
         if hasattr(unit, 'status_site_inspection') and unit.status_site_inspection:

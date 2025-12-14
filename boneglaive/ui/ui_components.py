@@ -5490,8 +5490,8 @@ class ActionMenuComponent(UIComponent):
                 'enabled': poach_skill is not None,
                 'skill': poach_skill
             })
-            # Add Resonant Backhand skill
-            backhand_skill = next((skill for skill in available_skills if skill.name == "Resonant Backhand"), None)
+            # Add Backhand skill
+            backhand_skill = next((skill for skill in available_skills if skill.name == "Backhand"), None)
             self.actions.append({
                 'key': 'b',
                 'label': 'ackhand',  # Will be displayed as [B]ackhand

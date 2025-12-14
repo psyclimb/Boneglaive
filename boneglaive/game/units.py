@@ -169,6 +169,10 @@ class Unit:
         self.potpourri_held = False  # Whether POTPOURRIST is holding potpourri (POTPOURRIST only)
         self.potpourri_duration = 0  # Turns remaining for potpourri (POTPOURRIST only)
 
+        # PELOTARI properties
+        self.backhand_active = False  # Whether Backhand counter stance is active
+        self.backhand_duration = 0  # Turns remaining for Backhand stance
+
         # Experience and leveling
         self.level = 1
         self.xp = 0

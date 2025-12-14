@@ -3038,7 +3038,7 @@ class Game:
                 # Execute the skill
                 skill = unit.selected_skill
                 target_pos = unit.skill_target
-                
+
                 # Revalidate skill target for protection - might have changed since skill was queued
                 from boneglaive.game.skills import TargetType
                 if hasattr(skill, 'target_type') and skill.target_type == TargetType.ENEMY:
@@ -3051,7 +3051,20 @@ class Game:
                             player=unit.player
                         )
                         continue  # Skip this skill and go to next unit
-                
+
+                # Check for PELOTARI Backhand reflection before executing skill
+                target_unit = self.get_unit_at(target_pos[0], target_pos[1])
+                if target_unit and hasattr(target_unit, 'backhand_active') and target_unit.backhand_active:
+                    # Find Backhand skill instance
+                    backhand_skill = next((s for s in target_unit.active_skills
+                                          if hasattr(s, 'name') and s.name == "Backhand"), None)
+                    if backhand_skill and hasattr(backhand_skill, 'trigger_skill_reflect'):
+                        # Attempt reflection
+                        if backhand_skill.trigger_skill_reflect(target_unit, unit, skill.name, self, ui):
+                            # Skill was reflected, skip normal execution
+                            logger.debug(f"Skill {skill.name} reflected by {target_unit.get_display_name()}'s Backhand")
+                            continue
+
                 # Execute the skill if it has an execute method
                 if hasattr(skill, 'execute'):
                     # Set current attacker context for Demilune damage reduction
@@ -3817,6 +3830,27 @@ class Game:
                             # Log the recovery message
                             message_log.add_message(
                                 f"{unit.get_display_name()} regains control of their actions!",
+                                MessageType.ABILITY,
+                                player=unit.player
+                            )
+
+            # Process Backhand duration for current player's units (after combat phase)
+            # This ensures the counter stance lasts through the entire turn
+            for unit in self.units:
+                if unit.is_alive() and unit.player == self.current_player:
+                    if hasattr(unit, 'backhand_duration') and unit.backhand_duration > 0:
+                        # Decrement duration
+                        unit.backhand_duration -= 1
+                        logger.debug(f"{unit.get_display_name()}'s Backhand duration: {unit.backhand_duration}")
+
+                        # Check if the effect has expired
+                        if unit.backhand_duration <= 0:
+                            # Deactivate Backhand
+                            unit.backhand_active = False
+
+                            # Log the expiration message
+                            message_log.add_message(
+                                f"{unit.get_display_name()}'s Backhand stance expires",
                                 MessageType.ABILITY,
                                 player=unit.player
                             )

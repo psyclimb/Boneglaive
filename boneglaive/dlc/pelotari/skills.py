@@ -860,8 +860,9 @@ class Backhand(ActiveSkill):
         if not self.can_use(user, target_pos, game):
             return False
 
-        # Set counter stance flag
+        # Set counter stance flag and duration
         user.backhand_active = True
+        user.backhand_duration = 2  # Lasts through enemy's turn (expires at end of next PELOTARI turn)
         user.skill_target = (user.y, user.x)
         user.selected_skill = self
 
@@ -886,82 +887,495 @@ class Backhand(ActiveSkill):
         """
         # Stance is already active, just confirm
         user.backhand_active = True
+        user.backhand_duration = 2
         logger.debug(f"{user.get_display_name()} Backhand stance active")
         return True
 
-    def trigger_counter(self, user: 'Unit', attacker: 'Unit', damage: int,
-                        game: 'Game', ui=None) -> bool:
+    def trigger_skill_reflect(self, pelotari: 'Unit', attacker: 'Unit', skill_name: str,
+                             game: 'Game', ui=None) -> bool:
         """
-        Triggered when PELOTARI is attacked while counter is active.
+        Entry point for skill reflection system.
+        Called by game engine when PELOTARI with active Backhand is targeted by a single-target skill.
 
         Args:
-            user: PELOTARI with counter active
-            attacker: Unit that attacked
-            damage: Damage from attack
+            pelotari: PELOTARI unit with Backhand active
+            attacker: Unit using the skill
+            skill_name: Name of the skill being used
             game: Game instance
-            ui: UI instance
+            ui: UI instance for animations
 
         Returns:
-            bool: True if counter triggered successfully
+            bool: True if reflection triggered and skill should be intercepted
         """
-        if not hasattr(user, 'resonant_backhand_active') or not user.resonant_backhand_active:
+        # Check if Backhand is active
+        if not hasattr(pelotari, 'backhand_active') or not pelotari.backhand_active:
+            return False
+
+        # Check if skill is reflectable
+        reflectable_skills = {
+            'Judgement', 'Estrange', 'Neural Shunt', 'Granite Geas', 'Pry', 'Auction Curse'
+        }
+
+        if skill_name not in reflectable_skills:
+            logger.debug(f"Skill {skill_name} is not reflectable by Backhand")
             return False
 
         message_log.add_message(
-            f"{user.get_display_name()} catches and returns the attack!",
+            f"{pelotari.get_display_name()} reflects {skill_name} back!",
             MessageType.ABILITY,
-            player=user.player
+            player=pelotari.player
         )
 
         # Deactivate counter (only works once per turn)
-        user.resonant_backhand_active = False
+        pelotari.backhand_active = False
+        pelotari.backhand_duration = 0
 
-        # Reflect attack back as ball projectile
-        self._reflect_attack(user, attacker, damage, game, ui)
+        # Calculate reflection trajectory with 2 bounces, range 6 per bounce
+        trajectory = self._calculate_reflection_trajectory(pelotari, attacker, game)
+
+        # Fire reflected ball and apply skill effects
+        self._fire_reflected_ball(pelotari, attacker, skill_name, trajectory, game, ui)
 
         return True
 
-    def _reflect_attack(self, user: 'Unit', attacker: 'Unit', damage: int,
-                        game: 'Game', ui=None) -> None:
+    def _calculate_reflection_trajectory(self, pelotari: 'Unit', attacker: 'Unit',
+                                        game: 'Game') -> list:
         """
-        Reflect attack back at attacker as ball projectile.
+        Calculate reflection trajectory with ricochet physics.
+        Ball travels 6 tiles per bounce, max 2 bounces (total 12 tiles).
 
         Args:
-            user: PELOTARI
-            attacker: Original attacker
-            damage: Damage to reflect
+            pelotari: PELOTARI unit
+            attacker: Original skill caster
+            game: Game instance
+
+        Returns:
+            List of (y, x) positions ball travels through
+        """
+        # Get PELOTARI's ricochet mode
+        ricochet_mode = getattr(pelotari, 'pelotari_ricochet_mode', True)
+
+        # Calculate initial direction (PELOTARI -> attacker)
+        dy = attacker.y - pelotari.y
+        dx = attacker.x - pelotari.x
+
+        # Normalize to unit vector
+        from .physics import normalize_direction
+        direction = normalize_direction((dy, dx))
+
+        # Build trajectory with ricochet physics
+        trajectory = []
+        current_pos = (pelotari.y, pelotari.x)
+        current_dir = direction
+        bounces_remaining = self.max_bounces  # 2 bounces
+        tiles_per_segment = self.ricochet_range  # 6 tiles per bounce
+
+        for bounce_idx in range(bounces_remaining + 1):  # Initial + 2 bounces
+            segment = self._calculate_trajectory_segment(
+                current_pos, current_dir, tiles_per_segment, ricochet_mode, game
+            )
+
+            if not segment:
+                break  # Hit something we can't pass/bounce
+
+            trajectory.extend(segment)
+
+            # Check if we hit a wall and can bounce
+            if len(segment) < tiles_per_segment and bounce_idx < bounces_remaining:
+                # Hit obstacle, try to bounce
+                impact_pos = segment[-1] if segment else current_pos
+
+                # Try next position to find wall
+                next_y = impact_pos[0] + current_dir[0]
+                next_x = impact_pos[1] + current_dir[1]
+
+                if game.is_valid_position(next_y, next_x) and not game.map.is_passable(next_y, next_x):
+                    # Calculate bounce
+                    from .physics import calculate_bounce
+                    new_dir = calculate_bounce((next_y, next_x), current_dir, game)
+
+                    if new_dir and ricochet_mode:
+                        current_dir = new_dir
+                        current_pos = impact_pos
+                        logger.debug(f"Ball bounced at {impact_pos}, new direction: {new_dir}")
+                        continue
+
+                # Can't bounce, stop
+                break
+            else:
+                # Reached end of segment without hitting wall
+                break
+
+        return trajectory
+
+    def _calculate_trajectory_segment(self, start_pos: tuple, direction: tuple,
+                                     max_tiles: int, ricochet_mode: bool,
+                                     game: 'Game') -> list:
+        """
+        Calculate single trajectory segment (straight line until obstacle or max range).
+
+        Args:
+            start_pos: Starting position (y, x)
+            direction: Direction vector (dy, dx)
+            max_tiles: Maximum tiles for this segment
+            ricochet_mode: True for ricochet, False for phase
+            game: Game instance
+
+        Returns:
+            List of (y, x) positions
+        """
+        segment = []
+        current_y, current_x = start_pos
+
+        for _ in range(max_tiles):
+            next_y = current_y + direction[0]
+            next_x = current_x + direction[1]
+
+            # Check bounds
+            if not game.is_valid_position(next_y, next_x):
+                break
+
+            # Check terrain
+            if not game.map.is_passable(next_y, next_x):
+                if ricochet_mode:
+                    # Hit wall in ricochet mode, stop here (caller will handle bounce)
+                    break
+                # Phase mode: pass through terrain
+
+            segment.append((next_y, next_x))
+            current_y, current_x = next_y, next_x
+
+        return segment
+
+    def _fire_reflected_ball(self, pelotari: 'Unit', attacker: 'Unit', skill_name: str,
+                            trajectory: list, game: 'Game', ui=None) -> None:
+        """
+        Fire reflected ball along trajectory and apply skill effects to anyone hit.
+
+        Args:
+            pelotari: PELOTARI unit
+            attacker: Original skill caster
+            skill_name: Name of reflected skill
+            trajectory: List of positions ball travels through
+            game: Game instance
+            ui: UI instance for animations
+        """
+        # Animate ball trajectory
+        self._animate_reflected_ball(trajectory, skill_name, pelotari, game, ui)
+
+        # Apply skill effects to all units hit (WITH friendly fire check - don't hit PELOTARI's team)
+        for pos in trajectory:
+            target = game.get_unit_at(pos[0], pos[1])
+            # Only hit enemies (different team than PELOTARI)
+            if target and target.is_alive() and target.player != pelotari.player:
+                # Apply full skill effects
+                self._apply_reflected_skill_effects(
+                    pelotari, target, attacker, skill_name, game, ui
+                )
+
+                # Show impact animation
+                self._animate_skill_impact(pos, skill_name, ui)
+
+    def _apply_reflected_skill_effects(self, pelotari: 'Unit', target: 'Unit',
+                                       original_caster: 'Unit', skill_name: str,
+                                       game: 'Game', ui=None) -> None:
+        """
+        Apply full effects of reflected skill to target.
+
+        Args:
+            pelotari: PELOTARI (treated as caster for damage calculations)
+            target: Unit being hit
+            original_caster: Original skill caster (for crit HP checks)
+            skill_name: Name of skill
             game: Game instance
             ui: UI instance
         """
-        from .physics import calculate_reflection_trajectory
+        if skill_name == 'Judgement':
+            self._apply_judgement_effects(pelotari, target, original_caster, game)
+        elif skill_name == 'Estrange':
+            self._apply_estrange_effects(pelotari, target, game)
+        elif skill_name == 'Neural Shunt':
+            self._apply_neural_shunt_effects(pelotari, target, game)
+        elif skill_name == 'Granite Geas':
+            self._apply_granite_geas_effects(pelotari, target, game)
+        elif skill_name == 'Pry':
+            self._apply_pry_effects(pelotari, target, game, ui)
+        elif skill_name == 'Auction Curse':
+            self._apply_auction_curse_effects(pelotari, target, game)
 
-        # Get toggle mode
-        ricochet_mode = getattr(user, 'pelotari_ricochet_mode', True)
+    def _animate_reflected_ball(self, trajectory: list, skill_name: str,
+                               pelotari: 'Unit', game: 'Game', ui=None) -> None:
+        """Animate reflected ball traveling along trajectory."""
+        if not ui or not hasattr(ui, 'renderer'):
+            return
 
-        # Calculate reflection trajectory
-        trajectory = calculate_reflection_trajectory(
-            start_pos=(user.y, user.x),
-            target_pos=(attacker.y, attacker.x),
-            ricochet_mode=ricochet_mode,
-            game=game
+        # Ball character
+        ball_char = 'o'
+        ricochet_mode = getattr(pelotari, 'pelotari_ricochet_mode', True)
+
+        # Color based on mode
+        ball_color = 7 if ricochet_mode else 6  # White for ricochet, cyan for phase
+
+        for i, pos in enumerate(trajectory):
+            y, x = pos
+            ui.renderer.draw_tile(y, x, ball_char, ball_color)
+            ui.renderer.refresh()
+            sleep_with_animation_speed(0.05)
+
+            # Clear trail
+            if i > 2:
+                old_y, old_x = trajectory[i-2]
+                ui.renderer.refresh()
+
+    def _animate_skill_impact(self, pos: tuple, skill_name: str, ui=None) -> None:
+        """Show skill-specific impact animation."""
+        if not ui or not hasattr(ui, 'renderer'):
+            return
+
+        y, x = pos
+
+        # Skill-specific impact frames
+        impact_sequences = {
+            'Judgement': ['*', '+', 'X', '*'],  # Divine judgment
+            'Estrange': ['~', '≈', '∿', '~'],  # Phase distortion
+            'Neural Shunt': ['!', '?', '#', '!'],  # Confusion
+            'Granite Geas': ['#', '▓', '█', '▓'],  # Stone weight
+            'Pry': ['^', '↑', '|', '^'],  # Upward force
+            'Auction Curse': ['$', '¢', '£', '$']  # Currency curse
+        }
+
+        frames = impact_sequences.get(skill_name, ['*', 'X', '*', 'X'])
+
+        for frame in frames:
+            ui.renderer.draw_tile(y, x, frame, 1)  # Red impact
+            ui.renderer.refresh()
+            sleep_with_animation_speed(0.1)
+
+    # Skill effect application methods
+    def _apply_judgement_effects(self, caster: 'Unit', target: 'Unit',
+                                 original_caster: 'Unit', game: 'Game') -> None:
+        """Apply Judgement: 4 damage (8 at crit HP), bypasses defense."""
+        from boneglaive.utils.constants import CRITICAL_HEALTH_PERCENT
+
+        # Check if original caster is at critical HP (for damage calculation)
+        crit_threshold = int(original_caster.max_hp * CRITICAL_HEALTH_PERCENT)
+        is_crit_hp = original_caster.hp <= crit_threshold
+
+        # Damage: 4 normally, 8 if original caster at crit HP
+        damage = 8 if is_crit_hp else 4
+
+        # Bypass defense - apply damage directly
+        old_hp = target.hp
+        target.hp = max(0, target.hp - damage)
+        actual_damage = old_hp - target.hp
+
+        message_log.add_combat_message(
+            attacker_name=caster.get_display_name(),
+            target_name=target.get_display_name(),
+            damage=actual_damage,
+            ability="Reflected Judgement",
+            attacker_player=caster.player,
+            target_player=target.player
         )
 
-        # Apply damage to first enemy hit in trajectory
-        for pos in trajectory:
-            target = game.get_unit_at(pos[0], pos[1])
-            if target and target.player != user.player and target.is_alive():
-                actual_damage = target.deal_damage(damage)
-                message_log.add_combat_message(
-                    attacker_name=user.get_display_name(),
-                    target_name=target.get_display_name(),
-                    damage=actual_damage,
-                    ability="Resonant Backhand",
-                    attacker_player=user.player,
-                    target_player=target.player
-                )
-                break
+        logger.debug(f"Reflected Judgement: {actual_damage} pierce damage to {target.get_display_name()}")
 
-        # TODO: Add animation for reflected ball
+    def _apply_estrange_effects(self, caster: 'Unit', target: 'Unit', game: 'Game') -> None:
+        """Apply Estrange: 3 damage + permanent -1 all stats."""
+        # Apply 3 damage
+        actual_damage = target.deal_damage(3)
+
+        # Apply permanent estrangement debuff
+        if not hasattr(target, 'estranged'):
+            target.estranged = False
+        target.estranged = True
+
+        message_log.add_combat_message(
+            attacker_name=caster.get_display_name(),
+            target_name=target.get_display_name(),
+            damage=actual_damage,
+            ability="Reflected Estrange",
+            attacker_player=caster.player,
+            target_player=target.player
+        )
+
+        message_log.add_message(
+            f"{target.get_display_name()} is estranged - all stats reduced by 1!",
+            MessageType.ABILITY,
+            player=target.player
+        )
+
+        logger.debug(f"Reflected Estrange: {actual_damage} damage + estrangement to {target.get_display_name()}")
+
+    def _apply_neural_shunt_effects(self, caster: 'Unit', target: 'Unit', game: 'Game') -> None:
+        """Apply Neural Shunt: 7 damage + random actions 1 turn."""
+        # Apply 7 damage
+        actual_damage = target.deal_damage(7)
+
+        # Apply neural shunt debuff
+        if not hasattr(target, 'neural_shunt_affected'):
+            target.neural_shunt_affected = False
+            target.neural_shunt_duration = 0
+
+        target.neural_shunt_affected = True
+        # +1 to compensate for immediate decrement at end of current turn
+        target.neural_shunt_duration = 1 + 1
+
+        message_log.add_combat_message(
+            attacker_name=caster.get_display_name(),
+            target_name=target.get_display_name(),
+            damage=actual_damage,
+            ability="Reflected Neural Shunt",
+            attacker_player=caster.player,
+            target_player=target.player
+        )
+
+        message_log.add_message(
+            f"{target.get_display_name()}'s neural functions are disrupted!",
+            MessageType.ABILITY,
+            player=target.player
+        )
+
+        logger.debug(f"Reflected Neural Shunt: {actual_damage} damage + neural disruption to {target.get_display_name()}")
+
+    def _apply_granite_geas_effects(self, caster: 'Unit', target: 'Unit', game: 'Game') -> None:
+        """Apply Granite Geas: 4 damage + taunt."""
+        # Apply 4 damage
+        actual_damage = target.deal_damage(4)
+
+        # Apply taunt - target must attack/skill the PELOTARI
+        if not hasattr(target, 'taunted_by'):
+            target.taunted_by = None
+            target.taunt_duration = 0
+            target.taunt_responded_this_turn = False
+            target.geas_affected = False
+
+        target.taunted_by = caster  # Taunted by PELOTARI, not original caster
+        # +1 to compensate for immediate decrement at end of current turn
+        target.taunt_duration = 2 + 1  # 2 turns
+        target.taunt_responded_this_turn = False
+        target.geas_affected = True
+
+        message_log.add_combat_message(
+            attacker_name=caster.get_display_name(),
+            target_name=target.get_display_name(),
+            damage=actual_damage,
+            ability="Reflected Granite Geas",
+            attacker_player=caster.player,
+            target_player=target.player
+        )
+
+        message_log.add_message(
+            f"{target.get_display_name()} is taunted by {caster.get_display_name()}!",
+            MessageType.ABILITY,
+            player=target.player
+        )
+
+        logger.debug(f"Reflected Granite Geas: {actual_damage} damage + taunt to {target.get_display_name()}")
+
+    def _apply_pry_effects(self, caster: 'Unit', target: 'Unit', game: 'Game', ui=None) -> None:
+        """Apply Pry: 6 damage + 3 splash adjacent + -1 move + free traps."""
+        # Apply 6 damage to primary target
+        actual_damage = target.deal_damage(6)
+
+        # Apply movement penalty
+        if not hasattr(target, 'was_pried'):
+            target.was_pried = False
+        target.was_pried = True
+
+        message_log.add_combat_message(
+            attacker_name=caster.get_display_name(),
+            target_name=target.get_display_name(),
+            damage=actual_damage,
+            ability="Reflected Pry",
+            attacker_player=caster.player,
+            target_player=target.player
+        )
+
+        message_log.add_message(
+            f"{target.get_display_name()} is pried - movement reduced!",
+            MessageType.ABILITY,
+            player=target.player
+        )
+
+        # Apply splash damage to adjacent units (NO friendly fire - only hit different players)
+        adjacent_positions = [
+            (target.y - 1, target.x), (target.y + 1, target.x),
+            (target.y, target.x - 1), (target.y, target.x + 1),
+            (target.y - 1, target.x - 1), (target.y - 1, target.x + 1),
+            (target.y + 1, target.x - 1), (target.y + 1, target.x + 1)
+        ]
+
+        for adj_y, adj_x in adjacent_positions:
+            if game.is_valid_position(adj_y, adj_x):
+                adj_unit = game.get_unit_at(adj_y, adj_x)
+                # Only hit units that are alive, not the target, and on a DIFFERENT team than caster
+                if (adj_unit and adj_unit.is_alive() and adj_unit != target and
+                    adj_unit.player != caster.player):
+                    splash_damage = adj_unit.deal_damage(3)
+                    message_log.add_combat_message(
+                        attacker_name=caster.get_display_name(),
+                        target_name=adj_unit.get_display_name(),
+                        damage=splash_damage,
+                        ability="Reflected Pry (splash)",
+                        attacker_player=caster.player,
+                        target_player=adj_unit.player
+                    )
+
+        # Free any traps on target
+        if hasattr(target, 'trapped_by') and target.trapped_by is not None:
+            trapper = target.trapped_by
+            target.trapped_by = None
+            target.trap_duration = 0
+            message_log.add_message(
+                f"{target.get_display_name()} is freed from {trapper.get_display_name()}'s trap!",
+                MessageType.ABILITY,
+                player=target.player
+            )
+
+        logger.debug(f"Reflected Pry: {actual_damage} damage + splash + movement penalty to {target.get_display_name()}")
+
+    def _apply_auction_curse_effects(self, caster: 'Unit', target: 'Unit', game: 'Game') -> None:
+        """Apply Auction Curse: DoT based on furniture values."""
+        # Initialize curse attributes if needed
+        if not hasattr(target, 'auction_curse_dot'):
+            target.auction_curse_dot = False
+            target.auction_curse_dot_duration = 0
+            target.auction_curse_no_heal = False
+
+        # Calculate furniture value in 3-tile radius
+        furniture_value = 0
+        for dy in range(-3, 4):
+            for dx in range(-3, 4):
+                check_y, check_x = target.y + dy, target.x + dx
+                if game.is_valid_position(check_y, check_x):
+                    # Check if there's furniture at this position
+                    if hasattr(game, 'furniture') and (check_y, check_x) in game.furniture:
+                        furniture_info = game.furniture[(check_y, check_x)]
+                        if 'value' in furniture_info:
+                            furniture_value += furniture_info['value']
+
+        # DoT damage based on furniture value (1 damage per 3 value, minimum 1)
+        dot_damage = max(1, furniture_value // 3)
+
+        # Apply curse
+        target.auction_curse_dot = True
+        # +1 to compensate for immediate decrement at end of current turn
+        target.auction_curse_dot_duration = 3 + 1  # 3 turns
+        target.auction_curse_no_heal = True  # Prevent healing
+
+        # Store DoT damage amount
+        if not hasattr(target, 'auction_curse_dot_amount'):
+            target.auction_curse_dot_amount = 0
+        target.auction_curse_dot_amount = dot_damage
+
+        message_log.add_message(
+            f"{target.get_display_name()} is cursed by the reflected auction! {dot_damage} damage per turn, healing prevented!",
+            MessageType.ABILITY,
+            player=target.player
+        )
+
+        logger.debug(f"Reflected Auction Curse: {dot_damage} DoT per turn to {target.get_display_name()}, furniture value: {furniture_value}")
 
 
 class Matador(ActiveSkill):
@@ -1767,4 +2181,4 @@ class Matador(ActiveSkill):
 
 # Export skills for plugin registration
 PASSIVE_SKILL = Riposte
-ACTIVE_SKILLS = [Poach, ResonantBackhand, Matador]
+ACTIVE_SKILLS = [Poach, Backhand, Matador]

@@ -31,7 +31,7 @@ The PELOTARI is a high-skill ranged specialist inspired by jai alai (Basque pelo
 - Random buff selection if multiple buffs present
 - Follows ricochet/phase mode physics
 
-### Skill 2: Resonant Backhand (Cooldown: 4)
+### Skill 2: Backhand (Cooldown: 4)
 - Counter stance for entire turn
 - Reflects enemy attacks/skills back as ball projectiles
 - Only catches first attack per turn

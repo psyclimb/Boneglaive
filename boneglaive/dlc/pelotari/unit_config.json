@@ -49,7 +49,7 @@
         "range": "4 (base), 6 (with buff)"
       },
       {
-        "name": "Resonant Backhand",
+        "name": "Backhand",
         "key": "2",
         "description": "Counter stance. Reflects enemy attacks/skills back as ball projectiles.",
         "cooldown": 4,

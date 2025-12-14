@@ -86,7 +86,7 @@ def calculate_buff_ball_trajectory(start_pos: Tuple[int, int], ricochet_mode: bo
 def calculate_reflection_trajectory(start_pos: Tuple[int, int], target_pos: Tuple[int, int],
                                     ricochet_mode: bool, game: 'Game') -> List[Tuple[int, int]]:
     """
-    Calculate trajectory for Resonant Backhand reflection.
+    Calculate trajectory for Backhand reflection.
 
     Args:
         start_pos: PELOTARI position (y, x)
