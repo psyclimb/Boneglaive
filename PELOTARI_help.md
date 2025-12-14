@@ -20,23 +20,25 @@ The PELOTARI is a high-skill ranged specialist inspired by jai alai (Basque pelo
 
 ## Abilities
 
-### PASSIVE: [Name TBD]
+### PASSIVE: Riposte
 **[Passive - Always Active]**
 
 The PELOTARI starts each match with a self-buff that enhances his attack range, allowing him to control the battlefield from extreme distances. This buff refreshes periodically and has unique properties that make it immune to enemy theft.
 
 **Effect:**
-- Grants +1-2 attack range (4 → 5-6 total range when buffed)
-- Refreshes every 2-3 turns
+- Grants +2 attack range (4 → 6 total range when buffed)
+- Refreshes every 3 turns
+- Starts match with buff active
 - Can be voluntarily knocked off to create offensive spread shot
 
 **Unique Property - Spread Shot Conversion:**
 When the PELOTARI buff is knocked off (by ally or enemy), it transforms into a **cone of ball projectiles** instead of a steal-able buff ball. This makes it inherently immune to buff theft while providing offensive utility.
 
 **Spread Shot Mechanics:**
-- Multiple balls fire in a cone pattern from the point of impact
+- Fires 6 balls in a 120-degree cone pattern
+- Each ball deals 4 damage (reduced by defense)
 - Each ball follows current toggle mode (ricochet or phase)
-- Deals damage to all units in the spread pattern
+- Unlimited range - balls travel until hitting units or map edges
 - Can be used offensively by knocking buff off allied PELOTARI or yourself
 
 **Tactical Notes:**
@@ -50,56 +52,61 @@ When the PELOTARI buff is knocked off (by ally or enemy), it transforms into a *
 
 ---
 
-### SKILL 1: [Buff Theft - Name TBD]
+### SKILL 1: Poach
 **[Active] [Key: TBD]**
 
 The PELOTARI launches a precision shot that knocks buffs off enemy units, transforming them into steal-able projectiles. Buffs knocked loose follow ball physics and can be intercepted by the PELOTARI or allies to claim the stolen enhancement.
 
 **Effect:**
 - Targets enemy unit within range
-- Knocks one buff off the target
+- Knocks one buff off the target (random selection if multiple buffs)
 - Buff becomes a ball projectile that travels with trajectory physics
 - Buff ball can be caught by PELOTARI or allies to steal the effect
-- If buff ball doesn't connect with a unit, it disappears
+- If buff ball doesn't connect with an ally, it disappears
 
 **Special Interaction - Enemy PELOTARI:**
 When targeting an enemy PELOTARI's self-buff, the buff converts to a spread shot instead of a steal-able buff ball (due to passive immunity). This creates an AOE attack at the enemy PELOTARI's position.
 
 **Ball Physics:**
 - Follows current toggle mode (ricochet or phase)
-- Ricochet mode: Bounces once off terrain
-- Phase mode: Passes through terrain to reach allies
+- Ricochet mode: Bounces once off terrain, continues until hitting ally or wall
+- Phase mode: Passes through terrain, travels until hitting ally or map edges
+- Trajectory calculated using chess distance (tiles)
+- Ball travels until connecting with ally or vanishing at map boundary
 
 **Type:** Active
-**Range:** 4 (base), 5-6 (with buff)
-**Cooldown:** [TBD: 3-4 turns?]
+**Range:** 4 (base), 6 (with buff)
+**Cooldown:** 3 turns
 **Target:** Enemy unit with active buffs
 **Special:** Buff stealing mechanic; creates steal-able projectiles
 
 ---
 
-### SKILL 2: Catch & Return
+### SKILL 2: Resonant Backhand
 **[Active] [Key: TBD]**
 
 Drawing on defensive jai alai techniques, the PELOTARI readies his cesta to catch incoming attacks and skills, immediately reflecting them back as ball projectiles. This counter-skill creates mind games against opponents who must choose between attacking the PELOTARI or holding back.
 
 **Effect:**
-- Activate to set up counter stance for this turn
+- Activate to set up counter stance for entire turn
 - When targeted by enemy attack or skill, catches it
 - Immediately reflects the attack/skill back as a ball projectile
 - Ball carries the original damage/effects
 - Ball follows current toggle mode (ricochet or phase)
+- Ball trajectory uses angle of incidence (realistic ricochet physics)
 
 **Execution:**
 - Activates during action phase (sets up stance)
 - Triggers during execution phase when hit
 - Reflection is immediate and automatic
+- Stance lasts entire turn or until triggered
 
 **Counter Scenarios:**
 - Catches basic attacks → Reflects damage back
 - Catches targeted skills → Reflects skill effects back
-- Ball trajectory follows ricochet/phase rules
+- Ball trajectory follows ricochet/phase rules with angle of incidence
 - Multiple attacks in one turn: only catches the first
+- Trajectory calculated using chess distance (tiles)
 
 **Tactical Notes:**
 - High cooldown means timing is critical
@@ -110,7 +117,7 @@ Drawing on defensive jai alai techniques, the PELOTARI readies his cesta to catc
 
 **Type:** Active
 **Range:** Self
-**Cooldown:** 3-4 turns
+**Cooldown:** 4 turns
 **Target:** Self (counter stance)
 **Special:** Reflects enemy attacks/skills as ball projectiles
 
@@ -170,42 +177,54 @@ The PELOTARI charges up and launches a massive, devastating ball projectile at e
 ### TOGGLE: Ricochet / Phase Mode
 **[Toggle Action - 4th Menu Item]**
 
-The PELOTARI can toggle between two ball projectile modes that fundamentally change how his abilities interact with terrain. This toggle affects all ball-based skills and creates strategic depth through positioning and angle planning.
+The PELOTARI can toggle between two ball projectile modes that fundamentally change how his abilities interact with terrain. Using a **frequency modulator** built into his cesta, he adjusts the molecular resonant frequency of his projectiles to either interact with terrain normally or phase through it entirely.
 
-**Ricochet Mode (Default):**
-- Balls bounce once off terrain/furniture
-- Follows physics trajectory (bank shots possible)
+**Frequency Harmonics Technology:**
+All terrain and furniture in Boneglaive exists at a specific molecular resonant frequency. The PELOTARI's modified cesta contains a frequency tuner (visible as a small device on the grip or his wrist) that allows him to synchronize or desynchronize his projectiles with this frequency. A quick toggle produces a harmonic tone as the frequency shifts, and the visual appearance of his balls changes accordingly.
+
+**Ricochet Mode (Default - Frequency Matched):**
+- Balls are **frequency-synced** with terrain
+- Bounce once off terrain/furniture with normal physics
+- Solid impact with audible *thunk* sounds
 - Full damage on all hits
-- Enables creative angle plays
-- Requires terrain/furniture for bounces
+- Enables creative angle plays and bank shots
+- Visual: Steady resonance hum, solid impact trails
 
-**Phase Mode:**
-- Balls ignore all terrain (pass through walls, furniture, etc.)
-- Only bounces off map edges
+**Phase Mode (Frequency Desynced):**
+- Balls vibrate at a **desynced frequency** from terrain
+- Pass through walls, furniture, and obstacles
+- Only interact with living tissue (units) - biology cannot be phased through
 - Slightly reduced effects in some skills
 - Guaranteed straight-line trajectory
-- No terrain interaction/displacement
+- Visual: Blurred/vibrating appearance, ethereal *whoosh* when phasing
+- Audio: Harmonic hum instead of impact sounds
 
 **Skill Interactions:**
 
-**Buff Theft:**
-- Ricochet: Buff ball can bounce to reach allies
-- Phase: Buff ball passes through obstacles to allies
+**Poach:**
+- Ricochet: Buff ball bounces once off terrain (angle of incidence), continues until hitting ally or wall
+- Phase: Buff ball passes through obstacles to allies, travels until hitting ally or map edges
 
-**Catch & Return:**
-- Ricochet: Reflected attack bounces off terrain
-- Phase: Reflected attack goes straight through
+**Resonant Backhand:**
+- Ricochet: Reflected attack bounces off terrain (angle of incidence)
+- Phase: Reflected attack goes straight through terrain
 
 **Cannonball:**
-- Ricochet: Bounces once, can hit multiple targets, launches furniture
+- Ricochet: Bounces once (angle of incidence), can hit multiple targets, launches furniture
 - Phase: Straight line only, no furniture interaction, reduced complexity
 
-**Spread Shot (from passive):**
-- Ricochet: Each ball in cone can bounce once
+**Spread Shot (from Riposte passive):**
+- Ricochet: Each ball in cone can bounce once (angle of incidence)
 - Phase: All balls pass through terrain in straight lines
 
+**Toggle Mechanics:**
+- Toggle is a **free action** - does not consume turn
+- Can toggle anytime during your turn
+- All ball projectiles use angle of incidence for realistic bounce physics
+- Trajectories calculated using chess distance (tiles)
+
 **Type:** Toggle Action (4th menu item)
-**Special:** Fundamentally changes projectile behavior
+**Special:** Fundamentally changes projectile behavior; free action
 
 ---
 
@@ -320,30 +339,49 @@ The PELOTARI is directly inspired by **jai alai** (Basque pelota), one of the fa
 - **Court control** → Positioning and zone dominance
 
 ### Aesthetic Description:
-The PELOTARI is an athletic specialist clad in traditional-meets-tactical gear. He wears a modified **cesta** (wicker throwing basket) integrated with advanced technology—perhaps energy-channeling circuits or reinforced composite materials. His appearance blends the elegance of a professional pelotari with the intensity of a battlefield combatant.
+The PELOTARI is an athletic specialist clad in traditional-meets-tactical gear. He wears a modified **cesta** (wicker throwing basket) integrated with advanced frequency modulation technology. His appearance blends the elegance of a professional pelotari with the intensity of a battlefield combatant.
 
-Visual elements might include:
-- Curved wicker cesta with glowing energy lines
-- Athletic build optimized for throwing power
-- Lightweight armor allowing maximum mobility
-- Ball projectiles that leave luminous trails
-- Dynamic throwing poses showing torque and power
-- Basque-inspired color schemes and patterns
+**Visual Elements:**
+- **Modified Cesta**: Curved wicker basket with integrated tech circuits and frequency modulator
+- **Frequency Tuner**: Visible device on cesta grip or wrist that glows when toggling modes
+- **Athletic Build**: Optimized for throwing power and rapid movement
+- **Lightweight Armor**: Reinforced traditional pelotari whites with tactical plating
+- **Ball Projectiles**:
+  - Ricochet mode: Solid appearance with resonance hum and impact trails
+  - Phase mode: Blurred/vibrating appearance with ethereal glow
+- **Dynamic Poses**: Throwing stances showing torque, power, and precision
+- **Basque-Inspired Colors**: Red, green, and white patterns honoring jai alai heritage
 
-The PELOTARI embodies **precision, speed, and control**—a master of trajectory who turns the battlefield into his court.
+**Audio Design:**
+- **Toggle Switch**: Harmonic tone when switching frequencies (like a tuning fork adjusting)
+- **Ricochet Mode**: Solid *thunk* impacts, echoing bounces
+- **Phase Mode**: Ethereal *whoosh* sounds, harmonic hum as balls pass through terrain
+- **Cannonball**: Deep resonant impact, furniture displacement crashes
+
+The PELOTARI embodies **precision, speed, and control**—a master of trajectory who manipulates molecular frequencies to turn the battlefield into his court.
 
 ---
 
 ## Development Notes
 
-### Questions to Resolve:
-1. Skill names (currently TBD placeholders)
-2. Exact buff refresh timing (2 or 3 turns?)
-3. Spread shot cone angle and ball count
-4. Buff theft skill cooldown (3 or 4 turns?)
-5. Catch & Return cooldown (3 or 4 turns?)
-6. Range bonus from passive (+1 or +2?)
-7. Flying furniture collision interaction details
+### Implementation Specifications:
+
+**Finalized Mechanics:**
+1. ✓ Skill names: Riposte (passive), Poach, Resonant Backhand, Cannonball
+2. ✓ Buff refresh timing: Every 3 turns
+3. ✓ Spread shot: 120° cone, 6 balls, 4 damage each, unlimited range
+4. ✓ Poach cooldown: 3 turns, random buff selection
+5. ✓ Resonant Backhand cooldown: 4 turns, lasts entire turn
+6. ✓ Range bonus from passive: +2 (4 → 6)
+7. ✓ Toggle: Free action, angle of incidence physics
+8. ✓ Trajectory: Chess distance calculation (tiles)
+
+**Ball Physics System:**
+- All projectiles use angle of incidence for bounces
+- Ricochet mode: Bounces once, continues until hitting target or boundary
+- Phase mode: Passes through terrain, travels to map edges
+- Buff balls travel until hitting ally or vanishing
+- Trajectories calculated using chess distance
 
 ### Balance Considerations:
 - 5-glaive complexity must feel earned (not frustrating)

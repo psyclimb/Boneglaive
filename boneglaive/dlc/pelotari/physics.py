@@ -1,0 +1,397 @@
+#!/usr/bin/env python3
+"""
+Ball physics system for PELOTARI.
+
+Handles ricochet trajectories, angle of incidence, phase mode, and spread shot patterns.
+"""
+
+import math
+from typing import List, Tuple, Optional, TYPE_CHECKING
+
+from boneglaive.utils.debug import logger
+
+if TYPE_CHECKING:
+    from boneglaive.game.engine import Game
+
+
+def calculate_spread_shot_trajectories(start_pos: Tuple[int, int], cone_angle: int,
+                                       ball_count: int, ricochet_mode: bool,
+                                       game: 'Game') -> List[List[Tuple[int, int]]]:
+    """
+    Calculate trajectories for spread shot (Riposte passive).
+
+    Args:
+        start_pos: Starting position (y, x)
+        cone_angle: Cone angle in degrees (120)
+        ball_count: Number of balls (6)
+        ricochet_mode: True for ricochet, False for phase
+        game: Game instance
+
+    Returns:
+        List of trajectories, each trajectory is list of (y, x) positions
+    """
+    trajectories = []
+
+    # Calculate angle step between balls
+    angle_step = cone_angle / (ball_count - 1) if ball_count > 1 else 0
+    start_angle = -cone_angle / 2  # Start from left side of cone
+
+    for i in range(ball_count):
+        angle = start_angle + (i * angle_step)
+        # Convert angle to direction vector
+        direction = angle_to_direction(angle)
+
+        # Calculate trajectory for this ball
+        trajectory = calculate_linear_trajectory(
+            start_pos=start_pos,
+            direction=direction,
+            ricochet_mode=ricochet_mode,
+            max_range=999,  # Unlimited range
+            game=game
+        )
+        trajectories.append(trajectory)
+
+    logger.debug(f"Spread shot: {ball_count} trajectories calculated")
+    return trajectories
+
+
+def calculate_buff_ball_trajectory(start_pos: Tuple[int, int], ricochet_mode: bool,
+                                   game: 'Game') -> List[Tuple[int, int]]:
+    """
+    Calculate trajectory for buff ball from Poach skill.
+
+    Args:
+        start_pos: Starting position (y, x)
+        ricochet_mode: True for ricochet, False for phase
+        game: Game instance
+
+    Returns:
+        List of (y, x) positions ball travels through
+    """
+    # Buff ball travels in a default outward direction
+    # TODO: Determine smart direction based on ally positions
+    direction = (0, 1)  # Default: travel right
+
+    trajectory = calculate_linear_trajectory(
+        start_pos=start_pos,
+        direction=direction,
+        ricochet_mode=ricochet_mode,
+        max_range=999,  # Travel until hitting ally or boundary
+        game=game
+    )
+
+    return trajectory
+
+
+def calculate_reflection_trajectory(start_pos: Tuple[int, int], target_pos: Tuple[int, int],
+                                    ricochet_mode: bool, game: 'Game') -> List[Tuple[int, int]]:
+    """
+    Calculate trajectory for Resonant Backhand reflection.
+
+    Args:
+        start_pos: PELOTARI position (y, x)
+        target_pos: Attacker position (y, x)
+        ricochet_mode: True for ricochet, False for phase
+        game: Game instance
+
+    Returns:
+        List of (y, x) positions ball travels through
+    """
+    # Calculate direction from PELOTARI to attacker
+    direction = (
+        target_pos[0] - start_pos[0],
+        target_pos[1] - start_pos[1]
+    )
+
+    # Normalize direction
+    direction = normalize_direction(direction)
+
+    trajectory = calculate_linear_trajectory(
+        start_pos=start_pos,
+        direction=direction,
+        ricochet_mode=ricochet_mode,
+        max_range=999,
+        game=game
+    )
+
+    return trajectory
+
+
+def calculate_cannonball_trajectory(start_pos: Tuple[int, int], target_pos: Tuple[int, int],
+                                    ricochet_mode: bool, game: 'Game') -> List[Tuple[int, int]]:
+    """
+    Calculate trajectory for Cannonball skill.
+
+    Args:
+        start_pos: PELOTARI position (y, x)
+        target_pos: Target position (y, x)
+        ricochet_mode: True for ricochet, False for phase
+        game: Game instance
+
+    Returns:
+        List of (y, x) positions ball travels through
+    """
+    # Calculate direction
+    direction = (
+        target_pos[0] - start_pos[0],
+        target_pos[1] - start_pos[1]
+    )
+
+    direction = normalize_direction(direction)
+
+    trajectory = calculate_linear_trajectory(
+        start_pos=start_pos,
+        direction=direction,
+        ricochet_mode=ricochet_mode,
+        max_range=game.chess_distance(start_pos[0], start_pos[1], target_pos[0], target_pos[1]) + 5,
+        game=game,
+        is_cannonball=True  # Special flag for furniture interaction
+    )
+
+    return trajectory
+
+
+def calculate_linear_trajectory(start_pos: Tuple[int, int], direction: Tuple[int, int],
+                                ricochet_mode: bool, max_range: int, game: 'Game',
+                                is_cannonball: bool = False) -> List[Tuple[int, int]]:
+    """
+    Calculate linear trajectory with optional ricochet.
+
+    Args:
+        start_pos: Starting position (y, x)
+        direction: Direction vector (dy, dx)
+        ricochet_mode: True for ricochet, False for phase
+        max_range: Maximum range in tiles
+        game: Game instance
+        is_cannonball: Special handling for Cannonball skill
+
+    Returns:
+        List of (y, x) positions
+    """
+    trajectory = []
+    current_pos = start_pos
+    current_direction = direction
+    bounced = False  # Track if ball has bounced
+
+    for step in range(max_range):
+        # Move one step
+        next_y = current_pos[0] + current_direction[0]
+        next_x = current_pos[1] + current_direction[1]
+        next_pos = (next_y, next_x)
+
+        # Check bounds
+        if not game.is_valid_position(next_y, next_x):
+            # Hit map edge
+            if not ricochet_mode:
+                # Phase mode: bounce off edges
+                current_direction = calculate_bounce_off_edge(
+                    current_pos, current_direction, game
+                )
+                continue
+            else:
+                # Ricochet mode: stop at edge
+                break
+
+        # Check terrain
+        if not game.map.is_passable(next_y, next_x):
+            if ricochet_mode and not bounced:
+                # Ricochet mode: bounce once
+                new_direction = calculate_bounce(
+                    impact_pos=next_pos,
+                    incoming_direction=current_direction,
+                    game=game
+                )
+                if new_direction:
+                    current_direction = new_direction
+                    bounced = True
+                    logger.debug(f"Ball bounced at {next_pos}, new direction: {new_direction}")
+                    continue
+                else:
+                    # Can't bounce, stop
+                    break
+            elif not ricochet_mode:
+                # Phase mode: pass through terrain
+                trajectory.append(next_pos)
+                current_pos = next_pos
+                continue
+            else:
+                # Already bounced once, stop
+                break
+
+        # Add position to trajectory
+        trajectory.append(next_pos)
+        current_pos = next_pos
+
+    return trajectory
+
+
+def calculate_bounce(impact_pos: Tuple[int, int], incoming_direction: Tuple[int, int],
+                     game: 'Game') -> Optional[Tuple[int, int]]:
+    """
+    Calculate bounce direction using angle of incidence.
+
+    Args:
+        impact_pos: Position where ball hits terrain
+        incoming_direction: Direction ball was traveling (dy, dx)
+        game: Game instance
+
+    Returns:
+        New direction (dy, dx), or None if can't bounce
+    """
+    # Determine surface normal based on surrounding terrain
+    normal = calculate_surface_normal(impact_pos, game)
+
+    if not normal:
+        return None  # Can't determine normal
+
+    # Calculate reflection using angle of incidence
+    # Reflection formula: R = I - 2(I·N)N
+    # Where I = incoming, N = normal, R = reflection
+
+    dot_product = incoming_direction[0] * normal[0] + incoming_direction[1] * normal[1]
+    reflection = (
+        incoming_direction[0] - 2 * dot_product * normal[0],
+        incoming_direction[1] - 2 * dot_product * normal[1]
+    )
+
+    # Normalize
+    reflection = normalize_direction(reflection)
+
+    return reflection
+
+
+def calculate_surface_normal(impact_pos: Tuple[int, int], game: 'Game') -> Optional[Tuple[int, int]]:
+    """
+    Calculate surface normal at impact point.
+
+    Args:
+        impact_pos: Position of impact
+        game: Game instance
+
+    Returns:
+        Normal vector (dy, dx), or None if can't determine
+    """
+    # Check adjacent tiles to determine wall orientation
+    y, x = impact_pos
+
+    # Check 4 cardinal directions
+    passable = {
+        'up': game.is_valid_position(y - 1, x) and game.map.is_passable(y - 1, x),
+        'down': game.is_valid_position(y + 1, x) and game.map.is_passable(y + 1, x),
+        'left': game.is_valid_position(y, x - 1) and game.map.is_passable(y, x - 1),
+        'right': game.is_valid_position(y, x + 1) and game.map.is_passable(y, x + 1)
+    }
+
+    # Determine normal based on passable directions
+    if passable['left'] and passable['right'] and not passable['up'] and not passable['down']:
+        # Horizontal wall, normal points up/down
+        return (1, 0)  # or (-1, 0)
+    elif passable['up'] and passable['down'] and not passable['left'] and not passable['right']:
+        # Vertical wall, normal points left/right
+        return (0, 1)  # or (0, -1)
+    elif passable['left'] and passable['up']:
+        # Corner, approximate normal
+        return (-1, -1)
+    elif passable['right'] and passable['up']:
+        return (-1, 1)
+    elif passable['left'] and passable['down']:
+        return (1, -1)
+    elif passable['right'] and passable['down']:
+        return (1, 1)
+
+    # Default: reflect back
+    return (0, 0)
+
+
+def calculate_bounce_off_edge(current_pos: Tuple[int, int], direction: Tuple[int, int],
+                              game: 'Game') -> Tuple[int, int]:
+    """
+    Calculate bounce off map edge (phase mode only).
+
+    Args:
+        current_pos: Current position
+        direction: Current direction
+        game: Game instance
+
+    Returns:
+        New direction after bouncing
+    """
+    next_y = current_pos[0] + direction[0]
+    next_x = current_pos[1] + direction[1]
+
+    new_dir = list(direction)
+
+    # Check which edge was hit
+    if next_y < 0 or next_y >= game.map.height:
+        # Hit top or bottom edge, flip vertical
+        new_dir[0] = -new_dir[0]
+    if next_x < 0 or next_x >= game.map.width:
+        # Hit left or right edge, flip horizontal
+        new_dir[1] = -new_dir[1]
+
+    return tuple(new_dir)
+
+
+def angle_to_direction(angle_degrees: float) -> Tuple[int, int]:
+    """
+    Convert angle to chess direction vector.
+
+    Args:
+        angle_degrees: Angle in degrees (0 = right, 90 = up)
+
+    Returns:
+        Direction tuple (dy, dx) - quantized to 8 cardinal/diagonal directions
+    """
+    # Convert to radians
+    angle_rad = math.radians(angle_degrees)
+
+    # Calculate continuous direction
+    dx = math.cos(angle_rad)
+    dy = -math.sin(angle_rad)  # Negative because y increases downward
+
+    # Quantize to 8 directions
+    # Determine which of 8 directions is closest
+    directions_8 = [
+        (0, 1),   # E
+        (-1, 1),  # NE
+        (-1, 0),  # N
+        (-1, -1), # NW
+        (0, -1),  # W
+        (1, -1),  # SW
+        (1, 0),   # S
+        (1, 1)    # SE
+    ]
+
+    # Find closest direction
+    best_dir = directions_8[0]
+    best_dot = dx * best_dir[1] + dy * best_dir[0]
+
+    for direction in directions_8[1:]:
+        dot = dx * direction[1] + dy * direction[0]
+        if dot > best_dot:
+            best_dot = dot
+            best_dir = direction
+
+    return best_dir
+
+
+def normalize_direction(direction: Tuple[int, int]) -> Tuple[int, int]:
+    """
+    Normalize direction to unit vector (quantized to 8 chess directions).
+
+    Args:
+        direction: Direction tuple (dy, dx)
+
+    Returns:
+        Normalized direction
+    """
+    dy, dx = direction
+
+    if dy == 0 and dx == 0:
+        return (0, 1)  # Default direction
+
+    # Quantize to -1, 0, 1
+    norm_dy = 0 if dy == 0 else (1 if dy > 0 else -1)
+    norm_dx = 0 if dx == 0 else (1 if dx > 0 else -1)
+
+    return (norm_dy, norm_dx)
