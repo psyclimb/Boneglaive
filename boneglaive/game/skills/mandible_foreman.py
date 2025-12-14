@@ -39,12 +39,12 @@ class DischargeSkill(ActiveSkill):
         super().__init__(
             name="Expedite",  # Renamed from Discharge to Expedite
             key="E",
-            description="Rush up to 4 tiles in a line. Automatically trap and damage the first enemy encountered.",
-            target_type=TargetType.AREA,
+            description="Rush toward an enemy in a straight line. Traps and damages the target.",
+            target_type=TargetType.ENEMY,
             cooldown=3,
             range_=4
         )
-        self.trap_damage = 3
+        self.trap_damage = 4
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Check if Expedite can be used to the target position."""
@@ -84,7 +84,12 @@ class DischargeSkill(ActiveSkill):
         is_straight_line = (delta_y == 0 or delta_x == 0 or abs(delta_y) == abs(delta_x))
         if not is_straight_line:
             return False
-            
+
+        # ENEMY targeting: Must have an enemy unit at target position
+        target_unit = game.get_unit_at(target_pos[0], target_pos[1])
+        if not target_unit or target_unit.player == user.player:
+            return False
+
         # Calculate path from user's position (or planned move position) to target
         from boneglaive.utils.coordinates import get_line, Position
         path = get_line(Position(from_y, from_x), Position(target_pos[0], target_pos[1]))
@@ -228,10 +233,13 @@ class DischargeSkill(ActiveSkill):
             player=user.player
         )
 
+        # Set flag to prevent trap release during Expedite position change
+        user.expediting = True
+
         # UPDATE FOREMAN POSITION FIRST (before applying trap, so movement doesn't break the trap!)
-        # Must happen regardless of ui mode for graphical version
+        # With ENEMY targeting, we always target an enemy unit, so we always stop before it
         if enemy_hit:
-            # Stop before the enemy position
+            # Stop at the position just before the enemy
             if len(path_positions) > 1 and enemy_pos in path_positions:
                 # Find position just before enemy
                 index = path_positions.index(enemy_pos)
@@ -240,20 +248,14 @@ class DischargeSkill(ActiveSkill):
                     user.y, user.x = stop_pos
                     print(f"[Expedite GAME LOGIC] Hit enemy! Moving foreman to stop_pos: {stop_pos} (before enemy at {enemy_pos})")
                 else:
-                    # If there's no position before, keep original
-                    pass  # Don't move
-            # else: If enemy is not in path_positions, don't move
-        else:
-            # No enemy hit, check if target position is valid and passable
-            if game.is_valid_position(target_pos[0], target_pos[1]) and game.map.is_passable(target_pos[0], target_pos[1]):
-                # Move to target position if it's valid and passable
-                user.y, user.x = target_pos
-                print(f"[Expedite GAME LOGIC] No enemy hit. Moving foreman to target_pos: {target_pos}")
+                    # Enemy is adjacent - don't move from starting position
+                    print(f"[Expedite GAME LOGIC] Enemy adjacent - staying at original position")
             elif path_positions:
-                # If target isn't valid but we have valid path positions, move to last valid position
+                # Enemy not in path but we have path positions - move to last position before enemy
                 user.y, user.x = path_positions[-1]
-                print(f"[Expedite GAME LOGIC] No enemy hit. Moving foreman to last path position: {path_positions[-1]}")
-            # If no valid positions at all, don't move (stay at original position)
+                print(f"[Expedite GAME LOGIC] Moving to last valid position before enemy: {path_positions[-1]}")
+            # else: No valid path positions, stay at original position
+        # Note: With ENEMY targeting, there should always be an enemy_hit since we require targeting an enemy
 
         # NOW apply damage and trapping AFTER foreman has moved to final position
         # This prevents movement from breaking the trap
@@ -473,7 +475,10 @@ class DischargeSkill(ActiveSkill):
             if hasattr(ui, 'draw_board'):
                 ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
         # Note: Position updates now happen before UI block (lines 275-299), so no else block needed
-        
+
+        # Clear expediting flag now that trap has been applied
+        user.expediting = False
+
         return True
 
 

@@ -4371,15 +4371,21 @@ class Game:
         from boneglaive.utils.message_log import message_log, MessageType
         from boneglaive.utils.debug import logger
         
-        # Case 1: The unit is a MANDIBLE_FOREMAN that has trapped units
-        if unit.type == UnitType.MANDIBLE_FOREMAN:
-            # Find any units trapped by this FOREMAN
-            trapped_units = [u for u in self.units if u.is_alive() and u.trapped_by == unit]
-            if trapped_units:
-                logger.debug(f"MANDIBLE_FOREMAN {unit.get_display_name()} position changed, releasing trapped units")
-                
-                # Release the trapped units
-                for trapped_unit in trapped_units:
+        # Case 1: The unit has trapped other units (MANDIBLE_FOREMAN or PELOTARI)
+        # Find any units trapped by this unit
+        trapped_units = [u for u in self.units if u.is_alive() and hasattr(u, 'trapped_by') and u.trapped_by == unit]
+        if trapped_units:
+            # Skip trap release if unit is currently executing a skill that applies traps
+            if hasattr(unit, 'expediting') and unit.expediting:
+                logger.debug(f"{unit.get_display_name()} is applying trap skill, skipping trap release check")
+                return
+
+            # Only release if trapper moved MORE than 1 tile away from trapped unit
+            # Trap can be maintained if trapper stays adjacent
+            for trapped_unit in trapped_units:
+                distance = self.chess_distance(unit.y, unit.x, trapped_unit.y, trapped_unit.x)
+                if distance > 1:
+                    logger.debug(f"{unit.get_display_name()} moved too far ({distance} tiles), releasing {trapped_unit.get_display_name()}")
                     trapped_unit.trapped_by = None
                     trapped_unit.trap_duration = 0  # Reset trap duration
                     message_log.add_message(
@@ -4387,6 +4393,8 @@ class Game:
                         MessageType.ABILITY,
                         target_name=trapped_unit.get_display_name()
                     )
+                else:
+                    logger.debug(f"{unit.get_display_name()} still adjacent to {trapped_unit.get_display_name()}, maintaining trap")
         
         # Case 2: The unit is trapped by a MANDIBLE_FOREMAN
         if unit.trapped_by is not None:

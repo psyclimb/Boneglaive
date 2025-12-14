@@ -862,7 +862,7 @@ class Backhand(ActiveSkill):
 
         # Set counter stance flag and duration
         user.backhand_active = True
-        user.backhand_duration = 2  # Lasts through enemy's turn (expires at end of next PELOTARI turn)
+        user.backhand_duration = 4  # Lasts multiple turns to increase reflection opportunities
         user.skill_target = (user.y, user.x)
         user.selected_skill = self
 
@@ -887,7 +887,7 @@ class Backhand(ActiveSkill):
         """
         # Stance is already active, just confirm
         user.backhand_active = True
-        user.backhand_duration = 2
+        user.backhand_duration = 4
         logger.debug(f"{user.get_display_name()} Backhand stance active")
         return True
 
@@ -913,7 +913,8 @@ class Backhand(ActiveSkill):
 
         # Check if skill is reflectable
         reflectable_skills = {
-            'Judgement', 'Estrange', 'Neural Shunt', 'Granite Geas', 'Pry', 'Auction Curse'
+            'Judgement', 'Estrange', 'Neural Shunt', 'Granite Geas', 'Pry', 'Auction Curse',
+            'Fragcrest', 'Expedite'
         }
 
         if skill_name not in reflectable_skills:
@@ -1102,19 +1103,33 @@ class Backhand(ActiveSkill):
             self._apply_pry_effects(pelotari, target, game, ui)
         elif skill_name == 'Auction Curse':
             self._apply_auction_curse_effects(pelotari, target, game)
+        elif skill_name == 'Fragcrest':
+            self._apply_fragcrest_effects(pelotari, target, game)
+        elif skill_name == 'Expedite':
+            self._apply_expedite_effects(pelotari, target, game)
 
     def _animate_reflected_ball(self, trajectory: list, skill_name: str,
                                pelotari: 'Unit', game: 'Game', ui=None) -> None:
-        """Animate reflected ball traveling along trajectory."""
+        """Animate reflected ball traveling along trajectory with skill-specific theming."""
         if not ui or not hasattr(ui, 'renderer'):
             return
 
-        # Ball character
-        ball_char = 'o'
-        ricochet_mode = getattr(pelotari, 'pelotari_ricochet_mode', True)
+        # Skill-specific ball characters and colors
+        ball_themes = {
+            'Judgement': ('*', 3),        # Star, yellow (divine light)
+            'Estrange': ('~', 6),         # Tilde, cyan (phase energy)
+            'Neural Shunt': ('?', 5),     # Question, magenta (confusion)
+            'Granite Geas': ('#', 8),     # Hash, gray (stone)
+            'Pry': ('^', 7),              # Caret, white (upward force)
+            'Auction Curse': ('$', 3),    # Dollar, yellow (currency)
+            'Fragcrest': ('<', 1),        # Angle, red (shrapnel)
+            'Expedite': ('>', 8)          # Right angle, gray (rush/jaws)
+        }
 
-        # Color based on mode
-        ball_color = 7 if ricochet_mode else 6  # White for ricochet, cyan for phase
+        # Get ball character and color for this skill (default to standard ball)
+        ricochet_mode = getattr(pelotari, 'pelotari_ricochet_mode', True)
+        default_ball = ('o', 7 if ricochet_mode else 6)
+        ball_char, ball_color = ball_themes.get(skill_name, default_ball)
 
         for i, pos in enumerate(trajectory):
             y, x = pos
@@ -1137,11 +1152,13 @@ class Backhand(ActiveSkill):
         # Skill-specific impact frames
         impact_sequences = {
             'Judgement': ['*', '+', 'X', '*'],  # Divine judgment
-            'Estrange': ['~', '≈', '∿', '~'],  # Phase distortion
+            'Estrange': ['~', '~', '~', '~'],  # Phase distortion
             'Neural Shunt': ['!', '?', '#', '!'],  # Confusion
-            'Granite Geas': ['#', '▓', '█', '▓'],  # Stone weight
-            'Pry': ['^', '↑', '|', '^'],  # Upward force
-            'Auction Curse': ['$', '¢', '£', '$']  # Currency curse
+            'Granite Geas': ['#', '#', '#', '#'],  # Stone weight
+            'Pry': ['^', '^', '|', '^'],  # Upward force
+            'Auction Curse': ['$', '$', '$', '$'],  # Currency curse
+            'Fragcrest': ['<', '*', '>', '<'],  # Fragmentation burst
+            'Expedite': ['>', '>', '|', '>']  # Rush impact
         }
 
         frames = impact_sequences.get(skill_name, ['*', 'X', '*', 'X'])
@@ -1376,6 +1393,74 @@ class Backhand(ActiveSkill):
         )
 
         logger.debug(f"Reflected Auction Curse: {dot_damage} DoT per turn to {target.get_display_name()}, furniture value: {furniture_value}")
+
+    def _apply_fragcrest_effects(self, caster: 'Unit', target: 'Unit', game: 'Game') -> None:
+        """Apply Fragcrest: 4 primary damage + Shrapnel DoT."""
+        actual_damage = target.deal_damage(4)
+
+        message_log.add_combat_message(
+            attacker_name=caster.get_display_name(),
+            target_name=target.get_display_name(),
+            damage=actual_damage,
+            ability="Reflected Fragcrest",
+            attacker_player=caster.player,
+            target_player=target.player
+        )
+
+        # Apply Shrapnel DoT if not immune
+        if not target.is_immune_to_effects():
+            if not hasattr(target, 'shrapnel_stacks'):
+                target.shrapnel_stacks = 0
+                target.shrapnel_duration = 0
+
+            # Add Shrapnel stack
+            target.shrapnel_stacks += 1
+            # +1 to compensate for immediate decrement at end of current turn
+            target.shrapnel_duration = 3 + 1  # 3 turns
+
+            message_log.add_message(
+                f"{target.get_display_name()} is afflicted with Shrapnel! {target.shrapnel_stacks} damage per turn for 3 turns!",
+                MessageType.ABILITY,
+                player=target.player
+            )
+        else:
+            message_log.add_message(
+                f"{target.get_display_name()} is immune to Shrapnel due to Stasiality!",
+                MessageType.ABILITY,
+                player=target.player
+            )
+
+        logger.debug(f"Reflected Fragcrest: {actual_damage} damage + Shrapnel to {target.get_display_name()}")
+
+    def _apply_expedite_effects(self, caster: 'Unit', target: 'Unit', game: 'Game') -> None:
+        """Apply Expedite: 4 damage + trap effect."""
+        actual_damage = target.deal_damage(4)
+
+        message_log.add_combat_message(
+            attacker_name=caster.get_display_name(),
+            target_name=target.get_display_name(),
+            damage=actual_damage,
+            ability="Reflected Expedite",
+            attacker_player=caster.player,
+            target_player=target.player
+        )
+
+        # Apply trap if not immune
+        if not target.is_immune_to_effects():
+            target.trapped_by = caster
+            message_log.add_message(
+                f"{target.get_display_name()} is trapped by reflected mechanical jaws!",
+                MessageType.ABILITY,
+                player=target.player
+            )
+        else:
+            message_log.add_message(
+                f"{target.get_display_name()} is immune to trap due to Stasiality!",
+                MessageType.ABILITY,
+                player=target.player
+            )
+
+        logger.debug(f"Reflected Expedite: {actual_damage} damage + trap to {target.get_display_name()}")
 
 
 class Matador(ActiveSkill):
