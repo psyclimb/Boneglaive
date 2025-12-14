@@ -5220,12 +5220,9 @@ class Game:
 
     def _trigger_valuation_oracle_for_delphic_appraisers(self):
         """Trigger astral value perception for all DELPHIC_APPRAISER units when the setup phase ends."""
-        print(f"[ENGINE DEBUG] *** _trigger_valuation_oracle_for_delphic_appraisers() CALLED ***")
         delphic_units = [unit for unit in self.units if unit.is_alive() and unit.type == UnitType.DELPHIC_APPRAISER]
-        print(f"[ENGINE DEBUG] Found {len(delphic_units)} DELPHIC_APPRAISER units")
 
         if not delphic_units:
-            print(f"[ENGINE DEBUG] No DELPHIC_APPRAISER units found, returning early")
             return
 
         for unit in delphic_units:
@@ -5248,7 +5245,6 @@ class Game:
                         # Set a flag that the graphical adapter can check on first sync
                         ally.valuation_oracle_initial_application = True
                         logger.debug(f"Marked {ally.get_display_name()} for initial Valuation Oracle icon flash")
-                        print(f"[ENGINE DEBUG] *** MARKED {ally.get_display_name()} with valuation_oracle_initial_application = True ***")
 
     def _check_and_remove_rails_if_no_fowl_remaining(self, ui=None):
         """Check if any FOWL_CONTRIVANCE units remain alive, and if not, explode and remove all rails."""

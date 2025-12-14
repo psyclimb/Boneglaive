@@ -209,6 +209,13 @@ STATUS_EFFECTS = {
         "duration_key": "valuation_oracle_duration",
         "check": lambda u: hasattr(u, 'valuation_oracle_buff') and u.valuation_oracle_buff
     },
+    "riposte_active": {
+        "name": "Riposte",
+        "type": "buff",
+        "icon": "X",
+        "description": "+2 defense. When hit by basic attack, fires 4 diagonal balls (3 damage each, 1 ricochet). 3 turn CD.",
+        "check": lambda u: hasattr(u, 'riposte_active') and u.riposte_active
+    },
 
     # Special/Neutral
     "gaussian_dusk_recharge": {

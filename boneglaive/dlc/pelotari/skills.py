@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 class Riposte(PassiveSkill):
     """
     Passive skill for PELOTARI.
-    Grants +2 defense. When hit by basic attack, fires 4 diagonal balls (2 damage each).
+    Grants +2 defense. When hit by basic attack, fires 4 diagonal balls (3 damage each).
     Goes on 3 turn cooldown after triggering.
     """
 
@@ -29,11 +29,11 @@ class Riposte(PassiveSkill):
         super().__init__(
             name="Riposte",
             key="R",
-            description="Grants +2 DEF. When hit by basic attack, fires 4 diagonal balls (2 damage, 1 ricochet). 3 turn CD."
+            description="Grants +2 DEF. When hit by basic attack, fires 4 diagonal balls (3 damage, 1 ricochet). 3 turn CD."
         )
         self.defense_bonus = 2
         self.cooldown_turns = 3
-        self.ball_damage = 2
+        self.ball_damage = 3
         self.ball_range = 4
 
     def apply_passive(self, user: 'Unit', game: Optional['Game'] = None, ui=None) -> None:
@@ -48,22 +48,26 @@ class Riposte(PassiveSkill):
         if not hasattr(user, 'riposte_active'):
             user.riposte_active = True  # Start with buff active
             user.riposte_cooldown = 0
+            user.riposte_last_turn = -1  # Track last turn we decremented cooldown
             user.defense_bonus = self.defense_bonus
             logger.debug(f"{user.get_display_name()} starts with Riposte (+{self.defense_bonus} DEF)")
 
-        # Handle cooldown refresh
+        # Handle cooldown refresh (only once per turn)
         if not user.riposte_active and user.riposte_cooldown > 0:
-            user.riposte_cooldown -= 1
-            if user.riposte_cooldown == 0:
-                # Refresh buff
-                user.riposte_active = True
-                user.defense_bonus = self.defense_bonus
-                message_log.add_message(
-                    f"{user.get_display_name()}'s Riposte recharges (+{self.defense_bonus} DEF)",
-                    MessageType.ABILITY,
-                    player=user.player
-                )
-                logger.debug(f"{user.get_display_name()} Riposte recharged")
+            # Only decrement once per turn
+            if user.riposte_last_turn != game.turn:
+                user.riposte_last_turn = game.turn
+                user.riposte_cooldown -= 1
+                if user.riposte_cooldown == 0:
+                    # Refresh buff
+                    user.riposte_active = True
+                    user.defense_bonus = self.defense_bonus
+                    message_log.add_message(
+                        f"{user.get_display_name()}'s Riposte recharges (+{self.defense_bonus} DEF)",
+                        MessageType.ABILITY,
+                        player=user.player
+                    )
+                    logger.debug(f"{user.get_display_name()} Riposte recharged")
         elif user.riposte_active:
             # Ensure defense bonus is applied
             if user.defense_bonus < self.defense_bonus:
@@ -110,6 +114,8 @@ class Riposte(PassiveSkill):
         # Diagonal directions: NE, NW, SE, SW
         directions = [(-1, 1), (-1, -1), (1, -1), (1, 1)]
 
+        # Calculate all trajectories first
+        trajectories = []
         for direction in directions:
             trajectory = self._calculate_diagonal_trajectory(
                 start_pos=(user.y, user.x),
@@ -117,9 +123,26 @@ class Riposte(PassiveSkill):
                 max_range=self.ball_range,
                 game=game
             )
+            trajectories.append(trajectory)
 
-            # Animate and execute trajectory
-            self._execute_ball_trajectory(trajectory, user=user, game=game, ui=ui)
+        # Animate all balls simultaneously
+        if ui and hasattr(ui, 'renderer'):
+            # Find max trajectory length
+            max_length = max(len(traj) for traj in trajectories) if trajectories else 0
+
+            for step in range(max_length):
+                # Draw all balls at current step
+                for trajectory in trajectories:
+                    if step < len(trajectory):
+                        pos = trajectory[step]
+                        ui.renderer.draw_tile(pos[0], pos[1], 'o', 7)
+
+                ui.renderer.refresh()
+                sleep_with_animation_speed(0.08)
+
+        # Apply damage for all trajectories
+        for trajectory in trajectories:
+            self._apply_ball_damage(trajectory, user=user, game=game, ui=ui)
 
         logger.debug(f"Riposte diagonal spread executed: 4 balls")
 
@@ -176,10 +199,10 @@ class Riposte(PassiveSkill):
 
         return trajectory
 
-    def _execute_ball_trajectory(self, trajectory: list, user: 'Unit',
-                                  game: 'Game', ui=None) -> None:
+    def _apply_ball_damage(self, trajectory: list, user: 'Unit',
+                           game: 'Game', ui=None) -> None:
         """
-        Execute a single ball trajectory with animation and damage.
+        Apply damage for a single ball trajectory (no animation).
 
         Args:
             trajectory: List of (y, x) positions
@@ -187,13 +210,6 @@ class Riposte(PassiveSkill):
             game: Game instance
             ui: UI instance
         """
-        # Animate trajectory
-        if ui and hasattr(ui, 'renderer'):
-            for pos in trajectory:
-                ui.renderer.draw_tile(pos[0], pos[1], 'o', 6)  # Yellow ball
-                ui.renderer.refresh()
-                sleep_with_animation_speed(0.08)
-
         # Check each position for enemy units
         for pos in trajectory:
             target = game.get_unit_at(pos[0], pos[1])
@@ -227,17 +243,37 @@ class Poach(ActiveSkill):
     """
     Active skill for PELOTARI.
     Knocks buff off enemy, creating steal-able buff ball projectile.
+    Ball ricochets once and travels until hitting ally or boundary.
     """
+
+    # Steal-able buffs mapping: (attribute_name, display_name, duration_attr, stat_attrs)
+    STEAL_ABLE_BUFFS = {
+        'can_use_anchor': ('Parallax', None, []),
+        'market_futures_bonus_applied': ('Investment', 'market_futures_duration', ['market_futures_attack_bonus', 'market_futures_range_bonus']),
+        'partition_shield_active': ('Partition', 'partition_shield_duration', ['partition_shield_strength']),
+        'severance_active': ('Severance', 'severance_duration', ['move_range_bonus']),
+        'pumped_up_active': ('Pumped Up', 'pumped_up_duration', ['hp_bonus', 'attack_bonus', 'defense_bonus', 'move_range_bonus']),
+        'carrier_rave_active': ('Karrier Rave', 'carrier_rave_duration', ['carrier_rave_charges']),
+        'trauma_processing_active': ('Trauma Processing', None, ['trauma_debt']),
+        'status_site_inspection': ('Site Inspection', 'status_site_inspection_duration', ['attack_bonus', 'move_range_bonus']),
+        'status_site_inspection_partial': ('Site Inspection Partial', 'status_site_inspection_partial_duration', ['attack_bonus']),
+        'ossify_active': ('Ossify', 'ossify_duration', ['defense_bonus', 'move_range_bonus', 'ossify_upgraded']),
+        'valuation_oracle_buff': ('Valuation Oracle', 'valuation_oracle_duration', ['defense_bonus', 'attack_range_bonus']),
+        'riposte_active': ('Riposte', None, ['defense_bonus', 'riposte_cooldown', 'riposte_last_turn']),
+    }
 
     def __init__(self):
         super().__init__(
             name="Poach",
             key="1",
-            description="Knock buff off enemy. Buff becomes steal-able projectile. Random if multiple buffs.",
-            target_type=TargetType.ENEMY,
+            description="4 damage (6 on ricochet). Must ricochet to steal buffs. Buff becomes steal-able projectile. Random if multiple buffs.",
+            target_type=TargetType.AREA,
             cooldown=3,
-            range_=4
+            range_=6
         )
+        self.base_damage = 4
+        self.ricochet_damage = 6
+        self.ricochet_range = 6
 
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None,
                 game: Optional['Game'] = None) -> bool:
@@ -247,29 +283,12 @@ class Poach(ActiveSkill):
         if not game or not target_pos:
             return False
 
-        # Get effective range (may be boosted by Riposte)
-        effective_range = self.range
-        if hasattr(user, 'riposte_buff_active') and user.riposte_buff_active:
-            effective_range += 2
-
         # Check range from current or planned position
         source_y, source_x = (user.move_target if user.move_target else (user.y, user.x))
         distance = game.chess_distance(source_y, source_x, target_pos[0], target_pos[1])
-        if distance > effective_range:
+        if distance > self.range:
             return False
 
-        # Check line of sight
-        if not game.has_line_of_sight(source_y, source_x, target_pos[0], target_pos[1]):
-            return False
-
-        # Target must be enemy unit
-        target = game.get_unit_at(target_pos[0], target_pos[1])
-        if not target or target.player == user.player or not target.is_alive():
-            return False
-
-        # Target must have at least one buff
-        # TODO: Implement buff detection system
-        # For now, assume target has buffs if they have any status effects
         return True
 
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None,
@@ -288,7 +307,7 @@ class Poach(ActiveSkill):
         self.current_cooldown = self.cooldown
 
         message_log.add_message(
-            f"{user.get_display_name()} prepares to Poach",
+            f"{user.get_display_name()} prepares to Poach!",
             MessageType.ABILITY,
             player=user.player
         )
@@ -296,140 +315,513 @@ class Poach(ActiveSkill):
         return True
 
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
-        """Execute Poach skill."""
-        target = game.get_unit_at(target_pos[0], target_pos[1])
-        if not target:
-            return False
-
+        """Execute Poach skill - must ricochet to steal buffs."""
         message_log.add_message(
-            f"{user.get_display_name()} uses Poach on {target.get_display_name()}",
+            f"{user.get_display_name()} uses Poach!",
             MessageType.ABILITY,
             player=user.player
         )
 
-        # Check if target is enemy PELOTARI with Riposte buff
-        if hasattr(target, 'riposte_buff_active') and target.riposte_buff_active:
-            # Special case: PELOTARI buff converts to spread shot
+        # Calculate straight-line trajectory to target
+        trajectory = self._calculate_straight_trajectory(
+            start_pos=(user.y, user.x),
+            target_pos=target_pos,
+            game=game
+        )
+
+        # Phase 1: Initial trajectory - deal damage but NO buff stealing
+        initial_hit_pos = None
+        initial_hit_type = None  # 'unit', 'furniture', 'wall', or 'edge'
+
+        for i, pos in enumerate(trajectory):
+            # Animate ball
+            if ui and hasattr(ui, 'renderer'):
+                ui.renderer.draw_tile(pos[0], pos[1], 'o', 6)  # Yellow ball
+                ui.renderer.refresh()
+                sleep_with_animation_speed(0.08)
+
+            # Check for enemy unit hit
+            target = game.get_unit_at(pos[0], pos[1])
+            if target and target.is_alive() and target.player != user.player:
+                # Deal damage to first hit
+                damage_after_defense = max(1, self.base_damage - target.defense)
+                target.hp -= damage_after_defense
+                target.hp = max(0, target.hp)
+
+                # Log combat
+                message_log.add_combat_message(
+                    attacker_name=user.get_display_name(),
+                    target_name=target.get_display_name(),
+                    damage=damage_after_defense,
+                    ability="Poach",
+                    attacker_player=user.player,
+                    target_player=target.player
+                )
+
+                # Show damage number
+                if ui and hasattr(ui, 'renderer'):
+                    ui.renderer.draw_tile(target.y - 1, target.x * 2, f"-{damage_after_defense}", 1)
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.15)
+
+                initial_hit_pos = pos
+                initial_hit_type = 'unit'
+                break
+
+            # Check for furniture
+            if game.map.is_furniture(pos[0], pos[1]):
+                initial_hit_pos = pos
+                initial_hit_type = 'furniture'
+                break
+
+            # Check for impassable terrain (walls)
+            if not game.map.is_passable(pos[0], pos[1]):
+                # Ricochet from last valid position before wall
+                initial_hit_pos = trajectory[i-1] if i > 0 else pos
+                initial_hit_type = 'wall'
+                break
+
+        # Check if hit map edge
+        if not initial_hit_pos and len(trajectory) > 0:
+            initial_hit_pos = trajectory[-1]
+            initial_hit_type = 'edge'
+
+        # If nothing was hit, skill ends
+        if not initial_hit_pos:
             message_log.add_message(
-                f"{target.get_display_name()}'s Riposte cannot be stolen!",
+                f"Poach misses completely!",
                 MessageType.ABILITY,
-                player=target.player
-            )
-            # Trigger spread shot at target's position
-            if hasattr(target.passive_skill, 'knock_off_buff'):
-                target.passive_skill.knock_off_buff(target, game, ui)
-            return True
-
-        # TODO: Implement buff detection and removal
-        # For now, simulate knocking off a generic buff
-        buff_knocked_off = self._knock_off_random_buff(target, game)
-
-        if not buff_knocked_off:
-            message_log.add_message(
-                f"{target.get_display_name()} has no buffs to steal!",
-                MessageType.WARNING,
                 player=user.player
             )
             return False
 
-        # Create buff ball projectile
-        self._create_buff_ball(
-            start_pos=target_pos,
-            buff_type=buff_knocked_off,
-            source_player=user.player,
-            game=game,
-            ui=ui
-        )
+        # Phase 2: Calculate ricochet trajectory
+        ricochet_trajectory = self._calculate_poach_ricochet(initial_hit_pos, initial_hit_type, user, game)
+
+        if not ricochet_trajectory:
+            message_log.add_message(
+                f"Poach ricochets into nothing...",
+                MessageType.ABILITY,
+                player=user.player
+            )
+            return True
+
+        # Animate ricochet sparks
+        if ui and hasattr(ui, 'renderer'):
+            ricochet_frames = ['/', '\\', '|']
+            for frame in ricochet_frames:
+                ui.renderer.draw_tile(initial_hit_pos[0], initial_hit_pos[1], frame, 6)
+                ui.renderer.refresh()
+                sleep_with_animation_speed(0.1)
+
+        # Phase 3: Ricochet trajectory - THIS is where buff stealing happens
+        for pos in ricochet_trajectory:
+            # Animate ricochet ball
+            if ui and hasattr(ui, 'renderer'):
+                ui.renderer.draw_tile(pos[0], pos[1], 'o', 6)
+                ui.renderer.refresh()
+                sleep_with_animation_speed(0.08)
+
+            # Check for enemy unit hit AFTER ricochet
+            ricochet_target = game.get_unit_at(pos[0], pos[1])
+            if ricochet_target and ricochet_target.is_alive() and ricochet_target.player != user.player:
+                # Deal ricochet damage (6 instead of 4)
+                damage_after_defense = max(1, self.ricochet_damage - ricochet_target.defense)
+                ricochet_target.hp -= damage_after_defense
+                ricochet_target.hp = max(0, ricochet_target.hp)
+
+                # Log combat
+                message_log.add_combat_message(
+                    attacker_name=user.get_display_name(),
+                    target_name=ricochet_target.get_display_name(),
+                    damage=damage_after_defense,
+                    ability="Poach (ricochet)",
+                    attacker_player=user.player,
+                    target_player=ricochet_target.player
+                )
+
+                # Show damage number
+                if ui and hasattr(ui, 'renderer'):
+                    ui.renderer.draw_tile(ricochet_target.y - 1, ricochet_target.x * 2, f"-{damage_after_defense}", 1)
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.15)
+
+                # NOW check for buff stealing (only after ricochet!)
+                # Check if target is enemy PELOTARI with Riposte buff
+                if hasattr(ricochet_target, 'riposte_active') and ricochet_target.riposte_active:
+                    message_log.add_message(
+                        f"{ricochet_target.get_display_name()}'s Riposte triggers a counterattack!",
+                        MessageType.ABILITY,
+                        player=ricochet_target.player
+                    )
+                    if hasattr(ricochet_target, 'passive_skill') and hasattr(ricochet_target.passive_skill, 'trigger_on_hit'):
+                        ricochet_target.passive_skill.trigger_on_hit(ricochet_target, user, game, ui)
+                    return True
+
+                # Get active buffs
+                active_buffs = self._get_active_buffs(ricochet_target)
+
+                if not active_buffs:
+                    message_log.add_message(
+                        f"{ricochet_target.get_display_name()} has no buffs to steal!",
+                        MessageType.ABILITY,
+                        player=user.player
+                    )
+                    return True
+
+                # Pick random buff
+                buff_key = random.choice(active_buffs)
+                buff_data = self._remove_buff(ricochet_target, buff_key, game)
+
+                # Create buff ball projectile from ricochet hit location
+                self._create_buff_ball(
+                    start_pos=(ricochet_target.y, ricochet_target.x),
+                    buff_key=buff_key,
+                    buff_data=buff_data,
+                    pelotari=user,
+                    game=game,
+                    ui=ui
+                )
+
+                return True
+
+            # Stop if hit anything else
+            if not game.map.is_passable(pos[0], pos[1]) or game.map.is_furniture(pos[0], pos[1]):
+                break
 
         return True
 
-    def _knock_off_random_buff(self, target: 'Unit', game: 'Game') -> Optional[str]:
+    def _calculate_poach_ricochet(self, hit_pos: tuple, hit_type: str, user: 'Unit', game: 'Game') -> list:
         """
-        Knock off a random buff from target.
+        Calculate ricochet trajectory based on what was hit.
+
+        Args:
+            hit_pos: Position where ball hit something
+            hit_type: 'unit', 'furniture', 'wall', or 'edge'
+            user: PELOTARI unit
+            game: Game instance
 
         Returns:
-            str: Name of buff knocked off, or None if no buffs
+            List of (y, x) positions for ricochet trajectory
         """
-        # TODO: Implement proper buff system
-        # For now, return a placeholder
-        available_buffs = []
+        if hit_type == 'edge':
+            return self._calculate_edge_ricochet(hit_pos, user, game)
+        else:
+            # For unit, furniture, or wall - use standard ricochet
+            return self._calculate_ricochet(hit_pos, user, game)
 
-        # Check for common buffs
-        if hasattr(target, 'ossify_active') and target.ossify_active:
-            available_buffs.append('ossify')
-        if hasattr(target, 'valuation_oracle_buff') and target.valuation_oracle_buff:
-            available_buffs.append('valuation_oracle')
-        # Add more buff checks here
+    def _calculate_edge_ricochet(self, last_pos: tuple, user: 'Unit', game: 'Game') -> list:
+        """Calculate ricochet off map edge (borrowed from Matador)."""
+        incoming_dir = (
+            last_pos[0] - user.y,
+            last_pos[1] - user.x
+        )
 
-        if not available_buffs:
-            return None
+        # Normalize
+        if incoming_dir[0] != 0:
+            incoming_dir = (incoming_dir[0] // abs(incoming_dir[0]), incoming_dir[1])
+        if incoming_dir[1] != 0:
+            incoming_dir = (incoming_dir[0], incoming_dir[1] // abs(incoming_dir[1]))
 
-        # Pick random buff
-        buff_to_remove = random.choice(available_buffs)
+        # Determine which edge was hit and calculate reflection
+        reflection = list(incoming_dir)
 
-        # Remove the buff
-        if buff_to_remove == 'ossify':
-            target.ossify_active = False
-            target.defense_bonus = 0
-            target.move_range_bonus = 0
-        elif buff_to_remove == 'valuation_oracle':
-            target.valuation_oracle_buff = False
-            target.defense_bonus = 0
-            target.attack_range_bonus = 0
+        # Check if at top/bottom edge
+        if last_pos[0] == 0 or last_pos[0] == game.map.height - 1:
+            reflection[0] = -reflection[0]
 
-        return buff_to_remove
+        # Check if at left/right edge
+        if last_pos[1] == 0 or last_pos[1] == game.map.width - 1:
+            reflection[1] = -reflection[1]
 
-    def _create_buff_ball(self, start_pos: tuple, buff_type: str, source_player: int,
-                          game: 'Game', ui=None) -> None:
+        # Build trajectory in reflection direction
+        trajectory = []
+        current_pos = last_pos
+
+        for step in range(self.ricochet_range):
+            next_y = current_pos[0] + reflection[0]
+            next_x = current_pos[1] + reflection[1]
+
+            if not game.is_valid_position(next_y, next_x):
+                break
+
+            trajectory.append((next_y, next_x))
+            current_pos = (next_y, next_x)
+
+        return trajectory
+
+    def _calculate_ricochet(self, impact_pos: tuple, user: 'Unit', game: 'Game') -> list:
+        """Calculate ricochet off wall/unit/furniture (borrowed from Matador)."""
+        from .physics import calculate_surface_normal
+
+        # Calculate incoming direction
+        incoming_dir = (
+            impact_pos[0] - user.y,
+            impact_pos[1] - user.x
+        )
+
+        # Normalize
+        if incoming_dir[0] != 0:
+            incoming_dir = (incoming_dir[0] // abs(incoming_dir[0]), incoming_dir[1])
+        if incoming_dir[1] != 0:
+            incoming_dir = (incoming_dir[0], incoming_dir[1] // abs(incoming_dir[1]))
+
+        # Calculate surface normal at impact
+        normal = calculate_surface_normal(impact_pos, game)
+        if not normal:
+            return []
+
+        # Calculate reflection direction
+        dot_product = incoming_dir[0] * normal[0] + incoming_dir[1] * normal[1]
+        reflection = (
+            incoming_dir[0] - 2 * dot_product * normal[0],
+            incoming_dir[1] - 2 * dot_product * normal[1]
+        )
+
+        # Normalize reflection
+        if reflection[0] != 0:
+            reflection = (reflection[0] // abs(reflection[0]), reflection[1])
+        if reflection[1] != 0:
+            reflection = (reflection[0], reflection[1] // abs(reflection[1]))
+
+        # Build trajectory
+        trajectory = []
+        current_pos = impact_pos
+
+        for step in range(self.ricochet_range):
+            next_y = current_pos[0] + reflection[0]
+            next_x = current_pos[1] + reflection[1]
+
+            if not game.is_valid_position(next_y, next_x):
+                break
+
+            trajectory.append((next_y, next_x))
+            current_pos = (next_y, next_x)
+
+        return trajectory
+
+    def _calculate_straight_trajectory(self, start_pos: tuple, target_pos: tuple,
+                                       game: 'Game') -> list:
+        """
+        Calculate straight-line trajectory from start to target.
+
+        Args:
+            start_pos: Starting position (y, x)
+            target_pos: Target position (y, x)
+            game: Game instance
+
+        Returns:
+            List of (y, x) positions along straight path
+        """
+        # Calculate direction vector
+        dy = target_pos[0] - start_pos[0]
+        dx = target_pos[1] - start_pos[1]
+
+        # Normalize to unit direction
+        if dy != 0:
+            dy = dy // abs(dy)
+        if dx != 0:
+            dx = dx // abs(dx)
+
+        # Build trajectory from start to target
+        trajectory = []
+        current_y, current_x = start_pos
+
+        # Travel up to 20 tiles
+        for step in range(20):
+            next_y = current_y + dy
+            next_x = current_x + dx
+
+            # Check if we've hit map edge
+            if not game.is_valid_position(next_y, next_x):
+                break
+
+            trajectory.append((next_y, next_x))
+            current_y, current_x = next_y, next_x
+
+        return trajectory
+
+    def _get_active_buffs(self, unit: 'Unit') -> list:
+        """
+        Get list of active steal-able buffs on unit.
+
+        Returns:
+            List of buff attribute names
+        """
+        active = []
+        for buff_key in self.STEAL_ABLE_BUFFS.keys():
+            if hasattr(unit, buff_key) and getattr(unit, buff_key):
+                active.append(buff_key)
+        return active
+
+    def _remove_buff(self, unit: 'Unit', buff_key: str, game: 'Game') -> dict:
+        """
+        Remove buff from unit and return its data for transfer.
+
+        Returns:
+            dict: Buff data including duration and stat values
+        """
+        buff_name, duration_attr, stat_attrs = self.STEAL_ABLE_BUFFS[buff_key]
+
+        # Collect buff data
+        buff_data = {
+            'name': buff_name,
+            'duration': None,
+            'stats': {}
+        }
+
+        # Get duration
+        if duration_attr and hasattr(unit, duration_attr):
+            buff_data['duration'] = getattr(unit, duration_attr)
+
+        # Get stat values
+        for stat_attr in stat_attrs:
+            if hasattr(unit, stat_attr):
+                buff_data['stats'][stat_attr] = getattr(unit, stat_attr)
+
+        # Remove buff
+        setattr(unit, buff_key, False)
+
+        # Clear duration
+        if duration_attr and hasattr(unit, duration_attr):
+            setattr(unit, duration_attr, 0)
+
+        # Clear stats (set to 0 or default)
+        for stat_attr in stat_attrs:
+            if hasattr(unit, stat_attr):
+                if stat_attr in ['ossify_upgraded', 'carrier_rave_charges']:
+                    setattr(unit, stat_attr, 0)
+                else:
+                    setattr(unit, stat_attr, 0)
+
+        message_log.add_message(
+            f"{unit.get_display_name()}'s {buff_name} is knocked off!",
+            MessageType.ABILITY,
+            player=unit.player
+        )
+
+        logger.debug(f"Removed {buff_name} from {unit.get_display_name()}")
+
+        return buff_data
+
+    def _create_buff_ball(self, start_pos: tuple, buff_key: str, buff_data: dict,
+                          pelotari: 'Unit', game: 'Game', ui=None) -> None:
         """
         Create buff ball projectile that allies can catch.
 
         Args:
             start_pos: Starting position (y, x)
-            buff_type: Type of buff stolen
-            source_player: Player who used Poach
+            buff_key: Buff attribute key
+            buff_data: Buff data (duration, stats)
+            pelotari: PELOTARI who used Poach
             game: Game instance
             ui: UI instance
         """
-        from .physics import calculate_buff_ball_trajectory
+        # Calculate default outward trajectory from target
+        direction = self._calculate_outward_direction(start_pos, pelotari, game)
 
-        # Get PELOTARI toggle mode
-        # TODO: Get this from the actual user unit
-        ricochet_mode = True  # Default
-
-        # Calculate trajectory
-        trajectory = calculate_buff_ball_trajectory(
+        # Calculate trajectory with ricochet (1 bounce max)
+        trajectory = self._calculate_buff_ball_trajectory(
             start_pos=start_pos,
-            ricochet_mode=ricochet_mode,
+            direction=direction,
             game=game
         )
 
-        # Check trajectory for ally interception
-        for pos in trajectory:
-            ally = game.get_unit_at(pos[0], pos[1])
-            if ally and ally.player == source_player and ally.is_alive():
-                # Ally catches buff
-                self._apply_buff(ally, buff_type, game)
-                message_log.add_message(
-                    f"{ally.get_display_name()} catches the {buff_type} buff!",
-                    MessageType.ABILITY,
-                    player=source_player
-                )
-                break
+        # Animate buff ball
+        if ui and hasattr(ui, 'renderer'):
+            for pos in trajectory:
+                ui.renderer.draw_tile(pos[0], pos[1], 'B', 14)  # Cyan buff ball
+                ui.renderer.refresh()
+                sleep_with_animation_speed(0.08)
 
-        # TODO: Add animation for buff ball trajectory
+                # Check for ally interception
+                ally = game.get_unit_at(pos[0], pos[1])
+                if ally and ally.player == pelotari.player and ally.is_alive():
+                    # Ally catches buff
+                    self._apply_buff_to_ally(ally, buff_key, buff_data, game)
+                    message_log.add_message(
+                        f"{ally.get_display_name()} catches {buff_data['name']}!",
+                        MessageType.ABILITY,
+                        player=pelotari.player
+                    )
+                    return
 
+        # Ball reached boundary without being caught
+        message_log.add_message(
+            f"{buff_data['name']} buff dissipates...",
+            MessageType.ABILITY,
+            player=pelotari.player
+        )
 
-    def _apply_buff(self, target: 'Unit', buff_type: str, game: 'Game') -> None:
+    def _calculate_outward_direction(self, target_pos: tuple, pelotari: 'Unit', game: 'Game') -> tuple:
+        """Calculate direction away from PELOTARI."""
+        dy = target_pos[0] - pelotari.y
+        dx = target_pos[1] - pelotari.x
+
+        # Normalize to unit direction
+        norm_dy = 0 if dy == 0 else (1 if dy > 0 else -1)
+        norm_dx = 0 if dx == 0 else (1 if dx > 0 else -1)
+
+        return (norm_dy, norm_dx)
+
+    def _calculate_buff_ball_trajectory(self, start_pos: tuple, direction: tuple, game: 'Game') -> list:
+        """Calculate trajectory with ricochet (max 1 bounce)."""
+        trajectory = []
+        current_y, current_x = start_pos
+        dy, dx = direction
+        bounced = False
+        max_range = 15
+
+        for step in range(max_range):
+            next_y = current_y + dy
+            next_x = current_x + dx
+
+            # Check bounds
+            if not game.is_valid_position(next_y, next_x):
+                # Hit edge - ricochet once
+                if not bounced:
+                    bounced = True
+                    if next_y < 0 or next_y >= game.map.height:
+                        dy = -dy
+                    if next_x < 0 or next_x >= game.map.width:
+                        dx = -dx
+                    continue
+                else:
+                    break
+
+            # Check impassable terrain
+            if not game.map.is_passable(next_y, next_x):
+                # Hit wall - ricochet once
+                if not bounced:
+                    bounced = True
+                    dy, dx = -dy, -dx
+                    continue
+                else:
+                    break
+
+            trajectory.append((next_y, next_x))
+            current_y, current_x = next_y, next_x
+
+        return trajectory
+
+    def _apply_buff_to_ally(self, ally: 'Unit', buff_key: str, buff_data: dict, game: 'Game') -> None:
         """Apply stolen buff to ally."""
-        # TODO: Implement proper buff application
-        if buff_type == 'ossify':
-            target.ossify_active = True
-            target.defense_bonus = 2
-        elif buff_type == 'valuation_oracle':
-            target.valuation_oracle_buff = True
-            target.defense_bonus = 1
-            target.attack_range_bonus = 1
+        buff_name, duration_attr, stat_attrs = self.STEAL_ABLE_BUFFS[buff_key]
+
+        # Activate buff
+        setattr(ally, buff_key, True)
+
+        # Set duration (+1 to compensate for turn loss during steal)
+        if duration_attr and buff_data['duration']:
+            # Add 1 turn to compensate for the duration decrement that happens
+            # at the end of the turn when the buff was stolen
+            setattr(ally, duration_attr, buff_data['duration'] + 1)
+
+        # Set stats
+        for stat_attr, value in buff_data['stats'].items():
+            setattr(ally, stat_attr, value)
+
+        logger.debug(f"Applied {buff_name} to {ally.get_display_name()}")
 
 
 class ResonantBackhand(ActiveSkill):
