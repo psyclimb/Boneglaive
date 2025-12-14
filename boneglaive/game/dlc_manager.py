@@ -121,6 +121,9 @@ class DLCManager:
             # Register with game constants
             self._register_unit_constants(unit_id, registration_data, enum_value)
 
+            # Register skills with skills registry
+            self._register_unit_skills(unit_id, registration_data, enum_value)
+
             logger.info(f"Successfully loaded DLC unit: {unit_id} (enum={enum_value})")
 
             # Call initialization hook if exists
@@ -233,6 +236,35 @@ class DLCManager:
             GP_ELIGIBLE_UNITS.add(enum_value)
 
         logger.debug(f"Registered constants for {unit_id}: enum={enum_value}, stats={UNIT_STATS[enum_value]}")
+
+    def _register_unit_skills(self, unit_id: str, registration_data: Dict[str, Any],
+                              enum_value: int) -> None:
+        """
+        Register DLC unit skills with the skills registry.
+
+        Args:
+            unit_id: Unit identifier
+            registration_data: Registration data
+            enum_value: Enum value for this unit
+        """
+        from boneglaive.game.skills.registry import UNIT_SKILLS
+
+        # Get skills from registration data
+        passive_skill_class = registration_data.get('passive_skill')
+        active_skill_classes = registration_data.get('active_skills', [])
+
+        # Register skills using uppercase unit_id as key (matches base unit format)
+        # DLC skills are classes, so instantiate them to match the registry format
+        skill_entry = {}
+        if passive_skill_class:
+            skill_entry['passive'] = passive_skill_class()  # Create instance
+        if active_skill_classes:
+            skill_entry['active'] = [skill_class() for skill_class in active_skill_classes]  # Create instances
+
+        # Register with uppercase name
+        UNIT_SKILLS[unit_id.upper()] = skill_entry
+
+        logger.debug(f"Registered skills for {unit_id}: passive={passive_skill_class is not None}, active={len(active_skill_classes)}")
 
     def get_unit_data(self, unit_id: str) -> Optional[Dict[str, Any]]:
         """

@@ -943,7 +943,13 @@ class Game:
             if profile:
                 profile.record_unit_pick(unit_type)
                 profile_manager.save_profile(profile)
-                logger.debug(f"Profile {profile.name}: Recorded pick for {unit_type.name}")
+                # Get unit type name (handles both enum and DLC types)
+                from boneglaive.utils.constants import UNIT_DISPLAY_NAMES
+                if hasattr(unit_type, 'name'):
+                    type_name = unit_type.name
+                else:
+                    type_name = UNIT_DISPLAY_NAMES.get(unit_type, f"UNIT_{unit_type}")
+                logger.debug(f"Profile {profile.name}: Recorded pick for {type_name}")
 
         return True
             
@@ -1162,7 +1168,7 @@ class Game:
             # Only prevent placement if it's the same player's unit
             # Cross-player overlap is allowed during setup to hide positions
             if existing_unit.player == player:
-                raise ValueError(f"Position ({y}, {x}) is already occupied by your {existing_unit.type.name}")
+                raise ValueError(f"Position ({y}, {x}) is already occupied by your {existing_unit.get_type_name()}")
             # For different players, allow placement - conflicts will be resolved when game starts
         
         unit = Unit(unit_type, player, y, x)
@@ -1209,12 +1215,12 @@ class Game:
                 if i < len(UNIT_ID_ALPHABET):
                     unit.greek_id = UNIT_ID_ALPHABET[i]
                     player_name = self.get_player_name(unit.player)
-                    logger.debug(f"Assigned {unit.greek_id} to {player_name}'s {unit.type.name}")
+                    logger.debug(f"Assigned {unit.greek_id} to {player_name}'s {unit.get_type_name()}")
                 else:
                     # Fallback if we have more units than letters
                     unit.greek_id = f"{i+1}"
                     player_name = self.get_player_name(unit.player)
-                    logger.debug(f"Used number {unit.greek_id} for {player_name}'s {unit.type.name}")
+                    logger.debug(f"Used number {unit.greek_id} for {player_name}'s {unit.get_type_name()}")
 
         # No need to log the identifier assignments
         for player in [1, 2]:
@@ -5129,7 +5135,7 @@ class Game:
         for unit in self.units:
             if unit.is_alive():
                 unit_info = {
-                    'type': unit.type.name,
+                    'type': unit.get_type_name(),
                     'player': unit.player,
                     'position': (unit.y, unit.x),
                     'hp': f"{unit.hp}/{unit.max_hp}",
@@ -5356,7 +5362,7 @@ class Game:
                     self.chess_distance(unit.y, unit.x, anchor_pos[0], anchor_pos[1]) <= 1):
                     
                     # GRAYMAN is immune to Parallax and cannot use teleport anchors
-                    if (unit.type.name == "GRAYMAN" and unit.is_immune_to_effects()):
+                    if (unit.get_type_name() == "GRAYMAN" and unit.is_immune_to_effects()):
                         # Show immunity message when GRAYMAN would receive Parallax
                         from boneglaive.utils.message_log import message_log, MessageType
                         message_log.add_message(

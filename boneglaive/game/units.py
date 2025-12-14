@@ -181,17 +181,20 @@ class Unit:
         """Initialize skills for this unit based on its type."""
         # Avoid circular imports
         from boneglaive.game.skills.registry import UNIT_SKILLS
-        
+        from boneglaive.game.dlc_manager import get_dlc_manager
+
+        # Get unit type name (handles both enum and DLC types)
+        unit_type_name = self.get_type_name()
+
         # Get skills from registry if available
-        unit_type_name = self.type.name
         if unit_type_name in UNIT_SKILLS:
             skill_set = UNIT_SKILLS[unit_type_name]
-            
+
             # Set passive skill - create new instance for each unit
             if 'passive' in skill_set:
                 passive_class = skill_set['passive'].__class__
                 self.passive_skill = passive_class()
-                
+
             # Set active skills - create new instances for each unit
             if 'active' in skill_set:
                 self.active_skills = []
@@ -314,14 +317,29 @@ class Unit:
             
         return effective_prt
         
+    def get_type_name(self) -> str:
+        """
+        Get the unit's type name as a string.
+        Handles both enum types and DLC integer types.
+
+        Returns:
+            str: The unit type name (e.g., "GLAIVEMAN", "PELOTARI")
+        """
+        if hasattr(self.type, 'name'):
+            return self.type.name
+        else:
+            # DLC unit - get name from UNIT_DISPLAY_NAMES
+            from boneglaive.utils.constants import UNIT_DISPLAY_NAMES
+            return UNIT_DISPLAY_NAMES.get(self.type, f"UNIT_{self.type}")
+
     def get_display_name(self, shortened=False) -> str:
         """Get the unit's display name including the Greek identifier.
-        
+
         Args:
             shortened: If True, provides a shorter display name for UI menus
         """
         # Format unit type name for display (replace underscores with spaces)
-        display_type = self.type.name
+        display_type = self.get_type_name()
         if display_type == "MANDIBLE_FOREMAN":
             # Use a shorter name if requested (for UI menus)
             if shortened:

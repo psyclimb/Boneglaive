@@ -4352,25 +4352,29 @@ class GameModeManager(UIComponent):
         if not self.game_ui.game.setup_phase:
             return
 
-        # Get current index in unit types list
-        unit_types = [
-            UnitType.GLAIVEMAN, UnitType.GRAYMAN, UnitType.MANDIBLE_FOREMAN,
-            UnitType.POTPOURRIST, UnitType.MARROW_CONDENSER, UnitType.INTERFERER,
-            UnitType.FOWL_CONTRIVANCE, UnitType.DELPHIC_APPRAISER, UnitType.GAS_MACHINIST,
-            UnitType.DERELICTIONIST
-        ]
-        
+        # Get unit types dynamically from the unit selection menu (includes DLC)
+        unit_types = self.game_ui.unit_selection_menu.unit_types
+
         try:
             current_index = unit_types.index(self.setup_unit_type)
             # Move to next unit type, wrapping around to beginning
             next_index = (current_index + 1) % len(unit_types)
             self.setup_unit_type = unit_types[next_index]
         except ValueError:
-            # Fallback if current type not found
-            self.setup_unit_type = UnitType.GLAIVEMAN
-        
+            # Fallback if current type not found - use first unit
+            self.setup_unit_type = unit_types[0] if unit_types else UnitType.GLAIVEMAN
+
         # Update message and sync menu
-        unit_name = self.setup_unit_type.name.replace('_', ' ')
+        # Get unit name from display names dict
+        from boneglaive.utils.constants import UNIT_DISPLAY_NAMES
+        unit_val = self.setup_unit_type.value if hasattr(self.setup_unit_type, 'value') else self.setup_unit_type
+        if self.setup_unit_type in UNIT_DISPLAY_NAMES:
+            unit_name = UNIT_DISPLAY_NAMES[self.setup_unit_type]
+        elif unit_val in UNIT_DISPLAY_NAMES:
+            unit_name = UNIT_DISPLAY_NAMES[unit_val]
+        else:
+            unit_name = f"UNIT_{unit_val}"
+
         self.game_ui.message = f"Setup unit type: {unit_name}"
         self.game_ui.unit_selection_menu.set_selected_unit_type(self.setup_unit_type)
         self.game_ui.draw_board()
@@ -4380,25 +4384,29 @@ class GameModeManager(UIComponent):
         if not self.game_ui.game.setup_phase:
             return
 
-        # Get current index in unit types list
-        unit_types = [
-            UnitType.GLAIVEMAN, UnitType.GRAYMAN, UnitType.MANDIBLE_FOREMAN,
-            UnitType.POTPOURRIST, UnitType.MARROW_CONDENSER, UnitType.INTERFERER,
-            UnitType.FOWL_CONTRIVANCE, UnitType.DELPHIC_APPRAISER, UnitType.GAS_MACHINIST,
-            UnitType.DERELICTIONIST
-        ]
-        
+        # Get unit types dynamically from the unit selection menu (includes DLC)
+        unit_types = self.game_ui.unit_selection_menu.unit_types
+
         try:
             current_index = unit_types.index(self.setup_unit_type)
             # Move to previous unit type, wrapping around to end
             prev_index = (current_index - 1) % len(unit_types)
             self.setup_unit_type = unit_types[prev_index]
         except ValueError:
-            # Fallback if current type not found
-            self.setup_unit_type = UnitType.GLAIVEMAN
+            # Fallback if current type not found - use first unit
+            self.setup_unit_type = unit_types[0] if unit_types else UnitType.GLAIVEMAN
         
         # Update message and sync menu
-        unit_name = self.setup_unit_type.name.replace('_', ' ')
+        # Get unit name from display names dict
+        from boneglaive.utils.constants import UNIT_DISPLAY_NAMES
+        unit_val = self.setup_unit_type.value if hasattr(self.setup_unit_type, 'value') else self.setup_unit_type
+        if self.setup_unit_type in UNIT_DISPLAY_NAMES:
+            unit_name = UNIT_DISPLAY_NAMES[self.setup_unit_type]
+        elif unit_val in UNIT_DISPLAY_NAMES:
+            unit_name = UNIT_DISPLAY_NAMES[unit_val]
+        else:
+            unit_name = f"UNIT_{unit_val}"
+
         self.game_ui.message = f"Setup unit type: {unit_name}"
         self.game_ui.unit_selection_menu.set_selected_unit_type(self.setup_unit_type)
         self.game_ui.draw_board()
@@ -5471,6 +5479,36 @@ class ActionMenuComponent(UIComponent):
                 'skill': granite_geas_skill
             })
 
+        # PELOTARI skills (DLC unit)
+        elif unit.get_type_name() == "PELOTARI":
+            # Add Poach skill
+            poach_skill = next((skill for skill in available_skills if skill.name == "Poach"), None)
+            self.actions.append({
+                'key': 'p',
+                'label': 'oach',  # Will be displayed as [P]oach
+                'action': 'poach_skill',
+                'enabled': poach_skill is not None,
+                'skill': poach_skill
+            })
+            # Add Resonant Backhand skill
+            backhand_skill = next((skill for skill in available_skills if skill.name == "Resonant Backhand"), None)
+            self.actions.append({
+                'key': 'b',
+                'label': 'ackhand',  # Will be displayed as [B]ackhand
+                'action': 'backhand_skill',
+                'enabled': backhand_skill is not None,
+                'skill': backhand_skill
+            })
+            # Add Matador skill
+            matador_skill = next((skill for skill in available_skills if skill.name == "Matador"), None)
+            self.actions.append({
+                'key': 'm',
+                'label': 'atador',  # Will be displayed as [M]atador
+                'action': 'matador_skill',
+                'enabled': matador_skill is not None,
+                'skill': matador_skill
+            })
+
         # Reset selected index
         self.selected_index = 0
         
@@ -6030,7 +6068,7 @@ class ActionMenuComponent(UIComponent):
                                         # Check if it's self or a HEINOUS VAPOR ally (valid targets)
                                         if (target_unit == cursor_manager.selected_unit or
                                             (target_unit.player == cursor_manager.selected_unit.player and
-                                             hasattr(target_unit, 'type') and target_unit.type.name == 'HEINOUS_VAPOR')):
+                                             hasattr(target_unit, 'type') and target_unit.get_type_name() == 'HEINOUS_VAPOR')):
                                             targets.append((y, x))
                                     elif game.map.is_passable(y, x):
                                         # Highlight empty floor tiles for range visualization
@@ -6418,7 +6456,9 @@ class UnitSelectionMenuComponent(UIComponent):
     def __init__(self, renderer, game_ui):
         super().__init__(renderer, game_ui)
         self.selected_index = 0  # Index of currently selected unit type
-        self.unit_types = [
+
+        # Base unit types
+        base_units = [
             UnitType.GLAIVEMAN,
             UnitType.GRAYMAN,
             UnitType.MANDIBLE_FOREMAN,
@@ -6430,18 +6470,35 @@ class UnitSelectionMenuComponent(UIComponent):
             UnitType.GAS_MACHINIST,
             UnitType.DERELICTIONIST
         ]
-        self.unit_names = {
-            UnitType.GLAIVEMAN: "GLAIVEMAN",
-            UnitType.MANDIBLE_FOREMAN: "MANDIBLE FOREMAN",
-            UnitType.GRAYMAN: "GRAYMAN",
-            UnitType.MARROW_CONDENSER: "MARROW CONDENSER",
-            UnitType.FOWL_CONTRIVANCE: "FOWL CONTRIVANCE",
-            UnitType.GAS_MACHINIST: "GAS MACHINIST",
-            UnitType.DELPHIC_APPRAISER: "DELPHIC APPRAISER",
-            UnitType.INTERFERER: "INTERFERER",
-            UnitType.DERELICTIONIST: "DERELICTIONIST",
-            UnitType.POTPOURRIST: "POTPOURRIST"
-        }
+
+        # Add DLC units dynamically
+        from boneglaive.game.dlc_manager import get_dlc_manager
+        from boneglaive.utils.constants import UNIT_DISPLAY_NAMES
+
+        dlc_manager = get_dlc_manager()
+        self.unit_types = base_units.copy()
+
+        # Add loaded DLC units
+        for unit_id in dlc_manager.get_loaded_units():
+            unit_data = dlc_manager.get_unit_data(unit_id)
+            if unit_data:
+                enum_value = unit_data['enum_value']
+                self.unit_types.append(enum_value)
+
+        # Build unit names dict from constants (includes both base and DLC)
+        self.unit_names = {}
+        for unit_type in self.unit_types:
+            # First try to get display name using the unit_type directly (for base units)
+            if unit_type in UNIT_DISPLAY_NAMES:
+                self.unit_names[unit_type] = UNIT_DISPLAY_NAMES[unit_type]
+            else:
+                # For DLC units, convert to int value and look up
+                unit_val = unit_type.value if hasattr(unit_type, 'value') else unit_type
+                if unit_val in UNIT_DISPLAY_NAMES:
+                    self.unit_names[unit_type] = UNIT_DISPLAY_NAMES[unit_val]
+                else:
+                    # Fallback for missing names
+                    self.unit_names[unit_type] = f"UNIT_{unit_val}"
         
     def _setup_event_handlers(self):
         """Set up event handlers for the unit selection menu."""

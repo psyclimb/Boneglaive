@@ -501,15 +501,16 @@ class ResonantBackhand(ActiveSkill):
         # TODO: Add animation for reflected ball
 
 
-class Cannonball(ActiveSkill):
+class Matador(ActiveSkill):
     """
     Active skill for PELOTARI.
     Massive ball nuke that deals 8 damage and displaces units/furniture.
+    The killer shot - finishing blow in jai alai.
     """
 
     def __init__(self):
         super().__init__(
-            name="Cannonball",
+            name="Matador",
             key="3",
             description="Massive ball nuke. 8 damage + knockback. Launches furniture 3-4 tiles. +4 slam damage.",
             target_type=TargetType.AREA,
@@ -522,7 +523,7 @@ class Cannonball(ActiveSkill):
 
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None,
                 game: Optional['Game'] = None) -> bool:
-        """Check if Cannonball can be used."""
+        """Check if Matador can be used."""
         if not super().can_use(user, target_pos, game):
             return False
         if not game or not target_pos:
@@ -547,7 +548,7 @@ class Cannonball(ActiveSkill):
 
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None,
             game: Optional['Game'] = None) -> bool:
-        """Queue Cannonball for execution."""
+        """Queue Matador for execution."""
         if not self.can_use(user, target_pos, game):
             return False
 
@@ -561,7 +562,7 @@ class Cannonball(ActiveSkill):
         self.current_cooldown = self.cooldown
 
         message_log.add_message(
-            f"{user.get_display_name()} charges Cannonball!",
+            f"{user.get_display_name()} charges Matador!",
             MessageType.ABILITY,
             player=user.player
         )
@@ -569,11 +570,11 @@ class Cannonball(ActiveSkill):
         return True
 
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
-        """Execute Cannonball nuke."""
+        """Execute Matador nuke."""
         from .physics import calculate_cannonball_trajectory
 
         message_log.add_message(
-            f"{user.get_display_name()} launches Cannonball!",
+            f"{user.get_display_name()} launches Matador!",
             MessageType.ABILITY,
             player=user.player
         )
@@ -610,7 +611,7 @@ class Cannonball(ActiveSkill):
     def _hit_unit(self, target: 'Unit', user: 'Unit', game: 'Game',
                   trajectory: list, hit_index: int, ui=None) -> None:
         """
-        Handle Cannonball hitting a unit.
+        Handle Matador hitting a unit.
 
         Args:
             target: Unit that was hit
@@ -661,7 +662,7 @@ class Cannonball(ActiveSkill):
             attacker_name=user.get_display_name(),
             target_name=target.get_display_name(),
             damage=actual_damage,
-            ability="Cannonball" + (" (SLAM)" if slam_occurred else ""),
+            ability="Matador" + (" (SLAM)" if slam_occurred else ""),
             attacker_player=user.player,
             target_player=target.player
         )
@@ -669,7 +670,7 @@ class Cannonball(ActiveSkill):
     def _hit_furniture(self, furniture_pos: tuple, user: 'Unit', game: 'Game',
                        trajectory: list, hit_index: int, ui=None) -> None:
         """
-        Handle Cannonball hitting furniture (launches it).
+        Handle Matador hitting furniture (launches it).
 
         Args:
             furniture_pos: Position of furniture
@@ -778,4 +779,4 @@ class Cannonball(ActiveSkill):
 
 # Export skills for plugin registration
 PASSIVE_SKILL = Riposte
-ACTIVE_SKILLS = [Poach, ResonantBackhand, Cannonball]
+ACTIVE_SKILLS = [Poach, ResonantBackhand, Matador]

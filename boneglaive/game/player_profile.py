@@ -62,7 +62,14 @@ class PlayerProfile:
 
     def record_unit_pick(self, unit_type: UnitType):
         """Record a unit being picked."""
-        unit_name = unit_type.name
+        # Handle both enum types and DLC integer types
+        if hasattr(unit_type, 'name'):
+            unit_name = unit_type.name
+        else:
+            # DLC unit - get name from UNIT_DISPLAY_NAMES
+            from boneglaive.utils.constants import UNIT_DISPLAY_NAMES
+            unit_name = UNIT_DISPLAY_NAMES.get(unit_type, f"UNIT_{unit_type}")
+
         if unit_name not in self.unit_picks:
             self.unit_picks[unit_name] = 0
         self.unit_picks[unit_name] += 1
