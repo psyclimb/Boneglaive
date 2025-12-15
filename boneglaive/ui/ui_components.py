@@ -641,7 +641,7 @@ class UnitHelpComponent(UIComponent):
         
     def _load_unit_help_data(self):
         """Load unit help data for all units."""
-        return {
+        unit_help_dict = {
             UnitType.GLAIVEMAN: {
                 'title': 'GLAIVEMAN',
                 'overview': [
@@ -1816,7 +1816,18 @@ class UnitHelpComponent(UIComponent):
                 ]
             }
         }
-    
+
+        # Load DLC unit help data
+        from boneglaive.game.dlc_manager import get_dlc_manager
+        dlc_manager = get_dlc_manager()
+        for unit_id in dlc_manager.get_loaded_units():
+            help_data = dlc_manager.get_unit_help_data(unit_id)
+            if help_data:
+                # Add DLC help data using uppercase unit_id as key (matches unit registration)
+                unit_help_dict[unit_id.upper()] = help_data
+
+        return unit_help_dict
+
     def toggle_unit_help(self, unit_type=None):
         """Toggle the unit help screen for a specific unit type."""
         # Can't use unit help screen while in chat mode
@@ -6285,7 +6296,19 @@ class InputManager(UIComponent):
                 # Default case for unknown vapor types
                 self.game_ui.unit_help_component.toggle_unit_help(UnitType.HEINOUS_VAPOR)
                 return
-        
+            else:
+                # Check if this is a DLC unit
+                from boneglaive.game.dlc_manager import get_dlc_manager
+                dlc_manager = get_dlc_manager()
+                if dlc_manager.is_dlc_unit(unit_type):
+                    # Get unit_id from enum value
+                    for unit_id in dlc_manager.get_loaded_units():
+                        unit_data = dlc_manager.get_unit_data(unit_id)
+                        if unit_data and unit_data['enum_value'] == unit_type:
+                            # Show DLC unit help using uppercase unit_id as key
+                            self.game_ui.unit_help_component.toggle_unit_help(unit_id.upper())
+                            return
+
         # Show general help screen
         self.game_ui.help_component.toggle_help_screen()
         

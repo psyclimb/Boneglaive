@@ -10,6 +10,7 @@ from pathlib import Path
 import json
 
 from .skills import PASSIVE_SKILL, ACTIVE_SKILLS
+from .help_data import UNIT_HELP_DATA
 
 # Load unit configuration
 config_path = Path(__file__).parent / "unit_config.json"
@@ -40,6 +41,7 @@ def register_unit(game):
         'config': UNIT_CONFIG,
         'passive_skill': PASSIVE_SKILL,
         'active_skills': ACTIVE_SKILLS,
+        'help_data': UNIT_HELP_DATA,
         'assets_path': Path(__file__).parent / 'assets',
         'plugin_name': PLUGIN_NAME,
         'plugin_version': PLUGIN_VERSION
@@ -61,6 +63,7 @@ __all__ = [
     'UNIT_CONFIG',
     'PASSIVE_SKILL',
     'ACTIVE_SKILLS',
+    'UNIT_HELP_DATA',
     'register_unit',
     'initialize',
     'PLUGIN_NAME',

@@ -9,7 +9,7 @@
   "stats": {
     "hp": 18,
     "attack": 4,
-    "defense": 1,
+    "defense": 0,
     "move_range": 4,
     "attack_range": 4
   },

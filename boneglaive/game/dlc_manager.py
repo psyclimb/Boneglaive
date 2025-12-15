@@ -124,6 +124,9 @@ class DLCManager:
             # Register skills with skills registry
             self._register_unit_skills(unit_id, registration_data, enum_value)
 
+            # Register help data if provided
+            self._register_unit_help_data(unit_id, registration_data)
+
             logger.info(f"Successfully loaded DLC unit: {unit_id} (enum={enum_value})")
 
             # Call initialization hook if exists
@@ -265,6 +268,39 @@ class DLCManager:
         UNIT_SKILLS[unit_id.upper()] = skill_entry
 
         logger.debug(f"Registered skills for {unit_id}: passive={passive_skill_class is not None}, active={len(active_skill_classes)}")
+
+    def _register_unit_help_data(self, unit_id: str, registration_data: Dict[str, Any]) -> None:
+        """
+        Register DLC unit help data for the UI help system.
+
+        Args:
+            unit_id: Unit identifier
+            registration_data: Registration data
+        """
+        help_data = registration_data.get('help_data')
+        if not help_data:
+            logger.debug(f"No help data provided for {unit_id}")
+            return
+
+        # Store help data in the loaded unit data for UI access
+        if unit_id in self.loaded_units:
+            self.loaded_units[unit_id]['help_data'] = help_data
+            logger.debug(f"Registered help data for {unit_id}")
+
+    def get_unit_help_data(self, unit_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get help data for a DLC unit.
+
+        Args:
+            unit_id: Unit identifier
+
+        Returns:
+            Dict with help data, or None if not available
+        """
+        unit_data = self.loaded_units.get(unit_id)
+        if unit_data:
+            return unit_data.get('help_data')
+        return None
 
     def get_unit_data(self, unit_id: str) -> Optional[Dict[str, Any]]:
         """

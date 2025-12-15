@@ -35,22 +35,11 @@ class AssetManager:
     
     def _initialize_text_assets(self) -> None:
         """Initialize text-based assets (ASCII/Unicode characters)."""
-        # Unit symbols
-        self.unit_tiles = {
-            UnitType.GLAIVEMAN: 'G',
-            UnitType.ARCHER: 'A',
-            UnitType.MAGE: 'M',
-            UnitType.MANDIBLE_FOREMAN: 'F',
-            UnitType.GRAYMAN: 'Ψ',
-            UnitType.MARROW_CONDENSER: 'C',
-            UnitType.FOWL_CONTRIVANCE: 'T',
-            UnitType.GAS_MACHINIST: 'M',
-            UnitType.HEINOUS_VAPOR: 'V',  # Base symbol, will be replaced by vapor_symbol in display code
-            UnitType.DELPHIC_APPRAISER: 'A',  # A for Appraiser
-            UnitType.DERELICTIONIST: 'D',  # D for DERELICTIONIST
-            UnitType.INTERFERER: 'R',  # R for Radioactive interference
-            UnitType.POTPOURRIST: 'P'  # P for POTPOURRIST
-        }
+        # Unit symbols - load from UNIT_SYMBOLS to include DLC units
+        from boneglaive.utils.constants import UNIT_SYMBOLS
+
+        # Copy all symbols from UNIT_SYMBOLS (includes base units and loaded DLC)
+        self.unit_tiles = dict(UNIT_SYMBOLS)
         
         # Terrain symbols
         self.terrain_tiles = {
