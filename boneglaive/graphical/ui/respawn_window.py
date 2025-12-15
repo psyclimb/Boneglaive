@@ -269,7 +269,9 @@ class RespawnWindow:
             surface.blit(name_text, (text_x, text_y))
 
             # Unit type (smaller text below)
-            type_text = self.small_font.render(f"{dead_unit.unit_type.name}", True, COLOR_TEXT_DIM)
+            # Handle both UnitType enum and int (for DLC units)
+            unit_type_name = dead_unit.unit_type.name if hasattr(dead_unit.unit_type, 'name') else str(dead_unit.unit_type)
+            type_text = self.small_font.render(f"{unit_type_name}", True, COLOR_TEXT_DIM)
             surface.blit(type_text, (text_x, text_y + 22))
 
             # Respawn timer info (right side)

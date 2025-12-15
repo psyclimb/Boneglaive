@@ -3859,7 +3859,9 @@ class Game:
                     dead_unit.respawn_timer -= 1
                     if dead_unit.respawn_timer <= 0:
                         dead_unit.ready_for_respawn = True
-                        logger.info(f"RESPAWN: {dead_unit.greek_id} ({dead_unit.unit_type.name}) is ready to respawn")
+                        # Handle both UnitType enum and int (for DLC units)
+                        unit_type_name = dead_unit.unit_type.name if hasattr(dead_unit.unit_type, 'name') else str(dead_unit.unit_type)
+                        logger.info(f"RESPAWN: {dead_unit.greek_id} ({unit_type_name}) is ready to respawn")
 
             # In single player mode, automatically toggle between player 1 and 2
             # In multiplayer modes, the multiplayer manager handles player switching

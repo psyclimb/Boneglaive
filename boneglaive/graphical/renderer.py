@@ -2672,8 +2672,10 @@ class GraphicalRenderer:
             ghost_surf.fill((100, 255, 150, 60))  # Green tint
             # Draw unit type name
             if hasattr(self.selected_dead_unit, 'unit_type'):
+                # Handle both UnitType enum and int (for DLC units)
+                unit_type_name = self.selected_dead_unit.unit_type.name if hasattr(self.selected_dead_unit.unit_type, 'name') else str(self.selected_dead_unit.unit_type)
                 text = self.small_font.render(
-                    self.selected_dead_unit.unit_type.name[:3],  # First 3 letters
+                    unit_type_name[:3],  # First 3 letters
                     True, (255, 255, 255)
                 )
                 text_rect = text.get_rect(center=(TILE_SIZE // 2, TILE_SIZE // 2))
