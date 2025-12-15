@@ -28,10 +28,10 @@ UNIT_HELP_DATA = {
     'skills': [
         {
             'name': 'RIPOSTE (Passive)',
-            'description': 'Grants +2 defense. When PELOTARI is hit by a basic attack, fires 4 diagonal balls (NE, NW, SE, SW), each dealing 3 damage with 1 ricochet off terrain. After triggering, loses the defense bonus and enters a 3-turn cooldown before Riposte reactivates.',
+            'description': 'Grants +2 defense. When PELOTARI is hit by a basic attack, fires 4 diagonal balls (NE, NW, SE, SW), each dealing 3 damage with 1 ricochet off terrain. After triggering, loses the defense bonus and enters a 2-turn cooldown before Riposte reactivates.',
             'details': [
                 'Type: Passive',
-                'Effect: +2 Defense (3-turn cooldown after triggering)',
+                'Effect: +2 Defense (2-turn cooldown after triggering)',
                 'Counter Damage: 3 per ball × 4 balls = 12 total',
                 'Counter Range: 4 tiles per ball',
                 'Special: Only triggers on basic attacks, not skills; cannot be Poached (triggers counterattack instead)'
@@ -51,11 +51,11 @@ UNIT_HELP_DATA = {
         },
         {
             'name': 'BACKHAND (Active) [Key: 2]',
-            'description': 'Readies a counter stance for 4 turns. When an enemy uses a single-target skill on PELOTARI, catches and reflects it back as a ricocheting ball projectile. The ball bounces up to 2 times (6 tiles per bounce) and applies full skill effects to anyone hit. Allies are protected from friendly fire. Ends counter after reflecting one skill.',
+            'description': 'Readies a counter stance for 3 turns. When an enemy uses a single-target skill on PELOTARI, catches and reflects it back as a ricocheting ball projectile. The ball bounces up to 2 times (6 tiles per bounce) and applies full skill effects to anyone hit. Allies are protected from friendly fire. Ends counter after reflecting one skill.',
             'details': [
                 'Type: Active',
                 'Range: Self (counter stance)',
-                'Duration: 4 turns (ends early if reflects a skill)',
+                'Duration: 3 turns (ends early if reflects a skill)',
                 'Cooldown: 4 turns',
                 'Reflectable Skills: Judgement, Estrange, Neural Shunt, Granite Geas, Pry, Auction Curse, Fragcrest, Expedite',
                 'Special: Nullifies original skill; reflected ball can hit multiple targets along path; one reflection per turn'

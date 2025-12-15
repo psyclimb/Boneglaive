@@ -653,23 +653,12 @@ class Unit:
                 self.prt > 0 and (self._hp - raw_damage) <= 0 and
                 not getattr(self, 'partition_shield_blocked_fatal', False)):
 
-                print(f"[DISSOCIATION DEBUG] *** DISSOCIATION TRIGGERED FOR {self.get_display_name()} ***")
-                print(f"  Current HP: {self._hp}, Raw damage: {raw_damage}, Would die: {self._hp - raw_damage <= 0}")
-                print(f"  Has partition_shield_active: {self.partition_shield_active}")
-                print(f"  Current PRT: {self.prt}")
-                print(f"  Has partition_shield_caster: {hasattr(self, 'partition_shield_caster')}")
-                if hasattr(self, 'partition_shield_caster'):
-                    print(f"  Caster: {self.partition_shield_caster.get_display_name() if self.partition_shield_caster else 'None'}")
-
                 # DISSOCIATION TRIGGERED: Boost PRT to 999 for this turn
                 self.prt = 999  # All damage this turn absorbed by partition
                 self.partition_shield_blocked_fatal = True  # Mark for cleanup
-                print(f"  Set partition_shield_blocked_fatal = True")
-                print(f"  Set PRT to 999")
 
                 # Save caster reference for animation (before clearing it)
                 self.partition_dissociation_caster = self.partition_shield_caster
-                print(f"  Saved caster reference for animation: {self.partition_dissociation_caster.get_display_name() if self.partition_dissociation_caster else 'None'}")
 
                 # Teleport DERELICTIONIST immediately
                 if hasattr(self, 'partition_shield_caster') and self.partition_shield_caster and self._game:
@@ -768,62 +757,30 @@ class Unit:
                         )
                         logger.info(f"PRT AUTO: {self.get_display_name()}'s partition absorbed {prt_absorbed} damage")
 
-                        # ============= DEBUG: PARTITION HIT ANIMATION =============
-                        print(f"\n{'='*60}")
-                        print(f"[PARTITION HIT DEBUG] Unit: {self.get_display_name()}")
-                        print(f"[PARTITION HIT DEBUG] PRT absorbed: {prt_absorbed} damage")
-                        print(f"[PARTITION HIT DEBUG] Has _game: {self._game is not None}")
-                        print(f"[PARTITION HIT DEBUG] Has ui: {hasattr(self._game, 'ui') and self._game.ui is not None if self._game else False}")
-
                         # Show partition shield reverberation animation
                         if self._game and hasattr(self._game, 'ui') and self._game.ui and hasattr(self._game.ui, 'renderer'):
                             renderer = self._game.ui.renderer
-                            print(f"[PARTITION HIT DEBUG] Got renderer: {type(renderer).__name__}")
-                            print(f"[PARTITION HIT DEBUG] Has camera: {hasattr(renderer, 'camera')}")
-                            print(f"[PARTITION HIT DEBUG] Has active_animations: {hasattr(renderer, 'active_animations')}")
-                            print(f"[PARTITION HIT DEBUG] Camera value: {renderer.camera if hasattr(renderer, 'camera') else 'N/A'}")
 
                             # Check if using graphical renderer (has camera and active_animations)
                             if hasattr(renderer, 'camera') and hasattr(renderer, 'active_animations') and renderer.camera:
-                                print(f"[PARTITION HIT DEBUG] ✓ GRAPHICAL MODE DETECTED")
                                 # Graphical mode - spawn PartitionHitAnimation
                                 try:
                                     from boneglaive.graphical.animations import PartitionHitAnimation
-                                    print(f"[PARTITION HIT DEBUG] ✓ Imported PartitionHitAnimation")
 
                                     # Find the AnimatedUnit for this unit
                                     animated_unit = renderer._find_animated_unit_by_game_unit(self)
-                                    print(f"[PARTITION HIT DEBUG] AnimatedUnit found: {animated_unit is not None}")
-                                    if animated_unit:
-                                        print(f"[PARTITION HIT DEBUG]   - AnimatedUnit: {animated_unit.name} at ({animated_unit.grid_x}, {animated_unit.grid_y})")
 
                                     if animated_unit:
-                                        print(f"[PARTITION HIT DEBUG] Creating PartitionHitAnimation...")
                                         hit_anim = PartitionHitAnimation(animated_unit, renderer.camera)
-                                        print(f"[PARTITION HIT DEBUG] ✓ Animation created: {hit_anim}")
-
-                                        before_count = len(renderer.active_animations)
                                         renderer.active_animations.append(hit_anim)
-                                        after_count = len(renderer.active_animations)
-                                        print(f"[PARTITION HIT DEBUG] ✓ Added to active_animations")
-                                        print(f"[PARTITION HIT DEBUG]   - Before count: {before_count}")
-                                        print(f"[PARTITION HIT DEBUG]   - After count: {after_count}")
-                                        print(f"[PARTITION HIT DEBUG] ✓✓✓ SUCCESS - Animation should be visible! ✓✓✓")
-
                                         logger.debug(f"PARTITION HIT: Spawned graphical animation for {self.get_display_name()}")
                                     else:
-                                        print(f"[PARTITION HIT DEBUG] ✗ AnimatedUnit not found for {self.get_display_name()}")
                                         logger.debug(f"PARTITION HIT: Could not find AnimatedUnit for {self.get_display_name()}")
                                 except ImportError as e:
-                                    print(f"[PARTITION HIT DEBUG] ✗ Import error: {e}")
                                     logger.debug(f"Could not import PartitionHitAnimation: {e}")
                                 except Exception as e:
-                                    print(f"[PARTITION HIT DEBUG] ✗ Exception: {type(e).__name__}: {e}")
-                                    import traceback
-                                    traceback.print_exc()
                                     logger.error(f"PARTITION HIT: Error spawning animation: {e}")
                             else:
-                                print(f"[PARTITION HIT DEBUG] ASCII MODE - using old animation")
                                 # ASCII mode - use old animation
                                 partition_reverberation = [')', ']', '|', '#', '|', ']', ')', '(', '[', '|']  # Shield flickering/reverberating
                                 renderer.animate_attack_sequence(
@@ -832,9 +789,6 @@ class Unit:
                                     4,  # Blue color matching partition application
                                     0.6  # Slower animation to show deliberate reverberation
                                 )
-                        else:
-                            print(f"[PARTITION HIT DEBUG] ✗ No renderer found")
-                        print(f"{'='*60}\n")
                     else:
                         # HEINOUS VAPOR units silently absorb damage as gas entities
                         logger.debug(f"HEINOUS VAPOR: {self.get_display_name()} silently absorbed {prt_absorbed} damage")

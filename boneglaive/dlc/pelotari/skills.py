@@ -29,10 +29,10 @@ class Riposte(PassiveSkill):
         super().__init__(
             name="Riposte",
             key="R",
-            description="Grants +2 DEF. When hit by basic attack, fires 4 diagonal balls (3 damage, 1 ricochet). 3 turn CD. Cannot be Poached - triggers counterattack instead."
+            description="Grants +2 DEF. When hit by basic attack, fires 4 diagonal balls (3 damage, 1 ricochet). 2 turn CD. Cannot be Poached - triggers counterattack instead."
         )
         self.defense_bonus = 2
-        self.cooldown_turns = 3
+        self.cooldown_turns = 2
         self.ball_damage = 3
         self.ball_range = 4
 
@@ -862,7 +862,7 @@ class Backhand(ActiveSkill):
 
         # Set counter stance flag and duration
         user.backhand_active = True
-        user.backhand_duration = 4  # Lasts multiple turns to increase reflection opportunities
+        user.backhand_duration = 3  # Lasts multiple turns to increase reflection opportunities
         user.skill_target = (user.y, user.x)
         user.selected_skill = self
 
@@ -887,7 +887,7 @@ class Backhand(ActiveSkill):
         """
         # Stance is already active, just confirm
         user.backhand_active = True
-        user.backhand_duration = 4
+        user.backhand_duration = 3
         logger.debug(f"{user.get_display_name()} Backhand stance active")
         return True
 
