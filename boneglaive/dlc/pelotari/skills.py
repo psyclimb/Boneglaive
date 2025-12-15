@@ -373,17 +373,32 @@ class Poach(ActiveSkill):
                 initial_hit_type = 'furniture'
                 break
 
-            # Check for impassable terrain (walls)
-            if not game.map.is_passable(pos[0], pos[1]):
-                # Ricochet from last valid position before wall
-                initial_hit_pos = trajectory[i-1] if i > 0 else pos
-                initial_hit_type = 'wall'
-                break
-
-        # Check if hit map edge
+        # Check if trajectory ended early (hit wall or map edge)
         if not initial_hit_pos and len(trajectory) > 0:
-            initial_hit_pos = trajectory[-1]
-            initial_hit_type = 'edge'
+            last_pos = trajectory[-1]
+
+            # Calculate direction from user to target to determine ball direction
+            dy = target_pos[0] - user.y
+            dx = target_pos[1] - user.x
+            # Normalize
+            if dy != 0:
+                dy = dy // abs(dy)
+            if dx != 0:
+                dx = dx // abs(dx)
+
+            # What would be the next position?
+            next_y = last_pos[0] + dy
+            next_x = last_pos[1] + dx
+
+            # Check if next position is a wall
+            if game.is_valid_position(next_y, next_x) and not game.map.is_passable(next_y, next_x):
+                # Hit a wall - ricochet from the wall tile
+                initial_hit_pos = (next_y, next_x)
+                initial_hit_type = 'wall'
+            elif not game.is_valid_position(next_y, next_x):
+                # Hit map edge - ricochet from last valid position
+                initial_hit_pos = last_pos
+                initial_hit_type = 'edge'
 
         # If nothing was hit, skill ends
         if not initial_hit_pos:
@@ -550,40 +565,53 @@ class Poach(ActiveSkill):
         return trajectory
 
     def _calculate_ricochet(self, impact_pos: tuple, user: 'Unit', game: 'Game') -> list:
-        """Calculate ricochet off wall/unit/furniture (borrowed from Matador)."""
-        from .physics import calculate_surface_normal
-
+        """Calculate ricochet off wall/unit/furniture using same logic as edge ricochet."""
         # Calculate incoming direction
         incoming_dir = (
             impact_pos[0] - user.y,
             impact_pos[1] - user.x
         )
 
-        # Normalize
+        # Normalize to 8-direction
         if incoming_dir[0] != 0:
             incoming_dir = (incoming_dir[0] // abs(incoming_dir[0]), incoming_dir[1])
         if incoming_dir[1] != 0:
             incoming_dir = (incoming_dir[0], incoming_dir[1] // abs(incoming_dir[1]))
 
-        # Calculate surface normal at impact
-        normal = calculate_surface_normal(impact_pos, game)
-        if not normal:
-            return []
+        # Use same logic as edge ricochet
+        reflection = list(incoming_dir)
 
-        # Calculate reflection direction
-        dot_product = incoming_dir[0] * normal[0] + incoming_dir[1] * normal[1]
-        reflection = (
-            incoming_dir[0] - 2 * dot_product * normal[0],
-            incoming_dir[1] - 2 * dot_product * normal[1]
-        )
+        # Determine which face of the wall was hit by checking where the ball came from
+        # If the ball is at a wall tile, check which direction it entered from
+        prev_y = impact_pos[0] - incoming_dir[0]
+        prev_x = impact_pos[1] - incoming_dir[1]
 
-        # Normalize reflection
-        if reflection[0] != 0:
-            reflection = (reflection[0] // abs(reflection[0]), reflection[1])
-        if reflection[1] != 0:
-            reflection = (reflection[0], reflection[1] // abs(reflection[1]))
+        # Check if impact position is passable (unit/furniture) or wall
+        is_wall = not game.map.is_passable(impact_pos[0], impact_pos[1])
 
-        # Build trajectory
+        if is_wall:
+            # Hit a wall tile - check which edges are walls to determine bounce
+            # Similar to edge ricochet logic
+            at_left_edge = impact_pos[1] == 0 or \
+                          (impact_pos[1] > 0 and game.map.is_passable(impact_pos[0], impact_pos[1] - 1))
+            at_right_edge = impact_pos[1] == game.map.width - 1 or \
+                           (impact_pos[1] < game.map.width - 1 and game.map.is_passable(impact_pos[0], impact_pos[1] + 1))
+            at_top_edge = impact_pos[0] == 0 or \
+                         (impact_pos[0] > 0 and game.map.is_passable(impact_pos[0] - 1, impact_pos[1]))
+            at_bottom_edge = impact_pos[0] == game.map.height - 1 or \
+                            (impact_pos[0] < game.map.height - 1 and game.map.is_passable(impact_pos[0] + 1, impact_pos[1]))
+
+            # Flip based on which edge faces open space
+            if at_left_edge or at_right_edge:
+                reflection[1] = -reflection[1]
+            if at_top_edge or at_bottom_edge:
+                reflection[0] = -reflection[0]
+        else:
+            # Hit unit/furniture - bounce straight back
+            reflection[0] = -reflection[0]
+            reflection[1] = -reflection[1]
+
+        # Build trajectory in reflection direction
         trajectory = []
         current_pos = impact_pos
 
@@ -633,6 +661,10 @@ class Poach(ActiveSkill):
 
             # Check if we've hit map edge
             if not game.is_valid_position(next_y, next_x):
+                break
+
+            # Stop if we hit impassable terrain (wall)
+            if not game.map.is_passable(next_y, next_x):
                 break
 
             trajectory.append((next_y, next_x))
@@ -1805,7 +1837,7 @@ class Matador(ActiveSkill):
 
     def _calculate_ricochet(self, impact_pos: tuple, user: 'Unit', game: 'Game') -> list:
         """
-        Calculate ricochet trajectory after hitting blocked target.
+        Calculate ricochet trajectory after hitting blocked target using same logic as Poach.
 
         Args:
             impact_pos: Position where ball hit blocked target
@@ -1815,8 +1847,6 @@ class Matador(ActiveSkill):
         Returns:
             List of (y, x) positions for ricochet trajectory, or empty list if no valid ricochet
         """
-        from .physics import calculate_bounce, calculate_surface_normal
-
         # Calculate incoming direction
         incoming_dir = (
             impact_pos[0] - user.y,
@@ -1829,23 +1859,32 @@ class Matador(ActiveSkill):
         if incoming_dir[1] != 0:
             incoming_dir = (incoming_dir[0], incoming_dir[1] // abs(incoming_dir[1]))
 
-        # Calculate surface normal at impact
-        normal = calculate_surface_normal(impact_pos, game)
-        if not normal:
-            return []
+        # Use same logic as edge ricochet
+        reflection = list(incoming_dir)
 
-        # Calculate reflection direction
-        dot_product = incoming_dir[0] * normal[0] + incoming_dir[1] * normal[1]
-        reflection = (
-            incoming_dir[0] - 2 * dot_product * normal[0],
-            incoming_dir[1] - 2 * dot_product * normal[1]
-        )
+        # Check if impact position is passable (unit/furniture) or wall
+        is_wall = not game.map.is_passable(impact_pos[0], impact_pos[1])
 
-        # Normalize reflection
-        if reflection[0] != 0:
-            reflection = (reflection[0] // abs(reflection[0]), reflection[1])
-        if reflection[1] != 0:
-            reflection = (reflection[0], reflection[1] // abs(reflection[1]))
+        if is_wall:
+            # Hit a wall tile - check which edges face open space
+            at_left_edge = impact_pos[1] == 0 or \
+                          (impact_pos[1] > 0 and game.map.is_passable(impact_pos[0], impact_pos[1] - 1))
+            at_right_edge = impact_pos[1] == game.map.width - 1 or \
+                           (impact_pos[1] < game.map.width - 1 and game.map.is_passable(impact_pos[0], impact_pos[1] + 1))
+            at_top_edge = impact_pos[0] == 0 or \
+                         (impact_pos[0] > 0 and game.map.is_passable(impact_pos[0] - 1, impact_pos[1]))
+            at_bottom_edge = impact_pos[0] == game.map.height - 1 or \
+                            (impact_pos[0] < game.map.height - 1 and game.map.is_passable(impact_pos[0] + 1, impact_pos[1]))
+
+            # Flip based on which edge faces open space
+            if at_left_edge or at_right_edge:
+                reflection[1] = -reflection[1]
+            if at_top_edge or at_bottom_edge:
+                reflection[0] = -reflection[0]
+        else:
+            # Hit unit/furniture - bounce straight back
+            reflection[0] = -reflection[0]
+            reflection[1] = -reflection[1]
 
         # Build trajectory in reflection direction
         trajectory = []

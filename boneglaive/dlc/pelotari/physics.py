@@ -179,6 +179,8 @@ def calculate_linear_trajectory(start_pos: Tuple[int, int], direction: Tuple[int
         next_x = current_pos[1] + current_direction[1]
         next_pos = (next_y, next_x)
 
+        logger.debug(f"Step {step}: at {current_pos}, dir {current_direction}, next {next_pos}, bounced={bounced}")
+
         # Check bounds
         if not game.is_valid_position(next_y, next_x):
             # Hit map edge
@@ -197,14 +199,14 @@ def calculate_linear_trajectory(start_pos: Tuple[int, int], direction: Tuple[int
             if ricochet_mode and not bounced:
                 # Ricochet mode: bounce once
                 new_direction = calculate_bounce(
-                    impact_pos=next_pos,
+                    current_pos=current_pos,
                     incoming_direction=current_direction,
                     game=game
                 )
                 if new_direction:
                     current_direction = new_direction
                     bounced = True
-                    logger.debug(f"Ball bounced at {next_pos}, new direction: {new_direction}")
+                    logger.debug(f"Ball at {current_pos} hit wall at {next_pos}, incoming: {current_direction}, new: {new_direction}")
                     continue
                 else:
                     # Can't bounce, stop
@@ -222,85 +224,67 @@ def calculate_linear_trajectory(start_pos: Tuple[int, int], direction: Tuple[int
         trajectory.append(next_pos)
         current_pos = next_pos
 
+    logger.debug(f"Trajectory complete: {len(trajectory)} positions, bounced={bounced}")
     return trajectory
 
 
-def calculate_bounce(impact_pos: Tuple[int, int], incoming_direction: Tuple[int, int],
+def calculate_bounce(current_pos: Tuple[int, int], incoming_direction: Tuple[int, int],
                      game: 'Game') -> Optional[Tuple[int, int]]:
     """
-    Calculate bounce direction using angle of incidence.
+    Calculate bounce using edge-ricochet logic - checks which wall faces are exposed.
 
     Args:
-        impact_pos: Position where ball hits terrain
+        current_pos: Wall tile position that ball hit
         incoming_direction: Direction ball was traveling (dy, dx)
         game: Game instance
 
     Returns:
-        New direction (dy, dx), or None if can't bounce
+        New direction (dy, dx)
     """
-    # Determine surface normal based on surrounding terrain
-    normal = calculate_surface_normal(impact_pos, game)
+    dy, dx = incoming_direction
+    reflection = [dy, dx]
 
-    if not normal:
-        return None  # Can't determine normal
+    # Check if current_pos is a wall tile
+    is_wall = not game.map.is_passable(current_pos[0], current_pos[1])
 
-    # Calculate reflection using angle of incidence
-    # Reflection formula: R = I - 2(I·N)N
-    # Where I = incoming, N = normal, R = reflection
+    if is_wall:
+        # Check which edges of the wall face open space
+        at_left_edge = current_pos[1] == 0 or \
+                      (current_pos[1] > 0 and game.map.is_passable(current_pos[0], current_pos[1] - 1))
+        at_right_edge = current_pos[1] == game.map.width - 1 or \
+                       (current_pos[1] < game.map.width - 1 and game.map.is_passable(current_pos[0], current_pos[1] + 1))
+        at_top_edge = current_pos[0] == 0 or \
+                     (current_pos[0] > 0 and game.map.is_passable(current_pos[0] - 1, current_pos[1]))
+        at_bottom_edge = current_pos[0] == game.map.height - 1 or \
+                        (current_pos[0] < game.map.height - 1 and game.map.is_passable(current_pos[0] + 1, current_pos[1]))
 
-    dot_product = incoming_direction[0] * normal[0] + incoming_direction[1] * normal[1]
-    reflection = (
-        incoming_direction[0] - 2 * dot_product * normal[0],
-        incoming_direction[1] - 2 * dot_product * normal[1]
-    )
+        # Flip based on which edge faces open space (same as map edge logic)
+        if at_left_edge or at_right_edge:
+            reflection[1] = -reflection[1]
+        if at_top_edge or at_bottom_edge:
+            reflection[0] = -reflection[0]
+    else:
+        # Not a wall (shouldn't happen, but handle it) - bounce straight back
+        reflection[0] = -reflection[0]
+        reflection[1] = -reflection[1]
 
-    # Normalize
-    reflection = normalize_direction(reflection)
-
-    return reflection
+    return tuple(reflection)
 
 
 def calculate_surface_normal(impact_pos: Tuple[int, int], game: 'Game') -> Optional[Tuple[int, int]]:
     """
-    Calculate surface normal at impact point.
+    DEPRECATED: No longer used. Kept for backwards compatibility.
+
+    The new bounce system uses simple directional rules instead of surface normals.
 
     Args:
         impact_pos: Position of impact
         game: Game instance
 
     Returns:
-        Normal vector (dy, dx), or None if can't determine
+        None (deprecated)
     """
-    # Check adjacent tiles to determine wall orientation
-    y, x = impact_pos
-
-    # Check 4 cardinal directions
-    passable = {
-        'up': game.is_valid_position(y - 1, x) and game.map.is_passable(y - 1, x),
-        'down': game.is_valid_position(y + 1, x) and game.map.is_passable(y + 1, x),
-        'left': game.is_valid_position(y, x - 1) and game.map.is_passable(y, x - 1),
-        'right': game.is_valid_position(y, x + 1) and game.map.is_passable(y, x + 1)
-    }
-
-    # Determine normal based on passable directions
-    if passable['left'] and passable['right'] and not passable['up'] and not passable['down']:
-        # Horizontal wall, normal points up/down
-        return (1, 0)  # or (-1, 0)
-    elif passable['up'] and passable['down'] and not passable['left'] and not passable['right']:
-        # Vertical wall, normal points left/right
-        return (0, 1)  # or (0, -1)
-    elif passable['left'] and passable['up']:
-        # Corner, approximate normal
-        return (-1, -1)
-    elif passable['right'] and passable['up']:
-        return (-1, 1)
-    elif passable['left'] and passable['down']:
-        return (1, -1)
-    elif passable['right'] and passable['down']:
-        return (1, 1)
-
-    # Default: reflect back
-    return (0, 0)
+    return None
 
 
 def calculate_bounce_off_edge(current_pos: Tuple[int, int], direction: Tuple[int, int],
