@@ -2,7 +2,7 @@
 """
 Skills for PELOTARI DLC unit.
 
-The PELOTARI is a jai alai specialist with ricochet ball mechanics and frequency modulation.
+The PELOTARI is a jai alai specialist with ricochet ball mechanics.
 """
 
 import random
@@ -29,7 +29,7 @@ class Riposte(PassiveSkill):
         super().__init__(
             name="Riposte",
             key="R",
-            description="Grants +2 DEF. When hit by basic attack, fires 4 diagonal balls (2 damage, 2 ricochets). 2 turn CD. Cannot be Poached - triggers counterattack instead."
+            description="Grants +2 DEF. When hit by basic attack, fires 8 balls in all directions (2 damage, 2 ricochets). 2 turn CD. Cannot be Poached - triggers counterattack instead."
         )
         self.defense_bonus = 2
         self.cooldown_turns = 2
@@ -63,7 +63,7 @@ class Riposte(PassiveSkill):
                     user.riposte_active = True
                     user.defense_bonus = self.defense_bonus
                     message_log.add_message(
-                        f"{user.get_display_name()}'s Riposte recharges (+{self.defense_bonus} DEF)",
+                        f"{user.get_display_name()}'s defensive stance restored.",
                         MessageType.ABILITY,
                         player=user.player
                     )
@@ -93,7 +93,7 @@ class Riposte(PassiveSkill):
         user.riposte_cooldown = self.cooldown_turns
 
         message_log.add_message(
-            f"{user.get_display_name()}'s Riposte triggers! Diagonal spread!",
+            f"Counter-strike. {user.get_display_name()}'s pelotas ricochet in all directions.",
             MessageType.ABILITY,
             player=user.player
         )
@@ -103,16 +103,16 @@ class Riposte(PassiveSkill):
 
     def _execute_diagonal_spread(self, user: 'Unit', game: 'Game', ui=None) -> None:
         """
-        Execute diagonal spread shot (4 balls: NE, NW, SE, SW).
-        Each ball: 2 damage, max 4 range, 1 ricochet.
+        Execute 8-directional spread shot (N, NE, E, SE, S, SW, W, NW).
+        Each ball: 2 damage, max 4 range, 2 ricochets.
 
         Args:
             user: PELOTARI unit
             game: Game instance
             ui: UI instance
         """
-        # Diagonal directions: NE, NW, SE, SW
-        directions = [(-1, 1), (-1, -1), (1, -1), (1, 1)]
+        # All 8 directions: N, NE, E, SE, S, SW, W, NW
+        directions = [(-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1)]
 
         # Calculate all trajectories first
         trajectories = []
@@ -144,7 +144,7 @@ class Riposte(PassiveSkill):
         for trajectory in trajectories:
             self._apply_ball_damage(trajectory, user=user, game=game, ui=ui)
 
-        logger.debug(f"Riposte diagonal spread executed: 4 balls")
+        logger.debug(f"Riposte 8-directional spread executed: 8 balls")
 
     def _calculate_diagonal_trajectory(self, start_pos: tuple, direction: tuple,
                                        max_range: int, game: 'Game') -> list:
@@ -281,7 +281,7 @@ class Poach(ActiveSkill):
         self.current_cooldown = self.cooldown
 
         message_log.add_message(
-            f"{user.get_display_name()} prepares to Poach!",
+            f"{user.get_display_name()} winds up for a Poach shot.",
             MessageType.ABILITY,
             player=user.player
         )
@@ -291,7 +291,7 @@ class Poach(ActiveSkill):
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute Poach skill - must ricochet to steal buffs."""
         message_log.add_message(
-            f"{user.get_display_name()} uses Poach!",
+            f"{user.get_display_name()} fires a Poach pelota.",
             MessageType.ABILITY,
             player=user.player
         )
@@ -384,7 +384,7 @@ class Poach(ActiveSkill):
         # If nothing was hit, skill ends
         if not initial_hit_pos:
             message_log.add_message(
-                f"Poach misses completely!",
+                f"The pelota sails wide.",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -395,7 +395,7 @@ class Poach(ActiveSkill):
 
         if not ricochet_trajectory:
             message_log.add_message(
-                f"Poach ricochets into nothing...",
+                f"The ricochet loses momentum...",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -445,8 +445,8 @@ class Poach(ActiveSkill):
                 # Check if target is enemy PELOTARI with Riposte buff
                 if hasattr(ricochet_target, 'riposte_active') and ricochet_target.riposte_active:
                     message_log.add_message(
-                        f"{ricochet_target.get_display_name()}'s Riposte triggers a counterattack!",
-                        MessageType.ABILITY,
+                        f"The pelota strikes {ricochet_target.get_display_name()}'s cesta, triggering a counter-volley.",
+                        MessageType.COMBAT,
                         player=ricochet_target.player
                     )
                     if hasattr(ricochet_target, 'passive_skill') and hasattr(ricochet_target.passive_skill, 'trigger_on_hit'):
@@ -458,7 +458,7 @@ class Poach(ActiveSkill):
 
                 if not active_buffs:
                     message_log.add_message(
-                        f"{ricochet_target.get_display_name()} has no buffs to steal!",
+                        f"{ricochet_target.get_display_name()} has nothing to pilfer.",
                         MessageType.ABILITY,
                         player=user.player
                     )
@@ -707,7 +707,7 @@ class Poach(ActiveSkill):
                     setattr(unit, stat_attr, 0)
 
         message_log.add_message(
-            f"{unit.get_display_name()}'s {buff_name} is knocked off!",
+            f"{unit.get_display_name()}'s {buff_name} is poached clean off.",
             MessageType.ABILITY,
             player=unit.player
         )
@@ -752,7 +752,7 @@ class Poach(ActiveSkill):
                     # Ally catches buff
                     self._apply_buff_to_ally(ally, buff_key, buff_data, game)
                     message_log.add_message(
-                        f"{ally.get_display_name()} catches {buff_data['name']}!",
+                        f"{ally.get_display_name()} snags the {buff_data['name']} out of the air.",
                         MessageType.ABILITY,
                         player=pelotari.player
                     )
@@ -760,7 +760,7 @@ class Poach(ActiveSkill):
 
         # Ball reached boundary without being caught
         message_log.add_message(
-            f"{buff_data['name']} buff dissipates...",
+            f"{buff_data['name']} pelota bounces away unclaimed...",
             MessageType.ABILITY,
             player=pelotari.player
         )
@@ -886,7 +886,7 @@ class Backhand(ActiveSkill):
         self.current_cooldown = self.cooldown
 
         message_log.add_message(
-            f"{user.get_display_name()} readies Backhand",
+            f"{user.get_display_name()} assumes a counter stance, cesta ready.",
             MessageType.ABILITY,
             player=user.player
         )
@@ -935,7 +935,7 @@ class Backhand(ActiveSkill):
             return False
 
         message_log.add_message(
-            f"{pelotari.get_display_name()} reflects {skill_name} back!",
+            f"{pelotari.get_display_name()} deflects {skill_name} and serves up a {skill_name} pelota. Catch!",
             MessageType.ABILITY,
             player=pelotari.player
         )
@@ -1032,7 +1032,7 @@ class Backhand(ActiveSkill):
             start_pos: Starting position (y, x)
             direction: Direction vector (dy, dx)
             max_tiles: Maximum tiles for this segment
-            ricochet_mode: True for ricochet, False for phase
+            ricochet_mode: Always True (ricochet enabled)
             game: Game instance
 
         Returns:
@@ -1051,10 +1051,8 @@ class Backhand(ActiveSkill):
 
             # Check terrain
             if not game.map.is_passable(next_y, next_x):
-                if ricochet_mode:
-                    # Hit wall in ricochet mode, stop here (caller will handle bounce)
-                    break
-                # Phase mode: pass through terrain
+                # Hit wall, stop here (caller will handle bounce)
+                break
 
             segment.append((next_y, next_x))
             current_y, current_x = next_y, next_x
@@ -1140,7 +1138,7 @@ class Backhand(ActiveSkill):
         # Skill-specific ball characters and colors
         ball_themes = {
             'Judgement': ('*', 3),        # Star, yellow (divine light)
-            'Estrange': ('~', 6),         # Tilde, cyan (phase energy)
+            'Estrange': ('~', 6),         # Tilde, cyan
             'Neural Shunt': ('?', 5),     # Question, magenta (confusion)
             'Granite Geas': ('#', 8),     # Hash, gray (stone)
             'Pry': ('^', 7),              # Caret, white (upward force)
@@ -1175,7 +1173,7 @@ class Backhand(ActiveSkill):
         # Skill-specific impact frames
         impact_sequences = {
             'Judgement': ['*', '+', 'X', '*'],  # Divine judgment
-            'Estrange': ['~', '~', '~', '~'],  # Phase distortion
+            'Estrange': ['~', '~', '~', '~'],  # Distortion
             'Neural Shunt': ['!', '?', '#', '!'],  # Confusion
             'Granite Geas': ['#', '#', '#', '#'],  # Stone weight
             'Pry': ['^', '^', '|', '^'],  # Upward force
@@ -1549,7 +1547,7 @@ class Matador(ActiveSkill):
         self.current_cooldown = self.cooldown
 
         message_log.add_message(
-            f"{user.get_display_name()} charges Matador!",
+            f"{user.get_display_name()} winds up for the kill shot.",
             MessageType.ABILITY,
             player=user.player
         )
@@ -1559,7 +1557,7 @@ class Matador(ActiveSkill):
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute Matador nuke."""
         message_log.add_message(
-            f"{user.get_display_name()} launches Matador!",
+            f"{user.get_display_name()} unleashes a thundering Matador.",
             MessageType.ABILITY,
             player=user.player
         )
@@ -1573,7 +1571,7 @@ class Matador(ActiveSkill):
                 sleep_with_animation_speed(0.15)
 
         # Calculate straight-line trajectory to target
-        # Matador always goes straight - doesn't use ricochet/phase toggle
+        # Matador always goes straight
         trajectory = self._calculate_straight_trajectory(
             start_pos=(user.y, user.x),
             target_pos=target_pos,
@@ -1986,7 +1984,7 @@ class Matador(ActiveSkill):
             )
 
             message_log.add_message(
-                f"{target.get_display_name()} is pinned! Ball ricochets!",
+                f"{target.get_display_name()} is pinned. The pelota ricochets off.",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -2002,7 +2000,7 @@ class Matador(ActiveSkill):
         if ui and hasattr(ui, 'renderer') and final_pos != original_unit_pos:
             # Show unit being pushed back
             message_log.add_message(
-                f"{target.get_display_name()} is knocked back!",
+                f"{target.get_display_name()} is hurled backward.",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -2029,7 +2027,7 @@ class Matador(ActiveSkill):
                     self._animate_impact(final_pos[0], final_pos[1], ui, slam=True)
 
                     message_log.add_message(
-                        f"{target.get_display_name()} slams into terrain (+{slam_dmg} damage)!",
+                        f"{target.get_display_name()} crashes into terrain (+{slam_dmg} damage).",
                         MessageType.ABILITY,
                         player=user.player
                     )
@@ -2093,7 +2091,7 @@ class Matador(ActiveSkill):
             launch_dir = (launch_dir[0], launch_dir[1] // abs(launch_dir[1]))
 
         message_log.add_message(
-            f"Furniture launches from ({furniture_pos[0]}, {furniture_pos[1]})!",
+            f"Furniture at ({furniture_pos[0]}, {furniture_pos[1]}) is launched into the air.",
             MessageType.ABILITY,
             player=user.player
         )
@@ -2107,7 +2105,7 @@ class Matador(ActiveSkill):
         if len(furniture_trajectory) <= 1:
             # Furniture blocked immediately - ball should ricochet
             message_log.add_message(
-                f"Furniture is pinned! Ball ricochets!",
+                f"Furniture is pinned. The pelota ricochets off.",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -2250,11 +2248,6 @@ class Matador(ActiveSkill):
         trail_char = 'o'  # Smaller trail
         ball_color = 7  # Bright white for ricochet
         trail_color = 7
-
-        # Phase mode: ghostly appearance
-        if not ricochet_mode:
-            ball_color = 14  # Cyan/ghostly (if available, fallback to 6)
-            trail_color = 6
 
         # Animate ball moving through trajectory
         for i, pos in enumerate(trajectory):
