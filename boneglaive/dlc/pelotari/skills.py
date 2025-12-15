@@ -1069,6 +1069,16 @@ class Backhand(ActiveSkill):
             target = game.get_unit_at(pos[0], pos[1])
             # Only hit enemies (different team than PELOTARI)
             if target and target.is_alive() and target.player != pelotari.player:
+                # Check if target is immune to status effects (GRAYMAN with Stasiality)
+                if hasattr(target, 'stasiality_active') and target.stasiality_active:
+                    message_log.add_message(
+                        f"{target.get_display_name()} is immune to reflected {skill_name} due to Stasiality",
+                        MessageType.ABILITY,
+                        player=target.player
+                    )
+                    logger.debug(f"BACKHAND: {target.get_display_name()} immune to reflected {skill_name} (Stasiality)")
+                    continue
+
                 # Apply full skill effects
                 self._apply_reflected_skill_effects(
                     pelotari, target, attacker, skill_name, game, ui
@@ -1907,6 +1917,24 @@ class Matador(ActiveSkill):
                 target_player=target.player
             )
             return True  # Hit successful - unit died
+
+        # Check if target is immune to displacement (GRAYMAN with Stasiality)
+        if hasattr(target, 'stasiality_active') and target.stasiality_active:
+            message_log.add_combat_message(
+                attacker_name=user.get_display_name(),
+                target_name=target.get_display_name(),
+                damage=actual_damage,
+                ability="Matador",
+                attacker_player=user.player,
+                target_player=target.player
+            )
+            message_log.add_message(
+                f"{target.get_display_name()} is immune to Matador's displacement due to Stasiality",
+                MessageType.ABILITY,
+                player=target.player
+            )
+            logger.debug(f"MATADOR: {target.get_display_name()} immune to displacement (Stasiality)")
+            return True  # Hit successful but no displacement
 
         # Calculate knockback direction: FROM user TO target (direction ball was traveling)
         knockback_dir = (
