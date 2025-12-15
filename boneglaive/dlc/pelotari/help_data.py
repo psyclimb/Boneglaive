@@ -28,12 +28,13 @@ UNIT_HELP_DATA = {
     'skills': [
         {
             'name': 'RIPOSTE (Passive)',
-            'description': 'Grants +2 defense. When PELOTARI is hit by a basic attack, fires 4 diagonal balls (NE, NW, SE, SW), each dealing 3 damage with 1 ricochet off terrain. After triggering, loses the defense bonus and enters a 2-turn cooldown before Riposte reactivates.',
+            'description': 'Grants +2 defense. When PELOTARI is hit by a basic attack, fires 4 diagonal balls (NE, NW, SE, SW), each dealing 2 damage with 2 ricochets off terrain. After triggering, loses the defense bonus and enters a 2-turn cooldown before Riposte reactivates.',
             'details': [
                 'Type: Passive',
                 'Effect: +2 Defense (2-turn cooldown after triggering)',
-                'Counter Damage: 3 per ball × 4 balls = 12 total',
+                'Counter Damage: 2 per ball × 4 balls = 8 total',
                 'Counter Range: 4 tiles per ball',
+                'Ricochets: Up to 2 bounces per ball',
                 'Special: Only triggers on basic attacks, not skills; cannot be Poached (triggers counterattack instead)'
             ]
         },

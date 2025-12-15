@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 class Riposte(PassiveSkill):
     """
     Passive skill for PELOTARI.
-    Grants +2 defense. When hit by basic attack, fires 4 diagonal balls (3 damage each).
+    Grants +2 defense. When hit by basic attack, fires 4 diagonal balls (2 damage each).
     Goes on 3 turn cooldown after triggering.
     """
 
@@ -29,11 +29,11 @@ class Riposte(PassiveSkill):
         super().__init__(
             name="Riposte",
             key="R",
-            description="Grants +2 DEF. When hit by basic attack, fires 4 diagonal balls (3 damage, 1 ricochet). 2 turn CD. Cannot be Poached - triggers counterattack instead."
+            description="Grants +2 DEF. When hit by basic attack, fires 4 diagonal balls (2 damage, 2 ricochets). 2 turn CD. Cannot be Poached - triggers counterattack instead."
         )
         self.defense_bonus = 2
         self.cooldown_turns = 2
-        self.ball_damage = 3
+        self.ball_damage = 2
         self.ball_range = 4
 
     def apply_passive(self, user: 'Unit', game: Optional['Game'] = None, ui=None) -> None:
@@ -149,7 +149,7 @@ class Riposte(PassiveSkill):
     def _calculate_diagonal_trajectory(self, start_pos: tuple, direction: tuple,
                                        max_range: int, game: 'Game') -> list:
         """
-        Calculate diagonal trajectory with ricochet capability.
+        Calculate diagonal trajectory with ricochet capability using physics module.
 
         Args:
             start_pos: Starting (y, x)
@@ -160,42 +160,17 @@ class Riposte(PassiveSkill):
         Returns:
             List of (y, x) positions
         """
-        trajectory = []
-        current_y, current_x = start_pos
-        dy, dx = direction
-        bounced = False
+        # Use physics module for consistent ricochet behavior
+        from .physics import calculate_linear_trajectory
 
-        for step in range(max_range):
-            next_y = current_y + dy
-            next_x = current_x + dx
-
-            # Check bounds
-            if not game.is_valid_position(next_y, next_x):
-                # Hit edge - ricochet once
-                if not bounced:
-                    bounced = True
-                    # Reflect off edge
-                    if next_y < 0 or next_y >= game.map.height:
-                        dy = -dy
-                    if next_x < 0 or next_x >= game.map.width:
-                        dx = -dx
-                    continue
-                else:
-                    break
-
-            # Check impassable terrain
-            if not game.map.is_passable(next_y, next_x):
-                # Hit wall - ricochet once
-                if not bounced:
-                    bounced = True
-                    # Simple ricochet: reverse direction
-                    dy, dx = -dy, -dx
-                    continue
-                else:
-                    break
-
-            trajectory.append((next_y, next_x))
-            current_y, current_x = next_y, next_x
+        trajectory = calculate_linear_trajectory(
+            start_pos=start_pos,
+            direction=direction,
+            ricochet_mode=True,  # Riposte uses ricochet mode
+            max_range=max_range * 3,  # Allow balls to travel further with bounces
+            game=game,
+            max_bounces=2  # Allow 2 bounces per ball
+        )
 
         return trajectory
 
@@ -373,11 +348,9 @@ class Poach(ActiveSkill):
                 initial_hit_type = 'furniture'
                 break
 
-        # Check if trajectory ended early (hit wall or map edge)
-        if not initial_hit_pos and len(trajectory) > 0:
-            last_pos = trajectory[-1]
-
-            # Calculate direction from user to target to determine ball direction
+        # Check if trajectory ended early (hit wall or map edge) OR is empty (point-blank wall)
+        if not initial_hit_pos:
+            # Calculate direction from user to target
             dy = target_pos[0] - user.y
             dx = target_pos[1] - user.x
             # Normalize
@@ -386,9 +359,17 @@ class Poach(ActiveSkill):
             if dx != 0:
                 dx = dx // abs(dx)
 
-            # What would be the next position?
-            next_y = last_pos[0] + dy
-            next_x = last_pos[1] + dx
+            if len(trajectory) > 0:
+                # Ball traveled some distance
+                last_pos = trajectory[-1]
+                # What would be the next position after trajectory?
+                next_y = last_pos[0] + dy
+                next_x = last_pos[1] + dx
+            else:
+                # Trajectory is empty - targeting point-blank (adjacent tile)
+                last_pos = (user.y, user.x)
+                next_y = user.y + dy
+                next_x = user.x + dx
 
             # Check if next position is a wall
             if game.is_valid_position(next_y, next_x) and not game.map.is_passable(next_y, next_x):

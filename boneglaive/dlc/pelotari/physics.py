@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 def calculate_spread_shot_trajectories(start_pos: Tuple[int, int], cone_angle: int,
                                        ball_count: int, ricochet_mode: bool,
-                                       game: 'Game') -> List[List[Tuple[int, int]]]:
+                                       game: 'Game', max_bounces: int = 2) -> List[List[Tuple[int, int]]]:
     """
     Calculate trajectories for spread shot (Riposte passive).
 
@@ -26,6 +26,7 @@ def calculate_spread_shot_trajectories(start_pos: Tuple[int, int], cone_angle: i
         ball_count: Number of balls (6)
         ricochet_mode: True for ricochet, False for phase
         game: Game instance
+        max_bounces: Maximum bounces per ball (default 2)
 
     Returns:
         List of trajectories, each trajectory is list of (y, x) positions
@@ -47,7 +48,8 @@ def calculate_spread_shot_trajectories(start_pos: Tuple[int, int], cone_angle: i
             direction=direction,
             ricochet_mode=ricochet_mode,
             max_range=999,  # Unlimited range
-            game=game
+            game=game,
+            max_bounces=max_bounces
         )
         trajectories.append(trajectory)
 
@@ -153,7 +155,7 @@ def calculate_cannonball_trajectory(start_pos: Tuple[int, int], target_pos: Tupl
 
 def calculate_linear_trajectory(start_pos: Tuple[int, int], direction: Tuple[int, int],
                                 ricochet_mode: bool, max_range: int, game: 'Game',
-                                is_cannonball: bool = False) -> List[Tuple[int, int]]:
+                                is_cannonball: bool = False, max_bounces: int = 1) -> List[Tuple[int, int]]:
     """
     Calculate linear trajectory with optional ricochet.
 
@@ -164,6 +166,7 @@ def calculate_linear_trajectory(start_pos: Tuple[int, int], direction: Tuple[int
         max_range: Maximum range in tiles
         game: Game instance
         is_cannonball: Special handling for Cannonball skill
+        max_bounces: Maximum number of bounces allowed (default 1)
 
     Returns:
         List of (y, x) positions
@@ -171,7 +174,7 @@ def calculate_linear_trajectory(start_pos: Tuple[int, int], direction: Tuple[int
     trajectory = []
     current_pos = start_pos
     current_direction = direction
-    bounced = False  # Track if ball has bounced
+    bounce_count = 0  # Track number of bounces
 
     for step in range(max_range):
         # Move one step
@@ -179,7 +182,7 @@ def calculate_linear_trajectory(start_pos: Tuple[int, int], direction: Tuple[int
         next_x = current_pos[1] + current_direction[1]
         next_pos = (next_y, next_x)
 
-        logger.debug(f"Step {step}: at {current_pos}, dir {current_direction}, next {next_pos}, bounced={bounced}")
+        logger.debug(f"Step {step}: at {current_pos}, dir {current_direction}, next {next_pos}, bounces={bounce_count}/{max_bounces}")
 
         # Check bounds
         if not game.is_valid_position(next_y, next_x):
@@ -196,8 +199,8 @@ def calculate_linear_trajectory(start_pos: Tuple[int, int], direction: Tuple[int
 
         # Check terrain
         if not game.map.is_passable(next_y, next_x):
-            if ricochet_mode and not bounced:
-                # Ricochet mode: bounce once
+            if ricochet_mode and bounce_count < max_bounces:
+                # Ricochet mode: bounce if under limit
                 new_direction = calculate_bounce(
                     current_pos=current_pos,
                     incoming_direction=current_direction,
@@ -205,8 +208,8 @@ def calculate_linear_trajectory(start_pos: Tuple[int, int], direction: Tuple[int
                 )
                 if new_direction:
                     current_direction = new_direction
-                    bounced = True
-                    logger.debug(f"Ball at {current_pos} hit wall at {next_pos}, incoming: {current_direction}, new: {new_direction}")
+                    bounce_count += 1
+                    logger.debug(f"Ball at {current_pos} hit wall at {next_pos}, bounce {bounce_count}/{max_bounces}, new dir: {new_direction}")
                     continue
                 else:
                     # Can't bounce, stop
@@ -217,14 +220,14 @@ def calculate_linear_trajectory(start_pos: Tuple[int, int], direction: Tuple[int
                 current_pos = next_pos
                 continue
             else:
-                # Already bounced once, stop
+                # Already bounced max times, stop
                 break
 
         # Add position to trajectory
         trajectory.append(next_pos)
         current_pos = next_pos
 
-    logger.debug(f"Trajectory complete: {len(trajectory)} positions, bounced={bounced}")
+    logger.debug(f"Trajectory complete: {len(trajectory)} positions, {bounce_count} bounces")
     return trajectory
 
 
