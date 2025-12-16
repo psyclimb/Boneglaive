@@ -2,7 +2,7 @@
   "unit_name": "PELOTARI",
   "unit_id": "pelotari",
   "display_name": "PELOTARI",
-  "description": "Jai alai specialist with ricochet ball mechanics and frequency modulation technology",
+  "description": "Jai alai specialist with ricochet ball mechanics",
   "complexity": 5,
   "role": "Burst Damage / Disabler / Displacer",
 
@@ -56,39 +56,32 @@
         "range": "Self"
       },
       {
-        "name": "Cannonball",
+        "name": "Matador",
         "key": "3",
-        "description": "Massive ball nuke. 8 damage + displacement. Launches furniture 3-4 tiles.",
-        "cooldown": 6,
-        "range": "4 (base), 6 (with buff)"
+        "description": "The killing shot. 4 damage + knockback. Gains +1 ricochet per 15% enemy HP lost (max 8 bounces). Game-ending finisher.",
+        "cooldown": 7,
+        "range": "6"
       }
-    ],
-    "toggle": {
-      "name": "Ricochet / Phase Mode",
-      "key": "T",
-      "description": "Toggle frequency modulation. Ricochet: bounces off terrain. Phase: passes through terrain.",
-      "free_action": true
-    }
+    ]
   },
 
   "mechanics": {
     "ball_physics": {
-      "ricochet_mode": {
-        "bounces": 1,
-        "angle_of_incidence": true,
-        "terrain_interaction": true
-      },
-      "phase_mode": {
-        "passes_through_terrain": true,
-        "only_hits_units": true,
-        "bounces_map_edges": true
-      }
+      "bounces": "2-8 (scales with enemy HP loss)",
+      "angle_of_incidence": true,
+      "terrain_interaction": true
     },
     "spread_shot": {
       "cone_angle": 120,
       "ball_count": 6,
       "damage_per_ball": 4,
       "range": "unlimited"
+    },
+    "matador_scaling": {
+      "base_bounces": 2,
+      "max_bounces": 8,
+      "bounce_per_hp_percent": 15,
+      "description": "+1 bounce per 15% enemy team HP lost"
     }
   },
 

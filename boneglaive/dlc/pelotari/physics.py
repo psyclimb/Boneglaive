@@ -2,7 +2,7 @@
 """
 Ball physics system for PELOTARI.
 
-Handles ricochet trajectories, angle of incidence, phase mode, and spread shot patterns.
+Handles ricochet trajectories, angle of incidence, and spread shot patterns.
 """
 
 import math
@@ -186,16 +186,8 @@ def calculate_linear_trajectory(start_pos: Tuple[int, int], direction: Tuple[int
 
         # Check bounds
         if not game.is_valid_position(next_y, next_x):
-            # Hit map edge
-            if not ricochet_mode:
-                # Phase mode: bounce off edges
-                current_direction = calculate_bounce_off_edge(
-                    current_pos, current_direction, game
-                )
-                continue
-            else:
-                # Ricochet mode: stop at edge
-                break
+            # Hit map edge - stop
+            break
 
         # Check terrain
         if not game.map.is_passable(next_y, next_x):
@@ -214,11 +206,6 @@ def calculate_linear_trajectory(start_pos: Tuple[int, int], direction: Tuple[int
                 else:
                     # Can't bounce, stop
                     break
-            elif not ricochet_mode:
-                # Phase mode: pass through terrain
-                trajectory.append(next_pos)
-                current_pos = next_pos
-                continue
             else:
                 # Already bounced max times, stop
                 break
@@ -290,33 +277,6 @@ def calculate_surface_normal(impact_pos: Tuple[int, int], game: 'Game') -> Optio
     return None
 
 
-def calculate_bounce_off_edge(current_pos: Tuple[int, int], direction: Tuple[int, int],
-                              game: 'Game') -> Tuple[int, int]:
-    """
-    Calculate bounce off map edge (phase mode only).
-
-    Args:
-        current_pos: Current position
-        direction: Current direction
-        game: Game instance
-
-    Returns:
-        New direction after bouncing
-    """
-    next_y = current_pos[0] + direction[0]
-    next_x = current_pos[1] + direction[1]
-
-    new_dir = list(direction)
-
-    # Check which edge was hit
-    if next_y < 0 or next_y >= game.map.height:
-        # Hit top or bottom edge, flip vertical
-        new_dir[0] = -new_dir[0]
-    if next_x < 0 or next_x >= game.map.width:
-        # Hit left or right edge, flip horizontal
-        new_dir[1] = -new_dir[1]
-
-    return tuple(new_dir)
 
 
 def angle_to_direction(angle_degrees: float) -> Tuple[int, int]:

@@ -2,7 +2,7 @@
 """
 PELOTARI DLC Plugin
 
-The PELOTARI is a jai alai specialist with ricochet ball mechanics and frequency modulation.
+The PELOTARI is a jai alai specialist with ricochet ball mechanics.
 This is a 5-glaive complexity unit focused on burst damage, buff control, and displacement.
 """
 

@@ -64,14 +64,15 @@ UNIT_HELP_DATA = {
         },
         {
             'name': 'MATADOR (Active) [Key: 3]',
-            'description': 'Launches a devastating ball nuke in a straight line. Deals 8 damage and knocks targets back 3 tiles. Targets slammed into terrain take +2 damage. Furniture hit by the ball is launched 3 tiles, damaging units in its path for 4 damage. Ball ricochets up to 2 times off blocked targets or terrain.',
+            'description': 'The killing shot. Launches a devastating ball nuke in a straight line. Deals 4 damage and knocks targets back 3 tiles. Targets slammed into terrain take +2 damage. Gains additional ricochets based on enemy team HP loss: +1 bounce per 15% HP lost (max 8 bounces). The lower their HP, the more devastating this shot becomes. Furniture hit is launched 3 tiles.',
             'details': [
                 'Type: Active',
                 'Range: 6 (straight line only)',
-                'Damage: 8 base, +2 slam bonus, 4 per furniture collision',
+                'Damage: 4 base, +2 slam bonus, 4 per furniture collision',
                 'Displacement: 3 tiles knockback',
-                'Cooldown: 6 turns',
-                'Special: Always travels straight (ignores toggle mode); launches furniture; ricochets allow multi-target hits'
+                'Cooldown: 7 turns',
+                'Bounces: 2 base, up to 8 total (+1 per 15% enemy HP lost)',
+                'Special: Scales with enemy HP loss; always travels straight; launches furniture; game-ending finisher'
             ]
         }
     ],
@@ -79,7 +80,8 @@ UNIT_HELP_DATA = {
         '- Riposte provides +2 DEF but goes on cooldown after triggering—bait attacks when off cooldown',
         '- Poach requires the ball to ricochet before buff stealing works; angle shots off walls',
         '- Backhand nullifies the first enemy skill per turn—activate before enemy skill phase',
-        '- Matador punishes clumped enemies and can reposition furniture into better defensive positions',
+        '- Matador is a game-ending finisher: chip enemies down first, then unleash at 40-60% HP for 4-6 bounces',
+        '- At 10% enemy HP, Matador gains 8 bounces—enough to cross the map 2.4x and wipe the team',
         '- 0 base defense means Riposte uptime is critical for survival',
         '- Poaching an enemy PELOTARI with active Riposte triggers their diagonal counterattack'
     ],

@@ -1487,24 +1487,65 @@ class Backhand(ActiveSkill):
 class Matador(ActiveSkill):
     """
     Active skill for PELOTARI.
-    Massive ball nuke that deals 8 damage and displaces units/furniture.
-    The killer shot - finishing blow in jai alai.
+    The killing shot - finishing blow in jai alai.
+    Gains additional ricochets based on enemy team's HP loss.
     Always travels in a straight line to target, ignoring toggle mode.
-    Can ricochet up to 2 times if targets are pinned/blocked.
+    The lower the enemy team's HP, the more devastating this shot becomes.
     """
 
     def __init__(self):
         super().__init__(
             name="Matador",
             key="3",
-            description="Massive targeted ball. 8 damage + 3-tile knockback. Ricochets up to 2x off walls/pinned targets. +2 slam damage.",
+            description="The killing shot. 4 damage + 3-tile knockback + slam damage. Gains +1 ricochet per 15% enemy HP lost (max 8 bounces). Lower they are, deadlier it becomes.",
             target_type=TargetType.AREA,
-            cooldown=6,
+            cooldown=7,
             range_=6
         )
-        self.base_damage = 8
+        self.base_damage = 4
         self.slam_damage = 2
-        self.displacement_distance = 3  # Can be 3-4 tiles
+        self.displacement_distance = 3
+        self.base_bounces = 2
+        self.max_bounces = 8
+        self.hp_percent_per_bounce = 15  # 15% HP lost = +1 bounce
+
+    def _calculate_matador_bounces(self, user: 'Unit', game: 'Game') -> int:
+        """
+        Calculate number of bounces based on enemy team's HP loss.
+
+        Args:
+            user: PELOTARI unit
+            game: Game instance
+
+        Returns:
+            int: Number of bounces (2-8)
+        """
+        # Get all enemy units (exclude summons and echoes)
+        enemy_units = [
+            u for u in game.units
+            if u.player != user.player
+            and u.is_alive()
+            and not getattr(u, 'is_summon', False)
+            and not getattr(u, 'is_echo', False)
+        ]
+
+        if not enemy_units:
+            return self.base_bounces
+
+        # Calculate total max HP and current HP
+        total_max_hp = sum(u.max_hp for u in enemy_units)
+        total_current_hp = sum(u.hp for u in enemy_units)
+
+        # Calculate HP loss percentage
+        hp_lost_percent = ((total_max_hp - total_current_hp) / total_max_hp) * 100
+
+        # Calculate bonus bounces
+        bonus_bounces = int(hp_lost_percent // self.hp_percent_per_bounce)
+        total_bounces = min(self.base_bounces + bonus_bounces, self.max_bounces)
+
+        logger.debug(f"Matador bounces: Enemy HP {total_current_hp}/{total_max_hp} ({100-hp_lost_percent:.1f}%), {hp_lost_percent:.1f}% lost = {bonus_bounces} bonus bounces, {total_bounces} total")
+
+        return total_bounces
 
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None,
                 game: Optional['Game'] = None) -> bool:
@@ -1555,9 +1596,12 @@ class Matador(ActiveSkill):
         return True
 
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
-        """Execute Matador nuke."""
+        """Execute Matador nuke with dynamic bounce calculation."""
+        # Calculate max bounces based on enemy HP
+        max_bounces = self._calculate_matador_bounces(user, game)
+
         message_log.add_message(
-            f"{user.get_display_name()} unleashes a thundering Matador.",
+            f"{user.get_display_name()} unleashes a thundering Matador ({max_bounces} bounces).",
             MessageType.ABILITY,
             player=user.player
         )
@@ -1582,7 +1626,6 @@ class Matador(ActiveSkill):
         # We'll animate as we go, stopping animation at collision points
         ball_active = True
         bounce_count = 0
-        max_bounces = 2  # Ball can ricochet up to 2 times
         current_trajectory = trajectory
 
         while ball_active and current_trajectory:
