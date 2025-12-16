@@ -34,7 +34,7 @@ class SetupUnitHelp:
         self.content_surface = None
         self.has_focus = False
 
-        # Unit display names
+        # Unit display names - base units
         self.unit_names = {
             UnitType.GLAIVEMAN: "GLAIVEMAN",
             UnitType.MANDIBLE_FOREMAN: "MANDIBLE FOREMAN",
@@ -46,9 +46,15 @@ class SetupUnitHelp:
             UnitType.INTERFERER: "INTERFERER",
             UnitType.DERELICTIONIST: "DERELICTIONIST",
             UnitType.POTPOURRIST: "POTPOURRIST",
-            "LANDSCAPER": "LANDSCAPER",
-            "AETHERIC_CURLER": "AETHERIC CURLER"
         }
+
+        # Add DLC unit display names dynamically
+        from boneglaive.game.dlc_manager import get_dlc_manager
+        dlc_manager = get_dlc_manager()
+        for unit_id in dlc_manager.get_loaded_units():
+            unit_enum = dlc_manager.loaded_units[unit_id]['enum_value']
+            unit_config = dlc_manager.loaded_units[unit_id]['registration']['config']
+            self.unit_names[unit_enum] = unit_config.get('display_name', unit_config['unit_name'])
 
         # Sprite cache
         self.sprite_cache = {}
@@ -65,8 +71,25 @@ class SetupUnitHelp:
         # Toggle between simplified and advanced view
         self.show_advanced = False
 
+    def _get_unit_name(self, unit_type):
+        """
+        Get display name for a unit type.
+        Handles base units (UnitType enum), DLC units (int >= 100), and strings.
+        """
+        if isinstance(unit_type, str):
+            return unit_type
+        elif isinstance(unit_type, int):
+            # DLC unit or integer enum value
+            return self.unit_names.get(unit_type, f"Unit-{unit_type}")
+        else:
+            # UnitType enum
+            try:
+                return unit_type.name
+            except AttributeError:
+                return str(unit_type)
+
     def _load_unit_help_data(self):
-        """Load unit help data - reuses data from ASCII help component."""
+        """Load unit help data - reuses data from ASCII help component and adds DLC help data."""
         from boneglaive.ui.ui_components import UnitHelpComponent
 
         # Create a dummy component just to get the help data
@@ -76,11 +99,22 @@ class SetupUnitHelp:
             pass
 
         dummy_component = UnitHelpComponent(DummyRenderer(), DummyUI())
-        return dummy_component.unit_help_data
+        help_data = dummy_component.unit_help_data.copy()
+
+        # Add DLC unit help data
+        from boneglaive.game.dlc_manager import get_dlc_manager
+        dlc_manager = get_dlc_manager()
+        for unit_id in dlc_manager.get_loaded_units():
+            unit_enum = dlc_manager.loaded_units[unit_id]['enum_value']
+            dlc_help_data = dlc_manager.get_unit_help_data(unit_id)
+            if dlc_help_data:
+                help_data[unit_enum] = dlc_help_data
+
+        return help_data
 
     def _load_simplified_info(self):
         """Load simplified unit info for setup phase - brief descriptions only."""
-        return {
+        simplified_info = {
             UnitType.GLAIVEMAN: {
                 'difficulty': 2,  # Out of 5
                 'role': 'Frontline Fighter / Displacer',
@@ -359,6 +393,35 @@ class SetupUnitHelp:
             }
         }
 
+        # Add DLC units to simplified info (convert from full help data format)
+        from boneglaive.game.dlc_manager import get_dlc_manager
+        dlc_manager = get_dlc_manager()
+        for unit_id in dlc_manager.get_loaded_units():
+            unit_enum = dlc_manager.loaded_units[unit_id]['enum_value']
+            unit_config = dlc_manager.loaded_units[unit_id]['registration']['config']
+            dlc_help_data = dlc_manager.get_unit_help_data(unit_id)
+
+            if dlc_help_data:
+                # Convert full help data to simplified format
+                simplified_info[unit_enum] = {
+                    'difficulty': unit_config.get('complexity', 3),
+                    'role': unit_config.get('role', 'Unknown'),
+                    'overview': dlc_help_data.get('overview', ['No description available.'])[0] if dlc_help_data.get('overview') else 'No description available.',
+                    'passive': {
+                        'name': dlc_help_data['skills'][0]['name'] if dlc_help_data.get('skills') else 'Unknown',
+                        'desc': dlc_help_data['skills'][0]['description'] if dlc_help_data.get('skills') else 'No description.'
+                    },
+                    'skills': [
+                        {
+                            'name': skill['name'],
+                            'desc': skill['description']
+                        }
+                        for skill in dlc_help_data.get('skills', [])[1:]  # Skip first (passive)
+                    ]
+                }
+
+        return simplified_info
+
     def update(self, unit_type: Optional[UnitType]):
         """Update the displayed unit type."""
         if unit_type != self.unit_type:
@@ -428,7 +491,29 @@ class SetupUnitHelp:
             self.sprite_cache[cache_key] = None
             return None
 
-        sprite_name = unit_type.name.lower()
+        # Determine sprite name - handle both base units and DLC units
+        if isinstance(unit_type, int) and unit_type >= 100:
+            # DLC unit - get name from DLC manager
+            from boneglaive.game.dlc_manager import get_dlc_manager
+            dlc_manager = get_dlc_manager()
+            sprite_name = None
+            for unit_id, unit_data in dlc_manager.loaded_units.items():
+                if unit_data['enum_value'] == unit_type:
+                    sprite_name = unit_id  # unit_id is already lowercase
+                    break
+            if not sprite_name:
+                print(f"[SetupUnitHelp] Could not find DLC unit with enum value {unit_type}")
+                self.sprite_cache[cache_key] = None
+                return None
+        else:
+            # Base unit - use enum name
+            try:
+                sprite_name = unit_type.name.lower()
+            except AttributeError:
+                print(f"[SetupUnitHelp] Invalid unit_type: {unit_type}")
+                self.sprite_cache[cache_key] = None
+                return None
+
         sprite_path = f"graphics/units/{sprite_name}.svg"
 
         try:
@@ -440,7 +525,7 @@ class SetupUnitHelp:
             self.sprite_cache[cache_key] = sprite
             return sprite
         except Exception as e:
-            print(f"[SetupUnitHelp] Could not load sprite for {unit_type.name}: {e}")
+            print(f"[SetupUnitHelp] Could not load sprite for {sprite_name}: {e}")
             self.sprite_cache[cache_key] = None
             return None
 
@@ -599,7 +684,7 @@ class SetupUnitHelp:
         current_y += 165
 
         # Draw unit name
-        unit_name = self.unit_names.get(self.unit_type, self.unit_type if isinstance(self.unit_type, str) else self.unit_type.name)
+        unit_name = self.unit_names.get(self.unit_type, self._get_unit_name(self.unit_type))
         name_color = (180, 140, 200) if isinstance(self.unit_type, str) else COLOR_GOLD
         title_text = self.font.render(unit_name, True, name_color)
         title_rect = title_text.get_rect(center=(width // 2, current_y))
@@ -869,14 +954,16 @@ class SetupUnitHelp:
             if self.show_advanced:
                 # Check if full help data exists
                 if self.unit_type not in self.unit_help_data:
-                    error_text = self.small_font.render(f"No help data for {self.unit_type if isinstance(self.unit_type, str) else self.unit_type.name}", True, (255, 100, 100))
+                    unit_name = self._get_unit_name(self.unit_type)
+                    error_text = self.small_font.render(f"No help data for {unit_name}", True, (255, 100, 100))
                     screen.blit(error_text, (x + 15, y + 15))
                     return panel_rect
                 self.content_surface = self._render_content(width)
             else:
                 # Check if simplified data exists
                 if self.unit_type not in self.simplified_info:
-                    error_text = self.small_font.render(f"No info for {self.unit_type if isinstance(self.unit_type, str) else self.unit_type.name}", True, (255, 100, 100))
+                    unit_name = self._get_unit_name(self.unit_type)
+                    error_text = self.small_font.render(f"No info for {unit_name}", True, (255, 100, 100))
                     screen.blit(error_text, (x + 15, y + 15))
                     return panel_rect
                 self.content_surface = self._render_simplified_content(width)

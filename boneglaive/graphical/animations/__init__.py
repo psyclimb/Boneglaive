@@ -103,6 +103,10 @@ from .gas_machinist import (
     VaporAOETickAnimation,
 )
 
+from .pelotari import (
+    MatadorAnimation,
+)
+
 from .animation_factory import AnimationFactory
 
 __all__ = [
@@ -184,6 +188,8 @@ __all__ = [
     'VaporSpawnAnimation',
     'DivergeAnimation',
     'VaporAOETickAnimation',
+    # Pelotari (DLC)
+    'MatadorAnimation',
     # Factory
     'AnimationFactory',
 ]

@@ -103,8 +103,29 @@ class RespawnWindow:
             return self.sprite_cache[unit_type]
 
         # Convert unit type to filename
-        # Format: UnitType.GAS_MACHINIST -> "gas_machinist.svg"
-        sprite_name = unit_type.name.lower()
+        # Handle both base units (UnitType enum) and DLC units (integers >= 100)
+        if isinstance(unit_type, int) and unit_type >= 100:
+            # DLC unit - get name from DLC manager
+            from boneglaive.game.dlc_manager import get_dlc_manager
+            dlc_manager = get_dlc_manager()
+            sprite_name = None
+            for unit_id, unit_data in dlc_manager.loaded_units.items():
+                if unit_data['enum_value'] == unit_type:
+                    sprite_name = unit_id  # unit_id is already lowercase
+                    break
+            if not sprite_name:
+                print(f"[RespawnWindow] Could not find DLC unit with enum value {unit_type}")
+                self.sprite_cache[unit_type] = None
+                return None
+        else:
+            # Base unit - use enum name
+            try:
+                sprite_name = unit_type.name.lower()
+            except AttributeError:
+                print(f"[RespawnWindow] Invalid unit_type: {unit_type}")
+                self.sprite_cache[unit_type] = None
+                return None
+
         sprite_path = f"graphics/units/{sprite_name}.svg"
 
         try:
@@ -123,7 +144,7 @@ class RespawnWindow:
             return sprite
 
         except Exception as e:
-            print(f"[RespawnWindow] Could not load sprite for {unit_type.name}: {e}")
+            print(f"[RespawnWindow] Could not load sprite for {sprite_name}: {e}")
             # Cache None to avoid repeated attempts
             self.sprite_cache[unit_type] = None
             return None

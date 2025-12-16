@@ -88,7 +88,13 @@ class UnitInfoPanel:
         current_y = y + PANEL_PADDING
 
         # Draw unit name (large)
-        unit_name = self.game_unit.type.name.replace('_', ' ')
+        # Handle both base units (with .name) and DLC units (integers)
+        if hasattr(self.game_unit.type, 'name'):
+            unit_name = self.game_unit.type.name.replace('_', ' ')
+        else:
+            # DLC unit - use display name from unit class
+            from boneglaive.utils.constants import UNIT_DISPLAY_NAMES
+            unit_name = UNIT_DISPLAY_NAMES.get(self.game_unit.type, f"Unit-{self.game_unit.type}")
         name_text = self.large_font.render(unit_name, True, COLOR_TEXT)
         surface.blit(name_text, (x + PANEL_PADDING, current_y))
         current_y += 32

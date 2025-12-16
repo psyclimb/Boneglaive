@@ -45,7 +45,7 @@ class SetupWindow:
         self.small_font = small_font
         self.visible = False
 
-        # Unit types in order
+        # Build unit types list: base units + DLC units
         self.unit_types = [
             UnitType.GLAIVEMAN,
             UnitType.MANDIBLE_FOREMAN,
@@ -57,11 +57,17 @@ class SetupWindow:
             UnitType.INTERFERER,
             UnitType.DERELICTIONIST,
             UnitType.POTPOURRIST,
-            "LANDSCAPER",  # Placeholder 11th unit
-            "PELOTARI"  # Placeholder 12th unit
         ]
 
-        # Unit display names
+        # Add DLC units dynamically
+        from boneglaive.game.dlc_manager import get_dlc_manager
+        dlc_manager = get_dlc_manager()
+        for unit_id in dlc_manager.get_loaded_units():
+            # Get enum value for DLC unit
+            unit_enum = dlc_manager.loaded_units[unit_id]['enum_value']
+            self.unit_types.append(unit_enum)
+
+        # Unit display names - base units
         self.unit_names = {
             UnitType.GLAIVEMAN: "GLAIVEMAN",
             UnitType.MANDIBLE_FOREMAN: "MANDIBLE FOREMAN",
@@ -73,9 +79,13 @@ class SetupWindow:
             UnitType.INTERFERER: "INTERFERER",
             UnitType.DERELICTIONIST: "DERELICTIONIST",
             UnitType.POTPOURRIST: "POTPOURRIST",
-            "LANDSCAPER": "LANDSCAPER",  # Placeholder
-            "PELOTARI": "PELOTARI"  # Placeholder
         }
+
+        # Add DLC unit display names dynamically
+        for unit_id in dlc_manager.get_loaded_units():
+            unit_enum = dlc_manager.loaded_units[unit_id]['enum_value']
+            unit_config = dlc_manager.loaded_units[unit_id]['registration']['config']
+            self.unit_names[unit_enum] = unit_config.get('display_name', unit_config['unit_name'])
 
         # State
         self.selected_index = 0
@@ -149,9 +159,8 @@ class SetupWindow:
 
     def is_unit_type_maxed(self, unit_type) -> bool:
         """Check if a unit type has reached the max limit (2)."""
-        # Placeholder units can be viewed but not selected
-        if isinstance(unit_type, str):
-            return False  # Allow viewing the help page
+        # All valid unit types (base and DLC) are now integers
+        # Check if placed count >= 2
         return self.unit_counts.get(unit_type, 0) >= 2
 
     def _load_unit_sprite(self, unit_type):
@@ -159,7 +168,7 @@ class SetupWindow:
         Load unit sprite from SVG file.
 
         Args:
-            unit_type: UnitType enum value or string (for placeholder units)
+            unit_type: UnitType enum value (including DLC units with value >= 100)
 
         Returns:
             pygame.Surface or None if sprite cannot be loaded
@@ -168,13 +177,32 @@ class SetupWindow:
         if unit_type in self.sprite_cache:
             return self.sprite_cache[unit_type]
 
-        # Skip loading for placeholder units (strings)
-        if isinstance(unit_type, str):
-            self.sprite_cache[unit_type] = None
-            return None
+        # Determine sprite name
+        # For DLC units (enum value >= 100), get name from DLC manager
+        if isinstance(unit_type, int) and unit_type >= 100:
+            from boneglaive.game.dlc_manager import get_dlc_manager
+            dlc_manager = get_dlc_manager()
 
-        # Convert unit type to filename
-        sprite_name = unit_type.name.lower()
+            # Find the DLC unit by enum value
+            sprite_name = None
+            for unit_id, unit_data in dlc_manager.loaded_units.items():
+                if unit_data['enum_value'] == unit_type:
+                    sprite_name = unit_id  # unit_id is already lowercase (e.g., "pelotari")
+                    break
+
+            if not sprite_name:
+                print(f"[SetupWindow] Could not find DLC unit with enum value {unit_type}")
+                self.sprite_cache[unit_type] = None
+                return None
+        else:
+            # Base game unit - use enum name
+            try:
+                sprite_name = unit_type.name.lower()
+            except AttributeError:
+                print(f"[SetupWindow] Invalid unit_type: {unit_type}")
+                self.sprite_cache[unit_type] = None
+                return None
+
         sprite_path = f"graphics/units/{sprite_name}.svg"
 
         try:
@@ -193,7 +221,7 @@ class SetupWindow:
             return sprite
 
         except Exception as e:
-            print(f"[SetupWindow] Could not load sprite for {unit_type.name}: {e}")
+            print(f"[SetupWindow] Could not load sprite for {sprite_name}: {e}")
             # Cache None to avoid repeated attempts
             self.sprite_cache[unit_type] = None
             return None
@@ -256,16 +284,14 @@ class SetupWindow:
         for i, rect in enumerate(self.item_rects):
             if rect.collidepoint(mouse_pos):
                 unit_type = self.unit_types[i]
-                # Check if this is a placeholder unit
-                is_placeholder = isinstance(unit_type, str)
 
                 # Don't allow selecting maxed units
                 if not self.is_unit_type_maxed(unit_type):
-                    # If clicking already selected unit, start placement immediately (but not for placeholders)
-                    if self.selected_index == i and not is_placeholder:
+                    # If clicking already selected unit, start placement immediately
+                    if self.selected_index == i:
                         return (True, False, unit_type)
                     else:
-                        # Just select the unit (allows viewing help for placeholders)
+                        # Just select the unit
                         self.selected_index = i
                         return (True, False, None)
 

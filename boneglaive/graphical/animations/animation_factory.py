@@ -67,6 +67,9 @@ from boneglaive.graphical.animations.gas_machinist import (
     DivergeAnimation,
     VaporAOETickAnimation,
 )
+from boneglaive.graphical.animations.pelotari import (
+    MatadorAnimation,
+)
 
 if TYPE_CHECKING:
     from boneglaive.game.units import Unit
@@ -156,6 +159,9 @@ class AnimationFactory:
         "VAGAL_RUN": (VagalRunAnimation, {}),
         "VAGAL_RUN_ABREACTION": (VagalRunAbreactionAnimation, {}),  # Delayed effect (no connection arc)
         "PARTITION": (PartitionAnimation, {}),
+
+        # PELOTARI skills (DLC)
+        "MATADOR": (MatadorAnimation, {}),
     }
 
     @classmethod
@@ -938,6 +944,18 @@ class AnimationFactory:
                     units_list=units_list if units_list else [],
                     camera=camera,
                     game=kwargs.get('game')  # Required for finding nearby furniture
+                )
+            elif anim_class.__name__ == "MatadorAnimation":
+                # Matador - MASSIVE pelota projectile with wind-up and impacts
+                # Requires: caster_unit, target_pos, camera, particle_emitter
+                if not target_pos:
+                    print("[AnimationFactory] MATADOR requires a target position")
+                    return None
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_pos=target_pos,
+                    camera=camera,
+                    particle_emitter=particle_emitter
                 )
             else:
                 # Most animations expect just target coordinates
