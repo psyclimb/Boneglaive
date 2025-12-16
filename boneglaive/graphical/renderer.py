@@ -82,7 +82,8 @@ PRE_EXECUTION_BLOCKING_SKILLS = [
     "Gaussian Dusk Fire", "GAUSSIAN_DUSK_FIRE",
     "Pry", "PRY",
     "Judgement", "JUDGEMENT",
-    "Autoclave", "AUTOCLAVE"
+    "Autoclave", "AUTOCLAVE",
+    "Matador", "MATADOR"
 ]
 
 
@@ -2032,7 +2033,11 @@ class GraphicalRenderer:
         print(f"  [DEBUG] Checking for INTERFERER: attacker={attacker}, has type={hasattr(attacker, 'type') if attacker else False}")
         if attacker and hasattr(attacker, 'type') and attacker.type:
             from boneglaive.utils.constants import UnitType
-            unit_type_name = attacker.type.name if attacker.type else "None"
+            # Handle DLC units (integer enum values)
+            if hasattr(attacker.type, 'name'):
+                unit_type_name = attacker.type.name
+            else:
+                unit_type_name = str(attacker.type)
             print(f"  [DEBUG] Attacker unit type: {unit_type_name}")
             if attacker.type == UnitType.INTERFERER and attack_target:
                 print(f"  [Renderer] *** INTERFERER ATTACK DETECTED ***")
