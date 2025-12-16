@@ -1631,6 +1631,7 @@ class Matador(ActiveSkill):
         ball_active = True
         bounce_count = 0
         current_trajectory = trajectory
+        units_hit_this_bounce = set()  # Track units hit in current trajectory segment
 
         while ball_active and current_trajectory:
             # Animate only up to the collision point
@@ -1642,29 +1643,37 @@ class Matador(ActiveSkill):
                 # Check for unit hit (enemy units only)
                 target = game.get_unit_at(pos[0], pos[1])
                 if target and target.is_alive() and target.player != user.player:
-                    # Try to displace unit - if blocked, ricochet
-                    if self._hit_unit(target, user, game, current_trajectory, i, ui, bounce_count > 0):
-                        ball_active = False
-                        break
-                    else:
-                        # Unit blocked - ricochet if haven't exceeded max bounces
-                        if bounce_count < max_bounces:
-                            bounce_count += 1
-                            ricochet_trajectory = self._calculate_ricochet(pos, user, game)
-                            if ricochet_trajectory:
-                                # Animate ricochet sparks
-                                if ui and hasattr(ui, 'renderer'):
-                                    ricochet_frames = ['/', '\\', '|']
-                                    for frame in ricochet_frames:
-                                        ui.renderer.draw_tile(pos[0], pos[1], frame, 6)
-                                        ui.renderer.refresh()
-                                        sleep_with_animation_speed(0.1)
+                    # Check if we've already hit this unit in this trajectory segment
+                    unit_id = id(target)
 
-                                # Continue with ricochet trajectory (animation happens at loop start)
-                                current_trajectory = ricochet_trajectory
-                                break
-                        ball_active = False
-                        break
+                    # Always deal damage when ball passes through unit position
+                    if unit_id not in units_hit_this_bounce:
+                        # Try to displace unit - if blocked, ricochet
+                        units_hit_this_bounce.add(unit_id)
+                        if self._hit_unit(target, user, game, current_trajectory, i, ui, bounce_count > 0):
+                            ball_active = False
+                            break
+                        else:
+                            # Unit blocked - ricochet if haven't exceeded max bounces
+                            if bounce_count < max_bounces:
+                                bounce_count += 1
+                                ricochet_trajectory = self._calculate_ricochet(pos, user, game)
+                                if ricochet_trajectory:
+                                    # Animate ricochet sparks
+                                    if ui and hasattr(ui, 'renderer'):
+                                        ricochet_frames = ['/', '\\', '|']
+                                        for frame in ricochet_frames:
+                                            ui.renderer.draw_tile(pos[0], pos[1], frame, 6)
+                                            ui.renderer.refresh()
+                                            sleep_with_animation_speed(0.1)
+
+                                    # Clear hit tracking for new trajectory segment
+                                    units_hit_this_bounce.clear()
+                                    # Continue with ricochet trajectory (animation happens at loop start)
+                                    current_trajectory = ricochet_trajectory
+                                    break
+                            ball_active = False
+                            break
 
                 # Check for furniture hit
                 if game.map.is_furniture(pos[0], pos[1]):
@@ -1686,6 +1695,8 @@ class Matador(ActiveSkill):
                                         ui.renderer.refresh()
                                         sleep_with_animation_speed(0.1)
 
+                                # Clear hit tracking for new trajectory segment
+                                units_hit_this_bounce.clear()
                                 # Continue with ricochet trajectory (animation happens at loop start)
                                 current_trajectory = ricochet_trajectory
                                 break
@@ -1708,6 +1719,8 @@ class Matador(ActiveSkill):
                                     ui.renderer.refresh()
                                     sleep_with_animation_speed(0.1)
 
+                            # Clear hit tracking for new trajectory segment
+                            units_hit_this_bounce.clear()
                             # Continue with ricochet trajectory (animation happens at loop start)
                             current_trajectory = ricochet_trajectory
                             break
@@ -1728,6 +1741,8 @@ class Matador(ActiveSkill):
                                 ui.renderer.refresh()
                                 sleep_with_animation_speed(0.1)
 
+                        # Clear hit tracking for new trajectory segment
+                        units_hit_this_bounce.clear()
                         # Continue with ricochet trajectory (animation happens at loop start)
                         current_trajectory = ricochet_trajectory
                     else:
@@ -1846,7 +1861,7 @@ class Matador(ActiveSkill):
         # Build trajectory in reflection direction
         trajectory = []
         current_pos = last_pos
-        max_range = 6  # Ricochet travels up to 6 tiles
+        max_range = 50  # Ricochet travels until it hits something or map edge
 
         for step in range(max_range):
             next_y = current_pos[0] + reflection[0]
@@ -1854,6 +1869,11 @@ class Matador(ActiveSkill):
 
             # Check bounds
             if not game.is_valid_position(next_y, next_x):
+                break
+
+            # Stop at impassable terrain (but include the position in trajectory for wall detection)
+            if not game.map.is_passable(next_y, next_x):
+                trajectory.append((next_y, next_x))
                 break
 
             trajectory.append((next_y, next_x))
@@ -1915,7 +1935,7 @@ class Matador(ActiveSkill):
         # Build trajectory in reflection direction
         trajectory = []
         current_pos = impact_pos
-        max_range = 6  # Ricochet travels up to 6 tiles
+        max_range = 50  # Ricochet travels until it hits something or map edge
 
         for step in range(max_range):
             next_y = current_pos[0] + reflection[0]
@@ -1925,8 +1945,9 @@ class Matador(ActiveSkill):
             if not game.is_valid_position(next_y, next_x):
                 break
 
-            # Stop at impassable terrain
+            # Stop at impassable terrain (but include the position in trajectory for wall detection)
             if not game.map.is_passable(next_y, next_x):
+                trajectory.append((next_y, next_x))
                 break
 
             trajectory.append((next_y, next_x))
