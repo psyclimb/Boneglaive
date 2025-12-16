@@ -1520,21 +1520,25 @@ class Matador(ActiveSkill):
         Returns:
             int: Number of bounces (2-8)
         """
-        # Get all enemy units (exclude summons and echoes)
-        enemy_units = [
+        # Get all enemy units including dead (exclude summons and echoes)
+        # Dead units count as maximum HP loss
+        all_enemy_units = [
             u for u in game.units
             if u.player != user.player
-            and u.is_alive()
             and not getattr(u, 'is_summon', False)
             and not getattr(u, 'is_echo', False)
         ]
 
-        if not enemy_units:
+        if not all_enemy_units:
             return self.base_bounces
 
-        # Calculate total max HP and current HP
-        total_max_hp = sum(u.max_hp for u in enemy_units)
-        total_current_hp = sum(u.hp for u in enemy_units)
+        # Get alive enemies for current HP calculation
+        alive_enemy_units = [u for u in all_enemy_units if u.is_alive()]
+
+        # Calculate total max HP from ALL enemies (including dead)
+        # Calculate current HP only from alive enemies (dead = 0 HP)
+        total_max_hp = sum(u.max_hp for u in all_enemy_units)
+        total_current_hp = sum(u.hp for u in alive_enemy_units)
 
         # Calculate HP loss percentage
         hp_lost_percent = ((total_max_hp - total_current_hp) / total_max_hp) * 100

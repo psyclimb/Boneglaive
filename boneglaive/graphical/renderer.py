@@ -464,14 +464,50 @@ class GraphicalRenderer:
         Get the sprite path for a unit type.
 
         Args:
-            unit_type: UnitType enum
+            unit_type: UnitType enum (int for DLC units)
 
         Returns:
-            Path to sprite file
+            Path to sprite file (absolute path)
         """
-        # Map unit types to sprite filenames
-        unit_type_name = str(unit_type).split('.')[-1].lower()
+        import os
+        from pathlib import Path
+
+        # Check if this is a DLC unit (enum value >= 100)
+        unit_type_value = unit_type if isinstance(unit_type, int) else getattr(unit_type, 'value', unit_type)
+
+        if isinstance(unit_type_value, int) and unit_type_value >= 100:
+            # DLC unit - get unit_id from DLC manager
+            from boneglaive.game.dlc_manager import get_dlc_manager
+            dlc_manager = get_dlc_manager()
+            unit_id = dlc_manager.get_unit_id_from_enum(unit_type_value)
+
+            if unit_id:
+                unit_type_name = unit_id.lower()
+            else:
+                # Fallback if not found
+                unit_type_name = str(unit_type_value)
+        else:
+            # Base game unit - extract name from enum
+            unit_type_name = str(unit_type).split('.')[-1].lower()
+
+        # Try relative path first (from working directory)
         sprite_path = f"graphics/units/{unit_type_name}.svg"
+        if os.path.exists(sprite_path):
+            return os.path.abspath(sprite_path)
+
+        # Try path relative to this file's location
+        renderer_dir = Path(__file__).parent.parent  # Go up to boneglaive/
+        absolute_path = renderer_dir / "graphics" / "units" / f"{unit_type_name}.svg"
+        if absolute_path.exists():
+            return str(absolute_path)
+
+        # Try one more level up (project root)
+        project_root = renderer_dir.parent
+        absolute_path = project_root / "graphics" / "units" / f"{unit_type_name}.svg"
+        if absolute_path.exists():
+            return str(absolute_path)
+
+        # Return relative path as fallback (will fail sprite load but won't crash)
         return sprite_path
 
     def _create_animated_unit_from_game(self, game_unit) -> AnimatedUnit:
@@ -2300,6 +2336,9 @@ class GraphicalRenderer:
         if is_infused:
             print(f"  [Animation] INFUSED skill detected - using enhanced visuals!")
 
+        # Get Matador bounce count if this is a Matador skill
+        bounce_count = event.kwargs.get("bounce_count", 2)  # Default to 2 if not specified
+
         # Create animation via factory
         print(f"  [Renderer] Creating animation for {skill_name}...")
         animation = AnimationFactory.create_animation(
@@ -2315,7 +2354,8 @@ class GraphicalRenderer:
             screen_flash_callback=self.trigger_screen_flash,
             units_list=self.units,
             camera=self.camera,
-            game=self.game_adapter.game  # Pass game for furniture detection
+            game=self.game_adapter.game,  # Pass game for furniture detection & ricochet physics
+            bounce_count=bounce_count  # Pass bounce count for Matador animation
         )
         if animation:
             self.active_animations.append(animation)
@@ -2711,8 +2751,10 @@ class GraphicalRenderer:
                 ghost_surf.fill((255, 100, 100, 80))  # Red tint for invalid
 
             # Draw unit type name
+            # Get display name (handles both enums and integers)
+            unit_display_name = self.setup_window.unit_names.get(self.selected_unit_type, str(self.selected_unit_type))
             text = self.small_font.render(
-                self.selected_unit_type.name[:3],  # First 3 letters
+                unit_display_name[:3],  # First 3 letters
                 True, (255, 255, 255)
             )
             text_rect = text.get_rect(center=(TILE_SIZE // 2, TILE_SIZE // 2))
@@ -3364,9 +3406,12 @@ class GraphicalRenderer:
         if not selected_type:
             return
 
+        # Get display name for unit type (handles both enums and integers)
+        unit_display_name = self.setup_window.unit_names.get(selected_type, str(selected_type))
+
         # Check if this type is already maxed out (2 of same type limit)
         if self.setup_window.is_unit_type_maxed(selected_type):
-            self.combat_log.add_message(f"Cannot place more than 2 {selected_type.name} units", "system")
+            self.combat_log.add_message(f"Cannot place more than 2 {unit_display_name} units", "system")
             return
 
         # Set selected type and enter placement mode
@@ -3390,7 +3435,7 @@ class GraphicalRenderer:
         self.setup_window.hide()
 
         self.combat_log.add_message(
-            f"Place {selected_type.name} unit on the map (ESC to go back)",
+            f"Place {unit_display_name} unit on the map (ESC to go back)",
             "system"
         )
 
@@ -3424,8 +3469,10 @@ class GraphicalRenderer:
             current_player = self.game_adapter.game.setup_player
             units_remaining = self.game_adapter.game.setup_units_remaining[current_player]
 
+            # Get display name (handles both enums and integers)
+            unit_display_name = self.setup_window.unit_names.get(self.selected_unit_type, str(self.selected_unit_type))
             self.combat_log.add_message(
-                f"{self.selected_unit_type.name} placed! {units_remaining} remaining",
+                f"{unit_display_name} placed! {units_remaining} remaining",
                 "system"
             )
 
@@ -3438,7 +3485,9 @@ class GraphicalRenderer:
                 self.return_to_unit_selection()
 
         elif result == "max_unit_type_limit":
-            self.combat_log.add_message(f"Cannot place more than 2 {self.selected_unit_type.name} units", "system")
+            # Get display name (handles both enums and integers)
+            unit_display_name = self.setup_window.unit_names.get(self.selected_unit_type, str(self.selected_unit_type))
+            self.combat_log.add_message(f"Cannot place more than 2 {unit_display_name} units", "system")
         elif result == "position_occupied":
             self.combat_log.add_message("Position occupied by your unit", "system")
         else:

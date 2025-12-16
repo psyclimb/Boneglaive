@@ -160,7 +160,7 @@ class MatadorAnimation:
     Game-ending finisher with MASSIVE pelota projectile.
     """
 
-    def __init__(self, caster_unit, target_pos, camera, particle_emitter):
+    def __init__(self, caster_unit, target_pos, camera, particle_emitter, game=None, bounce_count=2):
         """
         Initialize Matador animation.
 
@@ -169,15 +169,25 @@ class MatadorAnimation:
             target_pos: (grid_y, grid_x) target position
             camera: Camera instance
             particle_emitter: ParticleEmitter for effects
+            game: Game instance (needed for ricochet physics/wall detection)
+            bounce_count: Number of bounces (dynamically calculated by skill, default 2)
         """
         self.camera = camera
         self.particle_emitter = particle_emitter
+        self.game = game
+        self.caster_unit = caster_unit
 
-        # Calculate trajectory from caster to target (simple straight line)
+        # Calculate trajectory from caster to target WITH ricochets
         self.caster_pos = (caster_unit.grid_y, caster_unit.grid_x) if caster_unit else (0, 0)
         self.target_pos = target_pos if target_pos else self.caster_pos
-        self.trajectory = self._calculate_trajectory()
-        self.bounce_count = 2  # Default bounce count (can't easily get dynamic count)
+
+        # Calculate bounce count dynamically based on enemy HP (matches Matador skill logic)
+        if self.game and bounce_count == 2:  # If default value, calculate dynamically
+            self.bounce_count = self._calculate_dynamic_bounce_count()
+        else:
+            self.bounce_count = bounce_count
+
+        self.trajectory = self._calculate_multi_bounce_trajectory()
 
         # Convert positions to world coordinates
         caster_world_x = self.caster_pos[1] * TILE_SIZE + TILE_SIZE // 2
@@ -206,6 +216,10 @@ class MatadorAnimation:
                 first_target[1] * TILE_SIZE + TILE_SIZE // 2,
                 first_target[0] * TILE_SIZE + TILE_SIZE // 2
             )
+        else:
+            # Empty trajectory - complete immediately after launch
+            self.trajectory = []  # Ensure empty
+            self.current_segment_end = (caster_world_x, caster_world_y)
 
         # Colors (define BEFORE creating particles)
         self.color_royal_blue = (42, 90, 154)
@@ -220,8 +234,108 @@ class MatadorAnimation:
         # Impact effects
         self.impact_effects = []  # List of (world_x, world_y, timer, type)
 
-    def _calculate_trajectory(self):
-        """Calculate simple straight-line trajectory from caster to target."""
+    def _calculate_dynamic_bounce_count(self):
+        """
+        Calculate bounce count based on enemy team HP loss.
+        Replicates Matador skill logic: boneglaive/dlc/pelotari/skills.py Matador._calculate_matador_bounces()
+
+        Returns:
+            int: Bounce count (2-8)
+        """
+        if not self.game or not self.caster_unit or not hasattr(self.caster_unit, 'player'):
+            return 2  # Base bounces
+
+        base_bounces = 2
+        max_bounces = 8
+        hp_percent_per_bounce = 15  # 15% HP lost = +1 bounce
+
+        # Get caster's player number
+        caster_player = self.caster_unit.player
+
+        # Get all enemy units (excluding summons and echoes)
+        all_enemy_units = [
+            u for u in self.game.units
+            if u.player != caster_player
+            and not getattr(u, 'is_summon', False)
+            and not getattr(u, 'is_echo', False)
+        ]
+
+        if not all_enemy_units:
+            return base_bounces
+
+        # Calculate total max HP and current HP
+        total_max_hp = sum(u.max_hp for u in all_enemy_units)
+        alive_enemies = [u for u in all_enemy_units if u.is_alive()]
+        total_current_hp = sum(u.hp for u in alive_enemies)
+
+        # Calculate HP loss percentage
+        hp_lost_percent = ((total_max_hp - total_current_hp) / total_max_hp) * 100 if total_max_hp > 0 else 0
+
+        # Calculate bonus bounces
+        bonus_bounces = int(hp_lost_percent // hp_percent_per_bounce)
+        total_bounces = min(base_bounces + bonus_bounces, max_bounces)
+
+        return total_bounces
+
+    def _calculate_multi_bounce_trajectory(self):
+        """
+        Calculate complete multi-bounce trajectory matching Matador skill ricochet physics.
+        Uses same logic as boneglaive/dlc/pelotari/skills.py Matador skill.
+
+        Returns:
+            List of (y, x) grid positions including all bounces
+        """
+        # Fallback to simple trajectory if no game instance
+        if not self.game:
+            return self._calculate_simple_trajectory()
+
+        trajectory = []
+        bounces_used = 0
+
+        # Starting position and direction
+        current_pos = self.caster_pos
+        direction = self._normalize_direction((
+            self.target_pos[0] - self.caster_pos[0],
+            self.target_pos[1] - self.caster_pos[1]
+        ))
+
+        # Calculate segments with bounces
+        for bounce_iteration in range(self.bounce_count + 1):  # Initial + bounces
+            # Trace segment until collision
+            segment_positions, collision_pos, collision_type = self._trace_segment(
+                current_pos, direction, max_range=50
+            )
+
+            # Add segment positions to trajectory
+            trajectory.extend(segment_positions)
+
+            # Check if we hit something
+            if not collision_pos:
+                # Reached map edge or no collision - stop
+                break
+
+            # Check if we've used all bounces
+            if bounces_used >= self.bounce_count:
+                break
+
+            # Calculate ricochet direction for next segment
+            new_direction = self._calculate_ricochet_direction(
+                collision_pos, direction, collision_type
+            )
+
+            if not new_direction:
+                # Can't ricochet - stop
+                break
+
+            # Set up for next segment
+            current_pos = collision_pos
+            direction = new_direction
+            bounces_used += 1
+
+        return trajectory if trajectory else [(self.caster_pos[0], self.caster_pos[1])]
+
+    def _calculate_simple_trajectory(self):
+        """Fallback simple straight-line trajectory (used if no game instance)."""
         trajectory = []
         start_y, start_x = self.caster_pos
         end_y, end_x = self.target_pos
@@ -242,6 +356,108 @@ class MatadorAnimation:
             trajectory.append((y, x))
 
         return trajectory
+
+    def _normalize_direction(self, direction):
+        """
+        Normalize direction to unit vector (quantized to 8 chess directions).
+
+        Args:
+            direction: Direction tuple (dy, dx)
+
+        Returns:
+            Normalized direction tuple
+        """
+        dy, dx = direction
+
+        if dy == 0 and dx == 0:
+            return (0, 1)  # Default direction
+
+        # Quantize to -1, 0, 1
+        norm_dy = 0 if dy == 0 else (1 if dy > 0 else -1)
+        norm_dx = 0 if dx == 0 else (1 if dx > 0 else -1)
+
+        return (norm_dy, norm_dx)
+
+    def _trace_segment(self, start_pos, direction, max_range=50):
+        """
+        Trace segment from start_pos in direction until collision or max_range.
+
+        Args:
+            start_pos: Starting (y, x) position
+            direction: Direction tuple (dy, dx)
+            max_range: Maximum tiles to trace
+
+        Returns:
+            Tuple of (positions_list, collision_pos, collision_type)
+            collision_type: 'wall', 'edge', or None
+        """
+        positions = []
+        current_y, current_x = start_pos
+        dy, dx = direction
+
+        for step in range(max_range):
+            # Calculate next position
+            next_y = current_y + dy
+            next_x = current_x + dx
+
+            # Check if out of bounds (map edge)
+            if not self.game.is_valid_position(next_y, next_x):
+                # Hit map edge
+                return (positions, (current_y, current_x), 'edge')
+
+            # Check if impassable (wall)
+            if not self.game.map.is_passable(next_y, next_x):
+                # Hit wall - return last valid position as collision point
+                return (positions, (next_y, next_x), 'wall')
+
+            # Position is valid, add to trajectory
+            positions.append((next_y, next_x))
+            current_y, current_x = next_y, next_x
+
+        # Reached max range without collision
+        return (positions, None, None)
+
+    def _calculate_ricochet_direction(self, collision_pos, incoming_dir, collision_type):
+        """
+        Calculate ricochet direction at collision point.
+        Uses same logic as Matador skill: boneglaive/dlc/pelotari/skills.py
+
+        Args:
+            collision_pos: Position where collision occurred (y, x)
+            incoming_dir: Incoming direction (dy, dx)
+            collision_type: 'wall', 'edge', or None
+
+        Returns:
+            New direction tuple (dy, dx) or None if can't ricochet
+        """
+        dy, dx = incoming_dir
+
+        if collision_type == 'wall':
+            # Wall bounce - check which edges face open space
+            at_left_edge = collision_pos[1] == 0 or \
+                          (collision_pos[1] > 0 and self.game.map.is_passable(collision_pos[0], collision_pos[1] - 1))
+            at_right_edge = collision_pos[1] == self.game.map.width - 1 or \
+                           (collision_pos[1] < self.game.map.width - 1 and self.game.map.is_passable(collision_pos[0], collision_pos[1] + 1))
+            at_top_edge = collision_pos[0] == 0 or \
+                         (collision_pos[0] > 0 and self.game.map.is_passable(collision_pos[0] - 1, collision_pos[1]))
+            at_bottom_edge = collision_pos[0] == self.game.map.height - 1 or \
+                            (collision_pos[0] < self.game.map.height - 1 and self.game.map.is_passable(collision_pos[0] + 1, collision_pos[1]))
+
+            # Flip direction based on exposed edges
+            new_dx = -dx if (at_left_edge or at_right_edge) else dx
+            new_dy = -dy if (at_top_edge or at_bottom_edge) else dy
+
+            return (new_dy, new_dx)
+
+        elif collision_type == 'edge':
+            # Map edge bounce
+            new_dx = -dx if collision_pos[1] in [0, self.game.map.width - 1] else dx
+            new_dy = -dy if collision_pos[0] in [0, self.game.map.height - 1] else dy
+
+            return (new_dy, new_dx)
+
+        # Unknown collision type or can't bounce
+        return None
 
     def create_windup_particles(self, world_x, world_y):
         """Create orbiting charge-up particles around caster."""
@@ -293,6 +509,15 @@ class MatadorAnimation:
             # Update pelota
             self.pelota.update(delta_time)
 
+            # Safety: If no valid trajectory, complete immediately
+            if not self.trajectory or len(self.trajectory) == 0:
+                self.phase = 'complete'
+                self.create_final_explosion(
+                    self.pelota.world_x,
+                    self.pelota.world_y
+                )
+                return True
+
             # Move along trajectory
             if self.current_segment_end:
                 # Calculate distance and direction
@@ -341,6 +566,24 @@ class MatadorAnimation:
                         new_x = self.current_segment_start[0] + dx * progress_ratio
                         new_y = self.current_segment_start[1] + dy * progress_ratio
                         self.pelota.move_to(new_x, new_y)
+                else:
+                    # Distance is 0 - we're already at target, skip to next segment immediately
+                    self.trajectory_index += 1
+                    if self.trajectory_index < len(self.trajectory):
+                        self.current_segment_start = self.current_segment_end
+                        next_target = self.trajectory[self.trajectory_index]
+                        self.current_segment_end = (
+                            next_target[1] * TILE_SIZE + TILE_SIZE // 2,
+                            next_target[0] * TILE_SIZE + TILE_SIZE // 2
+                        )
+                        self.segment_progress = 0
+                    else:
+                        # Trajectory complete
+                        self.phase = 'complete'
+                        self.create_final_explosion(
+                            self.current_segment_end[0],
+                            self.current_segment_end[1]
+                        )
 
             # Update impact effects
             self.impact_effects = [

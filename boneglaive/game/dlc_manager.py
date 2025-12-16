@@ -323,6 +323,21 @@ class DLCManager:
         """
         return list(self.loaded_units.keys())
 
+    def get_unit_id_from_enum(self, enum_value: int) -> Optional[str]:
+        """
+        Get unit ID from enum value (reverse lookup).
+
+        Args:
+            enum_value: UnitType enum value
+
+        Returns:
+            unit_id string, or None if not a DLC unit
+        """
+        for unit_id, value in self.unit_type_mappings.items():
+            if value == enum_value:
+                return unit_id
+        return None
+
     def is_dlc_unit(self, unit_type_or_id) -> bool:
         """
         Check if a unit is a DLC unit.

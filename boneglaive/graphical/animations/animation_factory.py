@@ -177,7 +177,8 @@ class AnimationFactory:
                         units_list = None,
                         damage_callback = None,
                         camera = None,
-                        game = None):
+                        game = None,
+                        bounce_count: int = 2):
         """
         Create an animation for a skill.
 
@@ -238,6 +239,7 @@ class AnimationFactory:
         # Prepare animation kwargs
         kwargs = base_kwargs.copy()
         kwargs['game'] = game  # Add game instance to kwargs
+        kwargs['bounce_count'] = bounce_count  # Add bounce count for Matador animation
 
         # Use camera for coordinate conversion (if provided)
         # Falls back to default offsets for backwards compatibility
@@ -946,8 +948,8 @@ class AnimationFactory:
                     game=kwargs.get('game')  # Required for finding nearby furniture
                 )
             elif anim_class.__name__ == "MatadorAnimation":
-                # Matador - MASSIVE pelota projectile with wind-up and impacts
-                # Requires: caster_unit, target_pos, camera, particle_emitter
+                # Matador - MASSIVE pelota projectile with multi-bounce ricochet
+                # Requires: caster_unit, target_pos, camera, particle_emitter, game, bounce_count
                 if not target_pos:
                     print("[AnimationFactory] MATADOR requires a target position")
                     return None
@@ -955,7 +957,9 @@ class AnimationFactory:
                     caster_unit=caster_unit,
                     target_pos=target_pos,
                     camera=camera,
-                    particle_emitter=particle_emitter
+                    particle_emitter=particle_emitter,
+                    game=kwargs.get('game'),
+                    bounce_count=kwargs.get('bounce_count', 2)
                 )
             else:
                 # Most animations expect just target coordinates
