@@ -3,6 +3,26 @@
 
 This guide documents the exact process for implementing a new skill animation in the Boneglaive graphical version, based on the successful Market Futures implementation (2025-11-23).
 
+**Updated 2025-12-18:**
+- Added Phase 3.5 covering passive animations and DLC content integration, based on successful Riposte counterattack animation implementation. This section documents critical pitfalls with state capture timing and renderer detection patterns.
+- **Added Step 1.6: ParticleEmitter API reference** - Documents correct particle methods to prevent `AttributeError: 'ParticleEmitter' object has no attribute 'emit'` crashes. The single most common animation bug!
+
+---
+
+## ⚠️ MOST COMMON MISTAKE ⚠️
+
+**The ParticleEmitter class does NOT have an `emit()` method!**
+
+```python
+# ❌ WRONG - Will crash with AttributeError
+self.particle_emitter.emit(x, y, color)
+
+# ✅ CORRECT - Use emit_burst, emit_trail, emit_float, emit_beam, or emit_blood_explosion
+self.particle_emitter.emit_burst(x, y, color, count=20)
+```
+
+**See Step 1.6 for complete API documentation.**
+
 ---
 
 ## Phase 1: Research & Analysis
@@ -75,6 +95,113 @@ grid_y, grid_x = target_pos
 self.target_x, self.target_y = camera.grid_to_screen(grid_x, grid_y, centered=True)
 # Note: grid_x comes first in grid_to_screen(), even though grid_y came first in target_pos!
 ```
+
+### Step 1.6: Understand ParticleEmitter API (CRITICAL!)
+
+**IMPORTANT:** The ParticleEmitter class does NOT have an `emit()` method. Using the wrong method will cause runtime errors.
+
+**Correct ParticleEmitter Methods:**
+
+```python
+# 1. BURST - Explosive particle burst (most common)
+particle_emitter.emit_burst(x, y, color, count=20)
+# Use for: explosions, impacts, launch effects, bursts
+# Example: self.particle_emitter.emit_burst(pos_x, pos_y, (255, 0, 0), count=30)
+
+# 2. TRAIL - Motion trail particles
+particle_emitter.emit_trail(x, y, color, count=5)
+# Use for: projectile trails, movement trails
+# Example: self.particle_emitter.emit_trail(pelota_x, pelota_y, (200, 200, 255), count=8)
+
+# 3. FLOAT - Floating/rising particles
+particle_emitter.emit_float(x, y, color, count=10)
+# Use for: buff applications, healing, magical effects
+# Example: self.particle_emitter.emit_float(unit_x, unit_y, (0, 255, 0), count=15)
+
+# 4. BEAM - Line of particles between two points
+particle_emitter.emit_beam(x1, y1, x2, y2, color, count=30)
+# Use for: beams, connections, lightning
+# Example: self.particle_emitter.emit_beam(start_x, start_y, end_x, end_y, (255, 255, 0), count=40)
+
+# 5. BLOOD EXPLOSION - Red blood particles (specific use case)
+particle_emitter.emit_blood_explosion(x, y, count=80)
+# Use for: death animations, heavy damage
+# Example: self.particle_emitter.emit_blood_explosion(unit_x, unit_y, count=100)
+```
+
+**❌ WRONG - This will crash:**
+```python
+# NO SUCH METHOD!
+self.particle_emitter.emit(x, y, color)  # AttributeError: 'ParticleEmitter' object has no attribute 'emit'
+
+# DON'T try to loop individual particles either:
+for i in range(20):
+    self.particle_emitter.emit(x, y, color)  # WRONG - emit() doesn't exist!
+```
+
+**✅ CORRECT - Use emit_burst:**
+```python
+# Single burst replaces loops
+self.particle_emitter.emit_burst(x, y, color, count=20)
+```
+
+**Common Patterns:**
+
+```python
+# Launch effect (windup)
+def _start_launch(self):
+    screen_pos = self.get_screen_pos()
+    self.particle_emitter.emit_burst(
+        screen_pos[0], screen_pos[1],
+        self.color_primary, count=20
+    )
+    self.screen_shake_callback(3, 0.4)
+
+# Impact effect (collision)
+def _create_impact(self, world_x, world_y):
+    screen_x = world_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+    screen_y = world_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+    self.particle_emitter.emit_burst(
+        screen_x, screen_y,
+        self.color_impact, count=25
+    )
+
+# Projectile trail (continuous)
+def update(self, delta_time):
+    # Update projectile position...
+    self.pelota.move_to(new_x, new_y)
+
+    # Add trail particles
+    screen_pos = self.pelota.get_screen_pos()
+    self.particle_emitter.emit_trail(
+        screen_pos[0], screen_pos[1],
+        self.color_trail, count=5
+    )
+```
+
+**Case Study: Poach Animation Bug (2025-12-18)**
+
+**Problem:** Used non-existent `emit()` method in loop:
+```python
+# WRONG CODE (caused AttributeError):
+for i in range(15):
+    angle = (i / 15) * 2 * math.pi
+    distance = 20 + i * 2
+    px = screen_pos[0] + math.cos(angle) * distance
+    py = screen_pos[1] + math.sin(angle) * distance
+    self.particle_emitter.emit(px, py, self.color_royal_blue)  # ❌ NO SUCH METHOD
+```
+
+**Fix:** Single burst call:
+```python
+# CORRECT CODE:
+self.particle_emitter.emit_burst(
+    screen_pos[0], screen_pos[1],
+    self.color_royal_blue, count=20
+)  # ✅ Works perfectly, looks great
+```
+
+**Lesson:** Always use `emit_burst()` for particle effects, never try to call `emit()`.
 
 ---
 
@@ -241,6 +368,12 @@ class MainSkillAnimation:
         # Create helper effects
         self.helper_effects.append(HelperEffect(...))
 
+        # Emit particles (IMPORTANT: Use correct ParticleEmitter methods!)
+        # See Step 1.6 for complete API reference
+        self.particle_emitter.emit_burst(x, y, color, count=20)  # For explosions/impacts
+        # self.particle_emitter.emit_trail(x, y, color, count=5)  # For trails
+        # self.particle_emitter.emit_float(x, y, color, count=10)  # For buffs/healing
+
         # Trigger screen effects
         self.screen_shake_callback(intensity, duration)  # intensity: 2-15, duration: 0.5-1.0
         # self.screen_flash_callback((r, g, b), duration)  # If needed
@@ -386,6 +519,284 @@ __all__ = [
     # ... rest of entries ...
 ]
 ```
+
+---
+
+## Phase 3.5: Special Cases - Passive Animations & DLC Content
+
+### CRITICAL: Passive Animations Triggered During Turn Execution
+
+**Problem Context:**
+When passive skills trigger during `execute_turn()` (like Riposte counterattack, Viseroy trap), the graphical renderer calls `game.execute_turn(ui=None)`. This means skill code cannot directly create animations because `ui=None`.
+
+**⚠️ COMMON PITFALL:** Trying to create animations in skill code during execution will fail silently because:
+```python
+# In renderer.py:2939
+self.game_adapter.game.execute_turn(ui=None)  # ← UI is None!
+
+# In skill code (WRONG APPROACH):
+def trigger_on_hit(self, user, attacker, game, ui=None):
+    if ui and hasattr(ui, 'renderer'):  # ← This fails when ui=None
+        # Animation code here will never run during turn execution!
+```
+
+---
+
+### Solution Pattern: Renderer Detection System
+
+**Follow the Viseroy/JawClamp/INTERFERER pattern:**
+
+#### Step 1: Capture State BEFORE Execution Clears It
+
+**File:** `boneglaive/graphical/game_state.py` (around line 740-760)
+
+**Critical timing issue:** Passive skills often clear their state flags (like `riposte_active=False`) during execution, but the renderer checks these flags AFTER execution. Solution: Capture the flag BEFORE execution.
+
+```python
+# In sync_state(), when detecting attacks during turn execution:
+
+# Capture target unit for passive skill detection
+target_game_unit = self.game.get_unit_at(attack_target[0], attack_target[1]) if attack_target else None
+
+# Capture target's passive state BEFORE attack execution clears it
+target_has_riposte = False
+if target_game_unit:
+    if (hasattr(target_game_unit, 'passive_skill') and target_game_unit.passive_skill and
+        target_game_unit.passive_skill.name == "Riposte" and
+        hasattr(target_game_unit, 'riposte_active') and target_game_unit.riposte_active):
+        target_has_riposte = True
+        print(f"[GameState] Target has Riposte active - will counterattack!")
+
+events.append(AnimationEvent(
+    "attack",
+    source_unit=game_unit,
+    target_unit=target_game_unit,  # ← MUST capture target unit!
+    attack_target=attack_target,
+    target_has_riposte=target_has_riposte  # ← Pass captured flag
+))
+```
+
+**Key points:**
+- Capture state flags BEFORE `execute_turn()` modifies them
+- Pass flags in AnimationEvent kwargs
+- Always capture `target_unit` reference for target-based passives
+
+---
+
+#### Step 2: Detect Passive Condition in Renderer
+
+**File:** `boneglaive/graphical/renderer.py` in `_create_attack_animation()` method (around line 2278+)
+
+Add detection AFTER all unit-specific attack animations, BEFORE the final else clause:
+
+```python
+# Check if TARGET has Riposte active (PELOTARI counterattack)
+# Use captured flag from BEFORE attack execution cleared it
+target_has_riposte = event.kwargs.get("target_has_riposte", False)
+
+if target_has_riposte and event.target_unit:
+    print(f"  [Renderer] *** RIPOSTE COUNTERATTACK DETECTED on {event.target_unit.get_display_name()} ***")
+
+    from boneglaive.graphical.animations.pelotari import RiposteAnimation
+    from boneglaive.dlc.pelotari.physics import calculate_linear_trajectory
+
+    # Calculate trajectories for 8 directions
+    directions = [(-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1)]
+    trajectories = []
+
+    for direction in directions:
+        trajectory = calculate_linear_trajectory(
+            start_pos=(event.target_unit.y, event.target_unit.x),
+            direction=direction,
+            ricochet_mode=True,
+            max_range=12,
+            game=self.game_adapter.game,
+            max_bounces=2
+        )
+        trajectories.append(trajectory)
+
+    # Get animated unit for target (PELOTARI)
+    target_animated = self._find_animated_unit_by_game_unit(event.target_unit)
+
+    if target_animated:
+        # Create animation with full renderer access
+        riposte_animation = RiposteAnimation(
+            caster_unit=target_animated,
+            trajectories=trajectories,
+            camera=self.camera,
+            particle_emitter=self.particle_emitter,
+            game=self.game_adapter.game
+        )
+
+        if riposte_animation:
+            self.active_animations.append(riposte_animation)
+            print(f"  [Animation] Successfully triggered Riposte counterattack")
+```
+
+---
+
+#### Step 3: Simplify Skill Code
+
+**File:** Skill implementation (e.g., `boneglaive/dlc/pelotari/skills.py`)
+
+Remove graphical animation code, keep only ASCII fallback:
+
+```python
+def _execute_diagonal_spread(self, user, game, ui=None):
+    # Calculate trajectories
+    trajectories = []
+    for direction in directions:
+        trajectory = self._calculate_diagonal_trajectory(...)
+        trajectories.append(trajectory)
+
+    # Animate all balls simultaneously (ASCII mode only)
+    # Note: Graphical mode animation is handled by renderer detection system
+    if ui and hasattr(ui, 'renderer') and hasattr(ui.renderer, 'draw_tile'):
+        # ASCII fallback animation
+        max_length = max(len(traj) for traj in trajectories) if trajectories else 0
+
+        for step in range(max_length):
+            for trajectory in trajectories:
+                if step < len(trajectory):
+                    pos = trajectory[step]
+                    ui.renderer.draw_tile(pos[0], pos[1], 'o', 7)
+
+            ui.renderer.refresh()
+            sleep_with_animation_speed(0.08)
+
+    # Apply damage (this runs regardless of animation mode)
+    for trajectory in trajectories:
+        self._apply_ball_damage(trajectory, user=user, game=game, ui=ui)
+```
+
+**Critical notes:**
+- Do NOT attempt graphical animation in skill code
+- Keep ASCII fallback for terminal mode
+- Physics/damage application still happens in skill code
+- Animation is purely visual, created by renderer
+
+---
+
+### DLC Animation Integration
+
+**⚠️ CRITICAL: DLC animations are NOT fully dynamic!**
+
+While DLC **skills** load dynamically via the plugin system, DLC **animations** require manual integration into the core animation system.
+
+#### Required Changes for DLC Animations:
+
+**1. Animation class file location:**
+```
+boneglaive/graphical/animations/pelotari.py  ← NOT in dlc/ folder!
+```
+
+**2. Hardcoded import in animation_factory.py:**
+```python
+# Around line 70
+from boneglaive.graphical.animations.pelotari import (
+    MatadorAnimation,
+    RiposteAnimation,  # Must manually add
+)
+```
+
+**3. Registration in SKILL_ANIMATIONS dict:**
+```python
+# For active skills that use AnimationFactory
+"Matador": (MatadorAnimation, {}),
+```
+
+**4. Handler in create_animation() if needed:**
+```python
+elif anim_class.__name__ == "MatadorAnimation":
+    # Special handling if animation needs custom parameters
+    animation = anim_class(
+        caster_unit=caster_unit,
+        # ... parameters ...
+        bounce_count=kwargs.get('bounce_count', 2)  # DLC-specific param
+    )
+```
+
+**Why this limitation exists:**
+- Animation classes need to be imported at module load time
+- Python's import system doesn't support truly dynamic class imports for this pattern
+- Type checking and IDE support require static imports
+- This is intentional: animations are complex visual code that benefits from static analysis
+
+---
+
+### State Capture Checklist for Passive Animations
+
+When implementing passive animations triggered during turn execution:
+
+- [ ] **Identify the state flag** (e.g., `riposte_active`, `carrier_rave_active`)
+- [ ] **Capture in game_state.py BEFORE execute_turn()**
+  - [ ] Get target unit reference: `target_game_unit = self.game.get_unit_at(...)`
+  - [ ] Check flag state: `if hasattr(unit, 'flag_name') and unit.flag_name:`
+  - [ ] Store in variable: `target_has_passive = True`
+  - [ ] Pass in AnimationEvent kwargs: `target_has_passive=target_has_passive`
+- [ ] **Detect in renderer._create_attack_animation()**
+  - [ ] Extract flag: `has_passive = event.kwargs.get("target_has_passive", False)`
+  - [ ] Check condition: `if has_passive and event.target_unit:`
+  - [ ] Create animation with full renderer access
+  - [ ] Append to `self.active_animations`
+- [ ] **Simplify skill code**
+  - [ ] Remove graphical animation attempts
+  - [ ] Keep ASCII fallback only
+  - [ ] Document that graphical mode uses renderer detection
+
+---
+
+### Common Race Conditions to Avoid
+
+**❌ WRONG - Checking flag AFTER execution:**
+```python
+# In renderer, checking live state that execution already cleared:
+if event.target_unit.riposte_active:  # ← Already False!
+    create_animation()  # Never runs
+```
+
+**✅ CORRECT - Using captured flag:**
+```python
+# Captured BEFORE execution in game_state.py:
+target_has_riposte = event.kwargs.get("target_has_riposte", False)  # ← Frozen state
+if target_has_riposte:
+    create_animation()  # Runs reliably
+```
+
+**❌ WRONG - Creating animation in skill code during turn:**
+```python
+def trigger_on_hit(self, user, attacker, game, ui=None):
+    if ui and hasattr(ui, 'renderer'):  # ← ui=None during execute_turn!
+        create_graphical_animation()  # Never runs
+```
+
+**✅ CORRECT - Renderer detects and creates:**
+```python
+# In renderer._create_attack_animation():
+if event.kwargs.get("target_has_passive"):
+    create_animation_with_full_renderer_access()  # Always works
+```
+
+---
+
+### Testing Passive Animations
+
+**Test procedure:**
+1. Ensure passive is active (e.g., Riposte buff is on)
+2. Trigger the passive (e.g., attack the PELOTARI)
+3. Check console for detection messages:
+   ```
+   [GameState] Target has Riposte active - will counterattack!
+   [Renderer] *** RIPOSTE COUNTERATTACK DETECTED ***
+   [Animation] Successfully triggered Riposte counterattack
+   ```
+4. Verify animation plays visually
+5. Test multiple triggers to ensure no race conditions
+
+**If animation only triggers intermittently:**
+- Likely cause: State flag not captured before execution
+- Fix: Add state capture in game_state.py before `execute_turn()` call
+- Verify timing: Flag must be captured BEFORE skill code clears it
 
 ---
 
@@ -664,6 +1075,30 @@ def draw(self, surface):
 - [ ] Verify timer increments properly
 - [ ] Check no infinite loops in phase transitions
 
+### Animation Crashes on Creation (AttributeError)
+**Common Issue:** `AttributeError: 'ParticleEmitter' object has no attribute 'emit'`
+
+**Cause:** Using non-existent `particle_emitter.emit()` method
+
+**Fix Checklist:**
+- [ ] Check all particle_emitter calls use correct methods
+- [ ] Replace `emit(x, y, color)` with `emit_burst(x, y, color, count=20)`
+- [ ] Replace particle loops with single `emit_burst()` call
+- [ ] Verify method names: `emit_burst`, `emit_trail`, `emit_float`, `emit_beam`, `emit_blood_explosion`
+- [ ] NO `emit()` method exists!
+
+**Quick Fix Pattern:**
+```python
+# WRONG:
+for i in range(20):
+    self.particle_emitter.emit(x, y, color)  # ❌ Crashes
+
+# RIGHT:
+self.particle_emitter.emit_burst(x, y, color, count=20)  # ✅ Works
+```
+
+**See:** Step 1.6 - Understand ParticleEmitter API for complete reference
+
 ---
 
 ## Quick Reference: Common pygame Drawing
@@ -734,6 +1169,129 @@ surface.blit(surf, (x, y))
 
 ---
 
+## Case Study: Riposte Passive Animation (2025-12-18)
+
+This real-world example demonstrates the pitfalls and solutions for passive animations.
+
+### Initial Implementation (WRONG)
+
+**Problem:** Tried to create animation directly in skill code:
+
+```python
+# In boneglaive/dlc/pelotari/skills.py
+def _execute_diagonal_spread(self, user, game, ui=None):
+    # Calculate trajectories
+    trajectories = [...]
+
+    # WRONG: Attempted to create animation here
+    if ui and hasattr(ui, 'renderer'):
+        if hasattr(ui.renderer, 'camera') and hasattr(ui.renderer, 'particle_emitter'):
+            from boneglaive.graphical.animations.pelotari import RiposteAnimation
+
+            caster_animated = ui.renderer._find_animated_unit_by_game_unit(user)
+            if caster_animated:
+                animation = RiposteAnimation(...)
+                ui.renderer.active_animations.append(animation)
+```
+
+**Why it failed:**
+- Renderer calls `game.execute_turn(ui=None)` at line 2939
+- Skill code receives `ui=None`, so `if ui and hasattr(ui, 'renderer')` fails
+- Animation never created
+
+### Second Attempt (PARTIALLY WRONG)
+
+**Problem:** Added renderer detection but didn't capture state:
+
+```python
+# In renderer._create_attack_animation()
+if (event.target_unit and
+    hasattr(event.target_unit, 'riposte_active') and
+    event.target_unit.riposte_active):  # ← Checking AFTER execution!
+    create_riposte_animation()
+```
+
+**Why it failed intermittently:**
+- Attack AnimationEvent created at sync_state() BEFORE execute_turn()
+- execute_turn() runs → Riposte triggers → sets `riposte_active=False`
+- Renderer checks `event.target_unit.riposte_active` → already False!
+- Animation only worked when renderer happened to check before flag cleared
+
+### Final Solution (CORRECT)
+
+**Step 1: Capture state BEFORE execution (game_state.py:752-759):**
+
+```python
+# Capture target's riposte_active state BEFORE attack execution clears it
+target_has_riposte = False
+if target_game_unit:
+    if (hasattr(target_game_unit, 'passive_skill') and
+        target_game_unit.passive_skill and
+        target_game_unit.passive_skill.name == "Riposte" and
+        hasattr(target_game_unit, 'riposte_active') and
+        target_game_unit.riposte_active):
+        target_has_riposte = True
+
+events.append(AnimationEvent(
+    "attack",
+    source_unit=game_unit,
+    target_unit=target_game_unit,
+    attack_target=attack_target,
+    target_has_riposte=target_has_riposte  # ← Frozen snapshot!
+))
+```
+
+**Step 2: Use captured flag (renderer.py:2280-2322):**
+
+```python
+# Use captured flag from BEFORE attack execution cleared it
+target_has_riposte = event.kwargs.get("target_has_riposte", False)
+
+if target_has_riposte and event.target_unit:
+    # Create animation with full renderer access
+    riposte_animation = RiposteAnimation(...)
+    self.active_animations.append(riposte_animation)
+```
+
+**Step 3: Simplify skill code (skills.py:128-142):**
+
+```python
+# Animate all balls simultaneously (ASCII mode only)
+# Note: Graphical mode animation is handled by renderer detection system
+if ui and hasattr(ui, 'renderer') and hasattr(ui.renderer, 'draw_tile'):
+    # ASCII fallback only
+    # ...
+```
+
+### Key Lessons Learned
+
+1. **Never create graphical animations in skill code during turn execution** - `ui=None` makes it impossible
+2. **Capture state flags BEFORE execution** - Race conditions will cause intermittent failures
+3. **Use renderer detection pattern** - Follows established architecture (Viseroy, INTERFERER, etc.)
+4. **Test thoroughly** - Intermittent bugs indicate race conditions, not random failures
+5. **DLC animations need manual integration** - Not fully dynamic despite DLC plugin system
+
+### Execution Flow (Correct Implementation)
+
+```
+1. Player attacks PELOTARI with Riposte active
+2. game_state.py detects attack during sync_state()
+   └─> Captures target_has_riposte=True BEFORE execute_turn()
+3. execute_turn() runs
+   └─> Riposte.trigger_on_hit() called with ui=None
+   └─> Sets riposte_active=False (clears flag)
+   └─> Calculates trajectories and applies damage
+   └─> NO animation attempt (would fail)
+4. Renderer processes AnimationEvent for attack
+   └─> Checks event.kwargs.get("target_has_riposte")
+   └─> Finds True (frozen snapshot from step 2)
+   └─> Creates RiposteAnimation with full renderer access
+   └─> Appends to active_animations
+5. Animation plays: 8 small pelotas fire with ricochets
+```
+
+---
+
 ## Final Notes
 
 - **Be thorough:** Follow every step, don't skip verification
@@ -741,5 +1299,8 @@ surface.blit(surf, (x, y))
 - **Test incrementally:** Verify each phase before moving to the next
 - **Document everything:** Create detailed implementation notes for the user
 - **Stay consistent:** Colors, timing, and effects should match unit theme
+- **Understand timing:** For passive animations, state capture happens BEFORE execution, detection happens AFTER
 
-This guide represents the complete, reproducible workflow that produced the successful Market Futures animation implementation on 2025-11-23.
+This guide represents the complete, reproducible workflow that produced successful implementations:
+- Market Futures animation (2025-11-23) - Active skill pattern
+- Riposte counterattack animation (2025-12-18) - Passive animation pattern

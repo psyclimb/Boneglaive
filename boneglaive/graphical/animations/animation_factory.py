@@ -69,6 +69,8 @@ from boneglaive.graphical.animations.gas_machinist import (
 )
 from boneglaive.graphical.animations.pelotari import (
     MatadorAnimation,
+    RiposteAnimation,
+    PoachAnimation,
 )
 
 if TYPE_CHECKING:
@@ -162,6 +164,7 @@ class AnimationFactory:
 
         # PELOTARI skills (DLC)
         "MATADOR": (MatadorAnimation, {}),
+        "POACH": (PoachAnimation, {}),
     }
 
     @classmethod
@@ -961,6 +964,39 @@ class AnimationFactory:
                     game=kwargs.get('game'),
                     bounce_count=kwargs.get('bounce_count', 2)
                 )
+            elif anim_class.__name__ == "PoachAnimation":
+                # Poach - Medium pelota with ricochet and buff stealing
+                # Requires: caster_unit, target_pos, camera, particle_emitter, game, screen shake/flash
+                if not target_pos:
+                    print("[AnimationFactory] POACH requires a target position")
+                    return None
+
+                # Debug logging for Poach animation creation
+                print(f"[AnimationFactory] *** CREATING POACH ANIMATION ***")
+                print(f"[AnimationFactory]   caster_unit: {caster_unit}")
+                print(f"[AnimationFactory]   target_pos: {target_pos}")
+                print(f"[AnimationFactory]   camera: {camera}")
+                print(f"[AnimationFactory]   particle_emitter: {particle_emitter}")
+                print(f"[AnimationFactory]   screen_shake_callback: {screen_shake_callback}")
+                print(f"[AnimationFactory]   screen_flash_callback: {screen_flash_callback}")
+                print(f"[AnimationFactory]   game: {kwargs.get('game')}")
+
+                try:
+                    animation = anim_class(
+                        caster_unit=caster_unit,
+                        target_pos=target_pos,
+                        camera=camera,
+                        particle_emitter=particle_emitter,
+                        screen_shake_callback=screen_shake_callback,
+                        screen_flash_callback=screen_flash_callback,
+                        game=kwargs.get('game')
+                    )
+                    print(f"[AnimationFactory] PoachAnimation created successfully!")
+                except Exception as e:
+                    print(f"[AnimationFactory] ERROR creating PoachAnimation: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    return None
             else:
                 # Most animations expect just target coordinates
                 animation = anim_class(**kwargs)

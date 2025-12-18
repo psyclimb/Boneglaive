@@ -746,12 +746,25 @@ class GameStateAdapter:
                             if has_carrier_rave:
                                 print(f"[GameState] INTERFERER has carrier_rave_active - attack will be triple strike!")
 
+                        # Capture target unit for passive skill detection (e.g. Riposte)
+                        target_game_unit = self.game.get_unit_at(attack_target[0], attack_target[1]) if attack_target else None
+
+                        # Capture target's riposte_active state BEFORE attack execution clears it
+                        target_has_riposte = False
+                        if target_game_unit:
+                            if (hasattr(target_game_unit, 'passive_skill') and target_game_unit.passive_skill and
+                                target_game_unit.passive_skill.name == "Riposte" and
+                                hasattr(target_game_unit, 'riposte_active') and target_game_unit.riposte_active):
+                                target_has_riposte = True
+                                print(f"[GameState] Target {target_game_unit.get_display_name()} has Riposte active - will counterattack!")
+
                         events.append(AnimationEvent(
                             "attack",
                             source_unit=game_unit,
-                            target_unit=None,
+                            target_unit=target_game_unit,
                             attack_target=attack_target,
-                            has_carrier_rave=has_carrier_rave  # Pass flag to renderer
+                            has_carrier_rave=has_carrier_rave,  # Pass flag to renderer
+                            target_has_riposte=target_has_riposte  # Pass flag to renderer
                         ))
                         visual_unit.last_attack_target = game_unit.attack_target
                 elif visual_unit.last_attack_target is not None:
@@ -794,13 +807,29 @@ class GameStateAdapter:
                             if target_game_unit:
                                 print(f"[GameState] Captured target unit: {target_game_unit.get_display_name()} at {skill_target}")
 
+                        # Capture Matador bounce count for animation
+                        bounce_count = 2  # default
+                        if skill_name in ["Matador", "MATADOR"]:
+                            # Calculate dynamic bounce count for Matador animation
+                            if hasattr(game_unit, 'selected_skill') and hasattr(game_unit.selected_skill, '_calculate_matador_bounces'):
+                                bounce_count = game_unit.selected_skill._calculate_matador_bounces(game_unit, self.game)
+                                print(f"[GameState] Matador bounce count: {bounce_count}")
+
+                        # Debug logging for PELOTARI skills
+                        if skill_name in ["Poach", "POACH", "Matador", "MATADOR"]:
+                            print(f"[GameState] *** PELOTARI SKILL DETECTED: {skill_name} ***")
+                            print(f"[GameState]   Caster: {game_unit.get_display_name()} at ({game_unit.y}, {game_unit.x})")
+                            print(f"[GameState]   Target pos: {skill_target}")
+                            print(f"[GameState]   Target unit: {target_game_unit.get_display_name() if target_game_unit else 'None'}")
+
                         events.append(AnimationEvent(
                             "skill",
                             source_unit=game_unit,
                             target_unit=target_game_unit,  # Pass actual unit, not None
                             skill_name=skill_name,
                             skill_target=skill_target,
-                            is_infused=is_infused
+                            is_infused=is_infused,
+                            bounce_count=bounce_count
                         ))
 
                         # Special handling for Site Inspection: mark revealed scalar nodes

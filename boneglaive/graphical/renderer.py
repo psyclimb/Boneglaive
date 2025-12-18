@@ -83,7 +83,8 @@ PRE_EXECUTION_BLOCKING_SKILLS = [
     "Pry", "PRY",
     "Judgement", "JUDGEMENT",
     "Autoclave", "AUTOCLAVE",
-    "Matador", "MATADOR"
+    "Matador", "MATADOR",
+    "Poach", "POACH"
 ]
 
 
@@ -2274,8 +2275,58 @@ class GraphicalRenderer:
                     print(f"  [Animation] Successfully triggered POTPOURRIST aromatic scatter animation")
                 else:
                     print(f"  [Animation] WARNING: Failed to create POTPOURRIST aromatic attack")
-            else:
-                print(f"  [DEBUG] Not INTERFERER, MANDIBLE_FOREMAN, GLAIVEMAN, GRAYMAN, MARROW_CONDENSER, FOWL_CONTRIVANCE, DELPHIC_APPRAISER, GAS_MACHINIST, DERELICTIONIST, or POTPOURRIST, or no attack target")
+
+            # Check if TARGET has Riposte active (PELOTARI counterattack)
+            # Use captured flag from BEFORE attack execution cleared it
+            target_has_riposte = event.kwargs.get("target_has_riposte", False)
+
+            if target_has_riposte and event.target_unit:
+                print(f"  [Renderer] *** RIPOSTE COUNTERATTACK DETECTED on {event.target_unit.get_display_name()} ***")
+
+                from boneglaive.graphical.animations.pelotari import RiposteAnimation
+                from boneglaive.dlc.pelotari.physics import calculate_linear_trajectory
+
+                # Calculate trajectories for 8 directions
+                directions = [(-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1)]
+                trajectories = []
+
+                for direction in directions:
+                    trajectory = calculate_linear_trajectory(
+                        start_pos=(event.target_unit.y, event.target_unit.x),
+                        direction=direction,
+                        ricochet_mode=True,
+                        max_range=12,  # 4 range * 3 for bounces
+                        game=self.game_adapter.game,
+                        max_bounces=2
+                    )
+                    trajectories.append(trajectory)
+
+                # Get animated unit for target (PELOTARI)
+                target_animated = self._find_animated_unit_by_game_unit(event.target_unit)
+
+                if target_animated:
+                    # Create Riposte animation
+                    riposte_animation = RiposteAnimation(
+                        caster_unit=target_animated,
+                        trajectories=trajectories,
+                        camera=self.camera,
+                        particle_emitter=self.particle_emitter,
+                        game=self.game_adapter.game
+                    )
+
+                    if riposte_animation:
+                        self.active_animations.append(riposte_animation)
+                        print(f"  [Animation] Successfully triggered Riposte counterattack with 8 pelotas")
+                    else:
+                        print(f"  [Animation] WARNING: Failed to create Riposte animation")
+                else:
+                    print(f"  [Animation] WARNING: Could not find animated unit for Riposte target")
+
+            if attacker.type not in [UnitType.INTERFERER, UnitType.MANDIBLE_FOREMAN, UnitType.GLAIVEMAN,
+                                      UnitType.GRAYMAN, UnitType.MARROW_CONDENSER, UnitType.FOWL_CONTRIVANCE,
+                                      UnitType.DELPHIC_APPRAISER, UnitType.GAS_MACHINIST, UnitType.DERELICTIONIST,
+                                      UnitType.POTPOURRIST] or not attack_target:
+                print(f"  [DEBUG] Not a unit with special attack animation, or no attack target")
 
     def _create_skill_animation(self, event):
         """
@@ -2343,6 +2394,15 @@ class GraphicalRenderer:
 
         # Get Matador bounce count if this is a Matador skill
         bounce_count = event.kwargs.get("bounce_count", 2)  # Default to 2 if not specified
+
+        # Debug logging for PELOTARI skills
+        if skill_name in ["Poach", "POACH", "Matador", "MATADOR"]:
+            print(f"  [Renderer] *** PELOTARI SKILL ANIMATION REQUEST: {skill_name} ***")
+            print(f"  [Renderer]   caster_animated: {caster_animated}")
+            print(f"  [Renderer]   target_pos: {target_pos}")
+            print(f"  [Renderer]   target_unit: {target_unit}")
+            print(f"  [Renderer]   game instance: {self.game_adapter.game}")
+            print(f"  [Renderer]   bounce_count: {bounce_count}")
 
         # Create animation via factory
         print(f"  [Renderer] Creating animation for {skill_name}...")
