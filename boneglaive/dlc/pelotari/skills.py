@@ -948,8 +948,23 @@ class Backhand(ActiveSkill):
         # Calculate reflection trajectory with 2 bounces, range 6 per bounce
         trajectory = self._calculate_reflection_trajectory(pelotari, attacker, game)
 
+        # Check if skill is infused (for Granite Geas variant)
+        is_infused = False
+        if skill_name == 'Granite Geas' and hasattr(attacker, 'potpourri_held'):
+            is_infused = attacker.potpourri_held
+            print(f"[BACKHAND] Granite Geas reflection: attacker.potpourri_held={is_infused}")
+
+        # Check if skill is critical (for Judgement variant)
+        is_crit = False
+        if skill_name == 'Judgement':
+            # Check if PELOTARI (original target) is at critical HP
+            from boneglaive.utils.constants import CRITICAL_HEALTH_PERCENT
+            critical_threshold = int(pelotari.max_hp * CRITICAL_HEALTH_PERCENT)
+            is_crit = pelotari.hp <= critical_threshold
+            print(f"[BACKHAND] Judgement reflection: pelotari HP {pelotari.hp}/{pelotari.max_hp}, threshold={critical_threshold}, is_crit={is_crit}")
+
         # Fire reflected ball and apply skill effects
-        self._fire_reflected_ball(pelotari, attacker, skill_name, trajectory, game, ui)
+        self._fire_reflected_ball(pelotari, attacker, skill_name, trajectory, game, ui, is_infused=is_infused, is_crit=is_crit)
 
         return True
 
@@ -1061,7 +1076,7 @@ class Backhand(ActiveSkill):
         return segment
 
     def _fire_reflected_ball(self, pelotari: 'Unit', attacker: 'Unit', skill_name: str,
-                            trajectory: list, game: 'Game', ui=None) -> None:
+                            trajectory: list, game: 'Game', ui=None, is_infused: bool = False, is_crit: bool = False) -> None:
         """
         Fire reflected ball along trajectory and apply skill effects to anyone hit.
 
@@ -1072,9 +1087,11 @@ class Backhand(ActiveSkill):
             trajectory: List of positions ball travels through
             game: Game instance
             ui: UI instance for animations
+            is_infused: Whether skill was infused (for Granite Geas variant)
+            is_crit: Whether skill was critical (for Judgement variant)
         """
         # Animate ball trajectory
-        self._animate_reflected_ball(trajectory, skill_name, pelotari, game, ui)
+        self._animate_reflected_ball(trajectory, skill_name, pelotari, game, ui, is_infused=is_infused, is_crit=is_crit)
 
         # Apply skill effects to all units hit (WITH friendly fire check - don't hit PELOTARI's team)
         for pos in trajectory:
@@ -1132,9 +1149,9 @@ class Backhand(ActiveSkill):
             self._apply_expedite_effects(pelotari, target, game)
 
     def _animate_reflected_ball(self, trajectory: list, skill_name: str,
-                               pelotari: 'Unit', game: 'Game', ui=None) -> None:
+                               pelotari: 'Unit', game: 'Game', ui=None, is_infused: bool = False, is_crit: bool = False) -> None:
         """Animate reflected ball traveling along trajectory with skill-specific theming."""
-        print(f"[BACKHAND ANIM] _animate_reflected_ball called: skill={skill_name}, trajectory_len={len(trajectory)}, ui={ui}")
+        print(f"[BACKHAND ANIM] _animate_reflected_ball called: skill={skill_name}, trajectory_len={len(trajectory)}, is_infused={is_infused}, is_crit={is_crit}, ui={ui}")
 
         if not ui:
             print("[BACKHAND ANIM] No UI provided, returning")
@@ -1168,7 +1185,7 @@ class Backhand(ActiveSkill):
                 print("[BACKHAND ANIM] ERROR - Could not find PELOTARI's animated unit!")
                 return
 
-            print(f"[BACKHAND ANIM] Creating animation with trajectory={trajectory}, reflected_skill={skill_name}")
+            print(f"[BACKHAND ANIM] Creating animation with trajectory={trajectory}, reflected_skill={skill_name}, is_infused={is_infused}")
             animation = AnimationFactory.create_animation(
                 skill_name="BACKHAND_REFLECTION",
                 caster_unit=caster_animated_unit,
@@ -1181,7 +1198,9 @@ class Backhand(ActiveSkill):
                 game=game,
                 trajectory=trajectory,
                 reflected_skill_name=skill_name,  # Pass reflected skill name (renamed to avoid conflict)
-                bounce_count=self.max_bounces
+                bounce_count=self.max_bounces,
+                is_infused=is_infused,  # Pass infusion status
+                is_crit=is_crit  # Pass critical status
             )
 
             if animation:

@@ -112,6 +112,11 @@ from .pelotari import (
     ExpediteBall,
     AuctionCurseBall,
     PryBall,
+    NeuralShuntBall,
+    GraniteGeasBall,
+    InfusedGraniteGeasBall,
+    JudgementBall,
+    JudgementCritBall,
 )
 
 from .animation_factory import AnimationFactory
@@ -204,6 +209,11 @@ __all__ = [
     'ExpediteBall',
     'AuctionCurseBall',
     'PryBall',
+    'NeuralShuntBall',
+    'GraniteGeasBall',
+    'InfusedGraniteGeasBall',
+    'JudgementBall',
+    'JudgementCritBall',
     # Factory
     'AnimationFactory',
 ]

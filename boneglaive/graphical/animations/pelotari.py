@@ -3304,6 +3304,1022 @@ class PryBall:
             pygame.draw.circle(surface, (*self.color_light_orange, dash_alpha), (arc_x, arc_y), 1)
 
 
+class NeuralShuntBall:
+    """
+    Neural hijack pelota with triangulating signals for reflected Neural Shunt skill.
+    Size ~19px diameter with pulsing orange disruption core, three converging cyan beams,
+    electromagnetic interference waves, and confusion symbols.
+    Cyan/sky blue theme with orange disruption core (matches neural_shunt.svg icon).
+    """
+
+    def __init__(self, start_x, start_y, camera):
+        """
+        Initialize the Neural Shunt reflection ball.
+
+        Args:
+            start_x, start_y: Starting world coordinates
+            camera: Camera instance for coordinate conversion
+        """
+        self.world_x = start_x
+        self.world_y = start_y
+        self.camera = camera
+
+        # Visual properties - small-medium size
+        self.size = 19  # 19px diameter
+        self.glow_size = int(self.size * 1.4)  # Prominent cyan glow
+        self.rotation = 0  # For orbiting towers and confusion symbols
+        self.rotation_speed = 120  # degrees per second
+
+        # Core disruption pulse
+        self.core_pulse_phase = 0
+        self.core_pulse_speed = 7  # Fast pulsing (neural disruption)
+
+        # Radio wave rings animation
+        self.wave_phase = 0
+        self.wave_speed = 4
+
+        # Neural Shunt color palette - from icon (cyan/blue/orange only)
+        self.color_cyan = (0, 206, 209)           # #00ced1 - main cyan
+        self.color_sky_blue = (0, 191, 255)       # #00bfff - signal beams
+        self.color_orange = (255, 102, 0)         # #ff6600 - disruption core
+        self.color_dark_gray = (42, 42, 42)       # #2a2a2a - brain structure
+        self.color_white = (255, 255, 255)        # Highlights
+
+        # Motion trail
+        self.trail_positions = []
+        self.max_trail_length = 6
+
+        # Three tower positions (triangulation)
+        self.tower_count = 3
+        self.tower_distance = self.size * 0.95  # Orbit distance
+
+        # Confusion symbols (? and !)
+        self.confusion_symbols = ['?', '!', '?', '!']
+
+        # Neural pathway particles
+        self.neural_particles = []
+        self.neural_timer = 0
+
+    def move_to(self, world_x, world_y):
+        """Move ball to new world position."""
+        # Store trail position
+        screen_x = self.world_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+        screen_y = self.world_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+        screen_pos = (screen_x, screen_y)
+        if screen_pos:
+            self.trail_positions.append((screen_pos[0], screen_pos[1], 1.0))
+
+        # Trim trail
+        if len(self.trail_positions) > self.max_trail_length:
+            self.trail_positions.pop(0)
+
+        self.world_x = world_x
+        self.world_y = world_y
+
+    def update(self, delta_time):
+        """Update ball animation."""
+        # Rotate towers and confusion symbols
+        self.rotation += self.rotation_speed * delta_time
+        self.rotation %= 360
+
+        # Update core disruption pulse
+        self.core_pulse_phase += self.core_pulse_speed * delta_time
+        self.core_pulse_phase %= (2 * math.pi)
+
+        # Update wave rings
+        self.wave_phase += self.wave_speed * delta_time
+        self.wave_phase %= (2 * math.pi)
+
+        # Fade trail
+        self.trail_positions = [
+            (x, y, alpha * 0.87) for x, y, alpha in self.trail_positions
+            if alpha > 0.1
+        ]
+
+        # Update neural particles
+        self.neural_timer += delta_time
+        if self.neural_timer >= 0.1:  # New neural particle every 0.1s
+            self.neural_timer = 0
+            # Add neural particle at edge
+            screen_x = self.world_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+            screen_y = self.world_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+
+            # Spawn at random angle on edge
+            angle = random.uniform(0, 2 * math.pi)
+            spawn_radius = self.size // 2
+            self.neural_particles.append({
+                'x': screen_x + math.cos(angle) * spawn_radius,
+                'y': screen_y + math.sin(angle) * spawn_radius,
+                'vx': math.cos(angle) * 30,
+                'vy': math.sin(angle) * 30,
+                'life': 0.5,
+                'max_life': 0.5,
+                'size': 2
+            })
+
+        # Update existing neural particles
+        for particle in self.neural_particles:
+            particle['x'] += particle['vx'] * delta_time
+            particle['y'] += particle['vy'] * delta_time
+            particle['life'] -= delta_time
+
+        # Remove dead particles
+        self.neural_particles = [p for p in self.neural_particles if p['life'] > 0]
+
+        return True
+
+    def draw(self, surface):
+        """Draw the Neural Shunt ball with triangulating beams and disruption core."""
+        screen_x = self.world_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+        screen_y = self.world_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+        screen_pos = (screen_x, screen_y)
+        if not screen_pos:
+            return
+
+        cx, cy = screen_pos
+
+        # Draw motion trail (cyan)
+        for i, (tx, ty, alpha) in enumerate(self.trail_positions):
+            trail_size = int(self.size * (0.4 + 0.6 * (i / len(self.trail_positions))))
+            trail_alpha = int(alpha * 120)
+
+            # Cyan trail
+            trail_surf = pygame.Surface((trail_size * 2, trail_size * 2), pygame.SRCALPHA)
+            pygame.draw.circle(trail_surf, (*self.color_cyan, trail_alpha),
+                             (trail_size, trail_size), trail_size)
+            surface.blit(trail_surf, (int(tx - trail_size), int(ty - trail_size)))
+
+        # Layer 1: Neural pathway particles (cyan energy)
+        for particle in self.neural_particles:
+            alpha = int(200 * (particle['life'] / particle['max_life']))
+            size = particle['size']
+            neural_surf = pygame.Surface((size * 2, size * 2), pygame.SRCALPHA)
+            pygame.draw.circle(neural_surf, (*self.color_cyan, alpha),
+                             (size, size), size)
+            surface.blit(neural_surf, (int(particle['x'] - size), int(particle['y'] - size)))
+
+        # Layer 2: Cyan electromagnetic glow
+        import time
+        pulse = 0.6 + 0.4 * math.sin(time.time() * 5)
+        glow_alpha = int(90 * pulse)
+
+        glow_surf = pygame.Surface((self.glow_size * 2, self.glow_size * 2), pygame.SRCALPHA)
+        for radius_offset in range(6):
+            radius = self.glow_size - radius_offset * 2
+            alpha = int(glow_alpha * (1.0 - radius_offset / 6))
+            if radius > 0:
+                pygame.draw.circle(glow_surf, (*self.color_cyan, alpha),
+                                 (self.glow_size, self.glow_size), radius)
+        surface.blit(glow_surf, (int(cx - self.glow_size), int(cy - self.glow_size)))
+
+        # Layer 3: Electromagnetic disruption waves (expanding rings)
+        for i in range(3):
+            wave_offset = (self.wave_phase + i * 0.7) % (2 * math.pi)
+            ring_progress = wave_offset / (2 * math.pi)  # 0 to 1
+            ring_radius = int(self.size * (0.6 + ring_progress * 0.6))
+            ring_alpha = int(150 * (1.0 - ring_progress))
+
+            if ring_alpha > 0:
+                pygame.draw.circle(surface, (*self.color_sky_blue, ring_alpha),
+                                 (int(cx), int(cy)), ring_radius, 1)
+
+        # Layer 4: THREE ORBITING TOWER POSITIONS (triangulation points)
+        angle_rad = math.radians(self.rotation)
+        tower_positions = []
+        for i in range(self.tower_count):
+            angle = angle_rad + (i / self.tower_count) * 2 * math.pi
+            tx = int(cx + math.cos(angle) * self.tower_distance)
+            ty = int(cy + math.sin(angle) * self.tower_distance)
+            tower_positions.append((tx, ty))
+
+            # Draw small tower marker (pulsing dot)
+            tower_pulse = 0.7 + 0.3 * math.sin(time.time() * 6 + i)
+            tower_size = int(3 * tower_pulse)
+            tower_alpha = int(200 * tower_pulse)
+
+            tower_surf = pygame.Surface((tower_size * 2, tower_size * 2), pygame.SRCALPHA)
+            pygame.draw.circle(tower_surf, (*self.color_cyan, tower_alpha),
+                             (tower_size, tower_size), tower_size)
+            pygame.draw.circle(tower_surf, (*self.color_white, tower_alpha),
+                             (tower_size, tower_size), max(1, tower_size // 2))
+            surface.blit(tower_surf, (tx - tower_size, ty - tower_size))
+
+        # Layer 5: CONVERGING SIGNAL BEAMS from towers to center
+        for i, (tx, ty) in enumerate(tower_positions):
+            # Animate beam along path from tower to center
+            beam_progress = (time.time() * 2 + i * 0.5) % 1.0  # 0 to 1
+
+            # Draw beam line with gradient effect
+            beam_alpha = int(180 * (0.5 + 0.5 * math.sin(time.time() * 4 + i)))
+
+            # Thick cyan base
+            pygame.draw.line(surface, (*self.color_cyan, beam_alpha // 2),
+                           (tx, ty), (int(cx), int(cy)), 2)
+            # Thin white highlight
+            pygame.draw.line(surface, (*self.color_white, beam_alpha),
+                           (tx, ty), (int(cx), int(cy)), 1)
+
+            # Moving pulse along beam
+            pulse_x = int(tx + (cx - tx) * beam_progress)
+            pulse_y = int(ty + (cy - ty) * beam_progress)
+            pygame.draw.circle(surface, (*self.color_cyan, 220), (pulse_x, pulse_y), 2)
+
+        # Layer 6: Main cyan ball body
+        pygame.draw.circle(surface, self.color_cyan, (int(cx), int(cy)), self.size // 2)
+
+        # Layer 7: Sky blue inner layer (gradient effect)
+        inner_size = int(self.size * 0.75)
+        if inner_size > 0:
+            pygame.draw.circle(surface, self.color_sky_blue, (int(cx), int(cy)), inner_size // 2)
+
+        # Layer 8: PULSING ORANGE DISRUPTION CORE (hijacked brain center)
+        core_pulse = 0.6 + 0.4 * math.sin(self.core_pulse_phase)
+        core_size = int(self.size * 0.35 * core_pulse)
+        if core_size > 0:
+            # Orange disruption core
+            core_surf = pygame.Surface((core_size * 2, core_size * 2), pygame.SRCALPHA)
+            pygame.draw.circle(core_surf, (*self.color_orange, 200),
+                             (core_size, core_size), core_size)
+            surface.blit(core_surf, (int(cx - core_size), int(cy - core_size)))
+
+            # Bright white center
+            center_size = max(2, int(core_size * 0.5))
+            pygame.draw.circle(surface, self.color_white, (int(cx), int(cy)), center_size)
+
+        # Layer 9: Neural pathway lines inside ball (cyan energy)
+        # Draw 2 crossing neural pathways
+        pathway_length = self.size // 3
+        pathway_alpha = int(150 + 50 * math.sin(time.time() * 6))
+
+        # Horizontal pathway
+        pygame.draw.line(surface, (*self.color_sky_blue, pathway_alpha),
+                        (int(cx - pathway_length), int(cy)),
+                        (int(cx + pathway_length), int(cy)), 1)
+
+        # Vertical pathway
+        pygame.draw.line(surface, (*self.color_sky_blue, pathway_alpha),
+                        (int(cx), int(cy - pathway_length)),
+                        (int(cx), int(cy + pathway_length)), 1)
+
+        # Layer 10: Orbiting confusion symbols (? and !)
+        symbol_angle_rad = math.radians(self.rotation * 1.5)  # Faster rotation
+        for i, symbol in enumerate(self.confusion_symbols):
+            angle = symbol_angle_rad + (i / len(self.confusion_symbols)) * 2 * math.pi
+            symbol_radius = self.size * 0.75
+            sx = int(cx + math.cos(angle) * symbol_radius)
+            sy = int(cy + math.sin(angle) * symbol_radius)
+
+            # Draw confusion symbol (? or !)
+            symbol_alpha = int(180 + 75 * math.sin(angle * 2))
+
+            # Use pygame font to render symbol
+            try:
+                font = pygame.font.Font(None, 10)  # Small monospace font
+                symbol_color = (*self.color_orange, symbol_alpha)
+                text_surf = font.render(symbol, True, symbol_color)
+                text_rect = text_surf.get_rect(center=(sx, sy))
+                surface.blit(text_surf, text_rect)
+            except:
+                # Fallback: draw as small circle if font fails
+                pygame.draw.circle(surface, (*self.color_orange, symbol_alpha), (sx, sy), 2)
+
+
+class GraniteGeasBall:
+    """
+    Stone curse pelota with gray aromatic vapors for reflected Granite Geas skill.
+    Size ~19px diameter with rough granite texture, binding chains, and gray vapor wisps.
+    Gray stone theme with cracks and runes (matches granite_geas.svg icon).
+    """
+
+    def __init__(self, start_x, start_y, camera):
+        self.size = 19
+        # Granite Geas color palette - gray stone theme
+        self.color_gray = (140, 140, 140)         # Main gray
+        self.color_light_gray = (160, 160, 160)   # Light gray
+        self.color_dark_gray = (120, 120, 120)    # Dark gray
+        self.color_blue_gray = (130, 130, 135)    # Blue-gray
+        self.color_white = (255, 255, 255)        # Highlights
+        self.color_black = (0, 0, 0)              # Shadow
+
+        # Stone texture
+        self.crack_lines = []
+        for _ in range(6):
+            angle = random.uniform(0, math.pi * 2)
+            length = random.uniform(self.size * 0.3, self.size * 0.6)
+            self.crack_lines.append({
+                'angle': angle,
+                'length': length,
+                'thickness': random.randint(1, 2)
+            })
+
+        # Binding chains/runes
+        self.rune_count = 4
+        self.rune_angle_offset = 0
+
+        # Gray vapor wisps
+        self.vapor_wisps = []
+        for _ in range(5):
+            self.vapor_wisps.append({
+                'angle': random.uniform(0, math.pi * 2),
+                'distance': random.uniform(self.size * 0.6, self.size * 1.2),
+                'size': random.uniform(3, 6),
+                'alpha': random.randint(100, 200),
+                'rotation_speed': random.uniform(-0.05, 0.05)
+            })
+
+        # Position
+        self.world_x = start_x
+        self.world_y = start_y
+        self.camera = camera
+
+        # Animation timing
+        self.age = 0
+
+    def move_to(self, world_x, world_y):
+        """Move ball to new world position."""
+        self.world_x = world_x
+        self.world_y = world_y
+
+    def update(self, dt):
+        """Update animation state."""
+        self.age += dt
+
+        # Rotate runes
+        self.rune_angle_offset += dt * 0.5
+
+        # Update vapor wisps
+        for wisp in self.vapor_wisps:
+            wisp['angle'] += wisp['rotation_speed']
+            wisp['distance'] += dt * 10
+            wisp['alpha'] = max(0, wisp['alpha'] - dt * 100)
+
+        # Remove faded wisps and add new ones
+        self.vapor_wisps = [w for w in self.vapor_wisps if w['alpha'] > 0]
+        if len(self.vapor_wisps) < 5:
+            self.vapor_wisps.append({
+                'angle': random.uniform(0, math.pi * 2),
+                'distance': self.size * 0.6,
+                'size': random.uniform(3, 6),
+                'alpha': random.randint(100, 200),
+                'rotation_speed': random.uniform(-0.05, 0.05)
+            })
+
+    def draw(self, screen):
+        """Draw the Granite Geas ball."""
+        screen_x = self.world_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+        screen_y = self.world_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+
+        # Draw gray vapor wisps behind ball
+        for wisp in self.vapor_wisps:
+            wisp_x = screen_x + math.cos(wisp['angle']) * wisp['distance']
+            wisp_y = screen_y + math.sin(wisp['angle']) * wisp['distance']
+            wisp_color = random.choice([self.color_gray, self.color_light_gray,
+                                       self.color_dark_gray, self.color_blue_gray])
+            wisp_surf = pygame.Surface((int(wisp['size'] * 2), int(wisp['size'] * 2)), pygame.SRCALPHA)
+            pygame.draw.circle(wisp_surf, (*wisp_color, int(wisp['alpha'])),
+                             (int(wisp['size']), int(wisp['size'])), int(wisp['size']))
+            screen.blit(wisp_surf, (int(wisp_x - wisp['size']), int(wisp_y - wisp['size'])))
+
+        # Draw main stone ball (dark gray base)
+        pygame.draw.circle(screen, self.color_dark_gray,
+                          (int(screen_x), int(screen_y)), self.size)
+
+        # Draw granite texture layer (main gray)
+        pygame.draw.circle(screen, self.color_gray,
+                          (int(screen_x), int(screen_y)), int(self.size * 0.85))
+
+        # Draw light gray inner layer
+        pygame.draw.circle(screen, self.color_light_gray,
+                          (int(screen_x), int(screen_y)), int(self.size * 0.6))
+
+        # Draw crack lines
+        for crack in self.crack_lines:
+            start_x = screen_x + math.cos(crack['angle']) * self.size * 0.2
+            start_y = screen_y + math.sin(crack['angle']) * self.size * 0.2
+            end_x = screen_x + math.cos(crack['angle']) * crack['length']
+            end_y = screen_y + math.sin(crack['angle']) * crack['length']
+            pygame.draw.line(screen, self.color_black,
+                           (int(start_x), int(start_y)),
+                           (int(end_x), int(end_y)), crack['thickness'])
+
+        # Draw binding runes/chains (rotating around ball)
+        for i in range(self.rune_count):
+            angle = (i / self.rune_count) * math.pi * 2 + self.rune_angle_offset
+            rune_x = screen_x + math.cos(angle) * self.size * 0.7
+            rune_y = screen_y + math.sin(angle) * self.size * 0.7
+            # Draw small gray rectangle as rune symbol
+            rune_size = 3
+            pygame.draw.rect(screen, self.color_blue_gray,
+                           (int(rune_x - rune_size/2), int(rune_y - rune_size/2),
+                            rune_size, rune_size))
+
+        # Draw highlight
+        highlight_offset_x = -self.size * 0.3
+        highlight_offset_y = -self.size * 0.3
+        pygame.draw.circle(screen, self.color_white,
+                          (int(screen_x + highlight_offset_x),
+                           int(screen_y + highlight_offset_y)),
+                          int(self.size * 0.2))
+
+    def is_complete(self):
+        """Ball is never complete on its own - controlled by parent animation."""
+        return False
+
+
+class InfusedGraniteGeasBall:
+    """
+    Infused stone curse pelota with tropical potpourri fumes for reflected Infused Granite Geas.
+    Size ~19px diameter with gray stone core and multi-colored aromatic fumes.
+    Uses 8 tropical flower colors: gold, hot pink, tomato, orange, medium purple,
+    medium orchid, dark turquoise, deep pink (matches GraniteGeasEffect infused colors).
+    """
+
+    def __init__(self, start_x, start_y, camera):
+        self.size = 19
+        # Gray stone core colors
+        self.color_gray = (140, 140, 140)
+        self.color_light_gray = (160, 160, 160)
+        self.color_dark_gray = (120, 120, 120)
+        self.color_white = (255, 255, 255)
+        self.color_black = (0, 0, 0)
+
+        # Tropical potpourri fume colors (from GraniteGeasEffect infused palette)
+        self.potpourri_colors = [
+            (255, 215, 0),    # Gold
+            (255, 105, 180),  # Hot pink
+            (255, 99, 71),    # Tomato
+            (255, 165, 0),    # Orange
+            (147, 112, 219),  # Medium purple
+            (186, 85, 211),   # Medium orchid
+            (0, 206, 209),    # Dark turquoise
+            (255, 20, 147)    # Deep pink
+        ]
+
+        # Stone texture
+        self.crack_lines = []
+        for _ in range(5):
+            angle = random.uniform(0, math.pi * 2)
+            length = random.uniform(self.size * 0.3, self.size * 0.5)
+            self.crack_lines.append({
+                'angle': angle,
+                'length': length,
+                'thickness': 1
+            })
+
+        # Colorful potpourri fumes
+        self.fumes = []
+        for _ in range(8):
+            self.fumes.append({
+                'angle': random.uniform(0, math.pi * 2),
+                'distance': random.uniform(self.size * 0.7, self.size * 1.3),
+                'size': random.uniform(4, 7),
+                'alpha': random.randint(120, 220),
+                'color': random.choice(self.potpourri_colors),
+                'rotation_speed': random.uniform(-0.08, 0.08)
+            })
+
+        # Colorful rune particles
+        self.rune_particles = []
+        for i in range(6):
+            angle = (i / 6) * math.pi * 2
+            self.rune_particles.append({
+                'angle': angle,
+                'distance': self.size * 0.8,
+                'color': random.choice(self.potpourri_colors),
+                'size': 3
+            })
+        self.rune_rotation = 0
+
+        # Position
+        self.world_x = start_x
+        self.world_y = start_y
+        self.camera = camera
+
+        # Animation timing
+        self.age = 0
+
+    def move_to(self, world_x, world_y):
+        """Move ball to new world position."""
+        self.world_x = world_x
+        self.world_y = world_y
+
+    def update(self, dt):
+        """Update animation state."""
+        self.age += dt
+
+        # Rotate colorful rune particles
+        self.rune_rotation += dt * 0.8
+
+        # Update potpourri fumes
+        for fume in self.fumes:
+            fume['angle'] += fume['rotation_speed']
+            fume['distance'] += dt * 15
+            fume['alpha'] = max(0, fume['alpha'] - dt * 120)
+
+        # Remove faded fumes and add new colorful ones
+        self.fumes = [f for f in self.fumes if f['alpha'] > 0]
+        if len(self.fumes) < 8:
+            self.fumes.append({
+                'angle': random.uniform(0, math.pi * 2),
+                'distance': self.size * 0.7,
+                'size': random.uniform(4, 7),
+                'alpha': random.randint(120, 220),
+                'color': random.choice(self.potpourri_colors),
+                'rotation_speed': random.uniform(-0.08, 0.08)
+            })
+
+    def draw(self, screen):
+        """Draw the Infused Granite Geas ball."""
+        screen_x = self.world_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+        screen_y = self.world_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+
+        # Draw colorful potpourri fumes behind ball
+        for fume in self.fumes:
+            fume_x = screen_x + math.cos(fume['angle']) * fume['distance']
+            fume_y = screen_y + math.sin(fume['angle']) * fume['distance']
+            fume_surf = pygame.Surface((int(fume['size'] * 2), int(fume['size'] * 2)), pygame.SRCALPHA)
+            pygame.draw.circle(fume_surf, (*fume['color'], int(fume['alpha'])),
+                             (int(fume['size']), int(fume['size'])), int(fume['size']))
+            screen.blit(fume_surf, (int(fume_x - fume['size']), int(fume_y - fume['size'])))
+
+        # Draw main stone ball (dark gray base)
+        pygame.draw.circle(screen, self.color_dark_gray,
+                          (int(screen_x), int(screen_y)), self.size)
+
+        # Draw granite texture layer (main gray)
+        pygame.draw.circle(screen, self.color_gray,
+                          (int(screen_x), int(screen_y)), int(self.size * 0.85))
+
+        # Draw light gray inner layer
+        pygame.draw.circle(screen, self.color_light_gray,
+                          (int(screen_x), int(screen_y)), int(self.size * 0.6))
+
+        # Draw crack lines
+        for crack in self.crack_lines:
+            start_x = screen_x + math.cos(crack['angle']) * self.size * 0.2
+            start_y = screen_y + math.sin(crack['angle']) * self.size * 0.2
+            end_x = screen_x + math.cos(crack['angle']) * crack['length']
+            end_y = screen_y + math.sin(crack['angle']) * crack['length']
+            pygame.draw.line(screen, self.color_black,
+                           (int(start_x), int(start_y)),
+                           (int(end_x), int(end_y)), crack['thickness'])
+
+        # Draw colorful rune particles (rotating around ball)
+        for particle in self.rune_particles:
+            angle = particle['angle'] + self.rune_rotation
+            particle_x = screen_x + math.cos(angle) * particle['distance']
+            particle_y = screen_y + math.sin(angle) * particle['distance']
+            pygame.draw.circle(screen, particle['color'],
+                             (int(particle_x), int(particle_y)), particle['size'])
+
+        # Draw highlight
+        highlight_offset_x = -self.size * 0.3
+        highlight_offset_y = -self.size * 0.3
+        pygame.draw.circle(screen, self.color_white,
+                          (int(screen_x + highlight_offset_x),
+                           int(screen_y + highlight_offset_y)),
+                          int(self.size * 0.2))
+
+    def is_complete(self):
+        """Ball is never complete on its own - controlled by parent animation."""
+        return False
+
+
+class JudgementBall:
+    """
+    Sacred glaive pelota for reflected Judgement skill.
+    Size ~19px diameter with spinning 6-bladed glaive and golden divine aura.
+    Gold/orange/white theme (matches judgement.svg icon).
+    """
+
+    def __init__(self, start_x, start_y, camera):
+        self.size = 19
+        # Judgement color palette - divine gold/orange theme
+        self.color_gold = (255, 215, 0)           # #ffd700 - divine gold
+        self.color_orange_gold = (255, 153, 68)   # #ff9944 - orange-gold
+        self.color_orange = (255, 102, 0)         # #ff6600 - impact orange
+        self.color_white = (255, 255, 255)        # Highlights
+        self.color_silver = (192, 192, 192)       # #c0c0c0 - glaive metal
+        self.color_light_silver = (208, 208, 208) # #d0d0d0 - lighter silver
+        self.color_dark_gray = (106, 106, 106)    # #6a6a6a - glaive shadow
+
+        # Spinning glaive animation
+        self.rotation = 0  # Current rotation angle (degrees)
+        self.rotation_speed = 720  # Degrees per second (2 full rotations/sec)
+
+        # Golden aura pulsing
+        self.pulse_timer = 0
+        self.pulse_speed = 4  # Hz
+
+        # Orbiting spark particles (sacred energy)
+        self.spark_count = 6
+        self.spark_offset = 0
+
+        # Motion trail
+        self.trail_positions = []
+        self.max_trail_length = 5
+
+        # Position
+        self.world_x = start_x
+        self.world_y = start_y
+        self.camera = camera
+
+        # Animation timing
+        self.age = 0
+
+    def move_to(self, world_x, world_y):
+        """Move ball to new world position."""
+        # Store trail position
+        screen_x = self.world_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+        screen_y = self.world_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+        self.trail_positions.append((screen_x, screen_y, 1.0))
+
+        # Trim trail
+        if len(self.trail_positions) > self.max_trail_length:
+            self.trail_positions.pop(0)
+
+        self.world_x = world_x
+        self.world_y = world_y
+
+    def update(self, dt):
+        """Update animation state."""
+        self.age += dt
+
+        # Rotate glaive
+        self.rotation += self.rotation_speed * dt
+        self.rotation %= 360
+
+        # Update pulse timer
+        self.pulse_timer += dt * self.pulse_speed
+
+        # Update spark orbit
+        self.spark_offset += dt * 2
+
+        # Fade trail
+        self.trail_positions = [
+            (x, y, alpha * 0.85) for x, y, alpha in self.trail_positions
+            if alpha > 0.1
+        ]
+
+        return True
+
+    def draw(self, screen):
+        """Draw the Judgement ball with spinning glaive and golden aura."""
+        screen_x = self.world_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+        screen_y = self.world_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+
+        # Draw golden motion trail
+        for i, (tx, ty, alpha) in enumerate(self.trail_positions):
+            trail_size = int(self.size * (0.5 + 0.5 * (i / len(self.trail_positions))))
+            trail_alpha = int(alpha * 120)
+
+            trail_surf = pygame.Surface((trail_size * 2, trail_size * 2), pygame.SRCALPHA)
+            pygame.draw.circle(trail_surf, (*self.color_gold, trail_alpha),
+                             (trail_size, trail_size), trail_size)
+            screen.blit(trail_surf, (int(tx - trail_size), int(ty - trail_size)))
+
+        # Pulsing golden aura (3 layers)
+        pulse = 0.7 + 0.3 * math.sin(self.pulse_timer * math.pi * 2)
+
+        # Outer glow (gold)
+        glow_radius = int(self.size * 1.4 * pulse)
+        glow_surf = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
+        pygame.draw.circle(glow_surf, (*self.color_gold, int(80 * pulse)),
+                         (glow_radius, glow_radius), glow_radius)
+        screen.blit(glow_surf, (int(screen_x - glow_radius), int(screen_y - glow_radius)))
+
+        # Mid layer (orange-gold)
+        mid_radius = int(self.size * 1.1 * pulse)
+        mid_surf = pygame.Surface((mid_radius * 2, mid_radius * 2), pygame.SRCALPHA)
+        pygame.draw.circle(mid_surf, (*self.color_orange_gold, int(120 * pulse)),
+                         (mid_radius, mid_radius), mid_radius)
+        screen.blit(mid_surf, (int(screen_x - mid_radius), int(screen_y - mid_radius)))
+
+        # Core white energy
+        core_radius = int(self.size * 0.8)
+        core_surf = pygame.Surface((core_radius * 2, core_radius * 2), pygame.SRCALPHA)
+        pygame.draw.circle(core_surf, (*self.color_white, int(150 * pulse)),
+                         (core_radius, core_radius), core_radius)
+        screen.blit(core_surf, (int(screen_x - core_radius), int(screen_y - core_radius)))
+
+        # Draw spinning 6-bladed glaive shuriken
+        glaive_surf = pygame.Surface((self.size * 2, self.size * 2), pygame.SRCALPHA)
+        center = self.size
+
+        # Draw 6 blades
+        for i in range(6):
+            angle_deg = self.rotation + (i * 60)  # 60 degrees apart
+            angle_rad = math.radians(angle_deg)
+
+            # Blade points (triangle from center)
+            blade_length = self.size * 0.7
+            blade_width = self.size * 0.25
+
+            # Tip of blade
+            tip_x = center + math.cos(angle_rad) * blade_length
+            tip_y = center + math.sin(angle_rad) * blade_length
+
+            # Base corners
+            perp_angle = angle_rad + math.pi / 2
+            base1_x = center + math.cos(perp_angle) * blade_width
+            base1_y = center + math.sin(perp_angle) * blade_width
+            base2_x = center - math.cos(perp_angle) * blade_width
+            base2_y = center - math.sin(perp_angle) * blade_width
+
+            # Draw blade layers (shadow → silver → highlight)
+            blade_points = [(tip_x, tip_y), (base1_x, base1_y), (base2_x, base2_y)]
+            pygame.draw.polygon(glaive_surf, self.color_dark_gray, blade_points)
+            # Slightly smaller silver layer
+            blade_points_silver = [
+                (tip_x * 0.95 + center * 0.05, tip_y * 0.95 + center * 0.05),
+                (base1_x * 0.9 + center * 0.1, base1_y * 0.9 + center * 0.1),
+                (base2_x * 0.9 + center * 0.1, base2_y * 0.9 + center * 0.1)
+            ]
+            pygame.draw.polygon(glaive_surf, self.color_silver, blade_points_silver)
+            # Center line highlight
+            pygame.draw.line(glaive_surf, self.color_white,
+                           (center, center), (tip_x, tip_y), 1)
+
+        # Central hub
+        pygame.draw.circle(glaive_surf, self.color_dark_gray, (center, center), int(self.size * 0.25))
+        pygame.draw.circle(glaive_surf, self.color_silver, (center, center), int(self.size * 0.2))
+        pygame.draw.circle(glaive_surf, self.color_light_silver, (center, center), int(self.size * 0.15))
+
+        screen.blit(glaive_surf, (int(screen_x - self.size), int(screen_y - self.size)))
+
+        # Orbiting golden spark particles (sacred energy)
+        for i in range(self.spark_count):
+            angle = (i / self.spark_count) * math.pi * 2 + self.spark_offset
+            spark_distance = self.size * 1.2
+            spark_x = screen_x + math.cos(angle) * spark_distance
+            spark_y = screen_y + math.sin(angle) * spark_distance
+            spark_size = 2
+            pygame.draw.circle(screen, self.color_gold,
+                             (int(spark_x), int(spark_y)), spark_size)
+
+    def is_complete(self):
+        """Ball is never complete on its own - controlled by parent animation."""
+        return False
+
+
+class JudgementCritBall:
+    """
+    Critical sacred glaive pelota for reflected Judgement crit.
+    Same as JudgementBall but with lightning bolts striking it during flight.
+    Size ~19px diameter with divine lightning effects.
+    """
+
+    def __init__(self, start_x, start_y, camera):
+        self.size = 19
+        # Judgement color palette
+        self.color_gold = (255, 215, 0)
+        self.color_orange_gold = (255, 153, 68)
+        self.color_orange = (255, 102, 0)
+        self.color_white = (255, 255, 255)
+        self.color_silver = (192, 192, 192)
+        self.color_light_silver = (208, 208, 208)
+        self.color_dark_gray = (106, 106, 106)
+
+        # Spinning glaive animation
+        self.rotation = 0
+        self.rotation_speed = 720
+
+        # Golden aura pulsing (more intense than regular)
+        self.pulse_timer = 0
+        self.pulse_speed = 6  # Faster pulse for crit
+
+        # Orbiting spark particles
+        self.spark_count = 8  # More sparks for crit
+        self.spark_offset = 0
+
+        # Lightning strike timing
+        self.lightning_timer = 0
+        self.lightning_interval = 0.25  # Strike every 0.25 seconds
+        self.lightning_active = False
+        self.lightning_duration = 0.1
+        self.lightning_flash_timer = 0
+
+        # Lightning bolt paths (random jagged lines)
+        self.lightning_bolts = []
+
+        # Motion trail
+        self.trail_positions = []
+        self.max_trail_length = 5
+
+        # Position
+        self.world_x = start_x
+        self.world_y = start_y
+        self.camera = camera
+
+        # Animation timing
+        self.age = 0
+
+    def move_to(self, world_x, world_y):
+        """Move ball to new world position."""
+        screen_x = self.world_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+        screen_y = self.world_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+        self.trail_positions.append((screen_x, screen_y, 1.0))
+
+        if len(self.trail_positions) > self.max_trail_length:
+            self.trail_positions.pop(0)
+
+        self.world_x = world_x
+        self.world_y = world_y
+
+    def _generate_lightning_bolt(self, start_x, start_y, end_x, end_y):
+        """Generate a jagged lightning bolt path."""
+        points = [(start_x, start_y)]
+        segments = 4
+
+        for i in range(1, segments):
+            progress = i / segments
+            base_x = start_x + (end_x - start_x) * progress
+            base_y = start_y + (end_y - start_y) * progress
+
+            # Add random zigzag
+            offset_x = random.uniform(-10, 10)
+            offset_y = random.uniform(-5, 5)
+            points.append((base_x + offset_x, base_y + offset_y))
+
+        points.append((end_x, end_y))
+        return points
+
+    def update(self, dt):
+        """Update animation state."""
+        self.age += dt
+
+        # Rotate glaive
+        self.rotation += self.rotation_speed * dt
+        self.rotation %= 360
+
+        # Update pulse timer
+        self.pulse_timer += dt * self.pulse_speed
+
+        # Update spark orbit
+        self.spark_offset += dt * 3
+
+        # Update lightning timing
+        self.lightning_timer += dt
+        if self.lightning_timer >= self.lightning_interval:
+            self.lightning_timer = 0
+            self.lightning_active = True
+            self.lightning_flash_timer = self.lightning_duration
+
+            # Generate new lightning bolt striking the ball
+            screen_x = self.world_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+            screen_y = self.world_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+
+            # Lightning comes from above
+            bolt_start_x = screen_x + random.uniform(-20, 20)
+            bolt_start_y = screen_y - 40
+            self.lightning_bolts = [self._generate_lightning_bolt(bolt_start_x, bolt_start_y, screen_x, screen_y)]
+
+        # Update lightning flash
+        if self.lightning_flash_timer > 0:
+            self.lightning_flash_timer -= dt
+            if self.lightning_flash_timer <= 0:
+                self.lightning_active = False
+                self.lightning_bolts = []
+
+        # Fade trail
+        self.trail_positions = [
+            (x, y, alpha * 0.85) for x, y, alpha in self.trail_positions
+            if alpha > 0.1
+        ]
+
+        return True
+
+    def draw(self, screen):
+        """Draw the critical Judgement ball with lightning effects."""
+        screen_x = self.world_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+        screen_y = self.world_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+
+        # Draw golden motion trail
+        for i, (tx, ty, alpha) in enumerate(self.trail_positions):
+            trail_size = int(self.size * (0.5 + 0.5 * (i / len(self.trail_positions))))
+            trail_alpha = int(alpha * 150)  # Brighter trail for crit
+
+            trail_surf = pygame.Surface((trail_size * 2, trail_size * 2), pygame.SRCALPHA)
+            pygame.draw.circle(trail_surf, (*self.color_gold, trail_alpha),
+                             (trail_size, trail_size), trail_size)
+            screen.blit(trail_surf, (int(tx - trail_size), int(ty - trail_size)))
+
+        # More intense pulsing aura for crit
+        pulse = 0.7 + 0.3 * math.sin(self.pulse_timer * math.pi * 2)
+
+        # Extra white flash during lightning strike
+        if self.lightning_active:
+            flash_radius = int(self.size * 2)
+            flash_surf = pygame.Surface((flash_radius * 2, flash_radius * 2), pygame.SRCALPHA)
+            flash_alpha = int(200 * (self.lightning_flash_timer / self.lightning_duration))
+            pygame.draw.circle(flash_surf, (*self.color_white, flash_alpha),
+                             (flash_radius, flash_radius), flash_radius)
+            screen.blit(flash_surf, (int(screen_x - flash_radius), int(screen_y - flash_radius)))
+
+        # Outer glow (gold)
+        glow_radius = int(self.size * 1.5 * pulse)
+        glow_surf = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
+        pygame.draw.circle(glow_surf, (*self.color_gold, int(100 * pulse)),
+                         (glow_radius, glow_radius), glow_radius)
+        screen.blit(glow_surf, (int(screen_x - glow_radius), int(screen_y - glow_radius)))
+
+        # Mid layer (orange-gold)
+        mid_radius = int(self.size * 1.2 * pulse)
+        mid_surf = pygame.Surface((mid_radius * 2, mid_radius * 2), pygame.SRCALPHA)
+        pygame.draw.circle(mid_surf, (*self.color_orange_gold, int(150 * pulse)),
+                         (mid_radius, mid_radius), mid_radius)
+        screen.blit(mid_surf, (int(screen_x - mid_radius), int(screen_y - mid_radius)))
+
+        # Core white energy (brighter for crit)
+        core_radius = int(self.size * 0.9)
+        core_surf = pygame.Surface((core_radius * 2, core_radius * 2), pygame.SRCALPHA)
+        pygame.draw.circle(core_surf, (*self.color_white, int(180 * pulse)),
+                         (core_radius, core_radius), core_radius)
+        screen.blit(core_surf, (int(screen_x - core_radius), int(screen_y - core_radius)))
+
+        # Draw spinning 6-bladed glaive (same as regular)
+        glaive_surf = pygame.Surface((self.size * 2, self.size * 2), pygame.SRCALPHA)
+        center = self.size
+
+        for i in range(6):
+            angle_deg = self.rotation + (i * 60)
+            angle_rad = math.radians(angle_deg)
+            blade_length = self.size * 0.7
+            blade_width = self.size * 0.25
+
+            tip_x = center + math.cos(angle_rad) * blade_length
+            tip_y = center + math.sin(angle_rad) * blade_length
+
+            perp_angle = angle_rad + math.pi / 2
+            base1_x = center + math.cos(perp_angle) * blade_width
+            base1_y = center + math.sin(perp_angle) * blade_width
+            base2_x = center - math.cos(perp_angle) * blade_width
+            base2_y = center - math.sin(perp_angle) * blade_width
+
+            blade_points = [(tip_x, tip_y), (base1_x, base1_y), (base2_x, base2_y)]
+            pygame.draw.polygon(glaive_surf, self.color_dark_gray, blade_points)
+            blade_points_silver = [
+                (tip_x * 0.95 + center * 0.05, tip_y * 0.95 + center * 0.05),
+                (base1_x * 0.9 + center * 0.1, base1_y * 0.9 + center * 0.1),
+                (base2_x * 0.9 + center * 0.1, base2_y * 0.9 + center * 0.1)
+            ]
+            pygame.draw.polygon(glaive_surf, self.color_silver, blade_points_silver)
+            pygame.draw.line(glaive_surf, self.color_white,
+                           (center, center), (tip_x, tip_y), 1)
+
+        pygame.draw.circle(glaive_surf, self.color_dark_gray, (center, center), int(self.size * 0.25))
+        pygame.draw.circle(glaive_surf, self.color_silver, (center, center), int(self.size * 0.2))
+        pygame.draw.circle(glaive_surf, self.color_light_silver, (center, center), int(self.size * 0.15))
+
+        screen.blit(glaive_surf, (int(screen_x - self.size), int(screen_y - self.size)))
+
+        # Draw lightning bolts if active
+        if self.lightning_active and self.lightning_bolts:
+            for bolt_points in self.lightning_bolts:
+                # Draw multiple layers for glow effect
+                # White outer glow
+                for i in range(len(bolt_points) - 1):
+                    pygame.draw.line(screen, self.color_white,
+                                   bolt_points[i], bolt_points[i + 1], 4)
+                # Orange-gold mid layer
+                for i in range(len(bolt_points) - 1):
+                    pygame.draw.line(screen, self.color_orange_gold,
+                                   bolt_points[i], bolt_points[i + 1], 2)
+                # Bright white core
+                for i in range(len(bolt_points) - 1):
+                    pygame.draw.line(screen, self.color_white,
+                                   bolt_points[i], bolt_points[i + 1], 1)
+
+        # Electric arcs around ball (when lightning is active)
+        if self.lightning_active:
+            arc_count = 4
+            for i in range(arc_count):
+                angle = (i / arc_count) * math.pi * 2
+                arc_start_x = screen_x + math.cos(angle) * self.size
+                arc_start_y = screen_y + math.sin(angle) * self.size
+                arc_end_x = screen_x + math.cos(angle + 0.5) * self.size * 1.3
+                arc_end_y = screen_y + math.sin(angle + 0.5) * self.size * 1.3
+                pygame.draw.line(screen, self.color_white,
+                               (int(arc_start_x), int(arc_start_y)),
+                               (int(arc_end_x), int(arc_end_y)), 2)
+
+        # Orbiting golden spark particles (more for crit)
+        for i in range(self.spark_count):
+            angle = (i / self.spark_count) * math.pi * 2 + self.spark_offset
+            spark_distance = self.size * 1.3
+            spark_x = screen_x + math.cos(angle) * spark_distance
+            spark_y = screen_y + math.sin(angle) * spark_distance
+            spark_size = 2
+            # Alternate gold and white sparks
+            spark_color = self.color_white if i % 2 == 0 else self.color_gold
+            pygame.draw.circle(screen, spark_color,
+                             (int(spark_x), int(spark_y)), spark_size)
+
+    def is_complete(self):
+        """Ball is never complete on its own - controlled by parent animation."""
+        return False
+
+
 class BackhandReflectionAnimation:
     """
     Animation for PELOTARI reflecting a skill back with Backhand counter.
@@ -3319,7 +4335,7 @@ class BackhandReflectionAnimation:
 
     def __init__(self, caster_unit, target_pos, camera, particle_emitter,
                  screen_shake_callback, screen_flash_callback, game,
-                 trajectory=None, skill_name=None, bounce_count=0, **kwargs):
+                 trajectory=None, skill_name=None, bounce_count=0, is_infused=False, is_crit=False, **kwargs):
         """
         Initialize Backhand reflection animation.
 
@@ -3334,12 +4350,16 @@ class BackhandReflectionAnimation:
             trajectory: List of (grid_y, grid_x) positions ball travels through
             skill_name: Name of reflected skill (determines ball type)
             bounce_count: Number of bounces in trajectory (for impact effects)
+            is_infused: Whether skill was infused (for Granite Geas variant)
+            is_crit: Whether skill was critical (for Judgement variant)
         """
         print(f"[BackhandReflectionAnimation] __init__ called")
         print(f"  caster: {caster_unit}")
         print(f"  trajectory: {trajectory}")
         print(f"  skill_name: {skill_name}")
         print(f"  bounce_count: {bounce_count}")
+        print(f"  is_infused: {is_infused}")
+        print(f"  is_crit: {is_crit}")
 
         self.caster = caster_unit
         self.camera = camera
@@ -3350,6 +4370,8 @@ class BackhandReflectionAnimation:
         self.trajectory = trajectory if trajectory else []
         self.skill_name = skill_name
         self.bounce_count = bounce_count
+        self.is_infused = is_infused
+        self.is_crit = is_crit
 
         print(f"[BackhandReflectionAnimation] Trajectory has {len(self.trajectory)} waypoints")
 
@@ -3363,7 +4385,7 @@ class BackhandReflectionAnimation:
         self.active = True
 
         # Create skill-specific ball
-        self.ball = self._create_ball(skill_name, caster_world_x, caster_world_y)
+        self.ball = self._create_ball(skill_name, caster_world_x, caster_world_y, is_infused, is_crit)
         self.ball_speed = 650  # px/s (slightly slower than Matador for visibility)
 
         # Trajectory navigation
@@ -3406,17 +4428,29 @@ class BackhandReflectionAnimation:
         self.color_royal_blue = (42, 90, 154)
         self.color_white = (255, 255, 255)
 
-    def _create_ball(self, skill_name, start_x, start_y):
+    def _create_ball(self, skill_name, start_x, start_y, is_infused=False, is_crit=False):
         """Create skill-specific ball projectile."""
+        print(f"[BackhandReflectionAnimation._create_ball] skill_name='{skill_name}', is_infused={is_infused}, is_crit={is_crit}")
+
+        # Handle Granite Geas infusion variant
+        if skill_name == 'Granite Geas':
+            ball_class = InfusedGraniteGeasBall if is_infused else GraniteGeasBall
+            print(f"[BackhandReflectionAnimation._create_ball] Using {ball_class.__name__} for Granite Geas")
+            return ball_class(start_x, start_y, self.camera)
+
+        # Handle Judgement critical variant
+        if skill_name == 'Judgement':
+            ball_class = JudgementCritBall if is_crit else JudgementBall
+            print(f"[BackhandReflectionAnimation._create_ball] Using {ball_class.__name__} for Judgement")
+            return ball_class(start_x, start_y, self.camera)
+
         ball_classes = {
             'Estrange': EstrangeBall,
             'Expedite': ExpediteBall,
             'Auction Curse': AuctionCurseBall,
             'Pry': PryBall,
+            'Neural Shunt': NeuralShuntBall,
             # TODO: Add other ball classes as they're implemented
-            # 'Judgement': JudgementBall,
-            # 'Neural Shunt': NeuralShuntBall,
-            # 'Granite Geas': GraniteGeasBall,
             # 'Fragcrest': FragcrestBall,
         }
 
@@ -3428,7 +4462,7 @@ class BackhandReflectionAnimation:
         skill_colors = {
             'Judgement': (255, 215, 0),      # Gold (divine)
             'Estrange': (170, 119, 255),     # Purple (reality warp)
-            'Neural Shunt': (255, 0, 255),   # Magenta (psionic)
+            'Neural Shunt': (0, 206, 209),   # Cyan (radio tower signals)
             'Granite Geas': (139, 137, 137), # Gray (stone)
             'Pry': (255, 140, 0),            # Orange (launch force)
             'Auction Curse': (255, 215, 0),  # Gold (cursed wealth)
