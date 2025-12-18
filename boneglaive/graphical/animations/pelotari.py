@@ -2333,3 +2333,585 @@ class BackhandAnimation:
         # Draw ready pulse (phase 3)
         if self.ready_pulse and self.ready_pulse.active:
             self.ready_pulse.draw(surface)
+
+
+# ============================================================================
+# BACKHAND REFLECTION ANIMATION
+# ============================================================================
+
+class EstrangeBall:
+    """
+    Reality-warping pelota for reflected Estrange skill.
+    Size between Riposte (18px) and Poach (23px) - ~19px diameter.
+    Purple/lavender/white theme with dimensional distortion effects.
+    """
+
+    def __init__(self, start_x, start_y, camera):
+        """
+        Initialize the Estrange reflection ball.
+
+        Args:
+            start_x, start_y: Starting world coordinates
+            camera: Camera instance for coordinate conversion
+        """
+        self.world_x = start_x
+        self.world_y = start_y
+        self.camera = camera
+
+        # Visual properties - small-medium size
+        self.size = 19  # 19px diameter (between Riposte 18px and Poach 23px)
+        self.glow_size = int(self.size * 1.3)  # ~25px glow
+        self.rotation = 0  # Rotation angle for orbiting particles
+        self.rotation_speed = 240  # degrees per second
+
+        # Estrange color palette (from estrange.svg icon)
+        # Purple/lavender/white reality-warping beam theme
+        self.color_purple = (170, 119, 255)      # #aa77ff - main purple
+        self.color_lavender = (221, 187, 255)    # #ddbbff - lighter lavender
+        self.color_white = (255, 255, 255)       # #ffffff - core/highlights
+        self.color_purple_dark = (130, 80, 200)  # Darker purple for depth
+
+        # Motion trail
+        self.trail_positions = []
+        self.max_trail_length = 7
+
+        # Orbiting dimensional tear particles
+        self.particle_count = 5
+        self.orbit_phase = 0
+
+    def move_to(self, world_x, world_y):
+        """Move ball to new world position."""
+        # Store trail position
+        screen_x = self.world_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+        screen_y = self.world_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+        screen_pos = (screen_x, screen_y)
+        if screen_pos:
+            self.trail_positions.append((screen_pos[0], screen_pos[1], 1.0))
+
+        # Trim trail
+        if len(self.trail_positions) > self.max_trail_length:
+            self.trail_positions.pop(0)
+
+        self.world_x = world_x
+        self.world_y = world_y
+
+    def update(self, delta_time):
+        """Update ball animation."""
+        # Rotate for orbiting particles
+        self.rotation += self.rotation_speed * delta_time
+        self.rotation %= 360
+
+        # Update orbit phase for wave effect
+        self.orbit_phase += delta_time * 3
+        self.orbit_phase %= (2 * math.pi)
+
+        # Fade trail
+        self.trail_positions = [
+            (x, y, alpha * 0.86) for x, y, alpha in self.trail_positions
+            if alpha > 0.1
+        ]
+
+        return True
+
+    def draw(self, surface):
+        """Draw the Estrange ball with reality-warping effects."""
+        screen_x = self.world_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+        screen_y = self.world_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+        screen_pos = (screen_x, screen_y)
+        if not screen_pos:
+            return
+
+        cx, cy = screen_pos
+
+        # Draw motion trail with reality distortion
+        for i, (tx, ty, alpha) in enumerate(self.trail_positions):
+            trail_size = int(self.size * (0.4 + 0.6 * (i / len(self.trail_positions))))
+            trail_alpha = int(alpha * 110)
+
+            # Purple trail with wave distortion
+            trail_surf = pygame.Surface((trail_size * 2, trail_size * 2), pygame.SRCALPHA)
+            pygame.draw.circle(trail_surf, (*self.color_purple, trail_alpha),
+                             (trail_size, trail_size), trail_size)
+            surface.blit(trail_surf, (int(tx - trail_size), int(ty - trail_size)))
+
+            # Add lavender inner trail
+            inner_trail_size = trail_size // 2
+            if inner_trail_size > 0:
+                inner_alpha = int(alpha * 60)
+                inner_surf = pygame.Surface((inner_trail_size * 2, inner_trail_size * 2), pygame.SRCALPHA)
+                pygame.draw.circle(inner_surf, (*self.color_lavender, inner_alpha),
+                                 (inner_trail_size, inner_trail_size), inner_trail_size)
+                surface.blit(inner_surf, (int(tx - inner_trail_size), int(ty - inner_trail_size)))
+
+        # Layer 1: Pulsing purple glow (reality distortion aura)
+        import time
+        pulse = 0.7 + 0.3 * math.sin(time.time() * 5)
+        glow_alpha = int(100 * pulse)
+
+        glow_surf = pygame.Surface((self.glow_size * 2, self.glow_size * 2), pygame.SRCALPHA)
+        for radius_offset in range(6):  # 6 glow rings
+            radius = self.glow_size - radius_offset * 2
+            alpha = int(glow_alpha * (1.0 - radius_offset / 6))
+            if radius > 0:
+                pygame.draw.circle(glow_surf, (*self.color_purple, alpha),
+                                 (self.glow_size, self.glow_size), radius)
+        surface.blit(glow_surf, (int(cx - self.glow_size), int(cy - self.glow_size)))
+
+        # Layer 2: Reality distortion waves (expanding/contracting rings)
+        wave_time = time.time() * 4
+        for i in range(3):
+            wave_offset = (wave_time + i * 0.5) % 1.0
+            wave_radius = int(self.size * (0.6 + wave_offset * 0.8))
+            wave_alpha = int(120 * (1.0 - wave_offset))
+
+            if wave_radius > 0 and wave_alpha > 0:
+                wave_surf = pygame.Surface((wave_radius * 2, wave_radius * 2), pygame.SRCALPHA)
+                pygame.draw.circle(wave_surf, (*self.color_lavender, wave_alpha),
+                                 (wave_radius, wave_radius), wave_radius, 1)
+                surface.blit(wave_surf, (int(cx - wave_radius), int(cy - wave_radius)))
+
+        # Layer 3: Main purple ball
+        pygame.draw.circle(surface, self.color_purple, (int(cx), int(cy)), self.size // 2)
+
+        # Layer 4: Lavender inner layer (gradient effect)
+        inner_size = int(self.size * 0.6)
+        if inner_size > 0:
+            pygame.draw.circle(surface, self.color_lavender, (int(cx), int(cy)), inner_size // 2)
+
+        # Layer 5: White core (bright center)
+        core_size = int(self.size * 0.3)
+        if core_size > 0:
+            # Pulsing white core
+            core_alpha = int(220 + 35 * math.sin(time.time() * 6))
+            core_surf = pygame.Surface((core_size * 2, core_size * 2), pygame.SRCALPHA)
+            pygame.draw.circle(core_surf, (*self.color_white, core_alpha),
+                             (core_size, core_size), core_size)
+            surface.blit(core_surf, (int(cx - core_size), int(cy - core_size)))
+
+        # Layer 6: Orbiting dimensional tear particles
+        angle_rad = math.radians(self.rotation)
+        for i in range(self.particle_count):
+            angle = angle_rad + (i / self.particle_count) * 2 * math.pi
+
+            # Variable orbit radius (wave effect)
+            base_orbit = self.size * 0.85
+            orbit_variation = math.sin(self.orbit_phase + i) * 3
+            orbit_radius = base_orbit + orbit_variation
+
+            px = int(cx + math.cos(angle) * orbit_radius)
+            py = int(cy + math.sin(angle) * orbit_radius)
+
+            # Alternating lavender and white particles
+            particle_color = self.color_lavender if i % 2 == 0 else self.color_white
+            particle_size = 2 if i % 2 == 0 else 1
+            particle_alpha = int(200 + 40 * math.sin(angle * 3))
+
+            particle_surf = pygame.Surface((particle_size * 2, particle_size * 2), pygame.SRCALPHA)
+            pygame.draw.circle(particle_surf, (*particle_color, particle_alpha),
+                             (particle_size, particle_size), particle_size)
+            surface.blit(particle_surf, (px - particle_size, py - particle_size))
+
+        # Layer 7: Spacetime distortion lines (phase effect)
+        # Vertical wavy lines suggesting dimensional instability
+        line_count = 4
+        for i in range(line_count):
+            angle = (i / line_count) * 2 * math.pi
+            line_x = int(cx + math.cos(angle) * self.size * 0.5)
+            line_y = int(cy + math.sin(angle) * self.size * 0.5)
+
+            # Short distortion lines
+            line_end_x = int(cx + math.cos(angle) * self.size * 0.7)
+            line_end_y = int(cy + math.sin(angle) * self.size * 0.7)
+
+            line_alpha = int(100 + 50 * math.sin(time.time() * 4 + i))
+            pygame.draw.line(surface, (*self.color_purple_dark, line_alpha),
+                           (line_x, line_y), (line_end_x, line_end_y), 1)
+
+
+class BackhandReflectionAnimation:
+    """
+    Animation for PELOTARI reflecting a skill back with Backhand counter.
+
+    Phases:
+    1. Windup (0.3s) - PELOTARI winds up to serve the reflected ball
+    2. Launch (0.2s) - Bright flash as ball launches
+    3. Flight (variable) - Ball travels along trajectory with ricochets
+    4. Complete - Lingering impact effects
+
+    Duration: ~0.5s + flight time (~0.8-1.5s) = ~1.3-2.0s total
+    """
+
+    def __init__(self, caster_unit, target_pos, camera, particle_emitter,
+                 screen_shake_callback, screen_flash_callback, game,
+                 trajectory=None, skill_name=None, bounce_count=0, **kwargs):
+        """
+        Initialize Backhand reflection animation.
+
+        Args:
+            caster_unit: AnimatedUnit (PELOTARI)
+            target_pos: (grid_y, grid_x) - not used (uses trajectory instead)
+            camera: Camera instance
+            particle_emitter: ParticleEmitter
+            screen_shake_callback: Function to trigger screen shake
+            screen_flash_callback: Function to trigger screen flash
+            game: Game instance
+            trajectory: List of (grid_y, grid_x) positions ball travels through
+            skill_name: Name of reflected skill (determines ball type)
+            bounce_count: Number of bounces in trajectory (for impact effects)
+        """
+        print(f"[BackhandReflectionAnimation] __init__ called")
+        print(f"  caster: {caster_unit}")
+        print(f"  trajectory: {trajectory}")
+        print(f"  skill_name: {skill_name}")
+        print(f"  bounce_count: {bounce_count}")
+
+        self.caster = caster_unit
+        self.camera = camera
+        self.particle_emitter = particle_emitter
+        self.screen_shake_callback = screen_shake_callback
+        self.screen_flash_callback = screen_flash_callback
+        self.game = game
+        self.trajectory = trajectory if trajectory else []
+        self.skill_name = skill_name
+        self.bounce_count = bounce_count
+
+        print(f"[BackhandReflectionAnimation] Trajectory has {len(self.trajectory)} waypoints")
+
+        # Get caster world position
+        caster_world_x = caster_unit.grid_x * TILE_SIZE + TILE_SIZE // 2
+        caster_world_y = caster_unit.grid_y * TILE_SIZE + TILE_SIZE // 2
+
+        # Animation phases
+        self.phase = 'windup'  # windup -> launch -> flight -> complete
+        self.timer = 0
+        self.active = True
+
+        # Create skill-specific ball
+        self.ball = self._create_ball(skill_name, caster_world_x, caster_world_y)
+        self.ball_speed = 650  # px/s (slightly slower than Matador for visibility)
+
+        # Trajectory navigation
+        self.trajectory_index = 0
+        self.current_segment_start = (caster_world_x, caster_world_y)
+        self.current_segment_end = None
+        self.segment_progress = 0
+
+        if self.trajectory:
+            # Set first target
+            first_target = self.trajectory[0]
+            self.current_segment_end = (
+                first_target[1] * TILE_SIZE + TILE_SIZE // 2,
+                first_target[0] * TILE_SIZE + TILE_SIZE // 2
+            )
+
+        # Impact effects
+        self.impact_effects = []  # (world_x, world_y, timer, effect_type)
+        self.bounce_positions = []  # Track where bounces occur
+
+        # Windup particles (orbiting charge effect)
+        self.windup_particles = []
+        for i in range(12):
+            angle = (i / 12) * 2 * math.pi
+            self.windup_particles.append({
+                'world_x': caster_world_x,
+                'world_y': caster_world_y,
+                'angle': angle,
+                'radius': 20 + (i % 3) * 5,
+                'speed': 2 + (i % 2),
+                'size': 3,
+                'color': self._get_skill_color(skill_name)
+            })
+
+        # Phase durations
+        self.windup_duration = 0.3
+        self.launch_duration = 0.2
+
+        # Colors
+        self.color_royal_blue = (42, 90, 154)
+        self.color_white = (255, 255, 255)
+
+    def _create_ball(self, skill_name, start_x, start_y):
+        """Create skill-specific ball projectile."""
+        # Currently only Estrange implemented, others return Estrange as placeholder
+        ball_classes = {
+            'Estrange': EstrangeBall,
+            # TODO: Add other ball classes as they're implemented
+            # 'Judgement': JudgementBall,
+            # 'Neural Shunt': NeuralShuntBall,
+            # 'Granite Geas': GraniteGeasBall,
+            # 'Pry': PryBall,
+            # 'Auction Curse': AuctionCurseBall,
+            # 'Fragcrest': FragcrestBall,
+            # 'Expedite': ExpediteBall,
+        }
+
+        ball_class = ball_classes.get(skill_name, EstrangeBall)  # Default to Estrange
+        return ball_class(start_x, start_y, self.camera)
+
+    def _get_skill_color(self, skill_name):
+        """Get primary color for skill-specific effects."""
+        skill_colors = {
+            'Judgement': (255, 215, 0),      # Gold (divine)
+            'Estrange': (170, 119, 255),     # Purple (reality warp)
+            'Neural Shunt': (255, 0, 255),   # Magenta (psionic)
+            'Granite Geas': (139, 137, 137), # Gray (stone)
+            'Pry': (255, 140, 0),            # Orange (launch force)
+            'Auction Curse': (255, 215, 0),  # Gold (cursed wealth)
+            'Fragcrest': (255, 69, 0),       # Red-orange (fragmentation)
+            'Expedite': (139, 90, 43),       # Brown (mandible rush)
+        }
+        return skill_colors.get(skill_name, (170, 119, 255))  # Default to Estrange purple
+
+    def update(self, delta_time):
+        """Update animation state."""
+        self.timer += delta_time
+        print(f"[BackhandReflectionAnimation] update: phase={self.phase}, timer={self.timer:.2f}")
+
+        if self.phase == 'windup':
+            # Update orbiting charge particles
+            for p in self.windup_particles:
+                p['angle'] += p['speed'] * delta_time
+                p['radius'] -= 15 * delta_time  # Particles spiral inward
+                if p['radius'] < 5:
+                    p['radius'] = 30  # Reset to outer orbit
+
+            # Transition to launch
+            if self.timer >= self.windup_duration:
+                self.phase = 'launch'
+                self.timer = 0
+
+                # Emit launch burst
+                screen_x = self.ball.world_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+                screen_y = self.ball.world_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+                screen_pos = (screen_x, screen_y)
+                if screen_pos:
+                    self.particle_emitter.emit_burst(
+                        screen_pos[0], screen_pos[1],
+                        self._get_skill_color(self.skill_name), count=30
+                    )
+
+        elif self.phase == 'launch':
+            # Brief flash before flight
+            if self.timer >= self.launch_duration:
+                self.phase = 'flight'
+                self.timer = 0
+
+        elif self.phase == 'flight':
+            # Update ball
+            self.ball.update(delta_time)
+
+            # Move ball along trajectory
+            if self.trajectory_index < len(self.trajectory) and self.current_segment_end:
+                # Calculate distance to travel this frame
+                distance_to_travel = self.ball_speed * delta_time
+
+                # Get current and target positions
+                start_x, start_y = self.current_segment_start
+                end_x, end_y = self.current_segment_end
+
+                # Calculate segment length
+                dx = end_x - start_x
+                dy = end_y - start_y
+                segment_length = math.sqrt(dx * dx + dy * dy)
+
+                if segment_length > 0:
+                    # Update progress
+                    self.segment_progress += distance_to_travel
+
+                    # Check if we reached the target
+                    if self.segment_progress >= segment_length:
+                        # Reached waypoint
+                        self.ball.move_to(end_x, end_y)
+
+                        # Create impact effect at waypoint
+                        current_waypoint = self.trajectory[self.trajectory_index]
+                        is_final = (self.trajectory_index == len(self.trajectory) - 1)
+
+                        if is_final:
+                            self.create_final_explosion(end_x, end_y)
+                        else:
+                            self.create_ricochet_effect(end_x, end_y)
+
+                        # Move to next segment
+                        self.trajectory_index += 1
+                        if self.trajectory_index < len(self.trajectory):
+                            self.current_segment_start = self.current_segment_end
+                            next_target = self.trajectory[self.trajectory_index]
+                            self.current_segment_end = (
+                                next_target[1] * TILE_SIZE + TILE_SIZE // 2,
+                                next_target[0] * TILE_SIZE + TILE_SIZE // 2
+                            )
+                            self.segment_progress = 0
+                        else:
+                            # Trajectory complete
+                            self.phase = 'complete'
+                    else:
+                        # Interpolate position
+                        t = self.segment_progress / segment_length
+                        new_x = start_x + dx * t
+                        new_y = start_y + dy * t
+                        self.ball.move_to(new_x, new_y)
+                else:
+                    # Distance is 0 - skip to next segment
+                    self.trajectory_index += 1
+                    if self.trajectory_index < len(self.trajectory):
+                        self.current_segment_start = self.current_segment_end
+                        next_target = self.trajectory[self.trajectory_index]
+                        self.current_segment_end = (
+                            next_target[1] * TILE_SIZE + TILE_SIZE // 2,
+                            next_target[0] * TILE_SIZE + TILE_SIZE // 2
+                        )
+                        self.segment_progress = 0
+                    else:
+                        self.phase = 'complete'
+
+            # Update impact effects
+            self.impact_effects = [
+                (x, y, t - delta_time, etype)
+                for x, y, t, etype in self.impact_effects
+                if t > delta_time
+            ]
+
+        elif self.phase == 'complete':
+            # Update lingering impact effects
+            self.impact_effects = [
+                (x, y, t - delta_time, etype)
+                for x, y, t, etype in self.impact_effects
+                if t > delta_time
+            ]
+
+            # Animation done when all effects fade
+            if self.timer > 0.4 and len(self.impact_effects) == 0:
+                return False
+
+        return True
+
+    def create_ricochet_effect(self, world_x, world_y):
+        """Create ricochet impact effect."""
+        self.impact_effects.append((world_x, world_y, 0.25, 'ricochet'))
+
+        # Emit particles
+        screen_x = world_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+        screen_y = world_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+        screen_pos = (screen_x, screen_y)
+        if screen_pos:
+            self.particle_emitter.emit_burst(
+                screen_pos[0], screen_pos[1],
+                self._get_skill_color(self.skill_name), count=15
+            )
+
+    def create_final_explosion(self, world_x, world_y):
+        """Create final impact explosion."""
+        self.impact_effects.append((world_x, world_y, 0.4, 'final'))
+
+        # Emit large particle burst
+        screen_x = world_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+        screen_y = world_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+        screen_pos = (screen_x, screen_y)
+        if screen_pos:
+            skill_color = self._get_skill_color(self.skill_name)
+            self.particle_emitter.emit_burst(
+                screen_pos[0], screen_pos[1],
+                skill_color, count=35
+            )
+            # Add white burst for impact
+            self.particle_emitter.emit_burst(
+                screen_pos[0], screen_pos[1],
+                self.color_white, count=20
+            )
+
+        # Screen shake for final impact
+        if self.screen_shake_callback:
+            self.screen_shake_callback(4, 0.15)
+
+    def draw(self, surface):
+        """Draw all animation elements."""
+        if self.phase == 'windup':
+            # Draw orbiting charge particles
+            for p in self.windup_particles:
+                world_x = p['world_x'] + math.cos(p['angle']) * p['radius']
+                world_y = p['world_y'] + math.sin(p['angle']) * p['radius']
+                screen_x = world_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+                screen_y = world_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+                screen_pos = (screen_x, screen_y)
+                if screen_pos:
+                    size = int(p['size'])
+                    pygame.draw.circle(surface, p['color'],
+                                     (int(screen_pos[0]), int(screen_pos[1])), size)
+
+            # Pulsing glow at caster
+            screen_x = self.ball.world_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+            screen_y = self.ball.world_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+            screen_pos = (screen_x, screen_y)
+            if screen_pos:
+                pulse = 0.5 + 0.5 * math.sin(self.timer * 10)
+                glow_size = int(35 * pulse)
+                glow_surf = pygame.Surface((glow_size * 2, glow_size * 2), pygame.SRCALPHA)
+                glow_color = self._get_skill_color(self.skill_name)
+                pygame.draw.circle(glow_surf, (*glow_color, int(120 * pulse)),
+                                 (glow_size, glow_size), glow_size)
+                surface.blit(glow_surf, (int(screen_pos[0] - glow_size),
+                                        int(screen_pos[1] - glow_size)))
+
+        elif self.phase == 'launch':
+            # Bright flash
+            screen_x = self.ball.world_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+            screen_y = self.ball.world_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+            screen_pos = (screen_x, screen_y)
+            if screen_pos:
+                flash_size = 45
+                flash_alpha = int(240 * (1.0 - self.timer / self.launch_duration))
+                flash_surf = pygame.Surface((flash_size * 2, flash_size * 2), pygame.SRCALPHA)
+                pygame.draw.circle(flash_surf, (255, 255, 255, flash_alpha),
+                                 (flash_size, flash_size), flash_size)
+                surface.blit(flash_surf, (int(screen_pos[0] - flash_size),
+                                         int(screen_pos[1] - flash_size)))
+
+        elif self.phase == 'flight' or self.phase == 'complete':
+            # Draw the ball
+            if self.phase == 'flight':
+                self.ball.draw(surface)
+
+            # Draw impact effects
+            for world_x, world_y, timer, etype in self.impact_effects:
+                screen_x = world_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+                screen_y = world_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+                screen_pos = (screen_x, screen_y)
+                if not screen_pos:
+                    continue
+
+                skill_color = self._get_skill_color(self.skill_name)
+
+                if etype == 'ricochet':
+                    # Expanding skill-colored ring
+                    max_radius = 30
+                    duration = 0.25
+                    progress = 1.0 - (timer / duration)
+                    radius = int(max_radius * progress)
+                    alpha = int(140 * (timer / duration))
+
+                    ring_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+                    pygame.draw.circle(ring_surf, (*skill_color, alpha),
+                                     (radius, radius), radius, 2)
+                    surface.blit(ring_surf, (int(screen_pos[0] - radius),
+                                            int(screen_pos[1] - radius)))
+
+                elif etype == 'final':
+                    # Large expanding ring + flash
+                    max_radius = 50
+                    duration = 0.4
+                    progress = 1.0 - (timer / duration)
+                    radius = int(max_radius * progress)
+                    alpha = int(180 * (timer / duration))
+
+                    # Multiple rings
+                    for offset in [0, 8, 16]:
+                        r = radius - offset
+                        if r > 0:
+                            a = int(alpha * (1.0 - offset / 16))
+                            ring_surf = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
+                            ring_color = skill_color if offset == 0 else self.color_white
+                            pygame.draw.circle(ring_surf, (*ring_color, a),
+                                             (r, r), r, 3)
+                            surface.blit(ring_surf, (int(screen_pos[0] - r),
+                                                    int(screen_pos[1] - r)))

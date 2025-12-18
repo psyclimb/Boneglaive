@@ -3054,16 +3054,32 @@ class Game:
 
                 # Check for PELOTARI Backhand reflection before executing skill
                 target_unit = self.get_unit_at(target_pos[0], target_pos[1])
+                print(f"[BACKHAND ENGINE] Checking reflection for skill {skill.name} targeting {target_unit.get_display_name() if target_unit else 'None'}")
+                if target_unit:
+                    print(f"[BACKHAND ENGINE] Target has backhand_active={getattr(target_unit, 'backhand_active', False)}")
+
                 if target_unit and hasattr(target_unit, 'backhand_active') and target_unit.backhand_active:
+                    print(f"[BACKHAND ENGINE] Target has Backhand active! Looking for Backhand skill...")
                     # Find Backhand skill instance
                     backhand_skill = next((s for s in target_unit.active_skills
                                           if hasattr(s, 'name') and s.name == "Backhand"), None)
+                    print(f"[BACKHAND ENGINE] Found Backhand skill: {backhand_skill}")
                     if backhand_skill and hasattr(backhand_skill, 'trigger_skill_reflect'):
+                        print(f"[BACKHAND ENGINE] Calling trigger_skill_reflect for {skill.name}")
+                        print(f"[BACKHAND ENGINE] UI parameter: {ui}")
+                        print(f"[BACKHAND ENGINE] self.ui: {getattr(self, 'ui', 'NO self.ui')}")
                         # Attempt reflection
-                        if backhand_skill.trigger_skill_reflect(target_unit, unit, skill.name, self, ui):
+                        # Use self.ui if ui parameter is None
+                        ui_to_use = ui if ui is not None else getattr(self, 'ui', None)
+                        print(f"[BACKHAND ENGINE] Using UI: {ui_to_use}")
+                        if backhand_skill.trigger_skill_reflect(target_unit, unit, skill.name, self, ui_to_use):
                             # Skill was reflected, skip normal execution
-                            logger.debug(f"Skill {skill.name} reflected by {target_unit.get_display_name()}'s Backhand")
+                            print(f"[BACKHAND ENGINE] Skill {skill.name} reflected by {target_unit.get_display_name()}'s Backhand")
+                            # Mark skill as reflected so animation doesn't play
+                            unit.skill_was_reflected = True
                             continue
+                        else:
+                            print(f"[BACKHAND ENGINE] trigger_skill_reflect returned False (skill not reflectable or failed)")
 
                 # Execute the skill if it has an execute method
                 if hasattr(skill, 'execute'):

@@ -125,9 +125,10 @@ class Riposte(PassiveSkill):
             )
             trajectories.append(trajectory)
 
-        # Animate all balls simultaneously
-        if ui and hasattr(ui, 'renderer'):
-            # Find max trajectory length
+        # Animate all balls simultaneously (ASCII mode only)
+        # Note: Graphical mode animation is handled by renderer detection system
+        if ui and hasattr(ui, 'renderer') and hasattr(ui.renderer, 'draw_tile'):
+            # ASCII fallback animation
             max_length = max(len(traj) for traj in trajectories) if trajectories else 0
 
             for step in range(max_length):
@@ -1095,8 +1096,9 @@ class Backhand(ActiveSkill):
                     pelotari, target, attacker, skill_name, game, ui
                 )
 
-                # Show impact animation
-                self._animate_skill_impact(pos, skill_name, ui)
+                # Show impact animation (ASCII/curses only - graphical mode handles this in the animation itself)
+                if ui and not (hasattr(ui, 'renderer') and hasattr(ui.renderer, 'active_animations')):
+                    self._animate_skill_impact(pos, skill_name, ui)
 
     def _apply_reflected_skill_effects(self, pelotari: 'Unit', target: 'Unit',
                                        original_caster: 'Unit', skill_name: str,
@@ -1132,7 +1134,67 @@ class Backhand(ActiveSkill):
     def _animate_reflected_ball(self, trajectory: list, skill_name: str,
                                pelotari: 'Unit', game: 'Game', ui=None) -> None:
         """Animate reflected ball traveling along trajectory with skill-specific theming."""
-        if not ui or not hasattr(ui, 'renderer'):
+        print(f"[BACKHAND ANIM] _animate_reflected_ball called: skill={skill_name}, trajectory_len={len(trajectory)}, ui={ui}")
+
+        if not ui:
+            print("[BACKHAND ANIM] No UI provided, returning")
+            return
+
+        # Check if graphical mode (pygame)
+        # GraphicalUIAdapter wraps GraphicalRenderer, check for .renderer attribute
+        is_graphical = hasattr(ui, 'renderer') and hasattr(ui.renderer, 'active_animations')
+        print(f"[BACKHAND ANIM] Checking graphical mode - is_graphical={is_graphical}")
+        print(f"[BACKHAND ANIM] UI type: {type(ui)}")
+
+        if is_graphical:
+            renderer = ui.renderer  # Get the actual renderer from the adapter
+            print("[BACKHAND ANIM] Graphical mode detected, creating BackhandReflectionAnimation")
+            # Graphical animation - queue BackhandReflectionAnimation
+            from boneglaive.graphical.animations import AnimationFactory
+
+            # Get animated unit for PELOTARI
+            caster_animated_unit = None
+            print(f"[BACKHAND ANIM] Searching for PELOTARI at ({pelotari.x}, {pelotari.y})")
+            print(f"[BACKHAND ANIM] Available animated_units count: {len(renderer.units)}")
+
+            for aunit in renderer.units:
+                print(f"[BACKHAND ANIM] Checking animated unit at ({aunit.grid_x}, {aunit.grid_y})")
+                if aunit.grid_x == pelotari.x and aunit.grid_y == pelotari.y:
+                    caster_animated_unit = aunit
+                    print(f"[BACKHAND ANIM] Found PELOTARI animated unit!")
+                    break
+
+            if not caster_animated_unit:
+                print("[BACKHAND ANIM] ERROR - Could not find PELOTARI's animated unit!")
+                return
+
+            print(f"[BACKHAND ANIM] Creating animation with trajectory={trajectory}, reflected_skill={skill_name}")
+            animation = AnimationFactory.create_animation(
+                skill_name="BACKHAND_REFLECTION",
+                caster_unit=caster_animated_unit,
+                target_unit=None,
+                target_pos=(pelotari.y, pelotari.x),  # Not actually used
+                camera=renderer.camera,
+                particle_emitter=renderer.particle_emitter,
+                screen_shake_callback=renderer.trigger_screen_shake,
+                screen_flash_callback=renderer.trigger_screen_flash,
+                game=game,
+                trajectory=trajectory,
+                reflected_skill_name=skill_name,  # Pass reflected skill name (renamed to avoid conflict)
+                bounce_count=self.max_bounces
+            )
+
+            if animation:
+                renderer.active_animations.append(animation)
+                print(f"[BACKHAND ANIM] Successfully queued BackhandReflectionAnimation for {skill_name}")
+                print(f"[BACKHAND ANIM] Active animations count: {len(renderer.active_animations)}")
+                return  # Exit after successfully queueing animation
+            else:
+                print(f"[BACKHAND ANIM] ERROR - AnimationFactory returned None!")
+                return  # Exit even if animation failed
+
+        # ASCII/curses mode - draw terminal animation
+        if not hasattr(ui, 'renderer'):
             return
 
         # Skill-specific ball characters and colors

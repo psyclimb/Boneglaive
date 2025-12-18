@@ -2395,6 +2395,12 @@ class GraphicalRenderer:
         # Get Matador bounce count if this is a Matador skill
         bounce_count = event.kwargs.get("bounce_count", 2)  # Default to 2 if not specified
 
+        # Check if skill was reflected by Backhand
+        if caster and hasattr(caster, 'skill_was_reflected') and caster.skill_was_reflected:
+            print(f"  [Renderer] Skill {skill_name} was reflected - SKIPPING original animation")
+            caster.skill_was_reflected = False  # Reset flag
+            return  # Don't create the original skill animation
+
         # Create animation via factory
         print(f"  [Renderer] Creating animation for {skill_name}...")
         animation = AnimationFactory.create_animation(

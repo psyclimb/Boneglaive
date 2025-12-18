@@ -72,6 +72,7 @@ from boneglaive.graphical.animations.pelotari import (
     RiposteAnimation,
     PoachAnimation,
     BackhandAnimation,
+    BackhandReflectionAnimation,
 )
 
 if TYPE_CHECKING:
@@ -167,6 +168,7 @@ class AnimationFactory:
         "MATADOR": (MatadorAnimation, {}),
         "POACH": (PoachAnimation, {}),
         "BACKHAND": (BackhandAnimation, {}),
+        "BACKHAND_REFLECTION": (BackhandReflectionAnimation, {}),
     }
 
     @classmethod
@@ -183,7 +185,9 @@ class AnimationFactory:
                         damage_callback = None,
                         camera = None,
                         game = None,
-                        bounce_count: int = 2):
+                        bounce_count: int = 2,
+                        trajectory = None,
+                        reflected_skill_name: str = None):
         """
         Create an animation for a skill.
 
@@ -998,6 +1002,22 @@ class AnimationFactory:
                     units_list=units_list if units_list else [],
                     camera=camera,
                     game=game
+                )
+            elif anim_class.__name__ == "BackhandReflectionAnimation":
+                # Backhand Reflection - Reflected skill projectile animation
+                # Requires: caster, target_pos (not used), camera, particle_emitter, callbacks, game
+                # Plus: trajectory (list of positions), reflected_skill_name (reflected skill), bounce_count
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_pos=target_pos if target_pos else (0, 0),  # Not used
+                    camera=camera,
+                    particle_emitter=particle_emitter,
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,
+                    game=game,
+                    trajectory=trajectory if trajectory else [],
+                    skill_name=reflected_skill_name if reflected_skill_name else 'Estrange',
+                    bounce_count=bounce_count
                 )
             else:
                 # Most animations expect just target coordinates
