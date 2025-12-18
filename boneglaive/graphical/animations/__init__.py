@@ -105,6 +105,8 @@ from .gas_machinist import (
 
 from .pelotari import (
     MatadorAnimation,
+    PoachAnimation,
+    BackhandAnimation,
 )
 
 from .animation_factory import AnimationFactory
@@ -190,6 +192,8 @@ __all__ = [
     'VaporAOETickAnimation',
     # Pelotari (DLC)
     'MatadorAnimation',
+    'PoachAnimation',
+    'BackhandAnimation',
     # Factory
     'AnimationFactory',
 ]

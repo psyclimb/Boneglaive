@@ -1960,3 +1960,376 @@ class PoachAnimation:
             # Draw buff ball
             if self.buff_ball:
                 self.buff_ball.draw(surface)
+
+
+# ============================================================================
+# BACKHAND ANIMATION
+# ============================================================================
+
+class DefensiveRing:
+    """
+    Expanding defensive ring for Backhand stance activation.
+    Royal blue ring that expands and fades.
+    """
+
+    def __init__(self, center_x, center_y, camera):
+        """Initialize defensive ring."""
+        self.center_x = center_x
+        self.center_y = center_y
+        self.camera = camera
+        self.timer = 0
+        self.duration = 0.4  # 0.4 seconds
+        self.active = True
+
+        self.start_radius = 20
+        self.end_radius = 60
+
+        self.color = (42, 90, 154)  # Royal blue
+
+    def update(self, delta_time):
+        """Update ring expansion."""
+        self.timer += delta_time
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw expanding ring."""
+        if not self.active or self.timer < 0:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+
+        # Expand and fade
+        radius = int(self.start_radius + (self.end_radius - self.start_radius) * progress)
+        alpha = int(255 * (1 - progress))
+
+        # Get screen position with camera offsets
+        screen_x = self.center_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+        screen_y = self.center_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+
+        # Draw ring
+        ring_surface = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+        pygame.draw.circle(ring_surface,
+                          (*self.color, alpha),
+                          (radius, radius),
+                          radius, width=3)
+        surface.blit(ring_surface,
+                    (screen_x - radius, screen_y - radius),
+                    special_flags=pygame.BLEND_ALPHA_SDL2)
+
+
+class RotatingShield:
+    """
+    Rotating shield arcs orbiting PELOTARI during Backhand stance.
+    4 arc segments in med blue that rotate clockwise.
+    """
+
+    def __init__(self, center_x, center_y, camera):
+        """Initialize rotating shield."""
+        self.center_x = center_x
+        self.center_y = center_y
+        self.camera = camera
+        self.timer = 0
+        self.duration = 0.6  # 0.6 seconds
+        self.active = True
+
+        self.orbit_radius = 40
+        self.arc_length = 60  # degrees
+        self.num_arcs = 4
+        self.rotation_speed = 180  # degrees per second
+
+        self.rotation = 0
+        self.color = (74, 122, 186)  # Med blue
+
+    def update(self, delta_time):
+        """Update shield rotation."""
+        self.timer += delta_time
+        self.rotation += self.rotation_speed * delta_time
+        self.rotation = self.rotation % 360
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw rotating shield arcs."""
+        if not self.active or self.timer < 0:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+
+        # Fade in then out
+        if progress < 0.3:
+            alpha = int(255 * (progress / 0.3))
+        elif progress > 0.7:
+            alpha = int(255 * ((1 - progress) / 0.3))
+        else:
+            alpha = 255
+
+        # Get screen position with camera offsets
+        screen_x = self.center_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+        screen_y = self.center_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+
+        # Draw 4 arc segments
+        for i in range(self.num_arcs):
+            angle_offset = self.rotation + i * (360 / self.num_arcs)
+            start_angle = math.radians(angle_offset)
+            end_angle = math.radians(angle_offset + self.arc_length)
+
+            # Create arc points
+            arc_points = []
+            num_points = 20
+            for j in range(num_points):
+                t = j / (num_points - 1)
+                angle = start_angle + (end_angle - start_angle) * t
+                px = screen_x + math.cos(angle) * self.orbit_radius
+                py = screen_y + math.sin(angle) * self.orbit_radius
+                arc_points.append((px, py))
+
+            # Draw arc
+            if len(arc_points) >= 2:
+                # Create surface for alpha blending
+                arc_surface = pygame.Surface((int(self.orbit_radius * 3), int(self.orbit_radius * 3)), pygame.SRCALPHA)
+                offset_x = int(self.orbit_radius * 1.5)
+                offset_y = int(self.orbit_radius * 1.5)
+
+                # Adjust points relative to surface
+                adjusted_points = [(px - screen_x + offset_x, py - screen_y + offset_y) for px, py in arc_points]
+                pygame.draw.lines(arc_surface, (*self.color, alpha), False, adjusted_points, 4)
+
+                surface.blit(arc_surface,
+                            (screen_x - offset_x, screen_y - offset_y),
+                            special_flags=pygame.BLEND_ALPHA_SDL2)
+
+
+class ReadyPulse:
+    """
+    Final readiness pulse for Backhand stance.
+    Gold shimmer that pulses and fades, indicating stance is active.
+    """
+
+    def __init__(self, center_x, center_y, camera):
+        """Initialize ready pulse."""
+        self.center_x = center_x
+        self.center_y = center_y
+        self.camera = camera
+        self.timer = 0
+        self.duration = 0.5  # 0.5 seconds
+        self.active = True
+
+        self.color_gold = (192, 176, 144)
+
+    def update(self, delta_time):
+        """Update pulse."""
+        self.timer += delta_time
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw ready pulse."""
+        if not self.active or self.timer < 0:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+
+        # Get screen position with camera offsets
+        screen_x = self.center_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+        screen_y = self.center_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+
+        # Pulse effect (expand and fade)
+        radius = int(30 + 20 * progress)
+        alpha = int(200 * (1 - progress))
+
+        # Outer glow
+        glow_surface = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+        pygame.draw.circle(glow_surface,
+                          (*self.color_gold, alpha),
+                          (radius, radius),
+                          radius)
+        surface.blit(glow_surface,
+                    (screen_x - radius, screen_y - radius),
+                    special_flags=pygame.BLEND_ALPHA_SDL2)
+
+        # Inner ring
+        ring_radius = int(radius * 0.7)
+        ring_alpha = int(255 * (1 - progress))
+        ring_surface = pygame.Surface((ring_radius * 2, ring_radius * 2), pygame.SRCALPHA)
+        pygame.draw.circle(ring_surface,
+                          (*self.color_gold, ring_alpha),
+                          (ring_radius, ring_radius),
+                          ring_radius, width=3)
+        surface.blit(ring_surface,
+                    (screen_x - ring_radius, screen_y - ring_radius),
+                    special_flags=pygame.BLEND_ALPHA_SDL2)
+
+
+class BackhandAnimation:
+    """
+    Backhand skill animation for PELOTARI.
+    Counter stance activation - PELOTARI assumes defensive position ready to reflect skills.
+
+    Phases:
+    1. Stance (0.4s) - Defensive ring expands from unit
+    2. Shield (0.6s) - Rotating shield arcs orbit unit
+    3. Ready (0.5s) - Final pulse indicating stance is active
+
+    Total duration: ~1.5 seconds
+    """
+
+    def __init__(self, caster_unit, target_unit, target_pos, is_crit, is_infused,
+                 particle_emitter, debris_list, screen_shake_callback,
+                 screen_flash_callback, units_list, camera, game=None):
+        """
+        Initialize Backhand animation.
+
+        Args:
+            caster_unit: AnimatedUnit (PELOTARI assuming stance)
+            target_unit: None (self-buff)
+            target_pos: (grid_y, grid_x) - caster position
+            is_crit: Unused
+            is_infused: Unused
+            particle_emitter: ParticleEmitter
+            debris_list: Unused
+            screen_shake_callback: Function to trigger screen shake
+            screen_flash_callback: Function to trigger screen flash
+            units_list: Unused
+            camera: Camera instance
+            game: Game instance (optional)
+        """
+        # Store references
+        self.caster = caster_unit
+        self.camera = camera
+        self.particle_emitter = particle_emitter
+        self.screen_shake_callback = screen_shake_callback
+        self.screen_flash_callback = screen_flash_callback
+
+        # Calculate caster world position (center of tile)
+        self.caster_world_x = self.caster.grid_x * TILE_SIZE + TILE_SIZE // 2
+        self.caster_world_y = self.caster.grid_y * TILE_SIZE + TILE_SIZE // 2
+
+        # Animation state
+        self.phase = 'stance'  # stance -> shield -> ready -> done
+        self.timer = 0
+        self.active = True
+
+        # Sub-effects
+        self.defensive_ring = None
+        self.rotating_shield = None
+        self.ready_pulse = None
+
+        # Colors
+        self.color_royal_blue = (42, 90, 154)
+        self.color_med_blue = (74, 122, 186)
+        self.color_gold = (192, 176, 144)
+
+        # Start stance phase
+        self._start_stance()
+
+    def _start_stance(self):
+        """Phase 1: Defensive stance activation."""
+        self.phase = 'stance'
+        self.timer = 0
+
+        # Create expanding defensive ring
+        self.defensive_ring = DefensiveRing(
+            self.caster_world_x,
+            self.caster_world_y,
+            self.camera
+        )
+
+        # Particle burst at feet
+        screen_x = self.caster_world_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+        screen_y = self.caster_world_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+        self.particle_emitter.emit_burst(
+            screen_x, screen_y,
+            self.color_royal_blue, count=15
+        )
+
+        # Light screen shake
+        self.screen_shake_callback(2, 0.3)
+
+    def _start_shield(self):
+        """Phase 2: Rotating shield activation."""
+        self.phase = 'shield'
+        self.timer = 0
+
+        # Create rotating shield
+        self.rotating_shield = RotatingShield(
+            self.caster_world_x,
+            self.caster_world_y,
+            self.camera
+        )
+
+        # Screen flash (subtle)
+        self.screen_flash_callback(self.color_med_blue, 0.2)
+
+    def _start_ready(self):
+        """Phase 3: Ready stance indicator."""
+        self.phase = 'ready'
+        self.timer = 0
+
+        # Create ready pulse
+        self.ready_pulse = ReadyPulse(
+            self.caster_world_x,
+            self.caster_world_y,
+            self.camera
+        )
+
+        # Gold particles rising
+        screen_x = self.caster_world_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+        screen_y = self.caster_world_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+        self.particle_emitter.emit_float(
+            screen_x, screen_y,
+            self.color_gold, count=12
+        )
+
+    def update(self, delta_time):
+        """Update animation state."""
+        self.timer += delta_time
+
+        if self.phase == 'stance':
+            # Stance phase (0.4s)
+            if self.defensive_ring:
+                self.defensive_ring.update(delta_time)
+
+            if self.timer >= 0.4:
+                self._start_shield()
+
+        elif self.phase == 'shield':
+            # Shield phase (0.6s)
+            if self.rotating_shield:
+                self.rotating_shield.update(delta_time)
+
+            if self.timer >= 0.6:
+                self._start_ready()
+
+        elif self.phase == 'ready':
+            # Ready phase (0.5s)
+            if self.ready_pulse:
+                self.ready_pulse.update(delta_time)
+
+            if self.timer >= 0.5:
+                self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw the Backhand animation."""
+        # Draw defensive ring (phase 1)
+        if self.defensive_ring and self.defensive_ring.active:
+            self.defensive_ring.draw(surface)
+
+        # Draw rotating shield (phase 2)
+        if self.rotating_shield and self.rotating_shield.active:
+            self.rotating_shield.draw(surface)
+
+        # Draw ready pulse (phase 3)
+        if self.ready_pulse and self.ready_pulse.active:
+            self.ready_pulse.draw(surface)

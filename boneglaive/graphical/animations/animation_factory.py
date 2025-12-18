@@ -71,6 +71,7 @@ from boneglaive.graphical.animations.pelotari import (
     MatadorAnimation,
     RiposteAnimation,
     PoachAnimation,
+    BackhandAnimation,
 )
 
 if TYPE_CHECKING:
@@ -165,6 +166,7 @@ class AnimationFactory:
         # PELOTARI skills (DLC)
         "MATADOR": (MatadorAnimation, {}),
         "POACH": (PoachAnimation, {}),
+        "BACKHAND": (BackhandAnimation, {}),
     }
 
     @classmethod
@@ -971,32 +973,32 @@ class AnimationFactory:
                     print("[AnimationFactory] POACH requires a target position")
                     return None
 
-                # Debug logging for Poach animation creation
-                print(f"[AnimationFactory] *** CREATING POACH ANIMATION ***")
-                print(f"[AnimationFactory]   caster_unit: {caster_unit}")
-                print(f"[AnimationFactory]   target_pos: {target_pos}")
-                print(f"[AnimationFactory]   camera: {camera}")
-                print(f"[AnimationFactory]   particle_emitter: {particle_emitter}")
-                print(f"[AnimationFactory]   screen_shake_callback: {screen_shake_callback}")
-                print(f"[AnimationFactory]   screen_flash_callback: {screen_flash_callback}")
-                print(f"[AnimationFactory]   game: {kwargs.get('game')}")
-
-                try:
-                    animation = anim_class(
-                        caster_unit=caster_unit,
-                        target_pos=target_pos,
-                        camera=camera,
-                        particle_emitter=particle_emitter,
-                        screen_shake_callback=screen_shake_callback,
-                        screen_flash_callback=screen_flash_callback,
-                        game=kwargs.get('game')
-                    )
-                    print(f"[AnimationFactory] PoachAnimation created successfully!")
-                except Exception as e:
-                    print(f"[AnimationFactory] ERROR creating PoachAnimation: {e}")
-                    import traceback
-                    traceback.print_exc()
-                    return None
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_pos=target_pos,
+                    camera=camera,
+                    particle_emitter=particle_emitter,
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,
+                    game=kwargs.get('game')
+                )
+            elif anim_class.__name__ == "BackhandAnimation":
+                # Backhand - Self-buff stance animation
+                # Requires: full standard signature (self-buff uses caster position as target)
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_unit=target_unit,  # None for self-buff
+                    target_pos=target_pos if target_pos else (caster_unit.grid_y, caster_unit.grid_x),
+                    is_crit=is_crit,
+                    is_infused=is_infused,
+                    particle_emitter=particle_emitter,
+                    debris_list=debris_list if debris_list else [],
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,
+                    units_list=units_list if units_list else [],
+                    camera=camera,
+                    game=game
+                )
             else:
                 # Most animations expect just target coordinates
                 animation = anim_class(**kwargs)

@@ -2395,15 +2395,6 @@ class GraphicalRenderer:
         # Get Matador bounce count if this is a Matador skill
         bounce_count = event.kwargs.get("bounce_count", 2)  # Default to 2 if not specified
 
-        # Debug logging for PELOTARI skills
-        if skill_name in ["Poach", "POACH", "Matador", "MATADOR"]:
-            print(f"  [Renderer] *** PELOTARI SKILL ANIMATION REQUEST: {skill_name} ***")
-            print(f"  [Renderer]   caster_animated: {caster_animated}")
-            print(f"  [Renderer]   target_pos: {target_pos}")
-            print(f"  [Renderer]   target_unit: {target_unit}")
-            print(f"  [Renderer]   game instance: {self.game_adapter.game}")
-            print(f"  [Renderer]   bounce_count: {bounce_count}")
-
         # Create animation via factory
         print(f"  [Renderer] Creating animation for {skill_name}...")
         animation = AnimationFactory.create_animation(
