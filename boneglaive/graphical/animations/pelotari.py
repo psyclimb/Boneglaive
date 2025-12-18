@@ -2528,6 +2528,782 @@ class EstrangeBall:
                            (line_x, line_y), (line_end_x, line_end_y), 1)
 
 
+class ExpediteBall:
+    """
+    Mechanical pelota with gnashing jaws for reflected Expedite skill.
+    Size ~19px diameter with animated mechanical jaw components.
+    Gray/brown metallic theme with steam/pressure effects.
+    """
+
+    def __init__(self, start_x, start_y, camera):
+        """
+        Initialize the Expedite reflection ball.
+
+        Args:
+            start_x, start_y: Starting world coordinates
+            camera: Camera instance for coordinate conversion
+        """
+        self.world_x = start_x
+        self.world_y = start_y
+        self.camera = camera
+
+        # Visual properties - small-medium size
+        self.size = 19  # 19px diameter
+        self.glow_size = int(self.size * 1.2)  # Subtle glow
+        self.rotation = 0  # Overall rotation
+        self.rotation_speed = 180  # degrees per second
+
+        # Jaw animation
+        self.jaw_phase = 0  # 0 to 2*pi for open/close cycle
+        self.jaw_speed = 10  # radians per second (~0.3s cycle)
+        self.max_jaw_angle = math.pi / 3  # 60 degrees max opening
+
+        # Expedite color palette - mechanical/hydraulic
+        self.color_dark_gray = (105, 105, 105)    # #696969 - main body
+        self.color_gray = (139, 139, 139)         # #8b8b8b - highlights
+        self.color_light_gray = (169, 169, 169)   # #a9a9a9 - lighter accents
+        self.color_brown = (139, 105, 20)         # #8b6914 - MANDIBLE brown theme
+        self.color_orange = (255, 140, 0)         # #ff8c00 - pressure glow
+        self.color_white = (255, 255, 255)        # Steam
+
+        # Motion trail
+        self.trail_positions = []
+        self.max_trail_length = 6
+
+        # Steam particles
+        self.steam_particles = []
+        self.steam_timer = 0
+
+    def move_to(self, world_x, world_y):
+        """Move ball to new world position."""
+        # Store trail position
+        screen_x = self.world_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+        screen_y = self.world_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+        screen_pos = (screen_x, screen_y)
+        if screen_pos:
+            self.trail_positions.append((screen_pos[0], screen_pos[1], 1.0))
+
+        # Trim trail
+        if len(self.trail_positions) > self.max_trail_length:
+            self.trail_positions.pop(0)
+
+        self.world_x = world_x
+        self.world_y = world_y
+
+    def update(self, delta_time):
+        """Update ball animation."""
+        # Rotate ball
+        self.rotation += self.rotation_speed * delta_time
+        self.rotation %= 360
+
+        # Update jaw phase (gnashing animation)
+        self.jaw_phase += self.jaw_speed * delta_time
+        self.jaw_phase %= (2 * math.pi)
+
+        # Fade trail
+        self.trail_positions = [
+            (x, y, alpha * 0.87) for x, y, alpha in self.trail_positions
+            if alpha > 0.1
+        ]
+
+        # Update steam particles
+        self.steam_timer += delta_time
+        if self.steam_timer >= 0.08:  # Emit steam every 0.08s
+            self.steam_timer = 0
+            # Add steam particle at current position
+            screen_x = self.world_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+            screen_y = self.world_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+            self.steam_particles.append({
+                'x': screen_x,
+                'y': screen_y,
+                'vx': random.uniform(-15, 15),
+                'vy': random.uniform(-30, -10),
+                'life': 0.5,
+                'max_life': 0.5,
+                'size': random.randint(2, 4)
+            })
+
+        # Update existing steam particles
+        for particle in self.steam_particles:
+            particle['x'] += particle['vx'] * delta_time
+            particle['y'] += particle['vy'] * delta_time
+            particle['life'] -= delta_time
+
+        # Remove dead particles
+        self.steam_particles = [p for p in self.steam_particles if p['life'] > 0]
+
+        return True
+
+    def draw(self, surface):
+        """Draw the Expedite ball with gnashing jaws and steam."""
+        screen_x = self.world_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+        screen_y = self.world_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+        screen_pos = (screen_x, screen_y)
+        if not screen_pos:
+            return
+
+        cx, cy = screen_pos
+
+        # Draw motion trail (metallic gray)
+        for i, (tx, ty, alpha) in enumerate(self.trail_positions):
+            trail_size = int(self.size * (0.4 + 0.6 * (i / len(self.trail_positions))))
+            trail_alpha = int(alpha * 100)
+
+            # Gray metallic trail
+            trail_surf = pygame.Surface((trail_size * 2, trail_size * 2), pygame.SRCALPHA)
+            pygame.draw.circle(trail_surf, (*self.color_gray, trail_alpha),
+                             (trail_size, trail_size), trail_size)
+            surface.blit(trail_surf, (int(tx - trail_size), int(ty - trail_size)))
+
+        # Layer 1: Steam particles
+        for particle in self.steam_particles:
+            alpha = int(180 * (particle['life'] / particle['max_life']))
+            size = particle['size']
+            steam_surf = pygame.Surface((size * 2, size * 2), pygame.SRCALPHA)
+            pygame.draw.circle(steam_surf, (*self.color_white, alpha),
+                             (size, size), size)
+            surface.blit(steam_surf, (int(particle['x'] - size), int(particle['y'] - size)))
+
+        # Layer 2: Pressure glow (orange/brown)
+        import time
+        pulse = 0.6 + 0.4 * math.sin(time.time() * 6)  # Fast pulse (pressure)
+        glow_alpha = int(80 * pulse)
+
+        glow_surf = pygame.Surface((self.glow_size * 2, self.glow_size * 2), pygame.SRCALPHA)
+        for radius_offset in range(5):
+            radius = self.glow_size - radius_offset * 2
+            alpha = int(glow_alpha * (1.0 - radius_offset / 5))
+            if radius > 0:
+                pygame.draw.circle(glow_surf, (*self.color_orange, alpha),
+                                 (self.glow_size, self.glow_size), radius)
+        surface.blit(glow_surf, (int(cx - self.glow_size), int(cy - self.glow_size)))
+
+        # Layer 3: Main dark gray ball body
+        pygame.draw.circle(surface, self.color_dark_gray, (int(cx), int(cy)), self.size // 2)
+
+        # Layer 4: Gray highlight (gradient effect)
+        inner_size = int(self.size * 0.7)
+        if inner_size > 0:
+            highlight_offset_x = -self.size // 6
+            highlight_offset_y = -self.size // 6
+            pygame.draw.circle(surface, self.color_gray,
+                             (int(cx + highlight_offset_x), int(cy + highlight_offset_y)),
+                             inner_size // 2)
+
+        # Layer 5: Brown accent ring (MANDIBLE theme)
+        ring_radius = int(self.size * 0.45)
+        ring_thickness = 2
+        if ring_radius > 0:
+            pygame.draw.circle(surface, self.color_brown, (int(cx), int(cy)),
+                             ring_radius, ring_thickness)
+
+        # Layer 6: ANIMATED GNASHING JAWS
+        # Calculate jaw opening based on sine wave (0 = closed, 1 = fully open)
+        jaw_opening = (math.sin(self.jaw_phase) + 1) / 2  # 0 to 1
+        current_jaw_angle = jaw_opening * self.max_jaw_angle
+
+        # Jaw parameters
+        jaw_radius = self.size // 2 - 2  # Slightly smaller than ball
+        jaw_thickness = 3
+
+        # Upper jaw (top half arc)
+        # Arc from left to right, opening upward
+        upper_jaw_start_angle = math.pi - current_jaw_angle / 2
+        upper_jaw_end_angle = current_jaw_angle / 2
+        upper_jaw_rect = pygame.Rect(cx - jaw_radius, cy - jaw_radius,
+                                     jaw_radius * 2, jaw_radius * 2)
+
+        # Draw upper jaw arc
+        pygame.draw.arc(surface, self.color_light_gray, upper_jaw_rect,
+                       upper_jaw_end_angle, upper_jaw_start_angle, jaw_thickness)
+
+        # Lower jaw (bottom half arc)
+        # Arc from left to right, opening downward
+        lower_jaw_start_angle = math.pi + current_jaw_angle / 2
+        lower_jaw_end_angle = 2 * math.pi - current_jaw_angle / 2
+        lower_jaw_rect = pygame.Rect(cx - jaw_radius, cy - jaw_radius,
+                                     jaw_radius * 2, jaw_radius * 2)
+
+        # Draw lower jaw arc
+        pygame.draw.arc(surface, self.color_light_gray, lower_jaw_rect,
+                       lower_jaw_start_angle, lower_jaw_end_angle, jaw_thickness)
+
+        # Add jaw "teeth" - small protrusions on jaw edges
+        tooth_count = 6
+        tooth_size = 2
+        for i in range(tooth_count):
+            # Upper teeth
+            angle = math.pi - current_jaw_angle / 2 + (i / (tooth_count - 1)) * current_jaw_angle
+            tooth_x = int(cx + math.cos(angle) * jaw_radius)
+            tooth_y = int(cy + math.sin(angle) * jaw_radius)
+            pygame.draw.circle(surface, self.color_white, (tooth_x, tooth_y), tooth_size)
+
+            # Lower teeth
+            angle = math.pi + current_jaw_angle / 2 + (i / (tooth_count - 1)) * current_jaw_angle
+            tooth_x = int(cx + math.cos(angle) * jaw_radius)
+            tooth_y = int(cy + math.sin(angle) * jaw_radius)
+            pygame.draw.circle(surface, self.color_white, (tooth_x, tooth_y), tooth_size)
+
+        # Layer 7: Rotating rivets/bolts (mechanical detail)
+        angle_rad = math.radians(self.rotation)
+        rivet_count = 4
+        for i in range(rivet_count):
+            angle = angle_rad + (i / rivet_count) * 2 * math.pi
+            rivet_radius = self.size * 0.6
+            rx = int(cx + math.cos(angle) * rivet_radius)
+            ry = int(cy + math.sin(angle) * rivet_radius)
+
+            # Dark gray rivets
+            pygame.draw.circle(surface, self.color_dark_gray, (rx, ry), 2)
+            pygame.draw.circle(surface, self.color_light_gray, (rx, ry), 1)
+
+
+class AuctionCurseBall:
+    """
+    Skeletal pelota with glowing gold eyes for reflected Auction Curse skill.
+    Size ~19px diameter with skull motif, gold eyes, and currency symbols.
+    Black/gold theme matching the skeletal auctioneer.
+    """
+
+    def __init__(self, start_x, start_y, camera):
+        """
+        Initialize the Auction Curse reflection ball.
+
+        Args:
+            start_x, start_y: Starting world coordinates
+            camera: Camera instance for coordinate conversion
+        """
+        self.world_x = start_x
+        self.world_y = start_y
+        self.camera = camera
+
+        # Visual properties - small-medium size
+        self.size = 19  # 19px diameter
+        self.glow_size = int(self.size * 1.4)  # Prominent gold glow
+        self.rotation = 0  # For orbiting currency symbols
+        self.rotation_speed = 150  # degrees per second
+
+        # Gavel strike animation
+        self.gavel_phase = 0  # 0 to 2*pi for strike cycle
+        self.gavel_speed = 8  # radians per second (~0.4s cycle)
+
+        # Eye pulse animation
+        self.eye_pulse_phase = 0
+
+        # Auction Curse color palette - skeletal auctioneer theme
+        self.color_black = (26, 26, 26)           # #1a1a1a - skeleton
+        self.color_dark_gray = (44, 44, 44)       # #2c2c2c - skull fill
+        self.color_gold = (255, 215, 0)           # #ffd700 - eyes, currency
+        self.color_dark_gold = (218, 165, 32)     # #daa520 - glow, accents
+        self.color_brown = (139, 69, 19)          # #8b4513 - gavel handle
+        self.color_white = (255, 255, 255)        # Eye highlights
+
+        # Motion trail
+        self.trail_positions = []
+        self.max_trail_length = 6
+
+        # Orbiting currency symbols
+        self.currency_count = 4
+
+        # Dark curse tendrils
+        self.tendril_points = []
+        self.tendril_timer = 0
+
+    def move_to(self, world_x, world_y):
+        """Move ball to new world position."""
+        # Store trail position
+        screen_x = self.world_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+        screen_y = self.world_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+        screen_pos = (screen_x, screen_y)
+        if screen_pos:
+            self.trail_positions.append((screen_pos[0], screen_pos[1], 1.0))
+
+        # Trim trail
+        if len(self.trail_positions) > self.max_trail_length:
+            self.trail_positions.pop(0)
+
+        self.world_x = world_x
+        self.world_y = world_y
+
+    def update(self, delta_time):
+        """Update ball animation."""
+        # Rotate currency symbols
+        self.rotation += self.rotation_speed * delta_time
+        self.rotation %= 360
+
+        # Update gavel strike phase
+        self.gavel_phase += self.gavel_speed * delta_time
+        self.gavel_phase %= (2 * math.pi)
+
+        # Update eye pulse
+        self.eye_pulse_phase += delta_time * 5
+        self.eye_pulse_phase %= (2 * math.pi)
+
+        # Fade trail
+        self.trail_positions = [
+            (x, y, alpha * 0.86) for x, y, alpha in self.trail_positions
+            if alpha > 0.1
+        ]
+
+        # Update curse tendrils
+        self.tendril_timer += delta_time
+        if self.tendril_timer >= 0.1:  # New tendril every 0.1s
+            self.tendril_timer = 0
+            # Add tendril point at current position with random offset
+            screen_x = self.world_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+            screen_y = self.world_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+            self.tendril_points.append({
+                'x': screen_x + random.uniform(-self.size//2, self.size//2),
+                'y': screen_y + random.uniform(-self.size//2, self.size//2),
+                'vx': random.uniform(-20, 20),
+                'vy': random.uniform(-20, 20),
+                'life': 0.6,
+                'max_life': 0.6,
+                'size': random.randint(2, 4)
+            })
+
+        # Update existing tendrils
+        for tendril in self.tendril_points:
+            tendril['x'] += tendril['vx'] * delta_time
+            tendril['y'] += tendril['vy'] * delta_time
+            tendril['life'] -= delta_time
+
+        # Remove dead tendrils
+        self.tendril_points = [t for t in self.tendril_points if t['life'] > 0]
+
+        return True
+
+    def draw(self, surface):
+        """Draw the Auction Curse ball with skull, gold eyes, and gavel."""
+        screen_x = self.world_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+        screen_y = self.world_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+        screen_pos = (screen_x, screen_y)
+        if not screen_pos:
+            return
+
+        cx, cy = screen_pos
+
+        # Draw motion trail (dark with gold tint)
+        for i, (tx, ty, alpha) in enumerate(self.trail_positions):
+            trail_size = int(self.size * (0.4 + 0.6 * (i / len(self.trail_positions))))
+            trail_alpha = int(alpha * 100)
+
+            # Black trail with gold edge
+            trail_surf = pygame.Surface((trail_size * 2, trail_size * 2), pygame.SRCALPHA)
+            pygame.draw.circle(trail_surf, (*self.color_black, trail_alpha),
+                             (trail_size, trail_size), trail_size)
+            pygame.draw.circle(trail_surf, (*self.color_dark_gold, trail_alpha // 2),
+                             (trail_size, trail_size), trail_size, 1)
+            surface.blit(trail_surf, (int(tx - trail_size), int(ty - trail_size)))
+
+        # Layer 1: Dark curse tendrils
+        for tendril in self.tendril_points:
+            alpha = int(120 * (tendril['life'] / tendril['max_life']))
+            size = tendril['size']
+            tendril_surf = pygame.Surface((size * 2, size * 2), pygame.SRCALPHA)
+            pygame.draw.circle(tendril_surf, (*self.color_black, alpha),
+                             (size, size), size)
+            surface.blit(tendril_surf, (int(tendril['x'] - size), int(tendril['y'] - size)))
+
+        # Layer 2: Golden astral glow (auction energy)
+        import time
+        pulse = 0.7 + 0.3 * math.sin(time.time() * 4)
+        glow_alpha = int(90 * pulse)
+
+        glow_surf = pygame.Surface((self.glow_size * 2, self.glow_size * 2), pygame.SRCALPHA)
+        for radius_offset in range(6):
+            radius = self.glow_size - radius_offset * 2
+            alpha = int(glow_alpha * (1.0 - radius_offset / 6))
+            if radius > 0:
+                pygame.draw.circle(glow_surf, (*self.color_gold, alpha),
+                                 (self.glow_size, self.glow_size), radius)
+        surface.blit(glow_surf, (int(cx - self.glow_size), int(cy - self.glow_size)))
+
+        # Layer 3: Main black skull ball body
+        pygame.draw.circle(surface, self.color_black, (int(cx), int(cy)), self.size // 2)
+
+        # Layer 4: Dark gray inner skull
+        inner_size = int(self.size * 0.8)
+        if inner_size > 0:
+            pygame.draw.circle(surface, self.color_dark_gray, (int(cx), int(cy)), inner_size // 2)
+
+        # Layer 5: GLOWING GOLD EYES (main feature)
+        eye_offset_x = self.size // 6
+        eye_offset_y = -self.size // 8
+        eye_radius = 2
+
+        # Eye pulse
+        eye_pulse = 0.8 + 0.2 * math.sin(self.eye_pulse_phase)
+        eye_glow_radius = int(4 * eye_pulse)
+
+        # Left eye
+        left_eye_x = int(cx - eye_offset_x)
+        left_eye_y = int(cy + eye_offset_y)
+
+        # Eye glow
+        eye_glow_surf = pygame.Surface((eye_glow_radius * 2, eye_glow_radius * 2), pygame.SRCALPHA)
+        for i in range(4):
+            glow_r = eye_glow_radius - i
+            glow_a = int(100 * (1.0 - i / 4) * eye_pulse)
+            if glow_r > 0:
+                pygame.draw.circle(eye_glow_surf, (*self.color_gold, glow_a),
+                                 (eye_glow_radius, eye_glow_radius), glow_r)
+        surface.blit(eye_glow_surf, (left_eye_x - eye_glow_radius, left_eye_y - eye_glow_radius))
+
+        # Eye socket (black)
+        pygame.draw.circle(surface, (0, 0, 0), (left_eye_x, left_eye_y), eye_radius + 1)
+        # Eye (gold)
+        pygame.draw.circle(surface, self.color_gold, (left_eye_x, left_eye_y), eye_radius)
+        # Eye highlight
+        pygame.draw.circle(surface, self.color_white, (left_eye_x, left_eye_y - 1), 1)
+
+        # Right eye
+        right_eye_x = int(cx + eye_offset_x)
+        right_eye_y = int(cy + eye_offset_y)
+
+        # Eye glow
+        surface.blit(eye_glow_surf, (right_eye_x - eye_glow_radius, right_eye_y - eye_glow_radius))
+
+        # Eye socket (black)
+        pygame.draw.circle(surface, (0, 0, 0), (right_eye_x, right_eye_y), eye_radius + 1)
+        # Eye (gold)
+        pygame.draw.circle(surface, self.color_gold, (right_eye_x, right_eye_y), eye_radius)
+        # Eye highlight
+        pygame.draw.circle(surface, self.color_white, (right_eye_x, right_eye_y - 1), 1)
+
+        # Layer 6: Skull features (nose cavity, jaw line)
+        # Nose cavity
+        nose_y = int(cy + self.size // 10)
+        pygame.draw.circle(surface, (0, 0, 0), (int(cx), nose_y), 1)
+
+        # Jaw line (subtle)
+        jaw_y = int(cy + self.size // 4)
+        pygame.draw.arc(surface, self.color_black,
+                       pygame.Rect(int(cx - self.size//4), jaw_y - 2, self.size//2, 4),
+                       0, math.pi, 2)
+
+        # Layer 7: Orbiting currency symbols (¤)
+        angle_rad = math.radians(self.rotation)
+        for i in range(self.currency_count):
+            angle = angle_rad + (i / self.currency_count) * 2 * math.pi
+            orbit_radius = self.size * 0.85
+            symbol_x = int(cx + math.cos(angle) * orbit_radius)
+            symbol_y = int(cy + math.sin(angle) * orbit_radius)
+
+            # Render currency symbol ¤
+            # Draw as a circle with crosshairs
+            symbol_radius = 3
+            symbol_alpha = int(200 + 55 * math.sin(angle * 2))
+
+            # Outer circle
+            symbol_surf = pygame.Surface((symbol_radius * 2, symbol_radius * 2), pygame.SRCALPHA)
+            pygame.draw.circle(symbol_surf, (*self.color_gold, symbol_alpha),
+                             (symbol_radius, symbol_radius), symbol_radius, 1)
+            # Crosshairs
+            pygame.draw.line(symbol_surf, (*self.color_gold, symbol_alpha),
+                           (0, symbol_radius), (symbol_radius * 2, symbol_radius), 1)
+            pygame.draw.line(symbol_surf, (*self.color_gold, symbol_alpha),
+                           (symbol_radius, 0), (symbol_radius, symbol_radius * 2), 1)
+            surface.blit(symbol_surf, (symbol_x - symbol_radius, symbol_y - symbol_radius))
+
+        # Layer 8: Golden gavel (strikes rhythmically)
+        # Gavel position oscillates up/down to simulate striking
+        gavel_strike = math.sin(self.gavel_phase)  # -1 to 1
+        gavel_offset_y = int(gavel_strike * 3)  # 3px oscillation
+
+        gavel_x = int(cx + self.size // 3)
+        gavel_y = int(cy - self.size // 3 + gavel_offset_y)
+
+        # Gavel head (small rectangle)
+        gavel_head_width = 4
+        gavel_head_height = 2
+        gavel_rect = pygame.Rect(gavel_x - gavel_head_width // 2, gavel_y - gavel_head_height // 2,
+                                  gavel_head_width, gavel_head_height)
+        pygame.draw.rect(surface, self.color_gold, gavel_rect)
+        pygame.draw.rect(surface, self.color_dark_gold, gavel_rect, 1)
+
+        # Gavel handle (small vertical line)
+        handle_start_y = gavel_y + gavel_head_height // 2
+        handle_end_y = handle_start_y + 3
+        pygame.draw.line(surface, self.color_brown,
+                        (gavel_x, handle_start_y), (gavel_x, handle_end_y), 1)
+
+        # Strike impact lines (when gavel is at bottom of strike)
+        if gavel_strike < -0.5:  # Bottom half of strike
+            impact_alpha = int(180 * abs(gavel_strike + 0.5) / 0.5)
+            # Two impact lines
+            pygame.draw.line(surface, (*self.color_gold, impact_alpha),
+                           (gavel_x - 4, gavel_y), (gavel_x - 7, gavel_y), 1)
+            pygame.draw.line(surface, (*self.color_gold, impact_alpha),
+                           (gavel_x + 4, gavel_y), (gavel_x + 7, gavel_y), 1)
+
+
+class PryBall:
+    """
+    Leverage-themed pelota with pulsing fulcrum point for reflected Pry skill.
+    Size ~19px diameter with orange energy burst, rotating rays, and force arrows.
+    Orange/white theme matching the critical leverage moment.
+    """
+
+    def __init__(self, start_x, start_y, camera):
+        """
+        Initialize the Pry reflection ball.
+
+        Args:
+            start_x, start_y: Starting world coordinates
+            camera: Camera instance for coordinate conversion
+        """
+        self.world_x = start_x
+        self.world_y = start_y
+        self.camera = camera
+
+        # Visual properties - small-medium size
+        self.size = 19  # 19px diameter
+        self.glow_size = int(self.size * 1.5)  # Prominent orange glow
+        self.rotation = 0  # For rotating energy rays
+        self.rotation_speed = 200  # degrees per second (fast rotation)
+
+        # Fulcrum pulse animation
+        self.pulse_phase = 0
+        self.pulse_speed = 6  # Fast pulsing (energy buildup)
+
+        # Force arrow animation
+        self.arrow_phase = 0
+        self.arrow_speed = 5  # Oscillating force indicators
+
+        # Pry color palette - leverage/force theme
+        self.color_orange = (255, 102, 0)         # #ff6600 - main energy
+        self.color_light_orange = (255, 153, 68)  # #ff9944 - glow, rays
+        self.color_white = (255, 255, 255)        # Core, highlights
+        self.color_dark_orange = (204, 85, 0)     # Darker accents
+
+        # Motion trail
+        self.trail_positions = []
+        self.max_trail_length = 7
+
+        # Energy ray count
+        self.ray_count = 4  # 4 diagonal rays
+
+        # Stress particles (tension indicators)
+        self.stress_particles = []
+        self.stress_timer = 0
+
+    def move_to(self, world_x, world_y):
+        """Move ball to new world position."""
+        # Store trail position
+        screen_x = self.world_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+        screen_y = self.world_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+        screen_pos = (screen_x, screen_y)
+        if screen_pos:
+            self.trail_positions.append((screen_pos[0], screen_pos[1], 1.0))
+
+        # Trim trail
+        if len(self.trail_positions) > self.max_trail_length:
+            self.trail_positions.pop(0)
+
+        self.world_x = world_x
+        self.world_y = world_y
+
+    def update(self, delta_time):
+        """Update ball animation."""
+        # Rotate energy rays
+        self.rotation += self.rotation_speed * delta_time
+        self.rotation %= 360
+
+        # Update fulcrum pulse
+        self.pulse_phase += self.pulse_speed * delta_time
+        self.pulse_phase %= (2 * math.pi)
+
+        # Update arrow oscillation
+        self.arrow_phase += self.arrow_speed * delta_time
+        self.arrow_phase %= (2 * math.pi)
+
+        # Fade trail
+        self.trail_positions = [
+            (x, y, alpha * 0.88) for x, y, alpha in self.trail_positions
+            if alpha > 0.1
+        ]
+
+        # Update stress particles
+        self.stress_timer += delta_time
+        if self.stress_timer >= 0.06:  # New stress particle every 0.06s
+            self.stress_timer = 0
+            # Add stress particle at edge
+            screen_x = self.world_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+            screen_y = self.world_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+
+            # Spawn at random angle on edge
+            angle = random.uniform(0, 2 * math.pi)
+            spawn_radius = self.size // 2
+            self.stress_particles.append({
+                'x': screen_x + math.cos(angle) * spawn_radius,
+                'y': screen_y + math.sin(angle) * spawn_radius,
+                'vx': math.cos(angle) * 40,
+                'vy': math.sin(angle) * 40,
+                'life': 0.4,
+                'max_life': 0.4,
+                'size': 2
+            })
+
+        # Update existing stress particles
+        for particle in self.stress_particles:
+            particle['x'] += particle['vx'] * delta_time
+            particle['y'] += particle['vy'] * delta_time
+            particle['life'] -= delta_time
+
+        # Remove dead particles
+        self.stress_particles = [p for p in self.stress_particles if p['life'] > 0]
+
+        return True
+
+    def draw(self, surface):
+        """Draw the Pry ball with fulcrum energy burst and force indicators."""
+        screen_x = self.world_x + self.camera.grid_offset_x + self.camera.shake_offset_x
+        screen_y = self.world_y + self.camera.grid_offset_y + self.camera.shake_offset_y
+        screen_pos = (screen_x, screen_y)
+        if not screen_pos:
+            return
+
+        cx, cy = screen_pos
+
+        # Draw motion trail (orange energy)
+        for i, (tx, ty, alpha) in enumerate(self.trail_positions):
+            trail_size = int(self.size * (0.4 + 0.6 * (i / len(self.trail_positions))))
+            trail_alpha = int(alpha * 120)
+
+            # Orange trail with white core
+            trail_surf = pygame.Surface((trail_size * 2, trail_size * 2), pygame.SRCALPHA)
+            pygame.draw.circle(trail_surf, (*self.color_light_orange, trail_alpha),
+                             (trail_size, trail_size), trail_size)
+            pygame.draw.circle(trail_surf, (*self.color_white, trail_alpha // 2),
+                             (trail_size, trail_size), trail_size // 2)
+            surface.blit(trail_surf, (int(tx - trail_size), int(ty - trail_size)))
+
+        # Layer 1: Stress particles (tension indicators)
+        for particle in self.stress_particles:
+            alpha = int(180 * (particle['life'] / particle['max_life']))
+            size = particle['size']
+            stress_surf = pygame.Surface((size * 2, size * 2), pygame.SRCALPHA)
+            pygame.draw.circle(stress_surf, (*self.color_light_orange, alpha),
+                             (size, size), size)
+            surface.blit(stress_surf, (int(particle['x'] - size), int(particle['y'] - size)))
+
+        # Layer 2: Orange energy glow (fulcrum aura)
+        import time
+        pulse = 0.6 + 0.4 * math.sin(self.pulse_phase)
+        glow_alpha = int(100 * pulse)
+
+        glow_surf = pygame.Surface((self.glow_size * 2, self.glow_size * 2), pygame.SRCALPHA)
+        for radius_offset in range(7):
+            radius = self.glow_size - radius_offset * 2
+            alpha = int(glow_alpha * (1.0 - radius_offset / 7))
+            if radius > 0:
+                pygame.draw.circle(glow_surf, (*self.color_orange, alpha),
+                                 (self.glow_size, self.glow_size), radius)
+        surface.blit(glow_surf, (int(cx - self.glow_size), int(cy - self.glow_size)))
+
+        # Layer 3: Pulsing orange rings (energy waves)
+        ring_pulse = (time.time() * 3) % 1.0  # 0 to 1
+        ring_radius = int(self.size * (0.7 + ring_pulse * 0.5))
+        ring_alpha = int(150 * (1.0 - ring_pulse))
+        if ring_alpha > 0:
+            pygame.draw.circle(surface, (*self.color_light_orange, ring_alpha),
+                             (int(cx), int(cy)), ring_radius, 2)
+
+        # Layer 4: Main orange ball body
+        pygame.draw.circle(surface, self.color_orange, (int(cx), int(cy)), self.size // 2)
+
+        # Layer 5: Light orange inner layer (gradient effect)
+        inner_size = int(self.size * 0.7)
+        if inner_size > 0:
+            pygame.draw.circle(surface, self.color_light_orange, (int(cx), int(cy)), inner_size // 2)
+
+        # Layer 6: White pulsing core (critical fulcrum point)
+        core_pulse = 0.5 + 0.5 * math.sin(self.pulse_phase * 1.5)
+        core_size = int(self.size * 0.4 * core_pulse)
+        if core_size > 0:
+            core_surf = pygame.Surface((core_size * 2, core_size * 2), pygame.SRCALPHA)
+            pygame.draw.circle(core_surf, (*self.color_white, 255),
+                             (core_size, core_size), core_size)
+            surface.blit(core_surf, (int(cx - core_size), int(cy - core_size)))
+
+            # Bright center point
+            center_size = max(2, int(core_size * 0.5))
+            pygame.draw.circle(surface, self.color_white, (int(cx), int(cy)), center_size)
+
+        # Layer 7: ROTATING ENERGY RAYS (main feature)
+        angle_rad = math.radians(self.rotation)
+        for i in range(self.ray_count):
+            # Diagonal rays at 45° intervals
+            angle = angle_rad + (i / self.ray_count) * 2 * math.pi
+
+            # Ray extends from center outward
+            ray_inner_radius = self.size * 0.3
+            ray_outer_radius = self.size * 0.7
+
+            inner_x = int(cx + math.cos(angle) * ray_inner_radius)
+            inner_y = int(cy + math.sin(angle) * ray_inner_radius)
+            outer_x = int(cx + math.cos(angle) * ray_outer_radius)
+            outer_y = int(cy + math.sin(angle) * ray_outer_radius)
+
+            # Draw ray with pulse effect
+            ray_alpha = int(200 + 55 * math.sin(self.pulse_phase + i))
+
+            # Thick orange base
+            pygame.draw.line(surface, (*self.color_light_orange, ray_alpha),
+                           (inner_x, inner_y), (outer_x, outer_y), 3)
+            # Thin white highlight
+            pygame.draw.line(surface, (*self.color_white, ray_alpha),
+                           (inner_x, inner_y), (outer_x, outer_y), 1)
+
+        # Layer 8: Force arrows (leverage indicators)
+        arrow_oscillation = math.sin(self.arrow_phase)  # -1 to 1
+
+        # Upward force arrow (top)
+        up_arrow_offset = int(arrow_oscillation * 2)
+        arrow_y_top = int(cy - self.size * 0.6 + up_arrow_offset)
+        arrow_size = 4
+
+        # Arrow shaft
+        pygame.draw.line(surface, (*self.color_white, 200),
+                        (int(cx), arrow_y_top + arrow_size), (int(cx), arrow_y_top), 2)
+        # Arrow head (pointing up)
+        arrow_head_points = [
+            (int(cx), arrow_y_top),
+            (int(cx - 3), arrow_y_top + 3),
+            (int(cx + 3), arrow_y_top + 3)
+        ]
+        pygame.draw.polygon(surface, (*self.color_white, 220), arrow_head_points)
+        pygame.draw.polygon(surface, self.color_light_orange, arrow_head_points, 1)
+
+        # Downward force arrow (bottom)
+        down_arrow_offset = int(-arrow_oscillation * 2)  # Opposite phase
+        arrow_y_bottom = int(cy + self.size * 0.6 + down_arrow_offset)
+
+        # Arrow shaft
+        pygame.draw.line(surface, (*self.color_white, 200),
+                        (int(cx), arrow_y_bottom - arrow_size), (int(cx), arrow_y_bottom), 2)
+        # Arrow head (pointing down)
+        arrow_head_points_down = [
+            (int(cx), arrow_y_bottom),
+            (int(cx - 3), arrow_y_bottom - 3),
+            (int(cx + 3), arrow_y_bottom - 3)
+        ]
+        pygame.draw.polygon(surface, (*self.color_white, 220), arrow_head_points_down)
+        pygame.draw.polygon(surface, self.color_light_orange, arrow_head_points_down, 1)
+
+        # Layer 9: Stress lines (dashed tension indicators)
+        # Draw 2 curved dashed lines showing leverage tension
+        dash_alpha = int(120 + 60 * math.sin(time.time() * 4))
+
+        # Left stress line
+        for t in range(0, 10, 2):  # Dashed pattern
+            t_frac = t / 10.0
+            arc_x = int(cx - self.size * 0.5 + t_frac * self.size * 0.3)
+            arc_y = int(cy - self.size * 0.4 * (1 - (t_frac - 0.5) ** 2 * 4))
+            pygame.draw.circle(surface, (*self.color_light_orange, dash_alpha), (arc_x, arc_y), 1)
+
+
 class BackhandReflectionAnimation:
     """
     Animation for PELOTARI reflecting a skill back with Backhand counter.
@@ -2632,17 +3408,16 @@ class BackhandReflectionAnimation:
 
     def _create_ball(self, skill_name, start_x, start_y):
         """Create skill-specific ball projectile."""
-        # Currently only Estrange implemented, others return Estrange as placeholder
         ball_classes = {
             'Estrange': EstrangeBall,
+            'Expedite': ExpediteBall,
+            'Auction Curse': AuctionCurseBall,
+            'Pry': PryBall,
             # TODO: Add other ball classes as they're implemented
             # 'Judgement': JudgementBall,
             # 'Neural Shunt': NeuralShuntBall,
             # 'Granite Geas': GraniteGeasBall,
-            # 'Pry': PryBall,
-            # 'Auction Curse': AuctionCurseBall,
             # 'Fragcrest': FragcrestBall,
-            # 'Expedite': ExpediteBall,
         }
 
         ball_class = ball_classes.get(skill_name, EstrangeBall)  # Default to Estrange

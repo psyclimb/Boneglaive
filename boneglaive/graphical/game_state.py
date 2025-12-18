@@ -807,6 +807,20 @@ class GameStateAdapter:
                             if target_game_unit:
                                 print(f"[GameState] Captured target unit: {target_game_unit.get_display_name()} at {skill_target}")
 
+                        # Check if skill will be reflected by Backhand (for blocking skills)
+                        will_be_reflected = False
+                        if target_game_unit and hasattr(target_game_unit, 'backhand_active') and target_game_unit.backhand_active:
+                            # Check if skill is reflectable
+                            reflectable_skills = {
+                                'Judgement', 'Estrange', 'Neural Shunt', 'Granite Geas', 'Pry', 'Auction Curse',
+                                'Fragcrest', 'Expedite'
+                            }
+                            if skill_name in reflectable_skills:
+                                will_be_reflected = True
+                                print(f"[GameState] Skill {skill_name} will be reflected by Backhand - setting flag early")
+                                # Set flag early so pre-execution animation check can see it
+                                game_unit.skill_was_reflected = True
+
                         # Capture Matador bounce count for animation
                         bounce_count = 2  # default
                         if skill_name in ["Matador", "MATADOR"]:

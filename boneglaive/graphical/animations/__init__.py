@@ -109,6 +109,9 @@ from .pelotari import (
     BackhandAnimation,
     BackhandReflectionAnimation,
     EstrangeBall,
+    ExpediteBall,
+    AuctionCurseBall,
+    PryBall,
 )
 
 from .animation_factory import AnimationFactory
@@ -198,6 +201,9 @@ __all__ = [
     'BackhandAnimation',
     'BackhandReflectionAnimation',
     'EstrangeBall',
+    'ExpediteBall',
+    'AuctionCurseBall',
+    'PryBall',
     # Factory
     'AnimationFactory',
 ]
