@@ -10,9 +10,9 @@ displayed in the ASCII UI help system when players press '?' during gameplay.
 UNIT_HELP_DATA = {
     'title': 'PELOTARI',
     'overview': [
-        'The PELOTARI is a jai alai specialist who launches ricocheting ball projectiles with deadly',
-        'precision. Mastering wall angles and trajectory planning is essential to leverage this unit\'s',
-        'buff-stealing, skill-reflecting, and displacement capabilities. High skill floor and ceiling.',
+        'A jai alai virtuoso wielding a cesta to launch ricocheting pelota balls with deadly precision.',
+        'This fragile but explosive specialist counters attacks with eight-directional spreads, steals',
+        'buffs through wall bounces, and delivers scaling finishers that end games.',
         '',
         'Role: Burst Damage / Disabler / Displacer',
         'Difficulty: ***** (5 Glaives - Highest Complexity)'
@@ -28,7 +28,7 @@ UNIT_HELP_DATA = {
     'skills': [
         {
             'name': 'RIPOSTE (Passive)',
-            'description': 'Grants +2 defense. When PELOTARI is hit by a basic attack, fires 8 balls in all directions (N, NE, E, SE, S, SW, W, NW), each dealing 2 damage with 2 ricochets off terrain. After triggering, loses the defense bonus and enters a 2-turn cooldown before Riposte reactivates.',
+            'description': 'Grants defensive stance that erupts into an eight-directional counter-barrage when struck by basic attacks. Each ricocheting ball deals damage before the stance enters cooldown.',
             'details': [
                 'Type: Passive',
                 'Effect: +2 Defense (2-turn cooldown after triggering)',
@@ -40,7 +40,7 @@ UNIT_HELP_DATA = {
         },
         {
             'name': 'POACH (Active) [Key: 1]',
-            'description': 'Fires a ball that MUST ricochet to steal buffs. Initial straight-line shot deals 4 damage but steals nothing. After ricocheting off terrain/units/furniture, the ball deals 6 damage and steals one buff from the next enemy hit, converting it into a projectile. Allied units can catch the buff ball to gain the stolen effect.',
+            'description': 'Launches a ricocheting ball that steals buffs from enemies only after bouncing off terrain, units, or furniture. The stolen buff becomes a projectile that allies can intercept to gain its effect.',
             'details': [
                 'Type: Active',
                 'Range: 6',
@@ -52,7 +52,7 @@ UNIT_HELP_DATA = {
         },
         {
             'name': 'BACKHAND (Active) [Key: 2]',
-            'description': 'Readies a counter stance for 3 turns. When an enemy uses a single-target skill on PELOTARI, catches and reflects it back as a ricocheting ball projectile. The ball bounces up to 2 times (6 tiles per bounce) and applies full skill effects to anyone hit. Allies are protected from friendly fire. Ends counter after reflecting one skill.',
+            'description': 'Enters a defensive stance that catches enemy single-target skills and reflects them back as ricocheting projectiles. The reflected skill bounces across the battlefield, applying its full effects to all enemies struck.',
             'details': [
                 'Type: Active',
                 'Range: Self (counter stance)',
@@ -64,7 +64,7 @@ UNIT_HELP_DATA = {
         },
         {
             'name': 'MATADOR (Active) [Key: 3]',
-            'description': 'The killing shot. Launches a devastating ball nuke in a straight line. Deals 4 damage and knocks targets back 3 tiles. Targets slammed into terrain take +2 damage. Gains additional ricochets based on enemy team HP loss: +1 bounce per 15% HP lost (max 8 bounces). The lower their HP, the more devastating this shot becomes. Furniture hit is launched 3 tiles.',
+            'description': 'The killing shot—launches a devastating ball that knocks targets into terrain for bonus damage. Gains exponentially more ricochets as enemy team health decreases, transforming into a map-wiping finisher.',
             'details': [
                 'Type: Active',
                 'Range: 6 (straight line only)',

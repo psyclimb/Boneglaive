@@ -403,17 +403,21 @@ class SetupUnitHelp:
 
             if dlc_help_data:
                 # Convert full help data to simplified format
+                # Strip annotations like "(Passive)" and "[Key: X]" from skill names
+                def clean_skill_name(name):
+                    return name.split(' (')[0].split(' [')[0]
+
                 simplified_info[unit_enum] = {
                     'difficulty': unit_config.get('complexity', 3),
                     'role': unit_config.get('role', 'Unknown'),
                     'overview': dlc_help_data.get('overview', ['No description available.'])[0] if dlc_help_data.get('overview') else 'No description available.',
                     'passive': {
-                        'name': dlc_help_data['skills'][0]['name'] if dlc_help_data.get('skills') else 'Unknown',
+                        'name': clean_skill_name(dlc_help_data['skills'][0]['name']) if dlc_help_data.get('skills') else 'Unknown',
                         'desc': dlc_help_data['skills'][0]['description'] if dlc_help_data.get('skills') else 'No description.'
                     },
                     'skills': [
                         {
-                            'name': skill['name'],
+                            'name': clean_skill_name(skill['name']),
                             'desc': skill['description']
                         }
                         for skill in dlc_help_data.get('skills', [])[1:]  # Skip first (passive)
