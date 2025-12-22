@@ -5,6 +5,7 @@ Displays detailed information about selected unit.
 """
 import pygame
 from typing import Optional
+from .font_utils import render_fitted_text
 
 # Colors
 COLOR_BG = (30, 34, 42)
@@ -95,18 +96,42 @@ class UnitInfoPanel:
             # DLC unit - use display name from unit class
             from boneglaive.utils.constants import UNIT_DISPLAY_NAMES
             unit_name = UNIT_DISPLAY_NAMES.get(self.game_unit.type, f"Unit-{self.game_unit.type}")
-        name_text = self.large_font.render(unit_name, True, COLOR_TEXT)
+        name_text = render_fitted_text(
+            unit_name,
+            max_width=PANEL_WIDTH - PANEL_PADDING * 2,
+            max_height=35,
+            color=COLOR_TEXT,
+            base_font_size=28,
+            min_font_size=20,
+            max_font_size=32
+        )
         surface.blit(name_text, (x + PANEL_PADDING, current_y))
         current_y += 32
 
         # Draw player indicator
-        player_text = self.small_font.render(f"Player {self.game_unit.player}", True, player_color)
+        player_text = render_fitted_text(
+            f"Player {self.game_unit.player}",
+            max_width=120,
+            max_height=20,
+            color=player_color,
+            base_font_size=16,
+            min_font_size=12,
+            max_font_size=18
+        )
         surface.blit(player_text, (x + PANEL_PADDING, current_y))
         current_y += 22
 
         # Draw Greek ID if available
         if hasattr(self.game_unit, 'greek_id') and self.game_unit.greek_id:
-            id_text = self.small_font.render(f"ID: {self.game_unit.greek_id}", True, COLOR_TEXT_DIM)
+            id_text = render_fitted_text(
+                f"ID: {self.game_unit.greek_id}",
+                max_width=75,
+                max_height=20,
+                color=COLOR_TEXT_DIM,
+                base_font_size=16,
+                min_font_size=12,
+                max_font_size=18
+            )
             surface.blit(id_text, (x + PANEL_WIDTH - 80, current_y - 22))
 
         # Draw HP bar
@@ -156,7 +181,15 @@ class UnitInfoPanel:
         pygame.draw.rect(surface, (100, 100, 100), bg_rect, 2)
 
         # Draw HP text
-        hp_text = self.font.render(f"HP: {current_hp}/{max_hp}", True, COLOR_TEXT)
+        hp_text = render_fitted_text(
+            f"HP: {current_hp}/{max_hp}",
+            max_width=width - 10,
+            max_height=HP_BAR_HEIGHT - 2,
+            color=COLOR_TEXT,
+            base_font_size=18,
+            min_font_size=14,
+            max_font_size=20
+        )
         text_rect = hp_text.get_rect(center=(x + width // 2, y + HP_BAR_HEIGHT // 2))
         surface.blit(hp_text, text_rect)
 
@@ -186,7 +219,15 @@ class UnitInfoPanel:
         # Draw each stat line
         for label, effective_value, base_value in stat_lines:
             # Draw label
-            label_text = self.font.render(f"{label}:", True, COLOR_STAT_LABEL)
+            label_text = render_fitted_text(
+                f"{label}:",
+                max_width=145,
+                max_height=LINE_HEIGHT,
+                color=COLOR_STAT_LABEL,
+                base_font_size=18,
+                min_font_size=14,
+                max_font_size=20
+            )
             surface.blit(label_text, (x, y))
 
             # Draw value (colored if different from base)
@@ -202,7 +243,15 @@ class UnitInfoPanel:
                 value_color = COLOR_TEXT
                 value_str = str(effective_value)
 
-            value_text = self.font.render(value_str, True, value_color)
+            value_text = render_fitted_text(
+                value_str,
+                max_width=85,
+                max_height=LINE_HEIGHT,
+                color=value_color,
+                base_font_size=18,
+                min_font_size=14,
+                max_font_size=20
+            )
             surface.blit(value_text, (x + 150, y))
 
             y += LINE_HEIGHT
@@ -210,10 +259,26 @@ class UnitInfoPanel:
         # Add PRT if unit has it
         if hasattr(self.game_unit, 'prt') and self.game_unit.prt > 0:
             y += 5
-            prt_label = self.font.render("PRT:", True, COLOR_STAT_LABEL)
+            prt_label = render_fitted_text(
+                "PRT:",
+                max_width=145,
+                max_height=LINE_HEIGHT,
+                color=COLOR_STAT_LABEL,
+                base_font_size=18,
+                min_font_size=14,
+                max_font_size=20
+            )
             surface.blit(prt_label, (x, y))
 
-            prt_value = self.font.render(str(self.game_unit.prt), True, COLOR_PLAYER1)
+            prt_value = render_fitted_text(
+                str(self.game_unit.prt),
+                max_width=85,
+                max_height=LINE_HEIGHT,
+                color=COLOR_PLAYER1,
+                base_font_size=18,
+                min_font_size=14,
+                max_font_size=20
+            )
             surface.blit(prt_value, (x + 150, y))
 
             y += LINE_HEIGHT
@@ -221,13 +286,29 @@ class UnitInfoPanel:
         # Add Level/XP if enabled
         if hasattr(self.game_unit, 'level') and self.game_unit.level > 1:
             y += 5
-            level_text = self.small_font.render(f"Level {self.game_unit.level}", True, COLOR_TEXT_DIM)
+            level_text = render_fitted_text(
+                f"Level {self.game_unit.level}",
+                max_width=95,
+                max_height=16,
+                color=COLOR_TEXT_DIM,
+                base_font_size=16,
+                min_font_size=12,
+                max_font_size=18
+            )
             surface.blit(level_text, (x, y))
 
             if hasattr(self.game_unit, 'xp'):
                 from boneglaive.utils.constants import XP_PER_LEVEL
                 next_level_xp = self.game_unit.level * XP_PER_LEVEL
-                xp_text = self.small_font.render(f"XP: {self.game_unit.xp}/{next_level_xp}", True, COLOR_TEXT_DIM)
+                xp_text = render_fitted_text(
+                    f"XP: {self.game_unit.xp}/{next_level_xp}",
+                    max_width=130,
+                    max_height=16,
+                    color=COLOR_TEXT_DIM,
+                    base_font_size=16,
+                    min_font_size=12,
+                    max_font_size=18
+                )
                 surface.blit(xp_text, (x + 100, y))
 
             y += LINE_HEIGHT
@@ -262,13 +343,29 @@ class UnitInfoPanel:
             y += 10  # Add spacing
 
             # Draw section label
-            label_text = self.small_font.render("Status Effects:", True, COLOR_STAT_LABEL)
+            label_text = render_fitted_text(
+                "Status Effects:",
+                max_width=PANEL_WIDTH - PANEL_PADDING * 2,
+                max_height=18,
+                color=COLOR_STAT_LABEL,
+                base_font_size=16,
+                min_font_size=12,
+                max_font_size=18
+            )
             surface.blit(label_text, (x, y))
             y += 18
 
             # Draw each effect name
             for effect_name in active_effects:
-                effect_text = self.small_font.render(f"  • {effect_name}", True, COLOR_TEXT_DIM)
+                effect_text = render_fitted_text(
+                    f"  • {effect_name}",
+                    max_width=PANEL_WIDTH - PANEL_PADDING * 2,
+                    max_height=16,
+                    color=COLOR_TEXT_DIM,
+                    base_font_size=16,
+                    min_font_size=12,
+                    max_font_size=18
+                )
                 surface.blit(effect_text, (x, y))
                 y += 16
 
@@ -290,7 +387,15 @@ class UnitInfoPanel:
             y position after drawing
         """
         # Draw label
-        label_text = self.font.render(f"{label}:", True, COLOR_STAT_LABEL)
+        label_text = render_fitted_text(
+            f"{label}:",
+            max_width=145,
+            max_height=LINE_HEIGHT,
+            color=COLOR_STAT_LABEL,
+            base_font_size=18,
+            min_font_size=14,
+            max_font_size=20
+        )
         surface.blit(label_text, (x, y))
 
         # Draw value
@@ -308,7 +413,15 @@ class UnitInfoPanel:
             value_color = COLOR_TEXT
             value_str = str(value)
 
-        value_text = self.font.render(value_str, True, value_color)
+        value_text = render_fitted_text(
+            value_str,
+            max_width=85,
+            max_height=LINE_HEIGHT,
+            color=value_color,
+            base_font_size=18,
+            min_font_size=14,
+            max_font_size=20
+        )
         surface.blit(value_text, (x + 150, y))
 
         return y + LINE_HEIGHT
@@ -339,18 +452,42 @@ class UnitInfoPanel:
 
         # Draw furniture name
         furniture_name = self.furniture_info['name']
-        name_text = self.large_font.render(furniture_name, True, COLOR_TEXT)
+        name_text = render_fitted_text(
+            furniture_name,
+            max_width=PANEL_WIDTH - PANEL_PADDING * 2,
+            max_height=35,
+            color=COLOR_TEXT,
+            base_font_size=28,
+            min_font_size=20,
+            max_font_size=32
+        )
         surface.blit(name_text, (x + PANEL_PADDING, current_y))
         current_y += 32
 
         # Draw type label
-        type_text = self.small_font.render("Furniture", True, COLOR_TEXT_DIM)
+        type_text = render_fitted_text(
+            "Furniture",
+            max_width=120,
+            max_height=20,
+            color=COLOR_TEXT_DIM,
+            base_font_size=16,
+            min_font_size=12,
+            max_font_size=18
+        )
         surface.blit(type_text, (x + PANEL_PADDING, current_y))
         current_y += 25
 
         # Draw position
         pos = self.furniture_info['position']
-        pos_text = self.small_font.render(f"Position: ({pos[0]}, {pos[1]})", True, COLOR_TEXT_DIM)
+        pos_text = render_fitted_text(
+            f"Position: ({pos[0]}, {pos[1]})",
+            max_width=PANEL_WIDTH - PANEL_PADDING * 2,
+            max_height=20,
+            color=COLOR_TEXT_DIM,
+            base_font_size=16,
+            min_font_size=12,
+            max_font_size=18
+        )
         surface.blit(pos_text, (x + PANEL_PADDING, current_y))
         current_y += 25
 
@@ -359,17 +496,41 @@ class UnitInfoPanel:
         if astral_value is not None:
             current_y += 5
             # Draw label
-            label_text = self.font.render("Astral Value:", True, COLOR_STAT_LABEL)
+            label_text = render_fitted_text(
+                "Astral Value:",
+                max_width=140,
+                max_height=22,
+                color=COLOR_STAT_LABEL,
+                base_font_size=18,
+                min_font_size=14,
+                max_font_size=20
+            )
             surface.blit(label_text, (x + PANEL_PADDING, current_y))
 
             # Draw value (golden color for mystical value)
             value_color = (255, 215, 0)  # Gold
-            value_text = self.large_font.render(str(astral_value), True, value_color)
+            value_text = render_fitted_text(
+                str(astral_value),
+                max_width=55,
+                max_height=30,
+                color=value_color,
+                base_font_size=28,
+                min_font_size=20,
+                max_font_size=32
+            )
             surface.blit(value_text, (x + PANEL_WIDTH - 60, current_y - 5))
             current_y += 25
         elif self.furniture_info.get('has_appraiser') == False:
             # Player doesn't have DELPHIC APPRAISER
             current_y += 5
-            hint_text = self.small_font.render("(Requires DELPHIC APPRAISER)", True, COLOR_TEXT_DIM)
+            hint_text = render_fitted_text(
+                "(Requires DELPHIC APPRAISER)",
+                max_width=PANEL_WIDTH - PANEL_PADDING * 2,
+                max_height=18,
+                color=COLOR_TEXT_DIM,
+                base_font_size=16,
+                min_font_size=12,
+                max_font_size=18
+            )
             surface.blit(hint_text, (x + PANEL_PADDING, current_y))
             current_y += 20

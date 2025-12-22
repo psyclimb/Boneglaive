@@ -6,6 +6,7 @@ Modal window for selecting unit types during setup phase.
 import pygame
 from typing import Optional, List, Tuple
 from pathlib import Path
+from .font_utils import render_fitted_text
 
 # Import unit types
 import sys
@@ -363,14 +364,27 @@ class SetupWindow:
 
         # Draw title
         player_color = COLOR_GOLD if self.setup_player == 1 else (100, 200, 255)
-        title_text = self.font.render(f"Player {self.setup_player} - Select Units", True, player_color)
+        title_text = render_fitted_text(
+            f"Player {self.setup_player} - Select Units",
+            max_width=WINDOW_WIDTH - 40,
+            max_height=30,
+            color=player_color,
+            base_font_size=20,
+            min_font_size=16,
+            max_font_size=24
+        )
         title_rect_center = title_text.get_rect(center=(window_x + WINDOW_WIDTH // 2, window_y + 25))
         screen.blit(title_text, title_rect_center)
 
         # Draw units remaining
-        remaining_text = self.small_font.render(
+        remaining_text = render_fitted_text(
             f"{self.units_remaining} unit{'s' if self.units_remaining != 1 else ''} remaining",
-            True, COLOR_INFO
+            max_width=WINDOW_WIDTH - 40,
+            max_height=22,
+            color=COLOR_INFO,
+            base_font_size=16,
+            min_font_size=12,
+            max_font_size=18
         )
         remaining_rect = remaining_text.get_rect(center=(window_x + WINDOW_WIDTH // 2, window_y + 48))
         screen.blit(remaining_text, remaining_rect)

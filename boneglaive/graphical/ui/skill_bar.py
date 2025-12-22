@@ -6,6 +6,7 @@ Displays available skills for the selected unit with hotkeys.
 import pygame
 import os
 from typing import Optional, List, Tuple, Dict
+from .font_utils import render_fitted_text
 
 # Colors
 COLOR_BG = (30, 34, 42)
@@ -105,7 +106,15 @@ class SkillSlot:
 
         # Draw hotkey in top-left
         text_color = COLOR_TEXT_DISABLED if not self.is_available() else COLOR_HOTKEY
-        hotkey_text = small_font.render(f"[{self.hotkey}]", True, text_color)
+        hotkey_text = render_fitted_text(
+            f"[{self.hotkey}]",
+            max_width=50,
+            max_height=20,
+            color=text_color,
+            base_font_size=16,
+            min_font_size=12,
+            max_font_size=16
+        )
         surface.blit(hotkey_text, (x + 5, y + 5))
 
         # Draw skill icon on the left side
@@ -129,7 +138,17 @@ class SkillSlot:
 
         # Draw skill name to the right of the icon
         text_color = COLOR_TEXT_DISABLED if not self.is_available() else COLOR_TEXT
-        name_text = font.render(self.skill.name, True, text_color)
+        # Available width: slot width - icon area - padding
+        available_width = SKILL_SLOT_WIDTH - (SKILL_ICON_SIZE + 30)
+        name_text = render_fitted_text(
+            self.skill.name,
+            max_width=available_width,
+            max_height=SKILL_SLOT_HEIGHT - 10,
+            color=text_color,
+            base_font_size=20,
+            min_font_size=14,
+            max_font_size=22
+        )
         # Position to the right of icon
         name_x = icon_x + SKILL_ICON_SIZE + 10
         name_y = y + (SKILL_SLOT_HEIGHT - name_text.get_height()) // 2
@@ -137,10 +156,14 @@ class SkillSlot:
 
         # Draw cooldown if active
         if self.skill.current_cooldown > 0:
-            cooldown_text = small_font.render(
+            cooldown_text = render_fitted_text(
                 f"CD: {self.skill.current_cooldown}",
-                True,
-                COLOR_COOLDOWN
+                max_width=80,
+                max_height=18,
+                color=COLOR_COOLDOWN,
+                base_font_size=16,
+                min_font_size=12,
+                max_font_size=16
             )
             surface.blit(cooldown_text, (x + 5, y + SKILL_SLOT_HEIGHT - 20))
 

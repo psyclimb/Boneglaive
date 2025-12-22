@@ -6,6 +6,7 @@ Displays status effects for selected unit with tooltips.
 import pygame
 import os
 from typing import List, Dict, Optional, Tuple
+from .font_utils import render_fitted_text
 
 # Colors
 COLOR_BG = (30, 34, 42)
@@ -381,12 +382,29 @@ class StatusEffectsPanel:
         pygame.draw.rect(surface, (0, 0, 0), icon_rect, 2)
 
         # Draw icon text
-        icon_text = self.small_font.render(effect.icon, True, (0, 0, 0))
+        icon_text = render_fitted_text(
+            effect.icon,
+            max_width=ICON_SIZE - 4,
+            max_height=ICON_SIZE - 4,
+            color=(0, 0, 0),
+            base_font_size=16,
+            min_font_size=10,
+            max_font_size=18
+        )
         icon_text_rect = icon_text.get_rect(center=icon_rect.center)
         surface.blit(icon_text, icon_text_rect)
 
         # Draw effect name
-        name_text = self.font.render(effect.name, True, COLOR_TEXT)
+        available_width = PANEL_WIDTH - ICON_SIZE - SPACING - 10
+        name_text = render_fitted_text(
+            effect.name,
+            max_width=available_width,
+            max_height=20,
+            color=COLOR_TEXT,
+            base_font_size=18,
+            min_font_size=14,
+            max_font_size=20
+        )
         surface.blit(name_text, (x + ICON_SIZE + SPACING, y + 2))
 
         # Draw duration if applicable
@@ -396,7 +414,15 @@ class StatusEffectsPanel:
             else:
                 duration_str = f"{effect.duration} turns"
 
-            duration_text = self.small_font.render(duration_str, True, COLOR_TEXT_DIM)
+            duration_text = render_fitted_text(
+                duration_str,
+                max_width=available_width,
+                max_height=18,
+                color=COLOR_TEXT_DIM,
+                base_font_size=16,
+                min_font_size=12,
+                max_font_size=18
+            )
             surface.blit(duration_text, (x + ICON_SIZE + SPACING, y + 22))
 
     def _draw_tooltip(self, surface: pygame.Surface, x: int, y: int):
@@ -423,7 +449,15 @@ class StatusEffectsPanel:
         # Draw description
         text_y = y + 10
         for line in desc_lines:
-            line_text = self.small_font.render(line, True, COLOR_TEXT)
+            line_text = render_fitted_text(
+                line,
+                max_width=tooltip_width - 20,
+                max_height=18,
+                color=COLOR_TEXT,
+                base_font_size=16,
+                min_font_size=12,
+                max_font_size=18
+            )
             surface.blit(line_text, (x + 10, text_y))
             text_y += 18
 

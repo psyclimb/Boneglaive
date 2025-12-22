@@ -2926,8 +2926,12 @@ class GraphicalRenderer:
                         (LEFT_PANEL_WIDTH - 1, TOP_BAR_HEIGHT),
                         (LEFT_PANEL_WIDTH - 1, SCREEN_HEIGHT - BOTTOM_BAR_HEIGHT), 2)
 
-        # Draw motor animation (top of left panel, uniform 10px spacing)
-        motor_y = left_panel_y + 10
+        # Draw turn counter (top of left panel, above motor)
+        turn_y = left_panel_y + 10
+        self._draw_turn_counter(surface, left_panel_x, turn_y)
+
+        # Draw motor animation (below turn counter on left panel)
+        motor_y = turn_y + 40  # 30px for turn text + 10px spacing
         self.motor_animation.draw(surface, left_panel_x + 15, motor_y)
 
         # Draw action menu (below motor on left panel)
@@ -2947,13 +2951,64 @@ class GraphicalRenderer:
                         (right_panel_x, TOP_BAR_HEIGHT),
                         (right_panel_x, SCREEN_HEIGHT - BOTTOM_BAR_HEIGHT), 2)
 
-        # Draw unit status bar (top of right panel)
+        # Draw player indicator (top of right panel, above unit status bar)
+        player_y = right_panel_y + 5
+        self._draw_player_indicator(surface, right_panel_x, player_y)
+
+        # Draw unit status bar (below player indicator on right panel)
+        unit_bar_y = player_y + 35  # 25px for player text + 10px spacing
         unit_bar_height = self.unit_status_bar.get_height()
-        self.unit_status_bar.draw(surface, right_panel_x + 5, right_panel_y + 5)
+        self.unit_status_bar.draw(surface, right_panel_x + 5, unit_bar_y)
 
         # Draw unit info panel (below unit status bar on right panel with more spacing)
-        unit_info_y = right_panel_y + 5 + unit_bar_height + 15  # 15px spacing to prevent overlap
+        unit_info_y = unit_bar_y + unit_bar_height + 15  # 15px spacing to prevent overlap
         self.unit_info_panel.draw(surface, right_panel_x + 10, unit_info_y)
+
+    def _draw_turn_counter(self, surface: pygame.Surface, x: int, y: int):
+        """Draw turn counter on left panel."""
+        from .ui.font_utils import render_fitted_text
+
+        game = self.game_adapter.game
+        if not game:
+            return
+
+        # Draw "TURN X" centered in left panel
+        turn_text = render_fitted_text(
+            f"TURN {game.turn}",
+            max_width=LEFT_PANEL_WIDTH - 20,
+            max_height=25,
+            color=(255, 255, 255),
+            base_font_size=20,
+            min_font_size=16,
+            max_font_size=24
+        )
+        text_rect = turn_text.get_rect(center=(x + LEFT_PANEL_WIDTH // 2, y + 15))
+        surface.blit(turn_text, text_rect)
+
+    def _draw_player_indicator(self, surface: pygame.Surface, x: int, y: int):
+        """Draw player indicator on right panel."""
+        from .ui.font_utils import render_fitted_text
+
+        game = self.game_adapter.game
+        if not game:
+            return
+
+        # Get player color
+        player_color = (100, 255, 100) if game.current_player == 1 else (100, 150, 255)
+        player_name = game.get_player_name(game.current_player)
+
+        # Draw player name centered in right panel
+        player_text = render_fitted_text(
+            player_name.upper(),
+            max_width=RIGHT_PANEL_WIDTH - 20,
+            max_height=25,
+            color=player_color,
+            base_font_size=20,
+            min_font_size=16,
+            max_font_size=24
+        )
+        text_rect = player_text.get_rect(center=(x + RIGHT_PANEL_WIDTH // 2, y + 12))
+        surface.blit(player_text, text_rect)
 
     def execute_turn(self):
         """Execute the current turn (process all planned actions)."""

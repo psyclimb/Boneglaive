@@ -5,6 +5,7 @@ Displays action buttons for Move, Attack, Execute, etc.
 """
 import pygame
 from typing import Optional, Tuple, Callable
+from .font_utils import render_fitted_text
 
 # Colors
 COLOR_BG = (30, 34, 42)
@@ -72,12 +73,28 @@ class ActionButton:
 
         # Draw hotkey in top-left corner
         text_color = COLOR_TEXT_DISABLED if not self.enabled else COLOR_HOTKEY
-        hotkey_text = small_font.render(f"[{self.hotkey}]", True, text_color)
+        hotkey_text = render_fitted_text(
+            f"[{self.hotkey}]",
+            max_width=50,
+            max_height=20,
+            color=text_color,
+            base_font_size=16,
+            min_font_size=12,
+            max_font_size=16
+        )
         surface.blit(hotkey_text, (x + 8, y + 5))
 
         # Draw label text (centered)
         text_color = COLOR_TEXT_DISABLED if not self.enabled else COLOR_TEXT
-        label_text = font.render(self.label, True, text_color)
+        label_text = render_fitted_text(
+            self.label,
+            max_width=BUTTON_WIDTH - 20,
+            max_height=BUTTON_HEIGHT - 10,
+            color=text_color,
+            base_font_size=20,
+            min_font_size=14,
+            max_font_size=22
+        )
         label_rect = label_text.get_rect(center=(x + BUTTON_WIDTH // 2, y + BUTTON_HEIGHT // 2))
         surface.blit(label_text, label_rect)
 

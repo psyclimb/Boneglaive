@@ -7,6 +7,7 @@ import pygame
 import os
 from typing import List, Optional, Tuple, Dict
 from boneglaive.utils.constants import UNIT_SYMBOLS
+from .font_utils import render_fitted_text
 
 # Colors
 COLOR_BG = (30, 34, 42)
@@ -196,7 +197,15 @@ class UnitCard:
 
         # Position text below sprite with more spacing
         text_y = y + sprite_y_offset + SPRITE_SIZE + 10
-        text_surface = small_font.render(display_text, True, text_color)
+        text_surface = render_fitted_text(
+            display_text,
+            max_width=UNIT_CARD_WIDTH - 6,
+            max_height=18,
+            color=text_color,
+            base_font_size=16,
+            min_font_size=12,
+            max_font_size=18
+        )
         text_rect = text_surface.get_rect(center=(x + UNIT_CARD_WIDTH // 2, text_y))
         surface.blit(text_surface, text_rect)
 
@@ -206,14 +215,30 @@ class UnitCard:
         else:
             # Draw respawn timer for dead units
             if self.respawn_timer > 0:
-                timer_text = small_font.render(str(self.respawn_timer), True, COLOR_TEXT_DIM)
+                timer_text = render_fitted_text(
+                    str(self.respawn_timer),
+                    max_width=30,
+                    max_height=18,
+                    color=COLOR_TEXT_DIM,
+                    base_font_size=16,
+                    min_font_size=12,
+                    max_font_size=20
+                )
                 timer_rect = timer_text.get_rect(
                     center=(x + UNIT_CARD_WIDTH // 2, y + UNIT_CARD_HEIGHT - 12)
                 )
                 surface.blit(timer_text, timer_rect)
             else:
                 # Ready to respawn
-                ready_text = small_font.render("READY", True, COLOR_HP_BAR_FULL)
+                ready_text = render_fitted_text(
+                    "READY",
+                    max_width=UNIT_CARD_WIDTH - 10,
+                    max_height=18,
+                    color=COLOR_HP_BAR_FULL,
+                    base_font_size=16,
+                    min_font_size=12,
+                    max_font_size=18
+                )
                 ready_rect = ready_text.get_rect(
                     center=(x + UNIT_CARD_WIDTH // 2, y + UNIT_CARD_HEIGHT - 12)
                 )
@@ -369,7 +394,15 @@ class UnitStatusBar:
 
         # Draw title
         player_color = COLOR_PLAYER1 if self.current_player == 1 else COLOR_PLAYER2
-        title_text = self.font.render("YOUR UNITS", True, player_color)
+        title_text = render_fitted_text(
+            "YOUR UNITS",
+            max_width=PANEL_WIDTH - 20,
+            max_height=25,
+            color=player_color,
+            base_font_size=20,
+            min_font_size=16,
+            max_font_size=24
+        )
         surface.blit(title_text, (x + 10, y + 5))
 
         # Calculate card grid starting position

@@ -6,6 +6,7 @@ Displays player info, turn count, GP score, and current mode.
 import pygame
 import time
 from typing import Optional
+from .font_utils import render_fitted_text
 
 # Colors
 COLOR_BG = (30, 34, 42)
@@ -101,16 +102,16 @@ class TopBar:
 
         # Calculate section positions
         left_section_start = SECTION_PADDING
-        center_section_start = screen_width // 2 - 100
+        # Center GP with the game board (280px left panel + 920px game board / 2)
+        # Game board center = 280 + (920 / 2) = 280 + 460 = 740
+        game_board_center = 280 + (920 // 2)
         right_section_start = screen_width - 300
 
-        # Draw left section (Player info + Turn + GP)
-        self._draw_player_info(surface, left_section_start)
-        self._draw_turn_info(surface, left_section_start + 200)
-        self._draw_gp_score(surface, left_section_start + 350)
+        # Draw left section (empty - turn moved to left panel above motor, player moved to right panel)
+        # No longer drawing anything in the top bar left section
 
-        # Draw center section (Mode)
-        self._draw_mode_indicator(surface, center_section_start)
+        # Draw center section (GP score - centered with game board)
+        self._draw_gp_score(surface, game_board_center)
 
         # Draw right section (Network status / System icons)
         if self.is_network_game:
@@ -125,7 +126,15 @@ class TopBar:
         player_name = self.player1_name if self.current_player == 1 else self.player2_name
 
         # Draw player name
-        text = self.large_font.render(player_name.upper(), True, player_color)
+        text = render_fitted_text(
+            player_name.upper(),
+            max_width=190,
+            max_height=35,
+            color=player_color,
+            base_font_size=32,
+            min_font_size=24,
+            max_font_size=36
+        )
         surface.blit(text, (x, y))
 
     def _draw_turn_info(self, surface: pygame.Surface, x: int):
@@ -140,7 +149,15 @@ class TopBar:
                 pulse_alpha = int(255 * (1 - elapsed / 0.5))
 
         # Draw turn text
-        turn_text = self.font.render(f"TURN {self.turn_number}", True, COLOR_TEXT)
+        turn_text = render_fitted_text(
+            f"TURN {self.turn_number}",
+            max_width=120,
+            max_height=25,
+            color=COLOR_TEXT,
+            base_font_size=20,
+            min_font_size=16,
+            max_font_size=24
+        )
 
         # Draw pulse glow if active
         if pulse_alpha > 0:
@@ -154,8 +171,8 @@ class TopBar:
 
         surface.blit(turn_text, (x, y))
 
-    def _draw_gp_score(self, surface: pygame.Surface, x: int):
-        """Draw GP score display."""
+    def _draw_gp_score(self, surface: pygame.Surface, center_x: int):
+        """Draw GP score display centered at given x position."""
         y = TEXT_PADDING + 5
 
         # Check for pulse animation
@@ -165,13 +182,59 @@ class TopBar:
             if elapsed < 0.5:
                 pulse_alpha = int(255 * (1 - elapsed / 0.5))
 
+        # Pre-render all components to calculate total width for centering
+        label = render_fitted_text(
+            "GP:",
+            max_width=40,
+            max_height=25,
+            color=COLOR_TEXT_DIM,
+            base_font_size=20,
+            min_font_size=16,
+            max_font_size=24
+        )
+
+        p1_text = render_fitted_text(
+            str(self.player1_gp),
+            max_width=40,
+            max_height=25,
+            color=COLOR_PLAYER1,
+            base_font_size=20,
+            min_font_size=16,
+            max_font_size=24
+        )
+
+        sep = render_fitted_text(
+            "|",
+            max_width=20,
+            max_height=25,
+            color=COLOR_TEXT_DIM,
+            base_font_size=20,
+            min_font_size=16,
+            max_font_size=24
+        )
+
+        p2_text = render_fitted_text(
+            str(self.player2_gp),
+            max_width=40,
+            max_height=25,
+            color=COLOR_PLAYER2,
+            base_font_size=20,
+            min_font_size=16,
+            max_font_size=24
+        )
+
+        # Calculate total width
+        total_width = (label.get_width() + 5 + p1_text.get_width() + 5 +
+                      sep.get_width() + 5 + p2_text.get_width())
+
+        # Start x position to center the entire GP display
+        x = center_x - (total_width // 2)
+
         # Draw "GP:" label
-        label = self.font.render("GP:", True, COLOR_TEXT_DIM)
         surface.blit(label, (x, y))
         x += label.get_width() + 5
 
-        # Draw Player 1 score
-        p1_text = self.font.render(str(self.player1_gp), True, COLOR_PLAYER1)
+        # Draw Player 1 score (with pulse if active)
         if pulse_alpha > 0 and self.current_player == 1:
             glow_surface = pygame.Surface(
                 (p1_text.get_width() + 8, p1_text.get_height() + 8),
@@ -184,12 +247,10 @@ class TopBar:
         x += p1_text.get_width() + 5
 
         # Draw separator
-        sep = self.font.render("|", True, COLOR_TEXT_DIM)
         surface.blit(sep, (x, y))
         x += sep.get_width() + 5
 
-        # Draw Player 2 score
-        p2_text = self.font.render(str(self.player2_gp), True, COLOR_PLAYER2)
+        # Draw Player 2 score (with pulse if active)
         if pulse_alpha > 0 and self.current_player == 2:
             glow_surface = pygame.Surface(
                 (p2_text.get_width() + 8, p2_text.get_height() + 8),
@@ -205,7 +266,15 @@ class TopBar:
         y = TEXT_PADDING + 5
 
         # Mode display text
-        mode_text = self.font.render(f"MODE: {self.current_mode}", True, COLOR_ACCENT)
+        mode_text = render_fitted_text(
+            f"MODE: {self.current_mode}",
+            max_width=190,
+            max_height=25,
+            color=COLOR_ACCENT,
+            base_font_size=20,
+            min_font_size=16,
+            max_font_size=24
+        )
 
         # Center horizontally in allocated space
         text_rect = mode_text.get_rect(center=(x + 100, y + mode_text.get_height() // 2))
@@ -217,7 +286,15 @@ class TopBar:
 
         if self.is_your_turn:
             # Draw "YOUR TURN" with pulse
-            status_text = self.font.render("YOUR TURN", True, COLOR_ACCENT)
+            status_text = render_fitted_text(
+                "YOUR TURN",
+                max_width=150,
+                max_height=25,
+                color=COLOR_ACCENT,
+                base_font_size=20,
+                min_font_size=16,
+                max_font_size=24
+            )
 
             # Pulsing glow effect
             pulse = abs((time.time() * 2) % 2 - 1)  # 0 to 1 to 0
@@ -233,5 +310,13 @@ class TopBar:
             surface.blit(status_text, (x, y))
         else:
             # Draw "WAITING..." dimmed
-            status_text = self.font.render("WAITING...", True, COLOR_TEXT_DIM)
+            status_text = render_fitted_text(
+                "WAITING...",
+                max_width=150,
+                max_height=25,
+                color=COLOR_TEXT_DIM,
+                base_font_size=20,
+                min_font_size=16,
+                max_font_size=24
+            )
             surface.blit(status_text, (x, y))
