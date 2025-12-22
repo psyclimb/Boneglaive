@@ -596,6 +596,29 @@ class GraphicalRenderer:
                 return unit
         return None
 
+    def get_unit_at_grid_or_ghost(self, grid_x: int, grid_y: int) -> Optional[AnimatedUnit]:
+        """
+        Get unit at grid position, checking both ghost positions (pending moves) and physical positions.
+        Prioritizes ghosts over physical positions to allow issuing commands from future position.
+
+        Args:
+            grid_x, grid_y: Grid coordinates to check
+
+        Returns:
+            AnimatedUnit if found at position or with move_target to position, else None
+        """
+        # First check if any unit has a move_target (ghost) at this position
+        for unit in self.units:
+            game_unit = self._get_game_unit(unit)
+            if game_unit and game_unit.move_target:
+                # move_target is in game coords (y, x), convert to grid coords (x, y)
+                target_y, target_x = game_unit.move_target
+                if target_x == grid_x and target_y == grid_y:
+                    return unit  # Return the unit whose ghost is at this position
+
+        # No ghost found, check physical positions
+        return self.get_unit_at_grid(grid_x, grid_y)
+
     def handle_events(self):
         """Handle pygame events."""
         for event in pygame.event.get():
@@ -670,7 +693,14 @@ class GraphicalRenderer:
                         # Query skill range
                         game_unit = self._get_game_unit(self.selected_unit)
                         if game_unit:
-                            self.skill_positions = self.game_adapter.get_skill_range(game_unit, skill)
+                            # If unit has pending move, calculate skill range from ghost position
+                            if game_unit.move_target:
+                                original_y, original_x = game_unit.y, game_unit.x
+                                game_unit.y, game_unit.x = game_unit.move_target
+                                self.skill_positions = self.game_adapter.get_skill_range(game_unit, skill)
+                                game_unit.y, game_unit.x = original_y, original_x
+                            else:
+                                self.skill_positions = self.game_adapter.get_skill_range(game_unit, skill)
                             print(f"Skill has {len(self.skill_positions)} valid targets")
 
                             # Hide movement/attack range, show skill range
@@ -788,7 +818,14 @@ class GraphicalRenderer:
                         self.selected_skill = skill
                         game_unit = self._get_game_unit(self.selected_unit)
                         if game_unit:
-                            self.skill_positions = self.game_adapter.get_skill_range(game_unit, skill)
+                            # Calculate skill range from ghost position if unit has pending move
+                            if game_unit.move_target:
+                                original_y, original_x = game_unit.y, game_unit.x
+                                game_unit.y, game_unit.x = game_unit.move_target
+                                self.skill_positions = self.game_adapter.get_skill_range(game_unit, skill)
+                                game_unit.y, game_unit.x = original_y, original_x
+                            else:
+                                self.skill_positions = self.game_adapter.get_skill_range(game_unit, skill)
                             self.show_movement_range = False
                             self.show_target_range = False
                             self.show_skill_range = True
@@ -856,7 +893,8 @@ class GraphicalRenderer:
         Args:
             grid_x, grid_y: Grid coordinates clicked
         """
-        unit = self.get_unit_at_grid(grid_x, grid_y)
+        # Check for units at this position (including ghosts from pending moves)
+        unit = self.get_unit_at_grid_or_ghost(grid_x, grid_y)
 
         # Get current player from game
         current_player = self.game_adapter.game.current_player if self.game_adapter.game else 1
@@ -947,17 +985,28 @@ class GraphicalRenderer:
         if unit:
             # Check if this is a friendly unit (current player's unit)
             if unit.player == current_player:
-                # Select friendly unit
+                # Select friendly unit (don't show ranges until Move/Attack button clicked)
                 self.selected_unit = unit
-                self.show_movement_range = True
-                self.show_target_range = True
+                self.show_movement_range = False
+                self.show_target_range = False
                 self.current_action_mode = "SELECT"
 
-                # Query movement range and attack range from game logic
+                # Query movement range and attack range from game logic (but don't display yet)
                 game_unit = self._get_game_unit(unit)
                 if game_unit:
-                    self.valid_positions = self.game_adapter.get_movement_range(game_unit)
-                    self.attack_positions = self.game_adapter.get_attack_range(game_unit)
+                    # If unit has a pending move, calculate ranges from ghost position
+                    if game_unit.move_target:
+                        # Temporarily swap position to calculate ranges from ghost
+                        original_y, original_x = game_unit.y, game_unit.x
+                        game_unit.y, game_unit.x = game_unit.move_target
+                        self.valid_positions = self.game_adapter.get_movement_range(game_unit)
+                        self.attack_positions = self.game_adapter.get_attack_range(game_unit)
+                        # Restore original position
+                        game_unit.y, game_unit.x = original_y, original_x
+                    else:
+                        # Normal range calculation from current position
+                        self.valid_positions = self.game_adapter.get_movement_range(game_unit)
+                        self.attack_positions = self.game_adapter.get_attack_range(game_unit)
 
                     # Update skill bar, status effects, and unit info
                     self.skill_bar.update(unit, game_unit)
@@ -981,8 +1030,8 @@ class GraphicalRenderer:
                     self.unit_info_panel.update(None, None)
                     print(f"Selected: {unit.name} - WARNING: No game unit found")
             else:
-                # Clicked enemy - attack if we have unit selected
-                if self.selected_unit:
+                # Clicked enemy - attack only if in ATTACK mode
+                if self.selected_unit and self.current_action_mode == "ATTACK":
                     # Check if enemy is in attack range
                     if (grid_x, grid_y) in self.attack_positions:
                         game_unit = self._get_game_unit(self.selected_unit)
@@ -1009,8 +1058,16 @@ class GraphicalRenderer:
                             self.skill_bar.update(None, None)
                             self.status_effects_panel.update(None)
                             self.unit_info_panel.update(None, None)
+                            self.current_action_mode = "SELECT"
                     else:
                         print(f"Enemy {unit.name} out of attack range")
+                elif self.selected_unit and self.current_action_mode != "ATTACK":
+                    # Unit selected but not in attack mode - just show enemy info
+                    game_unit = self._get_game_unit(unit)
+                    if game_unit:
+                        self.status_effects_panel.update(game_unit)
+                        self.unit_info_panel.update(unit, game_unit)
+                        print(f"Enemy unit: {unit.name} - Click Attack (A) to attack")
                 else:
                     # Clicked enemy with no unit selected - just show info
                     game_unit = self._get_game_unit(unit)
@@ -1064,8 +1121,8 @@ class GraphicalRenderer:
 
                     return  # Don't process as movement
 
-            # Not furniture - handle as movement
-            if self.selected_unit:
+            # Not furniture - handle as movement (only in MOVE mode)
+            if self.selected_unit and self.current_action_mode == "MOVE":
                 # Check if clicked position is in movement range
                 if (grid_x, grid_y) in self.valid_positions:
                     # Execute movement
@@ -1086,11 +1143,14 @@ class GraphicalRenderer:
                         self.show_movement_range = False
                         self.show_astral_values = False  # Hide astral values
                         self.valid_positions = []
+                        self.current_action_mode = "SELECT"
                     else:
                         print(f"ERROR: Could not find game unit for {self.selected_unit.name}")
                 else:
                     print(f"Cannot move there - not in movement range")
-                    # Could add visual feedback here (red flash, etc.)
+            elif self.selected_unit and self.current_action_mode != "MOVE":
+                # Unit selected but not in move mode - inform player
+                print(f"Click Move (M) to move the selected unit")
 
     def _get_unit_id(self, unit) -> Optional[str]:
         """Helper to get unit ID."""
