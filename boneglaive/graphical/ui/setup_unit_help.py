@@ -506,7 +506,6 @@ class SetupUnitHelp:
                     sprite_name = unit_id  # unit_id is already lowercase
                     break
             if not sprite_name:
-                print(f"[SetupUnitHelp] Could not find DLC unit with enum value {unit_type}")
                 self.sprite_cache[cache_key] = None
                 return None
         else:
@@ -514,7 +513,6 @@ class SetupUnitHelp:
             try:
                 sprite_name = unit_type.name.lower()
             except AttributeError:
-                print(f"[SetupUnitHelp] Invalid unit_type: {unit_type}")
                 self.sprite_cache[cache_key] = None
                 return None
 
@@ -529,7 +527,6 @@ class SetupUnitHelp:
             self.sprite_cache[cache_key] = sprite
             return sprite
         except Exception as e:
-            print(f"[SetupUnitHelp] Could not load sprite for {sprite_name}: {e}")
             self.sprite_cache[cache_key] = None
             return None
 

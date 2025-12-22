@@ -10,7 +10,7 @@
     "hp": 18,
     "attack": 4,
     "defense": 0,
-    "move_range": 4,
+    "move_range": 3,
     "attack_range": 4
   },
 

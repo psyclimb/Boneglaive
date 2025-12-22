@@ -246,14 +246,12 @@ class DischargeSkill(ActiveSkill):
                 if index > 0:
                     stop_pos = path_positions[index - 1]
                     user.y, user.x = stop_pos
-                    print(f"[Expedite GAME LOGIC] Hit enemy! Moving foreman to stop_pos: {stop_pos} (before enemy at {enemy_pos})")
                 else:
                     # Enemy is adjacent - don't move from starting position
-                    print(f"[Expedite GAME LOGIC] Enemy adjacent - staying at original position")
+                    pass
             elif path_positions:
                 # Enemy not in path but we have path positions - move to last position before enemy
                 user.y, user.x = path_positions[-1]
-                print(f"[Expedite GAME LOGIC] Moving to last valid position before enemy: {path_positions[-1]}")
             # else: No valid path positions, stay at original position
         # Note: With ENEMY targeting, there should always be an enemy_hit since we require targeting an enemy
 

@@ -191,7 +191,6 @@ class SetupWindow:
                     break
 
             if not sprite_name:
-                print(f"[SetupWindow] Could not find DLC unit with enum value {unit_type}")
                 self.sprite_cache[unit_type] = None
                 return None
         else:
@@ -199,7 +198,6 @@ class SetupWindow:
             try:
                 sprite_name = unit_type.name.lower()
             except AttributeError:
-                print(f"[SetupWindow] Invalid unit_type: {unit_type}")
                 self.sprite_cache[unit_type] = None
                 return None
 
@@ -221,7 +219,6 @@ class SetupWindow:
             return sprite
 
         except Exception as e:
-            print(f"[SetupWindow] Could not load sprite for {sprite_name}: {e}")
             # Cache None to avoid repeated attempts
             self.sprite_cache[unit_type] = None
             return None

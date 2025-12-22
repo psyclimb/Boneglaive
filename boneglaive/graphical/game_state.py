@@ -76,10 +76,6 @@ class VisualUnit:
             if taunted_by_this and duration_positive:
                 taunted[id(unit)] = unit.taunt_duration
                 taunt_count += 1
-                print(f"[DEBUG] _get_taunted_units: {unit.get_display_name()} is taunted by {game_unit.get_display_name()} (duration: {unit.taunt_duration})")
-
-        if taunt_count == 0 and hasattr(game_unit, 'unit_class') and game_unit.unit_class and game_unit.unit_class.name == "POTPOURRIST":
-            print(f"[DEBUG] _get_taunted_units: {game_unit.get_display_name()} has no taunted units")
 
         return taunted
 
@@ -276,7 +272,6 @@ class GameStateAdapter:
                 effects = self.visual_units[unit_id]._get_status_effects(unit)
                 self.status_effects_snapshot[unit_id] = effects.copy()
 
-        print(f"[GameState] Captured status effects snapshot for {len(self.status_effects_snapshot)} units")
 
     def _detect_status_effects_callback(self):
         """
@@ -285,17 +280,8 @@ class GameStateAdapter:
         but about to be cleared. Store them for display after damage numbers.
         """
         if not self.game or not self.executing_turn:
-            print(f"[GameState] *** CALLBACK SKIPPED: game={self.game is not None}, executing_turn={self.executing_turn} ***")
             return
 
-        print(f"[GameState] *** STATUS DETECTION CALLBACK INVOKED ***")
-
-        # DEBUG: Check for initial Valuation Oracle flags BEFORE processing
-        vo_flagged_units = [u for u in self.game.units if hasattr(u, 'valuation_oracle_initial_application') and u.valuation_oracle_initial_application]
-        if vo_flagged_units:
-            print(f"[GameState] DEBUG: Found {len(vo_flagged_units)} units with valuation_oracle_initial_application flag:")
-            for u in vo_flagged_units:
-                print(f"[GameState]   - {u.get_display_name()}")
 
         # Clear any previous pending effects
         if not hasattr(self, '_effects_to_show_after_damage'):
@@ -321,33 +307,24 @@ class GameStateAdapter:
             if unit_id in self.status_effects_snapshot:
                 snapshot_effects = self.status_effects_snapshot[unit_id]
 
-                print(f"[GameState] Callback check {unit.get_display_name()}: was_pried={getattr(unit, 'was_pried', 'N/A')}, current={current_status_effects}, snapshot={snapshot_effects}")
-
                 for effect_name in current_status_effects:
                     if effect_name not in snapshot_effects:
                         # New status effect detected!
-                        print(f"[GameState] *** CALLBACK DETECTED NEW STATUS EFFECT '{effect_name}' on {unit.get_display_name()} ***")
-
                         # Store this for showing after damage numbers
                         self._effects_to_show_after_damage.append((unit_id, effect_name))
 
         # After detecting turn-based status effects, check for initial Valuation Oracle applications
         # These were applied during game setup before any snapshot was taken
-        print(f"[GameState] DEBUG: Checking for initial Valuation Oracle applications...")
         for unit in self.game.units:
             if (unit.is_alive() and
                 hasattr(unit, 'valuation_oracle_initial_application') and
                 unit.valuation_oracle_initial_application):
                 # Queue this unit for status icon flash
                 unit_id = self._get_unit_id(unit)
-                print(f"[GameState] DEBUG: Unit {unit.get_display_name()} has flag, unit_id={unit_id}, in visual_units={unit_id in self.visual_units}")
                 if unit_id in self.visual_units:
                     self._effects_to_show_after_damage.append((unit_id, 'valuation_oracle'))
-                    print(f"[GameState] *** QUEUED initial Valuation Oracle icon flash for {unit.get_display_name()} ***")
                 # Clear the flag so it only triggers once
                 unit.valuation_oracle_initial_application = False
-
-        print(f"[GameState] DEBUG: Final _effects_to_show_after_damage list has {len(self._effects_to_show_after_damage)} entries")
 
     def _detect_passive_status_effects_callback(self):
         """
@@ -356,8 +333,6 @@ class GameStateAdapter:
         """
         if not self.game:
             return
-
-        print(f"[GameState] *** PASSIVE STATUS DETECTION CALLBACK INVOKED ***")
 
         # Initialize the effects list if needed
         if not hasattr(self, '_effects_to_show_after_damage'):
@@ -373,17 +348,13 @@ class GameStateAdapter:
                 unit.valuation_oracle_initial_application):
 
                 unit_id = self._get_unit_id(unit)
-                print(f"[GameState] *** PASSIVE CALLBACK: {unit.get_display_name()} gained Valuation Oracle ***")
 
                 if unit_id in self.visual_units:
                     # Queue the status icon flash
                     self._effects_to_show_after_damage.append((unit_id, 'valuation_oracle'))
-                    print(f"[GameState] *** QUEUED Valuation Oracle icon flash for {unit.get_display_name()} ***")
 
                 # Clear the flag
                 unit.valuation_oracle_initial_application = False
-
-        print(f"[GameState] PASSIVE CALLBACK: {len(self._effects_to_show_after_damage)} effects queued for display")
 
     def sync_state(self) -> List[AnimationEvent]:
         """
@@ -414,38 +385,23 @@ class GameStateAdapter:
                 # Only trigger if we haven't already animated this dissociation
                 if not hasattr(visual_unit, 'dissociation_animated') or not visual_unit.dissociation_animated:
                     derelictionist = game_unit.partition_dissociation_caster
-                    print(f"[GameState] *** PARTITION DISSOCIATION DETECTED! *** {game_unit.get_display_name()} triggered emergency dissociation")
-                    print(f"  DERELICTIONIST: {derelictionist.get_display_name()}")
-                    print(f"  partition_shield_blocked_fatal: {game_unit.partition_shield_blocked_fatal}")
-                    print(f"  partition_dissociation_caster: {game_unit.partition_dissociation_caster}")
-
                     events.append(AnimationEvent(
                         "partition_dissociation",
                         source_unit=derelictionist,  # DERELICTIONIST who cast partition
                         target_unit=game_unit,  # Protected unit that triggered dissociation
                     ))
-                    print(f"  Event created and appended to events list (total events: {len(events)})")
-
                     # Mark as animated to prevent re-triggering
                     visual_unit.dissociation_animated = True
-                    print(f"  Set dissociation_animated flag on visual_unit")
             elif hasattr(visual_unit, 'dissociation_animated') and visual_unit.dissociation_animated:
                 # Reset flag when the game logic clears the blocked_fatal flag
                 if not (hasattr(game_unit, 'partition_shield_blocked_fatal') and game_unit.partition_shield_blocked_fatal):
                     visual_unit.dissociation_animated = False
-                    print(f"[GameState DEBUG] Reset dissociation_animated flag for {game_unit.get_display_name()}")
 
             # Detect vagal run abreaction (delayed effect trigger)
             current_vagal_duration = getattr(game_unit, 'vagal_run_duration', 0)
             if visual_unit.last_vagal_run_duration > 0 and current_vagal_duration == 0:
                 # Abreaction just triggered! (duration went from >0 to 0)
                 caster = getattr(game_unit, 'vagal_run_caster', None)
-                print(f"[GameState] *** VAGAL RUN ABREACTION DETECTED! *** {game_unit.get_display_name()}'s abreaction triggered")
-                if caster:
-                    print(f"  DERELICTIONIST caster: {caster.get_display_name()}")
-                else:
-                    print(f"  DERELICTIONIST caster is dead/None")
-
                 events.append(AnimationEvent(
                     "skill",
                     source_unit=caster,  # DERELICTIONIST who cast Vagal Run (may be None if dead)
@@ -453,7 +409,6 @@ class GameStateAdapter:
                     skill_name="VAGAL_RUN_ABREACTION",  # Use abreaction version (no connection arc)
                     skill_target=(game_unit.y, game_unit.x)  # Must be skill_target, not target_pos!
                 ))
-                print(f"  Abreaction animation event created (total events: {len(events)})")
 
             # Update last vagal run duration
             visual_unit.last_vagal_run_duration = current_vagal_duration
@@ -470,8 +425,6 @@ class GameStateAdapter:
                     if (visual_unit.last_hp > game_unit.get_critical_threshold() and
                         game_unit.is_at_critical_health()):
                         # Unit just crossed into critical health - trigger retch animation!
-                        print(f"[GameState] *** CRITICAL HEALTH DETECTED! *** {game_unit.get_display_name()} retches (HP: {current_hp}/{game_unit.max_hp}, threshold: {game_unit.get_critical_threshold()})")
-
                         events.append(AnimationEvent(
                             "retch",
                             source_unit=None,
@@ -489,8 +442,6 @@ class GameStateAdapter:
                         node_info = self.last_scalar_nodes[unit_pos]
                         owner = node_info['owner']
 
-                        print(f"[GameState] SCALAR NODE TRAP DETECTED! {game_unit.get_display_name()} triggered trap at {unit_pos}")
-
                         events.append(AnimationEvent(
                             "scalar_trap",
                             source_unit=owner,  # INTERFERER who placed the trap
@@ -504,7 +455,6 @@ class GameStateAdapter:
                     trap_tick_damage = False
                     if hasattr(game_unit, 'trapped_by') and game_unit.trapped_by and not scalar_trap_triggered:
                         # Unit is trapped - this damage is from trap tick
-                        print(f"[GameState] VISEROY TRAP TICK DETECTED! {game_unit.get_display_name()} took {abs(hp_delta)} trap damage")
                         events.append(AnimationEvent(
                             "viseroy_tick",
                             source_unit=game_unit.trapped_by,  # MANDIBLE_FOREMAN who owns trap
@@ -517,8 +467,6 @@ class GameStateAdapter:
                     auction_curse_tick = False
                     if hasattr(game_unit, 'auction_curse_dot') and game_unit.auction_curse_dot and not scalar_trap_triggered and not trap_tick_damage:
                         # Unit is cursed - this damage is from Auction Curse DOT
-                        print(f"[GameState] AUCTION CURSE TICK DETECTED! {game_unit.get_display_name()} took {abs(hp_delta)} curse damage")
-
                         # Find the DELPHIC_APPRAISER who cast the curse
                         caster_player = 3 - game_unit.player  # Opposing player
                         appraiser_unit = None
@@ -551,10 +499,6 @@ class GameStateAdapter:
                     current_taunted = visual_unit._get_taunted_units(game_unit, self.game)
                     last_taunted = visual_unit.last_taunted_units
 
-                    print(f"[GameState] {game_unit.get_display_name()} healed {hp_delta} HP")
-                    print(f"  Last taunted units: {last_taunted}")
-                    print(f"  Current taunted units: {current_taunted}")
-
                     # Check if this is Melange Eminence passive healing (POTPOURRIST only)
                     is_melange_heal = False
                     from boneglaive.utils.constants import UnitType
@@ -566,7 +510,6 @@ class GameStateAdapter:
                             # TODO: Add more robust detection if needed
                             is_melange_heal = True
                             is_infused = getattr(game_unit, 'potpourri_held', False)
-                            print(f"  *** MELANGE EMINENCE DETECTED! {game_unit.get_display_name()} heals from passive (infused: {is_infused}) ***")
 
                     if is_melange_heal:
                         # Melange Eminence passive heal
@@ -591,7 +534,6 @@ class GameStateAdapter:
                                     # If duration decreased or taunt was cleared, that's a geas break
                                     if current_duration < last_duration:
                                         geas_break_unit = unit
-                                        print(f"  *** GEAS BREAK DETECTED! {unit.get_display_name()} ignored geas (duration {last_duration}->{current_duration}), {game_unit.get_display_name()} heals! ***")
                                         break
 
                         if geas_break_unit:
@@ -626,7 +568,6 @@ class GameStateAdapter:
                         str(game_unit.type) == "UnitType.FOWL_CONTRIVANCE"):
                         # FOWL CONTRIVANCE died - trigger Rail Genesis explosion animation
                         # Note: Rails may already be removed by game logic, but animation captures positions at init
-                        print(f"[GameState] FOWL CONTRIVANCE died with rails active - triggering Rail Genesis explosion")
                         events.append(AnimationEvent(
                             "skill",
                             source_unit=game_unit,
@@ -639,10 +580,13 @@ class GameStateAdapter:
             # NOTE: Game uses (y, x) = (row, col), we need (x, y) = (col, row)
             current_pos = (game_unit.x, game_unit.y)
             if current_pos != visual_unit.last_position:
+                # Check if this is an off-map position (e.g., GAS_MACHINIST Diverge uses -999, -999)
+                # Treat off-map positions as instant teleports to avoid long walking animations
+                is_off_map = game_unit.x < 0 or game_unit.y < 0 or game_unit.x >= 100 or game_unit.y >= 100
+
                 # Check if this position change is due to a pending teleport skill
                 is_teleport = hasattr(visual_unit, 'pending_teleport_skill') and visual_unit.pending_teleport_skill
                 if is_teleport:
-                    print(f"[GameState] Position change is due to teleport skill {visual_unit.pending_teleport_skill}, skipping movement animation")
                     # Clear the pending teleport flag
                     visual_unit.pending_teleport_skill = None
 
@@ -650,11 +594,8 @@ class GameStateAdapter:
                 is_defection_teleport = (hasattr(game_unit, 'pending_teleport_defection') and
                                         game_unit.pending_teleport_defection)
                 if is_defection_teleport:
-                    print(f"[GameState] *** DERELICTIONIST DEFECTION TELEPORT DETECTED ***")
                     origin = getattr(game_unit, 'teleport_origin', visual_unit.last_position)
                     destination = getattr(game_unit, 'teleport_destination', current_pos)
-                    print(f"  Origin: {origin}, Destination: {destination}")
-
                     # Generate teleport defection event
                     events.append(AnimationEvent(
                         "teleport_defection",
@@ -691,7 +632,17 @@ class GameStateAdapter:
                     animated_unit.target_y = new_y
                     animated_unit.is_moving = False  # Important: disable walking animation
 
-                    print(f"[GameState] Teleport position synced: grid ({game_unit.x}, {game_unit.y}) -> screen ({new_x}, {new_y})")
+                elif is_off_map:
+                    # Off-map position (e.g., GAS_MACHINIST Diverge) - instant position update, no walking
+                    visual_unit.last_position = current_pos
+
+                    # Update grid coordinates
+                    animated_unit.grid_x = game_unit.x
+                    animated_unit.grid_y = game_unit.y
+
+                    # For off-map positions, just update position without calculating screen coords
+                    # The unit will be hidden by the renderer anyway
+                    animated_unit.is_moving = False
 
                 elif not is_teleport:
                     # Normal movement - generate movement event and animate walking
@@ -725,7 +676,6 @@ class GameStateAdapter:
                     # grid_x = x (column), grid_y = y (row)
                     animated_unit.grid_x = game_unit.x
                     animated_unit.grid_y = game_unit.y
-                    print(f"[GameState] Synced teleport position: game ({game_unit.x}, {game_unit.y}) -> visual grid ({animated_unit.grid_x}, {animated_unit.grid_y})")
 
             # Detect basic attack ONLY during turn execution
             # Attacks get set when planned, but we only want to animate them when executed
@@ -736,15 +686,11 @@ class GameStateAdapter:
                         # Basic attack is being executed!
                         attack_target = game_unit.attack_target  # (y, x) in game coords
 
-                        print(f"[GameState] Detected basic attack during turn execution: {game_unit.get_display_name()} → {attack_target}")
-
                         # Capture INTERFERER's carrier_rave_active state BEFORE attack execution clears it
                         # (Similar to Potpourrist infusion check below)
                         has_carrier_rave = False
                         if hasattr(game_unit, 'carrier_rave_active'):
                             has_carrier_rave = game_unit.carrier_rave_active
-                            if has_carrier_rave:
-                                print(f"[GameState] INTERFERER has carrier_rave_active - attack will be triple strike!")
 
                         # Capture target unit for passive skill detection (e.g. Riposte)
                         target_game_unit = self.game.get_unit_at(attack_target[0], attack_target[1]) if attack_target else None
@@ -756,7 +702,6 @@ class GameStateAdapter:
                                 target_game_unit.passive_skill.name == "Riposte" and
                                 hasattr(target_game_unit, 'riposte_active') and target_game_unit.riposte_active):
                                 target_has_riposte = True
-                                print(f"[GameState] Target {target_game_unit.get_display_name()} has Riposte active - will counterattack!")
 
                         events.append(AnimationEvent(
                             "attack",
@@ -781,8 +726,6 @@ class GameStateAdapter:
                         skill_target = getattr(game_unit, 'skill_target', None)
                         skill_name = game_unit.selected_skill.name if hasattr(game_unit.selected_skill, 'name') else str(game_unit.selected_skill)
 
-                        print(f"[GameState] Detected skill during turn execution: {skill_name} on {game_unit.get_display_name()}")
-
                         # Gaussian Dusk no longer needs special handling (fires immediately, no charging)
 
                         # Track if this is a teleport/movement skill that will change position
@@ -791,21 +734,16 @@ class GameStateAdapter:
                         if skill_name in teleport_skills:
                             # Store this in visual_unit so we can check it when detecting position changes
                             visual_unit.pending_teleport_skill = skill_name
-                            print(f"[GameState] Marking {skill_name} as pending movement skill")
 
                         # Capture Potpourrist's infusion state BEFORE skill execution clears it
                         is_infused = False
                         if skill_name in ["Demilune", "Granite Geas"] and hasattr(game_unit, 'potpourri_held'):
                             is_infused = game_unit.potpourri_held
-                            if is_infused:
-                                print(f"[GameState] Potpourrist is holding potpourri - {skill_name} will be infused!")
 
                         # Capture target unit BEFORE skill execution (units may move during execution)
                         target_game_unit = None
                         if skill_target:
                             target_game_unit = self.game.get_unit_at(skill_target[0], skill_target[1])
-                            if target_game_unit:
-                                print(f"[GameState] Captured target unit: {target_game_unit.get_display_name()} at {skill_target}")
 
                         # Check if skill will be reflected by Backhand (for blocking skills)
                         will_be_reflected = False
@@ -817,7 +755,6 @@ class GameStateAdapter:
                             }
                             if skill_name in reflectable_skills:
                                 will_be_reflected = True
-                                print(f"[GameState] Skill {skill_name} will be reflected by Backhand - setting flag early")
                                 # Set flag early so pre-execution animation check can see it
                                 game_unit.skill_was_reflected = True
 
@@ -857,7 +794,6 @@ class GameStateAdapter:
                                         if owner.player != game_unit.player:
                                             # Mark this node as revealed for visual display
                                             self.revealed_scalar_nodes.add(check_pos)
-                                            print(f"[GameState] Site Inspection revealed scalar node at {check_pos}")
 
                         visual_unit.last_skill = game_unit.selected_skill
                 elif visual_unit.last_skill is not None:
@@ -876,8 +812,6 @@ class GameStateAdapter:
                 # Passive skill just activated!
                 if hasattr(game_unit, 'passive_skill') and game_unit.passive_skill:
                     passive_name = game_unit.passive_skill.name
-                    print(f"[GameState] Passive skill '{passive_name}' activated for {game_unit.get_display_name()}!")
-
                     # Queue animation for passive skill activation
                     events.append(AnimationEvent(
                         "skill",
@@ -894,8 +828,6 @@ class GameStateAdapter:
             if visual_unit.last_trapped_by and not current_trapped_by:
                 # Unit was trapped and is now released!
                 trapper_unit = visual_unit.last_trapped_by
-                print(f"[GameState] *** TRAP RELEASE DETECTED! {game_unit.get_display_name()} released from {trapper_unit.get_display_name()}'s Viseroy trap ***")
-
                 events.append(AnimationEvent(
                     "trap_release",
                     source_unit=trapper_unit,  # MANDIBLE FOREMAN who set the trap
@@ -908,8 +840,6 @@ class GameStateAdapter:
             # Update taunted units snapshot at end of each sync cycle
             # This ensures we have the "before" state for next cycle's geas heal detection
             new_taunted = visual_unit._get_taunted_units(game_unit, self.game)
-            if new_taunted != visual_unit.last_taunted_units:
-                print(f"[GameState] Updating {game_unit.get_display_name()} taunted snapshot: {visual_unit.last_taunted_units} -> {new_taunted}")
             visual_unit.last_taunted_units = new_taunted
 
         # Status effects are shown after damage numbers via _show_active_status_effects()
@@ -928,10 +858,10 @@ class GameStateAdapter:
 
             for pos in revealed_to_remove:
                 self.revealed_scalar_nodes.discard(pos)
-                print(f"[GameState] Removed triggered scalar node from revealed set: {pos}")
 
         # Check for HEINOUS VAPOR units that just applied AOE effects
         # (marked by execute_turn before applying effects)
+        # NOTE: Skip vapors that just spawned this turn (they have their own spawn animation)
         if self.game:
             from boneglaive.utils.constants import UnitType
             for unit in self.game.units:
@@ -941,19 +871,22 @@ class GameStateAdapter:
                     unit.just_applied_aoe and
                     hasattr(unit, 'vapor_type')):
 
-                    # Queue vapor AOE tick animation
-                    vapor_type = unit.vapor_type
-                    skill_name = f"vapor_aoe_{vapor_type.lower()}"
+                    # Skip if this is a newly created vapor (has diverged_user flag from Diverge)
+                    # These vapors play their spawn animation instead of AOE tick
+                    is_newly_diverged = hasattr(unit, 'diverged_user') and unit.diverged_user
 
-                    print(f"[GameState] Detected vapor AOE from {vapor_type} at ({unit.x}, {unit.y})")
+                    if not is_newly_diverged:
+                        # Queue vapor AOE tick animation
+                        vapor_type = unit.vapor_type
+                        skill_name = f"vapor_aoe_{vapor_type.lower()}"
 
-                    events.append(AnimationEvent(
-                        "skill",
-                        source_unit=unit,
-                        target_unit=None,
-                        skill_name=skill_name,
-                        skill_target=(unit.y, unit.x)  # Vapor's position
-                    ))
+                        events.append(AnimationEvent(
+                            "skill",
+                            source_unit=unit,
+                            target_unit=None,
+                            skill_name=skill_name,
+                            skill_target=(unit.y, unit.x)  # Vapor's position
+                        ))
 
                     # Clear the flag
                     unit.just_applied_aoe = False
@@ -965,7 +898,6 @@ class GameStateAdapter:
 
         # Include any queued animation events (vapor AOE ticks, etc.)
         if self.animation_queue:
-            print(f"[GameState] Adding {len(self.animation_queue)} queued animations to sync_state events")
             events.extend(self.animation_queue)
             self.animation_queue.clear()
 
@@ -982,8 +914,6 @@ class GameStateAdapter:
 
                 # Check if we haven't already triggered death animation for this echo
                 if not hasattr(visual_unit, 'echo_death_animated') or not visual_unit.echo_death_animated:
-                    print(f"[GameState] *** GRAYMAN ECHO DEATH DETECTED! *** {game_unit.get_display_name()} at ({game_unit.y}, {game_unit.x})")
-
                     # Queue death explosion animation
                     events.append(AnimationEvent(
                         "skill",
@@ -996,7 +926,6 @@ class GameStateAdapter:
                     # Mark as animated to prevent re-triggering
                     visual_unit.echo_death_animated = True
                     dead_echo_ids.append(unit_id)
-                    print(f"  Queued GRAYMAN_ECHO_DEATH animation event")
 
         return events
 
@@ -1033,8 +962,6 @@ class GameStateAdapter:
         # Create skill name for animation factory
         vapor_type = vapor_unit.vapor_type
         skill_name = f"vapor_aoe_{vapor_type.lower()}"
-
-        print(f"[GameState] Queueing vapor AOE tick animation for {vapor_type} at ({vapor_unit.x}, {vapor_unit.y})")
 
         # Queue animation at vapor's position
         event = AnimationEvent(

@@ -504,12 +504,16 @@ class DivergeAnimation:
         self.split_streams = []
         self.split_triggered = False
 
-        # Spawn positions (adjacent to target)
-        # Assuming coolant spawns left, cutting spawns right
-        self.coolant_x = self.target_x - TILE_SIZE
+        # Vapor positions - will be updated during first update() call
+        # Vapors don't exist yet during init (animation is created before skill executes)
+        self.coolant_x = self.target_x - TILE_SIZE  # Default fallback
         self.coolant_y = self.target_y
-        self.cutting_x = self.target_x + TILE_SIZE
+        self.cutting_x = self.target_x + TILE_SIZE  # Default fallback
         self.cutting_y = self.target_y
+
+        # Flag to track if we've found vapor positions yet
+        self.vapor_positions_found = False
+
 
         # Start compression
         self._start_compression()
@@ -527,14 +531,44 @@ class DivergeAnimation:
         self.phase = "split"
         self.timer = 0
 
+        # NOW find vapor positions - they should exist by the time split phase starts
+        if not self.vapor_positions_found and self.game:
+            from boneglaive.utils.constants import UnitType
+
+            # Get the game unit from the AnimatedUnit if that's what we have
+            caster_game_unit = None
+            if hasattr(self.caster, 'game_unit'):
+                caster_game_unit = self.caster.game_unit
+            else:
+                # caster might already be a game unit
+                caster_game_unit = self.caster
+
+            # Find matching vapors
+            for unit in self.game.units:
+                if (unit.type == UnitType.HEINOUS_VAPOR and
+                    hasattr(unit, 'vapor_type') and
+                    hasattr(unit, 'vapor_creator') and
+                    unit.vapor_creator == caster_game_unit):
+
+                    vapor_screen_x, vapor_screen_y = self.camera.grid_to_screen(unit.x, unit.y, centered=True)
+
+                    if unit.vapor_type == "COOLANT":
+                        self.coolant_x = vapor_screen_x
+                        self.coolant_y = vapor_screen_y
+                    elif unit.vapor_type == "CUTTING":
+                        self.cutting_x = vapor_screen_x
+                        self.cutting_y = vapor_screen_y
+
+            self.vapor_positions_found = True
+
         # Create gas streams
         self.split_streams = [
-            # Coolant stream (white) - goes left
+            # Coolant stream (white) - goes to actual coolant position
             GasSplitStream(self.target_x, self.target_y,
                           self.coolant_x, self.coolant_y,
                           self.COOLANT_COLORS, delay=0),
 
-            # Cutting stream (red) - goes right
+            # Cutting stream (red) - goes to actual cutting position
             GasSplitStream(self.target_x, self.target_y,
                           self.cutting_x, self.cutting_y,
                           self.CUTTING_COLORS, delay=0.05)

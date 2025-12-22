@@ -41,12 +41,10 @@ class MotorAnimation:
 
     def start(self):
         """Start the motor animation."""
-        print("[Motor] Starting motor animation")
         self.is_running = True
 
     def stop(self):
         """Stop the motor animation."""
-        print("[Motor] Stopping motor animation")
         self.is_running = False
 
     def update(self, dt: float = 1/60):

@@ -114,7 +114,6 @@ class RespawnWindow:
                     sprite_name = unit_id  # unit_id is already lowercase
                     break
             if not sprite_name:
-                print(f"[RespawnWindow] Could not find DLC unit with enum value {unit_type}")
                 self.sprite_cache[unit_type] = None
                 return None
         else:
@@ -122,7 +121,6 @@ class RespawnWindow:
             try:
                 sprite_name = unit_type.name.lower()
             except AttributeError:
-                print(f"[RespawnWindow] Invalid unit_type: {unit_type}")
                 self.sprite_cache[unit_type] = None
                 return None
 
@@ -144,7 +142,6 @@ class RespawnWindow:
             return sprite
 
         except Exception as e:
-            print(f"[RespawnWindow] Could not load sprite for {sprite_name}: {e}")
             # Cache None to avoid repeated attempts
             self.sprite_cache[unit_type] = None
             return None

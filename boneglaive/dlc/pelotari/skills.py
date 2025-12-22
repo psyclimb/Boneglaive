@@ -29,10 +29,10 @@ class Riposte(PassiveSkill):
         super().__init__(
             name="Riposte",
             key="R",
-            description="Grants +2 DEF. When hit by basic attack, fires 8 balls in all directions (2 damage, 2 ricochets). 2 turn CD. Cannot be Poached - triggers counterattack instead."
+            description="Grants +2 DEF. When hit by basic attack, fires 8 balls in all directions (2 damage, 2 ricochets). 3 turn CD. Cannot be Poached - triggers counterattack instead."
         )
         self.defense_bonus = 2
-        self.cooldown_turns = 2
+        self.cooldown_turns = 3
         self.ball_damage = 2
         self.ball_range = 4
 

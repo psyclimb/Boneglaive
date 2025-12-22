@@ -899,7 +899,6 @@ class AnimationFactory:
                 )
             elif anim_class.__name__ == "VaporSpawnAnimation":
                 # Vapor spawn animation - needs target position and vapor type from kwargs
-                # target_pos is already set in kwargs by the factory
                 animation = anim_class(
                     target_x=kwargs.get('target_x', 0),
                     target_y=kwargs.get('target_y', 0),
