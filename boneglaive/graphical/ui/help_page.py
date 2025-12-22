@@ -5,8 +5,9 @@ Displays unit help pages with skill icons and status effect icons.
 """
 import pygame
 import os
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Tuple
 from boneglaive.utils.constants import UnitType
+from .scrollbar import Scrollbar
 
 # Colors
 COLOR_BG = (25, 28, 32)
@@ -39,6 +40,9 @@ class HelpPage:
         self.unit_type = None
         self.content_surface = None
         self.icon_cache: Dict[str, pygame.Surface] = {}
+
+        # Scrollbar component
+        self.scrollbar = Scrollbar()
 
         # Load unit help data from ASCII help component
         self.unit_help_data = self._load_unit_help_data()
@@ -275,6 +279,35 @@ class HelpPage:
         self.scroll_offset += direction * scroll_speed
         self.scroll_offset = max(0, min(self.scroll_offset, self.max_scroll))
 
+    def handle_mouse_down(self, mouse_pos: Tuple[int, int]) -> bool:
+        """
+        Handle mouse button down event.
+        Returns True if the event was handled (clicked on scrollbar).
+        """
+        if not self.visible:
+            return False
+
+        result = self.scrollbar.handle_mouse_down(mouse_pos)
+        if result is not None:
+            if isinstance(result, float):
+                # Track was clicked, jump to position
+                self.scroll_offset = int(result * self.max_scroll)
+                self.scroll_offset = max(0, min(self.scroll_offset, self.max_scroll))
+            # If result is None, thumb was clicked and drag started automatically
+            return True
+
+        return False
+
+    def handle_mouse_up(self):
+        """Handle mouse button up event."""
+        self.scrollbar.handle_mouse_up()
+
+    def handle_mouse_motion(self, mouse_pos: Tuple[int, int]):
+        """Handle mouse motion for scrollbar dragging."""
+        new_scroll = self.scrollbar.handle_mouse_motion(mouse_pos, self.scroll_offset, self.max_scroll)
+        if new_scroll is not None:
+            self.scroll_offset = new_scroll
+
     def draw(self, surface: pygame.Surface, screen_width: int, screen_height: int):
         """Draw the help page."""
         if not self.visible or not self.content_surface:
@@ -324,18 +357,9 @@ class HelpPage:
         # Clear clipping
         surface.set_clip(None)
 
-        # Draw scroll indicator if needed
-        if self.max_scroll > 0:
-            scroll_pct = self.scroll_offset / self.max_scroll if self.max_scroll > 0 else 0
-            scroll_bar_height = visible_height - 20
-            scroll_bar_y = panel_y + 70
-
-            # Track
-            track_rect = pygame.Rect(panel_x + panel_width - 15, scroll_bar_y, 5, scroll_bar_height)
-            pygame.draw.rect(surface, COLOR_SEPARATOR, track_rect)
-
-            # Thumb
-            thumb_height = max(30, int(scroll_bar_height * (visible_height / content_height)))
-            thumb_y = scroll_bar_y + int((scroll_bar_height - thumb_height) * scroll_pct)
-            thumb_rect = pygame.Rect(panel_x + panel_width - 18, thumb_y, 11, thumb_height)
-            pygame.draw.rect(surface, COLOR_BORDER, thumb_rect)
+        # Draw scrollbar if needed
+        scroll_bar_height = visible_height - 20
+        scroll_bar_y = panel_y + 70
+        scrollbar_x = panel_x + panel_width
+        self.scrollbar.draw(surface, scrollbar_x, scroll_bar_y, scroll_bar_height,
+                           self.scroll_offset, self.max_scroll, visible_height, content_height)

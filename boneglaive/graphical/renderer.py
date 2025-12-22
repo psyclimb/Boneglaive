@@ -625,6 +625,14 @@ class GraphicalRenderer:
             if event.type == pygame.QUIT:
                 self.running = False
 
+            elif event.type == pygame.MOUSEBUTTONUP:
+                # Handle scrollbar releases
+                if event.button == 1:
+                    self.help_page.handle_mouse_up()
+                    self.setup_unit_help.handle_mouse_up()
+                    self.setup_window.handle_mouse_up()
+                    self.respawn_window.handle_mouse_up()
+
             elif event.type == pygame.KEYDOWN:
                 # Check if help page is open first
                 if self.help_page.visible:
@@ -713,9 +721,13 @@ class GraphicalRenderer:
                         print("Select a unit first to use skills")
 
             elif event.type == pygame.MOUSEMOTION:
+                # Handle help page scrollbar dragging
+                if self.help_page.visible:
+                    self.help_page.handle_mouse_motion(event.pos)
                 # Handle respawn window mouse motion
-                if self.respawn_selecting_unit:
+                elif self.respawn_selecting_unit:
                     self.respawn_window.handle_mouse_motion(event.pos)
+                    self.respawn_window.handle_mouse_drag(event.pos)
                 # Handle respawn location preview
                 elif self.respawn_selecting_location:
                     grid_pos = self.screen_to_grid(event.pos[0], event.pos[1])
@@ -724,8 +736,10 @@ class GraphicalRenderer:
                 # Handle setup window mouse motion
                 elif self.setup_selecting_unit:
                     self.setup_window.handle_mouse_motion(event.pos)
-                    # Also update help panel for button hover
+                    self.setup_window.handle_mouse_drag(event.pos)
+                    # Also update help panel for button hover and scrollbar dragging
                     self.setup_unit_help.handle_mouse_motion(event.pos)
+                    self.setup_unit_help.handle_mouse_drag(event.pos)
                 # Handle setup placement preview
                 elif self.setup_placing_unit:
                     grid_pos = self.screen_to_grid(event.pos[0], event.pos[1])
@@ -744,7 +758,9 @@ class GraphicalRenderer:
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 # Handle mouse wheel scrolling
                 if event.button == 4:  # Scroll up
-                    if self.setup_selecting_unit:
+                    if self.help_page.visible:
+                        self.help_page.handle_scroll(-1)
+                    elif self.setup_selecting_unit:
                         # Check if scrolling in help panel (when focused)
                         if hasattr(self, 'setup_help_panel_rect') and self.setup_unit_help.has_focus:
                             if self.setup_help_panel_rect and self.setup_help_panel_rect.collidepoint(event.pos):
@@ -755,7 +771,9 @@ class GraphicalRenderer:
                         # Add scroll support for respawn window too
                         pass
                 elif event.button == 5:  # Scroll down
-                    if self.setup_selecting_unit:
+                    if self.help_page.visible:
+                        self.help_page.handle_scroll(1)
+                    elif self.setup_selecting_unit:
                         # Check if scrolling in help panel (when focused)
                         if hasattr(self, 'setup_help_panel_rect') and self.setup_unit_help.has_focus:
                             if self.setup_help_panel_rect and self.setup_help_panel_rect.collidepoint(event.pos):
@@ -766,8 +784,15 @@ class GraphicalRenderer:
                         # Add scroll support for respawn window too
                         pass
                 elif event.button == 1:  # Left click
+                    # Handle help page scrollbar clicks
+                    if self.help_page.visible:
+                        if self.help_page.handle_mouse_down(event.pos):
+                            continue  # Scrollbar was clicked, don't process other clicks
                     # Handle respawn window clicks
                     if self.respawn_selecting_unit:
+                        # Check scrollbar first
+                        if self.respawn_window.handle_mouse_down(event.pos):
+                            continue
                         if self.respawn_window.handle_click(event.pos):
                             self.confirm_respawn_unit_selection()
                         continue
@@ -778,6 +803,13 @@ class GraphicalRenderer:
 
                     # Handle setup window clicks
                     if self.setup_selecting_unit:
+                        # Check if clicking scrollbars first
+                        if self.setup_window.handle_mouse_down(event.pos):
+                            # Setup window scrollbar was clicked
+                            continue
+                        if self.setup_unit_help.handle_mouse_down(event.pos):
+                            # Help panel scrollbar was clicked
+                            continue
                         # Check if clicking help panel first
                         if hasattr(self, 'setup_help_panel_rect') and self.setup_help_panel_rect:
                             if self.setup_help_panel_rect.collidepoint(event.pos):

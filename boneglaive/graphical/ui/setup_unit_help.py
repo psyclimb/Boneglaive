@@ -11,6 +11,7 @@ import sys
 # Import unit types and skills
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from boneglaive.utils.constants import UnitType, UNIT_STATS
+from .scrollbar import Scrollbar
 
 # Colors
 COLOR_BG = (30, 34, 42)
@@ -33,6 +34,9 @@ class SetupUnitHelp:
         self.max_scroll = 0
         self.content_surface = None
         self.has_focus = False
+
+        # Scrollbar component
+        self.scrollbar = Scrollbar()
 
         # Unit display names - base units
         self.unit_names = {
@@ -483,6 +487,31 @@ class SetupUnitHelp:
         if self.content_surface:
             scroll_delta = 30 * scroll_amount
             self.scroll_offset = max(0, min(self.scroll_offset - scroll_delta, self.max_scroll))
+
+    def handle_mouse_down(self, mouse_pos: Tuple[int, int]) -> bool:
+        """
+        Handle mouse button down event for scrollbar.
+        Returns True if scrollbar was clicked.
+        """
+        result = self.scrollbar.handle_mouse_down(mouse_pos)
+        if result is not None:
+            if isinstance(result, float):
+                # Track was clicked, jump to position
+                self.scroll_offset = int(result * self.max_scroll)
+                self.scroll_offset = max(0, min(self.scroll_offset, self.max_scroll))
+            # If result is None, thumb was clicked and drag started automatically
+            return True
+        return False
+
+    def handle_mouse_up(self):
+        """Handle mouse button up event for scrollbar."""
+        self.scrollbar.handle_mouse_up()
+
+    def handle_mouse_drag(self, mouse_pos: Tuple[int, int]):
+        """Handle mouse motion for scrollbar dragging."""
+        new_scroll = self.scrollbar.handle_mouse_motion(mouse_pos, self.scroll_offset, self.max_scroll)
+        if new_scroll is not None:
+            self.scroll_offset = new_scroll
 
     def _load_unit_sprite(self, unit_type, size: int = 80) -> Optional[pygame.Surface]:
         """Load unit sprite from SVG at specified size."""
@@ -1016,13 +1045,9 @@ class SetupUnitHelp:
         # Clear clipping
         screen.set_clip(None)
 
-        # Draw scroll indicator if needed
-        if self.max_scroll > 0:
-            scroll_pct = self.scroll_offset / self.max_scroll if self.max_scroll > 0 else 0
-            indicator_height = max(20, int(visible_height * (visible_height / content_height)))
-            indicator_y = content_start_y + int((visible_height - indicator_height) * scroll_pct)
-
-            scroll_bar_rect = pygame.Rect(x + width - 8, indicator_y, 6, indicator_height)
-            pygame.draw.rect(screen, (100, 150, 200), scroll_bar_rect, border_radius=3)
+        # Draw scrollbar if needed
+        scrollbar_x = x + width
+        self.scrollbar.draw(screen, scrollbar_x, content_start_y, visible_height,
+                           self.scroll_offset, self.max_scroll, visible_height, content_height)
 
         return panel_rect

@@ -7,6 +7,7 @@ import pygame
 from typing import Optional, List, Tuple
 from pathlib import Path
 from .font_utils import render_fitted_text
+from .scrollbar import Scrollbar
 
 # Import unit types
 import sys
@@ -102,6 +103,10 @@ class SetupWindow:
         self.window_rect = None
         self.item_rects = []
         self.confirm_button_rect = None
+
+        # Scrollbar component
+        self.scrollbar = Scrollbar()
+        self.max_scroll = 0
 
         # Unit sprite cache
         self.sprite_cache = {}  # {unit_type: pygame.Surface}
@@ -320,6 +325,34 @@ class SetupWindow:
             scroll_delta = (ITEM_HEIGHT + ITEM_PADDING) * scroll_amount
             self.scroll_offset = max(0, min(self.scroll_offset - scroll_delta, total_height - list_height))
 
+    def handle_mouse_down(self, mouse_pos: Tuple[int, int]) -> bool:
+        """
+        Handle mouse button down event for scrollbar.
+        Returns True if scrollbar was clicked.
+        """
+        if not self.visible:
+            return False
+
+        result = self.scrollbar.handle_mouse_down(mouse_pos)
+        if result is not None:
+            if isinstance(result, float):
+                # Track was clicked, jump to position
+                self.scroll_offset = int(result * self.max_scroll)
+                self.scroll_offset = max(0, min(self.scroll_offset, self.max_scroll))
+            # If result is None, thumb was clicked and drag started automatically
+            return True
+        return False
+
+    def handle_mouse_up(self):
+        """Handle mouse button up event for scrollbar."""
+        self.scrollbar.handle_mouse_up()
+
+    def handle_mouse_drag(self, mouse_pos: Tuple[int, int]):
+        """Handle mouse motion for scrollbar dragging."""
+        new_scroll = self.scrollbar.handle_mouse_motion(mouse_pos, self.scroll_offset, self.max_scroll)
+        if new_scroll is not None:
+            self.scroll_offset = new_scroll
+
     def get_display_unit(self) -> Optional[UnitType]:
         """
         Get the unit type that should be displayed in help panel.
@@ -496,6 +529,15 @@ class SetupWindow:
 
         # Remove clipping
         screen.set_clip(None)
+
+        # Draw scrollbar if needed
+        total_height = len(self.unit_types) * (ITEM_HEIGHT + ITEM_PADDING)
+        self.max_scroll = max(0, total_height - list_height)
+        if self.max_scroll > 0:
+            scrollbar_x = window_x + WINDOW_WIDTH
+            scrollbar_y = list_y
+            self.scrollbar.draw(screen, scrollbar_x, scrollbar_y, list_height,
+                               self.scroll_offset, self.max_scroll, list_height, total_height)
 
         # Draw selected unit stats in detail
         self._draw_selected_stats(screen, window_x, window_y)

@@ -5,6 +5,7 @@ Modal window for selecting dead units to respawn.
 """
 import pygame
 from typing import Optional, List, Tuple
+from .scrollbar import Scrollbar
 
 # Colors
 COLOR_OVERLAY = (0, 0, 0, 180)  # Semi-transparent black overlay
@@ -42,6 +43,10 @@ class RespawnWindow:
         # Calculated positions
         self.window_rect = None
         self.item_rects = []
+
+        # Scrollbar component
+        self.scrollbar = Scrollbar()
+        self.max_scroll = 0
 
         # Unit sprite cache
         self.sprite_cache = {}  # {unit_type: pygame.Surface}
@@ -177,6 +182,38 @@ class RespawnWindow:
 
         return False
 
+    def handle_mouse_down(self, mouse_pos: Tuple[int, int]) -> bool:
+        """
+        Handle mouse button down event for scrollbar.
+        Returns True if scrollbar was clicked.
+        """
+        if not self.visible:
+            return False
+
+        result = self.scrollbar.handle_mouse_down(mouse_pos)
+        if result is not None:
+            if isinstance(result, float):
+                # Track was clicked, jump to position
+                scroll_offset_px = int(result * self.max_scroll * ITEM_HEIGHT)
+                self.scroll_offset = scroll_offset_px // ITEM_HEIGHT
+                self.scroll_offset = max(0, min(self.scroll_offset, self.max_scroll))
+            # If result is None, thumb was clicked and drag started automatically
+            return True
+        return False
+
+    def handle_mouse_up(self):
+        """Handle mouse button up event for scrollbar."""
+        self.scrollbar.handle_mouse_up()
+
+    def handle_mouse_drag(self, mouse_pos: Tuple[int, int]):
+        """Handle mouse motion for scrollbar dragging."""
+        scroll_offset_px = self.scroll_offset * ITEM_HEIGHT
+        max_scroll_px = self.max_scroll * ITEM_HEIGHT
+        new_scroll_px = self.scrollbar.handle_mouse_motion(mouse_pos, scroll_offset_px, max_scroll_px)
+        if new_scroll_px is not None:
+            self.scroll_offset = new_scroll_px // ITEM_HEIGHT
+            self.scroll_offset = max(0, min(self.scroll_offset, self.max_scroll))
+
     def _ensure_visible(self, index: int):
         """Ensure the given index is visible in the scrollable area."""
         if not self.window_rect:
@@ -303,24 +340,18 @@ class RespawnWindow:
             status_rect = status_text.get_rect(right=item_rect.right - 15, centery=item_rect.centery)
             surface.blit(status_text, status_rect)
 
-        # Draw scroll indicator if needed
-        if len(self.dead_units) > visible_items:
-            self._draw_scroll_indicator(surface, x + WINDOW_WIDTH - 20, y, content_height)
-
-    def _draw_scroll_indicator(self, surface: pygame.Surface, x: int, y: int, height: int):
-        """Draw a scroll indicator bar."""
-        if len(self.dead_units) <= 1:
-            return
-
-        # Calculate scrollbar dimensions
-        bar_height = max(20, height * (height // ITEM_HEIGHT) // len(self.dead_units))
-        bar_y = y + (height - bar_height) * (self.scroll_offset / (len(self.dead_units) - 1))
-
-        # Draw scrollbar background
-        pygame.draw.rect(surface, (50, 50, 50), (x, y, 10, height))
-
-        # Draw scrollbar handle
-        pygame.draw.rect(surface, COLOR_GOLD, (x, int(bar_y), 10, int(bar_height)))
+        # Draw scrollbar if needed
+        visible_items = content_height // ITEM_HEIGHT
+        total_height = len(self.dead_units) * ITEM_HEIGHT
+        self.max_scroll = max(0, len(self.dead_units) - visible_items)
+        if self.max_scroll > 0:
+            scrollbar_x = x + WINDOW_WIDTH
+            scrollbar_y = y
+            # Convert scroll_offset (in items) to pixels
+            scroll_offset_px = self.scroll_offset * ITEM_HEIGHT
+            max_scroll_px = self.max_scroll * ITEM_HEIGHT
+            self.scrollbar.draw(surface, scrollbar_x, scrollbar_y, content_height,
+                               scroll_offset_px, max_scroll_px, content_height, total_height)
 
     def _draw_instructions(self, surface: pygame.Surface, x: int, y: int):
         """Draw control instructions at bottom of window."""
