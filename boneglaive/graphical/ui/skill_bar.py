@@ -191,8 +191,8 @@ class SkillBar:
                 slot = SkillSlot(skill, self.hotkeys[i], i, self.icon_cache)
                 self.skill_slots.append(slot)
 
-    def draw(self, surface: pygame.Surface, screen_width: int, screen_height: int):
-        """Draw skill bar at bottom of screen."""
+    def draw(self, surface: pygame.Surface, screen_width: int, screen_height: int, top_bar_height: int):
+        """Draw skill bar above the map (below top bar)."""
         if not self.skill_slots:
             return
 
@@ -200,9 +200,9 @@ class SkillBar:
         total_width = (len(self.skill_slots) * (SKILL_SLOT_WIDTH + SKILL_SLOT_PADDING)
                       - SKILL_SLOT_PADDING + 2 * SKILL_BAR_PADDING)
 
-        # Center horizontally
+        # Center horizontally in middle section (between left and right panels)
         start_x = (screen_width - total_width) // 2 + SKILL_BAR_PADDING
-        y = screen_height - SKILL_SLOT_HEIGHT - 20
+        y = top_bar_height + 15  # Below top bar with more spacing
 
         # Draw background panel
         panel_rect = pygame.Rect(

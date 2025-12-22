@@ -16,8 +16,8 @@ COLOR_TEXT_ERROR = (255, 100, 100)
 COLOR_TEXT_PLAYER1 = (100, 255, 100)  # Green
 COLOR_TEXT_PLAYER2 = (100, 150, 255)  # Blue
 
-LOG_WIDTH = 270  # Fits in 280px panel with padding
-LOG_HEIGHT = 180  # Slightly shorter
+LOG_WIDTH = 900  # Horizontal bar spanning game board width
+LOG_HEIGHT = 90  # Maximum height fitting below map
 LOG_PADDING = 8
 LINE_HEIGHT = 16  # Tighter line spacing
 
@@ -103,88 +103,65 @@ class CombatLog:
         if self.scroll_offset == 0:
             self.auto_scroll = True
 
-    def draw(self, surface: pygame.Surface, x: int, y: int, height: int = None):
+    def draw(self, surface: pygame.Surface, x: int, y: int, height: int = None, width: int = None):
         """
-        Draw the combat log.
+        Draw the combat log (horizontal layout below map).
 
         Args:
             surface: Surface to draw on
             x, y: Position to draw at (top-left)
             height: Optional custom height (uses LOG_HEIGHT if None)
+            width: Optional custom width (uses LOG_WIDTH if None)
         """
         if not self.messages:
             return
 
-        # Use custom height if provided, otherwise use default
+        # Use custom dimensions if provided, otherwise use defaults
         log_height = height if height is not None else LOG_HEIGHT
+        log_width = width if width is not None else LOG_WIDTH
 
         # Draw background panel
-        panel_rect = pygame.Rect(x, y, LOG_WIDTH, log_height)
+        panel_rect = pygame.Rect(x, y, log_width, log_height)
         panel_surface = pygame.Surface((panel_rect.width, panel_rect.height), pygame.SRCALPHA)
-        panel_surface.fill((*COLOR_BG, 200))
+        panel_surface.fill((*COLOR_BG, 220))
         surface.blit(panel_surface, (panel_rect.x, panel_rect.y))
 
         # Draw border
         pygame.draw.rect(surface, (100, 100, 100), panel_rect, 2)
 
-        # Draw title
-        title_text = self.font.render("Combat Log", True, (255, 255, 255))
-        surface.blit(title_text, (x + LOG_PADDING, y + 5))
+        # Horizontal layout: show recent messages (fit as many as possible)
+        max_lines = (log_height - LOG_PADDING * 2) // LINE_HEIGHT  # Calculate based on height
 
-        # PERFORMANCE FIX: Use cached wrapped lines instead of wrapping every frame
-        wrapped_messages = []
-        for message in self.messages:
-            # Use pre-wrapped lines from cache (added in add_message)
-            wrapped_lines = message.get('wrapped_lines', [message['text']])
-            wrapped_messages.append({
-                'lines': wrapped_lines,
-                'type': message['type'],
-                'player': message.get('player')
-            })
+        # Get most recent messages (truncate text to fit width)
+        recent_messages = self.messages[-10:]  # Last 10 messages
 
-        # Calculate which wrapped messages to show
-        max_visible_lines = (log_height - 35) // LINE_HEIGHT
-
-        # Flatten wrapped messages into lines (oldest to newest)
-        all_lines = []
-        for wrapped_msg in wrapped_messages:
-            for line in wrapped_msg['lines']:
-                all_lines.append({
-                    'text': line,
-                    'type': wrapped_msg['type'],
-                    'player': wrapped_msg['player']
-                })
-
-        # Apply scroll offset and limit (show most recent at bottom)
-        # When scroll_offset is 0, show the most recent messages
-        total_lines = len(all_lines)
-        if total_lines <= max_visible_lines:
-            visible_lines = all_lines
-        else:
-            # Show most recent lines, offset from the end
-            start_idx = max(0, total_lines - max_visible_lines - self.scroll_offset)
-            end_idx = total_lines - self.scroll_offset
-            visible_lines = all_lines[start_idx:end_idx]
-
-        # Draw lines from bottom up (most recent at bottom)
+        # Draw messages bottom to top (most recent at bottom)
         text_y = y + log_height - LOG_PADDING - LINE_HEIGHT
-        for line_data in reversed(visible_lines):
-            if text_y < y + 30:  # Don't draw over title
+        messages_drawn = 0
+
+        for message in reversed(recent_messages):
+            if messages_drawn >= max_lines:
                 break
 
-            # Choose color based on message type
-            color = self._get_message_color(line_data)
+            # Get color for message
+            color = self._get_message_color(message)
 
-            # Render and draw text
-            text_surface = self.font.render(line_data['text'], True, color)
+            # Truncate text to fit width
+            text = message['text']
+            max_width = log_width - (LOG_PADDING * 2)
+            text_surface = self.font.render(text, True, color)
+
+            # If text is too wide, truncate with ellipsis
+            if text_surface.get_width() > max_width:
+                while text and self.font.render(text + "...", True, color).get_width() > max_width:
+                    text = text[:-1]
+                text += "..."
+                text_surface = self.font.render(text, True, color)
+
+            # Draw message
             surface.blit(text_surface, (x + LOG_PADDING, text_y))
-
             text_y -= LINE_HEIGHT
-
-        # Draw scroll indicator if not at bottom
-        if self.scroll_offset > 0:
-            indicator_text = self.font.render(f"^ {self.scroll_offset} more ^", True, (150, 150, 150))
-            surface.blit(indicator_text, (x + LOG_WIDTH // 2 - 50, y + 5))
+            messages_drawn += 1
 
     def _get_message_color(self, message: Dict) -> tuple:
         """Get color for a message based on its type and player."""

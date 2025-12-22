@@ -19,7 +19,7 @@ COLOR_HP_BAR_LOW = (255, 100, 100)
 COLOR_STAT_LABEL = (150, 150, 150)
 
 PANEL_WIDTH = 264  # Fits in 280px panel width
-PANEL_HEIGHT = 230  # Compact for smaller screen
+PANEL_HEIGHT = 440  # Expanded to fill available space below unit status bar
 PANEL_PADDING = 10
 LINE_HEIGHT = 18
 HP_BAR_HEIGHT = 20

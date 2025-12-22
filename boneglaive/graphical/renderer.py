@@ -985,13 +985,13 @@ class GraphicalRenderer:
         if unit:
             # Check if this is a friendly unit (current player's unit)
             if unit.player == current_player:
-                # Select friendly unit (don't show ranges until Move/Attack button clicked)
+                # Select friendly unit and immediately show movement range
                 self.selected_unit = unit
-                self.show_movement_range = False
+                self.show_movement_range = True
                 self.show_target_range = False
-                self.current_action_mode = "SELECT"
+                self.current_action_mode = "MOVE"
 
-                # Query movement range and attack range from game logic (but don't display yet)
+                # Query movement range and attack range from game logic
                 game_unit = self._get_game_unit(unit)
                 if game_unit:
                     # If unit has a pending move, calculate ranges from ghost position
@@ -1163,21 +1163,9 @@ class GraphicalRenderer:
         Handle action menu button clicks.
 
         Args:
-            action: Action string (move, attack, respawn, execute, concede)
+            action: Action string (attack, respawn, execute, concede, help)
         """
-        if action == "move":
-            if self.selected_unit:
-                print("Move mode activated")
-                self.current_action_mode = "MOVE"
-                # Show movement range
-                game_unit = self._get_game_unit(self.selected_unit)
-                if game_unit:
-                    self.valid_positions = self.game_adapter.get_movement_range(game_unit)
-                    self.show_movement_range = True
-                    self.show_target_range = False
-                    self.show_skill_range = False
-
-        elif action == "attack":
+        if action == "attack":
             if self.selected_unit:
                 print("Attack mode activated")
                 self.current_action_mode = "ATTACK"
@@ -2632,11 +2620,16 @@ class GraphicalRenderer:
         for debris in self.debris_particles:
             debris.draw(main_surface)
 
+        # Draw skill bar (above map, below top bar)
+        self.skill_bar.draw(main_surface, SCREEN_WIDTH, SCREEN_HEIGHT, TOP_BAR_HEIGHT)
+
+        # Draw combat log (below map, horizontal bar - maximized to fit space)
+        combat_log_x = LEFT_PANEL_WIDTH + 10  # 290
+        combat_log_y = GRID_OFFSET_Y + GAME_BOARD_HEIGHT + 10  # Below map with spacing
+        self.combat_log.draw(main_surface, combat_log_x, combat_log_y, height=90, width=900)
+
         # Draw UI (includes all panels and components)
         self.draw_ui(main_surface)
-
-        # Draw skill bar (bottom center, in bottom bar)
-        self.skill_bar.draw(main_surface, SCREEN_WIDTH, SCREEN_HEIGHT)
 
         # Apply shake offset and blit to screen
         self.screen.fill(COLOR_BG)
@@ -2933,14 +2926,13 @@ class GraphicalRenderer:
                         (LEFT_PANEL_WIDTH - 1, TOP_BAR_HEIGHT),
                         (LEFT_PANEL_WIDTH - 1, SCREEN_HEIGHT - BOTTOM_BAR_HEIGHT), 2)
 
-        # Draw unit status bar (top of left panel)
-        unit_bar_height = self.unit_status_bar.get_height()
-        self.unit_status_bar.draw(surface, left_panel_x + 5, left_panel_y + 5)
+        # Draw motor animation (top of left panel, uniform 10px spacing)
+        motor_y = left_panel_y + 10
+        self.motor_animation.draw(surface, left_panel_x + 15, motor_y)
 
-        # Draw combat log (below unit status bar, extends to bottom)
-        log_y = left_panel_y + unit_bar_height + 10
-        log_height = panel_height - unit_bar_height - 20  # Fill remaining space with padding
-        self.combat_log.draw(surface, left_panel_x + 10, log_y, height=log_height)
+        # Draw action menu (below motor on left panel)
+        action_menu_y = motor_y + 190  # Below motor (180px + 10px spacing)
+        self.action_menu.draw(surface, left_panel_x + 5, action_menu_y)
 
         # === RIGHT PANEL (Dedicated Space) ===
         right_panel_x = SCREEN_WIDTH - RIGHT_PANEL_WIDTH  # Starts at right edge - panel width
@@ -2955,26 +2947,13 @@ class GraphicalRenderer:
                         (right_panel_x, TOP_BAR_HEIGHT),
                         (right_panel_x, SCREEN_HEIGHT - BOTTOM_BAR_HEIGHT), 2)
 
-        # Draw unit info panel (top of right panel)
-        self.unit_info_panel.draw(surface, right_panel_x + 10, right_panel_y + 5)
+        # Draw unit status bar (top of right panel)
+        unit_bar_height = self.unit_status_bar.get_height()
+        self.unit_status_bar.draw(surface, right_panel_x + 5, right_panel_y + 5)
 
-        # Draw motor animation (below unit info panel)
-        motor_y = right_panel_y + 245  # Just below unit info
-        self.motor_animation.draw(surface, right_panel_x + 15, motor_y)
-
-        # Draw status effects panel (below motor)
-        status_effects_y = motor_y + 150  # Below motor animation (moved up)
-        if game and self.selected_unit:
-            # Find game unit
-            for unit in game.units:
-                if unit.is_alive() and unit.x == self.selected_unit.grid_x and unit.y == self.selected_unit.grid_y:
-                    self.status_effects_panel.update(unit)
-                    self.status_effects_panel.draw(surface, right_panel_x + 10, status_effects_y)
-                    break
-
-        # Draw action menu (below status effects)
-        action_menu_y = status_effects_y + 60  # Moved up to accommodate Help button
-        self.action_menu.draw(surface, right_panel_x + 5, action_menu_y)
+        # Draw unit info panel (below unit status bar on right panel with more spacing)
+        unit_info_y = right_panel_y + 5 + unit_bar_height + 15  # 15px spacing to prevent overlap
+        self.unit_info_panel.draw(surface, right_panel_x + 10, unit_info_y)
 
     def execute_turn(self):
         """Execute the current turn (process all planned actions)."""
@@ -3182,7 +3161,7 @@ class GraphicalRenderer:
                         surface.blit(value_text, text_rect)
 
     def draw_skill_shadows(self, surface: pygame.Surface):
-        """Draw semi-transparent wispy shadows of units at skill target indicator positions."""
+        """Draw semi-transparent ghost indicators of units at skill target indicator positions."""
         if not self.game_adapter.game:
             return
 
@@ -3191,7 +3170,7 @@ class GraphicalRenderer:
         # Pulse effect for wispy shadows (slower, more ethereal)
         pulse_time = time.time()
         pulse = (math.sin(pulse_time * 1.5) + 1) / 2  # 0 to 1, slower oscillation
-        base_alpha = int(80 + pulse * 40)  # 80 to 120 alpha (30-47% opacity)
+        base_alpha = int(140 + pulse * 60)  # 140 to 200 alpha (55-78% opacity)
 
         # Check all units for skill target indicators
         for unit in self.units:
@@ -3262,9 +3241,9 @@ class GraphicalRenderer:
                     # Use actual sprite with transparency
                     shadow_sprite = unit.sprite.copy()
 
-                    # Apply tint for wispy effect (slight blue/white tint)
+                    # Apply tint for wispy effect (brighter blue tint)
                     tint_surface = pygame.Surface(shadow_sprite.get_size(), pygame.SRCALPHA)
-                    tint_color = (200, 220, 255, 40)  # Light blue-white tint, subtle
+                    tint_color = (150, 200, 255, 80)  # Brighter blue tint, more prominent
                     tint_surface.fill(tint_color)
                     shadow_sprite.blit(tint_surface, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
 

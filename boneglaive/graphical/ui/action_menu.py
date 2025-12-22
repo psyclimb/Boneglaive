@@ -97,7 +97,6 @@ class ActionMenu:
 
         # Create action buttons
         self.buttons = [
-            ActionButton("move", "M", "MOVE"),
             ActionButton("attack", "A", "ATTACK"),
             ActionButton("respawn", "R", "RESPAWN"),
             ActionButton("help", "H", "HELP"),
@@ -135,10 +134,7 @@ class ActionMenu:
 
         # Update button states
         for button in self.buttons:
-            if button.action == "move":
-                button.enabled = selected_unit is not None
-                button.active = (self.current_mode == "move")
-            elif button.action == "attack":
+            if button.action == "attack":
                 button.enabled = selected_unit is not None
                 button.active = (self.current_mode == "attack")
             elif button.action == "respawn":

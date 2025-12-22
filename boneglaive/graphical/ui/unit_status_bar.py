@@ -28,7 +28,7 @@ UNIT_CARD_WIDTH = 84  # Slightly smaller cards
 UNIT_CARD_HEIGHT = 70  # Increased height to fit sprite + text
 CARD_PADDING = 6  # Tighter spacing
 CARDS_PER_ROW = 3
-TITLE_HEIGHT = 25  # Smaller title
+TITLE_HEIGHT = 35  # More space between title and cards
 HP_BAR_HEIGHT = 4
 SPRITE_SIZE = 32  # Size of unit sprite in card
 
