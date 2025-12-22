@@ -8,6 +8,7 @@ from typing import Optional
 from .menu_components import MenuScreen, Button, COLOR_BG, COLOR_TEXT
 from boneglaive.game.player_profile import profile_manager
 from .animated_background import AnimatedBackground
+from .kaleidoscope_background import KaleidoscopeBackground
 
 
 class MainMenuScreen(MenuScreen):
@@ -18,8 +19,11 @@ class MainMenuScreen(MenuScreen):
         self.screen_width = screen_width
         self.screen_height = screen_height
 
-        # Animated background
-        self.background = AnimatedBackground(screen_width, screen_height)
+        # Animated background - switch between styles
+        # Use KaleidoscopeBackground for geometric patterns
+        self.background = KaleidoscopeBackground(screen_width, screen_height)
+        # Or use AnimatedBackground for skull glaive sun
+        # self.background = AnimatedBackground(screen_width, screen_height)
 
         # Button dimensions
         button_width = 300
