@@ -7,6 +7,7 @@ import pygame
 from typing import Optional
 from .menu_components import MenuScreen, Button, COLOR_BG, COLOR_TEXT
 from boneglaive.game.player_profile import profile_manager
+from .animated_background import AnimatedBackground
 
 
 class MainMenuScreen(MenuScreen):
@@ -16,6 +17,9 @@ class MainMenuScreen(MenuScreen):
         super().__init__("Boneglaive", font, large_font)
         self.screen_width = screen_width
         self.screen_height = screen_height
+
+        # Animated background
+        self.background = AnimatedBackground(screen_width, screen_height)
 
         # Button dimensions
         button_width = 300
@@ -83,10 +87,15 @@ class MainMenuScreen(MenuScreen):
 
         return None
 
+    def update(self, delta_time: float, mouse_pos, mouse_pressed):
+        """Update animated elements and buttons."""
+        super().update(delta_time, mouse_pos, mouse_pressed)
+        self.background.update(delta_time)
+
     def draw(self, surface: pygame.Surface):
         """Draw the main menu."""
-        # Clear background
-        surface.fill(COLOR_BG)
+        # Draw animated background
+        self.background.draw(surface)
 
         # Draw ASCII art title
         self._draw_title_art(surface)
@@ -101,7 +110,7 @@ class MainMenuScreen(MenuScreen):
         profile = profile_manager.get_current_profile()
         if profile:
             profile_text = f"Profile: {profile.name}"
-            profile_surface = self.font.render(profile_text, True, (100, 200, 255))
+            profile_surface = self.font.render(profile_text, True, (180, 160, 165))
             profile_rect = profile_surface.get_rect(right=self.screen_width - 20, top=20)
             surface.blit(profile_surface, profile_rect)
 
@@ -120,12 +129,7 @@ class MainMenuScreen(MenuScreen):
         # For now, use a simple large text title
         # Could be enhanced with actual ASCII art later
         title_font = pygame.font.Font(None, 72)
-        title_surface = title_font.render("BONEGLAIVE", True, (100, 200, 255))
+        # Dark metallic color with slight red tint to match apocalyptic theme
+        title_surface = title_font.render("BONEGLAIVE", True, (180, 160, 165))
         title_rect = title_surface.get_rect(centerx=self.screen_width // 2, top=100)
         surface.blit(title_surface, title_rect)
-
-        # Draw subtitle
-        subtitle_font = pygame.font.Font(None, 36)
-        subtitle_surface = subtitle_font.render("Tactical Turn-Based Combat", True, (180, 180, 180))
-        subtitle_rect = subtitle_surface.get_rect(centerx=self.screen_width // 2, top=180)
-        surface.blit(subtitle_surface, subtitle_rect)
