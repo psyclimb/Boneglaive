@@ -3160,6 +3160,29 @@ class GraphicalRenderer:
             print(f"[Local Multiplayer] Switched from Player {old_player} to Player {self.game_adapter.game.current_player}")
             self.combat_log.add_message(f"Player {self.game_adapter.game.current_player}'s turn", "system")
 
+        # Process AI turn if it's player 2's turn and AI is enabled
+        if self.game_adapter.ai_interface and self.game_adapter.game.current_player == 2:
+            print(f"[AI] Waiting 3 seconds before AI turn...")
+            self.combat_log.add_message("AI is thinking...", "system")
+
+            # Wait 3 seconds before AI processes its turn
+            # Keep rendering during the wait so the game doesn't freeze
+            import time
+            start_time = time.time()
+            while time.time() - start_time < 3.0:
+                delta_time = self.clock.tick(60) / 1000.0
+                self.update(delta_time)
+                self.draw()
+                pygame.display.flip()
+
+            print(f"[AI] Processing AI turn...")
+
+            # Process AI turn (this will set unit actions)
+            self.game_adapter.ai_interface.process_turn()
+
+            # Execute the AI's planned actions immediately
+            self.execute_turn()
+
         print(f"Turn {self.game_adapter.game.turn} - Current player: {self.game_adapter.game.current_player}\n")
 
     def draw_selection_highlight(self, surface: pygame.Surface, unit: AnimatedUnit):
@@ -3794,22 +3817,28 @@ class GraphicalRenderer:
 
 def main():
     """Entry point for graphical version."""
-    # Load config to get selected map
+    # Load config to get selected map and network mode
     from boneglaive.utils.config import ConfigManager
     config = ConfigManager()
     selected_map = config.get('selected_map', 'hard_pressed')
+    network_mode = config.get('network_mode', 'single')
 
     # Create game state adapter
     adapter = GameStateAdapter()
 
+    # Create renderer first (needed for AI animations)
+    renderer = GraphicalRenderer(adapter)
+
+    # Create UI adapter for AI animations
+    from boneglaive.graphical.ui_adapter import GraphicalUIAdapter
+    ui_adapter = GraphicalUIAdapter(renderer)
+
     # Initialize game with real game logic
     print("Initializing game...")
+    print(f"Network mode: {network_mode}")
     # skip_setup=False means game starts in setup phase
-    adapter.initialize_game(skip_setup=False, map_name=selected_map)
+    adapter.initialize_game(skip_setup=False, map_name=selected_map, network_mode=network_mode, ui_adapter=ui_adapter)
     print(f"Game created - starting in setup phase on map: {selected_map}")
-
-    # Create renderer
-    renderer = GraphicalRenderer(adapter)
 
     # Sync units from game
     print("Syncing units from game to renderer...")

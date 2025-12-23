@@ -5317,15 +5317,16 @@ class Game:
             
         
         # Animate the rail explosions if UI is available - all at once!
-        if ui and hasattr(ui, 'renderer'):
+        # ASCII mode animation only
+        if ui and hasattr(ui, 'renderer') and hasattr(ui.renderer, 'draw_tile'):
             explosion_frames = ['*', '#', '*', '#', '*']
             explosion_colors = [19, 7, 19, 7, 19]  # Red text, yellow text, red text, yellow text, red text
-            
+
             # Clear any highlights/selections that might interfere
             if hasattr(ui, 'cursor_manager'):
                 ui.cursor_manager.highlighted_positions = []
                 ui.cursor_manager.clear_selection()
-            
+
             # Flash all rails simultaneously through explosion sequence
             for frame_char, color in zip(explosion_frames, explosion_colors):
                 # Draw explosion frame on each rail position
@@ -5334,7 +5335,7 @@ class Game:
                     ui.renderer.draw_tile(rail_y, rail_x, ' ', 0, 0)
                     # Then draw the explosion character with proper colors
                     ui.renderer.draw_tile(rail_y, rail_x, frame_char, color, curses.A_BOLD)
-                
+
                 ui.renderer.refresh()
                 time.sleep(0.12)  # Quick flash timing
         
