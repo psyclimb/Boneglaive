@@ -46,6 +46,7 @@ class GameAction(Enum):
     # UI actions
     HELP = auto()  # Help screen
     CHAT_MODE = auto()  # Chat mode
+    RESPAWN_MODE = auto()  # Respawn mode for dead units
     CYCLE_UNITS = auto()  # Cycle through player's units (forward)
     CYCLE_UNITS_REVERSE = auto()  # Cycle through player's units (backward)
     LOG_HISTORY = auto()  # Full log history screen
@@ -110,8 +111,8 @@ class InputHandler:
             ui_context = {}
             # Help key
             ui_context[ord('?')] = GameAction.HELP
-            # Chat key
-            ui_context[ord('r')] = GameAction.CHAT_MODE
+            # Respawn key (changed from chat)
+            ui_context[ord('r')] = GameAction.RESPAWN_MODE
             # Log history key (Shift+L)
             ui_context[ord('L')] = GameAction.LOG_HISTORY
             

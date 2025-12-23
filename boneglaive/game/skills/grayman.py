@@ -88,16 +88,19 @@ class DeltaConfigSkill(ActiveSkill):
                     return False
 
         return True
-            
+
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         if not self.can_use(user, target_pos, game):
             return False
         user.skill_target = target_pos
         user.selected_skill = self
-        
+
+        # Clear the move target - Delta Config IS the movement, don't walk first
+        user.move_target = None
+
         # Set teleport target indicator for UI
         user.teleport_target_indicator = target_pos
-        
+
         # Log that the skill has been readied
         from boneglaive.utils.message_log import message_log, MessageType
         message_log.add_message(
@@ -121,7 +124,7 @@ class DeltaConfigSkill(ActiveSkill):
         
         # Store original position for animations
         original_pos = (user.y, user.x)
-        
+
         # Log the skill activation
         message_log.add_message(
             f"{user.get_display_name()} de-energizes",
@@ -573,10 +576,13 @@ class GraeExchangeSkill(ActiveSkill):
             return False
         user.skill_target = target_pos
         user.selected_skill = self
-        
+
+        # Clear the move target - Grae Exchange IS the movement, don't walk first
+        user.move_target = None
+
         # Set teleport target indicator for UI
         user.teleport_target_indicator = target_pos
-        
+
         # Log that the skill has been readied
         from boneglaive.utils.message_log import message_log, MessageType
         message_log.add_message(
@@ -584,7 +590,7 @@ class GraeExchangeSkill(ActiveSkill):
             MessageType.ABILITY,
             player=user.player
         )
-        
+
         self.current_cooldown = self.cooldown
         return True
         
@@ -598,10 +604,10 @@ class GraeExchangeSkill(ActiveSkill):
         
         # Clear the teleport target indicator after execution
         user.teleport_target_indicator = None
-        
+
         # Store original position for creating the echo
         original_pos = (user.y, user.x)
-        
+
         # Log the skill activation
         message_log.add_message(
             f"{user.get_display_name()} begins the Græ Exchange ritual",

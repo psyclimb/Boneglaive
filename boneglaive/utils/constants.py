@@ -45,12 +45,12 @@ UNIT_STATS = {
     UnitType.MANDIBLE_FOREMAN: (22, 3, 1, 2, 1),
     UnitType.GRAYMAN: (18, 3, 0, 3, 5),
     UnitType.MARROW_CONDENSER: (20, 3, 2, 2, 1),
-    UnitType.FOWL_CONTRIVANCE: (18, 4, 0, 4, 2),
-    UnitType.GAS_MACHINIST: (20, 3, 1, 2, 1),
+    UnitType.FOWL_CONTRIVANCE: (18, 3, 0, 2, 2),
+    UnitType.GAS_MACHINIST: (20, 4, 1, 2, 1),
     UnitType.HEINOUS_VAPOR: (1, 0, 0, 3, 1),
     UnitType.DELPHIC_APPRAISER: (20, 4, 0, 3, 1),
     UnitType.INTERFERER: (18, 3, 0, 3, 1),
-    UnitType.DERELICTIONIST: (18, 3, 0, 3, 1),
+    UnitType.DERELICTIONIST: (18, 5, 0, 3, 1),
     UnitType.POTPOURRIST: (24, 4, 0, 2, 1)
 }
 
@@ -68,6 +68,21 @@ UNIT_SYMBOLS = {
     UnitType.INTERFERER: 'R',  # R for Radioactive interference
     UnitType.DERELICTIONIST: 'D',  # D for DERELICTIONIST
     UnitType.POTPOURRIST: 'P'  # P for POTPOURRIST
+}
+
+# GP (Game Points) System
+# Units that award GP when killed (main units only, no summons/echoes)
+GP_ELIGIBLE_UNITS = {
+    UnitType.GLAIVEMAN,
+    UnitType.MANDIBLE_FOREMAN,
+    UnitType.POTPOURRIST,
+    UnitType.GRAYMAN,
+    UnitType.INTERFERER,
+    UnitType.DELPHIC_APPRAISER,
+    UnitType.MARROW_CONDENSER,
+    UnitType.DERELICTIONIST,
+    UnitType.FOWL_CONTRIVANCE,
+    UnitType.GAS_MACHINIST
 }
 
 # Attack visual effects
@@ -135,7 +150,7 @@ UNIT_DISPLAY_NAMES = {
 # Status effect symbols
 STATUS_EFFECT_SYMBOLS = {
     'MIRED': 'm',             # Movement reduction from upgraded marrow dike
-    'RADIATION_SICKNESS': '*', # Radiation damage over time
+    'RADIATION_BURN': '*',    # Radiation damage over time
     'NEURAL_SHUNT': '?',      # Random action control
     'KARRIER_RAVE': '!',      # Phased/untargetable state
     'DERELICTED': '&',        # Immobilization from psychological abandonment

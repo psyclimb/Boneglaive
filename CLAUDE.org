@@ -1,15 +1,128 @@
-#+TITLE: Boneglaive2 Development Guide
+#+TITLE: Boneglaive Development Guide
 #+AUTHOR: Claude
-#+DATE: 2025-09-10
+#+DATE: 2025-12-01
 
 * Project Overview
-Tactical turn-based combat game in Python using curses terminal UI. Features complex skill systems, multiplayer networking, and modular architecture.
+Tactical turn-based combat game in Python. Two parallel versions:
+1. *ASCII Version*: Complete terminal game using curses (stable, playable)
+2. *Graphical Version*: Modern pygame renderer (IN DEVELOPMENT - Phase 1: 80% complete)
 
 *IMPORTANT*: Work with current codebase state only. Do not reference git history, past commits, or previous code versions unless explicitly requested by the user.
 
+* NEXT SESSION: GP System Testing & Polish
+
+** GP System Status: IMPLEMENTED ✅ (2025-12-01)
+The new GP (Game Points) scoring system has been fully implemented and is ready for playtesting!
+
+*What Changed*:
+- Replaced elimination-based win condition with point-based system
+- First player to reach 10 GP wins
+- 1 GP awarded per kill (main 10 units only, no summons)
+- Dead units respawn after 3-turn timer
+- Respawns execute during combat/execution phase (not planning phase)
+
+*Implementation Complete*:
+1. ✅ Core GP tracking (engine.py)
+   - GP_ELIGIBLE_UNITS constant defines scoreable units
+   - DeadUnit class tracks respawn timers
+   - _handle_death() awards GP and queues respawns
+   - _execute_respawns() spawns units during execution phase
+   - check_game_over() checks GP threshold (10)
+
+2. ✅ UI Updates (ui_renderer.py)
+   - GP display: "GP:0|0" replaces "GAME: LAN"
+   - Dead units shown grayed with timers: "Gα3 Ψα Gβ1"
+
+3. ✅ Respawn Selection System (ui_components.py, input_handler.py)
+   - Press 'r' to enter respawn mode
+   - Menu shows ready units in action window area
+   - Arrow keys to select unit, Enter to confirm
+   - Select spawn location on map, Enter to confirm
+   - 'c' to cancel at any point
+
+*Known Issues Fixed*:
+- ✅ Respawn timers now decrement correctly
+- ✅ Respawned units have skills initialized properly
+- ✅ UNIT_SYMBOLS imported for respawn animations
+
+*Next Session Tasks*:
+1. PLAYTESTING - Run full games to verify:
+   - GP scoring awards correctly on kills
+   - Respawn timers count down properly
+   - Respawn menu displays and works smoothly
+   - Respawned units spawn at correct locations
+   - Respawned units have full stats/skills/HP
+   - Game ends correctly at 10 GP threshold
+   - Both players can respawn units
+
+2. BALANCE TUNING (if needed):
+   - Adjust GP threshold (currently 10)
+   - Adjust respawn timer (currently 3 turns)
+   - Consider spawn location restrictions?
+
+3. POLISH:
+   - Add visual feedback when GP is awarded
+   - Improve respawn menu styling
+   - Add sound effects for respawns (graphical mode)
+   - Add respawn indicator on map tiles?
+
+4. GRAPHICAL MODE SUPPORT:
+   - GP display in graphical UI
+   - Respawn menu in graphical mode
+   - Respawn animations in pygame
+
+*Files Modified*:
+- boneglaive/game/engine.py - Core GP system
+- boneglaive/game/units.py - Death handling
+- boneglaive/ui/ui_renderer.py - GP display, respawn menu
+- boneglaive/ui/ui_components.py - Respawn mode logic
+- boneglaive/utils/input_handler.py - 'r' key binding
+- boneglaive/utils/constants.py - GP_ELIGIBLE_UNITS
+
+*Branch*: feature/graphical-version (clean working tree)
+
+* Current Development Focus: Graphical Version Integration
+
+** Status: Phase 3 - UI Layer (COMPLETE ✅)
+All UI components implemented: skill bar, skill targeting, combat log, status effects, and unit info panel!
+
+** After /compact - Essential Reading Order:
+1. *GRAPHICAL_QUICKSTART.md* - Start here! Quick reference and current status
+2. *boneglaive/graphical/INTEGRATION_COMPLETE.md* - What's done and working
+3. *boneglaive/graphical/GAME_ARCHITECTURE.md* - How game logic works
+4. *boneglaive/graphical/ROADMAP.md* - Full development plan (8 phases)
+5. *boneglaive/graphical/README.md* - Architecture details
+
+** Quick Context Recovery:
+- Location: =boneglaive/graphical/= package
+- Main files: =renderer.py= (pygame), =game_state.py= (adapter)
+- Test: =python run_graphical.py=
+- Progress: Phase 1 DONE, Phase 2 DONE (8/8 tasks ✅)
+- Next: Phase 3 - UI Layer
+
+** What Works Now (Phase 2: Complete Input System):
+- Phase 1 complete: State sync, HP tracking, visual effects
+- ✅ Click to select units (blue highlight)
+- ✅ Movement range display (green tiles)
+- ✅ Attack range display (red overlays on enemies)
+- ✅ Click to move units
+- ✅ Click to attack enemies
+- ✅ Press E to execute turn
+- ✅ Turns advance, players switch
+- ✅ All actions validated by game logic
+
+** Phase 3 Complete (UI Layer):
+✅ Skill bar with hotkeys (1-4, Q-R)
+✅ Skill targeting system with purple overlays
+✅ Combat log with scrolling history
+✅ Status effects panel (appears on unit selection)
+✅ Enhanced unit info panel (HP bar, stats, modifiers)
+
+**Next: Phase 4 - Animations**
+
 * Essential Architecture
 
-** Core Structure
+** Core Structure (ASCII Game - Stable)
 - =main.py= - Entry point with CLI args for different game modes
 - =game/engine.py= - Central Game class managing state, turns, combat
 - =game/units.py= - Unit class with stats, skills, status effects
@@ -19,6 +132,131 @@ Tactical turn-based combat game in Python using curses terminal UI. Features com
 - =renderers/curses_renderer.py= - Terminal rendering backend
 - =utils/= - Config, events, assets, debugging utilities
 
+** Graphical Version Structure (IN DEVELOPMENT)
+- =boneglaive/graphical/= - New graphical package
+  - =renderer.py= - Pygame renderer (main game loop, input, rendering)
+  - =game_state.py= - Adapter bridging ASCII game logic with graphics
+  - =ui/= - UI components (skill bar, unit info, etc.)
+  - =animations/= - Skill animations (see Animation Architecture below)
+  - =assets/= - Sprites, fonts, sounds
+- =demo_animations/= - Reference animations (complete for 3 units)
+- =run_graphical.py= - Launch script for graphical version
+
+** Animation Architecture (IMPORTANT - Keep Consistent!)
+*** Structure
+All animation code lives in =boneglaive/graphical/animations/=. One file per unit.
+
+File organization:
+- =core.py= - Base classes (Particle, AnimatedUnit, DebrisParticle, ParticleEmitter)
+- =animation_factory.py= - Maps skill names to animation classes
+- =glaiveman.py= - All GLAIVEMAN skill animations
+- =potpourrist.py= - All POTPOURRIST skill animations
+- =mandible_foreman.py= - All MANDIBLE FOREMAN skill animations
+- =__init__.py= - Package exports (update when adding new animations)
+
+*** Two Animation Patterns
+1. *Object-based*: Self-contained animation objects (projectiles, effects)
+   - Example: =SpinningGlaiveProjectile=, =LightningBolt=
+   - Has =update(delta_time)= → returns =True= if still active
+   - Has =draw(surface)= → renders to pygame surface
+   - Created by factory, managed by renderer's =active_animations= list
+
+2. *Attribute-based*: Manipulates unit properties directly
+   - Example: =PryAnimationController= (launches unit, manipulates position)
+   - Controller object manages unit attributes (=unit.pry_phase=, =unit.pry_timer=)
+   - Has =update(delta_time)= → returns =True= if still active
+   - Has =draw(surface)= → usually empty (unit renders itself)
+   - Created by factory, managed by renderer's =active_animations= list
+
+*** CRITICAL: Animation update() Return Value
+*ALL ANIMATIONS MUST RETURN True/False FROM update()!*
+
+The renderer checks the return value to determine if animation should continue:
+#+begin_src python
+still_active = anim.update(delta_time)
+if still_active:
+    updated_animations.append(anim)  # Keep in active list
+#+end_src
+
+*Common Bug*: Returning =None= (implicit return) causes animation to disappear immediately!
+
+*Correct Pattern* (see EstrangeBeam for reference):
+#+begin_src python
+def update(self, delta_time):
+    self.timer += delta_time
+
+    if self.phase == "charge":
+        # ... phase logic ...
+        if self.timer >= self.charge_duration:
+            self.phase = "next_phase"
+            self.timer = 0
+
+    elif self.phase == "final_phase":
+        if self.timer >= self.final_duration:
+            return False  # Animation complete
+
+    return True  # Animation still active
+#+end_src
+
+*Issue found in*: Neural Shunt animation (2025-11-22) - was returning None, causing immediate removal from active_animations.
+
+*** Renderer Responsibilities (NO ANIMATION LOGIC!)
+=renderer.py= should ONLY:
+- Create animations via =AnimationFactory.create_animation()=
+- Update animations: =for anim in self.active_animations: anim.update(delta_time)=
+- Draw animations: =for anim in self.active_animations: anim.draw(surface)=
+- Remove finished animations from list
+
+*** Damage and Game Logic
+- Animations are VISUAL ONLY - no damage application
+- Game logic in =skills.py= handles all damage/HP changes
+- Damage numbers queued during animations, shown when animations complete
+- See =pending_animation_events= and =flush_pending_events()= in renderer
+
+*** Pre-Execution Blocking Animations (NEW!)
+*Problem*: Some skills move units DURING execution (knockback, displacement), but we want animations to show effects at ORIGINAL positions before movement.
+
+*Solution*: Pre-execution blocking system allows animations to play BEFORE game logic executes.
+
+*Implementation* (in =renderer.py=):
+1. =PRE_EXECUTION_BLOCKING_SKILLS= list (line ~57) - Skills that block execution
+2. =execute_turn()= checks for blocking skills after pre-sync (line ~1873)
+3. If detected: flushes animations immediately, waits for completion, THEN executes turn
+4. =_update_animations_only()= helper updates visuals without game state sync
+
+*Adding Blocking Skills*:
+#+begin_src python
+# In renderer.py (top level, near color constants)
+PRE_EXECUTION_BLOCKING_SKILLS = [
+    "Fragcrest",      # Shows cone burst before knockback moves units
+    "FRAGCREST",      # Normalized variant
+    "YourSkill",      # Add your skill here
+    "YOUR_SKILL"      # Include normalized version
+]
+#+end_src
+
+*When to Use*:
+- Skills that displace/move targets (knockback, pulls, pushes)
+- Skills where visual order matters (effect THEN movement)
+- Skills that need targets at original positions for visual clarity
+
+*Example*: Fragcrest cone burst fires, shrapnel hits targets, THEN units are knocked back. Without blocking, units would already be at new positions when animation plays.
+
+*Performance*: Blocking loop runs at 60fps, updating only animations/visuals. No game state syncs during wait.
+
+*** Adding New Animations
+1. Create animation class in appropriate unit file (e.g., =glaiveman.py=)
+2. Add to =animation_factory.py= SKILL_ANIMATIONS dict
+3. Handle special constructor args in factory's =create_animation()= if needed
+4. Export class in =animations/__init__.py=
+5. Test with =python run_graphical.py=
+
+*** Anti-patterns (DON'T DO THIS!)
+❌ Animation logic scattered in =renderer.py= update loop
+❌ Separate file per animation (use one file per unit instead)
+❌ Animations applying damage/healing
+❌ Special-case animation handling outside factory pattern
+
 ** Key Patterns
 - *Skills*: Base classes in =skills/core.py=, unit-specific modules, registry in =skills/registry.py=
 - *UI Components*: Modular components in =ui/ui_components.py= with clear separation
@@ -27,10 +265,19 @@ Tactical turn-based combat game in Python using curses terminal UI. Features com
 
 * Development Workflows
 
-** Running the Game
+** Running the ASCII Game
 #+begin_src bash
 PYTHONPATH=/path/to/boneglaive python3 boneglaive/main.py [--single-player|--local-mp|--lan-host|--lan-client|--vs-ai]
 #+end_src
+
+** Running the Graphical Version (IN DEVELOPMENT)
+#+begin_src bash
+cd /home/user/boneglaive
+python run_graphical.py         # Quick start with default units
+python run_graphical.py --game  # Full game mode (setup phase)
+#+end_src
+
+*Note*: Display required for graphical version. Units from real game logic appear on screen.
 
 ** Testing
 #+begin_src bash
@@ -69,6 +316,8 @@ git fetch original      # Fetch from main repository
 #+end_src
 
 * File Priorities for AI Development
+
+** ASCII Game (Stable - Maintenance Mode)
 1. =game/engine.py= - Core game logic
 2. =game/skills/core.py= - Skill base classes
 3. =game/units.py= - Unit behavior and stats
@@ -76,11 +325,28 @@ git fetch original      # Fetch from main repository
 5. =utils/config.py= - Configuration management
 6. =game/skills/registry.py= - Skill-to-unit mappings
 
+** Graphical Version (Active Development)
+1. =boneglaive/graphical/game_state.py= - Adapter (state sync, events)
+2. =boneglaive/graphical/renderer.py= - Main renderer (input, draw)
+3. =demo_animations/*= - Reference for visual effects
+4. =GRAPHICAL_QUICKSTART.md= - Context recovery after /compact
+5. =boneglaive/graphical/INTEGRATION_COMPLETE.md= - Progress tracking
+6. =boneglaive/graphical/ROADMAP.md= - Development plan
+
 * Current Limitations
+
+** ASCII Game
 - No formal unit testing framework
 - Experience/leveling system disabled
 - AI implementation is basic (=ai/simple_ai.py=)
-- Limited animation system
+
+** Graphical Version (In Development)
+- Input system not connected to game logic yet
+- Only basic HP/position sync implemented
+- No skill animations hooked up yet
+- No UI components (skill bar, unit info, etc.)
+- No turn management
+- No win/loss screens
 
 * Character Set Guidelines
 *CRITICAL*: Boneglaive uses ASCII-ified character set exclusively. Only use:
@@ -106,3 +372,41 @@ This applies to:
 *PROFESSIONAL OBJECTIVITY*: Prioritize technical accuracy and truthfulness over validating beliefs. Focus on facts and problem-solving with direct, objective technical information.
 
 Keep responses concise and direct. No unnecessary preamble, postamble, or validation phrases.
+
+* Common Patterns and Troubleshooting
+
+** Adding New Status Effects in Graphical Mode
+
+When a new status effect is added to a skill, THREE places must be updated for graphical mode to work properly:
+
+1. *boneglaive/graphical/ui/status_effects.py* - Status effects panel
+   - Add entry to STATUS_EFFECTS dict (~line 27-180)
+   - Define: name, type (buff/debuff/special/neutral), icon text, description, duration_key, check lambda
+   - This makes the status appear in the UI panel when a unit is selected
+
+2. *boneglaive/graphical/game_state.py* - Status effect detection
+   - Add attribute check in VisualUnit._get_status_effects() (~line 82-140)
+   - Pattern: =if hasattr(game_unit, 'attribute_name') and game_unit.attribute_name:=
+   - Map to icon filename (without .svg): =effects['icon_name'] = True=
+   - This triggers the SVG icon flash animation when effect is applied
+
+3. *graphics/status_icons/* - SVG icon file
+   - Icon file must exist with matching name (e.g., =site_inspection.svg=)
+   - Animation system loads this automatically via StatusIconFlash class
+
+*** Example: Site Inspection Status Effect (2025-11-23)
+
+*Problem*: Site Inspection skill applied stat changes, panel showed the status, but SVG icon didn't flash on unit tile.
+
+*Root Cause*: Missing attribute checks in =game_state.py:_get_status_effects()=
+
+*Fix Applied*:
+#+begin_src python
+# boneglaive/graphical/game_state.py line ~131-134
+if hasattr(game_unit, 'status_site_inspection') and game_unit.status_site_inspection:
+    effects['site_inspection'] = True
+if hasattr(game_unit, 'status_site_inspection_partial') and game_unit.status_site_inspection_partial:
+    effects['site_inspection_partial'] = True
+#+end_src
+
+*Lesson*: When status effect panel works but icon doesn't flash, check =_get_status_effects()= in =game_state.py=. The icon name in this dict MUST match the SVG filename (without .svg extension).

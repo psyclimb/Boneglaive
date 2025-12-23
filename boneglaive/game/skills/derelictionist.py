@@ -321,11 +321,11 @@ class VagalRunSkill(ActiveSkill):
             if isinstance(target.radiation_stacks, list):
                 if len(target.radiation_stacks) > 0:
                     target.radiation_stacks = []
-                    cleared_effects.append("Radiation Sickness")
+                    cleared_effects.append("Radiation Burn")
             else:
                 if target.radiation_stacks > 0:
                     target.radiation_stacks = 0
-                    cleared_effects.append("Radiation Sickness")
+                    cleared_effects.append("Radiation Burn")
         
         # Clear positive status effects (but not permanent abilities or vagal run)
         if hasattr(target, 'carrier_rave_active') and target.carrier_rave_active:
@@ -387,9 +387,9 @@ class VagalRunSkill(ActiveSkill):
                 target.partition_shield_caster = None
             cleared_effects.append("Partition Shield")
             
-        if hasattr(target, 'charging_status') and target.charging_status:
-            target.charging_status = False
-            cleared_effects.append("Charging")
+        if hasattr(target, 'gaussian_dusk_recharge') and target.gaussian_dusk_recharge > 0:
+            target.gaussian_dusk_recharge = 0
+            cleared_effects.append("Recharging")
             
         if hasattr(target, 'first_turn_move_bonus') and target.first_turn_move_bonus:
             target.first_turn_move_bonus = False

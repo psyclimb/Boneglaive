@@ -119,33 +119,44 @@ class Autoclave(PassiveSkill):
         import time
         import curses
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-        
+
         logger.debug(f"EXECUTING AUTOCLAVE for {user.get_display_name()}")
-        
+
         message_log.add_message(
             f"{user.get_display_name()}'s Autoclave activates",
             MessageType.ABILITY,
             player=user.player
         )
-        
+
         # Use passed UI parameter if provided, otherwise check the game for one
         if ui is None:
             # Get animation component from the game UI if available
             # We need to check if the game has a ui attribute since some tests may not have it
             ui = getattr(game, 'ui', None)
-        
+
+        # Detect if running in graphical mode to avoid blocking sleeps
+        is_graphical = hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'
+
+        if is_graphical:
+            logger.debug("Graphical mode detected - using non-blocking execution path")
+            # In graphical mode, the GameStateAdapter automatically detects passive skill
+            # activation and queues the animation via the event system (game_state.py:723-741).
+            # No need to manually trigger animation here - just skip the blocking ASCII animations.
+        else:
+            logger.debug("ASCII mode detected - using traditional animation path")
+
         # Define the four directions (up, right, down, left)
         directions = [(-1, 0), (0, 1), (1, 0), (0, -1)]
-        
+
         # Track total damage dealt for healing
         total_damage = 0
         affected_units = []
-        
-        # Play the initial activation animation at the user's position
-        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+
+        # Play the initial activation animation at the user's position (ASCII mode only)
+        if not is_graphical and ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
             # Get the animation sequence from asset manager
             animation_sequence = ui.asset_manager.get_skill_animation_sequence('autoclave')
-            
+
             # Use renderer to animate at the center (user position)
             ui.renderer.animate_attack_sequence(
                 user.y, user.x,
@@ -201,10 +212,10 @@ class Autoclave(PassiveSkill):
                         target_player=target.player
                     )
                     
-                    # Show damage number if UI is available
-                    if ui and hasattr(ui, 'renderer'):
+                    # Show damage number if UI is available (ASCII mode only)
+                    if not is_graphical and ui and hasattr(ui, 'renderer') and hasattr(ui.renderer, 'draw_damage_text'):
                         damage_text = f"-{damage}"
-                        
+
                         # Make damage text more prominent with flashing effect
                         for i in range(3):
                             ui.renderer.draw_damage_text(target.y-1, target.x*2, " " * len(damage_text), 7)
@@ -212,11 +223,12 @@ class Autoclave(PassiveSkill):
                             ui.renderer.draw_damage_text(target.y-1, target.x*2, damage_text, 7, attrs)
                             ui.renderer.refresh()
                             sleep_with_animation_speed(0.1)
-                        
+
                         # Final damage display (stays visible a bit longer)
                         ui.renderer.draw_damage_text(target.y-1, target.x*2, damage_text, 7, curses.A_BOLD)
                         ui.renderer.refresh()
                         sleep_with_animation_speed(0.2)
+                    # Graphical version handles damage display through animation system
                     
                     # Check if target was defeated and handle death properly
                     if target.hp <= 0:
@@ -226,14 +238,14 @@ class Autoclave(PassiveSkill):
             # Store targets for animation
             if targets_in_direction:
                 targets_by_direction[direction_idx] = targets_in_direction
-                
-        # Animate the cross-shaped attack in each direction if UI is available
-        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+
+        # Animate the cross-shaped attack in each direction if UI is available (ASCII mode only)
+        if not is_graphical and ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
             # Get the autoclave animation sequence
             beam_animation = ui.asset_manager.get_skill_animation_sequence('autoclave')
             if not beam_animation:
-                beam_animation = ['+', 'X', '#']  # Fallback 
-            
+                beam_animation = ['+', 'X', '#']  # Fallback
+
             # Animate each direction sequentially, cycling animation frames spatially
             for direction_idx, targets in targets_by_direction.items():
                 # Cycle through animation frames along the beam path
@@ -249,7 +261,7 @@ class Autoclave(PassiveSkill):
                         0.1  # quick but visible
                     )
                 sleep_with_animation_speed(0.1)  # Small pause between directions
-                
+
             # Redraw board after animations
             if hasattr(ui, 'draw_board'):
                 ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
@@ -260,11 +272,11 @@ class Autoclave(PassiveSkill):
             # Apply healing using universal heal method
             actual_healing = user.heal(healing, "Autoclave life essence")
             healing = actual_healing  # Update healing variable for display purposes
-            
-            # Show healing number if UI is available
-            if ui and hasattr(ui, 'renderer') and healing > 0:
+
+            # Show healing number if UI is available (ASCII mode only)
+            if not is_graphical and ui and hasattr(ui, 'renderer') and hasattr(ui.renderer, 'draw_damage_text') and healing > 0:
                 healing_text = f"+{healing}"
-                
+
                 # Make healing text prominent with flashing effect (green color)
                 for i in range(3):
                     # First clear the area
@@ -274,7 +286,7 @@ class Autoclave(PassiveSkill):
                     ui.renderer.draw_damage_text(user.y-1, user.x*2, healing_text, 3, attrs)  # Green color
                     ui.renderer.refresh()
                     sleep_with_animation_speed(0.1)
-                
+
                 # Final healing display (stays on screen slightly longer)
                 ui.renderer.draw_damage_text(user.y-1, user.x*2, healing_text, 3, curses.A_BOLD)
                 ui.renderer.refresh()
@@ -287,17 +299,17 @@ class Autoclave(PassiveSkill):
                 player=user.player
             )
             
-            # Show healing animation if UI is available
-            if ui and hasattr(ui, 'renderer'):
+            # Show healing animation if UI is available (ASCII mode only)
+            if not is_graphical and ui and hasattr(ui, 'renderer'):
                 # Flash the unit with green to indicate healing
                 if hasattr(ui, 'asset_manager'):
                     tile_ids = [ui.asset_manager.get_unit_tile(user.type)] * 4
                     color_ids = [2, 3 if user.player == 1 else 4] * 2  # Alternate green with player color
                     durations = [0.1] * 4
-                    
+
                     # Flash the unit
                     ui.renderer.flash_tile(user.y, user.x, tile_ids, color_ids, durations)
-                    
+
                 # Show healing number above unit
                 healing_text = f"+{healing}"
                 if hasattr(ui.renderer, 'draw_text'):
@@ -809,12 +821,15 @@ class VaultSkill(ActiveSkill):
             return False
         user.skill_target = target_pos
         user.selected_skill = self
-        
+
         # Track action order
         if game:
             user.action_timestamp = game.action_counter
             game.action_counter += 1
-        
+
+        # Clear the move target - Vault IS the movement, don't walk first
+        user.move_target = None
+
         # Set vault target indicator for UI
         user.vault_target_indicator = target_pos
         
@@ -838,10 +853,10 @@ class VaultSkill(ActiveSkill):
         
         # Clear the vault target indicator after execution
         user.vault_target_indicator = None
-        
+
         # Store original position for animations
         original_pos = (user.y, user.x)
-        
+
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
             # Get vault animation sequence

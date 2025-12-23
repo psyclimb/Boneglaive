@@ -1,0 +1,193 @@
+#!/usr/bin/env python3
+"""
+Play Menu Screens
+Screens for game mode selection and map selection.
+"""
+import pygame
+from typing import Optional, List
+from .menu_components import MenuScreen, Button, COLOR_TEXT
+from boneglaive.utils.config import ConfigManager, NetworkMode
+from boneglaive.game.map import MapFactory
+from boneglaive.utils.seasonal_events import get_active_season, seasonal_manager
+
+
+class PlaySubmenu(MenuScreen):
+    """Submenu for selecting game mode."""
+
+    def __init__(self, font: pygame.font.Font, large_font: pygame.font.Font, screen_width: int, screen_height: int):
+        super().__init__("Play Game", font, large_font)
+        self.screen_width = screen_width
+        self.screen_height = screen_height
+        self.config = ConfigManager()
+
+        # Button dimensions
+        button_width = 300
+        button_height = 60
+        button_spacing = 20
+
+        # Calculate center position
+        start_x = (screen_width - button_width) // 2
+        start_y = 200
+
+        # Create buttons
+        self.buttons = [
+            Button(
+                start_x, start_y,
+                button_width, button_height,
+                "VS AI",
+                font,
+                lambda: self._set_action("vs_ai")
+            ),
+            Button(
+                start_x, start_y + (button_height + button_spacing),
+                button_width, button_height,
+                "Local Multiplayer",
+                font,
+                lambda: self._set_action("local_mp")
+            ),
+            Button(
+                start_x, start_y + (button_height + button_spacing) * 2,
+                button_width, button_height,
+                "Back",
+                font,
+                lambda: self._set_action("back")
+            )
+        ]
+
+        self._action_result = None
+
+    def _set_action(self, action: str):
+        """Set the action result and configure game mode."""
+        if action == "vs_ai":
+            self.config.set('network_mode', NetworkMode.VS_AI.value)
+            self.config.save_config()
+        elif action == "local_mp":
+            self.config.set('network_mode', NetworkMode.LOCAL_MULTIPLAYER.value)
+            self.config.save_config()
+
+        self._action_result = action
+
+    def handle_event(self, event: pygame.event.Event) -> Optional[str]:
+        """Handle events and return action if triggered."""
+        super().handle_event(event)
+
+        # Check if action was set by button
+        if self._action_result:
+            action = self._action_result
+            self._action_result = None
+            return action
+
+        return None
+
+
+class MapSelectionMenu(MenuScreen):
+    """Menu for selecting a map to play on."""
+
+    def __init__(self, font: pygame.font.Font, large_font: pygame.font.Font, screen_width: int, screen_height: int):
+        super().__init__("Select Map", font, large_font)
+        self.screen_width = screen_width
+        self.screen_height = screen_height
+        self.config = ConfigManager()
+
+        # Get available maps
+        self.available_maps = MapFactory.list_available_maps()
+        self.active_season = get_active_season()
+
+        # Update title if seasonal event is active
+        if self.active_season:
+            seasonal_info = seasonal_manager.get_seasonal_info(self.active_season)
+            self.title = f"Select Map - {seasonal_info['name']} Active"
+
+        # Button dimensions
+        button_width = 350
+        button_height = 50
+        button_spacing = 15
+
+        # Calculate layout
+        start_x = (screen_width - button_width) // 2
+        start_y = 150
+
+        # Create buttons for each map
+        self.buttons = []
+        for i, map_name in enumerate(self.available_maps):
+            # Create display name
+            display_name = map_name.replace('_', ' ').title()
+
+            # Add seasonal indicator
+            if self.active_season and seasonal_manager.get_seasonal_map_path(map_name, self.active_season):
+                display_name += " *"
+
+            y_pos = start_y + i * (button_height + button_spacing)
+
+            self.buttons.append(
+                Button(
+                    start_x, y_pos,
+                    button_width, button_height,
+                    display_name,
+                    font,
+                    lambda mn=map_name: self._select_map(mn)
+                )
+            )
+
+        # Add Back button
+        back_y = start_y + len(self.available_maps) * (button_height + button_spacing) + 30
+        self.buttons.append(
+            Button(
+                start_x, back_y,
+                button_width, button_height,
+                "Back",
+                font,
+                lambda: self._set_action("back")
+            )
+        )
+
+        self._action_result = None
+        self.scroll_offset = 0
+        self.max_visible_buttons = 8
+
+    def _select_map(self, map_name: str):
+        """Select a map and proceed to game."""
+        self.config.set('selected_map', map_name)
+        self.config.save_config()
+        self._action_result = "start_game"
+
+    def _set_action(self, action: str):
+        """Set the action result."""
+        self._action_result = action
+
+    def handle_event(self, event: pygame.event.Event) -> Optional[str]:
+        """Handle events and return action if triggered."""
+        # Handle scrolling if needed
+        if event.type == pygame.MOUSEWHEEL:
+            if len(self.buttons) > self.max_visible_buttons:
+                self.scroll_offset -= event.y * 30
+                self.scroll_offset = max(0, min(self.scroll_offset,
+                    (len(self.buttons) - self.max_visible_buttons) * 65))
+
+        super().handle_event(event)
+
+        # Check if action was set by button
+        if self._action_result:
+            action = self._action_result
+            self._action_result = None
+            return action
+
+        return None
+
+    def draw(self, surface: pygame.Surface):
+        """Draw the map selection menu with scroll support."""
+        super().draw(surface)
+
+        # Draw seasonal indicator info if active
+        if self.active_season:
+            info_text = "* Indicates seasonal variant available"
+            info_surface = self.font.render(info_text, True, (180, 180, 180))
+            info_rect = info_surface.get_rect(centerx=self.screen_width // 2, top=110)
+            surface.blit(info_surface, info_rect)
+
+        # Draw scroll hint if needed
+        if len(self.buttons) > self.max_visible_buttons:
+            hint_text = "Scroll to see more maps"
+            hint_surface = self.font.render(hint_text, True, (150, 150, 150))
+            hint_rect = hint_surface.get_rect(centerx=self.screen_width // 2, bottom=self.screen_height - 20)
+            surface.blit(hint_surface, hint_rect)

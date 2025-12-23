@@ -3,7 +3,7 @@ import curses
 import time
 from typing import Optional, List, Tuple, Dict
 
-from boneglaive.utils.constants import HEIGHT, WIDTH, UnitType
+from boneglaive.utils.constants import HEIGHT, WIDTH, UnitType, UNIT_SYMBOLS
 from boneglaive.game.engine import Game
 from boneglaive.game.map import TerrainType
 from boneglaive.utils.coordinates import Position
@@ -58,13 +58,13 @@ class UIRenderer:
             
         if hasattr(unit, 'auction_curse_dot') and unit.auction_curse_dot:
             effects.append(('auction_curse', '|', curses.A_BOLD))
-            
-        if hasattr(unit, 'charging_status') and unit.charging_status:
-            effects.append(('charging', '=', curses.A_BOLD))
+
+        if hasattr(unit, 'gaussian_dusk_recharge') and unit.gaussian_dusk_recharge > 0:
+            effects.append(('recharging', '=', curses.A_BOLD))
             
         # INTERFERER status effects
         if hasattr(unit, 'radiation_stacks') and unit.radiation_stacks:
-            effects.append(('radiation_sickness', 'r', curses.A_BOLD))
+            effects.append(('radiation_burn', 'r', curses.A_BOLD))
             
         if hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected:
             effects.append(('neural_shunt', '?', curses.A_BOLD))
@@ -75,13 +75,17 @@ class UIRenderer:
         # DELPHIC APPRAISER status effects
         if hasattr(unit, 'can_use_anchor') and unit.can_use_anchor:
             effects.append(('anchor', '%', curses.A_BOLD))
-            
+
         # DERELICTIONIST positive status effects
         if hasattr(unit, 'severance_active') and unit.severance_active:
             effects.append(('severance', '\\', curses.A_BOLD))
-            
+
         if hasattr(unit, 'partition_shield_active') and unit.partition_shield_active:
             effects.append(('partition', ')', curses.A_BOLD))
+
+        # PELOTARI status effects
+        if hasattr(unit, 'backhand_active') and unit.backhand_active:
+            effects.append(('backhand', '<', curses.A_BOLD))
             
         # Medium priority effects
         if hasattr(unit, 'status_site_inspection') and unit.status_site_inspection:
@@ -128,36 +132,99 @@ class UIRenderer:
         # Calculate menu position (same as in ActionMenuComponent)
         menu_x = WIDTH * 2 + 2
         menu_y = 2
-        
+
         # Set dimensions for the spinner menu
         menu_width = 25
         menu_height = 6  # Smaller than regular menu
-        
+
         # Draw menu border
         # Top border
         self.renderer.draw_text(menu_y, menu_x, "┌" + "─" * (menu_width - 2) + "┐", 1)
-        
+
         # Side borders
         for i in range(1, menu_height - 1):
             self.renderer.draw_text(menu_y + i, menu_x, "│", 1)
             self.renderer.draw_text(menu_y + i, menu_x + menu_width - 1, "│", 1)
-        
+
         # Bottom border
         self.renderer.draw_text(menu_y + menu_height - 1, menu_x, "└" + "─" * (menu_width - 2) + "┘", 1)
-        
+
         # Draw header
         header_text = " RESOLVING "
         header_x = menu_x + (menu_width - len(header_text)) // 2
         self.renderer.draw_text(menu_y + 1, header_x, header_text, 3, curses.A_BOLD)
-        
+
         # Draw separator
         self.renderer.draw_text(menu_y + 2, menu_x + 1, "─" * (menu_width - 2), 1)
-        
+
         # Draw spinner
         spinner_char = self.game_ui.spinner_chars[self.game_ui.spinner_frame]
         spinner_line = f"       {spinner_char}       "
         spinner_x = menu_x + (menu_width - len(spinner_line)) // 2
         self.renderer.draw_text(menu_y + 4, spinner_x, spinner_line, 3, curses.A_BOLD)
+
+    def _draw_respawn_menu(self):
+        """Draw the respawn unit selection menu."""
+        # Get cursor manager and current player
+        cursor_manager = self.game_ui.cursor_manager
+        current_player = self.game_ui.game.current_player
+
+        # Get ready-to-respawn units for current player
+        ready_units = [du for du in self.game_ui.game.dead_units
+                      if du.player == current_player and du.ready_for_respawn]
+
+        if not ready_units:
+            return
+
+        # Calculate menu position (same as ActionMenuComponent)
+        menu_x = WIDTH * 2 + 2
+        menu_y = 2
+
+        # Calculate menu dimensions
+        menu_width = 25
+        menu_height = len(ready_units) + 5  # Header + separator + units + controls + borders
+
+        # Draw menu border
+        # Top border
+        self.renderer.draw_text(menu_y, menu_x, "┌" + "─" * (menu_width - 2) + "┐", 1)
+
+        # Side borders
+        for i in range(1, menu_height - 1):
+            self.renderer.draw_text(menu_y + i, menu_x, "│", 1)
+            self.renderer.draw_text(menu_y + i, menu_x + menu_width - 1, "│", 1)
+
+        # Bottom border
+        self.renderer.draw_text(menu_y + menu_height - 1, menu_x, "└" + "─" * (menu_width - 2) + "┘", 1)
+
+        # Draw header
+        player_color = 3 if current_player == 1 else 4
+        header_text = " Select Unit "
+        header_x = menu_x + (menu_width - len(header_text)) // 2
+        self.renderer.draw_text(menu_y + 1, header_x, header_text, player_color, curses.A_BOLD)
+
+        # Draw separator
+        self.renderer.draw_text(menu_y + 2, menu_x + 1, "─" * (menu_width - 2), 1)
+
+        # Draw each unit
+        for i, dead_unit in enumerate(ready_units):
+            y_pos = menu_y + i + 3
+            unit_symbol = UNIT_SYMBOLS.get(dead_unit.unit_type, "?")
+            greek_letter = dead_unit.greek_id
+            unit_text = f"  {unit_symbol}{greek_letter}"
+
+            # Highlight selected unit
+            if i == cursor_manager.respawn_unit_index:
+                self.renderer.draw_text(y_pos, menu_x + 2, ">", player_color, curses.A_BOLD)
+                self.renderer.draw_text(y_pos, menu_x + 4, unit_text, player_color, curses.A_BOLD)
+            else:
+                self.renderer.draw_text(y_pos, menu_x + 2, " ", 1)
+                self.renderer.draw_text(y_pos, menu_x + 4, unit_text, 1)
+
+        # Draw instructions
+        instructions_y = menu_y + len(ready_units) + 3
+        instructions = "↑/↓ Enter [C]ancel"
+        instructions_x = menu_x + (menu_width - len(instructions)) // 2
+        self.renderer.draw_text(instructions_y, instructions_x, instructions, 8)
     
     @measure_perf
     def draw_board(self, show_cursor=True, show_selection=True, show_attack_targets=True):
@@ -251,15 +318,14 @@ class UIRenderer:
             mode_text = f"MODE: {display_mode.upper()}"
             self.renderer.draw_text(header_y, len(player_text) + 4, mode_text, 1)
             
-            # Draw multiplayer info
-            game_mode = "SINGLE" if not self.game_ui.multiplayer.is_multiplayer() else "LOCAL" if self.game_ui.multiplayer.is_local_multiplayer() else "LAN"
-            game_text = f"GAME: {game_mode}"
-            self.renderer.draw_text(header_y, len(player_text) + len(mode_text) + 6, game_text, 1)
+            # Draw GP scores
+            gp_text = f"GP:{self.game_ui.game.player1_gp}|{self.game_ui.game.player2_gp}"
+            self.renderer.draw_text(header_y, len(player_text) + len(mode_text) + 6, gp_text, 1)
             
             # Add turn indicator for network play
             if self.game_ui.multiplayer.is_network_multiplayer():
                 turn_text = "YOUR TURN" if self.game_ui.multiplayer.is_current_player_turn() else "WAITING"
-                self.renderer.draw_text(header_y, len(player_text) + len(mode_text) + len(game_text) + 8, turn_text, 1, curses.A_BOLD)
+                self.renderer.draw_text(header_y, len(player_text) + len(mode_text) + len(gp_text) + 8, turn_text, 1, curses.A_BOLD)
         
         # Add chat mode indicator if active
         if chat_component.chat_mode:
@@ -327,8 +393,8 @@ class UIRenderer:
                     tile = self.game_ui.asset_manager.get_terrain_tile("pillar")
                     color_id = 13  # White for pillars
                 # Different furniture types
-                elif terrain == TerrainType.FURNITURE:
-                    tile = self.game_ui.asset_manager.get_terrain_tile("furniture")
+                elif terrain == TerrainType.RADIO_CONSOLE:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("radio_console")
                     color_id = 14  # White for furniture
                     tile_attr = curses.A_DIM  # Dim white/gray via dim attribute
 
@@ -371,8 +437,8 @@ class UIRenderer:
                         color_id = teleport_anchor_color  # Player-specific color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
 
-                elif terrain == TerrainType.DEC_TABLE:
-                    tile = self.game_ui.asset_manager.get_terrain_tile("dec_table")
+                elif terrain == TerrainType.CURIOSITY_SHELF:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("curiosity_shelf")
                     color_id = 14  # White for furniture
                     tile_attr = curses.A_DIM  # Dim white/gray via dim attribute
 
@@ -474,7 +540,7 @@ class UIRenderer:
                         color_id = teleport_anchor_color  # Player-specific color for imbued furniture
                         tile_attr = curses.A_BOLD  # Make it bold
                         
-                # Edge Case map terrain types (gray color scheme like other maps)
+                # Hard Pressed map terrain types (gray color scheme like other maps)
                 elif terrain == TerrainType.HYDRAULIC_PRESS:
                     tile = self.game_ui.asset_manager.get_terrain_tile("hydraulic_press")
                     color_id = 12  # White for hydraulic press machinery
@@ -743,15 +809,15 @@ class UIRenderer:
                     # This is a move target location - draw a "ghost" of the moving unit
                     tile = self.game_ui.asset_manager.get_unit_tile(target_unit.type)
                     color_id = 8  # Gray preview color
-                    
+
                     # Check if it's selected (user selected the ghost)
                     is_selected = show_selection and cursor_manager.selected_unit and \
                                 cursor_manager.selected_unit == target_unit and \
                                 cursor_manager.selected_unit.move_target == (y, x)
-                    
+
                     # Check if cursor is here
                     is_cursor_here = (pos == cursor_manager.cursor_pos and show_cursor)
-                    
+
                     if is_selected:
                         # Draw as selected ghost (yellow background)
                         self.renderer.draw_tile(y, x, tile, 9, curses.A_DIM)
@@ -760,10 +826,46 @@ class UIRenderer:
                         # Draw with cursor color
                         self.renderer.draw_tile(y, x, tile, 2)
                         continue
-                    
+
                     # Otherwise draw normal ghost
                     self.renderer.draw_tile(y, x, tile, color_id, curses.A_DIM)
-                
+
+                # Check if this position is a respawn preview location
+                # First check cursor manager's temporary preview (during selection)
+                if cursor_manager.respawn_preview_location == (y, x) and cursor_manager.selected_dead_unit and not unit:
+                    # Draw ghost of unit being respawned
+                    tile = self.game_ui.asset_manager.get_unit_tile(cursor_manager.selected_dead_unit.unit_type)
+                    color_id = 8  # Gray preview color
+
+                    # Check if cursor is here
+                    is_cursor_here = (pos == cursor_manager.cursor_pos and show_cursor)
+
+                    if is_cursor_here:
+                        # Draw with cursor color
+                        self.renderer.draw_tile(y, x, tile, 2)
+                    else:
+                        # Draw as ghost with DIM attribute
+                        self.renderer.draw_tile(y, x, tile, color_id, curses.A_DIM)
+                    continue
+
+                # Check if any dead unit has a respawn preview at this location (persists after confirmation)
+                for dead_unit in self.game_ui.game.dead_units:
+                    if dead_unit.respawn_preview == (y, x) and not unit:
+                        # Draw ghost of unit that will respawn here
+                        tile = self.game_ui.asset_manager.get_unit_tile(dead_unit.unit_type)
+                        color_id = 8  # Gray preview color
+
+                        # Check if cursor is here
+                        is_cursor_here = (pos == cursor_manager.cursor_pos and show_cursor)
+
+                        if is_cursor_here:
+                            # Draw with cursor color
+                            self.renderer.draw_tile(y, x, tile, 2)
+                        else:
+                            # Draw as ghost with DIM attribute
+                            self.renderer.draw_tile(y, x, tile, color_id, curses.A_DIM)
+                        break  # Only show one ghost per position
+
                 # Check if this position is a vault target indicator
                 for u in self.game_ui.game.units:
                     if u.is_alive() and u.selected_skill and hasattr(u.selected_skill, 'name') and \
@@ -918,32 +1020,7 @@ class UIRenderer:
                                 tile = "*" if (y, x) == (target_y, target_x) else "."
                                 color_id = 3 if u.player == 1 else 4
                                 
-                        # Gaussian Dusk charging indicator
-                        elif u.selected_skill.name == "Gaussian Dusk" and hasattr(u, 'gaussian_dusk_indicator') and u.gaussian_dusk_indicator is not None:
-                            # Show direction indicator for Gaussian Dusk charging
-                            direction = u.gaussian_dusk_indicator
-                            if direction and (y, x) == (u.y, u.x):
-                                # Show direction arrow based on charge direction
-                                dy, dx = direction
-                                if dy < 0 and dx == 0:  # Up
-                                    tile = "^"
-                                elif dy < 0 and dx > 0:  # Up-right
-                                    tile = "^"
-                                elif dy == 0 and dx > 0:  # Right
-                                    tile = ">"
-                                elif dy > 0 and dx > 0:  # Down-right
-                                    tile = "v"
-                                elif dy > 0 and dx == 0:  # Down
-                                    tile = "v"
-                                elif dy > 0 and dx < 0:  # Down-left
-                                    tile = "v"
-                                elif dy == 0 and dx < 0:  # Left
-                                    tile = "<"
-                                elif dy < 0 and dx < 0:  # Up-left
-                                    tile = "^"
-                                else:
-                                    tile = "o"  # Default marker
-                                color_id = 3 if u.player == 1 else 4
+                        # Gaussian Dusk charging indicator no longer exists (fires immediately)
                                 
                         # Fragcrest cone indicator
                         elif u.selected_skill.name == "Fragcrest" and hasattr(u, 'fragcrest_indicator') and u.fragcrest_indicator is not None:
@@ -1179,7 +1256,7 @@ class UIRenderer:
                         current_player = self.game_ui.game.current_player
                         color_id = 17 if current_player == 1 else 18  # Player-specific colors
 
-                # Check if position is highlighted for movement, attack targets, or skill
+                # Check if position is highlighted for movement, attack targets, skill, or respawn
                 if pos in cursor_manager.highlighted_positions:
                     if mode_manager.mode == "move":
                         # Use player-specific move highlight colors
@@ -1191,6 +1268,10 @@ class UIRenderer:
                         # Use player-specific skill highlight colors
                         current_player = self.game_ui.game.current_player
                         color_id = 17 if current_player == 1 else 18  # Player-specific skill highlights
+                    elif cursor_manager.respawn_selecting_location:
+                        # Use player-specific colors for respawn highlights
+                        current_player = self.game_ui.game.current_player
+                        color_id = 17 if current_player == 1 else 18  # Player-specific respawn highlights
                 
                 # Cursor takes priority for visibility when it should be shown
                 if show_cursor and pos == cursor_manager.cursor_pos:
@@ -1221,7 +1302,10 @@ class UIRenderer:
                self.game_ui.cursor_manager.selected_unit.selected_skill)):
             # Draw action menu if visible, or during skill targeting to show active skill
             self.game_ui.action_menu_component.draw()
-        
+        elif cursor_manager.respawn_mode and cursor_manager.respawn_selecting_unit:
+            # Draw respawn menu
+            self._draw_respawn_menu()
+
         # Draw unit status indicators before unit info
         self._draw_unit_status_bar()
         
@@ -1374,6 +1458,8 @@ class UIRenderer:
             if hasattr(unit, 'radiation_stacks') and unit.radiation_stacks:
                 total_stacks = len(unit.radiation_stacks)
                 negative_effects.append(f"Radiation({total_stacks})")
+            if hasattr(unit, 'gaussian_dusk_recharge') and unit.gaussian_dusk_recharge > 0:
+                negative_effects.append(f"Recharging({unit.gaussian_dusk_recharge})")
             if hasattr(unit, 'carrier_rave_active') and unit.carrier_rave_active:
                 # Check if it has duration, otherwise just show boolean
                 if hasattr(unit, 'carrier_rave_duration') and unit.carrier_rave_duration > 0:
@@ -1382,8 +1468,6 @@ class UIRenderer:
                     positive_effects.append("Karrier Rave")
             if hasattr(unit, 'has_investment_effect') and unit.has_investment_effect:
                 positive_effects.append("Investment")
-            if hasattr(unit, 'charging_status') and unit.charging_status:
-                positive_effects.append("Charging")
             if hasattr(unit, 'ossify_active') and unit.ossify_active:
                 positive_effects.append("Ossify")
             if hasattr(unit, 'status_site_inspection') and unit.status_site_inspection:
@@ -1494,7 +1578,7 @@ class UIRenderer:
             msg_indicator = ">> "
             self.renderer.draw_text(msg_line, 2, msg_indicator, 1, curses.A_BOLD)
             self.renderer.draw_text(msg_line, 2 + len(msg_indicator), self.game_ui.message, 1)
-        
+
         # Draw simplified help reminder and controls
         help_line = HEIGHT+5
         self.renderer.draw_text(help_line, 0, " " * self.renderer.width, 1)  # Clear line
@@ -1569,14 +1653,23 @@ class UIRenderer:
         from boneglaive.utils.constants import UNIT_SYMBOLS
         
         current_player = self.game_ui.game.current_player
-        player_units = [unit for unit in self.game_ui.game.units 
+
+        # Get alive units
+        alive_units = [unit for unit in self.game_ui.game.units
                        if unit.is_alive() and unit.player == current_player]
-        
-        if not player_units:
+
+        # Get dead units for current player
+        dead_units = [du for du in self.game_ui.game.dead_units
+                     if du.player == current_player]
+
+        # Create combined list with (unit_or_dead_unit, is_dead) tuples
+        all_units = [(u, False) for u in alive_units] + [(du, True) for du in dead_units]
+
+        if not all_units:
             return
-            
-        # Sort units by their letter identifier for consistent display order
-        player_units.sort(key=lambda u: getattr(u, 'greek_id', 'ω'))  # omega is last in Greek alphabet
+
+        # Sort by greek_id for consistent display order
+        all_units.sort(key=lambda item: getattr(item[0], 'greek_id', 'ω'))  # omega is last
         
         # Build status string and draw each unit symbol with appropriate color
         status_line = HEIGHT + 1
@@ -1594,32 +1687,51 @@ class UIRenderer:
         # Draw each unit symbol + greek letter with color based on status
         cursor_manager = self.game_ui.cursor_manager
         selected_unit = cursor_manager.selected_unit
-        
-        for i, unit in enumerate(player_units):
-            # Special handling for echo units
-            if hasattr(unit, 'is_echo') and unit.is_echo:
-                symbol = 'ψ'  # Lowercase psi for echoes
-            # Special handling for HEINOUS_VAPOR - use their specific symbol
-            elif unit.type == UnitType.HEINOUS_VAPOR and hasattr(unit, 'vapor_symbol') and unit.vapor_symbol:
-                symbol = unit.vapor_symbol  # 1, 0, 2, 3 etc.
+
+        for i, (unit_or_dead, is_dead) in enumerate(all_units):
+            if is_dead:
+                # Dead unit - use DeadUnit properties
+                dead_unit = unit_or_dead
+                symbol = UNIT_SYMBOLS.get(dead_unit.unit_type, '?')
+                greek_letter = dead_unit.greek_id
+                timer = dead_unit.respawn_timer if dead_unit.respawn_timer > 0 else ''
+
+                # Gray color for dead units (color 8 if available, else dim white)
+                symbol_color = 8 if hasattr(curses, 'COLOR_PAIRS') and curses.COLOR_PAIRS >= 8 else 7
+                attrs = curses.A_DIM
+
+                # Display as "Ga3" (unit symbol + letter + timer)
+                unit_display = f"{symbol}{greek_letter}{timer}"
+                self.renderer.draw_text(status_line, current_pos, unit_display, symbol_color, attrs)
             else:
-                symbol = UNIT_SYMBOLS.get(unit.type, '?')
-            greek_letter = getattr(unit, 'greek_id', '?')
-            
-            # Determine color based on unit state
-            if unit == selected_unit:
-                symbol_color = 6  # Yellow for selected unit
-            elif unit.is_done_acting():
-                symbol_color = 7  # White for done units
-            else:
-                symbol_color = player_color  # Player color for active units
-            
-            # Display as "Ga" (unit symbol + letter)
-            unit_display = f"{symbol}{greek_letter}"
-            self.renderer.draw_text(status_line, current_pos, unit_display, symbol_color)
+                # Alive unit - use Unit properties
+                unit = unit_or_dead
+
+                # Special handling for echo units
+                if hasattr(unit, 'is_echo') and unit.is_echo:
+                    symbol = 'ψ'  # Lowercase psi for echoes
+                # Special handling for HEINOUS_VAPOR - use their specific symbol
+                elif unit.type == UnitType.HEINOUS_VAPOR and hasattr(unit, 'vapor_symbol') and unit.vapor_symbol:
+                    symbol = unit.vapor_symbol  # 1, 0, 2, 3 etc.
+                else:
+                    symbol = UNIT_SYMBOLS.get(unit.type, '?')
+                greek_letter = getattr(unit, 'greek_id', '?')
+
+                # Determine color based on unit state
+                if unit == selected_unit:
+                    symbol_color = 6  # Yellow for selected unit
+                elif unit.is_done_acting():
+                    symbol_color = 7  # White for done units
+                else:
+                    symbol_color = player_color  # Player color for active units
+
+                # Display as "Ga" (unit symbol + letter)
+                unit_display = f"{symbol}{greek_letter}"
+                self.renderer.draw_text(status_line, current_pos, unit_display, symbol_color)
+
             current_pos += len(unit_display)
-            
+
             # Add space between units (except for last one)
-            if i < len(player_units) - 1:
+            if i < len(all_units) - 1:
                 self.renderer.draw_text(status_line, current_pos, " ", 1)
                 current_pos += 1

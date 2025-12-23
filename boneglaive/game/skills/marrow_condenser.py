@@ -486,7 +486,16 @@ class MarrowDikeSkill(ActiveSkill):
         # Track interior tiles for Dominion passive detection
         for tile_y, tile_x in dike_interior:
             tile = (tile_y, tile_x)
-            
+
+            # If upgraded, place blood plasma terrain on interior
+            if self.upgraded:
+                current_terrain = game.map.get_terrain_at(tile_y, tile_x)
+                # Store original terrain for restoration
+                if tile not in game.previous_terrain:
+                    game.previous_terrain[tile] = current_terrain
+                # Place blood plasma
+                game.map.set_terrain_at(tile_y, tile_x, TerrainType.BLOOD_PLASMA)
+
             # Check if this tile was pre-established during turn resolution
             if tile in game.marrow_dike_interior and game.marrow_dike_interior[tile].get('pre_established', False):
                 # Update the pre-established tracking with final values - DOMINION tracking officially begins now
@@ -909,8 +918,8 @@ class BoneTitheSkill(ActiveSkill):
                 actual_heal = user.heal(hp_gained, "bone marrow gain")
                 hp_gained = actual_heal  # Update for display purposes
                 
-                # Show healing number if UI is available
-                if ui and hasattr(ui, 'renderer') and hp_gained > 0:
+                # Show healing number if UI is available (ASCII mode only)
+                if ui and hasattr(ui, 'renderer') and hasattr(ui.renderer, 'draw_damage_text') and hp_gained > 0:
                     healing_text = f"+{hp_gained}"
                     
                     # Make healing text prominent with flashing effect (green color)

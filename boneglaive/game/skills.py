@@ -646,13 +646,13 @@ class PrySkill(ActiveSkill):
                 durations = [0.1] * 4
                 
                 ui.renderer.flash_tile(target.y, target.x, tile_ids, color_ids, durations)
-            
+
         # Apply damage to primary target (ignoring defense for part of the damage)
         # This represents the direct impact of hitting the ceiling and ground
         defense_reduced_damage = max(3, self.primary_damage - target.defense)  # 3 damage minimum
         previous_hp = target.hp
         target.hp = max(0, target.hp - defense_reduced_damage)
-        
+
         # Log the primary damage
         message_log.add_combat_message(
             attacker_name=user.get_display_name(),
@@ -662,7 +662,7 @@ class PrySkill(ActiveSkill):
             attacker_player=user.player,
             target_player=target.player
         )
-            
+
         # Apply splash damage to adjacent enemy units (secondary debris damage)
         affected_adjacents = []
         
@@ -1123,8 +1123,8 @@ class DischargeSkill(ActiveSkill):
         super().__init__(
             name="Expedite",  # Renamed from Discharge to Expedite
             key="E",
-            description="Rush up to 4 tiles in a line. Automatically trap and damage the first enemy encountered.",
-            target_type=TargetType.AREA,
+            description="Rush toward an enemy in a straight line. Traps and damages the target.",
+            target_type=TargetType.ENEMY,
             cooldown=3,
             range_=4
         )
@@ -1161,16 +1161,10 @@ class DischargeSkill(ActiveSkill):
         is_straight_line = (delta_y == 0 or delta_x == 0 or abs(delta_y) == abs(delta_x))
         if not is_straight_line:
             return False
-            
-        # Check target position is valid and passable
-        if not game.is_valid_position(target_pos[0], target_pos[1]):
-            return False
-        if not game.map.is_passable(target_pos[0], target_pos[1]):
-            return False
-            
-        # Check if any ally unit is at the target position (enemy units are fine - we can attack them)
+
+        # ENEMY targeting: Must have an enemy unit at target position
         target_unit = game.get_unit_at(target_pos[0], target_pos[1])
-        if target_unit and target_unit.player == user.player:
+        if not target_unit or target_unit.player == user.player:
             return False
             
         # Check for line of sight - ensure path is clear of obstacles

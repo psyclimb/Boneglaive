@@ -173,23 +173,23 @@ def main(stdscr):
     # Initial setup for the curses screen
     curses.curs_set(0)  # Hide cursor
     stdscr.timeout(-1)  # No timeout for getch
-    
+
     # Set up platform-specific terminal optimizations
     setup_terminal_optimizations()
-    
+
     # Set escape key delay if supported by curses
     try:
         if hasattr(curses, 'set_escdelay'):
             curses.set_escdelay(25)
     except:
         pass  # Ignore if not supported on this system
-    
+
     # Get arguments
     args = parse_args()
-    
+
     # Configure settings
     configure_settings(args)
-    
+
     # Initialize logging
     logger.setLevel(debug_config.log_level.value)
     if debug_config.log_to_file:
@@ -202,6 +202,11 @@ def main(stdscr):
     else:
         # Otherwise use a null handler to prevent stdout logging
         logger.addHandler(logging.NullHandler())
+
+    # Initialize DLC system
+    from boneglaive.game.dlc_manager import initialize_dlc_system
+    dlc_count = initialize_dlc_system()
+    logger.info(f"DLC system initialized: {dlc_count} units loaded")
     
     logger.info("Starting Boneglaive")
     

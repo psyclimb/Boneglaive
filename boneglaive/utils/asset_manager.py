@@ -35,22 +35,11 @@ class AssetManager:
     
     def _initialize_text_assets(self) -> None:
         """Initialize text-based assets (ASCII/Unicode characters)."""
-        # Unit symbols
-        self.unit_tiles = {
-            UnitType.GLAIVEMAN: 'G',
-            UnitType.ARCHER: 'A',
-            UnitType.MAGE: 'M',
-            UnitType.MANDIBLE_FOREMAN: 'F',
-            UnitType.GRAYMAN: 'Ψ',
-            UnitType.MARROW_CONDENSER: 'C',
-            UnitType.FOWL_CONTRIVANCE: 'T',
-            UnitType.GAS_MACHINIST: 'M',
-            UnitType.HEINOUS_VAPOR: 'V',  # Base symbol, will be replaced by vapor_symbol in display code
-            UnitType.DELPHIC_APPRAISER: 'A',  # A for Appraiser
-            UnitType.DERELICTIONIST: 'D',  # D for DERELICTIONIST
-            UnitType.INTERFERER: 'R',  # R for Radioactive interference
-            UnitType.POTPOURRIST: 'P'  # P for POTPOURRIST
-        }
+        # Unit symbols - load from UNIT_SYMBOLS to include DLC units
+        from boneglaive.utils.constants import UNIT_SYMBOLS
+
+        # Copy all symbols from UNIT_SYMBOLS (includes base units and loaded DLC)
+        self.unit_tiles = dict(UNIT_SYMBOLS)
         
         # Terrain symbols
         self.terrain_tiles = {
@@ -61,11 +50,11 @@ class AssetManager:
             'limestone': '#',  # Limestone powder piles use hash symbol
             'dust': ',',       # Light limestone dusting use a comma
             'pillar': 'O',     # Pillars use capital O
-            'furniture': '#',  # Generic furniture uses hash symbol
+            'radio_console': '%',  # Vintage radio console (speaker grills/dials)
             'coat_rack': 'Y',  # Coat rack uses Y
-            'ottoman': '=',    # Ottoman uses equals sign
+            'ottoman': 'u',    # Ottoman cushioned seating
             'console': '=',    # Console table (flat surface)
-            'dec_table': '=',  # Decorative table (flat surface)
+            'curiosity_shelf': 'E',  # Victorian curiosity shelf (stacked shelves)
             'marrow_wall': '#',  # Marrow Dike wall uses hash character
             'rail': '+',      # Rail track uses cross symbol for intersections
             # Stained Stones map terrain
@@ -77,7 +66,7 @@ class AssetManager:
             'podium': '^',     # Elevated podium platform
             'vase': 'v',       # Lowercase v resembles vase shape
             'canyon_floor': '.',  # Canyon floor sediment
-            # Edge Case map terrain - Industrial warehouse converted to home
+            # Hard Pressed map terrain - Industrial warehouse converted to home
             'hydraulic_press': 'O',  # Round shape for massive hydraulic press
             'workbench': 'I',  # I-beam shape for industrial workbench
             'couch': 'u',      # Lowercase u resembles couch shape

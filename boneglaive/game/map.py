@@ -18,11 +18,11 @@ class TerrainType(Enum):
     LIMESTONE = 1  # Limestone formation, blocks movement and unit placement
     DUST = 2       # Light limestone dusting, visual only (passable)
     PILLAR = 3     # Large limestone pillar, blocks movement and unit placement
-    FURNITURE = 4  # Generic furniture, blocks movement but not line of sight
+    RADIO_CONSOLE = 4  # Vintage radio communication console, blocks movement but not line of sight
     COAT_RACK = 5  # Coat rack, blocks movement but not line of sight
     OTTOMAN = 6    # Ottoman seating, blocks movement but not line of sight
     CONSOLE = 7    # Console table, blocks movement but not line of sight
-    DEC_TABLE = 8  # Decorative table, blocks movement but not line of sight
+    CURIOSITY_SHELF = 8  # Victorian display shelf with lime specimens, blocks movement but not line of sight
     MARROW_WALL = 9  # Marrow Dike wall, blocks movement and unit placement but not permanently
     RAIL = 10      # Rail track, passable by all units but FOWL_CONTRIVANCE gets special movement
     TIFFANY_LAMP = 11  # Tiffany-style decorative lamp, blocks movement but not line of sight
@@ -33,7 +33,7 @@ class TerrainType(Enum):
     PODIUM = 16    # Display podium, blocks movement but not line of sight
     VASE = 17      # Decorative pottery vase, blocks movement but not line of sight
     CANYON_FLOOR = 18  # Canyon floor with natural sediment, visual only (passable)
-    # Edge Case map - Industrial warehouse converted to home
+    # Hard Pressed map - Industrial warehouse converted to home
     HYDRAULIC_PRESS = 19 # Industrial hydraulic press, blocks movement and unit placement
     WORKBENCH = 20 # Industrial workbench, blocks movement but not line of sight
     COUCH = 21     # Household couch, blocks movement but not line of sight
@@ -45,6 +45,7 @@ class TerrainType(Enum):
     MINI_PUMPKIN = 27   # Mini decorative pumpkin, blocks movement but not line of sight
     POTPOURRI_BOWL = 28 # Decorative potpourri bowl, blocks movement but not line of sight
     MELANGE_FUME = 29   # Aromatic fumes from potpourri bowl, passable, provides healing aura
+    BLOOD_PLASMA = 30   # Blood plasma from upgraded Marrow Dike, passable, slows enemies
 
 
 class GameMap:
@@ -56,8 +57,9 @@ class GameMap:
         self.terrain: Dict[Tuple[int, int], TerrainType] = {}
         self.name = "Generic Map"
 
-        # Dictionary to store astral values for furniture
-        self.cosmic_values: Dict[Tuple[int, int], int] = {}
+        # Dictionary to store astral values for furniture per player
+        # Format: {player: {(y, x): value}}
+        self.cosmic_values: Dict[int, Dict[Tuple[int, int], int]] = {}
         
         # Dictionary to store lighting effects
         self.lighting_effects: Dict[Tuple[int, int], Dict] = {}
@@ -91,14 +93,14 @@ class GameMap:
         """Check if a position is passable (can be moved through)."""
         terrain = self.get_terrain_at(y, x)
         # All furniture types, pillars, limestone, stained stone, and marrow walls are impassable
-        # Rails, canyon floor, concrete floor, leaf pits, melange fumes, and mini pumpkins are passable by all units
-        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.CONCRETE_FLOOR, TerrainType.RAIL, TerrainType.LEAF_PIT, TerrainType.MELANGE_FUME, TerrainType.MINI_PUMPKIN]
+        # Rails, canyon floor, concrete floor, leaf pits, melange fumes, blood plasma, and mini pumpkins are passable by all units
+        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.CONCRETE_FLOOR, TerrainType.RAIL, TerrainType.LEAF_PIT, TerrainType.MELANGE_FUME, TerrainType.BLOOD_PLASMA, TerrainType.MINI_PUMPKIN]
     
     def can_place_unit(self, y: int, x: int) -> bool:
         """Check if a unit can be placed at this position."""
         terrain = self.get_terrain_at(y, x)
-        # Units can be placed on empty, dusty, canyon floor, concrete floor, rail tiles, leaf pits, melange fumes, or mini pumpkins
-        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.CONCRETE_FLOOR, TerrainType.RAIL, TerrainType.LEAF_PIT, TerrainType.MELANGE_FUME, TerrainType.MINI_PUMPKIN]
+        # Units can be placed on empty, dusty, canyon floor, concrete floor, rail tiles, leaf pits, melange fumes, blood plasma, or mini pumpkins
+        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.CONCRETE_FLOOR, TerrainType.RAIL, TerrainType.LEAF_PIT, TerrainType.MELANGE_FUME, TerrainType.BLOOD_PLASMA, TerrainType.MINI_PUMPKIN]
         
     def blocks_line_of_sight(self, y: int, x: int) -> bool:
         """Check if a position blocks line of sight for ranged attacks."""
@@ -108,16 +110,17 @@ class GameMap:
 
     def get_cosmic_value(self, y: int, x: int, player=None, game=None) -> Optional[int]:
         """
-        Get astral value at the given coordinates.
+        Get astral value at the given coordinates for a specific player.
         Returns None if no value is set or if the terrain is not furniture.
         The player parameter is used to check if the player can see the astral value.
         Only players with DELPHIC_APPRAISER units can see the values.
+        Each player has their own independent set of astral values.
         """
         # Check if the position has furniture
         terrain = self.get_terrain_at(y, x)
-        if terrain not in [TerrainType.FURNITURE, TerrainType.COAT_RACK,
-                          TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE, 
-                          TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE, 
+        if terrain not in [TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
+                          TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF,
+                          TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE,
                           TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                           TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
                           TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
@@ -139,43 +142,53 @@ class GameMap:
         if not has_appraiser:
             return None
 
-        # Generate value if not already set
-        if (y, x) not in self.cosmic_values:
+        # Initialize player's cosmic values dict if it doesn't exist
+        if player not in self.cosmic_values:
+            self.cosmic_values[player] = {}
+
+        # Generate value if not already set for this player
+        if (y, x) not in self.cosmic_values[player]:
             import random
-            self.cosmic_values[(y, x)] = random.randint(1, 9)
+            self.cosmic_values[player][(y, x)] = random.randint(1, 9)
 
-        # Return the astral value
-        return self.cosmic_values.get((y, x))
+        # Return the astral value for this player
+        return self.cosmic_values[player].get((y, x))
 
-    def set_cosmic_value(self, y: int, x: int, value: int) -> bool:
+    def set_cosmic_value(self, y: int, x: int, value: int, player: int) -> bool:
         """
-        Set astral value at the given coordinates.
+        Set astral value at the given coordinates for a specific player.
         Returns True if successful, False if the terrain is not furniture.
+        Values are clamped to a maximum of 14.
+        Each player has their own independent set of astral values.
         """
         # Check if the position has furniture
         terrain = self.get_terrain_at(y, x)
-        if terrain not in [TerrainType.FURNITURE, TerrainType.COAT_RACK,
-                          TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE, 
-                          TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE, 
+        if terrain not in [TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
+                          TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF,
+                          TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE,
                           TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                           TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
                           TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
                           TerrainType.POTPOURRI_BOWL]:
             return False
 
-        # Set the astral value
-        self.cosmic_values[(y, x)] = value
+        # Initialize player's cosmic values dict if it doesn't exist
+        if player not in self.cosmic_values:
+            self.cosmic_values[player] = {}
+
+        # Set the astral value for this player, capped at 14
+        self.cosmic_values[player][(y, x)] = min(value, 14)
         return True
 
     def is_furniture(self, y: int, x: int) -> bool:
         """Check if a position has furniture."""
         terrain = self.get_terrain_at(y, x)
-        return terrain in [TerrainType.FURNITURE, TerrainType.COAT_RACK,
-                          TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE, 
-                          TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE, 
+        return terrain in [TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
+                          TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF,
+                          TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE,
                           TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                           TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
-                          TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN, 
+                          TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
                           TerrainType.POTPOURRI_BOWL]
 
     def set_lighting_effect(self, y: int, x: int, light_type: str, color: str = "white", radius: int = 1) -> None:
@@ -324,9 +337,55 @@ class GameMap:
                 rail_positions.append((y, x))
         return rail_positions
 
+    def get_rail_type(self, y: int, x: int) -> str:
+        """
+        Determine which rail graphic variant to use based on adjacent rails.
+
+        Args:
+            y, x: Position of the rail tile
+
+        Returns:
+            "ns" for North-South vertical rails
+            "ew" for East-West horizontal rails
+            "cross" for 4-way junctions
+        """
+        if self.get_terrain_at(y, x) != TerrainType.RAIL:
+            return "ns"  # Default fallback
+
+        # Check adjacent tiles for rails (N, S, E, W)
+        has_north = (y > 0 and self.get_terrain_at(y - 1, x) == TerrainType.RAIL)
+        has_south = (y < self.height - 1 and self.get_terrain_at(y + 1, x) == TerrainType.RAIL)
+        has_east = (x < self.width - 1 and self.get_terrain_at(y, x + 1) == TerrainType.RAIL)
+        has_west = (x > 0 and self.get_terrain_at(y, x - 1) == TerrainType.RAIL)
+
+        # Count connections
+        vertical_connections = has_north or has_south
+        horizontal_connections = has_east or has_west
+
+        # Determine rail type based on connections
+        if vertical_connections and horizontal_connections:
+            # Both directions - use cross junction
+            return "cross"
+        elif horizontal_connections:
+            # Only horizontal connections - use EW rail
+            return "ew"
+        else:
+            # Only vertical connections or isolated - use NS rail
+            return "ns"
+
     def get_rail_original_terrain(self, y: int, x: int) -> TerrainType:
         """Get the original terrain that was at this position before a rail was placed."""
         return self.rail_original_terrain.get((y, x), TerrainType.EMPTY)
+
+    def remove_rail_network(self) -> None:
+        """
+        Remove all rail tiles and restore original terrain.
+        Called when the last FOWL CONTRIVANCE dies.
+        """
+        for (y, x), original_terrain in list(self.rail_original_terrain.items()):
+            if self.get_terrain_at(y, x) == TerrainType.RAIL:
+                self.set_terrain_at(y, x, original_terrain)
+        self.rail_original_terrain.clear()
 
     @classmethod
     def from_json(cls, file_path: str) -> 'GameMap':
@@ -470,8 +529,8 @@ class LimeFoyerMap(GameMap):
         # Add strategically placed furniture
         
         # Entry vestibule furniture
-        self.set_terrain_at(1, 1, TerrainType.FURNITURE)   # Corner plant (entrance decor)
-        self.set_terrain_at(1, 18, TerrainType.FURNITURE)  # Corner plant (entrance decor)
+        self.set_terrain_at(1, 1, TerrainType.RADIO_CONSOLE)   # Corner plant (entrance decor)
+        self.set_terrain_at(1, 18, TerrainType.RADIO_CONSOLE)  # Corner plant (entrance decor)
         
         # Top round pillar (3x3)
         pillar_top = [
@@ -499,7 +558,7 @@ class LimeFoyerMap(GameMap):
         
         # Reception/check-in area
         self.set_terrain_at(2, 4, TerrainType.CONSOLE)    # Reception desk
-        self.set_terrain_at(2, 5, TerrainType.FURNITURE)  # Reception chair
+        self.set_terrain_at(2, 5, TerrainType.RADIO_CONSOLE)  # Reception chair
         
         # Main waiting area (centered in open space)
         self.set_terrain_at(4, 15, TerrainType.OTTOMAN)   # Right ottoman
@@ -508,16 +567,16 @@ class LimeFoyerMap(GameMap):
         self.set_terrain_at(5, 4, TerrainType.OTTOMAN)    # Left ottoman extension
         
         # Center coffee/magazine tables
-        self.set_terrain_at(4, 3, TerrainType.DEC_TABLE)  # Side table by ottoman
-        self.set_terrain_at(4, 16, TerrainType.DEC_TABLE) # Side table by ottoman
+        self.set_terrain_at(4, 3, TerrainType.CURIOSITY_SHELF)  # Side table by ottoman
+        self.set_terrain_at(4, 16, TerrainType.CURIOSITY_SHELF) # Side table by ottoman
         
         # Lower seating area (near second pillar)
         self.set_terrain_at(8, 4, TerrainType.OTTOMAN)    # Lower lobby ottoman
         self.set_terrain_at(8, 15, TerrainType.OTTOMAN)   # Lower lobby ottoman opposite
         
         # Decorative elements
-        self.set_terrain_at(6, 5, TerrainType.FURNITURE)  # Plant between seating areas
-        self.set_terrain_at(6, 14, TerrainType.FURNITURE) # Plant between seating areas
+        self.set_terrain_at(6, 5, TerrainType.RADIO_CONSOLE)  # Plant between seating areas
+        self.set_terrain_at(6, 14, TerrainType.RADIO_CONSOLE) # Plant between seating areas
         
         # Light limestone dustings (windswept patterns)
         # This is a partial list - approximately 50% of tiles will have dust
@@ -595,22 +654,22 @@ class NewLimeFoyerMap(GameMap):
         # Top-left corner
         self.set_terrain_at(0, 0, TerrainType.COAT_RACK)
         self.set_terrain_at(0, 3, TerrainType.CONSOLE)
-        self.set_terrain_at(2, 0, TerrainType.DEC_TABLE)
+        self.set_terrain_at(2, 0, TerrainType.CURIOSITY_SHELF)
         
         # Top-right corner
         self.set_terrain_at(0, 19, TerrainType.COAT_RACK)
         self.set_terrain_at(0, 16, TerrainType.CONSOLE)
-        self.set_terrain_at(2, 19, TerrainType.DEC_TABLE)
+        self.set_terrain_at(2, 19, TerrainType.CURIOSITY_SHELF)
         
         # Bottom-left corner
         self.set_terrain_at(9, 0, TerrainType.OTTOMAN)
         self.set_terrain_at(9, 3, TerrainType.CONSOLE)
-        self.set_terrain_at(7, 0, TerrainType.DEC_TABLE)
+        self.set_terrain_at(7, 0, TerrainType.CURIOSITY_SHELF)
         
         # Bottom-right corner
         self.set_terrain_at(9, 19, TerrainType.OTTOMAN)
         self.set_terrain_at(9, 16, TerrainType.CONSOLE)
-        self.set_terrain_at(7, 19, TerrainType.DEC_TABLE)
+        self.set_terrain_at(7, 19, TerrainType.CURIOSITY_SHELF)
         
         # Pattern 2: Furniture clusters around the pit (optimal for Market Futures teleportation)
         # North cluster
@@ -619,21 +678,21 @@ class NewLimeFoyerMap(GameMap):
         
         # East cluster
         self.set_terrain_at(4, 17, TerrainType.OTTOMAN)
-        self.set_terrain_at(5, 17, TerrainType.DEC_TABLE)
+        self.set_terrain_at(5, 17, TerrainType.CURIOSITY_SHELF)
         
         # West cluster
         self.set_terrain_at(4, 2, TerrainType.OTTOMAN)
-        self.set_terrain_at(5, 2, TerrainType.DEC_TABLE)
+        self.set_terrain_at(5, 2, TerrainType.CURIOSITY_SHELF)
         
         # South cluster
         self.set_terrain_at(9, 9, TerrainType.OTTOMAN)
         self.set_terrain_at(9, 10, TerrainType.CONSOLE)
         
         # Pattern 3: Inner ring furniture just outside the pit (for Auction Curse positioning)
-        self.set_terrain_at(3, 4, TerrainType.FURNITURE)
-        self.set_terrain_at(3, 15, TerrainType.FURNITURE)
-        self.set_terrain_at(6, 4, TerrainType.FURNITURE)
-        self.set_terrain_at(6, 15, TerrainType.FURNITURE)
+        self.set_terrain_at(3, 4, TerrainType.RADIO_CONSOLE)
+        self.set_terrain_at(3, 15, TerrainType.RADIO_CONSOLE)
+        self.set_terrain_at(6, 4, TerrainType.RADIO_CONSOLE)
+        self.set_terrain_at(6, 15, TerrainType.RADIO_CONSOLE)
         
         # Pattern 4: Central pit furniture pieces (few but valuable tactical positions)
         self.set_terrain_at(4, 8, TerrainType.OTTOMAN)
@@ -794,20 +853,20 @@ class StainedStonesMap(GameMap):
                 self.set_terrain_at(y, x, TerrainType.CANYON_FLOOR)
 
 
-class EdgecaseMap(GameMap):
-    """Edge Case - Industrial warehouse converted to home, forces edge-based gameplay with central blocking."""
-    
+class HardPressedMap(GameMap):
+    """Hard Pressed - Industrial warehouse converted to home, forces edge-based gameplay with central blocking."""
+
     def __init__(self):
         super().__init__()
-        self.name = "Edge Case"
+        self.name = "Hard Pressed"
         from boneglaive.utils.debug import logger
-        logger.info("EdgecaseMap.__init__ called - generating Edge Case warehouse map")
+        logger.info("HardPressedMap.__init__ called - generating Hard Pressed warehouse map")
         self.generate_map()
-    
+
     def generate_map(self) -> None:
-        """Generate Edge Case map with central industrial machinery forcing edge play."""
+        """Generate Hard Pressed map with central industrial machinery forcing edge play."""
         from boneglaive.utils.debug import logger
-        logger.info("EdgecaseMap.generate_map() called - creating Edge Case warehouse layout")
+        logger.info("HardPressedMap.generate_map() called - creating Hard Pressed warehouse layout")
         # Reset to empty first
         self.reset_to_empty()
         
@@ -960,9 +1019,9 @@ class MapFactory:
         elif map_name.lower() == "stained_stones":
             logger.info("Creating StainedStonesMap")
             return StainedStonesMap()
-        elif map_name.lower() == "edgecase":
-            logger.info("Creating Edge Case map")
-            return EdgecaseMap()
+        elif map_name.lower() == "hard_pressed":
+            logger.info("Creating Hard Pressed map")
+            return HardPressedMap()
         else:
             logger.warning(f"Unknown map name '{map_name}', defaulting to empty GameMap")
             # Default to empty map
@@ -982,7 +1041,7 @@ class MapFactory:
                     maps.append(map_name)
         
         # Add hardcoded maps (only if not already found as JSON)
-        hardcoded_maps = ["stained_stones", "edgecase", "lime_foyer"]
+        hardcoded_maps = ["stained_stones", "hard_pressed", "lime_foyer"]
         for map_name in hardcoded_maps:
             if map_name not in maps:
                 maps.append(map_name)

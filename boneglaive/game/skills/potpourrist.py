@@ -109,9 +109,9 @@ class InfuseSkill(ActiveSkill):
         super().__init__(
             name="Infuse",
             key="1",
-            description="Creates potpourri that enhances next skill and increases Melange Eminence to 2 HP/turn.",
+            description="Creates potpourri that enhances next skill and increases Melange Eminence to 2 HP/turn. Lasts 2 turns.",
             target_type=TargetType.SELF,
-            cooldown=0,
+            cooldown=1,
             range_=0
         )
 
@@ -186,8 +186,9 @@ class InfuseSkill(ActiveSkill):
             if hasattr(ui, 'draw_board'):
                 ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
 
-        # Set potpourri held flag
+        # Set potpourri held flag and duration
         user.potpourri_held = True
+        user.potpourri_duration = 3  # Lasts 2 turns (decremented at start of each turn)
 
         return True
 
@@ -271,6 +272,15 @@ class DemiluneSkill(ActiveSkill):
         # Target must be adjacent (range 1)
         distance = game.chess_distance(check_y, check_x, target_pos[0], target_pos[1])
         if distance > self.range:
+            return False
+
+        # Target must be in a cardinal direction (north, south, east, west only)
+        dy = target_pos[0] - check_y
+        dx = target_pos[1] - check_x
+
+        # Cardinal directions: one coordinate must be 0, the other non-zero
+        is_cardinal = (dx == 0 and dy != 0) or (dy == 0 and dx != 0)
+        if not is_cardinal:
             return False
 
         return True
@@ -360,6 +370,15 @@ class DemiluneSkill(ActiveSkill):
         # Consume potpourri if held
         if user.potpourri_held:
             user.potpourri_held = False
+            user.potpourri_duration = 0
+
+            # Trigger Infuse cooldown when consumed
+            # Add 1 to account for cooldown decrement at start of next turn
+            for skill in user.active_skills:
+                if skill.name == "Infuse":
+                    skill.current_cooldown = skill.cooldown + 1
+                    break
+
             message_log.add_message(
                 f"{user.get_display_name()} infuses Demilune with his fragrant blend",
                 MessageType.ABILITY,
@@ -593,6 +612,15 @@ class GraniteGeasSkill(ActiveSkill):
         # Consume potpourri if held
         if user.potpourri_held:
             user.potpourri_held = False
+            user.potpourri_duration = 0
+
+            # Trigger Infuse cooldown when consumed
+            # Add 1 to account for cooldown decrement at start of next turn
+            for skill in user.active_skills:
+                if skill.name == "Infuse":
+                    skill.current_cooldown = skill.cooldown + 1
+                    break
+
             message_log.add_message(
                 f"{user.get_display_name()} infuses Granite Geas with his fragrant blend",
                 MessageType.ABILITY,
@@ -681,6 +709,7 @@ class GraniteGeasSkill(ActiveSkill):
             target.taunted_by = user
             target.taunt_duration = taunt_duration
             target.taunt_responded_this_turn = False
+            target.geas_affected = True  # For status icon display
 
             # Show geas binding animation - oils dripping and sealing
             if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):

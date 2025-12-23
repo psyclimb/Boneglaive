@@ -99,9 +99,7 @@ class Unit:
         self.original_unit = None  # Reference to the original unit that created this echo
         
         # FOWL_CONTRIVANCE properties
-        self.charging_status = False  # Whether this unit has "charging" status effect
-        self.gaussian_charge_direction = None  # Direction for Gaussian Dusk charging
-        self.gaussian_dusk_indicator = None  # Visual indicator for Gaussian Dusk charging
+        self.gaussian_dusk_recharge = 0  # Number of turns remaining for Gaussian Dusk recharge
         self.parabol_indicator = None  # Visual indicator for Parabol area
         self.fragcrest_indicator = None  # Visual indicator for Fragcrest cone
         self.shrapnel_duration = 0  # Number of turns remaining for shrapnel damage
@@ -128,6 +126,12 @@ class Unit:
         
         # DELPHIC APPRAISER properties
         self.can_use_anchor = False  # Whether this unit can use Market Futures teleport anchors
+
+        # Market Futures investment tracking
+        self.market_futures_bonus_applied = False  # Whether unit has investment buff
+        self.market_futures_duration = 0  # Turns remaining for investment
+        self.market_futures_maturity = 1  # Current maturity level (1-3)
+        self.has_investment_effect = False  # Status icon indicator
         
         # DERELICTIONIST properties
         self.trauma_processing_active = False  # Whether affected by Trauma Processing
@@ -161,7 +165,13 @@ class Unit:
         self.taunted_by = None  # Reference to POTPOURRIST that applied taunt
         self.taunt_duration = 0  # Turns remaining for taunt
         self.taunt_responded_this_turn = False  # Track if unit attacked/skilled POTPOURRIST this turn
+        self.geas_affected = False  # Whether unit is affected by Granite Geas (for status icon)
         self.potpourri_held = False  # Whether POTPOURRIST is holding potpourri (POTPOURRIST only)
+        self.potpourri_duration = 0  # Turns remaining for potpourri (POTPOURRIST only)
+
+        # PELOTARI properties
+        self.backhand_active = False  # Whether Backhand counter stance is active
+        self.backhand_duration = 0  # Turns remaining for Backhand stance
 
         # Experience and leveling
         self.level = 1
@@ -175,17 +185,20 @@ class Unit:
         """Initialize skills for this unit based on its type."""
         # Avoid circular imports
         from boneglaive.game.skills.registry import UNIT_SKILLS
-        
+        from boneglaive.game.dlc_manager import get_dlc_manager
+
+        # Get unit type name (handles both enum and DLC types)
+        unit_type_name = self.get_type_name()
+
         # Get skills from registry if available
-        unit_type_name = self.type.name
         if unit_type_name in UNIT_SKILLS:
             skill_set = UNIT_SKILLS[unit_type_name]
-            
+
             # Set passive skill - create new instance for each unit
             if 'passive' in skill_set:
                 passive_class = skill_set['passive'].__class__
                 self.passive_skill = passive_class()
-                
+
             # Set active skills - create new instances for each unit
             if 'active' in skill_set:
                 self.active_skills = []
@@ -193,7 +206,25 @@ class Unit:
                     # Create a new instance of the skill for this unit
                     skill_class = skill.__class__
                     self.active_skills.append(skill_class())
-    
+
+    def get_active_skills(self) -> List['ActiveSkill']:
+        """
+        Get all active skills including dynamic skills.
+
+        Returns:
+            List of ActiveSkill instances including base skills and dynamic skills
+        """
+        skills = list(self.active_skills)  # Copy base skills
+
+        # Add Parallax skill dynamically if unit is adjacent to Market Futures anchor
+        if hasattr(self, 'can_use_anchor') and self.can_use_anchor:
+            # Import here to avoid circular imports
+            from boneglaive.game.skills.delphic_appraiser import ParallaxSkill
+            parallax_skill = ParallaxSkill()
+            skills.append(parallax_skill)
+
+        return skills
+
     def is_alive(self) -> bool:
         """Check if the unit is alive."""
         return self.hp > 0
@@ -290,14 +321,29 @@ class Unit:
             
         return effective_prt
         
+    def get_type_name(self) -> str:
+        """
+        Get the unit's type name as a string.
+        Handles both enum types and DLC integer types.
+
+        Returns:
+            str: The unit type name (e.g., "GLAIVEMAN", "PELOTARI")
+        """
+        if hasattr(self.type, 'name'):
+            return self.type.name
+        else:
+            # DLC unit - get name from UNIT_DISPLAY_NAMES
+            from boneglaive.utils.constants import UNIT_DISPLAY_NAMES
+            return UNIT_DISPLAY_NAMES.get(self.type, f"UNIT_{self.type}")
+
     def get_display_name(self, shortened=False) -> str:
         """Get the unit's display name including the Greek identifier.
-        
+
         Args:
             shortened: If True, provides a shorter display name for UI menus
         """
         # Format unit type name for display (replace underscores with spaces)
-        display_type = self.type.name
+        display_type = self.get_type_name()
         if display_type == "MANDIBLE_FOREMAN":
             # Use a shorter name if requested (for UI menus)
             if shortened:
@@ -603,14 +649,17 @@ class Unit:
             raw_damage = self._hp - value
             
             # CHECK FOR DISSOCIATION FIRST - before any damage processing
-            if (hasattr(self, 'partition_shield_active') and self.partition_shield_active and 
-                self.prt > 0 and (self._hp - raw_damage) <= 0 and 
+            if (hasattr(self, 'partition_shield_active') and self.partition_shield_active and
+                self.prt > 0 and (self._hp - raw_damage) <= 0 and
                 not getattr(self, 'partition_shield_blocked_fatal', False)):
-                
+
                 # DISSOCIATION TRIGGERED: Boost PRT to 999 for this turn
                 self.prt = 999  # All damage this turn absorbed by partition
                 self.partition_shield_blocked_fatal = True  # Mark for cleanup
-                
+
+                # Save caster reference for animation (before clearing it)
+                self.partition_dissociation_caster = self.partition_shield_caster
+
                 # Teleport DERELICTIONIST immediately
                 if hasattr(self, 'partition_shield_caster') and self.partition_shield_caster and self._game:
                     self._game._teleport_derelictionist_away(self.partition_shield_caster, self, distance=4)
@@ -642,8 +691,11 @@ class Unit:
                 self.partition_shield_caster = None
                 self.partition_shield_emergency_active = False
                 
-                # Show dissociation animation - eyes rolling back, complete mental separation  
-                if self._game and hasattr(self._game, 'ui') and self._game.ui and hasattr(self._game.ui, 'renderer'):
+                # Show dissociation animation - eyes rolling back, complete mental separation
+                # (ASCII version only - graphical version uses PartitionDissociationAnimation)
+                if (self._game and hasattr(self._game, 'ui') and self._game.ui and
+                    hasattr(self._game.ui, 'renderer') and
+                    hasattr(self._game.ui.renderer, 'animate_attack_sequence')):
                     dissociation_animation = ['o', 'O', '0', '^', '_', '-', '=', '=', 'O', '1']  # Eyes rolling back into skull
                     self._game.ui.renderer.animate_attack_sequence(
                         self.y, self.x,
@@ -704,25 +756,52 @@ class Unit:
                             player=self.player
                         )
                         logger.info(f"PRT AUTO: {self.get_display_name()}'s partition absorbed {prt_absorbed} damage")
-                        
+
                         # Show partition shield reverberation animation
                         if self._game and hasattr(self._game, 'ui') and self._game.ui and hasattr(self._game.ui, 'renderer'):
-                            # Partition reverberation animation - shield flickering and reverberating from impact
-                            partition_reverberation = [')', ']', '|', '#', '|', ']', ')', '(', '[', '|']  # Shield flickering/reverberating
-                            self._game.ui.renderer.animate_attack_sequence(
-                                self.y, self.x,
-                                partition_reverberation,
-                                4,  # Blue color matching partition application
-                                0.6  # Slower animation to show deliberate reverberation
-                            )
+                            renderer = self._game.ui.renderer
+
+                            # Check if using graphical renderer (has camera and active_animations)
+                            if hasattr(renderer, 'camera') and hasattr(renderer, 'active_animations') and renderer.camera:
+                                # Graphical mode - spawn PartitionHitAnimation
+                                try:
+                                    from boneglaive.graphical.animations import PartitionHitAnimation
+
+                                    # Find the AnimatedUnit for this unit
+                                    animated_unit = renderer._find_animated_unit_by_game_unit(self)
+
+                                    if animated_unit:
+                                        hit_anim = PartitionHitAnimation(animated_unit, renderer.camera)
+                                        renderer.active_animations.append(hit_anim)
+                                        logger.debug(f"PARTITION HIT: Spawned graphical animation for {self.get_display_name()}")
+                                    else:
+                                        logger.debug(f"PARTITION HIT: Could not find AnimatedUnit for {self.get_display_name()}")
+                                except ImportError as e:
+                                    logger.debug(f"Could not import PartitionHitAnimation: {e}")
+                                except Exception as e:
+                                    logger.error(f"PARTITION HIT: Error spawning animation: {e}")
+                            else:
+                                # ASCII mode - use old animation
+                                partition_reverberation = [')', ']', '|', '#', '|', ']', ')', '(', '[', '|']  # Shield flickering/reverberating
+                                renderer.animate_attack_sequence(
+                                    self.y, self.x,
+                                    partition_reverberation,
+                                    4,  # Blue color matching partition application
+                                    0.6  # Slower animation to show deliberate reverberation
+                                )
                     else:
                         # HEINOUS VAPOR units silently absorb damage as gas entities
                         logger.debug(f"HEINOUS VAPOR: {self.get_display_name()} silently absorbed {prt_absorbed} damage")
                 
                 # Apply final damage
                 self._applying_damage = True
+                old_hp = self._hp
                 self._hp = max(0, self._hp - actual_damage)
                 self._applying_damage = False
+
+                # Check for death and award GP
+                if old_hp > 0 and self._hp == 0:
+                    self._handle_death()
             else:
                 # No PRT - apply damage normally
                 self.last_prt_absorbed = 0  # No PRT was applied
@@ -742,8 +821,13 @@ class Unit:
 
                 # Apply the (possibly halved) damage
                 self._applying_damage = True
+                old_hp = self._hp
                 self._hp = max(0, self._hp - actual_damage)
                 self._applying_damage = False
+
+                # Check for death and award GP
+                if old_hp > 0 and self._hp == 0:
+                    self._handle_death()
         else:
             # Normal HP setting (healing or non-damage changes)
             self.last_prt_absorbed = 0  # Clear PRT tracking for non-damage changes
@@ -753,7 +837,54 @@ class Unit:
         """Force unit expiration, bypassing invulnerability.
         Used when HEINOUS_VAPOR duration runs out."""
         self._hp = 0
-    
+
+    def _handle_death(self):
+        """Handle unit death - award GP and create DeadUnit entry for respawn."""
+        if not self._game:
+            return
+
+        from boneglaive.utils.constants import GP_ELIGIBLE_UNITS
+        from boneglaive.game.engine import DeadUnit
+        from boneglaive.utils.message_log import message_log, MessageType
+
+        # Check if this unit is GP-eligible (not a summon/echo)
+        if self.type in GP_ELIGIBLE_UNITS:
+            # Award GP to opposing player
+            opposing_player = 2 if self.player == 1 else 1
+            if opposing_player == 1:
+                self._game.player1_gp += 1
+                gp_total = self._game.player1_gp
+            else:
+                self._game.player2_gp += 1
+                gp_total = self._game.player2_gp
+
+            winner_name = self._game.get_player_name(opposing_player)
+
+            # Log GP award
+            message_log.add_message(
+                f"{winner_name} scores 1 GP! ({gp_total}/{self._game.gp_win_threshold})",
+                MessageType.SYSTEM,
+                player=opposing_player
+            )
+
+            # Create DeadUnit entry for respawn
+            dead_unit = DeadUnit(
+                unit_type=self.type,
+                player=self.player,
+                death_turn=self._game.turn,
+                greek_id=self.greek_id
+            )
+            self._game.dead_units.append(dead_unit)
+
+            # Remove from active units list
+            if self in self._game.units:
+                self._game.units.remove(self)
+
+            logger.info(f"GP SYSTEM: {self.get_display_name()} died, {winner_name} awarded 1 GP ({gp_total}/{self._game.gp_win_threshold})")
+        else:
+            # Summon/echo death - no GP awarded, no respawn
+            logger.info(f"GP SYSTEM: {self.get_display_name()} (summon/echo) died - no GP awarded")
+
     # Position properties with trap release functionality
     @property
     def y(self):
@@ -870,7 +1001,12 @@ class Unit:
                 if game.is_valid_position(ny, nx):
                     affected_area.append((ny, nx))
                     
-        # Play visual effect if UI is available
+        # Queue graphical animation if available
+        if ui and hasattr(ui, 'game_adapter') and hasattr(ui.game_adapter, 'queue_vapor_aoe_tick'):
+            # Graphical mode - queue AOE tick animation
+            ui.game_adapter.queue_vapor_aoe_tick(self)
+
+        # Play visual effect if UI is available (for ASCII mode)
         if ui and hasattr(ui, 'renderer'):
             # Get appropriate animation based on vapor type
             animation_name = f"vapor_{self.vapor_type.lower()}"
@@ -983,10 +1119,16 @@ class Unit:
                     effects_cleansed = []
                     
                     # Check for status effects to cleanse
+                    if hasattr(unit, 'derelicted') and unit.derelicted:
+                        unit.derelicted = False
+                        if hasattr(unit, 'derelicted_duration'):
+                            unit.derelicted_duration = 0
+                        effects_cleansed.append("Derelicted")
+
                     if unit.estranged:
                         unit.estranged = False
                         effects_cleansed.append("Estrangement")
-                        
+
                     if unit.was_pried or (hasattr(unit, 'pry_active') and unit.pry_active):
                         unit.was_pried = False
                         if hasattr(unit, 'pry_active'):
@@ -1001,7 +1143,11 @@ class Unit:
                         if unit.move_range_bonus < 0:
                             unit.move_range_bonus = 0
                         effects_cleansed.append("Jawline immobilization")
-                        
+
+                    if hasattr(unit, 'gaussian_dusk_recharge') and unit.gaussian_dusk_recharge > 0:
+                        unit.gaussian_dusk_recharge = 0
+                        effects_cleansed.append("Recharging")
+
                     # Log cleansed effects
                     if effects_cleansed:
                         message_log.add_message(

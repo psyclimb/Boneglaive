@@ -2,7 +2,7 @@
 import logging
 import curses
 import time
-from boneglaive.utils.constants import UnitType, HEIGHT, WIDTH, CRITICAL_HEALTH_PERCENT
+from boneglaive.utils.constants import UnitType, HEIGHT, WIDTH, CRITICAL_HEALTH_PERCENT, UNIT_SYMBOLS
 from boneglaive.game.units import Unit
 from boneglaive.game.map import GameMap, MapFactory, TerrainType
 from boneglaive.utils.coordinates import Position
@@ -13,6 +13,17 @@ from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 # Set up module logger if not already set up
 if 'logger' not in locals():
     logger = debug_config.setup_logging('game.engine')
+
+class DeadUnit:
+    """Represents a dead unit awaiting respawn."""
+    def __init__(self, unit_type, player, death_turn, greek_id):
+        self.unit_type = unit_type
+        self.player = player
+        self.death_turn = death_turn
+        self.respawn_timer = 3  # Turns until respawn available
+        self.greek_id = greek_id  # Preserve original identifier
+        self.ready_for_respawn = False
+        self.respawn_preview = None  # Tuple (y, x) showing where unit will respawn
 
 class Game:
     def __init__(self, skip_setup=False, map_name="lime_foyer_arena", player_names=None):
@@ -34,6 +45,19 @@ class Game:
 
         # Store player names (defaults to "Player 1" and "Player 2" if not provided)
         self.player_names = player_names if player_names else {1: "Player 1", 2: "Player 2"}
+
+        # GP (Game Points) System
+        self.player1_gp = 0
+        self.player2_gp = 0
+        self.gp_win_threshold = 3  # First to 3 GP wins (testing)
+        self.dead_units = []  # List of DeadUnit objects awaiting respawn
+        self.pending_respawns = {1: [], 2: []}  # Respawns queued for execution phase
+
+        # Graphical mode callbacks
+        # Called before status effects are cleared - allows detection before removal
+        self.pre_status_clear_callback = None
+        # Called after passive skills are applied at turn start - allows detection of passive effects
+        self.post_passive_application_callback = None
 
         # Create the game map
         self.map = MapFactory.create_map(map_name)
@@ -509,7 +533,7 @@ class Game:
         valid_positions = []
         
         # Check left side for player 1
-        logger.info("Finding positions for player 1 units")
+        logger.info("Finding positions for player 1 units (3 GLAIVEMENs for testing)")
         for y in range(3, 7):
             for x in range(5, 9):
                 if self.map.can_place_unit(y, x) and self.get_unit_at(y, x) is None:
@@ -593,11 +617,11 @@ class Game:
         valid_positions.extend(p2_positions)
         logger.info(f"Found {len(valid_positions)} valid positions for units")
         
-        # Unit type setup
+        # Unit type setup - 3 GLAIVEMENs for player 1 for animation testing
         player1_unit_types = [
             UnitType.GLAIVEMAN,
-            UnitType.DELPHIC_APPRAISER,
-            UnitType.GAS_MACHINIST
+            UnitType.GLAIVEMAN,
+            UnitType.GLAIVEMAN
         ]
         
         # Track unit counts for each player and type
@@ -688,23 +712,30 @@ class Game:
                     else:
                         unit_type = valid_types[0]
                 else:  # player 2
-                    # For player 2, use rotation of types
-                    # Default rotation of unit types with variety
-                    player2_unit_types = [
+                    # For player 2, use random selection from all available unit types
+                    available_types = [
                         UnitType.GLAIVEMAN,
+                        UnitType.GRAYMAN,
+                        UnitType.MANDIBLE_FOREMAN,
+                        UnitType.POTPOURRIST,
+                        UnitType.MARROW_CONDENSER,
+                        UnitType.INTERFERER,
+                        UnitType.FOWL_CONTRIVANCE,
                         UnitType.DELPHIC_APPRAISER,
-                        UnitType.GAS_MACHINIST
+                        UnitType.GAS_MACHINIST,
+                        UnitType.DERELICTIONIST
                     ]
-                    
-                    # For player 2, respect the 2-unit type limit
-                    valid_types = [t for t in player2_unit_types 
+
+                    # Filter to types with count < 2
+                    valid_types = [t for t in available_types
                                 if player_unit_counts.get(player, {}).get(t, 0) < 2]
-                    
+
                     # Default to GLAIVEMAN if no valid types
                     if not valid_types:
                         unit_type = UnitType.GLAIVEMAN
                     else:
-                        unit_type = valid_types[0]
+                        # Random selection from valid types
+                        unit_type = random.choice(valid_types)
                 
                 # Add the unit and update unit count
                 self.add_unit(unit_type, player, y, x)
@@ -836,7 +867,10 @@ class Game:
         
         # Assign Greek identifiers
         self._assign_unit_identifiers()
-        
+
+        # Trigger Valuation Oracle for DELPHIC_APPRAISER units
+        self._trigger_valuation_oracle_for_delphic_appraisers()
+
         # Skip setup phase when using test setup
         self.setup_phase = False
         self.setup_player = 1
@@ -909,7 +943,13 @@ class Game:
             if profile:
                 profile.record_unit_pick(unit_type)
                 profile_manager.save_profile(profile)
-                logger.debug(f"Profile {profile.name}: Recorded pick for {unit_type.name}")
+                # Get unit type name (handles both enum and DLC types)
+                from boneglaive.utils.constants import UNIT_DISPLAY_NAMES
+                if hasattr(unit_type, 'name'):
+                    type_name = unit_type.name
+                else:
+                    type_name = UNIT_DISPLAY_NAMES.get(unit_type, f"UNIT_{unit_type}")
+                logger.debug(f"Profile {profile.name}: Recorded pick for {type_name}")
 
         return True
             
@@ -939,17 +979,17 @@ class Game:
     def confirm_setup(self):
         """
         Confirm the current player's setup and proceed.
-        
+
         Returns:
             True if game should now start, False otherwise
         """
         # Make sure all units have been placed
         if self.setup_units_remaining[self.setup_player] > 0:
             return False
-            
+
         # Mark this player's setup as confirmed
         self.setup_confirmed[self.setup_player] = True
-        
+
         # Check if we're in single player mode
         is_single_player = not self.local_multiplayer
         
@@ -1125,7 +1165,7 @@ class Game:
             # Only prevent placement if it's the same player's unit
             # Cross-player overlap is allowed during setup to hide positions
             if existing_unit.player == player:
-                raise ValueError(f"Position ({y}, {x}) is already occupied by your {existing_unit.type.name}")
+                raise ValueError(f"Position ({y}, {x}) is already occupied by your {existing_unit.get_type_name()}")
             # For different players, allow placement - conflicts will be resolved when game starts
         
         unit = Unit(unit_type, player, y, x)
@@ -1172,12 +1212,12 @@ class Game:
                 if i < len(UNIT_ID_ALPHABET):
                     unit.greek_id = UNIT_ID_ALPHABET[i]
                     player_name = self.get_player_name(unit.player)
-                    logger.debug(f"Assigned {unit.greek_id} to {player_name}'s {unit.type.name}")
+                    logger.debug(f"Assigned {unit.greek_id} to {player_name}'s {unit.get_type_name()}")
                 else:
                     # Fallback if we have more units than letters
                     unit.greek_id = f"{i+1}"
                     player_name = self.get_player_name(unit.player)
-                    logger.debug(f"Used number {unit.greek_id} for {player_name}'s {unit.type.name}")
+                    logger.debug(f"Used number {unit.greek_id} for {player_name}'s {unit.get_type_name()}")
 
         # No need to log the identifier assignments
         for player in [1, 2]:
@@ -1207,7 +1247,107 @@ class Game:
         Returns True if the chess distance between them is 1.
         """
         return self.chess_distance(y1, x1, y2, x2) == 1
-        
+
+    def get_valid_respawn_tiles(self, player):
+        """
+        Get all valid tiles where a unit can be respawned for a given player.
+
+        Args:
+            player: Player number (1 or 2)
+
+        Returns:
+            List of (y, x) tuples representing valid respawn positions
+        """
+        valid_tiles = []
+
+        # Allow respawning on entire map - any passable, unoccupied tile
+        for y in range(HEIGHT):
+            for x in range(WIDTH):
+                # Check if position is valid, passable, and not occupied
+                if (self.is_valid_position(y, x) and
+                    self.map.is_passable(y, x) and
+                    self.get_unit_at(y, x) is None):
+                    valid_tiles.append((y, x))
+
+        return valid_tiles
+
+    def queue_respawn(self, dead_unit, position):
+        """
+        Queue a unit respawn for execution phase.
+
+        Args:
+            dead_unit: DeadUnit object to respawn
+            position: Tuple (y, x) for respawn location
+
+        Returns:
+            bool: True if respawn queued successfully, False if invalid position
+        """
+        if not self.is_valid_position(position[0], position[1]):
+            return False
+        if self.get_unit_at(position[0], position[1]):
+            return False  # Position occupied
+        if not self.map.is_passable(position[0], position[1]):
+            return False  # Position not passable
+
+        self.pending_respawns[self.current_player].append((dead_unit, position))
+        dead_unit.ready_for_respawn = False  # Mark as queued
+        dead_unit.respawn_preview = position  # Store preview location to show ghost
+        logger.info(f"RESPAWN: Queued {dead_unit.greek_id} to respawn at {position}")
+        return True
+
+    def _execute_respawns(self, ui=None):
+        """Spawn queued units during execution phase."""
+        respawns = self.pending_respawns[self.current_player]
+        if not respawns:
+            return
+
+        for dead_unit, position in respawns:
+            # Create new Unit instance
+            unit = Unit(dead_unit.unit_type, dead_unit.player, position[0], position[1])
+            unit.greek_id = dead_unit.greek_id  # Restore identifier
+            unit._game = self
+
+            # Initialize skills
+            unit.initialize_skills()
+
+            # Restore HP to max
+            unit.hp = unit.max_hp
+
+            # Add to game
+            self.units.append(unit)
+
+            # Remove from dead units
+            if dead_unit in self.dead_units:
+                self.dead_units.remove(dead_unit)
+
+            # Log respawn
+            message_log.add_message(
+                f"{unit.get_display_name()} respawns!",
+                MessageType.SYSTEM,
+                player=unit.player
+            )
+
+            # Show respawn animation (ASCII mode)
+            if ui and hasattr(ui, 'renderer'):
+                # Check if it's graphical or ASCII renderer
+                if hasattr(ui.renderer, 'camera'):
+                    # Graphical mode - skip ASCII animation
+                    pass
+                else:
+                    # ASCII mode
+                    unit_symbol = UNIT_SYMBOLS.get(unit.type, "?")
+                    ui.renderer.animate_attack_sequence(
+                        position[0], position[1],
+                        ['·', 'o', 'O', '0', unit_symbol],
+                        3,  # Green color
+                        0.1
+                    )
+
+            logger.info(f"RESPAWN: {unit.get_display_name()} respawned at {position}")
+
+        # Clear respawn queue
+        self.pending_respawns[self.current_player] = []
+
     def has_line_of_sight(self, from_y, from_x, to_y, to_x):
         """
         Check if there is a clear line of sight between two positions.
@@ -1755,7 +1895,11 @@ class Game:
         # Check if this was the last FOWL_CONTRIVANCE and remove rails if so
         if dying_unit.type == UnitType.FOWL_CONTRIVANCE:
             self._check_and_remove_rails_if_no_fowl_remaining(ui)
-        
+
+        # Check if this was the last DELPHIC_APPRAISER and remove Valuation Oracle buffs if so
+        if dying_unit.type == UnitType.DELPHIC_APPRAISER:
+            self._check_and_remove_valuation_oracle_if_no_appraiser_remaining(dying_unit.player)
+
         # Handle Echo death by triggering chain reactions
         if dying_unit.is_echo:
             self._trigger_echo_death_effect(dying_unit, ui)
@@ -1924,12 +2068,27 @@ class Game:
                             player=unit.player
                         )
             
+            # Process Gaussian Dusk recharge state for FOWL CONTRIVANCE
+            if hasattr(unit, 'gaussian_dusk_recharge') and unit.gaussian_dusk_recharge > 0:
+                # Decrement the recharge counter
+                unit.gaussian_dusk_recharge -= 1
+                logger.debug(f"{unit.get_display_name()}'s Gaussian Dusk recharge: {unit.gaussian_dusk_recharge}")
+
+                # Check if recharge has completed
+                if unit.gaussian_dusk_recharge <= 0:
+                    # Log the completion
+                    message_log.add_message(
+                        f"{unit.get_display_name()}'s rail cannon has finished recharging.",
+                        MessageType.ABILITY,
+                        player=unit.player
+                    )
+
             # Bone Tithe no longer applies defensive buffs to allies
-            
+
             # Auction Curse DOT effect now processed at the end of turn
-            
+
             # Auction Curse no longer applies stat bonuses to allies via bid tokens
-                    
+
             # Process Market Futures investment maturation
             if hasattr(unit, 'market_futures_bonus_applied') and unit.market_futures_bonus_applied:
                 if hasattr(unit, 'market_futures_duration') and unit.market_futures_duration > 0:
@@ -2167,6 +2326,8 @@ class Game:
                     unit.partition_shield_caster = None
                     unit.partition_shield_emergency_active = False
                     unit.partition_shield_blocked_fatal = False
+                    if hasattr(unit, 'partition_dissociation_caster'):
+                        unit.partition_dissociation_caster = None
                     unit.prt = 0  # Reset partition stat
                     
                     # Log the expiration
@@ -2342,7 +2503,9 @@ class Game:
             # Start the spinner animation
             ui.start_spinner()
             ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-            time.sleep(0.3)  # Short delay before actions start
+            # Only sleep in ASCII mode - graphical mode doesn't need artificial delays
+            if not (hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'):
+                time.sleep(0.3)  # Short delay before actions start
         
         # Process each unit's actions in timestamp order
         for unit in units_with_actions:
@@ -2697,10 +2860,16 @@ class Game:
                         if ui:
                             ui.show_attack_animation(unit, target, actual_damage)
 
+                        # Check for PELOTARI Riposte trigger (after taking damage)
+                        if (hasattr(target, 'passive_skill') and target.passive_skill and
+                            target.passive_skill.name == "Riposte" and target.hp > 0):
+                            # Trigger diagonal spread shot
+                            target.passive_skill.trigger_on_hit(target, unit, self, ui)
+
                         # Check for taunt response (Granite Geas)
                         if (hasattr(unit, 'taunted_by') and unit.taunted_by and
-                            target.type == UnitType.POTPOURRIST and unit.taunted_by == target):
-                            # Attacker attacked the POTPOURRIST that taunted them
+                            unit.taunted_by == target):
+                            # Attacker attacked the unit that taunted them
                             unit.taunt_responded_this_turn = True
                             logger.debug(f"TAUNT RESPONSE: {unit.get_display_name()} responded to {target.get_display_name()}'s taunt")
 
@@ -2852,7 +3021,9 @@ class Game:
                 # Add a slight pause between actions for a unit and update spinner
                 if ui:
                     ui.advance_spinner()
-                    time.sleep(0.15)
+                    # Only sleep in ASCII mode - graphical mode doesn't need artificial pauses
+                    if not (hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'):
+                        time.sleep(0.15)
             
             # EXECUTE SKILL if unit has a skill target
             if unit.skill_target and unit.selected_skill:
@@ -2867,7 +3038,7 @@ class Game:
                 # Execute the skill
                 skill = unit.selected_skill
                 target_pos = unit.skill_target
-                
+
                 # Revalidate skill target for protection - might have changed since skill was queued
                 from boneglaive.game.skills import TargetType
                 if hasattr(skill, 'target_type') and skill.target_type == TargetType.ENEMY:
@@ -2880,7 +3051,36 @@ class Game:
                             player=unit.player
                         )
                         continue  # Skip this skill and go to next unit
-                
+
+                # Check for PELOTARI Backhand reflection before executing skill
+                target_unit = self.get_unit_at(target_pos[0], target_pos[1])
+                print(f"[BACKHAND ENGINE] Checking reflection for skill {skill.name} targeting {target_unit.get_display_name() if target_unit else 'None'}")
+                if target_unit:
+                    print(f"[BACKHAND ENGINE] Target has backhand_active={getattr(target_unit, 'backhand_active', False)}")
+
+                if target_unit and hasattr(target_unit, 'backhand_active') and target_unit.backhand_active:
+                    print(f"[BACKHAND ENGINE] Target has Backhand active! Looking for Backhand skill...")
+                    # Find Backhand skill instance
+                    backhand_skill = next((s for s in target_unit.active_skills
+                                          if hasattr(s, 'name') and s.name == "Backhand"), None)
+                    print(f"[BACKHAND ENGINE] Found Backhand skill: {backhand_skill}")
+                    if backhand_skill and hasattr(backhand_skill, 'trigger_skill_reflect'):
+                        print(f"[BACKHAND ENGINE] Calling trigger_skill_reflect for {skill.name}")
+                        print(f"[BACKHAND ENGINE] UI parameter: {ui}")
+                        print(f"[BACKHAND ENGINE] self.ui: {getattr(self, 'ui', 'NO self.ui')}")
+                        # Attempt reflection
+                        # Use self.ui if ui parameter is None
+                        ui_to_use = ui if ui is not None else getattr(self, 'ui', None)
+                        print(f"[BACKHAND ENGINE] Using UI: {ui_to_use}")
+                        if backhand_skill.trigger_skill_reflect(target_unit, unit, skill.name, self, ui_to_use):
+                            # Skill was reflected, skip normal execution
+                            print(f"[BACKHAND ENGINE] Skill {skill.name} reflected by {target_unit.get_display_name()}'s Backhand")
+                            # Mark skill as reflected so animation doesn't play
+                            unit.skill_was_reflected = True
+                            continue
+                        else:
+                            print(f"[BACKHAND ENGINE] trigger_skill_reflect returned False (skill not reflectable or failed)")
+
                 # Execute the skill if it has an execute method
                 if hasattr(skill, 'execute'):
                     # Set current attacker context for Demilune damage reduction
@@ -2895,21 +3095,21 @@ class Game:
                 else:
                     logger.warning(f"Skill {skill.name} has no execute method")
 
-                # Check for taunt response (Granite Geas) - if skill targeted taunting POTPOURRIST
+                # Check for taunt response (Granite Geas) - if skill targeted taunting unit
                 if hasattr(unit, 'taunted_by') and unit.taunted_by:
-                    # Check if the skill targeted the taunting POTPOURRIST
+                    # Check if the skill targeted the unit that taunted them
                     target_unit = self.get_unit_at(target_pos[0], target_pos[1])
-                    if (target_unit and
-                        target_unit.type == UnitType.POTPOURRIST and
-                        unit.taunted_by == target_unit):
-                        # Unit used skill on the POTPOURRIST that taunted them
+                    if (target_unit and unit.taunted_by == target_unit):
+                        # Unit used skill on the unit that taunted them
                         unit.taunt_responded_this_turn = True
                         logger.debug(f"TAUNT RESPONSE (skill): {unit.get_display_name()} responded to {target_unit.get_display_name()}'s taunt with skill")
 
                 # Add a slight pause after the skill and update spinner
                 if ui:
                     ui.advance_spinner()
-                    time.sleep(0.15)
+                    # Only sleep in ASCII mode - graphical mode doesn't need artificial pauses
+                    if not (hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'):
+                        time.sleep(0.15)
             
             # EXECUTE VISEROY TRAP DAMAGE if this is a MANDIBLE_FOREMAN with trapped units
             elif hasattr(unit, 'auction_curse_dot_action') and unit.auction_curse_dot_action:
@@ -2996,11 +3196,13 @@ class Game:
                             furniture_terrain = self.map.get_terrain_at(check_y, check_x)
                             furniture_name = furniture_terrain.name.replace('_', ' ').title()
 
-                            # Get current astral value (defaulting to 1 if none exists)
-                            current_value = self.map.cosmic_values.get((check_y, check_x), 1)
-                            # Increase by 1
-                            new_value = current_value + 1
-                            self.map.cosmic_values[(check_y, check_x)] = new_value
+                            # Get current astral value for the caster's player (defaulting to 1 if none exists)
+                            if caster_player not in self.map.cosmic_values:
+                                self.map.cosmic_values[caster_player] = {}
+                            current_value = self.map.cosmic_values[caster_player].get((check_y, check_x), 1)
+                            # Increase by 1, capped at 14
+                            new_value = min(current_value + 1, 14)
+                            self.map.cosmic_values[caster_player][(check_y, check_x)] = new_value
                             furniture_inflated += 1
 
                             # Show cycling numbers animation on this furniture
@@ -3059,17 +3261,20 @@ class Game:
             elif hasattr(unit, 'viseroy_trap_action') and unit.viseroy_trap_action:
                 # This is a special action but still counts as an action for health regeneration
                 unit.took_no_actions = False
-                
+
+                # Detect if running in graphical mode to avoid blocking sleeps
+                is_graphical = ui and hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'
+
                 # Find all units trapped by this foreman
                 trapped_units = [u for u in self.units if u.is_alive() and u.trapped_by == unit]
-                
-                # Apply trap damage to each trapped unit
+
+                # Apply trap damage to each trapped unit (ASCII mode only for animations)
                 for trapped_unit in trapped_units:
-                    # Play trap animation if UI is available
-                    if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+                    # Play trap animation if UI is available (ASCII mode only)
+                    if not is_graphical and ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
                         # Get animation sequence for Viseroy trap
                         animation_sequence = ui.asset_manager.get_skill_animation_sequence('viseroy_trap')
-                        
+
                         # Show jaw animation at trapped unit's position
                         ui.renderer.animate_attack_sequence(
                             trapped_unit.y, trapped_unit.x,
@@ -3078,13 +3283,13 @@ class Game:
                             0.2  # duration
                         )
                         time.sleep(0.2)
-                    
-                    # Play trap animation if UI is available but don't apply damage here
+
+                    # Play trap animation if UI is available but don't apply damage here (ASCII mode only)
                     # Actual damage is now handled centrally in _apply_trap_damage method
-                    if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+                    if not is_graphical and ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
                         # Get animation sequence for Viseroy trap
                         animation_sequence = ui.asset_manager.get_skill_animation_sequence('viseroy_trap')
-                        
+
                         # Show jaw animation at trapped unit's position (visual only)
                         ui.renderer.animate_attack_sequence(
                             trapped_unit.y, trapped_unit.x,
@@ -3093,20 +3298,25 @@ class Game:
                             0.2  # duration
                         )
                         time.sleep(0.2)
-                    
+
                     # No need to show a message here, trap visuals are enough
-                
+
                 # Clean up the special flag
                 unit.viseroy_trap_action = False
             
-            # Add a slight pause between units' actions and update spinner
+            # Add a slight pause between units' actions and update spinner (ASCII mode only)
             if ui:
                 ui.advance_spinner()
-                time.sleep(0.2)
+                # Only sleep in ASCII mode - graphical mode doesn't need artificial pauses
+                if not (hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'):
+                    time.sleep(0.2)
         
         # Apply trap damage for all trapped units
         self._apply_trap_damage()
-        
+
+        # Execute pending respawns
+        self._execute_respawns(ui)
+
         # Process HEINOUS_VAPOR effects for current player's vapors only
         vapor_units = [unit for unit in self.units if unit.is_alive() and 
                       unit.type == UnitType.HEINOUS_VAPOR and 
@@ -3115,6 +3325,9 @@ class Game:
         
         # Process each vapor's area effects
         for vapor_unit in vapor_units:
+            # Mark that this vapor just applied effects (for graphical animation triggering)
+            vapor_unit.just_applied_aoe = True
+
             # Apply the vapor's area effects only on owner's turn
             vapor_unit.apply_vapor_effects(self, ui)
             
@@ -3263,7 +3476,15 @@ class Game:
                                     player=unit.player,
                                     target_name=unit.get_display_name()
                                 )
-                
+
+        # Call graphical callback before clearing status effects
+        # This allows the graphical system to detect status effects before they're removed
+        if self.pre_status_clear_callback:
+            self.pre_status_clear_callback()
+
+        # Continue with status clearing for current player's units
+        for unit in self.units:
+            if unit.is_alive():
                 # Handle units that were affected by Pry during the turn that just ended
                 # They need to keep their was_pried status until after THEIR next turn
                 if unit.was_pried and unit.player == self.current_player:
@@ -3310,6 +3531,20 @@ class Game:
             # Process removals and restore original terrain
             for tile_y, tile_x in tiles_to_remove:
                 tile = (tile_y, tile_x)
+
+                # Create wall despawn animation if UI with graphical renderer is available
+                # DISABLED: Animation implemented but not triggered
+                # if ui and hasattr(ui, 'renderer') and hasattr(ui.renderer, 'create_animation'):
+                #     # Check if this is graphical mode (has camera)
+                #     if hasattr(ui.renderer, 'camera'):
+                #         ui.renderer.create_animation(
+                #             skill_name="MARROW_DIKE_WALL_DESPAWN",
+                #             caster_unit=None,
+                #             target_pos=(tile_y, tile_x),
+                #             camera=ui.renderer.camera,
+                #             game=self
+                #         )
+
                 # Restore original terrain only if current terrain is still MARROW_WALL
                 # This prevents restoring incorrect terrain if overlapping occurred
                 if tile in self.marrow_dike_tiles and 'original_terrain' in self.marrow_dike_tiles[tile]:
@@ -3317,13 +3552,13 @@ class Game:
                     if current_terrain == TerrainType.MARROW_WALL:
                         original_terrain = self.marrow_dike_tiles[tile]['original_terrain']
                         self.map.set_terrain_at(tile_y, tile_x, original_terrain)
-                
+
                 # Remove from marrow_dike_tiles
                 if tile in self.marrow_dike_tiles:
                     dike_info = self.marrow_dike_tiles[tile]
                     owner = dike_info['owner']
                     del self.marrow_dike_tiles[tile]
-                    
+
                     # Log the expiration
                     message_log.add_message(
                         f"A section of {owner.get_display_name()}'s Marrow Dike crumbles away...",
@@ -3335,6 +3570,15 @@ class Game:
             if hasattr(self, 'marrow_dike_interior'):
                 for tile_y, tile_x in interior_to_remove:
                     tile = (tile_y, tile_x)
+
+                    # Restore original terrain if blood plasma was placed
+                    current_terrain = self.map.get_terrain_at(tile_y, tile_x)
+                    if current_terrain == TerrainType.BLOOD_PLASMA:
+                        if tile in self.previous_terrain:
+                            original_terrain = self.previous_terrain[tile]
+                            self.map.set_terrain_at(tile_y, tile_x, original_terrain)
+                            del self.previous_terrain[tile]
+
                     # Remove from marrow_dike_interior
                     if tile in self.marrow_dike_interior:
                         del self.marrow_dike_interior[tile]
@@ -3470,55 +3714,60 @@ class Game:
                                     player=taunter.player
                                 )
                             else:
-                                # Show geas breaking animation on taunted unit
-                                if hasattr(self, 'ui') and self.ui and hasattr(self.ui, 'renderer') and hasattr(self.ui, 'asset_manager'):
-                                    import time
-                                    import curses
-                                    from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+                                # Show geas breaking animation on taunted unit (ASCII mode only)
+                                if not (hasattr(self, 'ui') and hasattr(self.ui, '__class__') and self.ui.__class__.__name__ == 'GraphicalUIAdapter'):
+                                    if hasattr(self, 'ui') and self.ui and hasattr(self.ui, 'renderer') and hasattr(self.ui, 'asset_manager'):
+                                        import time
+                                        import curses
+                                        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
-                                    # Binding breaking animation on the unit who ignored the geas
-                                    geas_break = self.ui.asset_manager.get_skill_animation_sequence('geas_break')
-                                    if not geas_break:
-                                        geas_break = ['0', 'O', 'o', '.', '~', '~', '~']  # Binding breaking and energy dispersing
+                                        # Binding breaking animation on the unit who ignored the geas
+                                        geas_break = self.ui.asset_manager.get_skill_animation_sequence('geas_break')
+                                        if not geas_break:
+                                            geas_break = ['0', 'O', 'o', '.', '~', '~', '~']  # Binding breaking and energy dispersing
 
-                                    for frame in geas_break:
-                                        self.ui.renderer.draw_tile(unit.y, unit.x, frame, 7)  # Yellow for geas magic
-                                        self.ui.renderer.refresh()
-                                        sleep_with_animation_speed(0.08)
+                                        for frame in geas_break:
+                                            self.ui.renderer.draw_tile(unit.y, unit.x, frame, 7)  # Yellow for geas magic
+                                            self.ui.renderer.refresh()
+                                            sleep_with_animation_speed(0.08)
 
-                                    # Show healing glow on POTPOURRIST
-                                    heal_glow = ['+', '*', '+']
-                                    for frame in heal_glow:
-                                        self.ui.renderer.draw_tile(taunter.y, taunter.x, frame, 3, curses.A_BOLD)  # Green for healing
-                                        self.ui.renderer.refresh()
-                                        sleep_with_animation_speed(0.1)
+                                        # Show healing glow on POTPOURRIST
+                                        heal_glow = ['+', '*', '+']
+                                        for frame in heal_glow:
+                                            self.ui.renderer.draw_tile(taunter.y, taunter.x, frame, 3, curses.A_BOLD)  # Green for healing
+                                            self.ui.renderer.refresh()
+                                            sleep_with_animation_speed(0.1)
 
+                                # Apply healing (runs in both ASCII and graphical mode)
                                 old_hp = taunter._hp
                                 taunter._hp = min(taunter.max_hp, taunter._hp + 4)
                                 actual_heal = taunter._hp - old_hp
 
-                                # Show healing number if heal occurred
-                                if actual_heal > 0 and hasattr(self, 'ui') and self.ui and hasattr(self.ui, 'renderer'):
-                                    healing_text = f"+{actual_heal}"
+                                # Show healing number if heal occurred (ASCII mode only)
+                                if not (hasattr(self, 'ui') and hasattr(self.ui, '__class__') and self.ui.__class__.__name__ == 'GraphicalUIAdapter'):
+                                    if actual_heal > 0 and hasattr(self, 'ui') and self.ui and hasattr(self.ui, 'renderer'):
+                                        healing_text = f"+{actual_heal}"
 
-                                    # Flash 3 times
-                                    for i in range(3):
-                                        # First clear the area
-                                        self.ui.renderer.draw_damage_text(taunter.y-1, taunter.x*2, " " * len(healing_text), 7)
-                                        # Draw with alternating bold/normal for a flashing effect
-                                        attrs = curses.A_BOLD if i % 2 == 0 else 0
-                                        self.ui.renderer.draw_damage_text(taunter.y-1, taunter.x*2, healing_text, 3, attrs)  # Green color
+                                        # Flash 3 times
+                                        for i in range(3):
+                                            # First clear the area
+                                            self.ui.renderer.draw_damage_text(taunter.y-1, taunter.x*2, " " * len(healing_text), 7)
+                                            # Draw with alternating bold/normal for a flashing effect
+                                            import curses
+                                            attrs = curses.A_BOLD if i % 2 == 0 else 0
+                                            self.ui.renderer.draw_damage_text(taunter.y-1, taunter.x*2, healing_text, 3, attrs)  # Green color
+                                            self.ui.renderer.refresh()
+                                            from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+                                            sleep_with_animation_speed(0.1)
+
+                                        # Final healing display (stays on screen slightly longer)
+                                        self.ui.renderer.draw_damage_text(taunter.y-1, taunter.x*2, healing_text, 3, curses.A_BOLD)
                                         self.ui.renderer.refresh()
-                                        sleep_with_animation_speed(0.1)
+                                        sleep_with_animation_speed(0.3)
 
-                                    # Final healing display (stays on screen slightly longer)
-                                    self.ui.renderer.draw_damage_text(taunter.y-1, taunter.x*2, healing_text, 3, curses.A_BOLD)
-                                    self.ui.renderer.refresh()
-                                    sleep_with_animation_speed(0.3)
-
-                                    # Redraw board after animation
-                                    if hasattr(self.ui, 'draw_board'):
-                                        self.ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+                                        # Redraw board after animation
+                                        if hasattr(self.ui, 'draw_board'):
+                                            self.ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
                                 if actual_heal > 0:
                                     from boneglaive.utils.message_log import message_log, MessageType
                                     message_log.add_message(
@@ -3536,6 +3785,7 @@ class Game:
                         # Taunt expires or was responded to
                         unit.taunted_by = None
                         unit.taunt_duration = 0
+                        unit.geas_affected = False  # Clear geas status icon
                         logger.debug(f"TAUNT EXPIRED: {unit.get_display_name()}'s taunt ended")
 
                     # Reset response flag for next turn
@@ -3598,6 +3848,37 @@ class Game:
                                 player=unit.player
                             )
 
+            # Process Backhand duration for current player's units (after combat phase)
+            # This ensures the counter stance lasts through the entire turn
+            for unit in self.units:
+                if unit.is_alive() and unit.player == self.current_player:
+                    if hasattr(unit, 'backhand_duration') and unit.backhand_duration > 0:
+                        # Decrement duration
+                        unit.backhand_duration -= 1
+                        logger.debug(f"{unit.get_display_name()}'s Backhand duration: {unit.backhand_duration}")
+
+                        # Check if the effect has expired
+                        if unit.backhand_duration <= 0:
+                            # Deactivate Backhand
+                            unit.backhand_active = False
+
+                            # Log the expiration message
+                            message_log.add_message(
+                                f"{unit.get_display_name()}'s Backhand stance expires",
+                                MessageType.ABILITY,
+                                player=unit.player
+                            )
+
+            # Decrement respawn timers for current player's dead units (before player switch)
+            for dead_unit in self.dead_units:
+                if dead_unit.player == self.current_player:
+                    dead_unit.respawn_timer -= 1
+                    if dead_unit.respawn_timer <= 0:
+                        dead_unit.ready_for_respawn = True
+                        # Handle both UnitType enum and int (for DLC units)
+                        unit_type_name = dead_unit.unit_type.name if hasattr(dead_unit.unit_type, 'name') else str(dead_unit.unit_type)
+                        logger.info(f"RESPAWN: {dead_unit.greek_id} ({unit_type_name}) is ready to respawn")
+
             # In single player mode, automatically toggle between player 1 and 2
             # In multiplayer modes, the multiplayer manager handles player switching
             if not self.local_multiplayer:
@@ -3606,7 +3887,7 @@ class Game:
                 # Increment turn counter when player 1's turn comes around again
                 if self.current_player == 1:
                     self.turn += 1
-                    
+
                 # Initialize the new player's turn
                 self.initialize_next_player_turn()
             
@@ -3639,6 +3920,8 @@ class Game:
         protected_unit.partition_shield_emergency_active = False
         protected_unit.partition_shield_blocked_fatal = False
         protected_unit.partition_shield_caster = None
+        if hasattr(protected_unit, 'partition_dissociation_caster'):
+            protected_unit.partition_dissociation_caster = None
         
         message_log.add_message(
             f"{protected_unit.get_display_name()}'s partition emergency ends - {caster.get_display_name()} teleports away and abandonment trauma sets in",
@@ -3688,9 +3971,15 @@ class Game:
         if possible_positions:
             import random
             chosen_pos = random.choice(possible_positions)
+
+            # Mark as pending teleport for graphical animation system
+            derelictionist.pending_teleport_defection = True
+            derelictionist.teleport_destination = chosen_pos
+            derelictionist.teleport_origin = (start_y, start_x)
+
             derelictionist.y, derelictionist.x = chosen_pos
             logger.info(f"DERELICTIONIST teleported from ({start_y},{start_x}) to ({chosen_pos[0]},{chosen_pos[1]})")
-            
+
             # Add message log entry for teleportation
             message_log.add_message(
                 f"{derelictionist.get_display_name()} defects from ({start_y},{start_x}) to ({chosen_pos[0]},{chosen_pos[1]})",
@@ -3715,6 +4004,27 @@ class Game:
                 # POTPOURRIST Melange Eminence triggers on EVERY turn (not just their own)
                 if unit.type == UnitType.POTPOURRIST:
                     unit.apply_passive_skills(self, ui)
+
+                    # Handle potpourri expiration for current player's POTPOURRIST
+                    if unit.player == self.current_player and unit.potpourri_held:
+                        unit.potpourri_duration -= 1
+                        if unit.potpourri_duration <= 0:
+                            # Potpourri expired naturally
+                            unit.potpourri_held = False
+                            unit.potpourri_duration = 0
+
+                            # Trigger Infuse cooldown
+                            # Add 1 to account for cooldown decrement at start of next turn
+                            for skill in unit.active_skills:
+                                if skill.name == "Infuse":
+                                    skill.current_cooldown = skill.cooldown + 1
+                                    break
+
+                            message_log.add_message(
+                                f"{unit.get_display_name()}'s potpourri dissipates",
+                                MessageType.ABILITY,
+                                player=unit.player
+                            )
                 # Other units' passives only trigger on their own turn
                 elif unit.player == self.current_player:
                     unit.apply_passive_skills(self, ui)
@@ -3743,6 +4053,11 @@ class Game:
                         unit.severance_duration = 0
                         # Always reset movement bonus to 0 at start of turn
                         unit.move_range_bonus = 0
+
+        # Call graphical callback after passive skills are applied
+        # This allows the graphical system to detect passive status effects (like Valuation Oracle)
+        if self.post_passive_application_callback:
+            self.post_passive_application_callback()
     
     
     def try_trigger_wretched_decension(self, attacker, target, ui=None):
@@ -3904,19 +4219,19 @@ class Game:
         return True
     
     def check_game_over(self):
-        player1_alive = any(unit.is_alive() and unit.player == 1 for unit in self.units)
-        player2_alive = any(unit.is_alive() and unit.player == 2 for unit in self.units)
-        
-        if not player1_alive:
-            self.winner = 2
-            winner_name = self.get_player_name(2)
-            loser_name = self.get_player_name(1)
-            message_log.add_system_message(f"{winner_name} wins. All {loser_name} units have been defeated.")
-        elif not player2_alive:
+        # Check GP win condition
+        if self.player1_gp >= self.gp_win_threshold:
             self.winner = 1
             winner_name = self.get_player_name(1)
-            loser_name = self.get_player_name(2)
-            message_log.add_system_message(f"{winner_name} wins. All {loser_name} units have been defeated.")
+            message_log.add_system_message(
+                f"{winner_name} wins with {self.player1_gp} GP!"
+            )
+        elif self.player2_gp >= self.gp_win_threshold:
+            self.winner = 2
+            winner_name = self.get_player_name(2)
+            message_log.add_system_message(
+                f"{winner_name} wins with {self.player2_gp} GP!"
+            )
     
     def _apply_trap_damage(self):
         """Apply damage to units trapped by MANDIBLE_FOREMENs."""
@@ -3952,13 +4267,16 @@ class Game:
                 foreman.player == self.current_player and
                 not foreman.took_action):
                 logger.debug(f"Applying Viseroy trap damage to {unit.get_display_name()}")
-                
-                # Play trap animation if UI is available
+
+                # Detect if running in graphical mode to avoid blocking sleeps
                 ui = getattr(self, 'ui', None)
-                if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+                is_graphical = ui and hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'
+
+                # Play trap animation if UI is available (ASCII mode only)
+                if not is_graphical and ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
                     # Get animation sequence for Viseroy trap
                     animation_sequence = ui.asset_manager.get_skill_animation_sequence('viseroy_trap')
-                    
+
                     # Show jaw animation at trapped unit's position
                     ui.renderer.animate_attack_sequence(
                         unit.y, unit.x,
@@ -4014,21 +4332,21 @@ class Game:
                     # Directly try to trigger Autoclave for the trapped unit
                     self.try_trigger_autoclave(unit, ui)
                 
-                # Show damage number if UI is available
-                if ui and hasattr(ui, 'renderer'):
+                # Show damage number if UI is available (ASCII mode only)
+                if not is_graphical and ui and hasattr(ui, 'renderer') and hasattr(ui.renderer, 'draw_damage_text'):
                     # Flash the unit to show damage
                     if hasattr(ui, 'asset_manager'):
                         # Flash the unit with damage colors
                         tile_ids = [ui.asset_manager.get_unit_tile(unit.type)] * 4
                         color_ids = [10, 3 if unit.player == 1 else 4] * 2  # Alternate red background with player color
                         durations = [0.1] * 4
-                        
+
                         # Use renderer's flash tile method
                         ui.renderer.flash_tile(unit.y, unit.x, tile_ids, color_ids, durations)
-                    
+
                     # Show damage number above target with same appearance as attack damage
                     damage_text = f"-{damage}"
-                    
+
                     # Make damage text more prominent
                     for i in range(3):
                         # First clear the area
@@ -4038,11 +4356,12 @@ class Game:
                         ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)  # White color (same as attack damage)
                         ui.renderer.refresh()
                         time.sleep(0.1)
-                    
+
                     # Final damage display (stays on screen slightly longer)
                     ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
                     ui.renderer.refresh()
                     time.sleep(0.3)  # Match the 0.3s delay used in attack damage
+                # Graphical version handles damage display through animation system
                 
                 # Check if the trapped unit was defeated
                 if unit.hp <= 0:
@@ -4070,15 +4389,21 @@ class Game:
         from boneglaive.utils.message_log import message_log, MessageType
         from boneglaive.utils.debug import logger
         
-        # Case 1: The unit is a MANDIBLE_FOREMAN that has trapped units
-        if unit.type == UnitType.MANDIBLE_FOREMAN:
-            # Find any units trapped by this FOREMAN
-            trapped_units = [u for u in self.units if u.is_alive() and u.trapped_by == unit]
-            if trapped_units:
-                logger.debug(f"MANDIBLE_FOREMAN {unit.get_display_name()} position changed, releasing trapped units")
-                
-                # Release the trapped units
-                for trapped_unit in trapped_units:
+        # Case 1: The unit has trapped other units (MANDIBLE_FOREMAN or PELOTARI)
+        # Find any units trapped by this unit
+        trapped_units = [u for u in self.units if u.is_alive() and hasattr(u, 'trapped_by') and u.trapped_by == unit]
+        if trapped_units:
+            # Skip trap release if unit is currently executing a skill that applies traps
+            if hasattr(unit, 'expediting') and unit.expediting:
+                logger.debug(f"{unit.get_display_name()} is applying trap skill, skipping trap release check")
+                return
+
+            # Only release if trapper moved MORE than 1 tile away from trapped unit
+            # Trap can be maintained if trapper stays adjacent
+            for trapped_unit in trapped_units:
+                distance = self.chess_distance(unit.y, unit.x, trapped_unit.y, trapped_unit.x)
+                if distance > 1:
+                    logger.debug(f"{unit.get_display_name()} moved too far ({distance} tiles), releasing {trapped_unit.get_display_name()}")
                     trapped_unit.trapped_by = None
                     trapped_unit.trap_duration = 0  # Reset trap duration
                     message_log.add_message(
@@ -4086,6 +4411,8 @@ class Game:
                         MessageType.ABILITY,
                         target_name=trapped_unit.get_display_name()
                     )
+                else:
+                    logger.debug(f"{unit.get_display_name()} still adjacent to {trapped_unit.get_display_name()}, maintaining trap")
         
         # Case 2: The unit is trapped by a MANDIBLE_FOREMAN
         if unit.trapped_by is not None:
@@ -4869,7 +5196,7 @@ class Game:
         for unit in self.units:
             if unit.is_alive():
                 unit_info = {
-                    'type': unit.type.name,
+                    'type': unit.get_type_name(),
                     'player': unit.player,
                     'position': (unit.y, unit.x),
                     'hp': f"{unit.hp}/{unit.max_hp}",
@@ -4959,9 +5286,23 @@ class Game:
         for unit in delphic_units:
             # Check if this unit has the Valuation Oracle passive skill
             if unit.passive_skill and unit.passive_skill.__class__.__name__ == 'ValuationOracle':
+                # Track which units had Valuation Oracle BEFORE applying
+                units_without_buff_before = []
+                for ally in self.units:
+                    if ally.is_alive() and ally.player == unit.player:
+                        if not hasattr(ally, 'valuation_oracle_buff') or not ally.valuation_oracle_buff:
+                            units_without_buff_before.append(ally)
+
                 # Manually trigger the skill's astral value perception logic
                 unit.passive_skill.apply_passive(unit, self)
                 logger.debug(f"Triggered Valuation Oracle for {unit.get_display_name()}")
+
+                # Mark units that gained the buff during initialization for graphical icon flash
+                for ally in units_without_buff_before:
+                    if hasattr(ally, 'valuation_oracle_buff') and ally.valuation_oracle_buff:
+                        # Set a flag that the graphical adapter can check on first sync
+                        ally.valuation_oracle_initial_application = True
+                        logger.debug(f"Marked {ally.get_display_name()} for initial Valuation Oracle icon flash")
 
     def _check_and_remove_rails_if_no_fowl_remaining(self, ui=None):
         """Check if any FOWL_CONTRIVANCE units remain alive, and if not, explode and remove all rails."""
@@ -5022,7 +5363,41 @@ class Game:
         )
         
         logger.info(f"Removed {rail_count} rail tiles - no FOWL_CONTRIVANCE units remaining")
-    
+
+    def _check_and_remove_valuation_oracle_if_no_appraiser_remaining(self, player: int):
+        """Remove Valuation Oracle buffs when no DELPHIC_APPRAISER remains for a player.
+
+        Astral values persist in map.cosmic_values[player] for when DELPHIC_APPRAISER respawns,
+        but buffs are removed since there's no living appraiser to perceive them.
+
+        Args:
+            player: Player number to check
+        """
+        # Check if any DELPHIC_APPRAISER units are still alive for this player
+        appraisers_remaining = [unit for unit in self.units
+                               if unit.is_alive()
+                               and unit.type == UnitType.DELPHIC_APPRAISER
+                               and unit.player == player]
+
+        if appraisers_remaining:
+            return  # Still have DELPHIC_APPRAISER units for this player
+
+        # No DELPHIC_APPRAISER units left - remove Valuation Oracle buffs
+        buffs_removed = 0
+        for unit in self.units:
+            if unit.is_alive() and unit.player == player:
+                if hasattr(unit, 'valuation_oracle_buff') and unit.valuation_oracle_buff:
+                    unit.valuation_oracle_buff = False
+                    unit.valuation_oracle_duration = 0
+                    # Remove bonuses (use max to prevent going negative)
+                    unit.defense_bonus = max(0, unit.defense_bonus - 1)
+                    unit.attack_range_bonus = max(0, unit.attack_range_bonus - 1)
+                    buffs_removed += 1
+                    logger.debug(f"Removed Valuation Oracle buff from {unit.get_display_name()}")
+
+        if buffs_removed > 0:
+            logger.info(f"Removed Valuation Oracle buffs from {buffs_removed} units - no DELPHIC_APPRAISER remaining for player {player}")
+
     def update_anchor_status_effects(self):
         """Update anchor status effects for all units based on adjacency to friendly teleport anchors."""
         if not hasattr(self, 'teleport_anchors'):
@@ -5044,7 +5419,7 @@ class Game:
                     self.chess_distance(unit.y, unit.x, anchor_pos[0], anchor_pos[1]) <= 1):
                     
                     # GRAYMAN is immune to Parallax and cannot use teleport anchors
-                    if (unit.type.name == "GRAYMAN" and unit.is_immune_to_effects()):
+                    if (unit.get_type_name() == "GRAYMAN" and unit.is_immune_to_effects()):
                         # Show immunity message when GRAYMAN would receive Parallax
                         from boneglaive.utils.message_log import message_log, MessageType
                         message_log.add_message(

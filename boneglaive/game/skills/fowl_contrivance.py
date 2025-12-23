@@ -60,22 +60,23 @@ class RailGenesis(PassiveSkill):
     def handle_unit_death(self, user: 'Unit', game: 'Game', ui=None) -> None:
         """
         Handle death explosion when FOWL_CONTRIVANCE dies.
-        Deals 4 damage to enemy units standing on rail tiles.
+        Deals 6 damage to enemy units standing on rail tiles.
+        Applies Shrapnel to enemy units adjacent to rails.
         """
         if not game or not game.map.has_rails():
             return
-        
+
         rail_positions = game.map.get_rail_positions()
         units_hit = 0
         total_damage = 0
-        
+
         # Check each rail position for enemy units
         for rail_y, rail_x in rail_positions:
             unit = game.get_unit_at(rail_y, rail_x)
-            
+
             # Only damage enemy units (not allies)
             if unit and unit.is_alive() and unit.player != user.player:
-                damage = 4  # Fixed death explosion damage
+                damage = 6  # Fixed death explosion damage (buffed from 4)
                 
                 # Store previous HP for critical health check
                 previous_hp = unit.hp
@@ -122,7 +123,7 @@ class RailGenesis(PassiveSkill):
                     attacker_name=user.get_display_name(),
                     target_name=unit.get_display_name(),
                     damage=damage,
-                    ability="Rail Genesis Death Explosion",
+                    ability="Rail Genesis Death Explosion (on-rail)",
                     attacker_player=user.player,
                     target_player=unit.player
                 )
@@ -133,37 +134,112 @@ class RailGenesis(PassiveSkill):
                 else:
                     # Check for critical health using centralized logic
                     game.check_critical_health(unit, user, previous_hp, ui)
-        
+
+        # Apply Shrapnel to enemies adjacent to rails (blast radius effect)
+        shrapnel_applied_units = set()  # Track which units already took direct damage
+        shrapnel_units_hit = 0
+
+        # Build set of units that took direct damage (on rails)
+        for rail_y, rail_x in rail_positions:
+            unit = game.get_unit_at(rail_y, rail_x)
+            if unit and unit.is_alive() and unit.player != user.player:
+                shrapnel_applied_units.add(unit)
+
+        # Check adjacent tiles around each rail for enemy units
+        for rail_y, rail_x in rail_positions:
+            # Check all 8 adjacent tiles (N, S, E, W, NE, NW, SE, SW)
+            for dy in [-1, 0, 1]:
+                for dx in [-1, 0, 1]:
+                    if dy == 0 and dx == 0:
+                        continue  # Skip the rail tile itself
+
+                    adj_y = rail_y + dy
+                    adj_x = rail_x + dx
+
+                    # Check if position is valid
+                    if not game.is_valid_position(adj_y, adj_x):
+                        continue
+
+                    unit = game.get_unit_at(adj_y, adj_x)
+
+                    # Only affect enemy units not already hit by direct damage
+                    if unit and unit.is_alive() and unit.player != user.player and unit not in shrapnel_applied_units:
+                        # Apply shrapnel effect (ongoing damage) if not immune
+                        if unit.is_immune_to_effects():
+                            # Log immunity message
+                            message_log.add_message(
+                                f"{unit.get_display_name()} is immune to shrapnel due to Stasiality",
+                                MessageType.ABILITY,
+                                player=unit.player
+                            )
+                        else:
+                            if not hasattr(unit, 'shrapnel_duration'):
+                                unit.shrapnel_duration = 0
+                            previous_shrapnel = unit.shrapnel_duration
+                            unit.shrapnel_duration = max(unit.shrapnel_duration, 3)
+
+                            # Log shrapnel embedding if it's a new effect or extended
+                            if unit.shrapnel_duration > previous_shrapnel:
+                                message_log.add_message(
+                                    f"Rail explosion shrapnel embeds in {unit.get_display_name()}",
+                                    MessageType.COMBAT,
+                                    player=user.player
+                                )
+                                shrapnel_units_hit += 1
+
+                        # Add to set to prevent duplicate application from multiple adjacent rails
+                        shrapnel_applied_units.add(unit)
+
+        # Check if this was the last FOWL CONTRIVANCE - if so, remove rails
+        from boneglaive.utils.constants import UnitType
+        remaining_fowl = sum(1 for u in game.units
+                            if u.is_alive() and
+                            hasattr(u, 'type') and
+                            u.type == UnitType.FOWL_CONTRIVANCE)
+
+        if remaining_fowl == 0:
+            # Last FOWL CONTRIVANCE destroyed - remove rail network
+            game.map.remove_rail_network()
+            message_log.add_message(
+                "The rail network collapses and vanishes from the battlefield",
+                MessageType.ABILITY,
+                player=user.player
+            )
+
         # Note: Individual unit damage messages are already shown above, no summary needed
 
 
 class GaussianDuskSkill(ActiveSkill):
     """
     Active skill for FOWL_CONTRIVANCE.
-    Charges a devastating rail gun shot that pierces everything in its path.
-    Two-phase skill: charging turn, then firing turn.
+    Fires a devastating rail gun shot that pierces everything in its path.
+    Can only fire in cardinal directions (N, S, E, W).
+    After firing, the unit enters a recharge state for 1 turn and cannot take any actions.
     """
-    
+
     def __init__(self):
         super().__init__(
             name="Gaussian Dusk",
             key="G",
-            description="Charges a devastating rail gun shot that pierces everything in its path. Automatically fires on the next turn.",
+            description="Fires a devastating rail gun shot in a cardinal direction. After firing, the unit must recharge for 1 turn and cannot take any actions.",
             target_type=TargetType.AREA,
-            cooldown=4,
+            cooldown=5,
             range_=999,  # Entire map range
             area=0
         )
-        self.damage = 10
-        self.charging = False
-        self.charge_direction = None
+        self.damage = 9
+        self.recharge_duration = 1  # Number of turns unit is locked after firing
         
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
-        # Normal cooldown validation for charging
+        # Cannot use while recharging
+        if hasattr(user, 'gaussian_dusk_recharge') and user.gaussian_dusk_recharge > 0:
+            return False
+
+        # Normal cooldown validation
         if not super().can_use(user, target_pos, game):
             return False
 
-        # For charging, need a direction
+        # Need a target position to determine direction
         if not target_pos:
             return False
 
@@ -171,8 +247,7 @@ class GaussianDuskSkill(ActiveSkill):
             
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Queue the Gaussian Dusk skill for execution."""
-        
-        # This is the charging turn
+
         if not self.can_use(user, target_pos, game):
             return False
 
@@ -181,84 +256,36 @@ class GaussianDuskSkill(ActiveSkill):
             source_y, source_x = user.move_target
         else:
             source_y, source_x = user.y, user.x
-            
+
         target_y, target_x = target_pos
-        
+
         # Calculate direction vector
         dy = target_y - source_y
         dx = target_x - source_x
-        
-        # Normalize to one of 8 directions
+
+        # Snap to nearest cardinal direction only (N, S, E, W)
+        # No diagonals allowed
         if abs(dx) > abs(dy):
-            direction = (0, 1 if dx > 0 else -1)
-        elif abs(dy) > abs(dx):
-            direction = (1 if dy > 0 else -1, 0)
+            # Horizontal direction dominates
+            direction = (0, 1 if dx > 0 else -1)  # East or West
         else:
-            direction = (1 if dy > 0 else -1, 1 if dx > 0 else -1)
+            # Vertical direction dominates
+            direction = (1 if dy > 0 else -1, 0)  # South or North
 
         # Store the direction for execution
         user.skill_target = direction
         user.selected_skill = self
-        
+
+        # Set cooldown immediately
+        self.current_cooldown = self.cooldown
+
         return True
         
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Gaussian Dusk skill during turn resolution."""
-        
-        # Check if this is the charging turn or firing turn
-        if not hasattr(user, 'charging_status') or not user.charging_status:
-            # This is the charging turn - set up charging
-            direction = target_pos  # target_pos is the direction vector
-            
-            # Set charging status effect
-            user.charging_status = True
-            user.gaussian_charge_direction = direction
-            user.gaussian_charge_turn = getattr(game, 'turn_count', 0)  # Track when charging started
-            
-            # Set visual indicator
-            user.gaussian_dusk_indicator = direction
 
-            # Play charging animation
-            if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-                # Get the charging animation sequence
-                charge_animation = ui.asset_manager.get_skill_animation_sequence('gaussian_charge')
-                if not charge_animation:
-                    charge_animation = ['=', '=', '=', '=', '=', '=', '=']  # Fallback
-                
-                # Show charging animation at user's position
-                ui.renderer.animate_attack_sequence(
-                    user.y, user.x,
-                    charge_animation,
-                    6,  # Yellow color for charging
-                    0.3  # Longer duration for dramatic charging effect
-                )
-
-            # Log that charging has started
-            message_log.add_message(
-                f"{user.get_display_name()} charges its rail cannon.",
-                MessageType.ABILITY,
-                player=user.player
-            )
-            
-            # DO NOT set cooldown yet - only after firing
-            return True
-        
-        # This is the firing turn - clear ALL charging state and fire
-        user.charging_status = False
-        if hasattr(user, 'gaussian_dusk_indicator'):
-            user.gaussian_dusk_indicator = None
-        if hasattr(user, 'gaussian_charge_direction'):
-            delattr(user, 'gaussian_charge_direction')
-        if hasattr(user, 'gaussian_charge_turn'):
-            delattr(user, 'gaussian_charge_turn')
-        
-        # NOW set the cooldown after firing
-        self.current_cooldown = self.cooldown
-        
-        # Firing message removed
-        
-        # Get firing direction
-        direction = target_pos  # target_pos is actually the direction vector
+        # Get firing direction (target_pos is the direction vector from use())
+        direction = target_pos
         dy, dx = direction
         
         # Calculate all positions in the firing line
@@ -292,11 +319,11 @@ class GaussianDuskSkill(ActiveSkill):
                 TerrainType.LIMESTONE,     # Limestone formations
                 TerrainType.PILLAR,        # Limestone pillars
                 TerrainType.MARROW_WALL,   # Marrow Dike walls
-                TerrainType.FURNITURE,     # Generic furniture
+                TerrainType.RADIO_CONSOLE,     # Vintage radio console
                 TerrainType.COAT_RACK,     # Coat racks
                 TerrainType.OTTOMAN,       # Ottoman seating
                 TerrainType.CONSOLE,       # Console tables
-                TerrainType.DEC_TABLE,     # Decorative tables
+                TerrainType.CURIOSITY_SHELF,     # Decorative tables
                 TerrainType.TIFFANY_LAMP,  # Tiffany-style decorative lamp
                 TerrainType.STAINED_STONE, # Stained stone formation
                 TerrainType.EASEL,         # Artist's easel with canvas
@@ -363,28 +390,8 @@ class GaussianDuskSkill(ActiveSkill):
                     # Check for critical health using centralized logic
                     game.check_critical_health(unit, user, previous_hp, ui)
 
-        # Place rails along the firing path after all damage and terrain destruction
-        # Since terrain has already been destroyed, we can now place an unbroken rail path
-        rails_placed = 0
-        for pos_y, pos_x in positions_in_line:
-            current_terrain = game.map.get_terrain_at(pos_y, pos_x)
-            # Place rails on all passable terrain (destructible terrain has already been cleared to empty)
-            # Skip only existing rails and truly impassable terrain that couldn't be destroyed
-            if current_terrain != TerrainType.RAIL and game.map.is_passable(pos_y, pos_x):
-                # Store original terrain before placing rail (using the same system)
-                game.map.rail_original_terrain[(pos_y, pos_x)] = current_terrain
-                game.map.set_terrain_at(pos_y, pos_x, TerrainType.RAIL)
-                rails_placed += 1
-
         # Log results
-        if rails_placed > 0:
-            message_log.add_message(
-                f"The hypersonic projectile leaves {rails_placed} rail {'segment' if rails_placed == 1 else 'segments'} in its wake",
-                MessageType.ABILITY,
-                player=user.player
-            )
-
-        if units_hit == 0 and terrain_destroyed == 0 and rails_placed == 0:
+        if units_hit == 0 and terrain_destroyed == 0:
             message_log.add_message(
                 "The rail cannon's beam finds no targets",
                 MessageType.ABILITY,
@@ -436,7 +443,7 @@ class GaussianDuskSkill(ActiveSkill):
                         impact_animation = ui.asset_manager.get_skill_animation_sequence('gaussian_dusk_impact')
                         if not impact_animation:
                             impact_animation = ['>', '!', '*', '#', '%', '~', '.']  # Fallback
-                        
+
                         # Animate impact at unit position
                         ui.renderer.animate_attack_sequence(
                             unit.y, unit.x,
@@ -444,10 +451,10 @@ class GaussianDuskSkill(ActiveSkill):
                             10,  # Red color for high-energy impact
                             0.08  # Quick, intense impact
                         )
-                    
+
                     # Then show damage numbers
                     damage_text = f"-{damage}"
-                    
+
                     # Make damage text more prominent with flashing effect
                     for i in range(3):
                         ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
@@ -455,12 +462,22 @@ class GaussianDuskSkill(ActiveSkill):
                         ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)
                         ui.renderer.refresh()
                         sleep_with_animation_speed(0.1)
-                    
+
                     # Final damage display (stays visible a bit longer)
                     ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
                     ui.renderer.refresh()
                     sleep_with_animation_speed(0.2)
-        
+
+        # Apply recharge state - unit cannot take any actions for 1 turn
+        user.gaussian_dusk_recharge = self.recharge_duration
+
+        # Log recharge state
+        message_log.add_message(
+            f"{user.get_display_name()}'s rail cannon must recharge - it cannot take any actions next turn",
+            MessageType.ABILITY,
+            player=user.player
+        )
+
         return True
 
 
@@ -484,8 +501,8 @@ class BigArcSkill(ActiveSkill):
         self.secondary_damage = 5
         
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
-        # Cannot use while Gaussian Dusk is charging
-        if hasattr(user, 'charging_status') and user.charging_status:
+        # Cannot use while recharging from Gaussian Dusk
+        if hasattr(user, 'gaussian_dusk_recharge') and user.gaussian_dusk_recharge > 0:
             return False
 
         # Basic validation for cooldown
@@ -714,14 +731,14 @@ class FragcrestSkill(ActiveSkill):
         self.knockback_distance = 2
         
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
-        # Cannot use while Gaussian Dusk is charging
-        if hasattr(user, 'charging_status') and user.charging_status:
+        # Cannot use while recharging from Gaussian Dusk
+        if hasattr(user, 'gaussian_dusk_recharge') and user.gaussian_dusk_recharge > 0:
             return False
 
         # Basic validation
         if not super().can_use(user, target_pos, game):
             return False
-        
+
         # Make sure there's a valid target position
         if not target_pos or not game or not game.is_valid_position(target_pos[0], target_pos[1]):
             return False

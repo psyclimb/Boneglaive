@@ -641,7 +641,7 @@ class UnitHelpComponent(UIComponent):
         
     def _load_unit_help_data(self):
         """Load unit help data for all units."""
-        return {
+        unit_help_dict = {
             UnitType.GLAIVEMAN: {
                 'title': 'GLAIVEMAN',
                 'overview': [
@@ -1026,72 +1026,74 @@ class UnitHelpComponent(UIComponent):
                     'The FOWL CONTRIVANCE is a mechanical peacock rail artillery platform that transforms the',
                     'battlefield through devastating long-range bombardment and explosive infrastructure. Upon',
                     'deployment, this unit establishes a permanent rail network that detonates catastrophically',
-                    'whenever any FOWL CONTRIVANCE falls. Combining extreme mobility with overwhelming firepower,',
-                    'this glass cannon excels at indirect fire support—raining mortar shells, unleashing piercing',
-                    'rail cannon shots, and deploying directional fragmentation bursts that shred clustered enemies.',
+                    'whenever any FOWL CONTRIVANCE falls, blasting enemies on rails and embedding shrapnel in',
+                    'adjacent units. This heavy artillery platform excels at indirect fire support—raining mortar',
+                    'shells, unleashing piercing rail cannon shots, and deploying directional fragmentation bursts',
+                    'that shred clustered enemies.',
                     '',
                     'Role: Burst Damage / Displacer',
                     'Difficulty: ***'
                 ],
                 'stats': [
                     'HP: 18',
-                    'Attack: 4',
+                    'Attack: 3',
                     'Defense: 0',
-                    'Movement: 4',
+                    'Movement: 2',
                     'Range: 2',
                     'Symbol: T'
                 ],
                 'skills': [
                     {
                         'name': 'RAIL GENESIS (Passive)',
-                        'description': 'The first FOWL CONTRIVANCE to deploy establishes a permanent rail network across passable terrain. This infrastructure persists throughout the match and is shared by all FOWL CONTRIVANCES. Whenever any FOWL CONTRIVANCE dies, the rail network detonates, dealing 4 damage to all enemy units standing on rail tiles. When the last FOWL CONTRIVANCE dies, the rail network is destroyed and removed from the battlefield.',
+                        'description': 'The first FOWL CONTRIVANCE to deploy establishes a permanent rail network across passable terrain. This infrastructure persists throughout the match and is shared by all FOWL CONTRIVANCES. Whenever any FOWL CONTRIVANCE dies, the rail network detonates, dealing 6 damage to all enemy units standing on rail tiles and applying Shrapnel (1 damage per turn for 3 turns) to enemies adjacent to rails. When the last FOWL CONTRIVANCE dies, the rail network is destroyed and removed from the battlefield.',
                         'details': [
                             'Type: Passive',
-                            'Effect: Rail network across map; 4 damage to enemies on rails when any FOWL CONTRIVANCE dies; network removed when last one dies',
-                            'Special: Rail network is permanent until last FOWL dies; shared across all FOWL CONTRIVANCES; explodes on every FOWL death'
+                            'Effect: Rail network across map; 6 damage to enemies on rails; Shrapnel (1 dmg/turn for 3 turns) to enemies adjacent to rails; network removed when last FOWL dies',
+                            'Special: Rail network is permanent until last FOWL dies; shared across all FOWL CONTRIVANCES; explodes on every FOWL death',
+                            'Synergy: Shrapnel effect matches Fragcrest ability for thematic consistency'
                         ]
                     },
                     {
                         'name': 'GAUSSIAN DUSK (Active) [Key: G]',
-                        'description': 'The FOWL CONTRIVANCE charges its rail cannon for one turn, disabling all movement, attacks, and skills. On the following turn, the cannon automatically fires a devastating beam in the chosen direction that pierces through all units and terrain in a straight line across the entire map. The beam deals 10 defense-piercing damage to every unit hit and places rail segments along its path. The skill cannot be canceled once charging begins.',
+                        'description': 'The FOWL CONTRIVANCE fires its rail cannon in a cardinal direction, unleashing a hypersonic projectile that pierces through all units and destructible terrain in a straight line across the entire map. The beam deals 9 defense-piercing damage to every unit hit and obliterates all destructible terrain in its path. After firing, the rail cannon enters a recharge state for 1 turn, during which the FOWL CONTRIVANCE cannot move, attack, or use any skills.',
                         'details': [
-                            'Type: Active (Two-phase: Charging → Automatic Firing)',
-                            'Range: Unlimited (entire map in chosen direction)',
-                            'Damage: 10 (pierces defense)',
-                            'Effect: Charging (=) (disables all actions for 1 turn); places rails along beam path',
-                            'Cooldown: 4 turns (begins after firing)',
-                            'Special: Automatically fires on next turn after charging; destroys terrain; cannot be interrupted'
+                            'Type: Active',
+                            'Range: Unlimited (entire map in cardinal direction)',
+                            'Damage: 9 (pierces defense)',
+                            'Effect: Recharging (=)',
+                            'Cooldown: 5 turns',
+                            'Special: Destroys all destructible terrain in path; must fire in cardinal direction only'
                         ]
                     },
                     {
                         'name': 'PARABOL (Active) [Key: P]',
-                        'description': 'The FOWL CONTRIVANCE launches explosive mortar shells in a high arc to bombard a 3x3 area at range. The indirect fire ignores line of sight and cannot target adjacent tiles (minimum range 2). The center tile takes 8 damage while the surrounding 8 tiles each take 5 damage. Cannot be used while Gaussian Dusk is charging.',
+                        'description': 'The FOWL CONTRIVANCE launches explosive mortar shells in a high arc to bombard a 3x3 area at range. The indirect fire ignores line of sight and cannot target adjacent tiles (minimum range 2). The center tile takes 8 damage while the surrounding 8 tiles each take 5 damage. Cannot be used while rail cannon is recharging.',
                         'details': [
                             'Type: Active',
                             'Range: 6 (minimum range 2)',
                             'Damage: 8 (center tile), 5 (surrounding 8 tiles)',
                             'Cooldown: 4 turns',
-                            'Special: Ignores line of sight; cannot target adjacent tiles; disabled while charging'
+                            'Special: Ignores line of sight; cannot target adjacent tiles; disabled while recharging'
                         ]
                     },
                     {
                         'name': 'FRAGCREST (Active) [Key: F]',
-                        'description': 'The FOWL CONTRIVANCE unfolds its mechanical tail feathers and fires a directional fragmentation burst in a 90-degree cone. The primary target takes 4 damage and is knocked back 2 tiles. All other enemies in the cone take 2 damage and are also knocked back. All hit enemies become embedded with Shrapnel, suffering 1 damage per turn for 3 turns. Requires line of sight to the primary target. Cannot be used while Gaussian Dusk is charging.',
+                        'description': 'The FOWL CONTRIVANCE unfolds its mechanical tail feathers and fires a directional fragmentation burst in a 90-degree cone. The primary target takes 4 damage and is knocked back 2 tiles. All other enemies in the cone take 2 damage and are also knocked back. All hit enemies become embedded with Shrapnel, suffering 1 damage per turn for 3 turns. Requires line of sight to the primary target. Cannot be used while rail cannon is recharging.',
                         'details': [
                             'Type: Active',
                             'Range: 4',
                             'Damage: 4 (primary target), 2 (cone targets); pushes enemies 2 tiles',
                             'Effect: Shrapnel (x) (1 damage/turn for 3 turns)',
                             'Cooldown: 3 turns',
-                            'Special: 90-degree cone; requires line of sight to primary target; disabled while charging'
+                            'Special: 90-degree cone; requires line of sight to primary target; disabled while recharging'
                         ]
                     }
                 ],
                 'tips': [
-                    '- Use Gaussian Dusk for maximum damage output but plan the charging turn carefully',
+                    '- Cardinal direction restriction requires careful positioning before firing Gaussian Dusk',
                     '- Parabol excels against clustered enemies and ignores line of sight restrictions',
                     '- Fragcrest provides crowd control through knockback and area denial via shrapnel',
-                    '- High movement allows for repositioning between artillery strikes'
+                    '- Low movement range demands deliberate positioning and rail network access'
                 ],
                 'tactical': [
                     '- Strong against: Clustered enemies, static formations, low-mobility units, units with high defence',
@@ -1109,7 +1111,7 @@ class UnitHelpComponent(UIComponent):
                     'The GAS MACHINIST excels at area control and sustained utility through vapor deployment.',
                     '',
                     'Role: Summoner / Utility / Healer',
-                    'Difficulty: *****'
+                    'Difficulty: ****'
                 ],
                 'stats': [
                     'HP: 20',
@@ -1208,46 +1210,46 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'VALUATION ORACLE (Passive)',
-                        'description': 'The DELPHIC APPRAISER\'s oracular sight pierces the material realm to perceive the "astral value" (random 1-9) of every furniture piece when the match begins. When standing adjacent to any appraised furniture, the APPRAISER channels its metaphysical energy to enhance their combat capabilities, gaining +1 defense and +1 attack range. These bonuses persist as long as the APPRAISER remains adjacent to at least one furniture piece.',
+                        'description': 'The DELPHIC APPRAISER\'s oracular sight pierces the material realm to perceive the "astral value" (random 1-9, max 14) of every furniture piece when the match begins. When allies stand adjacent to furniture with astral value 9 or greater, they channel its potent metaphysical energy to enhance their combat capabilities, gaining +1 defense and +1 attack range. These bonuses persist as long as they remain adjacent to high-value furniture.',
                         'details': [
                             'Type: Passive',
-                            'Effect: Valuation Oracle (@); +1 defense and +1 attack range while adjacent to furniture'
+                            'Effect: Valuation Oracle (@); allies gain +1 defense and +1 attack range when adjacent to furniture with value ≥9'
                         ]
                     },
                     {
                         'name': 'MARKET FUTURES (Active) [Key: M]',
-                        'description': 'The DELPHIC APPRAISER infuses a furniture piece with temporal investment energy, transforming it into a shimmering teleportation anchor. Allies standing adjacent to the imbued furniture enter Parallax—a state where they exist simultaneously in their current location and the potential destination. While in Parallax, the ally can activate the anchor to teleport up to a distance equal to the furniture\'s astral value (1-9 tiles). Upon teleporting, the ally receives a maturing investment effect that grants +1 attack range for 3 turns and attack bonuses that grow over time: +1 attack (turn 1), +2 attack (turn 2), +3 attack (turn 3). The investment bonuses apply immediately before each basic attack. After one ally uses the anchor, it deactivates.',
+                        'description': 'The DELPHIC APPRAISER infuses a furniture piece with temporal investment energy, transforming it into a shimmering teleportation anchor. Allies standing adjacent to the imbued furniture enter Parallax—a state where they exist simultaneously in their current location and the potential destination. While in Parallax, the ally can activate the anchor to teleport up to a distance equal to the furniture\'s astral value (1-14 tiles). Upon teleporting, the ally receives a maturing investment effect that grants +1 attack range for 3 turns and attack bonuses that grow over time: +1 attack (turn 1), +2 attack (turn 2), +3 attack (turn 3). The investment bonuses apply immediately before each basic attack. After one ally uses the anchor, it deactivates.',
                         'details': [
                             'Type: Active',
                             'Range: 4',
                             'Target: Furniture piece',
                             'Effect: Parallax (%) when adjacent to anchor; Investment ($) (3 turns) after teleport',
                             'Cooldown: 6 turns',
-                            'Special: Teleport range = astral value (1-9); Investment grants +1 range (constant) and maturing attack (+1/+2/+3)'
+                            'Special: Teleport range = astral value (1-14); Investment grants +1 range (constant) and maturing attack (+1/+2/+3)'
                         ]
                     },
                     {
                         'name': 'AUCTION CURSE (Active) [Key: A]',
-                        'description': 'The DELPHIC APPRAISER opens a twisted auction that surrounds the target enemy with astral auctioneers who manifest at nearby furniture (within 2 tiles). The curse duration equals the average astral value of surrounding furniture (rounded up, 1-9 turns). Each turn, the victim takes 1 damage as their life force is drained by the escalating bids, and all nearby furniture values inflate by +1 as the market frenzy intensifies. The curse also prevents all healing.',
+                        'description': 'The DELPHIC APPRAISER opens a twisted auction that surrounds the target enemy with astral auctioneers who manifest at nearby furniture (within 2 tiles). The curse duration equals the average astral value of surrounding furniture (rounded up, 1-14 turns). Each turn, the victim takes 1 damage as their life force is drained by the escalating bids, and all nearby furniture values inflate by +1 (capped at 14) as the market frenzy intensifies. The curse also prevents all healing.',
                         'details': [
                             'Type: Active',
                             'Range: 3',
                             'Target: Single enemy',
                             'Damage: 1 per turn',
-                            'Effect: Auction Curse (|); prevents healing; inflates nearby furniture +1 each turn',
+                            'Effect: Auction Curse (|); prevents healing; inflates nearby furniture +1 each turn (max 14)',
                             'Cooldown: 3 turns',
-                            'Special: Duration = avg astral value (1-9 turns); furniture within 2 tiles inflates +1 every turn'
+                            'Special: Duration = avg astral value (1-14 turns); furniture within 2 tiles inflates +1 every turn'
                         ]
                     },
                     {
                         'name': 'DIVINE DEPRECIATION (Active) [Key: D]',
-                        'description': 'The DELPHIC APPRAISER dramatically reappraises a furniture piece as cosmically worthless, causing its astral value to collapse from its original value to 1. The sudden devaluation creates a reality sinkhole in a 7x7 area as the floor buckles inward. All enemies in the area take piercing damage (bypasses defense) equal to the average astral value of OTHER furniture in the area minus 1. The reality distortion pulls enemies toward the center—pull distance equals (original target value - 1) minus each unit\'s movement value (minimum 1 tile). High-mobility units resist the pull better. Finally, the market chaos rerolls all OTHER furniture astral values randomly (1-9).',
+                        'description': 'The DELPHIC APPRAISER dramatically reappraises a furniture piece as cosmically worthless, causing its astral value to collapse from its original value to 1. The sudden devaluation creates a reality sinkhole in a 7x7 area as the floor buckles inward. All enemies in the area take piercing damage (bypasses defense) equal to the average astral value of OTHER furniture in the area minus 1 (max 13 damage). The reality distortion pulls enemies toward the center—pull distance equals (original target value - 1) minus each unit\'s movement value (minimum 1 tile). High-mobility units resist the pull better. Finally, the market chaos rerolls all OTHER furniture astral values randomly (1-9).',
                         'details': [
                             'Type: Active',
                             'Range: 3',
                             'Target: Furniture piece',
                             'Area: 7x7',
-                            'Damage: (Average of other furniture) - 1 (pierces defense)',
+                            'Damage: (Average of other furniture) - 1 (pierces defense, max 13)',
                             'Cooldown: 6 turns',
                             'Special: Sets target value to 1; pull = (original value - 1) - move (min 1); rerolls other furniture'
                         ]
@@ -1317,12 +1319,12 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'SCALAR NODE (Active) [Key: S]',
-                        'description': 'The INTERFERER triangulates coordinates with the tower array to create an invisible standing wave energy trap at a specific location (range 3). The trap placement is completely silent—no message appears when setting it. When any enemy ends their turn on the trapped tile, the standing wave collapses violently, dealing 12 damage and announcing the trap\'s detonation. The trap persists until triggered.',
+                        'description': 'The INTERFERER triangulates coordinates with the tower array to create an invisible standing wave energy trap at a specific location (range 3). The trap placement is completely silent—no message appears when setting it. When any enemy ends their turn on the trapped tile, the standing wave collapses violently, dealing 8 damage and announcing the trap\'s detonation. The trap persists until triggered.',
                         'details': [
                             'Type: Active',
                             'Range: 3',
-                            'Damage: 12',
-                            'Cooldown: 3 turns',
+                            'Damage: 8',
+                            'Cooldown: 2 turns',
                             'Special: Invisible trap; silent placement only; triggers when enemy ends turn on tile'
                         ]
                     }
@@ -1447,12 +1449,13 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'INFUSE (Active) [Key: I]',
-                        'description': 'The POTPOURRIST infuses their aromatic blend into a concentrated potpourri mixture, intensifying the healing vapors. This self-targeting ability enhances Melange Eminence\'s regeneration (from 1 HP to 2 HP per turn) and empowers both Demilune and Granite Geas with additional effects. Once created, the potpourri persists until consumed by casting Demilune or Granite Geas.',
+                        'description': 'The POTPOURRIST infuses their aromatic blend into a concentrated potpourri mixture, intensifying the healing vapors. This self-targeting ability enhances Melange Eminence\'s regeneration (from 1 HP to 2 HP per turn) and empowers both Demilune and Granite Geas with additional effects. The potpourri lasts 2 turns and goes on cooldown when consumed or when it expires.',
                         'details': [
                             'Type: Active',
                             'Range: Self',
                             'Effect: Infusion (*)',
-                            'Cooldown: 0 turns (gated by Infusion status)'
+                            'Duration: 2 turns',
+                            'Cooldown: 1 turn'
                         ]
                     },
                     {
@@ -1813,7 +1816,18 @@ class UnitHelpComponent(UIComponent):
                 ]
             }
         }
-    
+
+        # Load DLC unit help data
+        from boneglaive.game.dlc_manager import get_dlc_manager
+        dlc_manager = get_dlc_manager()
+        for unit_id in dlc_manager.get_loaded_units():
+            help_data = dlc_manager.get_unit_help_data(unit_id)
+            if help_data:
+                # Add DLC help data using uppercase unit_id as key (matches unit registration)
+                unit_help_dict[unit_id.upper()] = help_data
+
+        return unit_help_dict
+
     def toggle_unit_help(self, unit_type=None):
         """Toggle the unit help screen for a specific unit type."""
         # Can't use unit help screen while in chat mode
@@ -2352,6 +2366,14 @@ class CursorManager(UIComponent):
         self.selected_unit = None
         self.highlighted_positions = []
         self.attack_range_positions = []  # Track attack range tiles (shown in player color)
+
+        # Respawn mode state
+        self.respawn_mode = False
+        self.respawn_selecting_unit = False  # True when selecting which unit to respawn
+        self.respawn_selecting_location = False  # True when selecting respawn location
+        self.selected_dead_unit = None
+        self.respawn_unit_index = 0  # Index in ready dead units list
+        self.respawn_preview_location = None  # Preview location for respawn ghost
     
     def _setup_event_handlers(self):
         """Set up event handlers for cursor manager."""
@@ -2773,20 +2795,20 @@ class CursorManager(UIComponent):
             
         # Get the current player
         current_player = self.game_ui.multiplayer.get_current_player()
-        
-        # Get a list of units belonging to the current player
-        player_units = [unit for unit in self.game_ui.game.units 
-                      if unit.is_alive() and 
-                         (unit.player == current_player or 
+
+        # Get a list of units belonging to the current player (alive only)
+        player_units = [unit for unit in self.game_ui.game.units
+                      if unit.is_alive() and
+                         (unit.player == current_player or
                           (self.game_ui.game.test_mode and unit.player in [1, 2]))]
-        
+
         if not player_units:
             self.game_ui.message = "No units available to cycle through"
             return
-        
+
         # Store reference to currently selected unit before deselecting
         previously_selected_unit = self.selected_unit
-        
+
         # If no unit was selected, select the first or last one depending on direction
         if not previously_selected_unit:
             # In reverse mode, start from the last unit
@@ -2795,7 +2817,7 @@ class CursorManager(UIComponent):
             # Find the index of the currently selected unit
             try:
                 current_index = player_units.index(previously_selected_unit)
-                
+
                 # Calculate the next index based on direction
                 if reverse:
                     # Select the previous unit (loop back to last if at the beginning)
@@ -2803,42 +2825,42 @@ class CursorManager(UIComponent):
                 else:
                     # Select the next unit (loop back to first if at the end)
                     next_index = (current_index + 1) % len(player_units)
-                    
+
                 next_unit = player_units[next_index]
             except ValueError:
                 # If the selected unit isn't in the player's units (could happen in test mode)
                 # In reverse mode, start from the last unit
                 next_unit = player_units[-1 if reverse else 0]
-        
+
         # Only deselect the current unit after finding the next one
         if previously_selected_unit:
             self._deselect_unit()
-            
+
         # Move cursor to the next unit's position
         previous_pos = self.cursor_pos
-        
+
         # Set position based on whether unit has a move target
         if next_unit.move_target:
             self.cursor_pos = Position(next_unit.move_target[0], next_unit.move_target[1])
         else:
             self.cursor_pos = Position(next_unit.y, next_unit.x)
-            
+
         # Publish cursor moved event if position changed
         if self.cursor_pos != previous_pos:
             self.publish_event(
-                EventType.CURSOR_MOVED, 
+                EventType.CURSOR_MOVED,
                 CursorMovedEventData(position=self.cursor_pos, previous_position=previous_pos)
             )
-        
+
         # Select the unit
         self.selected_unit = next_unit
-        
+
         # Publish unit selected event
         self.publish_event(
             EventType.UNIT_SELECTED,
             UnitSelectedEventData(unit=next_unit, position=self.cursor_pos)
         )
-        
+
         # Clear message to avoid redundancy with unit info display
         self.game_ui.message = ""
         
@@ -2855,10 +2877,10 @@ class CursorManager(UIComponent):
         
     def find_unit_by_ghost(self, y, x):
         """Find a unit that has a move target at the given position.
-        
+
         Args:
             y, x: The position to check for a ghost unit
-            
+
         Returns:
             The unit that has a move target at (y, x), or None if no such unit exists
         """
@@ -2866,6 +2888,107 @@ class CursorManager(UIComponent):
             if unit.is_alive() and unit.move_target == (y, x):
                 return unit
         return None
+
+    def start_respawn_mode(self):
+        """Start respawn mode - show list of ready-to-respawn units."""
+        current_player = self.game_ui.multiplayer.get_current_player()
+
+        # Get ready-to-respawn dead units for current player
+        ready_dead_units = [du for du in self.game_ui.game.dead_units
+                           if du.player == current_player and du.ready_for_respawn]
+
+        if not ready_dead_units:
+            self.game_ui.message = "No units ready to respawn"
+            return False
+
+        # Enter respawn unit selection mode
+        self.respawn_mode = True
+        self.respawn_selecting_unit = True
+        self.respawn_selecting_location = False
+        self.respawn_unit_index = 0
+        self.selected_dead_unit = None
+        self.game_ui.message = "Select unit to respawn (arrows/Enter to confirm, c to cancel)"
+        return True
+
+    def respawn_select_next_unit(self):
+        """Cycle to next ready-to-respawn unit."""
+        current_player = self.game_ui.multiplayer.get_current_player()
+        ready_dead_units = [du for du in self.game_ui.game.dead_units
+                           if du.player == current_player and du.ready_for_respawn]
+
+        if ready_dead_units:
+            self.respawn_unit_index = (self.respawn_unit_index + 1) % len(ready_dead_units)
+
+    def respawn_select_prev_unit(self):
+        """Cycle to previous ready-to-respawn unit."""
+        current_player = self.game_ui.multiplayer.get_current_player()
+        ready_dead_units = [du for du in self.game_ui.game.dead_units
+                           if du.player == current_player and du.ready_for_respawn]
+
+        if ready_dead_units:
+            self.respawn_unit_index = (self.respawn_unit_index - 1) % len(ready_dead_units)
+
+    def confirm_respawn_unit_selection(self):
+        """Confirm unit selection and enter location selection mode."""
+        current_player = self.game_ui.multiplayer.get_current_player()
+        ready_dead_units = [du for du in self.game_ui.game.dead_units
+                           if du.player == current_player and du.ready_for_respawn]
+
+        if not ready_dead_units:
+            self.exit_respawn_mode()
+            return False
+
+        # Set selected dead unit and enter location selection mode
+        self.selected_dead_unit = ready_dead_units[self.respawn_unit_index]
+        self.respawn_selecting_unit = False
+        self.respawn_selecting_location = True
+
+        # Highlight valid respawn tiles in player color
+        valid_tiles = self.game_ui.game.get_valid_respawn_tiles(current_player)
+        self.highlighted_positions = [Position(y, x) for y, x in valid_tiles]
+
+        self.game_ui.message = f"Select respawn location for {self.selected_dead_unit.greek_id} (Enter to confirm, c to cancel)"
+        return True
+
+    def confirm_respawn_location(self):
+        """Confirm respawn at current cursor position."""
+        if not self.selected_dead_unit:
+            return False
+
+        pos = (self.cursor_pos.y, self.cursor_pos.x)
+
+        # If no preview set yet, set preview first
+        if self.respawn_preview_location is None:
+            # Check if position is valid before setting preview
+            if pos in [(p.y, p.x) for p in self.highlighted_positions]:
+                self.respawn_preview_location = pos
+                self.game_ui.message = f"{self.selected_dead_unit.greek_id} will respawn here - Press Enter to confirm"
+                return True
+            else:
+                self.game_ui.message = "Invalid respawn location"
+                return False
+        else:
+            # Preview already set, now confirm the respawn
+            success = self.game_ui.game.queue_respawn(self.selected_dead_unit, pos)
+
+            if success:
+                self.game_ui.message = f"{self.selected_dead_unit.greek_id} respawn queued"
+                self.exit_respawn_mode()
+                return True
+            else:
+                self.game_ui.message = "Invalid respawn location (blocked or occupied)"
+                return False
+
+    def exit_respawn_mode(self):
+        """Exit respawn mode."""
+        self.respawn_mode = False
+        self.respawn_selecting_unit = False
+        self.respawn_selecting_location = False
+        self.selected_dead_unit = None
+        self.respawn_unit_index = 0
+        self.respawn_preview_location = None
+        self.highlighted_positions = []
+        self.game_ui.message = ""
 
 # Game mode manager component
 class GameOverPrompt(UIComponent):
@@ -3354,7 +3477,20 @@ class GameModeManager(UIComponent):
                 if cursor_manager.selected_unit.is_echo:
                     # Don't show a message, just silently return
                     return
-                    
+
+                # Check if unit is recharging from Gaussian Dusk
+                if hasattr(cursor_manager.selected_unit, 'gaussian_dusk_recharge') and cursor_manager.selected_unit.gaussian_dusk_recharge > 0:
+                    # Use event system for message (UI only, not logged)
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message="Rail cannon is recharging - unit cannot take any actions",
+                            message_type=MessageType.WARNING,
+                            log_message=False  # Don't add to message log
+                        )
+                    )
+                    return
+
                 # Change mode (will publish mode changed event)
                 self.set_mode("move")
                 
@@ -3427,10 +3563,23 @@ class GameModeManager(UIComponent):
                 if cursor_manager.selected_unit.is_echo:
                     # Don't show a message, just silently return
                     return
-                    
+
+                # Check if unit is recharging from Gaussian Dusk
+                if hasattr(cursor_manager.selected_unit, 'gaussian_dusk_recharge') and cursor_manager.selected_unit.gaussian_dusk_recharge > 0:
+                    # Use event system for message (UI only, not logged)
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message="Rail cannon is recharging - unit cannot take any actions",
+                            message_type=MessageType.WARNING,
+                            log_message=False  # Don't add to message log
+                        )
+                    )
+                    return
+
                 # Previously there was a restriction that prevented using skills after moving
                 # This has been removed to allow move+skill combinations
-                
+
                 # Get available skills (not on cooldown)
                 available_skills = cursor_manager.selected_unit.get_available_skills()
                 
@@ -3516,7 +3665,20 @@ class GameModeManager(UIComponent):
                         )
                     )
                     return
-                
+
+                # Check if unit is recharging from Gaussian Dusk
+                if hasattr(cursor_manager.selected_unit, 'gaussian_dusk_recharge') and cursor_manager.selected_unit.gaussian_dusk_recharge > 0:
+                    # Use event system for message (UI only, not logged)
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message="Rail cannon is recharging - unit cannot take any actions",
+                            message_type=MessageType.WARNING,
+                            log_message=False  # Don't add to message log
+                        )
+                    )
+                    return
+
                 # Change mode (will publish mode changed event)
                 self.set_mode("attack")
                 
@@ -4201,25 +4363,29 @@ class GameModeManager(UIComponent):
         if not self.game_ui.game.setup_phase:
             return
 
-        # Get current index in unit types list
-        unit_types = [
-            UnitType.GLAIVEMAN, UnitType.GRAYMAN, UnitType.MANDIBLE_FOREMAN,
-            UnitType.POTPOURRIST, UnitType.MARROW_CONDENSER, UnitType.INTERFERER,
-            UnitType.FOWL_CONTRIVANCE, UnitType.DELPHIC_APPRAISER, UnitType.GAS_MACHINIST,
-            UnitType.DERELICTIONIST
-        ]
-        
+        # Get unit types dynamically from the unit selection menu (includes DLC)
+        unit_types = self.game_ui.unit_selection_menu.unit_types
+
         try:
             current_index = unit_types.index(self.setup_unit_type)
             # Move to next unit type, wrapping around to beginning
             next_index = (current_index + 1) % len(unit_types)
             self.setup_unit_type = unit_types[next_index]
         except ValueError:
-            # Fallback if current type not found
-            self.setup_unit_type = UnitType.GLAIVEMAN
-        
+            # Fallback if current type not found - use first unit
+            self.setup_unit_type = unit_types[0] if unit_types else UnitType.GLAIVEMAN
+
         # Update message and sync menu
-        unit_name = self.setup_unit_type.name.replace('_', ' ')
+        # Get unit name from display names dict
+        from boneglaive.utils.constants import UNIT_DISPLAY_NAMES
+        unit_val = self.setup_unit_type.value if hasattr(self.setup_unit_type, 'value') else self.setup_unit_type
+        if self.setup_unit_type in UNIT_DISPLAY_NAMES:
+            unit_name = UNIT_DISPLAY_NAMES[self.setup_unit_type]
+        elif unit_val in UNIT_DISPLAY_NAMES:
+            unit_name = UNIT_DISPLAY_NAMES[unit_val]
+        else:
+            unit_name = f"UNIT_{unit_val}"
+
         self.game_ui.message = f"Setup unit type: {unit_name}"
         self.game_ui.unit_selection_menu.set_selected_unit_type(self.setup_unit_type)
         self.game_ui.draw_board()
@@ -4229,25 +4395,29 @@ class GameModeManager(UIComponent):
         if not self.game_ui.game.setup_phase:
             return
 
-        # Get current index in unit types list
-        unit_types = [
-            UnitType.GLAIVEMAN, UnitType.GRAYMAN, UnitType.MANDIBLE_FOREMAN,
-            UnitType.POTPOURRIST, UnitType.MARROW_CONDENSER, UnitType.INTERFERER,
-            UnitType.FOWL_CONTRIVANCE, UnitType.DELPHIC_APPRAISER, UnitType.GAS_MACHINIST,
-            UnitType.DERELICTIONIST
-        ]
-        
+        # Get unit types dynamically from the unit selection menu (includes DLC)
+        unit_types = self.game_ui.unit_selection_menu.unit_types
+
         try:
             current_index = unit_types.index(self.setup_unit_type)
             # Move to previous unit type, wrapping around to end
             prev_index = (current_index - 1) % len(unit_types)
             self.setup_unit_type = unit_types[prev_index]
         except ValueError:
-            # Fallback if current type not found
-            self.setup_unit_type = UnitType.GLAIVEMAN
+            # Fallback if current type not found - use first unit
+            self.setup_unit_type = unit_types[0] if unit_types else UnitType.GLAIVEMAN
         
         # Update message and sync menu
-        unit_name = self.setup_unit_type.name.replace('_', ' ')
+        # Get unit name from display names dict
+        from boneglaive.utils.constants import UNIT_DISPLAY_NAMES
+        unit_val = self.setup_unit_type.value if hasattr(self.setup_unit_type, 'value') else self.setup_unit_type
+        if self.setup_unit_type in UNIT_DISPLAY_NAMES:
+            unit_name = UNIT_DISPLAY_NAMES[self.setup_unit_type]
+        elif unit_val in UNIT_DISPLAY_NAMES:
+            unit_name = UNIT_DISPLAY_NAMES[unit_val]
+        else:
+            unit_name = f"UNIT_{unit_val}"
+
         self.game_ui.message = f"Setup unit type: {unit_name}"
         self.game_ui.unit_selection_menu.set_selected_unit_type(self.setup_unit_type)
         self.game_ui.draw_board()
@@ -4911,27 +5081,30 @@ class ActionMenuComponent(UIComponent):
         self.actions = []
         self.menu_mode = "standard"
         
+        # Check if unit is recharging from Gaussian Dusk (blocks ALL actions)
+        unit_is_recharging = hasattr(unit, 'gaussian_dusk_recharge') and unit.gaussian_dusk_recharge > 0
+
         # Check if unit has already taken an action this turn
         # Note: moves don't end a unit's turn - they can move + attack/skill
         unit_has_action = (unit.attack_target or unit.skill_target or unit.selected_skill)
-        
+
         # Add standard actions with consistent labeling
-        # Disable move for trapped units, Jawline-affected units, charging units, Neural Shunt, echoes, or if already moved
+        # Disable move for trapped units, Jawline-affected units, recharging units, Neural Shunt, echoes, or if already moved
         # Note: units CAN move even if they have attack/skill planned (move executes first)
         # EXCEPTION: DERELICTIONIST can move after using a skill (Severance passive)
-        
+
         # DERELICTIONIST Severance exception: Can queue movement even after queuing a skill
-        derelictionist_severance_exception = (unit.type == UnitType.DERELICTIONIST and 
-                                       unit.skill_target is not None and 
+        derelictionist_severance_exception = (unit.type == UnitType.DERELICTIONIST and
+                                       unit.skill_target is not None and
                                        unit.selected_skill is not None)
-        
+
         unit_can_move = (unit is not None and
+                        not unit_is_recharging and  # Recharging blocks ALL actions
                         unit.trapped_by is None and
                         not unit.is_echo and
                         not unit.move_target and  # Can't move if already planned a move
                         (not (unit.skill_target and unit.selected_skill) or derelictionist_severance_exception) and  # Severance exception
                         not (hasattr(unit, 'jawline_affected') and unit.jawline_affected) and
-                        not (hasattr(unit, 'charging_status') and unit.charging_status) and
                         not (hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected) and
                         not (hasattr(unit, 'derelicted') and unit.derelicted))  # Derelicted units cannot move
         self.actions.append({
@@ -4941,9 +5114,9 @@ class ActionMenuComponent(UIComponent):
             'enabled': unit_can_move  # Enabled only if unit can move
         })
         
-        # Disable attack for charging units, Neural Shunt, units with actions, or HEINOUS_VAPOR units
-        unit_can_attack = (not unit_has_action and
-                          not (hasattr(unit, 'charging_status') and unit.charging_status) and
+        # Disable attack for recharging units, Neural Shunt, units with actions, or HEINOUS_VAPOR units
+        unit_can_attack = (not unit_is_recharging and  # Recharging blocks ALL actions
+                          not unit_has_action and
                           not (hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected) and
                           unit.type != UnitType.HEINOUS_VAPOR)
         self.actions.append({
@@ -4956,10 +5129,12 @@ class ActionMenuComponent(UIComponent):
         # Add skill action
         unit_has_skills = unit is not None and hasattr(unit, 'active_skills') and len(unit.get_available_skills()) > 0
         # Allow skills to be used even when a move is planned (the unit can cast from the new position)
-        # Disable skills when charging (except for Gaussian Dusk auto-firing which is handled differently), under Neural Shunt, or with actions
-        unit_can_use_skills = (unit_has_skills and unit.trapped_by is None and not unit.is_echo and
+        # Disable skills when recharging, under Neural Shunt, or with actions
+        unit_can_use_skills = (unit_has_skills and
+                              not unit_is_recharging and  # Recharging blocks ALL actions
+                              unit.trapped_by is None and
+                              not unit.is_echo and
                               not unit_has_action and
-                              not (hasattr(unit, 'charging_status') and unit.charging_status) and
                               not (hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected))
         self.actions.append({
             'key': 's',
@@ -5313,6 +5488,36 @@ class ActionMenuComponent(UIComponent):
                 'action': 'granite_geas_skill',
                 'enabled': granite_geas_skill is not None,
                 'skill': granite_geas_skill
+            })
+
+        # PELOTARI skills (DLC unit)
+        elif unit.get_type_name() == "PELOTARI":
+            # Add Poach skill
+            poach_skill = next((skill for skill in available_skills if skill.name == "Poach"), None)
+            self.actions.append({
+                'key': 'p',
+                'label': 'oach',  # Will be displayed as [P]oach
+                'action': 'poach_skill',
+                'enabled': poach_skill is not None,
+                'skill': poach_skill
+            })
+            # Add Backhand skill
+            backhand_skill = next((skill for skill in available_skills if skill.name == "Backhand"), None)
+            self.actions.append({
+                'key': 'b',
+                'label': 'ackhand',  # Will be displayed as [B]ackhand
+                'action': 'backhand_skill',
+                'enabled': backhand_skill is not None,
+                'skill': backhand_skill
+            })
+            # Add Matador skill
+            matador_skill = next((skill for skill in available_skills if skill.name == "Matador"), None)
+            self.actions.append({
+                'key': 'm',
+                'label': 'atador',  # Will be displayed as [M]atador
+                'action': 'matador_skill',
+                'enabled': matador_skill is not None,
+                'skill': matador_skill
             })
 
         # Reset selected index
@@ -5874,7 +6079,7 @@ class ActionMenuComponent(UIComponent):
                                         # Check if it's self or a HEINOUS VAPOR ally (valid targets)
                                         if (target_unit == cursor_manager.selected_unit or
                                             (target_unit.player == cursor_manager.selected_unit.player and
-                                             hasattr(target_unit, 'type') and target_unit.type.name == 'HEINOUS_VAPOR')):
+                                             hasattr(target_unit, 'type') and target_unit.get_type_name() == 'HEINOUS_VAPOR')):
                                             targets.append((y, x))
                                     elif game.map.is_passable(y, x):
                                         # Highlight empty floor tiles for range visualization
@@ -6005,6 +6210,7 @@ class InputManager(UIComponent):
             GameAction.DEBUG_SAVE: self.game_ui.debug_component.handle_debug_save,
             GameAction.HELP: self._handle_help_request,
             GameAction.CHAT_MODE: self.game_ui.chat_component.toggle_chat_mode,
+            GameAction.RESPAWN_MODE: cursor_manager.start_respawn_mode,
             GameAction.CYCLE_UNITS: cursor_manager.cycle_units,
             GameAction.CYCLE_UNITS_REVERSE: cursor_manager.cycle_units_reverse,
             GameAction.LOG_HISTORY: self.game_ui.message_log_component.toggle_log_history,
@@ -6090,7 +6296,19 @@ class InputManager(UIComponent):
                 # Default case for unknown vapor types
                 self.game_ui.unit_help_component.toggle_unit_help(UnitType.HEINOUS_VAPOR)
                 return
-        
+            else:
+                # Check if this is a DLC unit
+                from boneglaive.game.dlc_manager import get_dlc_manager
+                dlc_manager = get_dlc_manager()
+                if dlc_manager.is_dlc_unit(unit_type):
+                    # Get unit_id from enum value
+                    for unit_id in dlc_manager.get_loaded_units():
+                        unit_data = dlc_manager.get_unit_data(unit_id)
+                        if unit_data and unit_data['enum_value'] == unit_type:
+                            # Show DLC unit help using uppercase unit_id as key
+                            self.game_ui.unit_help_component.toggle_unit_help(unit_id.upper())
+                            return
+
         # Show general help screen
         self.game_ui.help_component.toggle_help_screen()
         
@@ -6170,9 +6388,36 @@ class InputManager(UIComponent):
         if self.game_ui.chat_component.chat_mode:
             return self.game_ui.chat_component.handle_chat_input(key)
 
+        # Handle respawn mode input
+        if self.game_ui.cursor_manager.respawn_mode:
+            if self.game_ui.cursor_manager.respawn_selecting_unit:
+                # Unit selection phase
+                if key in [curses.KEY_UP, ord('k')]:
+                    self.game_ui.cursor_manager.respawn_select_prev_unit()
+                    return True
+                elif key in [curses.KEY_DOWN, ord('j')]:
+                    self.game_ui.cursor_manager.respawn_select_next_unit()
+                    return True
+                elif key in [curses.KEY_ENTER, 10, 13]:  # Enter
+                    self.game_ui.cursor_manager.confirm_respawn_unit_selection()
+                    return True
+                elif key == ord('c'):  # Cancel
+                    self.game_ui.cursor_manager.exit_respawn_mode()
+                    return True
+                return True  # Block all other input in unit selection
+            elif self.game_ui.cursor_manager.respawn_selecting_location:
+                # Location selection phase - allow movement and confirm
+                if key in [curses.KEY_ENTER, 10, 13]:  # Enter
+                    self.game_ui.cursor_manager.confirm_respawn_location()
+                    return True
+                elif key == ord('c'):  # Cancel
+                    self.game_ui.cursor_manager.exit_respawn_mode()
+                    return True
+                # Allow arrow keys for cursor movement - fall through to normal processing
+
         # Update input context based on current state
         self._update_input_context()
-        
+
         # Default processing
         return self.input_handler.process_input(key)
         
@@ -6234,7 +6479,9 @@ class UnitSelectionMenuComponent(UIComponent):
     def __init__(self, renderer, game_ui):
         super().__init__(renderer, game_ui)
         self.selected_index = 0  # Index of currently selected unit type
-        self.unit_types = [
+
+        # Base unit types
+        base_units = [
             UnitType.GLAIVEMAN,
             UnitType.GRAYMAN,
             UnitType.MANDIBLE_FOREMAN,
@@ -6246,18 +6493,35 @@ class UnitSelectionMenuComponent(UIComponent):
             UnitType.GAS_MACHINIST,
             UnitType.DERELICTIONIST
         ]
-        self.unit_names = {
-            UnitType.GLAIVEMAN: "GLAIVEMAN",
-            UnitType.MANDIBLE_FOREMAN: "MANDIBLE FOREMAN",
-            UnitType.GRAYMAN: "GRAYMAN",
-            UnitType.MARROW_CONDENSER: "MARROW CONDENSER",
-            UnitType.FOWL_CONTRIVANCE: "FOWL CONTRIVANCE",
-            UnitType.GAS_MACHINIST: "GAS MACHINIST",
-            UnitType.DELPHIC_APPRAISER: "DELPHIC APPRAISER",
-            UnitType.INTERFERER: "INTERFERER",
-            UnitType.DERELICTIONIST: "DERELICTIONIST",
-            UnitType.POTPOURRIST: "POTPOURRIST"
-        }
+
+        # Add DLC units dynamically
+        from boneglaive.game.dlc_manager import get_dlc_manager
+        from boneglaive.utils.constants import UNIT_DISPLAY_NAMES
+
+        dlc_manager = get_dlc_manager()
+        self.unit_types = base_units.copy()
+
+        # Add loaded DLC units
+        for unit_id in dlc_manager.get_loaded_units():
+            unit_data = dlc_manager.get_unit_data(unit_id)
+            if unit_data:
+                enum_value = unit_data['enum_value']
+                self.unit_types.append(enum_value)
+
+        # Build unit names dict from constants (includes both base and DLC)
+        self.unit_names = {}
+        for unit_type in self.unit_types:
+            # First try to get display name using the unit_type directly (for base units)
+            if unit_type in UNIT_DISPLAY_NAMES:
+                self.unit_names[unit_type] = UNIT_DISPLAY_NAMES[unit_type]
+            else:
+                # For DLC units, convert to int value and look up
+                unit_val = unit_type.value if hasattr(unit_type, 'value') else unit_type
+                if unit_val in UNIT_DISPLAY_NAMES:
+                    self.unit_names[unit_type] = UNIT_DISPLAY_NAMES[unit_val]
+                else:
+                    # Fallback for missing names
+                    self.unit_names[unit_type] = f"UNIT_{unit_val}"
         
     def _setup_event_handlers(self):
         """Set up event handlers for the unit selection menu."""

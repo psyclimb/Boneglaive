@@ -39,12 +39,12 @@ class DischargeSkill(ActiveSkill):
         super().__init__(
             name="Expedite",  # Renamed from Discharge to Expedite
             key="E",
-            description="Rush up to 4 tiles in a line. Automatically trap and damage the first enemy encountered.",
-            target_type=TargetType.AREA,
+            description="Rush toward an enemy in a straight line. Traps and damages the target.",
+            target_type=TargetType.ENEMY,
             cooldown=3,
             range_=4
         )
-        self.trap_damage = 6
+        self.trap_damage = 4
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Check if Expedite can be used to the target position."""
@@ -84,7 +84,12 @@ class DischargeSkill(ActiveSkill):
         is_straight_line = (delta_y == 0 or delta_x == 0 or abs(delta_y) == abs(delta_x))
         if not is_straight_line:
             return False
-            
+
+        # ENEMY targeting: Must have an enemy unit at target position
+        target_unit = game.get_unit_at(target_pos[0], target_pos[1])
+        if not target_unit or target_unit.player == user.player:
+            return False
+
         # Calculate path from user's position (or planned move position) to target
         from boneglaive.utils.coordinates import get_line, Position
         path = get_line(Position(from_y, from_x), Position(target_pos[0], target_pos[1]))
@@ -125,21 +130,23 @@ class DischargeSkill(ActiveSkill):
             return False
         user.skill_target = target_pos
         user.selected_skill = self
-        
+
         # Track action order
         if game:
             user.action_timestamp = game.action_counter
             game.action_counter += 1
-        
+
         # Create a property on the unit to track the expedite path for UI
         # We'll store all the positions in the path for visualization
         from boneglaive.utils.coordinates import get_line, Position
-        
+
         # Use planned move position if available, otherwise use current position
         from_y = user.y
         from_x = user.x
         if user.move_target:
             from_y, from_x = user.move_target
+            # Clear the move target - Expedite IS the movement, don't walk first
+            user.move_target = None
             
         path = get_line(Position(from_y, from_x), Position(target_pos[0], target_pos[1]))
         
@@ -174,7 +181,10 @@ class DischargeSkill(ActiveSkill):
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
         import curses
-        
+
+        # Detect if running in graphical mode to avoid blocking sleeps
+        is_graphical = ui and hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'
+
         # Clear the expedite path indicator
         user.expedite_path_indicator = None
         
@@ -222,9 +232,83 @@ class DischargeSkill(ActiveSkill):
             MessageType.ABILITY,
             player=user.player
         )
-        
-        # Play animation if UI is available
-        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+
+        # Set flag to prevent trap release during Expedite position change
+        user.expediting = True
+
+        # UPDATE FOREMAN POSITION FIRST (before applying trap, so movement doesn't break the trap!)
+        # With ENEMY targeting, we always target an enemy unit, so we always stop before it
+        if enemy_hit:
+            # Stop at the position just before the enemy
+            if len(path_positions) > 1 and enemy_pos in path_positions:
+                # Find position just before enemy
+                index = path_positions.index(enemy_pos)
+                if index > 0:
+                    stop_pos = path_positions[index - 1]
+                    user.y, user.x = stop_pos
+                else:
+                    # Enemy is adjacent - don't move from starting position
+                    pass
+            elif path_positions:
+                # Enemy not in path but we have path positions - move to last position before enemy
+                user.y, user.x = path_positions[-1]
+            # else: No valid path positions, stay at original position
+        # Note: With ENEMY targeting, there should always be an enemy_hit since we require targeting an enemy
+
+        # NOW apply damage and trapping AFTER foreman has moved to final position
+        # This prevents movement from breaking the trap
+        if enemy_hit:
+            # Store enemy hit info for graphical version to trigger JawClamp animation
+            user.expedite_enemy_hit = enemy_hit
+            user.expedite_enemy_pos = enemy_pos
+
+            # Apply damage to the enemy
+            damage = self.trap_damage - enemy_hit.defense
+            damage = max(1, damage)  # Minimum damage of 1
+            previous_hp = enemy_hit.hp
+            enemy_hit.hp = max(0, enemy_hit.hp - damage)
+
+            # Log the damage
+            message_log.add_combat_message(
+                attacker_name=user.get_display_name(),
+                target_name=enemy_hit.get_display_name(),
+                damage=damage,
+                ability="Expedite",
+                attacker_player=user.player,
+                target_player=enemy_hit.player
+            )
+
+            # Check if enemy was defeated and handle death properly
+            if enemy_hit.hp <= 0:
+                # Use centralized death handling to ensure all systems (like DOMINION) are notified
+                game.handle_unit_death(enemy_hit, user, cause="clamp", ui=ui)
+            else:
+                # Check for critical health (retching) using centralized logic
+                game.check_critical_health(enemy_hit, user, previous_hp, ui)
+
+                # If not immune, trap the enemy
+                if enemy_hit.hp > 0 and not enemy_hit.is_immune_to_trap():
+                    # Set trapped_by to indicate this unit is trapped
+                    enemy_hit.trapped_by = user
+                    enemy_hit.trap_duration = 0  # Initialize trap duration for incremental damage
+
+                    message_log.add_message(
+                        f"{enemy_hit.get_display_name()} is trapped in {user.get_display_name()}'s mechanical jaws",
+                        MessageType.ABILITY,
+                        player=user.player,
+                        target=enemy_hit.player,
+                        target_name=enemy_hit.get_display_name()
+                    )
+                elif enemy_hit.hp > 0:
+                    message_log.add_message(
+                        f"{enemy_hit.get_display_name()} is immune to Viseroy due to Stasiality",
+                        MessageType.ABILITY,
+                        player=enemy_hit.player,  # Use target's player color
+                        target_name=enemy_hit.get_display_name()
+                    )
+
+        # Play animation if UI is available (ASCII mode only)
+        if not is_graphical and ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
             # Get animation sequence for rush animation
             rush_animation = ui.asset_manager.get_skill_animation_sequence('expedite_rush')
             
@@ -243,26 +327,10 @@ class DischargeSkill(ActiveSkill):
                 if pos == end_pos:
                     break
             
-            # For very short paths, skip complex animation but still handle movement and collisions
+            # For very short paths, skip complex animation but still show impact animations
             if len(animation_positions) <= 1:
-                # If we hit an enemy, still apply trap and damage
+                # If we hit an enemy, show impact animations (damage already applied above)
                 if enemy_hit:
-                    # Apply damage to the enemy
-                    damage = self.trap_damage - enemy_hit.defense
-                    damage = max(1, damage)  # Minimum damage of 1
-                    previous_hp = enemy_hit.hp
-                    enemy_hit.hp = max(0, enemy_hit.hp - damage)
-                    
-                    # Log the damage
-                    message_log.add_combat_message(
-                        attacker_name=user.get_display_name(),
-                        target_name=enemy_hit.get_display_name(),
-                        damage=damage,
-                        ability="Expedite",
-                        attacker_player=user.player,
-                        target_player=enemy_hit.player
-                    )
-                    
                     # Show hit animation and damage numbers even for short paths
                     if ui and hasattr(ui, 'renderer'):
                         # Show impact animation at enemy position
@@ -287,57 +355,25 @@ class DischargeSkill(ActiveSkill):
                         
                         # Show damage number
                         damage_text = f"-{damage}"
-                        
+
                         for i in range(3):
                             ui.renderer.draw_damage_text(enemy_pos[0]-1, enemy_pos[1]*2, " " * len(damage_text), 7)
                             attrs = curses.A_BOLD if i % 2 == 0 else 0
                             ui.renderer.draw_damage_text(enemy_pos[0]-1, enemy_pos[1]*2, damage_text, 7, attrs)
                             ui.renderer.refresh()
                             sleep_with_animation_speed(0.1)
-                    
-                    # Check if enemy was defeated and handle death properly
-                    if enemy_hit.hp <= 0:
-                        # Use centralized death handling to ensure all systems (like DOMINION) are notified
-                        game.handle_unit_death(enemy_hit, user, cause="clamp", ui=ui)
-                    else:
-                        # Check for critical health (retching) using centralized logic
-                        game.check_critical_health(enemy_hit, user, previous_hp, ui)
-                        
-                        # If not immune, trap the enemy
-                        if enemy_hit.hp > 0 and not enemy_hit.is_immune_to_trap():
-                            # Set trapped_by to indicate this unit is trapped
-                            enemy_hit.trapped_by = user
-                            enemy_hit.trap_duration = 0  # Initialize trap duration for incremental damage
-                            
-                            message_log.add_message(
-                                f"{enemy_hit.get_display_name()} is trapped in {user.get_display_name()}'s mechanical jaws",
-                                MessageType.ABILITY,
-                                player=user.player,
-                                target=enemy_hit.player,
-                                target_name=enemy_hit.get_display_name()
-                            )
-                            
-                            # Show trapping animation
-                            if ui and hasattr(ui, 'asset_manager'):
-                                trap_animation = ui.asset_manager.get_skill_animation_sequence('viseroy_trap')
-                                if trap_animation:
-                                    ui.renderer.animate_attack_sequence(
-                                        enemy_pos[0], enemy_pos[1],
-                                        trap_animation,
-                                        7,  # white color, matching MANDIBLE_FOREMAN's animation
-                                        0.1  # duration
-                                    )
-                        elif enemy_hit.hp > 0:
-                            message_log.add_message(
-                                f"{enemy_hit.get_display_name()} is immune to Viseroy due to Stasiality",
-                                MessageType.ABILITY,
-                                player=enemy_hit.player,  # Use target's player color
-                                target_name=enemy_hit.get_display_name()
-                            )
-                else:
-                    # No enemy hit - move to target position directly if valid
-                    if game.is_valid_position(target_pos[0], target_pos[1]) and game.map.is_passable(target_pos[0], target_pos[1]):
-                        user.y, user.x = target_pos
+
+                        # Show trapping animation (if trapped - logic already ran above)
+                        if enemy_hit.hp > 0 and enemy_hit.trapped_by == user:
+                            trap_animation = ui.asset_manager.get_skill_animation_sequence('viseroy_trap')
+                            if trap_animation:
+                                ui.renderer.animate_attack_sequence(
+                                    enemy_pos[0], enemy_pos[1],
+                                    trap_animation,
+                                    7,  # white color, matching MANDIBLE_FOREMAN's animation
+                                    0.1  # duration
+                                )
+                # Note: Position updates now happen before UI block (line 276+)
                 
                 # Redraw the board after movement
                 if hasattr(ui, 'draw_board'):
@@ -430,130 +466,17 @@ class DischargeSkill(ActiveSkill):
                     durations = [0.1] * 4
                     
                     ui.renderer.flash_tile(enemy_pos[0], enemy_pos[1], tile_ids, color_ids, durations)
-                
-                # Apply damage to the enemy
-                damage = self.trap_damage - enemy_hit.defense
-                damage = max(1, damage)  # Minimum damage of 1
-                previous_hp = enemy_hit.hp
-                enemy_hit.hp = max(0, enemy_hit.hp - damage)
-                
-                # Log the damage
-                message_log.add_combat_message(
-                    attacker_name=user.get_display_name(),
-                    target_name=enemy_hit.get_display_name(),
-                    damage=damage,
-                    ability="Expedite",
-                    attacker_player=user.player,
-                    target_player=enemy_hit.player
-                )
-                
-                # Show damage number
-                if hasattr(ui, 'renderer'):
-                    damage_text = f"-{damage}"
-                    
-                    for i in range(3):
-                        ui.renderer.draw_damage_text(enemy_pos[0]-1, enemy_pos[1]*2, " " * len(damage_text), 7)
-                        attrs = curses.A_BOLD if i % 2 == 0 else 0
-                        ui.renderer.draw_damage_text(enemy_pos[0]-1, enemy_pos[1]*2, damage_text, 7, attrs)
-                        ui.renderer.refresh()
-                        sleep_with_animation_speed(0.1)
-                
-                # Check if enemy was defeated and handle death properly
-                if enemy_hit.hp <= 0:
-                    # Use centralized death handling to ensure all systems (like DOMINION) are notified
-                    game.handle_unit_death(enemy_hit, user, cause="viseroy", ui=ui)
-                # Otherwise check critical health
-                else:
-                    # Check for critical health (retching) using centralized logic
-                    game.check_critical_health(enemy_hit, user, previous_hp, ui)
-                
-                # Move FOREMAN to final position BEFORE applying trap effect to prevent auto-release
-                # Stop before the enemy position
-                new_foreman_pos = None
-                if len(path_positions) > 1 and enemy_pos in path_positions:
-                    # Find position just before enemy
-                    index = path_positions.index(enemy_pos)
-                    if index > 0:
-                        stop_pos = path_positions[index - 1]
-                        new_foreman_pos = stop_pos
-                        user.y, user.x = stop_pos
-                    else:
-                        # If there's no position before, keep original
-                        new_foreman_pos = original_pos
-                        user.y, user.x = original_pos
-                else:
-                    # No valid positions, keep original
-                    new_foreman_pos = original_pos
-                    user.y, user.x = original_pos
-                
-                # NOW apply trap AFTER the FOREMAN has moved to final position
-                # This prevents the trap from being auto-released due to position change
-                if enemy_hit.hp > 0:  # Only trap if target is still alive
-                    # If not immune, trap the enemy
-                    if not enemy_hit.is_immune_to_trap():  # Changed to is_immune_to_trap
-                        # Set trapped_by to indicate this unit is trapped
-                        enemy_hit.trapped_by = user
-                        enemy_hit.trap_duration = 0  # Initialize trap duration for incremental damage
-                        
-                        message_log.add_message(
-                            f"{enemy_hit.get_display_name()} is trapped in {user.get_display_name()}'s mechanical jaws",
-                            MessageType.ABILITY,
-                            player=user.player,
-                            target=enemy_hit.player,
-                            target_name=enemy_hit.get_display_name()
-                        )
-                        
-                        # Show trapping animation
-                        trap_animation = ui.asset_manager.get_skill_animation_sequence('viseroy_trap')
-                        if trap_animation:
-                            ui.renderer.animate_attack_sequence(
-                                enemy_pos[0], enemy_pos[1],
-                                trap_animation,
-                                7,  # white color, matching MANDIBLE_FOREMAN's attack animation
-                                0.1  # duration
-                            )
-                    else:
-                        message_log.add_message(
-                            f"{enemy_hit.get_display_name()} is immune to Viseroy due to Stasiality",
-                            MessageType.ABILITY,
-                            player=enemy_hit.player,  # Use target's player color
-                            target_name=enemy_hit.get_display_name()
-                        )
-            else:
-                # No enemy hit, check if target position is valid and passable
-                if game.is_valid_position(target_pos[0], target_pos[1]) and game.map.is_passable(target_pos[0], target_pos[1]):
-                    # Move to target position if it's valid and passable
-                    user.y, user.x = target_pos
-                elif path_positions:
-                    # If target isn't valid but we have valid path positions, move to last valid position
-                    user.y, user.x = path_positions[-1]
-                # If no valid positions at all, don't move (stay at original position)
+
+                # Note: Damage, trap, and position logic now handled before UI block (lines 228-299)
             
             # Redraw board after animations
             if hasattr(ui, 'draw_board'):
                 ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-        else:
-            # No UI, just set position without animations
-            if enemy_hit:
-                # Find position just before enemy
-                if enemy_pos in path_positions:
-                    index = path_positions.index(enemy_pos)
-                    if index > 0:
-                        user.y, user.x = path_positions[index - 1]
-                    else:
-                        user.y, user.x = original_pos
-                else:
-                    user.y, user.x = original_pos
-            else:
-                # Check if target position is valid and passable
-                if game.is_valid_position(target_pos[0], target_pos[1]) and game.map.is_passable(target_pos[0], target_pos[1]):
-                    # Move to target position if it's valid and passable
-                    user.y, user.x = target_pos
-                elif path_positions:
-                    # If target isn't valid but we have valid path positions, move to last valid position
-                    user.y, user.x = path_positions[-1]
-                # If no valid positions at all, don't move (stay at original position)
-        
+        # Note: Position updates now happen before UI block (lines 275-299), so no else block needed
+
+        # Clear expediting flag now that trap has been applied
+        user.expediting = False
+
         return True
 
 
@@ -632,7 +555,9 @@ class SiteInspectionSkill(ActiveSkill):
         import time
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
-        
+        # Detect if running in graphical mode to avoid blocking sleeps
+        is_graphical = ui and hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'
+
         # Clear the site inspection indicator after execution
         user.site_inspection_indicator = None
         
@@ -660,24 +585,24 @@ class SiteInspectionSkill(ActiveSkill):
                 # Check if this position has impassable terrain
                 if not game.map.is_passable(check_y, check_x):
                     impassable_count += 1
-        
-        # Play animation if UI is available
-        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+
+        # Play animation if UI is available (ASCII mode only)
+        if not is_graphical and ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
             # Get the animation sequence
             inspection_animation = ui.asset_manager.get_skill_animation_sequence('site_inspection')
             if not inspection_animation:
                 inspection_animation = ['#', 'O', '#', 'O', '#']  # Fallback with eye-like symbols
-            
+
             # Show scanning effect over the area
             for dy in [-1, 0, 1]:
                 for dx in [-1, 0, 1]:
                     check_y = y + dy
                     check_x = x + dx
-                    
+
                     # Skip out of bounds positions
                     if not game.is_valid_position(check_y, check_x):
                         continue
-                        
+
                     # Show inspection animation at each position
                     ui.renderer.animate_attack_sequence(
                         check_y, check_x,
@@ -685,29 +610,29 @@ class SiteInspectionSkill(ActiveSkill):
                         3 if user.player == 1 else 4,  # Player color
                         0.05  # fast animation
                     )
-            
+
             # Draw an outline around the inspection area
             for i in range(2):  # Repeat the outline effect
                 # Top row
                 for dx in [-1, 0, 1]:
                     if game.is_valid_position(y - 1, x + dx):
                         ui.renderer.draw_tile(y - 1, x + dx, '─', 3 if user.player == 1 else 4)
-                        
+
                 # Bottom row
                 for dx in [-1, 0, 1]:
                     if game.is_valid_position(y + 1, x + dx):
                         ui.renderer.draw_tile(y + 1, x + dx, '─', 3 if user.player == 1 else 4)
-                        
+
                 # Left column
                 for dy in [-1, 0, 1]:
                     if game.is_valid_position(y + dy, x - 1):
                         ui.renderer.draw_tile(y + dy, x - 1, '│', 3 if user.player == 1 else 4)
-                        
+
                 # Right column
                 for dy in [-1, 0, 1]:
                     if game.is_valid_position(y + dy, x + 1):
                         ui.renderer.draw_tile(y + dy, x + 1, '│', 3 if user.player == 1 else 4)
-                        
+
                 # Corners
                 if game.is_valid_position(y - 1, x - 1):
                     ui.renderer.draw_tile(y - 1, x - 1, '┌', 3 if user.player == 1 else 4)
@@ -717,10 +642,10 @@ class SiteInspectionSkill(ActiveSkill):
                     ui.renderer.draw_tile(y + 1, x - 1, '└', 3 if user.player == 1 else 4)
                 if game.is_valid_position(y + 1, x + 1):
                     ui.renderer.draw_tile(y + 1, x + 1, '┘', 3 if user.player == 1 else 4)
-                    
+
                 ui.renderer.refresh()
                 sleep_with_animation_speed(0.2)
-                
+
                 # Clear outline (replace with spaces)
                 for dy in [-1, 0, 1]:
                     for dx in [-1, 0, 1]:
@@ -728,185 +653,185 @@ class SiteInspectionSkill(ActiveSkill):
                             continue  # Skip center
                         if game.is_valid_position(y + dy, x + dx):
                             ui.renderer.draw_tile(y + dy, x + dx, ' ', 3 if user.player == 1 else 4)
-                            
+
                 ui.renderer.refresh()
                 sleep_with_animation_speed(0.1)
-            
-            # Apply scaled buffs based on terrain count
-            if impassable_count <= 1:
-                # Find allies in the area and apply the buff
-                for dy in [-1, 0, 1]:
-                    for dx in [-1, 0, 1]:
-                        check_y = y + dy
-                        check_x = x + dx
-                        
-                        # Skip out of bounds positions
-                        if not game.is_valid_position(check_y, check_x):
+
+        # Apply scaled buffs based on terrain count (works in both ASCII and graphical modes)
+        if impassable_count <= 1:
+            # Find allies in the area and apply the buff
+            for dy in [-1, 0, 1]:
+                for dx in [-1, 0, 1]:
+                    check_y = y + dy
+                    check_x = x + dx
+
+                    # Skip out of bounds positions
+                    if not game.is_valid_position(check_y, check_x):
+                        continue
+
+                    # Check if there's an ally unit at this position
+                    ally = game.get_unit_at(check_y, check_x)
+                    if ally and ally.player == user.player:
+                        # Check if ally is immune to status effects (GRAYMAN with Stasiality)
+                        if ally.is_immune_to_effects():
+                            message_log.add_message(
+                                f"{ally.get_display_name()} is immune to Site Inspection due to Stasiality",
+                                MessageType.ABILITY,
+                                player=ally.player,  # Use ally's player for correct color coding
+                                target_name=ally.get_display_name()
+                            )
                             continue
                             
-                        # Check if there's an ally unit at this position
-                        ally = game.get_unit_at(check_y, check_x)
-                        if ally and ally.player == user.player:
-                            # Check if ally is immune to status effects (GRAYMAN with Stasiality)
-                            if ally.is_immune_to_effects():
-                                message_log.add_message(
-                                    f"{ally.get_display_name()} is immune to Site Inspection due to Stasiality",
-                                    MessageType.ABILITY,
-                                    player=ally.player,  # Use ally's player for correct color coding
-                                    target_name=ally.get_display_name()
-                                )
-                                continue
-                                
-                            # Determine effect type based on terrain count
-                            if impassable_count == 0:
-                                # Full effect: +1 attack and +1 movement
-                                effect_type = "full"
-                                attack_bonus = 1
-                                move_bonus = 1
-                                effect_message = f"{ally.get_display_name()} gains +1 attack and movement from clear Site Inspection"
-                                effect_symbol = "++"
-                            else:  # impassable_count == 1
-                                # Partial effect: +1 attack only
-                                effect_type = "partial"
-                                attack_bonus = 1
-                                move_bonus = 0
-                                effect_message = f"{ally.get_display_name()} gains +1 attack from partially obstructed Site Inspection"
-                                effect_symbol = "+1"
-                            
-                            # Check if ally already has any site inspection status effect
-                            has_full_effect = hasattr(ally, 'status_site_inspection') and ally.status_site_inspection
-                            has_partial_effect = hasattr(ally, 'status_site_inspection_partial') and ally.status_site_inspection_partial
-                            
-                            # Apply status effect to ally
-                            if not has_full_effect and not has_partial_effect:
-                                # No existing effect - apply new one
-                                if effect_type == "full":
-                                    ally.status_site_inspection = True
-                                    ally.status_site_inspection_duration = self.effect_duration
-                                else:  # partial
-                                    ally.status_site_inspection_partial = True
-                                    ally.status_site_inspection_partial_duration = self.effect_duration
-                                
-                                # Apply stat bonuses
-                                ally.attack_bonus = getattr(ally, 'attack_bonus', 0) + attack_bonus
-                                ally.move_range_bonus = getattr(ally, 'move_range_bonus', 0) + move_bonus
-                                
-                                # Log the status effect application
-                                message_log.add_message(effect_message, MessageType.ABILITY, player=user.player)
-                                
-                            elif has_full_effect and effect_type == "full":
-                                # Refresh existing full effect
-                                ally.status_site_inspection_duration = self.effect_duration
-                                message_log.add_message(
-                                    f"{ally.get_display_name()}'s full Site Inspection effect refreshed",
-                                    MessageType.ABILITY,
-                                    player=user.player
-                                )
-                            elif has_partial_effect and effect_type == "partial":
-                                # Refresh existing partial effect
-                                ally.status_site_inspection_partial_duration = self.effect_duration
-                                message_log.add_message(
-                                    f"{ally.get_display_name()}'s partial Site Inspection effect refreshed",
-                                    MessageType.ABILITY,
-                                    player=user.player
-                                )
-                            elif has_partial_effect and effect_type == "full":
-                                # Upgrade partial to full effect
-                                # Remove partial effect
-                                ally.status_site_inspection_partial = False
-                                ally.status_site_inspection_partial_duration = 0
-                                # Apply full effect
+                        # Determine effect type based on terrain count
+                        if impassable_count == 0:
+                            # Full effect: +1 attack and +1 movement
+                            effect_type = "full"
+                            attack_bonus = 1
+                            move_bonus = 1
+                            effect_message = f"{ally.get_display_name()} gains +1 attack and movement from clear Site Inspection"
+                            effect_symbol = "++"
+                        else:  # impassable_count == 1
+                            # Partial effect: +1 attack only
+                            effect_type = "partial"
+                            attack_bonus = 1
+                            move_bonus = 0
+                            effect_message = f"{ally.get_display_name()} gains +1 attack from partially obstructed Site Inspection"
+                            effect_symbol = "+1"
+                        
+                        # Check if ally already has any site inspection status effect
+                        has_full_effect = hasattr(ally, 'status_site_inspection') and ally.status_site_inspection
+                        has_partial_effect = hasattr(ally, 'status_site_inspection_partial') and ally.status_site_inspection_partial
+                        
+                        # Apply status effect to ally
+                        if not has_full_effect and not has_partial_effect:
+                            # No existing effect - apply new one
+                            if effect_type == "full":
                                 ally.status_site_inspection = True
                                 ally.status_site_inspection_duration = self.effect_duration
-                                # Add movement bonus (attack bonus already applied)
-                                ally.move_range_bonus = getattr(ally, 'move_range_bonus', 0) + 1
-                                message_log.add_message(
-                                    f"{ally.get_display_name()}'s Site Inspection upgraded to full effect",
-                                    MessageType.ABILITY,
-                                    player=user.player
-                                )
-                            elif has_full_effect and effect_type == "partial":
-                                # Keep existing full effect (don't downgrade)
-                                message_log.add_message(
-                                    f"{ally.get_display_name()} retains full Site Inspection effect",
-                                    MessageType.ABILITY,
-                                    player=user.player
-                                )
+                            else:  # partial
+                                ally.status_site_inspection_partial = True
+                                ally.status_site_inspection_partial_duration = self.effect_duration
                             
-                            # Visual feedback for new status effect application (not refreshes)
-                            if (not has_full_effect and not has_partial_effect) or (has_partial_effect and effect_type == "full"):
-                                if hasattr(ui, 'asset_manager'):
-                                    tile_ids = [ui.asset_manager.get_unit_tile(ally.type)] * 4
-                                    color_ids = [2, 3 if ally.player == 1 else 4] * 2  # Green to indicate positive effect
-                                    durations = [0.1] * 4
-                                    
-                                    ui.renderer.flash_tile(ally.y, ally.x, tile_ids, color_ids, durations)
-                                    
-                                    # Display effect symbol above ally
-                                    ui.renderer.draw_damage_text(ally.y-1, ally.x*2, effect_symbol, 2)  # Green text
-                                    ui.renderer.refresh()
-                                    sleep_with_animation_speed(0.3)
-                                    
-                                    # Clear effect symbol
-                                    ui.renderer.draw_damage_text(ally.y-1, ally.x*2, "  ", 7)
-                                    ui.renderer.refresh()
-            else:
-                # 2+ impassable terrain found - skill doesn't apply any buffs
+                            # Apply stat bonuses
+                            ally.attack_bonus = getattr(ally, 'attack_bonus', 0) + attack_bonus
+                            ally.move_range_bonus = getattr(ally, 'move_range_bonus', 0) + move_bonus
+                            
+                            # Log the status effect application
+                            message_log.add_message(effect_message, MessageType.ABILITY, player=user.player)
+                            
+                        elif has_full_effect and effect_type == "full":
+                            # Refresh existing full effect
+                            ally.status_site_inspection_duration = self.effect_duration
+                            message_log.add_message(
+                                f"{ally.get_display_name()}'s full Site Inspection effect refreshed",
+                                MessageType.ABILITY,
+                                player=user.player
+                            )
+                        elif has_partial_effect and effect_type == "partial":
+                            # Refresh existing partial effect
+                            ally.status_site_inspection_partial_duration = self.effect_duration
+                            message_log.add_message(
+                                f"{ally.get_display_name()}'s partial Site Inspection effect refreshed",
+                                MessageType.ABILITY,
+                                player=user.player
+                            )
+                        elif has_partial_effect and effect_type == "full":
+                            # Upgrade partial to full effect
+                            # Remove partial effect
+                            ally.status_site_inspection_partial = False
+                            ally.status_site_inspection_partial_duration = 0
+                            # Apply full effect
+                            ally.status_site_inspection = True
+                            ally.status_site_inspection_duration = self.effect_duration
+                            # Add movement bonus (attack bonus already applied)
+                            ally.move_range_bonus = getattr(ally, 'move_range_bonus', 0) + 1
+                            message_log.add_message(
+                                f"{ally.get_display_name()}'s Site Inspection upgraded to full effect",
+                                MessageType.ABILITY,
+                                player=user.player
+                            )
+                        elif has_full_effect and effect_type == "partial":
+                            # Keep existing full effect (don't downgrade)
+                            message_log.add_message(
+                                f"{ally.get_display_name()} retains full Site Inspection effect",
+                                MessageType.ABILITY,
+                                player=user.player
+                            )
+                        
+                        # Visual feedback for new status effect application (not refreshes) - ASCII UI only
+                        if (not has_full_effect and not has_partial_effect) or (has_partial_effect and effect_type == "full"):
+                            if ui and hasattr(ui, 'asset_manager'):
+                                tile_ids = [ui.asset_manager.get_unit_tile(ally.type)] * 4
+                                color_ids = [2, 3 if ally.player == 1 else 4] * 2  # Green to indicate positive effect
+                                durations = [0.1] * 4
+
+                                ui.renderer.flash_tile(ally.y, ally.x, tile_ids, color_ids, durations)
+
+                                # Display effect symbol above ally
+                                ui.renderer.draw_damage_text(ally.y-1, ally.x*2, effect_symbol, 2)  # Green text
+                                ui.renderer.refresh()
+                                sleep_with_animation_speed(0.3)
+
+                                # Clear effect symbol
+                                ui.renderer.draw_damage_text(ally.y-1, ally.x*2, "  ", 7)
+                                ui.renderer.refresh()
+        else:
+            # 2+ impassable terrain found - skill doesn't apply any buffs
+            message_log.add_message(
+                f"Multiple obstructions prevent effective site analysis ({impassable_count} terrain features detected)",
+                MessageType.ABILITY,
+                player=user.player
+            )
+        
+        # Check for INTERFERER scalar nodes in the inspection area
+        if hasattr(game, 'scalar_nodes') and game.scalar_nodes:
+            revealed_nodes = []
+            for dy in [-1, 0, 1]:
+                for dx in [-1, 0, 1]:
+                    check_y = y + dy
+                    check_x = x + dx
+                    
+                    # Skip out of bounds positions
+                    if not game.is_valid_position(check_y, check_x):
+                        continue
+                        
+                    node_pos = (check_y, check_x)
+                    if node_pos in game.scalar_nodes:
+                        node_info = game.scalar_nodes[node_pos]
+                        owner = node_info['owner']
+                        
+                        # Only reveal enemy scalar nodes
+                        if owner.player != user.player:
+                            revealed_nodes.append(node_pos)
+            
+            if revealed_nodes:
                 message_log.add_message(
-                    f"Multiple obstructions prevent effective site analysis ({impassable_count} terrain features detected)",
+                    f"Site Inspection reveals {len(revealed_nodes)} standing wave pattern{'s' if len(revealed_nodes) > 1 else ''}",
                     MessageType.ABILITY,
                     player=user.player
                 )
-            
-            # Check for INTERFERER scalar nodes in the inspection area
-            if hasattr(game, 'scalar_nodes') and game.scalar_nodes:
-                revealed_nodes = []
-                for dy in [-1, 0, 1]:
-                    for dx in [-1, 0, 1]:
-                        check_y = y + dy
-                        check_x = x + dx
-                        
-                        # Skip out of bounds positions
-                        if not game.is_valid_position(check_y, check_x):
-                            continue
-                            
-                        node_pos = (check_y, check_x)
-                        if node_pos in game.scalar_nodes:
-                            node_info = game.scalar_nodes[node_pos]
-                            owner = node_info['owner']
-                            
-                            # Only reveal enemy scalar nodes
-                            if owner.player != user.player:
-                                revealed_nodes.append(node_pos)
                 
-                if revealed_nodes:
-                    message_log.add_message(
-                        f"Site Inspection reveals {len(revealed_nodes)} standing wave pattern{'s' if len(revealed_nodes) > 1 else ''}",
-                        MessageType.ABILITY,
-                        player=user.player
-                    )
-                    
-                    # Show visual indicators for revealed nodes
-                    if ui and hasattr(ui, 'renderer'):
-                        for node_pos in revealed_nodes:
-                            node_y, node_x = node_pos
-                            # Flash the revealed node position
-                            for flash in range(3):
-                                ui.renderer.draw_tile(node_y, node_x, '~', 6)  # Wave pattern
-                                ui.renderer.refresh()
-                                sleep_with_animation_speed(0.2)
-                                
-                                # Restore terrain
-                                terrain_type = game.map.get_terrain_at(node_y, node_x)
-                                terrain_name = terrain_type.name.lower() if hasattr(terrain_type, 'name') else 'empty'
-                                terrain_tile = ui.asset_manager.get_terrain_tile(terrain_name)
-                                ui.renderer.draw_tile(node_y, node_x, terrain_tile, 1)
-                                ui.renderer.refresh()
-                                sleep_with_animation_speed(0.1)
-            
-            # Redraw the board after animations
-            if hasattr(ui, 'draw_board'):
-                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+                # Show visual indicators for revealed nodes
+                if ui and hasattr(ui, 'renderer'):
+                    for node_pos in revealed_nodes:
+                        node_y, node_x = node_pos
+                        # Flash the revealed node position
+                        for flash in range(3):
+                            ui.renderer.draw_tile(node_y, node_x, '~', 6)  # Wave pattern
+                            ui.renderer.refresh()
+                            sleep_with_animation_speed(0.2)
+                            
+                            # Restore terrain
+                            terrain_type = game.map.get_terrain_at(node_y, node_x)
+                            terrain_name = terrain_type.name.lower() if hasattr(terrain_type, 'name') else 'empty'
+                            terrain_tile = ui.asset_manager.get_terrain_tile(terrain_name)
+                            ui.renderer.draw_tile(node_y, node_x, terrain_tile, 1)
+                            ui.renderer.refresh()
+                            sleep_with_animation_speed(0.1)
+        
+        # Redraw the board after animations
+        if hasattr(ui, 'draw_board'):
+            ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
         
         return True
 
@@ -978,11 +903,14 @@ class JawlineSkill(ActiveSkill):
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
         import curses
-        
+
+        # Detect if running in graphical mode to avoid blocking sleeps
+        is_graphical = ui and hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'
+
         # Update target position if unit has moved (due to move being executed before skill)
         # This ensures we deploy Jawline at the unit's final position after movement
         target_pos = (user.y, user.x)
-        
+
         # Clear the jawline indicator after execution
         user.jawline_indicator = None
         
@@ -1007,9 +935,9 @@ class JawlineSkill(ActiveSkill):
                 # Check if position is valid
                 if game.is_valid_position(y, x):
                     area_positions.append((y, x))
-        
-        # Play animation if UI is available
-        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+
+        # Play animation if UI is available (ASCII mode only)
+        if not is_graphical and ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
             # First, show activation animation at the center
             # Get jaw activation animation
             trap_animation = ui.asset_manager.get_skill_animation_sequence('viseroy_trap')

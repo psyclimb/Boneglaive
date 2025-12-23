@@ -24,20 +24,20 @@ if TYPE_CHECKING:
 class ValuationOracle(PassiveSkill):
     """
     Passive skill for DELPHIC_APPRAISER.
-    Perceives the 'astral value' of furniture terrain and gains bonuses when adjacent.
+    Perceives the 'astral value' of furniture terrain and grants team-wide bonuses.
     """
-    
+
     def __init__(self):
         super().__init__(
             name="Valuation Oracle",
             key="V",
-            description="Perceives the 'astral value' (1-9) of furniture terrain. When adjacent to appraised furniture, gains +1 to defense and attack range."
+            description="Perceives the 'astral value' (1-14) of furniture terrain. Allies adjacent to furniture with astral value 9 or greater gain +1 to defense and attack range."
         )
         
     def apply_passive(self, user: 'Unit', game: Optional['Game'] = None, ui=None) -> None:
         """
         Apply the Valuation Oracle passive effect.
-        Checks if the user is adjacent to any furniture and applies bonuses if so.
+        Grants bonuses to ALL allies adjacent to furniture with astral value >= 9.
         """
         if not game:
             return
@@ -48,56 +48,66 @@ class ValuationOracle(PassiveSkill):
             # Cosmic values will be perceived when the game starts (see engine.py setup completion)
             return
 
-        # Check if adjacent to any furniture
-        adjacent_to_furniture = False
-        furniture_positions = []
+        # Process ALL ally units (including the DELPHIC_APPRAISER)
+        for ally in game.units:
+            if not ally.is_alive() or ally.player != user.player:
+                continue
 
-        # Check all eight adjacent positions
-        for dy in [-1, 0, 1]:
-            for dx in [-1, 0, 1]:
-                if dy == 0 and dx == 0:
-                    continue  # Skip the unit's own position
+            # Check if this ally is adjacent to any high-value furniture (>= 9)
+            adjacent_to_high_value = False
 
-                y, x = user.y + dy, user.x + dx
+            # Check all eight adjacent positions
+            for dy in [-1, 0, 1]:
+                for dx in [-1, 0, 1]:
+                    if dy == 0 and dx == 0:
+                        continue  # Skip the unit's own position
 
-                # Skip if out of bounds
-                if not game.is_valid_position(y, x):
-                    continue
+                    y, x = ally.y + dy, ally.x + dx
 
-                # Check if the tile is furniture
-                if game.map.is_furniture(y, x):
-                    adjacent_to_furniture = True
-                    furniture_positions.append((y, x))
+                    # Skip if out of bounds
+                    if not game.is_valid_position(y, x):
+                        continue
 
-                    # Get astral value with the appraiser's player
-                    cosmic_value = game.map.get_cosmic_value(y, x, player=user.player, game=game)
-                    # Value will be generated if it doesn't exist yet
+                    # Check if the tile is furniture
+                    if game.map.is_furniture(y, x):
+                        # Get astral value with the appraiser's player
+                        cosmic_value = game.map.get_cosmic_value(y, x, player=user.player, game=game)
 
-        # Apply bonuses if adjacent to furniture
-        if adjacent_to_furniture:
-            # If this is the first time applying the bonus this turn, log a message
-            if not hasattr(user, 'valuation_oracle_buff') or not user.valuation_oracle_buff:
-                message_log.add_message(
-                    f"{user.get_display_name()}'s Valuation Oracle senses the astral value of nearby furniture",
-                    MessageType.ABILITY,
-                    player=user.player
-                )
+                        # Check if astral value is 9 or greater
+                        if cosmic_value is not None and cosmic_value >= 9:
+                            adjacent_to_high_value = True
+                            break
 
-            # Set status effect flag and duration (lasts indefinitely while adjacent)
-            user.valuation_oracle_buff = True
-            user.valuation_oracle_duration = 999  # High value, will be refreshed each turn while adjacent
-            
-            # Apply bonuses to defense and attack range using *_bonus attributes
-            user.defense_bonus = 1
-            user.attack_range_bonus = 1
-        else:
-            # If no longer adjacent, remove the status effect immediately
-            if hasattr(user, 'valuation_oracle_buff') and user.valuation_oracle_buff:
-                user.valuation_oracle_buff = False
-                user.valuation_oracle_duration = 0
-                # Remove bonuses
-                user.defense_bonus = 0
-                user.attack_range_bonus = 0
+                if adjacent_to_high_value:
+                    break
+
+            # Apply or remove bonuses based on adjacency to high-value furniture
+            if adjacent_to_high_value:
+                # If this is the first time applying the bonus to this ally, log a message
+                if not hasattr(ally, 'valuation_oracle_buff') or not ally.valuation_oracle_buff:
+                    message_log.add_message(
+                        f"{ally.get_display_name()} is empowered by the DELPHIC APPRAISER's valuation",
+                        MessageType.ABILITY,
+                        player=ally.player
+                    )
+                    # Mark for initial application animation
+                    ally.valuation_oracle_initial_application = True
+
+                # Set status effect flag and duration (lasts indefinitely while adjacent)
+                ally.valuation_oracle_buff = True
+                ally.valuation_oracle_duration = 999  # High value, will be refreshed each turn while adjacent
+
+                # Apply bonuses to defense and attack range using *_bonus attributes
+                ally.defense_bonus = 1
+                ally.attack_range_bonus = 1
+            else:
+                # If no longer adjacent to high-value furniture, remove the status effect immediately
+                if hasattr(ally, 'valuation_oracle_buff') and ally.valuation_oracle_buff:
+                    ally.valuation_oracle_buff = False
+                    ally.valuation_oracle_duration = 0
+                    # Remove bonuses
+                    ally.defense_bonus = 0
+                    ally.attack_range_bonus = 0
 
 
 class MarketFuturesSkill(ActiveSkill):
@@ -130,8 +140,8 @@ class MarketFuturesSkill(ActiveSkill):
 
         # Target must be a furniture piece
         terrain = game.map.get_terrain_at(target_pos[0], target_pos[1])
-        if terrain not in [TerrainType.FURNITURE, TerrainType.COAT_RACK,
-                         TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE, 
+        if terrain not in [TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
+                         TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF, 
                          TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE, 
                          TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                          TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
@@ -355,11 +365,11 @@ class MarketFuturesSkill(ActiveSkill):
     def _get_furniture_name(self, terrain_type) -> str:
         """Convert TerrainType enum to readable furniture name."""
         terrain_names = {
-            TerrainType.FURNITURE: "Furniture",
+            TerrainType.RADIO_CONSOLE: "Radio Console",
             TerrainType.COAT_RACK: "Coat Rack", 
             TerrainType.OTTOMAN: "Ottoman",
             TerrainType.CONSOLE: "Console",
-            TerrainType.DEC_TABLE: "Decorative Table",
+            TerrainType.CURIOSITY_SHELF: "Curiosity Shelf",
             TerrainType.TIFFANY_LAMP: "Tiffany Lamp",
             TerrainType.EASEL: "Easel",
             TerrainType.SCULPTURE: "Sculpture", 
@@ -374,7 +384,7 @@ class MarketFuturesSkill(ActiveSkill):
             TerrainType.MINI_PUMPKIN: "Mini Pumpkin",
             TerrainType.POTPOURRI_BOWL: "Potpourri Bowl"
         }
-        return terrain_names.get(terrain_type, "Furniture")
+        return terrain_names.get(terrain_type, "Radio Console")
 
 
 class AuctionCurseSkill(ActiveSkill):
@@ -467,8 +477,8 @@ class AuctionCurseSkill(ActiveSkill):
         for y in range(max(0, target_pos[0] - 2), min(game.map.height, target_pos[0] + 3)):
             for x in range(max(0, target_pos[1] - 2), min(game.map.width, target_pos[1] + 3)):
                 terrain = game.map.get_terrain_at(y, x)
-                if terrain in [TerrainType.FURNITURE, TerrainType.COAT_RACK,
-                             TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE, 
+                if terrain in [TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
+                             TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF, 
                              TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE, 
                              TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                              TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
@@ -620,11 +630,11 @@ class DivineDrepreciationSkill(ActiveSkill):
     def _get_furniture_name(self, terrain_type) -> str:
         """Convert TerrainType enum to readable furniture name."""
         terrain_names = {
-            TerrainType.FURNITURE: "Furniture",
+            TerrainType.RADIO_CONSOLE: "Radio Console",
             TerrainType.COAT_RACK: "Coat Rack", 
             TerrainType.OTTOMAN: "Ottoman",
             TerrainType.CONSOLE: "Console",
-            TerrainType.DEC_TABLE: "Decorative Table",
+            TerrainType.CURIOSITY_SHELF: "Curiosity Shelf",
             TerrainType.TIFFANY_LAMP: "Tiffany Lamp",
             TerrainType.EASEL: "Easel",
             TerrainType.SCULPTURE: "Sculpture", 
@@ -639,7 +649,7 @@ class DivineDrepreciationSkill(ActiveSkill):
             TerrainType.MINI_PUMPKIN: "Mini Pumpkin",
             TerrainType.POTPOURRI_BOWL: "Potpourri Bowl"
         }
-        return terrain_names.get(terrain_type, "Furniture")
+        return terrain_names.get(terrain_type, "Radio Console")
 
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Check if Divine Depreciation can be used."""
@@ -655,8 +665,8 @@ class DivineDrepreciationSkill(ActiveSkill):
 
         # Target must be a furniture piece
         terrain = game.map.get_terrain_at(target_pos[0], target_pos[1])
-        if terrain not in [TerrainType.FURNITURE, TerrainType.COAT_RACK,
-                         TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE, 
+        if terrain not in [TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
+                         TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF, 
                          TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE, 
                          TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                          TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
@@ -741,8 +751,8 @@ class DivineDrepreciationSkill(ActiveSkill):
         for pos in affected_area:
             if pos != target_pos:  # Skip the target furniture
                 terrain = game.map.get_terrain_at(pos[0], pos[1])
-                if terrain in [TerrainType.FURNITURE, TerrainType.COAT_RACK,
-                             TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.DEC_TABLE, 
+                if terrain in [TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
+                             TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF, 
                              TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE, 
                              TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                              TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
@@ -769,9 +779,9 @@ class DivineDrepreciationSkill(ActiveSkill):
 
         # Store the original astral value BEFORE setting it to 1
         original_target_cosmic_value = original_cosmic_value
-        
-        # Set target furniture's astral value to 1
-        game.map.set_cosmic_value(target_pos[0], target_pos[1], 1)
+
+        # Set target furniture's astral value to 1 for this player
+        game.map.set_cosmic_value(target_pos[0], target_pos[1], 1, user.player)
 
         # Calculate effect value based on the difference between average value and target value (now 1)
         effect_value = max(1, avg_cosmic_value - 1)  # Ensure at least 1 damage/healing
@@ -853,9 +863,9 @@ class DivineDrepreciationSkill(ActiveSkill):
                     0.1  # Fast flashing
                 )
 
-            # Generate a new random astral value (1-9)
+            # Generate a new random astral value (1-9) for this player
             new_value = random.randint(1, 9)
-            game.map.set_cosmic_value(pos[0], pos[1], new_value)
+            game.map.set_cosmic_value(pos[0], pos[1], new_value, user.player)
 
         # Log the skill activation with details about the astral values
         message_log.add_message(
@@ -961,8 +971,8 @@ class DivineDrepreciationSkill(ActiveSkill):
                 target_player=unit.player
             )
 
-            # Show damage number if UI is available
-            if ui and hasattr(ui, 'renderer') and actual_damage > 0:
+            # Show damage number if UI is available (ASCII mode only)
+            if ui and hasattr(ui, 'renderer') and hasattr(ui.renderer, 'draw_damage_text') and actual_damage > 0:
                 damage_text = f"-{actual_damage}"
                 
                 # Make damage text more prominent with flashing effect (like FOWL_CONTRIVANCE)
@@ -1106,3 +1116,131 @@ class DivineDrepreciationSkill(ActiveSkill):
         
         # Return the position closest to center
         return candidates[0][0]
+
+
+class ParallaxSkill(ActiveSkill):
+    """
+    Dynamic skill that appears when a unit is adjacent to a Market Futures anchor.
+    Allows allies to activate teleportation through the anchor.
+    """
+
+    def __init__(self):
+        super().__init__(
+            name="Parallax",
+            key="P",
+            description="Activate Market Futures teleportation. Select a destination within range of the nearby anchor. Gain maturing investment: +1 ATK (turn 1), +2 ATK (turn 2), +3 ATK (turn 3) with +1 Range for all 3 turns.",
+            target_type=TargetType.AREA,
+            cooldown=0,  # No cooldown, availability controlled by can_use_anchor flag
+            range_=1  # Default range, overridden by get_skill_range()
+        )
+
+    def get_skill_range(self, user: 'Unit', game: Optional['Game'] = None) -> int:
+        """Get dynamic range based on adjacent anchor's cosmic value (1-9)."""
+        if not game or not hasattr(user, 'can_use_anchor') or not user.can_use_anchor:
+            return 1  # Default if no anchor
+
+        # Find adjacent anchor
+        anchor_pos, anchor = self._find_adjacent_anchor(user, game)
+        if anchor_pos and anchor:
+            return anchor['cosmic_value']  # Range 1-9 based on furniture's astral value
+
+        return 1  # Fallback
+
+    def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        """Check if Parallax can be used (unit must be adjacent to an active anchor)."""
+        # Basic validation
+        if not super().can_use(user, target_pos, game):
+            return False
+        if not game or not target_pos:
+            return False
+
+        # Must have can_use_anchor flag set (adjacency checked by engine)
+        if not hasattr(user, 'can_use_anchor') or not user.can_use_anchor:
+            return False
+
+        # Find the anchor we're adjacent to
+        anchor_pos, anchor = self._find_adjacent_anchor(user, game)
+        if not anchor_pos or not anchor:
+            return False
+
+        # Check if target destination is valid
+        if not game.is_valid_position(target_pos[0], target_pos[1]):
+            return False
+
+        # Check if destination is passable and empty
+        if not game.map.is_passable(target_pos[0], target_pos[1]):
+            return False
+
+        if game.get_unit_at(target_pos[0], target_pos[1]) is not None:
+            return False
+
+        # Check if destination is within anchor's cosmic value range
+        cosmic_value = anchor['cosmic_value']
+        distance = game.chess_distance(anchor_pos[0], anchor_pos[1], target_pos[0], target_pos[1])
+        if distance > cosmic_value:
+            return False
+
+        return True
+
+    def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        """Execute Parallax teleportation immediately (not queued like other skills)."""
+        if not self.can_use(user, target_pos, game):
+            return False
+
+        # Parallax executes immediately, not during turn execution
+        # This matches the ASCII game behavior where teleport happens instantly
+        success = self.execute(user, target_pos, game, ui=None)
+
+        if success:
+            # Clear any skill selection after immediate teleport
+            user.skill_target = None
+            user.selected_skill = None
+
+        return success
+
+    def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
+        """Execute the Parallax teleportation."""
+        # Find the anchor we're adjacent to
+        anchor_pos, anchor = self._find_adjacent_anchor(user, game)
+        if not anchor_pos or not anchor:
+            message_log.add_message(
+                f"{user.get_display_name()} cannot find a nearby anchor",
+                MessageType.WARNING,
+                player=user.player
+            )
+            return False
+
+        # Use the Market Futures skill's activate_teleport method
+        # Since we're in the same file, just instantiate it directly
+        market_futures = MarketFuturesSkill()
+        success = market_futures.activate_teleport(
+            ally=user,
+            anchor_pos=anchor_pos,
+            destination=target_pos,
+            game=game,
+            ui=ui
+        )
+
+        return success
+
+    def _find_adjacent_anchor(self, user: 'Unit', game: 'Game') -> Tuple[Optional[tuple], Optional[dict]]:
+        """
+        Find the active anchor this unit is adjacent to.
+
+        Returns:
+            (anchor_pos, anchor_data) tuple, or (None, None) if not found
+        """
+        if not hasattr(game, 'teleport_anchors'):
+            return None, None
+
+        # Check all anchors for adjacency
+        for anchor_pos, anchor in game.teleport_anchors.items():
+            if not anchor['active']:
+                continue
+
+            # Check if user is adjacent to this anchor
+            if (anchor['creator'].player == user.player and
+                game.chess_distance(user.y, user.x, anchor_pos[0], anchor_pos[1]) <= 1):
+                return anchor_pos, anchor
+
+        return None, None
