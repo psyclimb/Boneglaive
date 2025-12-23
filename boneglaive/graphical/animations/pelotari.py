@@ -4353,7 +4353,6 @@ class BackhandReflectionAnimation:
             is_infused: Whether skill was infused (for Granite Geas variant)
             is_crit: Whether skill was critical (for Judgement variant)
         """
-        print(f"[BackhandReflectionAnimation] __init__ called")
         print(f"  caster: {caster_unit}")
         print(f"  trajectory: {trajectory}")
         print(f"  skill_name: {skill_name}")
@@ -4373,7 +4372,6 @@ class BackhandReflectionAnimation:
         self.is_infused = is_infused
         self.is_crit = is_crit
 
-        print(f"[BackhandReflectionAnimation] Trajectory has {len(self.trajectory)} waypoints")
 
         # Get caster world position
         caster_world_x = caster_unit.grid_x * TILE_SIZE + TILE_SIZE // 2
@@ -4430,18 +4428,14 @@ class BackhandReflectionAnimation:
 
     def _create_ball(self, skill_name, start_x, start_y, is_infused=False, is_crit=False):
         """Create skill-specific ball projectile."""
-        print(f"[BackhandReflectionAnimation._create_ball] skill_name='{skill_name}', is_infused={is_infused}, is_crit={is_crit}")
-
         # Handle Granite Geas infusion variant
         if skill_name == 'Granite Geas':
             ball_class = InfusedGraniteGeasBall if is_infused else GraniteGeasBall
-            print(f"[BackhandReflectionAnimation._create_ball] Using {ball_class.__name__} for Granite Geas")
             return ball_class(start_x, start_y, self.camera)
 
         # Handle Judgement critical variant
         if skill_name == 'Judgement':
             ball_class = JudgementCritBall if is_crit else JudgementBall
-            print(f"[BackhandReflectionAnimation._create_ball] Using {ball_class.__name__} for Judgement")
             return ball_class(start_x, start_y, self.camera)
 
         ball_classes = {
@@ -4474,7 +4468,6 @@ class BackhandReflectionAnimation:
     def update(self, delta_time):
         """Update animation state."""
         self.timer += delta_time
-        print(f"[BackhandReflectionAnimation] update: phase={self.phase}, timer={self.timer:.2f}")
 
         if self.phase == 'windup':
             # Update orbiting charge particles

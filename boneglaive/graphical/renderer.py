@@ -2477,7 +2477,6 @@ class GraphicalRenderer:
 
         # Check if skill was reflected by Backhand
         if caster and hasattr(caster, 'skill_was_reflected') and caster.skill_was_reflected:
-            print(f"  [Renderer] Skill {skill_name} was reflected - SKIPPING original animation")
             caster.skill_was_reflected = False  # Reset flag
             return  # Don't create the original skill animation
 

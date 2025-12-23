@@ -952,7 +952,6 @@ class Backhand(ActiveSkill):
         is_infused = False
         if skill_name == 'Granite Geas' and hasattr(attacker, 'potpourri_held'):
             is_infused = attacker.potpourri_held
-            print(f"[BACKHAND] Granite Geas reflection: attacker.potpourri_held={is_infused}")
 
         # Check if skill is critical (for Judgement variant)
         is_crit = False
@@ -961,7 +960,6 @@ class Backhand(ActiveSkill):
             from boneglaive.utils.constants import CRITICAL_HEALTH_PERCENT
             critical_threshold = int(pelotari.max_hp * CRITICAL_HEALTH_PERCENT)
             is_crit = pelotari.hp <= critical_threshold
-            print(f"[BACKHAND] Judgement reflection: pelotari HP {pelotari.hp}/{pelotari.max_hp}, threshold={critical_threshold}, is_crit={is_crit}")
 
         # Fire reflected ball and apply skill effects
         self._fire_reflected_ball(pelotari, attacker, skill_name, trajectory, game, ui, is_infused=is_infused, is_crit=is_crit)
@@ -1151,41 +1149,30 @@ class Backhand(ActiveSkill):
     def _animate_reflected_ball(self, trajectory: list, skill_name: str,
                                pelotari: 'Unit', game: 'Game', ui=None, is_infused: bool = False, is_crit: bool = False) -> None:
         """Animate reflected ball traveling along trajectory with skill-specific theming."""
-        print(f"[BACKHAND ANIM] _animate_reflected_ball called: skill={skill_name}, trajectory_len={len(trajectory)}, is_infused={is_infused}, is_crit={is_crit}, ui={ui}")
 
         if not ui:
-            print("[BACKHAND ANIM] No UI provided, returning")
             return
 
         # Check if graphical mode (pygame)
         # GraphicalUIAdapter wraps GraphicalRenderer, check for .renderer attribute
         is_graphical = hasattr(ui, 'renderer') and hasattr(ui.renderer, 'active_animations')
-        print(f"[BACKHAND ANIM] Checking graphical mode - is_graphical={is_graphical}")
-        print(f"[BACKHAND ANIM] UI type: {type(ui)}")
 
         if is_graphical:
             renderer = ui.renderer  # Get the actual renderer from the adapter
-            print("[BACKHAND ANIM] Graphical mode detected, creating BackhandReflectionAnimation")
             # Graphical animation - queue BackhandReflectionAnimation
             from boneglaive.graphical.animations import AnimationFactory
 
             # Get animated unit for PELOTARI
             caster_animated_unit = None
-            print(f"[BACKHAND ANIM] Searching for PELOTARI at ({pelotari.x}, {pelotari.y})")
-            print(f"[BACKHAND ANIM] Available animated_units count: {len(renderer.units)}")
 
             for aunit in renderer.units:
-                print(f"[BACKHAND ANIM] Checking animated unit at ({aunit.grid_x}, {aunit.grid_y})")
                 if aunit.grid_x == pelotari.x and aunit.grid_y == pelotari.y:
                     caster_animated_unit = aunit
-                    print(f"[BACKHAND ANIM] Found PELOTARI animated unit!")
                     break
 
             if not caster_animated_unit:
-                print("[BACKHAND ANIM] ERROR - Could not find PELOTARI's animated unit!")
                 return
 
-            print(f"[BACKHAND ANIM] Creating animation with trajectory={trajectory}, reflected_skill={skill_name}, is_infused={is_infused}")
             animation = AnimationFactory.create_animation(
                 skill_name="BACKHAND_REFLECTION",
                 caster_unit=caster_animated_unit,
@@ -1205,11 +1192,8 @@ class Backhand(ActiveSkill):
 
             if animation:
                 renderer.active_animations.append(animation)
-                print(f"[BACKHAND ANIM] Successfully queued BackhandReflectionAnimation for {skill_name}")
-                print(f"[BACKHAND ANIM] Active animations count: {len(renderer.active_animations)}")
                 return  # Exit after successfully queueing animation
             else:
-                print(f"[BACKHAND ANIM] ERROR - AnimationFactory returned None!")
                 return  # Exit even if animation failed
 
         # ASCII/curses mode - draw terminal animation

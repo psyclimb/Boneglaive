@@ -1006,11 +1006,6 @@ class AnimationFactory:
                 # Backhand Reflection - Reflected skill projectile animation
                 # Requires: caster, target_pos (not used), camera, particle_emitter, callbacks, game
                 # Plus: trajectory (list of positions), reflected_skill_name (reflected skill), bounce_count, is_infused, is_crit
-                print(f"[AnimationFactory] Creating BackhandReflectionAnimation:")
-                print(f"  reflected_skill_name: {reflected_skill_name}")
-                print(f"  is_infused: {is_infused}")
-                print(f"  is_crit: {is_crit}")
-                print(f"  bounce_count: {bounce_count}")
                 animation = anim_class(
                     caster_unit=caster_unit,
                     target_pos=target_pos if target_pos else (0, 0),  # Not used
