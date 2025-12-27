@@ -1018,12 +1018,13 @@ class GameStateAdapter:
 
         return movement_range
 
-    def get_attack_range(self, game_unit) -> List[Tuple[int, int]]:
+    def get_attack_range(self, game_unit, from_pos=None) -> List[Tuple[int, int]]:
         """
         Get valid attack positions for a unit.
 
         Args:
             game_unit: The game logic unit
+            from_pos: Optional (y, x) position to calculate attack range from (for ghost position)
 
         Returns:
             List of (x, y) tuples in renderer coordinates (column, row)
@@ -1032,7 +1033,8 @@ class GameStateAdapter:
             return []
 
         # Get possible attacks from game (returns list of (y, x) tuples)
-        possible_attacks = self.game.get_possible_attacks(game_unit)
+        # Pass from_pos to calculate from ghost position if unit has pending move
+        possible_attacks = self.game.get_possible_attacks(game_unit, from_pos=from_pos)
 
         # Convert from game coordinates (y, x) to renderer coordinates (x, y)
         # Game: (y, x) = (row, col)

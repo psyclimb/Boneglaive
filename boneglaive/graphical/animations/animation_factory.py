@@ -297,7 +297,20 @@ class AnimationFactory:
         try:
             # Convert caster grid coords to screen coords (if caster exists)
             if caster_unit:
-                caster_screen_x, caster_screen_y = grid_to_screen(caster_unit.grid_x, caster_unit.grid_y)
+                # Use game unit's position if available (post-move), otherwise use AnimatedUnit's position
+                if hasattr(caster_unit, 'game_unit') and caster_unit.game_unit:
+                    # Use game unit's actual position (post-move)
+                    caster_grid_x = caster_unit.game_unit.x
+                    caster_grid_y = caster_unit.game_unit.y
+                    print(f"[AnimationFactory] Using game_unit position for {skill_name}: ({caster_grid_y}, {caster_grid_x})")
+                    print(f"[AnimationFactory] AnimatedUnit position: ({caster_unit.grid_y}, {caster_unit.grid_x})")
+                else:
+                    # Fall back to AnimatedUnit's position
+                    caster_grid_x = caster_unit.grid_x
+                    caster_grid_y = caster_unit.grid_y
+                    print(f"[AnimationFactory] No game_unit, using AnimatedUnit position: ({caster_grid_y}, {caster_grid_x})")
+
+                caster_screen_x, caster_screen_y = grid_to_screen(caster_grid_x, caster_grid_y)
             else:
                 # No caster (e.g., caster died before delayed effect like abreaction)
                 # Use target position as fallback

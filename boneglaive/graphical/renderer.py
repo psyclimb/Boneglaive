@@ -81,7 +81,7 @@ PRE_EXECUTION_BLOCKING_SKILLS = [
     "Gaussian Dusk Charge", "GAUSSIAN_DUSK_CHARGE",
     "Gaussian Dusk Fire", "GAUSSIAN_DUSK_FIRE",
     "Pry", "PRY",
-    "Judgement", "JUDGEMENT",
+    # NOTE: Judgement removed from pre-execution so it plays AFTER moves execute
     "Autoclave", "AUTOCLAVE",
     "Matador", "MATADOR",
     "Poach", "POACH"
@@ -1003,9 +1003,15 @@ class GraphicalRenderer:
 
                     # Restore normal range display
                     if game_unit:
-                        self.valid_positions = self.game_adapter.get_movement_range(game_unit)
-                        self.attack_positions = self.game_adapter.get_attack_range(game_unit)
-                        self.show_movement_range = True
+                        # Check if unit has pending move - if so, calculate from ghost position
+                        if game_unit.move_target:
+                            self.valid_positions = []
+                            self.attack_positions = self.game_adapter.get_attack_range(game_unit, from_pos=game_unit.move_target)
+                            self.show_movement_range = False
+                        else:
+                            self.valid_positions = self.game_adapter.get_movement_range(game_unit)
+                            self.attack_positions = self.game_adapter.get_attack_range(game_unit)
+                            self.show_movement_range = True
                         self.show_target_range = True
                     else:
                         print(f"Failed to use skill")
@@ -1026,15 +1032,12 @@ class GraphicalRenderer:
                 # Query movement range and attack range from game logic
                 game_unit = self._get_game_unit(unit)
                 if game_unit:
-                    # If unit has a pending move, calculate ranges from ghost position
+                    # If unit has a pending move, don't show movement range (only attack range from ghost position)
                     if game_unit.move_target:
-                        # Temporarily swap position to calculate ranges from ghost
-                        original_y, original_x = game_unit.y, game_unit.x
-                        game_unit.y, game_unit.x = game_unit.move_target
-                        self.valid_positions = self.game_adapter.get_movement_range(game_unit)
-                        self.attack_positions = self.game_adapter.get_attack_range(game_unit)
-                        # Restore original position
-                        game_unit.y, game_unit.x = original_y, original_x
+                        self.valid_positions = []  # No movement range - already moved
+                        # Calculate attack range from ghost position by passing from_pos
+                        self.attack_positions = self.game_adapter.get_attack_range(game_unit, from_pos=game_unit.move_target)
+                        self.show_movement_range = False  # Don't show movement highlights
                     else:
                         # Normal range calculation from current position
                         self.valid_positions = self.game_adapter.get_movement_range(game_unit)
@@ -1160,6 +1163,11 @@ class GraphicalRenderer:
                     # Execute movement
                     game_unit = self._get_game_unit(self.selected_unit)
                     if game_unit:
+                        # Check if unit already has a pending move
+                        if game_unit.move_target:
+                            print(f"{self.selected_unit.name} already has a pending move - cannot move again")
+                            return
+
                         # Set move target (game uses y, x coordinates)
                         game_unit.move_target = (grid_y, grid_x)
                         game_unit.took_no_actions = False
@@ -1204,7 +1212,11 @@ class GraphicalRenderer:
                 # Show attack range
                 game_unit = self._get_game_unit(self.selected_unit)
                 if game_unit:
-                    self.attack_positions = self.game_adapter.get_attack_range(game_unit)
+                    # If unit has pending move, calculate attack range from ghost position
+                    if game_unit.move_target:
+                        self.attack_positions = self.game_adapter.get_attack_range(game_unit, from_pos=game_unit.move_target)
+                    else:
+                        self.attack_positions = self.game_adapter.get_attack_range(game_unit)
                     self.show_target_range = True
                     self.show_movement_range = False
                     self.show_skill_range = False
@@ -3205,10 +3217,18 @@ class GraphicalRenderer:
         border_color = (*COLOR_SELECTION, 255)
         pygame.draw.rect(highlight_surf, border_color, highlight_surf.get_rect(), 3)
 
-        # Position on grid
+        # Position on grid (current position)
         tile_x = GRID_OFFSET_X + grid_x * TILE_SIZE
         tile_y = GRID_OFFSET_Y + grid_y * TILE_SIZE
         surface.blit(highlight_surf, (tile_x, tile_y))
+
+        # If unit has a pending move, also highlight the ghost position
+        game_unit = self._get_game_unit(unit)
+        if game_unit and hasattr(game_unit, 'move_target') and game_unit.move_target:
+            ghost_y, ghost_x = game_unit.move_target
+            ghost_tile_x = GRID_OFFSET_X + ghost_x * TILE_SIZE
+            ghost_tile_y = GRID_OFFSET_Y + ghost_y * TILE_SIZE
+            surface.blit(highlight_surf, (ghost_tile_x, ghost_tile_y))
 
     def draw_astral_values(self, surface: pygame.Surface):
         """Draw pulsating golden astral values over furniture when DELPHIC APPRAISER is selected."""
