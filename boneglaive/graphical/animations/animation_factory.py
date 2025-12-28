@@ -594,6 +594,17 @@ class AnimationFactory:
                 if not target_pos:
                     print("[AnimationFactory] EXPEDITE requires a target position")
                     return None
+
+                # IMPORTANT: Check if the foreman had a planned move that was cleared
+                # If expedite_planned_start exists, use that as the starting position
+                if caster_unit and hasattr(caster_unit, 'game_unit') and caster_unit.game_unit:
+                    game_unit = caster_unit.game_unit
+                    if hasattr(game_unit, 'expedite_planned_start') and game_unit.expedite_planned_start:
+                        # Use the planned position as start
+                        planned_y, planned_x = game_unit.expedite_planned_start
+                        caster_screen_x, caster_screen_y = grid_to_screen(planned_x, planned_y)
+                        print(f"[AnimationFactory] Expedite using planned start position: grid ({planned_y}, {planned_x}) -> screen ({caster_screen_x}, {caster_screen_y})")
+
                 # Convert grid to screen: target_pos[1] is grid_x, target_pos[0] is grid_y
                 target_x, target_y = grid_to_screen(target_pos[1], target_pos[0])
                 animation = anim_class(

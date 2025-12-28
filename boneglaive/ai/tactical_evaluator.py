@@ -111,7 +111,12 @@ class TacticalEvaluator:
         for enemy in analysis.enemy_units:
             distance = self.game.chess_distance(unit.y, unit.x, enemy.y, enemy.x)
 
+            # Check range and line of sight
             if distance <= attack_range and distance > 0:
+                # Verify line of sight is not blocked by terrain or units
+                if not self.game.has_line_of_sight(unit.y, unit.x, enemy.y, enemy.x):
+                    continue  # Skip this enemy - no LOS
+
                 score = self._score_attack(unit, enemy, analysis, plan, damage)
                 action = Action("attack", target=enemy, priority=score)
                 action.data['can_kill'] = enemy.hp <= damage
@@ -382,6 +387,59 @@ class TacticalEvaluator:
 
         # Evaluate each available skill
         for skill in available_skills:
+            # Check for skills requiring special AI handling
+            if skill.name == "Site Inspection":
+                try:
+                    site_inspection_actions = self._evaluate_site_inspection(unit, skill, analysis, plan)
+                    actions.extend(site_inspection_actions)
+                    logger.debug(f"        Site Inspection: Found {len(site_inspection_actions)} actions")
+                except Exception as e:
+                    logger.error(f"        Error evaluating Site Inspection: {e}")
+                continue
+            elif skill.name == "Marrow Dike":
+                try:
+                    dike_actions = self._evaluate_marrow_dike(unit, skill, analysis, plan)
+                    actions.extend(dike_actions)
+                    logger.debug(f"        Marrow Dike: Found {len(dike_actions)} actions")
+                except Exception as e:
+                    logger.error(f"        Error evaluating Marrow Dike: {e}")
+                continue
+            elif skill.name == "Gaussian Dusk":
+                try:
+                    gaussian_actions = self._evaluate_gaussian_dusk(unit, skill, analysis, plan)
+                    actions.extend(gaussian_actions)
+                    logger.debug(f"        Gaussian Dusk: Found {len(gaussian_actions)} directional actions")
+                except Exception as e:
+                    logger.error(f"        Error evaluating Gaussian Dusk: {e}")
+                continue
+
+            # Check for ally-targeted skills (DERELICTIONIST)
+            if hasattr(skill, 'target_type') and skill.target_type == TargetType.ALLY:
+                if skill.name == "Vagal Run":
+                    try:
+                        vagal_actions = self._evaluate_vagal_run(unit, skill, analysis, plan)
+                        actions.extend(vagal_actions)
+                        logger.debug(f"        Vagal Run: Found {len(vagal_actions)} ally targets")
+                    except Exception as e:
+                        logger.error(f"        Error evaluating Vagal Run: {e}")
+                    continue
+                elif skill.name == "Derelict":
+                    try:
+                        derelict_actions = self._evaluate_derelict(unit, skill, analysis, plan)
+                        actions.extend(derelict_actions)
+                        logger.debug(f"        Derelict: Found {len(derelict_actions)} ally targets")
+                    except Exception as e:
+                        logger.error(f"        Error evaluating Derelict: {e}")
+                    continue
+                elif skill.name == "Partition":
+                    try:
+                        partition_actions = self._evaluate_partition(unit, skill, analysis, plan)
+                        actions.extend(partition_actions)
+                        logger.debug(f"        Partition: Found {len(partition_actions)} ally targets")
+                    except Exception as e:
+                        logger.error(f"        Error evaluating Partition: {e}")
+                    continue
+
             # Check if it's a self-targeted/AOE skill
             from boneglaive.game.skills import TargetType
             if hasattr(skill, 'target_type') and skill.target_type == TargetType.SELF:
@@ -548,5 +606,860 @@ class TacticalEvaluator:
                     action.data['move_to'] = pos
                     action.data['attack_target'] = enemy
                     actions.append(action)
+
+        return actions
+
+    def _evaluate_site_inspection(self, unit: 'Unit', skill, analysis: 'BattlefieldAnalysis',
+                                   plan: 'StrategicPlan') -> List[Action]:
+        """
+        Special evaluation for Site Inspection skill (MANDIBLE FOREMAN).
+
+        Site Inspection buffs allies in a 3x3 area based on terrain:
+        - 0 impassable terrain: +1 attack, +1 movement
+        - 1 impassable terrain: +1 attack only
+        - 2+ impassable terrain: no effect
+
+        Args:
+            unit: The MANDIBLE FOREMAN unit
+            skill: The Site Inspection skill
+            analysis: Battlefield analysis
+            plan: Strategic plan
+
+        Returns:
+            List of Site Inspection actions with scores
+        """
+        actions = []
+        skill_range = getattr(skill, 'range', 3)
+
+        # Get all friendly units (including self)
+        friendly_units = [u for u in self.game.units if u.player == unit.player and u.is_alive()]
+
+        if not friendly_units:
+            return actions
+
+        # Evaluate potential target positions within range
+        for target_y in range(max(0, unit.y - skill_range), min(self.game.map.height, unit.y + skill_range + 1)):
+            for target_x in range(max(0, unit.x - skill_range), min(self.game.map.width, unit.x + skill_range + 1)):
+                # Check if position is in range
+                distance = self.game.chess_distance(unit.y, unit.x, target_y, target_x)
+                if distance > skill_range:
+                    continue
+
+                # Check if skill can be used at this position
+                try:
+                    if not skill.can_use(unit, (target_y, target_x), self.game):
+                        continue
+                except Exception:
+                    continue
+
+                # Analyze the 3x3 area around target position
+                allies_in_area = []
+                impassable_count = 0
+
+                for dy in [-1, 0, 1]:
+                    for dx in [-1, 0, 1]:
+                        check_y = target_y + dy
+                        check_x = target_x + dx
+
+                        # Check bounds
+                        if not self.game.is_valid_position(check_y, check_x):
+                            continue
+
+                        # Count impassable terrain
+                        if not self.game.map.is_passable(check_y, check_x):
+                            impassable_count += 1
+
+                        # Check for friendly units
+                        ally = self.game.get_unit_at(check_y, check_x)
+                        if ally and ally.player == unit.player:
+                            allies_in_area.append(ally)
+
+                # Skip if no allies in area or too much terrain
+                if not allies_in_area or impassable_count >= 2:
+                    continue
+
+                # Calculate score
+                score = 0.0
+
+                # Base score for number of allies buffed
+                unbuffed_allies = 0
+                for ally in allies_in_area:
+                    # Check if ally already has Site Inspection buff
+                    has_full = hasattr(ally, 'status_site_inspection') and ally.status_site_inspection
+                    has_partial = hasattr(ally, 'status_site_inspection_partial') and ally.status_site_inspection_partial
+
+                    if not has_full and not has_partial:
+                        unbuffed_allies += 1
+                        score += 30  # Good value for buffing new ally
+                    elif has_partial and impassable_count == 0:
+                        score += 15  # Decent value for upgrading partial to full
+                    elif has_full or has_partial:
+                        score += 5   # Small value for refreshing existing buff
+
+                # Bonus for hitting multiple allies
+                if len(allies_in_area) >= 2:
+                    score += 20
+                if len(allies_in_area) >= 3:
+                    score += 15
+
+                # Terrain penalty (reduces effectiveness)
+                if impassable_count == 1:
+                    score -= 10  # Partial buff is less valuable
+
+                # Strategy bonuses
+                if plan.strategy.value in ["aggressive_push", "desperate_rush"]:
+                    # Prefer buffing in aggressive situations
+                    score += 15
+                elif plan.strategy.value == "defensive_hold":
+                    # Still good for defense
+                    score += 10
+
+                # Bonus for buffing high-priority units or focus targets
+                for ally in allies_in_area:
+                    if ally in plan.focus_targets:
+                        score += 10
+
+                # Only create action if score is worthwhile
+                if score > 20:
+                    action = Action("skill", target=(skill, (target_y, target_x)), priority=score)
+                    action.data['target_pos'] = (target_y, target_x)
+                    action.data['allies_affected'] = len(allies_in_area)
+                    action.data['unbuffed_count'] = unbuffed_allies
+                    actions.append(action)
+
+        return actions
+
+    def _evaluate_marrow_dike(self, unit: 'Unit', skill, analysis: 'BattlefieldAnalysis',
+                              plan: 'StrategicPlan') -> List[Action]:
+        """
+        Special evaluation for Marrow Dike skill (MARROW CONDENSER).
+
+        Marrow Dike creates a 5x5 perimeter wall around the caster:
+        - Blocks movement and line of sight
+        - Pulls units on perimeter inside
+        - When upgraded: enemies inside get -1 movement
+
+        Use cases:
+        - Defensive: Protect vulnerable allies
+        - Offensive: Trap and control enemies
+
+        Args:
+            unit: The MARROW CONDENSER unit
+            skill: The Marrow Dike skill
+            analysis: Battlefield analysis
+            plan: Strategic plan
+
+        Returns:
+            List of Marrow Dike actions with scores
+        """
+        actions = []
+
+        # Check if skill is usable
+        try:
+            if not skill.can_use(unit, (unit.y, unit.x), self.game):
+                return actions
+        except Exception:
+            return actions
+
+        # Analyze the 5x5 area around unit
+        center_y, center_x = unit.y, unit.x
+
+        # Count units that would be affected
+        allies_inside = []
+        enemies_inside = []
+        allies_endangered = []
+
+        for dy in range(-2, 3):
+            for dx in range(-2, 3):
+                check_y = center_y + dy
+                check_x = center_x + dx
+
+                # Skip out of bounds
+                if not self.game.is_valid_position(check_y, check_x):
+                    continue
+
+                # Skip center (unit's own position)
+                if dy == 0 and dx == 0:
+                    continue
+
+                other_unit = self.game.get_unit_at(check_y, check_x)
+                if not other_unit:
+                    continue
+
+                # Interior tiles (not on perimeter)
+                is_interior = abs(dy) < 2 and abs(dx) < 2
+
+                if other_unit.player == unit.player:
+                    # Friendly unit
+                    allies_inside.append(other_unit)
+
+                    # Check if ally is endangered (in threat map)
+                    ally_pos = (other_unit.y, other_unit.x)
+                    if ally_pos in analysis.threat_map:
+                        threat = analysis.threat_map[ally_pos]
+                        if threat.threat_level >= other_unit.hp * 0.5:  # Significant threat
+                            allies_endangered.append(other_unit)
+                else:
+                    # Enemy unit
+                    enemies_inside.append(other_unit)
+
+        # Calculate score based on tactical situation
+        score = 0.0
+
+        # DEFENSIVE SCORING: Protect endangered allies
+        if allies_endangered:
+            score += len(allies_endangered) * 40
+            logger.debug(f"  Marrow Dike: {len(allies_endangered)} allies endangered, +{len(allies_endangered) * 40} score")
+
+        # OFFENSIVE SCORING: Trap enemies
+        if enemies_inside:
+            enemy_score = 0
+            for enemy in enemies_inside:
+                # Base value for trapping
+                enemy_score += 50
+
+                # Bonus for priority targets
+                if enemy in [t for t, s in analysis.priority_targets[:3]]:
+                    enemy_score += 30
+
+                # Bonus for low HP enemies (easier to finish off)
+                if enemy.hp < enemy.max_hp * 0.4:
+                    enemy_score += 20
+
+            score += enemy_score
+            logger.debug(f"  Marrow Dike: {len(enemies_inside)} enemies trapped, +{enemy_score} score")
+
+        # PENALTY: Too many allies trapped disadvantageously
+        # (More than 2 allies and no enemies = probably bad positioning)
+        if len(allies_inside) > 2 and len(enemies_inside) == 0:
+            penalty = len(allies_inside) * 15
+            score -= penalty
+            logger.debug(f"  Marrow Dike: {len(allies_inside)} allies trapped with no enemies, -{penalty} score")
+
+        # POSITIONING BONUSES
+        # Near center of map (better control)
+        center_map_y = self.game.map.height // 2
+        center_map_x = self.game.map.width // 2
+        distance_to_center = self.game.chess_distance(unit.y, unit.x, center_map_y, center_map_x)
+        if distance_to_center <= 3:
+            score += 10
+            logger.debug(f"  Marrow Dike: Near map center, +10 score")
+
+        # STRATEGY BONUSES
+        if plan.strategy.value == "defensive_hold":
+            # Boost defensive usage
+            if allies_endangered:
+                score += 25
+                logger.debug(f"  Marrow Dike: Defensive strategy + endangered allies, +25 score")
+        elif plan.strategy.value in ["aggressive_push", "desperate_rush"]:
+            # Boost offensive usage
+            if enemies_inside:
+                score += 20
+                logger.debug(f"  Marrow Dike: Aggressive strategy + enemies trapped, +20 score")
+
+        # UNIT CONDITION BONUSES
+        # Low HP = prefer defensive usage
+        if unit.hp < unit.max_hp * 0.5:
+            score += 20
+            logger.debug(f"  Marrow Dike: Unit low HP, +20 score")
+
+        # Minimum threshold - don't use unless it's tactically valuable
+        if score > 40:
+            action = Action("skill", target=(skill, unit), priority=score)
+            action.data['enemies_trapped'] = len(enemies_inside)
+            action.data['allies_protected'] = len(allies_endangered)
+            action.data['total_allies'] = len(allies_inside)
+            actions.append(action)
+            logger.debug(f"  Marrow Dike: Created action with score {score}")
+        else:
+            logger.debug(f"  Marrow Dike: Score {score} below threshold, skipping")
+
+        return actions
+
+    def _evaluate_gaussian_dusk(self, unit: 'Unit', skill, analysis: 'BattlefieldAnalysis',
+                                 plan: 'StrategicPlan') -> List[Action]:
+        """
+        Special evaluation for Gaussian Dusk skill (FOWL_CONTRIVANCE).
+
+        Gaussian Dusk fires a piercing rail gun shot in a cardinal direction:
+        - Only fires in N, S, E, W (no diagonals)
+        - Hits ALL enemies in a straight line across the map
+        - Deals 9 damage (ignores defense)
+        - Destroys terrain
+        - 5-turn cooldown + 1-turn recharge lockout
+
+        The AI must evaluate all 4 cardinal directions and pick the best line.
+
+        Args:
+            unit: The FOWL_CONTRIVANCE unit
+            skill: The Gaussian Dusk skill
+            analysis: Battlefield analysis
+            plan: Strategic plan
+
+        Returns:
+            List of Gaussian Dusk actions (one per viable direction)
+        """
+        actions = []
+
+        # Check if skill is usable
+        try:
+            if not skill.can_use(unit, (unit.y, unit.x), self.game):
+                return actions
+        except Exception:
+            return actions
+
+        # Get skill damage
+        damage = getattr(skill, 'damage', 9)
+
+        # Four cardinal directions: (name, (dy, dx))
+        directions = [
+            ('NORTH', (-1, 0)),
+            ('SOUTH', (1, 0)),
+            ('EAST', (0, 1)),
+            ('WEST', (0, -1))
+        ]
+
+        # Evaluate each cardinal direction
+        for dir_name, (dy, dx) in directions:
+            # Trace line from unit position in this direction
+            enemies_in_line = []
+            y, x = unit.y, unit.x
+
+            # Follow the line to map edge
+            while True:
+                # Move one step in direction
+                y += dy
+                x += dx
+
+                # Check if still in bounds
+                if not self.game.is_valid_position(y, x):
+                    break
+
+                # Check for enemy unit
+                enemy = self.game.get_unit_at(y, x)
+                if enemy and enemy.player != unit.player and enemy.is_alive():
+                    enemies_in_line.append(enemy)
+
+            # Skip if no enemies in this direction
+            if not enemies_in_line:
+                logger.debug(f"  Gaussian Dusk {dir_name}: No enemies")
+                continue
+
+            # Calculate score for this direction
+            score = 0.0
+
+            # Base score per enemy hit
+            score += len(enemies_in_line) * 50
+            logger.debug(f"  Gaussian Dusk {dir_name}: {len(enemies_in_line)} enemies, +{len(enemies_in_line) * 50} base")
+
+            # Bonus for killing blows
+            kills = 0
+            for enemy in enemies_in_line:
+                if enemy.hp <= damage:
+                    kills += 1
+                    score += 30
+            if kills > 0:
+                logger.debug(f"  Gaussian Dusk {dir_name}: {kills} kills, +{kills * 30} bonus")
+
+            # Bonus for priority targets
+            priority_hits = 0
+            for enemy in enemies_in_line:
+                if enemy in [t for t, s in analysis.priority_targets[:3]]:
+                    priority_hits += 1
+                    score += 40
+            if priority_hits > 0:
+                logger.debug(f"  Gaussian Dusk {dir_name}: {priority_hits} priority targets, +{priority_hits * 40} bonus")
+
+            # Bonus for hitting multiple enemies (efficient use)
+            if len(enemies_in_line) >= 2:
+                multi_bonus = 25
+                score += multi_bonus
+                logger.debug(f"  Gaussian Dusk {dir_name}: Multi-hit, +{multi_bonus} bonus")
+
+            if len(enemies_in_line) >= 3:
+                extra_bonus = 20
+                score += extra_bonus
+                logger.debug(f"  Gaussian Dusk {dir_name}: 3+ enemies, +{extra_bonus} bonus")
+
+            # Strategy bonuses
+            if plan.strategy.value in ["aggressive_push", "desperate_rush"]:
+                strategy_bonus = 20
+                score += strategy_bonus
+                logger.debug(f"  Gaussian Dusk {dir_name}: Aggressive strategy, +{strategy_bonus} bonus")
+
+            # Bonus for hitting low HP enemies (easier to finish off)
+            low_hp_targets = sum(1 for e in enemies_in_line if e.hp < e.max_hp * 0.4)
+            if low_hp_targets > 0:
+                low_hp_bonus = low_hp_targets * 15
+                score += low_hp_bonus
+                logger.debug(f"  Gaussian Dusk {dir_name}: {low_hp_targets} low HP, +{low_hp_bonus} bonus")
+
+            # Create target position far in this direction
+            # This ensures the skill will snap to the desired cardinal direction
+            far_distance = 50  # Arbitrary large distance
+            target_y = unit.y + (dy * far_distance)
+            target_x = unit.x + (dx * far_distance)
+
+            # Clamp to map bounds
+            target_y = max(0, min(self.game.map.height - 1, target_y))
+            target_x = max(0, min(self.game.map.width - 1, target_x))
+
+            target_pos = (target_y, target_x)
+
+            # Create action for this direction
+            action = Action("skill", target=(skill, target_pos), priority=score)
+            action.data['direction'] = dir_name
+            action.data['enemies_hit'] = len(enemies_in_line)
+            action.data['kills'] = kills
+            action.data['target_pos'] = target_pos
+            actions.append(action)
+
+            logger.debug(f"  Gaussian Dusk {dir_name}: Total score {score}")
+
+        return actions
+
+    def _evaluate_vagal_run(self, unit: 'Unit', skill, analysis: 'BattlefieldAnalysis',
+                             plan: 'StrategicPlan') -> List[Action]:
+        """
+        Special evaluation for Vagal Run skill (DERELICTIONIST).
+
+        Vagal Run cleanses status effects and deals/heals based on distance:
+        - Close range (3-6): Deals piercing damage
+        - Far range (7+): Heals
+        - Clears all status effects
+        - Delayed abreaction after 3 turns
+
+        Args:
+            unit: The DERELICTIONIST unit
+            skill: The Vagal Run skill
+            analysis: Battlefield analysis
+            plan: Strategic plan
+
+        Returns:
+            List of Vagal Run actions targeting allies
+        """
+        actions = []
+        skill_range = getattr(skill, 'range', 3)
+
+        # Get all friendly units (excluding self)
+        friendly_units = [u for u in self.game.units
+                         if u.player == unit.player and u.is_alive() and u != unit]
+
+        if not friendly_units:
+            return actions
+
+        # Harmful status effects that Vagal Run cleanses
+        harmful_statuses = [
+            'trapped_by', 'mired', 'jawline_affected', 'trauma_debt',
+            'estranged', 'auction_curse', 'gaussian_dusk_recharge'
+        ]
+
+        # Evaluate each ally
+        for ally in friendly_units:
+            # Check range
+            distance = self.game.chess_distance(unit.y, unit.x, ally.y, ally.x)
+            if distance > skill_range:
+                continue
+
+            # Check if skill can be used
+            try:
+                if not skill.can_use(unit, (ally.y, ally.x), self.game):
+                    continue
+            except Exception:
+                continue
+
+            # Check if ally already has vagal run active
+            if hasattr(ally, 'vagal_run_active') and ally.vagal_run_active:
+                continue
+
+            # Calculate score
+            score = 0.0
+
+            # Count harmful status effects
+            status_count = 0
+            critical_statuses = 0
+            for status in harmful_statuses:
+                if hasattr(ally, status):
+                    status_value = getattr(ally, status)
+                    if status_value and status_value is not False and status_value != 0:
+                        status_count += 1
+                        # Critical statuses (trapped, mired)
+                        if status in ['trapped_by', 'mired', 'jawline_affected']:
+                            critical_statuses += 1
+
+            # Base score for cleansing
+            if status_count > 0:
+                score += status_count * 40
+                logger.debug(f"  Vagal Run on {ally.get_display_name()}: {status_count} statuses, +{status_count * 40}")
+
+            # Bonus for critical statuses
+            if critical_statuses > 0:
+                crit_bonus = critical_statuses * 60
+                score += crit_bonus
+                logger.debug(f"  Vagal Run on {ally.get_display_name()}: {critical_statuses} critical statuses, +{crit_bonus}")
+
+            # Calculate healing/damage value based on final distance after DERELICTIONIST moves
+            source_y, source_x = unit.y, unit.x
+            if unit.move_target:
+                source_y, source_x = unit.move_target
+            final_distance = self.game.chess_distance(source_y, source_x, ally.y, ally.x)
+
+            # Close range (3-6): Damage component
+            if 3 <= final_distance <= 6:
+                damage = min(3, max(0, 6 - final_distance))
+                # Small score - damage isn't usually desirable on allies
+                # But if ally needs status cleared, this is acceptable
+                if status_count > 0:
+                    score += 10  # Worth using even though it damages
+                    logger.debug(f"  Vagal Run on {ally.get_display_name()}: Close range damage acceptable with statuses, +10")
+            # Far range (7+): Healing component
+            elif final_distance >= 7:
+                heal_amount = final_distance - 6
+                hp_missing = ally.max_hp - ally.hp
+                actual_heal = min(heal_amount, hp_missing)
+                if actual_heal > 0:
+                    heal_score = actual_heal * 2
+                    score += heal_score
+                    logger.debug(f"  Vagal Run on {ally.get_display_name()}: Healing {actual_heal} HP, +{heal_score}")
+
+            # Bonus if ally is endangered
+            ally_pos = (ally.y, ally.x)
+            if ally_pos in analysis.threat_map:
+                threat = analysis.threat_map[ally_pos]
+                if threat.threat_level >= ally.hp * 0.5:
+                    endangered_bonus = 40
+                    score += endangered_bonus
+                    logger.debug(f"  Vagal Run on {ally.get_display_name()}: Endangered, +{endangered_bonus}")
+
+            # Bonus for priority units
+            if ally in plan.focus_targets:
+                priority_bonus = 30
+                score += priority_bonus
+                logger.debug(f"  Vagal Run on {ally.get_display_name()}: Priority target, +{priority_bonus}")
+
+            # Only create action if worthwhile
+            if score > 30:
+                action = Action("skill", target=(skill, ally), priority=score)
+                action.data['ally_target'] = ally
+                action.data['statuses_cleared'] = status_count
+                actions.append(action)
+                logger.debug(f"  Vagal Run on {ally.get_display_name()}: Total score {score}")
+
+        return actions
+
+    def _evaluate_derelict(self, unit: 'Unit', skill, analysis: 'BattlefieldAnalysis',
+                           plan: 'StrategicPlan') -> List[Action]:
+        """
+        Special evaluation for Derelict skill (DERELICTIONIST).
+
+        Derelict pushes ally 4 tiles away:
+        - Ally heals for distance from DERELICTIONIST after push
+        - Ally becomes immobilized for 1 turn
+        - Used to rescue endangered allies or reposition
+
+        Args:
+            unit: The DERELICTIONIST unit
+            skill: The Derelict skill
+            analysis: Battlefield analysis
+            plan: Strategic plan
+
+        Returns:
+            List of Derelict actions targeting allies
+        """
+        actions = []
+        skill_range = getattr(skill, 'range', 3)
+        push_distance = 4
+
+        # Get all friendly units (excluding self)
+        friendly_units = [u for u in self.game.units
+                         if u.player == unit.player and u.is_alive() and u != unit]
+
+        if not friendly_units:
+            return actions
+
+        # Evaluate each ally
+        for ally in friendly_units:
+            # Check range
+            distance = self.game.chess_distance(unit.y, unit.x, ally.y, ally.x)
+            if distance > skill_range:
+                continue
+
+            # Check if skill can be used
+            try:
+                if not skill.can_use(unit, (ally.y, ally.x), self.game):
+                    continue
+            except Exception:
+                continue
+
+            # Calculate push direction
+            dy = ally.y - unit.y
+            dx = ally.x - unit.x
+
+            # Normalize direction
+            if dy != 0:
+                dy = 1 if dy > 0 else -1
+            if dx != 0:
+                dx = 1 if dx > 0 else -1
+
+            # Simulate push to find landing position
+            landing_y, landing_x = ally.y, ally.x
+            tiles_pushed = 0
+
+            for step in range(push_distance):
+                next_y = landing_y + dy
+                next_x = landing_x + dx
+
+                # Check if position is valid and passable
+                if not self.game.is_valid_position(next_y, next_x):
+                    break
+                if not self.game.map.is_passable(next_y, next_x):
+                    break
+                # Check if occupied by another unit
+                if self.game.get_unit_at(next_y, next_x):
+                    break
+
+                landing_y = next_y
+                landing_x = next_x
+                tiles_pushed += 1
+
+            # If couldn't push at all, skip
+            if tiles_pushed == 0:
+                continue
+
+            # Calculate score
+            score = 0.0
+
+            # Check if ally is currently endangered
+            ally_pos = (ally.y, ally.x)
+            endangered = False
+            current_threat = 0
+            if ally_pos in analysis.threat_map:
+                threat = analysis.threat_map[ally_pos]
+                current_threat = threat.threat_level
+                if current_threat >= ally.hp * 0.5:
+                    endangered = True
+
+            # Count enemies near current position
+            enemies_near_current = 0
+            for enemy in analysis.enemy_units:
+                if self.game.chess_distance(ally.y, ally.x, enemy.y, enemy.x) <= 2:
+                    enemies_near_current += 1
+
+            # Check landing zone safety
+            landing_pos = (landing_y, landing_x)
+            landing_threat = 0
+            if landing_pos in analysis.threat_map:
+                threat = analysis.threat_map[landing_pos]
+                landing_threat = threat.threat_level
+
+            # Count enemies near landing position
+            enemies_near_landing = 0
+            for enemy in analysis.enemy_units:
+                if self.game.chess_distance(landing_y, landing_x, enemy.y, enemy.x) <= 2:
+                    enemies_near_landing += 1
+
+            # Rescue scoring: High value if moving ally from danger to safety
+            if endangered and landing_threat < current_threat * 0.5:
+                rescue_score = 80
+                score += rescue_score
+                logger.debug(f"  Derelict on {ally.get_display_name()}: Rescue from danger, +{rescue_score}")
+
+            # Bonus for each enemy near current position (escaping)
+            if enemies_near_current > 0:
+                escape_score = enemies_near_current * 15
+                score += escape_score
+                logger.debug(f"  Derelict on {ally.get_display_name()}: Escaping {enemies_near_current} enemies, +{escape_score}")
+
+            # Penalty if landing zone has more enemies
+            if enemies_near_landing > enemies_near_current:
+                penalty = (enemies_near_landing - enemies_near_current) * 20
+                score -= penalty
+                logger.debug(f"  Derelict on {ally.get_display_name()}: Landing near more enemies, -{penalty}")
+
+            # Healing value: Calculate final distance and healing
+            # After push, calculate distance from DERELICTIONIST to landing position
+            final_distance = self.game.chess_distance(unit.y, unit.x, landing_y, landing_x)
+            heal_amount = final_distance
+            hp_missing = ally.max_hp - ally.hp
+            actual_heal = min(heal_amount, hp_missing)
+
+            if actual_heal > 0:
+                heal_score = actual_heal * 3
+                score += heal_score
+                logger.debug(f"  Derelict on {ally.get_display_name()}: Healing {actual_heal} HP, +{heal_score}")
+
+            # Bonus for safe landing zone
+            if landing_threat < ally.hp * 0.3:
+                safe_landing = 30
+                score += safe_landing
+                logger.debug(f"  Derelict on {ally.get_display_name()}: Safe landing zone, +{safe_landing}")
+
+            # Penalty for immobilization (ally can't move next turn)
+            # Only significant if ally is in danger at landing position
+            if landing_threat > ally.hp * 0.3:
+                immobile_penalty = 40
+                score -= immobile_penalty
+                logger.debug(f"  Derelict on {ally.get_display_name()}: Immobilized in danger, -{immobile_penalty}")
+
+            # Bonus for priority units
+            if ally in plan.focus_targets:
+                priority_bonus = 25
+                score += priority_bonus
+                logger.debug(f"  Derelict on {ally.get_display_name()}: Priority target, +{priority_bonus}")
+
+            # Strategy bonuses
+            if plan.strategy.value == "defensive_hold" and endangered:
+                defensive_bonus = 20
+                score += defensive_bonus
+                logger.debug(f"  Derelict on {ally.get_display_name()}: Defensive rescue, +{defensive_bonus}")
+
+            # Only create action if worthwhile
+            if score > 40:
+                action = Action("skill", target=(skill, ally), priority=score)
+                action.data['ally_target'] = ally
+                action.data['landing_pos'] = (landing_y, landing_x)
+                action.data['healing'] = actual_heal
+                actions.append(action)
+                logger.debug(f"  Derelict on {ally.get_display_name()}: Total score {score}")
+
+        return actions
+
+    def _evaluate_partition(self, unit: 'Unit', skill, analysis: 'BattlefieldAnalysis',
+                            plan: 'StrategicPlan') -> List[Action]:
+        """
+        Special evaluation for Partition skill (DERELICTIONIST).
+
+        Partition grants ally damage reduction shield:
+        - Blocks 1 damage from all sources for 3 turns
+        - Emergency intervention: Blocks fatal damage, teleports DERELICTIONIST
+        - Proactive defensive support
+
+        Args:
+            unit: The DERELICTIONIST unit
+            skill: The Partition skill
+            analysis: Battlefield analysis
+            plan: Strategic plan
+
+        Returns:
+            List of Partition actions targeting allies
+        """
+        actions = []
+        skill_range = getattr(skill, 'range', 3)
+
+        # Get all friendly units (excluding self if desired)
+        friendly_units = [u for u in self.game.units
+                         if u.player == unit.player and u.is_alive()]
+
+        if not friendly_units:
+            return actions
+
+        # Evaluate each ally
+        for ally in friendly_units:
+            # Check range
+            distance = self.game.chess_distance(unit.y, unit.x, ally.y, ally.x)
+            if distance > skill_range:
+                continue
+
+            # Check if skill can be used
+            try:
+                if not skill.can_use(unit, (ally.y, ally.x), self.game):
+                    continue
+            except Exception:
+                continue
+
+            # Check if ally already has partition shield
+            if hasattr(ally, 'partition_shield_active') and ally.partition_shield_active:
+                continue
+
+            # Calculate score
+            score = 0.0
+
+            # Check threat level at ally position
+            ally_pos = (ally.y, ally.x)
+            endangered = False
+            threat_level = 0
+            if ally_pos in analysis.threat_map:
+                threat = analysis.threat_map[ally_pos]
+                threat_level = threat.threat_level
+                if threat_level >= ally.hp * 0.5:
+                    endangered = True
+
+            # High score for endangered allies
+            if endangered:
+                endangered_score = 100
+                score += endangered_score
+                logger.debug(f"  Partition on {ally.get_display_name()}: Endangered (threat {threat_level}), +{endangered_score}")
+
+            # Bonus for low HP allies (preemptive protection)
+            if ally.hp < ally.max_hp * 0.4:
+                low_hp_score = 50
+                score += low_hp_score
+                logger.debug(f"  Partition on {ally.get_display_name()}: Low HP ({ally.hp}/{ally.max_hp}), +{low_hp_score}")
+
+            # Bonus for priority units
+            if ally in plan.focus_targets:
+                priority_score = 60
+                score += priority_score
+                logger.debug(f"  Partition on {ally.get_display_name()}: Priority target, +{priority_score}")
+
+            # Bonus for key unit types (DERELICTIONIST itself, high-value units)
+            if ally == unit:
+                # Shielding self
+                self_shield = 40
+                score += self_shield
+                logger.debug(f"  Partition on {ally.get_display_name()}: Self-shield, +{self_shield}")
+            elif hasattr(ally, 'type'):
+                from boneglaive.utils.constants import UnitType
+                # Protect other DERELICTIONISTs or key support units
+                if ally.type in [UnitType.DERELICTIONIST, UnitType.POTPOURRIST]:
+                    support_bonus = 40
+                    score += support_bonus
+                    logger.debug(f"  Partition on {ally.get_display_name()}: Support unit, +{support_bonus}")
+
+            # Estimate damage reduction value
+            # Shield blocks 1 damage per hit for 3 turns
+            # Estimate number of hits ally will take
+            enemies_in_range = 0
+            for enemy in analysis.enemy_units:
+                enemy_stats = enemy.get_effective_stats()
+                enemy_range = enemy_stats.get('attack_range', 1)
+                if self.game.chess_distance(ally.y, ally.x, enemy.y, enemy.x) <= enemy_range:
+                    enemies_in_range += 1
+
+            if enemies_in_range > 0:
+                # Estimate shield will block 1 damage per enemy per turn for 3 turns
+                estimated_blocks = min(enemies_in_range * 3, 9)  # Cap at 9 damage blocked
+                shield_value = estimated_blocks * 5
+                score += shield_value
+                logger.debug(f"  Partition on {ally.get_display_name()}: {enemies_in_range} enemies in range, estimated {estimated_blocks} blocks, +{shield_value}")
+
+            # Strategy bonuses
+            if plan.strategy.value == "defensive_hold":
+                defensive_bonus = 25
+                score += defensive_bonus
+                logger.debug(f"  Partition on {ally.get_display_name()}: Defensive strategy, +{defensive_bonus}")
+
+            # Penalty for full HP allies in safe positions (wasteful)
+            if ally.hp == ally.max_hp and threat_level < ally.hp * 0.2:
+                waste_penalty = 30
+                score -= waste_penalty
+                logger.debug(f"  Partition on {ally.get_display_name()}: Full HP and safe, -{waste_penalty}")
+
+            # Bonus for allies about to engage
+            # (Moving toward enemies)
+            if hasattr(ally, 'move_target') and ally.move_target:
+                # Ally is moving - likely engaging
+                engaging_bonus = 15
+                score += engaging_bonus
+                logger.debug(f"  Partition on {ally.get_display_name()}: Engaging/moving, +{engaging_bonus}")
+
+            # Only create action if worthwhile
+            if score > 40:
+                action = Action("skill", target=(skill, ally), priority=score)
+                action.data['ally_target'] = ally
+                action.data['threat_level'] = threat_level
+                action.data['endangered'] = endangered
+                actions.append(action)
+                logger.debug(f"  Partition on {ally.get_display_name()}: Total score {score}")
 
         return actions

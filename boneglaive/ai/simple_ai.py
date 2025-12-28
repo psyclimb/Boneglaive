@@ -3839,23 +3839,25 @@ class SimpleAI:
     def _can_attack(self, unit: 'Unit', target: 'Unit') -> bool:
         """
         Check if a unit can attack a target from its current position.
-        
+
         Args:
             unit: The attacking unit
             target: The target unit
-            
+
         Returns:
             True if the attack is possible, False otherwise
         """
         # Get effective stats
         stats = unit.get_effective_stats()
         attack_range = stats['attack_range']
-        
+
         # Calculate distance
         distance = self.game.chess_distance(unit.y, unit.x, target.y, target.x)
-        
-        # Check if target is within attack range
-        return distance <= attack_range
+
+        # Check if target is within attack range and has line of sight
+        if distance <= attack_range:
+            return self.game.has_line_of_sight(unit.y, unit.x, target.y, target.x)
+        return False
     
     def _can_attack_after_move(self, unit: 'Unit', target: 'Unit') -> bool:
         """
@@ -3873,11 +3875,12 @@ class SimpleAI:
             # Calculate distance from current position to target
             distance = self.game.chess_distance(unit.y, unit.x, target.y, target.x)
             attack_range = unit.get_effective_stats()['attack_range']
-            
-            # If target is within attack range from current position, set attack target
+
+            # If target is within attack range from current position and has LOS, set attack target
             if distance <= attack_range:
-                unit.attack_target = (target.y, target.x)
-                return True
+                if self.game.has_line_of_sight(unit.y, unit.x, target.y, target.x):
+                    unit.attack_target = (target.y, target.x)
+                    return True
             return False
             
         # If no move target set, unit can't attack after moving
@@ -3891,13 +3894,15 @@ class SimpleAI:
         # Calculate distance from move target to target unit
         move_y, move_x = unit.move_target
         distance = self.game.chess_distance(move_y, move_x, target.y, target.x)
-        
-        # Check if target is within attack range after moving
+
+        # Check if target is within attack range after moving and has LOS
         if distance <= attack_range:
-            # Set attack target for end of turn processing
-            unit.attack_target = (target.y, target.x)
-            return True
-            
+            # Check line of sight from the move target position
+            if self.game.has_line_of_sight(move_y, move_x, target.y, target.x):
+                # Set attack target for end of turn processing
+                unit.attack_target = (target.y, target.x)
+                return True
+
         return False
     
     def _move_with_coordination(self, unit: 'Unit', target: 'Unit') -> None:
