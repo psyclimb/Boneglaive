@@ -6,6 +6,7 @@ Scores individual unit actions to find optimal choices.
 
 from typing import TYPE_CHECKING, List, Tuple, Optional, Dict
 from boneglaive.utils.debug import logger
+from boneglaive.game.skills import TargetType
 
 if TYPE_CHECKING:
     from boneglaive.game.engine import Game
@@ -441,7 +442,6 @@ class TacticalEvaluator:
                     continue
 
             # Check if it's a self-targeted/AOE skill
-            from boneglaive.game.skills import TargetType
             if hasattr(skill, 'target_type') and skill.target_type == TargetType.SELF:
                 # Self-targeted AOE skills (e.g., Jawline)
                 try:
