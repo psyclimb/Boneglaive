@@ -391,6 +391,17 @@ class TacticalEvaluator:
             logger.error(f"Error getting skills for {unit.get_display_name()}: {e}")
             return actions
 
+        # Check for GAS_MACHINIST special handling (must be done BEFORE iterating skills)
+        if unit.type == UnitType.GAS_MACHINIST:
+            try:
+                gas_machinist_actions = self._evaluate_gas_machinist_skills(unit, analysis, plan)
+                actions.extend(gas_machinist_actions)
+                logger.debug(f"        GAS_MACHINIST: Found {len(gas_machinist_actions)} skill actions")
+            except Exception as e:
+                logger.error(f"        Error evaluating GAS_MACHINIST skills: {e}")
+            # Return early - GAS_MACHINIST skills are all handled by special evaluator
+            return actions
+
         # Evaluate each available skill
         for skill in available_skills:
             # Check for skills requiring special AI handling
@@ -1476,3 +1487,425 @@ class TacticalEvaluator:
                 logger.debug(f"  Partition on {ally.get_display_name()}: Total score {score}")
 
         return actions
+
+    def _evaluate_gas_machinist_skills(self, unit: 'Unit', analysis: 'BattlefieldAnalysis',
+                                       plan: 'StrategicPlan') -> List[Action]:
+        """
+        Special evaluation for GAS_MACHINIST skills.
+
+        GAS_MACHINIST has unique charge-based mechanics:
+        - Effluvium Lathe generates 1 charge/turn (max 4)
+        - All skills consume ALL charges to extend vapor duration
+        - Duration: 1 charge = 1 turn, 2+ = 1 + (charges - 1) turns
+        - Should prioritize using skills at 3-4 charges for maximum value
+
+        Skills:
+        - Broaching Gas: Damages enemies + cleanses allies
+        - Saft-E-Gas: Buffs defense + heals allies
+        - Diverge: Splits self or vapor into Coolant + Cutting gas
+
+        Args:
+            unit: GAS_MACHINIST unit
+            analysis: Battlefield analysis
+            plan: Strategic plan
+
+        Returns:
+            List of skill actions with charge-aware scoring
+        """
+        actions = []
+
+        # Get current charges
+        charges = 0
+        if unit.passive_skill and unit.passive_skill.name == "Effluvium Lathe":
+            charges = unit.passive_skill.charges
+
+        logger.debug(f"        GAS_MACHINIST has {charges}/4 Effluvium charges")
+
+        # Get available skills
+        try:
+            available_skills = unit.get_available_skills()
+        except Exception as e:
+            logger.error(f"        Error getting GAS_MACHINIST skills: {e}")
+            return actions
+
+        # Find each skill
+        broaching_gas = None
+        saft_e_gas = None
+        diverge = None
+
+        for skill in available_skills:
+            if skill.name == "Broaching Gas":
+                broaching_gas = skill
+            elif skill.name == "Saft-E-Gas":
+                saft_e_gas = skill
+            elif skill.name == "Diverge":
+                diverge = skill
+
+        # Evaluate Broaching Gas
+        if broaching_gas:
+            try:
+                broaching_actions = self._evaluate_broaching_gas(unit, broaching_gas, charges, analysis, plan)
+                actions.extend(broaching_actions)
+                logger.debug(f"          Broaching Gas: {len(broaching_actions)} actions")
+            except Exception as e:
+                logger.error(f"          Error evaluating Broaching Gas: {e}")
+
+        # Evaluate Saft-E-Gas
+        if saft_e_gas:
+            try:
+                saft_e_actions = self._evaluate_saft_e_gas(unit, saft_e_gas, charges, analysis, plan)
+                actions.extend(saft_e_actions)
+                logger.debug(f"          Saft-E-Gas: {len(saft_e_actions)} actions")
+            except Exception as e:
+                logger.error(f"          Error evaluating Saft-E-Gas: {e}")
+
+        # Evaluate Diverge
+        if diverge:
+            try:
+                diverge_actions = self._evaluate_diverge(unit, diverge, charges, analysis, plan)
+                actions.extend(diverge_actions)
+                logger.debug(f"          Diverge: {len(diverge_actions)} actions")
+            except Exception as e:
+                logger.error(f"          Error evaluating Diverge: {e}")
+
+        return actions
+
+    def _evaluate_broaching_gas(self, unit: 'Unit', skill, charges: int,
+                                analysis: 'BattlefieldAnalysis', plan: 'StrategicPlan') -> List[Action]:
+        """Evaluate Broaching Gas vapor placement."""
+        actions = []
+
+        # Don't use at low charges unless desperate
+        if charges < 2:
+            logger.debug(f"            Broaching Gas: Only {charges} charges, skipping")
+            return actions
+
+        # Get source position (current or planned)
+        if unit.move_target:
+            source_y, source_x = unit.move_target
+        else:
+            source_y, source_x = unit.y, unit.x
+
+        # Find valid placement positions (empty, passable, within range 4)
+        valid_positions = []
+        for y in range(self.game.map.height):
+            for x in range(self.game.map.width):
+                # Check if position is valid
+                if not self.game.is_valid_position(y, x):
+                    continue
+                if not self.game.map.is_passable(y, x):
+                    continue
+                if self.game.get_unit_at(y, x) is not None:
+                    continue
+
+                # Check range
+                distance = self.game.chess_distance(source_y, source_x, y, x)
+                if distance > skill.range:
+                    continue
+
+                # Check line of sight
+                if not self.game.has_line_of_sight(source_y, source_x, y, x):
+                    continue
+
+                valid_positions.append((y, x))
+
+        # Score each position
+        for pos in valid_positions:
+            score = self._score_broaching_gas_placement(unit, pos, charges, analysis, plan)
+            if score > 0:
+                action = Action("skill", target=(skill, pos), priority=score)
+                action.data['target_pos'] = pos
+                action.data['charges'] = charges
+                actions.append(action)
+
+        return actions
+
+    def _score_broaching_gas_placement(self, unit: 'Unit', pos: tuple, charges: int,
+                                      analysis: 'BattlefieldAnalysis', plan: 'StrategicPlan') -> float:
+        """Score a Broaching Gas placement position."""
+        score = 0.0
+        y, x = pos
+
+        # Base score for using skill
+        score += 30.0
+
+        # Charge bonus (prefer 3-4 charges)
+        if charges >= 4:
+            score += 40.0  # Excellent value
+        elif charges >= 3:
+            score += 20.0  # Good value
+        else:
+            score -= 10.0  # Mediocre value
+
+        # Count nearby enemies (damage value)
+        nearby_enemies = 0
+        for enemy in analysis.enemy_units:
+            # Skip other HEINOUS VAPOR units
+            if enemy.type == UnitType.HEINOUS_VAPOR:
+                continue
+
+            dist = self.game.chess_distance(y, x, enemy.y, enemy.x)
+            if dist <= 1:  # Adjacent
+                nearby_enemies += 1
+                score += 25.0  # Each adjacent enemy gets damaged per turn
+
+        # Count nearby allies with status effects (cleanse value)
+        cleanse_value = 0
+        for ally in analysis.ai_units:
+            dist = self.game.chess_distance(y, x, ally.y, ally.x)
+            if dist <= 1:  # Adjacent
+                # Check for harmful status effects
+                if hasattr(ally, 'estranged') and ally.estranged:
+                    cleanse_value += 1
+                if hasattr(ally, 'mired') and ally.mired:
+                    cleanse_value += 1
+                if hasattr(ally, 'trapped_by') and ally.trapped_by:
+                    cleanse_value += 1
+                if hasattr(ally, 'derelicted') and ally.derelicted:
+                    cleanse_value += 1
+
+        score += cleanse_value * 20.0
+
+        # Bonus if near focus targets
+        for enemy in plan.focus_targets:
+            if enemy.type == UnitType.HEINOUS_VAPOR:
+                continue
+            dist = self.game.chess_distance(y, x, enemy.y, enemy.x)
+            if dist <= 1:
+                score += 30.0
+
+        return score
+
+    def _evaluate_saft_e_gas(self, unit: 'Unit', skill, charges: int,
+                            analysis: 'BattlefieldAnalysis', plan: 'StrategicPlan') -> List[Action]:
+        """Evaluate Saft-E-Gas vapor placement."""
+        actions = []
+
+        # Don't use at low charges unless desperate
+        if charges < 2:
+            logger.debug(f"            Saft-E-Gas: Only {charges} charges, skipping")
+            return actions
+
+        # Get source position (current or planned)
+        if unit.move_target:
+            source_y, source_x = unit.move_target
+        else:
+            source_y, source_x = unit.y, unit.x
+
+        # Find valid placement positions
+        valid_positions = []
+        for y in range(self.game.map.height):
+            for x in range(self.game.map.width):
+                if not self.game.is_valid_position(y, x):
+                    continue
+                if not self.game.map.is_passable(y, x):
+                    continue
+                if self.game.get_unit_at(y, x) is not None:
+                    continue
+
+                distance = self.game.chess_distance(source_y, source_x, y, x)
+                if distance > skill.range:
+                    continue
+
+                if not self.game.has_line_of_sight(source_y, source_x, y, x):
+                    continue
+
+                valid_positions.append((y, x))
+
+        # Score each position
+        for pos in valid_positions:
+            score = self._score_saft_e_gas_placement(unit, pos, charges, analysis, plan)
+            if score > 0:
+                action = Action("skill", target=(skill, pos), priority=score)
+                action.data['target_pos'] = pos
+                action.data['charges'] = charges
+                actions.append(action)
+
+        return actions
+
+    def _score_saft_e_gas_placement(self, unit: 'Unit', pos: tuple, charges: int,
+                                   analysis: 'BattlefieldAnalysis', plan: 'StrategicPlan') -> float:
+        """Score a Saft-E-Gas placement position."""
+        score = 0.0
+        y, x = pos
+
+        # Base score
+        score += 30.0
+
+        # Charge bonus
+        if charges >= 4:
+            score += 40.0
+        elif charges >= 3:
+            score += 20.0
+        else:
+            score -= 10.0
+
+        # Count nearby injured allies (healing value)
+        heal_value = 0
+        defense_value = 0
+        for ally in analysis.ai_units:
+            dist = self.game.chess_distance(y, x, ally.y, ally.x)
+            if dist <= 1:  # Adjacent
+                # Healing value
+                if ally.hp < ally.max_hp:
+                    missing_hp = ally.max_hp - ally.hp
+                    heal_value += min(missing_hp, charges)  # Heals 1 HP per turn
+
+                # Defense buff value (always useful)
+                defense_value += 1
+
+        score += heal_value * 15.0
+        score += defense_value * 10.0
+
+        # Bonus if allies are in danger
+        endangered_allies = 0
+        for ally in analysis.ai_units:
+            dist = self.game.chess_distance(y, x, ally.y, ally.x)
+            if dist <= 1:
+                ally_pos = (ally.y, ally.x)
+                if ally_pos in analysis.threat_map:
+                    threat = analysis.threat_map[ally_pos]
+                    if threat.threat_level >= ally.hp * 0.5:
+                        endangered_allies += 1
+
+        score += endangered_allies * 25.0
+
+        return score
+
+    def _evaluate_diverge(self, unit: 'Unit', skill, charges: int,
+                         analysis: 'BattlefieldAnalysis', plan: 'StrategicPlan') -> List[Action]:
+        """Evaluate Diverge skill (split self or vapor)."""
+        actions = []
+
+        # Diverge is BEST at 4 charges (creates 2 vapors for 4 turns each = 8 entity-turns)
+        # At 3 charges, still good but less valuable
+        # At 1-2 charges, usually not worth it
+
+        if charges < 3:
+            logger.debug(f"            Diverge: Only {charges} charges, skipping")
+            return actions
+
+        # Get source position
+        if unit.move_target:
+            source_y, source_x = unit.move_target
+        else:
+            source_y, source_x = unit.y, unit.x
+
+        # Option 1: Diverge self
+        # Check if self-targeting is valid (requires at least 1 empty adjacent tile)
+        self_pos = (source_y, source_x)
+        adjacent_empty = 0
+        from boneglaive.utils.coordinates import get_adjacent_positions
+        for adj_pos in get_adjacent_positions(source_y, source_x):
+            adj_y, adj_x = adj_pos
+            if (self.game.is_valid_position(adj_y, adj_x) and
+                self.game.map.is_passable(adj_y, adj_x) and
+                self.game.get_unit_at(adj_y, adj_x) is None):
+                adjacent_empty += 1
+
+        if adjacent_empty >= 1:
+            # Score self-diverge
+            score = self._score_diverge_self(unit, charges, analysis, plan)
+            if score > 0:
+                action = Action("skill", target=(skill, self_pos), priority=score)
+                action.data['target_pos'] = self_pos
+                action.data['diverge_type'] = 'self'
+                action.data['charges'] = charges
+                actions.append(action)
+
+        # Option 2: Diverge existing friendly HEINOUS VAPOR
+        for ally in analysis.ai_units:
+            if ally.type != UnitType.HEINOUS_VAPOR:
+                continue
+
+            # Check if within range
+            dist = self.game.chess_distance(source_y, source_x, ally.y, ally.x)
+            if dist > skill.range:
+                continue
+
+            # Check line of sight
+            if not self.game.has_line_of_sight(source_y, source_x, ally.y, ally.x):
+                continue
+
+            # Check if there's at least 1 adjacent empty tile
+            vapor_adjacent_empty = 0
+            for adj_pos in get_adjacent_positions(ally.y, ally.x):
+                adj_y, adj_x = adj_pos
+                if (self.game.is_valid_position(adj_y, adj_x) and
+                    self.game.map.is_passable(adj_y, adj_x) and
+                    self.game.get_unit_at(adj_y, adj_x) is None):
+                    vapor_adjacent_empty += 1
+
+            if vapor_adjacent_empty >= 1:
+                # Score vapor-diverge
+                score = self._score_diverge_vapor(unit, ally, charges, analysis, plan)
+                if score > 0:
+                    action = Action("skill", target=(skill, (ally.y, ally.x)), priority=score)
+                    action.data['target_pos'] = (ally.y, ally.x)
+                    action.data['diverge_type'] = 'vapor'
+                    action.data['target_vapor'] = ally
+                    action.data['charges'] = charges
+                    actions.append(action)
+
+        return actions
+
+    def _score_diverge_self(self, unit: 'Unit', charges: int,
+                           analysis: 'BattlefieldAnalysis', plan: 'StrategicPlan') -> float:
+        """Score self-diverge action."""
+        score = 0.0
+
+        # Base score
+        score += 50.0
+
+        # HUGE bonus for 4 charges (optimal)
+        if charges >= 4:
+            score += 80.0  # Creates 2 vapors for 4 turns = incredible value
+        elif charges >= 3:
+            score += 30.0  # Still good
+
+        # Strategic value: splitting creates Coolant (heals) + Cutting (damages)
+        # This is high value if there are nearby allies and enemies
+        nearby_allies = 0
+        nearby_enemies = 0
+
+        for ally in analysis.ai_units:
+            dist = self.game.chess_distance(unit.y, unit.x, ally.y, ally.x)
+            if dist <= 3:
+                nearby_allies += 1
+
+        for enemy in analysis.enemy_units:
+            if enemy.type == UnitType.HEINOUS_VAPOR:
+                continue
+            dist = self.game.chess_distance(unit.y, unit.x, enemy.y, enemy.x)
+            if dist <= 3:
+                nearby_enemies += 1
+
+        # Bonus if in good tactical position
+        if nearby_allies >= 2 and nearby_enemies >= 1:
+            score += 40.0  # Great position for dual-purpose vapors
+
+        return score
+
+    def _score_diverge_vapor(self, unit: 'Unit', vapor: 'Unit', charges: int,
+                            analysis: 'BattlefieldAnalysis', plan: 'StrategicPlan') -> float:
+        """Score diverging an existing vapor."""
+        score = 0.0
+
+        # Base score
+        score += 40.0
+
+        # Charge bonus
+        if charges >= 4:
+            score += 60.0
+        elif charges >= 3:
+            score += 20.0
+
+        # Bonus for refreshing a dying vapor
+        if hasattr(vapor, 'vapor_duration') and vapor.vapor_duration <= 1:
+            score += 50.0  # High value to refresh expiring vapor
+
+        # Bonus for repositioning/upgrading existing vapor
+        # Diverge converts any vapor type into Coolant + Cutting
+        score += 20.0  # Always some value in splitting
+
+        return score
