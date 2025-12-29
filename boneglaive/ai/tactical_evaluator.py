@@ -2380,3 +2380,86 @@ class TacticalEvaluator:
             score -= 30.0  # Penalty for trivial teleports
         
         return score
+
+    def _evaluate_scalar_node(self, unit: 'Unit', skill, analysis: 'BattlefieldAnalysis',
+                              plan: 'StrategicPlan') -> List[Action]:
+        """Evaluate Scalar Node trap placement (INTERFERER)."""
+        actions = []
+        
+        # Get source position
+        if unit.move_target:
+            source_y, source_x = unit.move_target
+        else:
+            source_y, source_x = unit.y, unit.x
+        
+        # Find valid trap positions (empty, passable, within range 3)
+        valid_positions = []
+        for y in range(self.game.map.height):
+            for x in range(self.game.map.width):
+                if not self.game.is_valid_position(y, x):
+                    continue
+                if not self.game.map.is_passable(y, x):
+                    continue
+                if self.game.get_unit_at(y, x) is not None:
+                    continue
+                
+                distance = self.game.chess_distance(source_y, source_x, y, x)
+                if distance > skill.range:
+                    continue
+                
+                valid_positions.append((y, x))
+        
+        # Score each position
+        for pos in valid_positions:
+            score = self._score_scalar_node_placement(unit, pos, analysis, plan)
+            if score > 0:
+                action = Action("skill", target=(skill, pos), priority=score)
+                action.data['trap_pos'] = pos
+                actions.append(action)
+        
+        return actions
+    
+    def _score_scalar_node_placement(self, unit: 'Unit', pos: tuple,
+                                     analysis: 'BattlefieldAnalysis', plan: 'StrategicPlan') -> float:
+        """Score a Scalar Node trap placement."""
+        score = 0.0
+        y, x = pos
+        
+        # Base score
+        score += 30.0
+        
+        # Score based on enemy proximity and likely movement
+        for enemy in analysis.enemy_units:
+            if enemy.type == UnitType.HEINOUS_VAPOR:
+                continue
+            
+            enemy_dist = self.game.chess_distance(y, x, enemy.y, enemy.x)
+            
+            # High bonus for tiles adjacent to enemies (likely to move here)
+            if enemy_dist == 1:
+                score += 60.0
+            elif enemy_dist == 2:
+                score += 30.0
+            elif enemy_dist == 3:
+                score += 10.0
+        
+        # Bonus for focus target movement paths
+        for enemy in plan.focus_targets:
+            if enemy.type == UnitType.HEINOUS_VAPOR:
+                continue
+            dist = self.game.chess_distance(y, x, enemy.y, enemy.x)
+            if dist <= 2:
+                score += 40.0
+        
+        # Bonus for choke points (few passable neighbors)
+        passable_neighbors = 0
+        for dy, dx in [(-1,0), (1,0), (0,-1), (0,1)]:
+            check_y, check_x = y + dy, x + dx
+            if (self.game.is_valid_position(check_y, check_x) and
+                self.game.map.is_passable(check_y, check_x)):
+                passable_neighbors += 1
+        
+        if passable_neighbors <= 2:
+            score += 25.0  # Choke point
+        
+        return score
