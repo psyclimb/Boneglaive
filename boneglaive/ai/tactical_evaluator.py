@@ -402,6 +402,17 @@ class TacticalEvaluator:
             # Return early - GAS_MACHINIST skills are all handled by special evaluator
             return actions
 
+        # Check for DELPHIC_APPRAISER special handling
+        if unit.type == UnitType.DELPHIC_APPRAISER:
+            try:
+                delphic_actions = self._evaluate_delphic_appraiser_skills(unit, analysis, plan)
+                actions.extend(delphic_actions)
+                logger.debug(f"        DELPHIC_APPRAISER: Found {len(delphic_actions)} skill actions")
+            except Exception as e:
+                logger.error(f"        Error evaluating DELPHIC_APPRAISER skills: {e}")
+            # Return early - DELPHIC_APPRAISER skills are handled by special evaluator
+            return actions
+
         # Evaluate each available skill
         for skill in available_skills:
             # Check for skills requiring special AI handling
@@ -456,6 +467,16 @@ class TacticalEvaluator:
                     except Exception as e:
                         logger.error(f"        Error evaluating Partition: {e}")
                     continue
+
+            # Check for Parallax skill (Market Futures teleport)
+            if skill.name == "Parallax":
+                try:
+                    parallax_actions = self._evaluate_parallax(unit, skill, analysis, plan)
+                    actions.extend(parallax_actions)
+                    logger.debug(f"        Parallax: Found {len(parallax_actions)} teleport destinations")
+                except Exception as e:
+                    logger.error(f"        Error evaluating Parallax: {e}")
+                continue
 
             # Check if it's a self-targeted/AOE skill
             if hasattr(skill, 'target_type') and skill.target_type == TargetType.SELF:
@@ -1908,4 +1929,454 @@ class TacticalEvaluator:
         # Diverge converts any vapor type into Coolant + Cutting
         score += 20.0  # Always some value in splitting
 
+        return score
+
+    def _evaluate_delphic_appraiser_skills(self, unit: 'Unit', analysis: 'BattlefieldAnalysis',
+                                           plan: 'StrategicPlan') -> List[Action]:
+        """
+        Special evaluation for DELPHIC_APPRAISER skills.
+
+        DELPHIC_APPRAISER has furniture-based mechanics:
+        - Market Futures: Infuses furniture with teleport anchor + investment buff
+        - Divine Depreciation: Creates 7×7 reality distortion, damages/pulls enemies
+        - Auction Curse: DOT based on nearby furniture values (handled by generic targeting)
+
+        Args:
+            unit: DELPHIC_APPRAISER unit
+            analysis: Battlefield analysis
+            plan: Strategic plan
+
+        Returns:
+            List of skill actions with furniture-aware scoring
+        """
+        actions = []
+
+        logger.debug(f"        DELPHIC_APPRAISER evaluating furniture-based skills")
+
+        # Get available skills
+        try:
+            available_skills = unit.get_available_skills()
+        except Exception as e:
+            logger.error(f"        Error getting DELPHIC_APPRAISER skills: {e}")
+            return actions
+
+        # Find each skill
+        market_futures = None
+        divine_depreciation = None
+        auction_curse = None
+
+        for skill in available_skills:
+            if skill.name == "Market Futures":
+                market_futures = skill
+            elif skill.name == "Divine Depreciation":
+                divine_depreciation = skill
+            elif skill.name == "Auction Curse":
+                auction_curse = skill
+
+        # Evaluate Market Futures
+        if market_futures:
+            try:
+                market_actions = self._evaluate_market_futures(unit, market_futures, analysis, plan)
+                actions.extend(market_actions)
+                logger.debug(f"          Market Futures: {len(market_actions)} actions")
+            except Exception as e:
+                logger.error(f"          Error evaluating Market Futures: {e}")
+
+        # Evaluate Divine Depreciation
+        if divine_depreciation:
+            try:
+                divine_actions = self._evaluate_divine_depreciation(unit, divine_depreciation, analysis, plan)
+                actions.extend(divine_actions)
+                logger.debug(f"          Divine Depreciation: {len(divine_actions)} actions")
+            except Exception as e:
+                logger.error(f"          Error evaluating Divine Depreciation: {e}")
+
+        # Evaluate Auction Curse (enemy-targeted, can use generic evaluation)
+        if auction_curse:
+            for enemy in analysis.enemy_units:
+                # Skip HEINOUS VAPOR
+                if enemy.type == UnitType.HEINOUS_VAPOR:
+                    continue
+
+                try:
+                    if auction_curse.can_use(unit, (enemy.y, enemy.x), self.game):
+                        score = self._score_skill_use(unit, auction_curse, enemy, analysis, plan)
+                        # Bonus for enemies near furniture (more damage)
+                        nearby_furniture_count = self._count_nearby_furniture(enemy.y, enemy.x, radius=2)
+                        score += nearby_furniture_count * 10.0
+                        
+                        action = Action("skill", target=(auction_curse, enemy), priority=score)
+                        actions.append(action)
+                except Exception:
+                    continue
+
+        return actions
+
+    def _count_nearby_furniture(self, y: int, x: int, radius: int = 2) -> int:
+        """Count furniture pieces within radius of position."""
+        from boneglaive.game.map import TerrainType
+        
+        count = 0
+        for dy in range(-radius, radius + 1):
+            for dx in range(-radius, radius + 1):
+                check_y, check_x = y + dy, x + dx
+                if not self.game.is_valid_position(check_y, check_x):
+                    continue
+                
+                terrain = self.game.map.get_terrain_at(check_y, check_x)
+                if terrain in [TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
+                             TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF,
+                             TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE,
+                             TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
+                             TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
+                             TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
+                             TerrainType.POTPOURRI_BOWL]:
+                    count += 1
+        return count
+
+    def _evaluate_market_futures(self, unit: 'Unit', skill, analysis: 'BattlefieldAnalysis',
+                                 plan: 'StrategicPlan') -> List[Action]:
+        """Evaluate Market Futures furniture infusion."""
+        from boneglaive.game.map import TerrainType
+        
+        actions = []
+
+        # Get source position
+        if unit.move_target:
+            source_y, source_x = unit.move_target
+        else:
+            source_y, source_x = unit.y, unit.x
+
+        # Find all furniture within range 4
+        furniture_positions = []
+        for y in range(self.game.map.height):
+            for x in range(self.game.map.width):
+                terrain = self.game.map.get_terrain_at(y, x)
+                if terrain not in [TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
+                                 TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF,
+                                 TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE,
+                                 TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
+                                 TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
+                                 TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
+                                 TerrainType.POTPOURRI_BOWL]:
+                    continue
+
+                # Check range
+                distance = self.game.chess_distance(source_y, source_x, y, x)
+                if distance > skill.range:
+                    continue
+
+                # Check line of sight
+                if not self.game.has_line_of_sight(source_y, source_x, y, x):
+                    continue
+
+                furniture_positions.append((y, x))
+
+        # Score each furniture piece
+        for pos in furniture_positions:
+            score = self._score_market_futures_placement(unit, pos, analysis, plan)
+            if score > 0:
+                action = Action("skill", target=(skill, pos), priority=score)
+                action.data['target_pos'] = pos
+                actions.append(action)
+
+        return actions
+
+    def _score_market_futures_placement(self, unit: 'Unit', pos: tuple, 
+                                       analysis: 'BattlefieldAnalysis', plan: 'StrategicPlan') -> float:
+        """Score a Market Futures furniture placement."""
+        score = 0.0
+        y, x = pos
+
+        # Base score
+        score += 40.0
+
+        # Get astral value (will be generated if doesn't exist)
+        astral_value = self.game.map.get_cosmic_value(y, x, player=unit.player, game=self.game)
+        if astral_value is None:
+            astral_value = 5  # Default estimate
+
+        # Bonus for high astral value (better teleport range + buffs)
+        if astral_value >= 9:
+            score += 50.0  # Excellent value
+        elif astral_value >= 7:
+            score += 30.0  # Good value
+        elif astral_value >= 5:
+            score += 15.0  # Decent value
+
+        # Count nearby allies (investment buff value)
+        nearby_allies = 0
+        for ally in analysis.ai_units:
+            dist = self.game.chess_distance(y, x, ally.y, ally.x)
+            if dist <= 3:  # Within reasonable distance
+                nearby_allies += 1
+
+        score += nearby_allies * 20.0
+
+        # Check if position is strategic (safe area, good positioning)
+        # Bonus if NOT in threat zone
+        if (y, x) not in analysis.threat_map:
+            score += 25.0  # Safe teleport destination
+
+        # Check for existing anchors - avoid redundancy
+        if hasattr(self.game, 'teleport_anchors'):
+            for anchor_pos in self.game.teleport_anchors:
+                dist = self.game.chess_distance(y, x, anchor_pos[0], anchor_pos[1])
+                if dist <= 5:  # Too close to existing anchor
+                    score -= 30.0
+
+        return score
+
+    def _evaluate_divine_depreciation(self, unit: 'Unit', skill, analysis: 'BattlefieldAnalysis',
+                                     plan: 'StrategicPlan') -> List[Action]:
+        """Evaluate Divine Depreciation reality distortion."""
+        from boneglaive.game.map import TerrainType
+        
+        actions = []
+
+        # Get source position
+        if unit.move_target:
+            source_y, source_x = unit.move_target
+        else:
+            source_y, source_x = unit.y, unit.x
+
+        # Find all furniture within range 3
+        furniture_positions = []
+        for y in range(self.game.map.height):
+            for x in range(self.game.map.width):
+                terrain = self.game.map.get_terrain_at(y, x)
+                if terrain not in [TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
+                                 TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF,
+                                 TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE,
+                                 TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
+                                 TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
+                                 TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
+                                 TerrainType.POTPOURRI_BOWL]:
+                    continue
+
+                # Check range
+                distance = self.game.chess_distance(source_y, source_x, y, x)
+                if distance > skill.range:
+                    continue
+
+                # Check line of sight
+                if not self.game.has_line_of_sight(source_y, source_x, y, x):
+                    continue
+
+                furniture_positions.append((y, x))
+
+        # Score each furniture piece as potential target
+        for pos in furniture_positions:
+            score = self._score_divine_depreciation_target(unit, pos, analysis, plan)
+            if score > 0:
+                action = Action("skill", target=(skill, pos), priority=score)
+                action.data['target_pos'] = pos
+                actions.append(action)
+
+        return actions
+
+    def _score_divine_depreciation_target(self, unit: 'Unit', pos: tuple,
+                                         analysis: 'BattlefieldAnalysis', plan: 'StrategicPlan') -> float:
+        """Score a Divine Depreciation furniture target."""
+        score = 0.0
+        y, x = pos
+
+        # Count enemies in 7×7 area FIRST (must have at least 1 enemy to be worthwhile)
+        enemies_in_area = 0
+        low_move_enemies = 0  # Enemies that will be pulled hard
+
+        for dy in range(-3, 4):
+            for dx in range(-3, 4):
+                check_y, check_x = y + dy, x + dx
+                if not self.game.is_valid_position(check_y, check_x):
+                    continue
+
+                enemy = self.game.get_unit_at(check_y, check_x)
+                if enemy and enemy.player != unit.player and enemy.type != UnitType.HEINOUS_VAPOR:
+                    enemies_in_area += 1
+
+                    # Check move stat for pull value
+                    move_stat = enemy.get_effective_stats()['move_range']
+                    if move_stat <= 2:  # Will be pulled significantly
+                        low_move_enemies += 1
+
+        # If no enemies in area, don't use this skill
+        if enemies_in_area == 0:
+            return 0.0
+
+        # Base score (only if there are enemies)
+        score += 50.0
+
+        # Get astral value of target
+        astral_value = self.game.map.get_cosmic_value(y, x, player=unit.player, game=self.game)
+        if astral_value is None:
+            astral_value = 5  # Default estimate
+
+        # Bonus for high astral value (bigger implosion damage/pull)
+        if astral_value >= 9:
+            score += 60.0  # Maximum chaos
+        elif astral_value >= 7:
+            score += 40.0
+        elif astral_value >= 5:
+            score += 20.0
+
+        # Massive bonus for hitting multiple enemies
+        score += enemies_in_area * 40.0
+        score += low_move_enemies * 20.0  # Extra for enemies that get pulled
+
+        # Bonus for hitting focus targets
+        for enemy in plan.focus_targets:
+            if enemy.type == UnitType.HEINOUS_VAPOR:
+                continue
+            dist = self.game.chess_distance(y, x, enemy.y, enemy.x)
+            if dist <= 3:  # In the 7×7 area
+                score += 50.0
+
+        # Count other furniture in 7×7 (reroll potential)
+        other_furniture_count = self._count_nearby_furniture(y, x, radius=3) - 1  # Exclude target
+        score += other_furniture_count * 5.0  # Slight bonus for reroll potential
+
+        return score
+
+    def _evaluate_parallax(self, unit: 'Unit', skill, analysis: 'BattlefieldAnalysis',
+                          plan: 'StrategicPlan') -> List[Action]:
+        """
+        Evaluate Parallax teleportation skill.
+        
+        Parallax allows allies to teleport through Market Futures anchors.
+        Only available when unit is adjacent to an active anchor.
+        
+        Args:
+            unit: Unit with Parallax available
+            skill: The Parallax skill
+            analysis: Battlefield analysis
+            plan: Strategic plan
+            
+        Returns:
+            List of teleport actions with scoring
+        """
+        actions = []
+        
+        # Check if unit can use anchors (must be adjacent to one)
+        if not hasattr(unit, 'can_use_anchor') or not unit.can_use_anchor:
+            return actions
+            
+        # Find adjacent anchor
+        anchor_pos = None
+        anchor_range = 1  # Default
+        
+        if hasattr(self.game, 'teleport_anchors'):
+            for pos, anchor in self.game.teleport_anchors.items():
+                if not anchor['active']:
+                    continue
+                if anchor['creator'].player != unit.player:
+                    continue
+                    
+                # Check if adjacent
+                dist = self.game.chess_distance(unit.y, unit.x, pos[0], pos[1])
+                if dist <= 1:
+                    anchor_pos = pos
+                    anchor_range = anchor['cosmic_value']  # Range = astral value (1-9)
+                    break
+        
+        if not anchor_pos:
+            return actions
+            
+        # Find all valid teleport destinations within anchor range
+        valid_destinations = []
+        for y in range(self.game.map.height):
+            for x in range(self.game.map.width):
+                # Check if valid destination
+                if not self.game.is_valid_position(y, x):
+                    continue
+                if not self.game.map.is_passable(y, x):
+                    continue
+                if self.game.get_unit_at(y, x) is not None:
+                    continue
+                    
+                # Check range from anchor
+                dist = self.game.chess_distance(anchor_pos[0], anchor_pos[1], y, x)
+                if dist > anchor_range:
+                    continue
+                    
+                valid_destinations.append((y, x))
+        
+        # Score each destination
+        for dest in valid_destinations:
+            score = self._score_parallax_destination(unit, dest, anchor_pos, analysis, plan)
+            if score > 0:
+                action = Action("skill", target=(skill, dest), priority=score)
+                action.data['destination'] = dest
+                action.data['anchor_pos'] = anchor_pos
+                actions.append(action)
+                
+        return actions
+    
+    def _score_parallax_destination(self, unit: 'Unit', dest: tuple, anchor_pos: tuple,
+                                   analysis: 'BattlefieldAnalysis', plan: 'StrategicPlan') -> float:
+        """Score a Parallax teleport destination."""
+        score = 0.0
+        dest_y, dest_x = dest
+        
+        # Base score for using teleport
+        score += 60.0
+        
+        # High bonus if destination is NOT in threat map (safe positioning)
+        if dest not in analysis.threat_map:
+            score += 50.0
+        else:
+            # Penalty if dangerous
+            threat = analysis.threat_map[dest]
+            if threat.threat_level >= unit.hp * 0.5:
+                score -= 40.0  # Dangerous destination
+        
+        # Bonus for getting closer to enemies (offensive positioning)
+        min_enemy_dist_before = 999
+        min_enemy_dist_after = 999
+        
+        for enemy in analysis.enemy_units:
+            if enemy.type == UnitType.HEINOUS_VAPOR:
+                continue
+                
+            dist_before = self.game.chess_distance(unit.y, unit.x, enemy.y, enemy.x)
+            dist_after = self.game.chess_distance(dest_y, dest_x, enemy.y, enemy.x)
+            
+            min_enemy_dist_before = min(min_enemy_dist_before, dist_before)
+            min_enemy_dist_after = min(min_enemy_dist_after, dist_after)
+        
+        # Bonus for aggressive positioning (getting closer to enemies)
+        if min_enemy_dist_after < min_enemy_dist_before:
+            improvement = min_enemy_dist_before - min_enemy_dist_after
+            score += improvement * 15.0
+            
+            # Extra bonus if we can attack after teleporting
+            stats = unit.get_effective_stats()
+            attack_range = stats['attack_range']
+            if min_enemy_dist_after <= attack_range:
+                score += 40.0  # Can attack immediately after teleport
+        
+        # Bonus for supporting allies (getting closer to allies)
+        nearby_allies = 0
+        for ally in analysis.ai_units:
+            dist = self.game.chess_distance(dest_y, dest_x, ally.y, ally.x)
+            if dist <= 2:
+                nearby_allies += 1
+        
+        score += nearby_allies * 10.0
+        
+        # Bonus for focus targets in range after teleport
+        for enemy in plan.focus_targets:
+            if enemy.type == UnitType.HEINOUS_VAPOR:
+                continue
+            dist = self.game.chess_distance(dest_y, dest_x, enemy.y, enemy.x)
+            if dist <= 3:
+                score += 30.0
+        
+        # Distance from current position (prefer meaningful teleports)
+        teleport_distance = self.game.chess_distance(unit.y, unit.x, dest_y, dest_x)
+        if teleport_distance >= 3:
+            score += 20.0  # Bonus for significant repositioning
+        elif teleport_distance <= 1:
+            score -= 30.0  # Penalty for trivial teleports
+        
         return score
