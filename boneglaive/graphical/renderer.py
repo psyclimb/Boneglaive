@@ -41,6 +41,9 @@ from .ui_adapter import GraphicalUIAdapter
 # Import TerrainType for terrain/furniture rendering
 from boneglaive.game.map import TerrainType
 
+# Import global message log for combat log sync
+from boneglaive.utils.message_log import message_log
+
 
 # Screen constants (must match menu system)
 SCREEN_WIDTH = 1480
@@ -1795,6 +1798,10 @@ class GraphicalRenderer:
         # Update particles
         self.particle_emitter.update(delta_time)
         self.floating_texts = [t for t in self.floating_texts if t.update(delta_time)]
+
+        # Sync combat log with game's message log
+        if self.game_adapter.game:
+            self.combat_log.add_messages_from_game_log(message_log, count=20)
 
         # Update debris with collision detection (for PRY splash damage)
         if len(self.debris_particles) > 0 and not hasattr(self, '_debris_logged'):
