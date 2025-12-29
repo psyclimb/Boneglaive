@@ -5,8 +5,9 @@ Displays available skills for the selected unit with hotkeys.
 """
 import pygame
 import os
-from typing import Optional, List, Tuple, Dict
+from typing import Optional, List, Tuple, Dict, Set
 from .font_utils import render_fitted_text
+from .loto_system import LOTORenderer
 
 # Colors
 COLOR_BG = (30, 34, 42)
@@ -38,6 +39,7 @@ class SkillSlot:
         self.hovered = False
         self.icon_cache = icon_cache
         self.icon_surface = self._load_icon()
+        self.blocked_actions = set()  # LOTO: Set of blocked action types
 
     def _load_icon(self) -> Optional[pygame.Surface]:
         """Load skill icon from file."""
@@ -82,9 +84,9 @@ class SkillSlot:
 
     def is_available(self) -> bool:
         """Check if skill can be used (not on cooldown)."""
-        return self.skill.current_cooldown <= 0
+        return self.skill.current_cooldown <= 0 and not self.blocked_actions
 
-    def draw(self, surface: pygame.Surface, x: int, y: int, font, small_font):
+    def draw(self, surface: pygame.Surface, x: int, y: int, font, small_font, loto_renderer: Optional[LOTORenderer] = None):
         """Draw the skill slot."""
         # Create rect
         self.rect = pygame.Rect(x, y, SKILL_SLOT_WIDTH, SKILL_SLOT_HEIGHT)
@@ -167,6 +169,10 @@ class SkillSlot:
             )
             surface.blit(cooldown_text, (x + 5, y + SKILL_SLOT_HEIGHT - 20))
 
+        # Draw LOTO overlay if skill is blocked
+        if loto_renderer and self.blocked_actions:
+            loto_renderer.draw_loto_overlay(surface, self.rect, self.blocked_actions, scale=0.5)
+
     def contains_point(self, pos: Tuple[int, int]) -> bool:
         """Check if position is inside this slot."""
         if self.rect:
@@ -189,6 +195,9 @@ class SkillBar:
         # Hotkey mapping (E and R reserved for Execute and Respawn in action menu)
         self.hotkeys = ['1', '2', '3', '4', 'Q', 'W']
 
+        # LOTO system
+        self.loto_renderer = LOTORenderer()
+
     def update(self, selected_unit, game_unit):
         """
         Update skill bar with skills from selected unit.
@@ -197,6 +206,8 @@ class SkillBar:
             selected_unit: AnimatedUnit from renderer
             game_unit: Unit from game logic
         """
+        from .loto_system import LOTOChecker
+
         self.selected_unit = selected_unit
         self.skill_slots.clear()
 
@@ -208,10 +219,16 @@ class SkillBar:
         # Use get_active_skills() to include dynamic skills like Parallax
         active_skills = game_unit.get_active_skills()
 
+        # Check for LOTO blocked actions
+        blocked_actions = LOTOChecker.get_blocked_actions(game_unit)
+
         # Create skill slots
         for i, skill in enumerate(active_skills):
             if i < len(self.hotkeys):
                 slot = SkillSlot(skill, self.hotkeys[i], i, self.icon_cache)
+                # Check if skills are blocked
+                if LOTOChecker.is_action_blocked(game_unit, 'skill'):
+                    slot.blocked_actions = blocked_actions
                 self.skill_slots.append(slot)
 
     def draw(self, surface: pygame.Surface, screen_width: int, screen_height: int, top_bar_height: int):
@@ -241,7 +258,7 @@ class SkillBar:
         # Draw each skill slot
         x = start_x
         for slot in self.skill_slots:
-            slot.draw(surface, x, y, self.font, self.small_font)
+            slot.draw(surface, x, y, self.font, self.small_font, self.loto_renderer)
             x += SKILL_SLOT_WIDTH + SKILL_SLOT_PADDING
 
     def handle_mouse_motion(self, mouse_pos: Tuple[int, int]):

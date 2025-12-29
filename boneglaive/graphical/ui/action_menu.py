@@ -4,8 +4,9 @@ Action Menu UI Component
 Displays action buttons for Move, Attack, Execute, etc.
 """
 import pygame
-from typing import Optional, Tuple, Callable
+from typing import Optional, Tuple, Callable, Set
 from .font_utils import render_fitted_text
+from .loto_system import LOTORenderer, LOTOChecker
 
 # Colors
 COLOR_BG = (30, 34, 42)
@@ -39,8 +40,9 @@ class ActionButton:
         self.hovered = False
         self.enabled = True
         self.active = False  # Current active mode
+        self.blocked_actions = set()  # LOTO: Set of blocked action types
 
-    def draw(self, surface: pygame.Surface, x: int, y: int, font, small_font):
+    def draw(self, surface: pygame.Surface, x: int, y: int, font, small_font, loto_renderer: Optional[LOTORenderer] = None):
         """Draw the action button."""
         self.rect = pygame.Rect(x, y, BUTTON_WIDTH, BUTTON_HEIGHT)
 
@@ -98,6 +100,10 @@ class ActionButton:
         label_rect = label_text.get_rect(center=(x + BUTTON_WIDTH // 2, y + BUTTON_HEIGHT // 2))
         surface.blit(label_text, label_rect)
 
+        # Draw LOTO overlay if action is blocked
+        if loto_renderer and self.blocked_actions:
+            loto_renderer.draw_loto_overlay(surface, self.rect, self.blocked_actions, scale=0.6)
+
     def contains_point(self, pos: Tuple[int, int]) -> bool:
         """Check if position is inside this button."""
         if self.rect:
@@ -128,13 +134,16 @@ class ActionMenu:
         self.has_actions_queued = False
         self.has_respawns_available = False
 
+        # LOTO system
+        self.loto_renderer = LOTORenderer()
+
     def update(self, game, selected_unit, current_mode: str, has_actions: bool):
         """
         Update action menu state.
 
         Args:
             game: Game instance
-            selected_unit: Currently selected unit
+            selected_unit: Currently selected unit (game unit, not animated unit)
             current_mode: Current action mode string
             has_actions: Whether any units have queued actions
         """
@@ -149,23 +158,38 @@ class ActionMenu:
         else:
             self.has_respawns_available = False
 
+        # Check for LOTO blocked actions on selected unit
+        blocked_actions = set()
+        if selected_unit:
+            blocked_actions = LOTOChecker.get_blocked_actions(selected_unit)
+
         # Update button states
         for button in self.buttons:
             if button.action == "attack":
                 button.enabled = selected_unit is not None
                 button.active = (self.current_mode == "attack")
+                # Check if attack is blocked (e.g., during gaussian recharge)
+                if selected_unit and LOTOChecker.is_action_blocked(selected_unit, 'attack'):
+                    button.blocked_actions = blocked_actions
+                    button.enabled = False
+                else:
+                    button.blocked_actions = set()
             elif button.action == "respawn":
                 button.enabled = self.has_respawns_available
                 button.active = (self.current_mode == "respawn")
+                button.blocked_actions = set()
             elif button.action == "help":
                 button.enabled = True
                 button.active = False
+                button.blocked_actions = set()
             elif button.action == "execute":
                 button.enabled = self.has_actions_queued
                 button.active = False
+                button.blocked_actions = set()
             elif button.action == "concede":
                 button.enabled = True
                 button.active = False
+                button.blocked_actions = set()
 
     def draw(self, surface: pygame.Surface, x: int, y: int):
         """
@@ -179,7 +203,7 @@ class ActionMenu:
 
         # Draw each button
         for button in self.buttons:
-            button.draw(surface, x + MENU_PADDING, current_y, self.font, self.small_font)
+            button.draw(surface, x + MENU_PADDING, current_y, self.font, self.small_font, self.loto_renderer)
             current_y += BUTTON_HEIGHT + BUTTON_SPACING
 
     def handle_mouse_motion(self, mouse_pos: Tuple[int, int]):
