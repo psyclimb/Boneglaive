@@ -7,6 +7,7 @@ Scores individual unit actions to find optimal choices.
 from typing import TYPE_CHECKING, List, Tuple, Optional, Dict
 from boneglaive.utils.debug import logger
 from boneglaive.game.skills import TargetType
+from boneglaive.game.units import UnitType
 
 if TYPE_CHECKING:
     from boneglaive.game.engine import Game
@@ -110,6 +111,10 @@ class TacticalEvaluator:
 
         # Check each enemy for attackability
         for enemy in analysis.enemy_units:
+            # Skip HEINOUS VAPOR units (invulnerable - waste of actions)
+            if enemy.type == UnitType.HEINOUS_VAPOR:
+                continue
+
             distance = self.game.chess_distance(unit.y, unit.x, enemy.y, enemy.x)
 
             # Check range and line of sight
@@ -456,6 +461,10 @@ class TacticalEvaluator:
             else:
                 # Enemy-targeted skills
                 for enemy in analysis.enemy_units:
+                    # Skip HEINOUS VAPOR units (invulnerable - waste of actions)
+                    if enemy.type == UnitType.HEINOUS_VAPOR:
+                        continue
+
                     try:
                         if skill.can_use(unit, (enemy.y, enemy.x), self.game):
                             score = self._score_skill_use(unit, skill, enemy, analysis, plan)
@@ -587,6 +596,10 @@ class TacticalEvaluator:
             y, x = pos
 
             for enemy in analysis.enemy_units:
+                # Skip HEINOUS VAPOR units (invulnerable - waste of actions)
+                if enemy.type == UnitType.HEINOUS_VAPOR:
+                    continue
+
                 distance_from_new_pos = self.game.chess_distance(y, x, enemy.y, enemy.x)
 
                 # Must be in attack range AND have line of sight
