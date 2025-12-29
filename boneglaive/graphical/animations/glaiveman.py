@@ -902,7 +902,7 @@ class PryDebrisChunk:
     Gray stone colors matching armor/structure.
     Lands on ground and creates impact, then fades out.
     """
-    def __init__(self, x, y, vx, vy, size, delay=0, ground_y=None):
+    def __init__(self, x, y, vx, vy, size, delay=0, ground_y=None, target_x=None, target_y=None, impact_callback=None):
         self.x = x
         self.y = y
         self.vx = vx
@@ -919,6 +919,12 @@ class PryDebrisChunk:
         self.land_fade_duration = 0.3  # Fade out over 0.3s after landing
         # Ground Y position (where debris should land)
         self.ground_y = ground_y if ground_y else y + 200
+        # Target position (where debris is aiming for)
+        self.target_x = target_x if target_x is not None else x
+        self.target_y = target_y if target_y is not None else self.ground_y
+        # Callback to trigger impact effect when landing
+        self.impact_callback = impact_callback
+        self.impact_triggered = False
         # Gray stone colors (#6a6a6a, #5a5a5a, #8a8a8a)
         self.color = random.choice([
             (106, 106, 106),  # #6a6a6a
@@ -935,21 +941,34 @@ class PryDebrisChunk:
 
         if self.timer >= 0:  # Only move after delay
             if not self.has_landed:
-                # Still falling
+                # Still falling - aim toward target position
                 self.x += self.vx * delta_time
                 self.y += self.vy * delta_time
                 self.vy += self.gravity * delta_time  # Gravity acceleration
+
+                # Subtle homing toward target (slight course correction)
+                dx_to_target = self.target_x - self.x
+                if abs(dx_to_target) > 5:  # Only correct if significantly off course
+                    correction = dx_to_target * 0.3  # Gentle correction
+                    self.vx += correction * delta_time
+
                 self.rotation += self.rotation_speed * delta_time
 
                 # Check if reached ground
                 if self.y >= self.ground_y:
                     self.y = self.ground_y  # Snap to ground
+                    self.x = self.target_x  # Snap to target X for clean impact
                     self.has_landed = True
                     self.land_timer = 0
                     # Stop horizontal movement, slow rotation
                     self.vx = 0
                     self.vy = 0
                     self.rotation_speed *= 0.1  # Slow down rotation on landing
+
+                    # Trigger impact callback when landing
+                    if self.impact_callback and not self.impact_triggered:
+                        self.impact_callback(self.target_x, self.target_y)
+                        self.impact_triggered = True
             else:
                 # Landed - fade out
                 self.land_timer += delta_time
@@ -991,6 +1010,147 @@ class PryDebrisChunk:
         rotated = pygame.transform.rotate(debris_surf, self.rotation)
         rect = rotated.get_rect(center=(int(self.x), int(self.y)))
         surface.blit(rotated, rect)
+
+
+class PryDebrisImpact:
+    """
+    Debris impact effect - rocks scatter and dust puffs up on landing.
+    This creates a clear visual of debris hitting the ground, not a ground explosion.
+    """
+    def __init__(self, center_x, center_y, is_primary=False, delay=0):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.timer = -delay
+        self.duration = 0.6
+        self.active = True
+        self.is_primary = is_primary
+
+        # Impact particles - rock chunks scattering outward
+        self.rock_particles = []
+        self.dust_particles = []
+
+        # Don't create particles yet - wait for timer to reach 0
+        self.particles_created = False
+
+    def _create_particles(self):
+        """Create impact particles when impact happens."""
+        if self.particles_created:
+            return
+        self.particles_created = True
+
+        # Rock chunks scatter outward from impact
+        num_rocks = 12 if self.is_primary else 6
+        for i in range(num_rocks):
+            angle = (i / num_rocks) * 360
+            speed = random.uniform(80, 150) if self.is_primary else random.uniform(50, 100)
+            vx = math.cos(math.radians(angle)) * speed
+            vy = math.sin(math.radians(angle)) * speed - random.uniform(100, 200)  # Initial upward velocity
+
+            self.rock_particles.append({
+                'x': self.center_x,
+                'y': self.center_y,
+                'vx': vx,
+                'vy': vy,
+                'size': random.uniform(3, 6) if self.is_primary else random.uniform(2, 4),
+                'lifetime': random.uniform(0.4, 0.6),
+                'timer': 0,
+                'color': random.choice([(106, 106, 106), (90, 90, 90), (138, 138, 138)]),
+                'rotation': random.uniform(0, 360),
+                'rotation_speed': random.uniform(-500, 500)
+            })
+
+        # Dust cloud puffing up
+        num_dust = 20 if self.is_primary else 10
+        for i in range(num_dust):
+            angle = random.uniform(0, 360)
+            speed = random.uniform(20, 60)
+            vx = math.cos(math.radians(angle)) * speed
+            vy = math.sin(math.radians(angle)) * speed - random.uniform(30, 80)  # Slight upward drift
+
+            self.dust_particles.append({
+                'x': self.center_x + random.uniform(-10, 10),
+                'y': self.center_y + random.uniform(-5, 5),
+                'vx': vx,
+                'vy': vy,
+                'size': random.uniform(4, 10) if self.is_primary else random.uniform(3, 7),
+                'lifetime': random.uniform(0.5, 0.7),
+                'timer': 0,
+                'alpha_start': random.randint(120, 180),
+                'color': random.choice([(140, 140, 140), (120, 120, 120), (160, 160, 160)])
+            })
+
+    def update(self, delta_time):
+        """Update debris impact particles."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Create particles when timer reaches 0
+        if self.timer >= 0 and not self.particles_created:
+            self._create_particles()
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        if self.particles_created:
+            # Update rock particles
+            gravity = 400
+            for rock in self.rock_particles:
+                rock['timer'] += delta_time
+                rock['x'] += rock['vx'] * delta_time
+                rock['y'] += rock['vy'] * delta_time
+                rock['vy'] += gravity * delta_time  # Gravity
+                rock['rotation'] += rock['rotation_speed'] * delta_time
+                # Slow down horizontal movement
+                rock['vx'] *= 0.95
+
+            # Update dust particles
+            for dust in self.dust_particles:
+                dust['timer'] += delta_time
+                dust['x'] += dust['vx'] * delta_time
+                dust['y'] += dust['vy'] * delta_time
+                # Dust slows down and drifts up slightly
+                dust['vx'] *= 0.92
+                dust['vy'] *= 0.95
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw debris impact - rock scatter and dust clouds."""
+        if not self.active or self.timer < 0 or not self.particles_created:
+            return
+
+        # Draw dust particles (behind rocks)
+        for dust in self.dust_particles:
+            if dust['timer'] < dust['lifetime']:
+                progress = dust['timer'] / dust['lifetime']
+                alpha = int(dust['alpha_start'] * (1.0 - progress))
+
+                if alpha > 10:
+                    size = int(dust['size'] * (1.0 + progress * 0.5))  # Dust expands
+                    dust_surf = pygame.Surface((size * 2, size * 2), pygame.SRCALPHA)
+                    pygame.draw.circle(dust_surf, (*dust['color'], alpha), (size, size), size)
+                    surface.blit(dust_surf, (int(dust['x'] - size), int(dust['y'] - size)))
+
+        # Draw rock particles (in front of dust)
+        for rock in self.rock_particles:
+            if rock['timer'] < rock['lifetime']:
+                progress = rock['timer'] / rock['lifetime']
+                alpha = int(255 * (1.0 - progress))
+
+                if alpha > 20:
+                    rock_surf = pygame.Surface((int(rock['size'] * 2), int(rock['size'] * 2)), pygame.SRCALPHA)
+                    center = int(rock['size'])
+                    # Main rock chunk
+                    pygame.draw.circle(rock_surf, (*rock['color'], alpha), (center, center), int(rock['size']))
+                    # Darker outline
+                    pygame.draw.circle(rock_surf, (80, 70, 60, alpha), (center, center), int(rock['size']), 1)
+
+                    # Rotate
+                    rotated = pygame.transform.rotate(rock_surf, rock['rotation'])
+                    rect = rotated.get_rect(center=(int(rock['x']), int(rock['y'])))
+                    surface.blit(rotated, rect)
 
 
 class PryGroundExplosion:
@@ -1178,6 +1338,7 @@ class PryAnimation:
         self.launch_trail = None
         self.ceiling_impact = None
         self.debris_chunks = []
+        self.debris_impacts = []  # NEW: debris impact effects when chunks land
         self.ground_explosion = None
         self.splash_explosions = []
         self.shockwaves = []
@@ -1215,24 +1376,66 @@ class PryAnimation:
             self.particle_emitter.emit_burst(self.target_x, self.target_y, (138, 138, 138), count=15)
 
     def _start_ceiling_impact(self):
-        """Phase 2: Ceiling Impact - Target hits ceiling, debris spawns."""
+        """Phase 2: Ceiling Impact - Target hits ceiling, debris spawns aimed at affected tiles."""
         self.phase = "ceiling_impact"
         self.timer = 0
 
         # Create ceiling impact flash
         self.ceiling_impact = PryCeilingImpact(self.target_x, self.target_y)
 
-        # Spawn debris chunks falling from ceiling
-        for _ in range(20):
-            debris_x = self.target_x + random.uniform(-40, 40)
+        # Spawn debris chunks falling from ceiling - aim at primary target (8-10 chunks)
+        for _ in range(random.randint(8, 10)):
+            # Start above target with some spread
+            debris_x = self.target_x + random.uniform(-50, 50)
             debris_y = self.target_y - 200  # Start at ceiling
-            debris_vx = random.uniform(-30, 30)
+            # Initial velocity aims toward target
+            dx_to_target = self.target_x - debris_x
+            debris_vx = dx_to_target * 0.5 + random.uniform(-20, 20)  # Aim toward target with variance
             debris_vy = random.uniform(20, 60)  # Initial downward velocity
-            debris_size = random.uniform(4, 10)
-            delay = random.uniform(0, 0.1)  # Slight stagger
+            debris_size = random.uniform(5, 10)
+            delay = random.uniform(0, 0.15)  # Slight stagger
 
-            # Pass ground_y so debris knows where to land (target's ground level)
-            self.debris_chunks.append(PryDebrisChunk(debris_x, debris_y, debris_vx, debris_vy, debris_size, delay, ground_y=self.target_y))
+            # Create impact callback that will be triggered when debris lands
+            def create_impact_callback(x, y):
+                return lambda impact_x, impact_y: self.debris_impacts.append(
+                    PryDebrisImpact(impact_x, impact_y, is_primary=True, delay=0)
+                )
+
+            # Pass target position so debris aims for it
+            self.debris_chunks.append(PryDebrisChunk(
+                debris_x, debris_y, debris_vx, debris_vy, debris_size, delay,
+                ground_y=self.target_y,
+                target_x=self.target_x,
+                target_y=self.target_y,
+                impact_callback=create_impact_callback(self.target_x, self.target_y)
+            ))
+
+        # Spawn debris chunks aimed at splash positions (2-3 chunks per adjacent tile)
+        for splash in self.splash_positions:
+            for _ in range(random.randint(2, 3)):
+                # Start above splash position with spread
+                debris_x = splash['x'] + random.uniform(-40, 40)
+                debris_y = splash['y'] - 200  # Start at ceiling
+                # Initial velocity aims toward splash tile
+                dx_to_splash = splash['x'] - debris_x
+                debris_vx = dx_to_splash * 0.5 + random.uniform(-15, 15)
+                debris_vy = random.uniform(20, 60)
+                debris_size = random.uniform(3, 7)
+                delay = random.uniform(0, 0.2) + splash['delay']  # Stagger with splash delay
+
+                # Create impact callback for splash position
+                def create_splash_impact_callback(x, y):
+                    return lambda impact_x, impact_y: self.debris_impacts.append(
+                        PryDebrisImpact(impact_x, impact_y, is_primary=False, delay=0)
+                    )
+
+                self.debris_chunks.append(PryDebrisChunk(
+                    debris_x, debris_y, debris_vx, debris_vy, debris_size, delay,
+                    ground_y=splash['y'],
+                    target_x=splash['x'],
+                    target_y=splash['y'],
+                    impact_callback=create_splash_impact_callback(splash['x'], splash['y'])
+                ))
 
         # Ceiling impact screen shake (medium)
         self.screen_shake_callback(6, 0.4)
@@ -1251,7 +1454,7 @@ class PryAnimation:
         # Just let gravity do its work
 
     def _start_ground_impact(self):
-        """Phase 4: Ground Impact - Massive explosion with splash damage."""
+        """Phase 4: Ground Impact - Debris impacts create effects as they land."""
         self.phase = "ground_impact"
         self.timer = 0
 
@@ -1259,30 +1462,25 @@ class PryAnimation:
         # Game logic will apply damage at this moment (1.7s into animation)
         self.damage_triggered = True
 
-        # Primary explosion at target
-        self.ground_explosion = PryGroundExplosion(self.target_x, self.target_y, is_primary=True)
+        # NOTE: Ground explosions REMOVED - impacts are now created by falling debris
+        # Debris chunks trigger PryDebrisImpact effects when they land via callbacks
 
+        # Keep shockwaves for visual impact (they look good and aren't the problem)
         # Primary shockwave
-        self.shockwaves.append(PryShockwave(self.target_x, self.target_y, delay=0))
+        self.shockwaves.append(PryShockwave(self.target_x, self.target_y, delay=0.1))
 
-        # Splash explosions at adjacent tiles
+        # Splash shockwaves at adjacent tiles
         for splash in self.splash_positions:
-            explosion = PryGroundExplosion(splash['x'], splash['y'], is_primary=False)
-            explosion.timer = -splash['delay']  # Stagger
-            self.splash_explosions.append(explosion)
-
-            shockwave = PryShockwave(splash['x'], splash['y'], delay=splash['delay'])
+            shockwave = PryShockwave(splash['x'], splash['y'], delay=splash['delay'] + 0.15)
             self.shockwaves.append(shockwave)
 
         # Ground impact screen shake (heavy)
         self.screen_shake_callback(8, 0.5)
 
-        # Ground impact particles
+        # Reduced particle burst - let debris impacts do the work
         if self.particle_emitter:
-            # Primary target - large orange burst
-            self.particle_emitter.emit_burst(self.target_x, self.target_y, (255, 102, 0), count=40)
-            # Gray dust
-            self.particle_emitter.emit_burst(self.target_x, self.target_y, (106, 106, 106), count=30)
+            # Just a small initial dust cloud, not a massive explosion
+            self.particle_emitter.emit_burst(self.target_x, self.target_y, (106, 106, 106), count=15)
 
     def update(self, delta_time):
         """Update animation state. MUST return True/False."""
@@ -1329,8 +1527,8 @@ class PryAnimation:
         if self.ground_explosion:
             self.ground_explosion.update(delta_time)
 
-        for explosion in self.splash_explosions:
-            explosion.update(delta_time)
+        # Update debris impact effects
+        self.debris_impacts = [impact for impact in self.debris_impacts if impact.update(delta_time)]
 
         for shockwave in self.shockwaves:
             shockwave.update(delta_time)
@@ -1389,15 +1587,17 @@ class PryAnimation:
                 debris.draw(surface)
 
         elif self.phase == "ground_impact":
-            # Draw explosions and shockwaves
+            # Draw continuing debris chunks that are still falling/landing
+            for debris in self.debris_chunks:
+                debris.draw(surface)
+
+            # Draw debris impact effects (rock scatter and dust clouds)
+            for impact in self.debris_impacts:
+                impact.draw(surface)
+
+            # Draw shockwaves
             for shockwave in self.shockwaves:
                 shockwave.draw(surface)
-
-            if self.ground_explosion:
-                self.ground_explosion.draw(surface)
-
-            for explosion in self.splash_explosions:
-                explosion.draw(surface)
 
 
 # ============================================================================
@@ -1712,9 +1912,20 @@ class JudgementAnimation:
         self.screen_shake_callback = screen_shake_callback
         self.game = game
 
+        # Get caster's game logic unit to use its actual position (post-move)
+        # The AnimatedUnit's grid_x/y might not be updated yet, so use the game unit's position
+        if hasattr(caster_unit, 'game_unit') and caster_unit.game_unit:
+            # Use game unit's actual position (post-move)
+            caster_grid_x = caster_unit.game_unit.x
+            caster_grid_y = caster_unit.game_unit.y
+        else:
+            # Fall back to AnimatedUnit's position
+            caster_grid_x = caster_unit.grid_x
+            caster_grid_y = caster_unit.grid_y
+
         # Convert positions to screen coords
-        self.caster_x, self.caster_y = camera.grid_to_screen(caster_unit.grid_x,
-                                                             caster_unit.grid_y,
+        self.caster_x, self.caster_y = camera.grid_to_screen(caster_grid_x,
+                                                             caster_grid_y,
                                                              centered=True)
 
         grid_y, grid_x = target_pos

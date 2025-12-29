@@ -297,7 +297,20 @@ class AnimationFactory:
         try:
             # Convert caster grid coords to screen coords (if caster exists)
             if caster_unit:
-                caster_screen_x, caster_screen_y = grid_to_screen(caster_unit.grid_x, caster_unit.grid_y)
+                # Use game unit's position if available (post-move), otherwise use AnimatedUnit's position
+                if hasattr(caster_unit, 'game_unit') and caster_unit.game_unit:
+                    # Use game unit's actual position (post-move)
+                    caster_grid_x = caster_unit.game_unit.x
+                    caster_grid_y = caster_unit.game_unit.y
+                    print(f"[AnimationFactory] Using game_unit position for {skill_name}: ({caster_grid_y}, {caster_grid_x})")
+                    print(f"[AnimationFactory] AnimatedUnit position: ({caster_unit.grid_y}, {caster_unit.grid_x})")
+                else:
+                    # Fall back to AnimatedUnit's position
+                    caster_grid_x = caster_unit.grid_x
+                    caster_grid_y = caster_unit.grid_y
+                    print(f"[AnimationFactory] No game_unit, using AnimatedUnit position: ({caster_grid_y}, {caster_grid_x})")
+
+                caster_screen_x, caster_screen_y = grid_to_screen(caster_grid_x, caster_grid_y)
             else:
                 # No caster (e.g., caster died before delayed effect like abreaction)
                 # Use target position as fallback
@@ -581,6 +594,17 @@ class AnimationFactory:
                 if not target_pos:
                     print("[AnimationFactory] EXPEDITE requires a target position")
                     return None
+
+                # IMPORTANT: Check if the foreman had a planned move that was cleared
+                # If expedite_planned_start exists, use that as the starting position
+                if caster_unit and hasattr(caster_unit, 'game_unit') and caster_unit.game_unit:
+                    game_unit = caster_unit.game_unit
+                    if hasattr(game_unit, 'expedite_planned_start') and game_unit.expedite_planned_start:
+                        # Use the planned position as start
+                        planned_y, planned_x = game_unit.expedite_planned_start
+                        caster_screen_x, caster_screen_y = grid_to_screen(planned_x, planned_y)
+                        print(f"[AnimationFactory] Expedite using planned start position: grid ({planned_y}, {planned_x}) -> screen ({caster_screen_x}, {caster_screen_y})")
+
                 # Convert grid to screen: target_pos[1] is grid_x, target_pos[0] is grid_y
                 target_x, target_y = grid_to_screen(target_pos[1], target_pos[0])
                 animation = anim_class(
@@ -1006,11 +1030,6 @@ class AnimationFactory:
                 # Backhand Reflection - Reflected skill projectile animation
                 # Requires: caster, target_pos (not used), camera, particle_emitter, callbacks, game
                 # Plus: trajectory (list of positions), reflected_skill_name (reflected skill), bounce_count, is_infused, is_crit
-                print(f"[AnimationFactory] Creating BackhandReflectionAnimation:")
-                print(f"  reflected_skill_name: {reflected_skill_name}")
-                print(f"  is_infused: {is_infused}")
-                print(f"  is_crit: {is_crit}")
-                print(f"  bounce_count: {bounce_count}")
                 animation = anim_class(
                     caster_unit=caster_unit,
                     target_pos=target_pos if target_pos else (0, 0),  # Not used

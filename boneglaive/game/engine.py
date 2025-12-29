@@ -2328,7 +2328,9 @@ class Game:
                     unit.partition_shield_blocked_fatal = False
                     if hasattr(unit, 'partition_dissociation_caster'):
                         unit.partition_dissociation_caster = None
-                    unit.prt = 0  # Reset partition stat
+                    # Reset partition stat (but preserve HEINOUS_VAPOR invulnerability)
+                    if unit.type != UnitType.HEINOUS_VAPOR:
+                        unit.prt = 0
                     
                     # Log the expiration
                     message_log.add_message(
@@ -3054,32 +3056,19 @@ class Game:
 
                 # Check for PELOTARI Backhand reflection before executing skill
                 target_unit = self.get_unit_at(target_pos[0], target_pos[1])
-                print(f"[BACKHAND ENGINE] Checking reflection for skill {skill.name} targeting {target_unit.get_display_name() if target_unit else 'None'}")
-                if target_unit:
-                    print(f"[BACKHAND ENGINE] Target has backhand_active={getattr(target_unit, 'backhand_active', False)}")
-
                 if target_unit and hasattr(target_unit, 'backhand_active') and target_unit.backhand_active:
-                    print(f"[BACKHAND ENGINE] Target has Backhand active! Looking for Backhand skill...")
                     # Find Backhand skill instance
                     backhand_skill = next((s for s in target_unit.active_skills
                                           if hasattr(s, 'name') and s.name == "Backhand"), None)
-                    print(f"[BACKHAND ENGINE] Found Backhand skill: {backhand_skill}")
                     if backhand_skill and hasattr(backhand_skill, 'trigger_skill_reflect'):
-                        print(f"[BACKHAND ENGINE] Calling trigger_skill_reflect for {skill.name}")
-                        print(f"[BACKHAND ENGINE] UI parameter: {ui}")
-                        print(f"[BACKHAND ENGINE] self.ui: {getattr(self, 'ui', 'NO self.ui')}")
                         # Attempt reflection
                         # Use self.ui if ui parameter is None
                         ui_to_use = ui if ui is not None else getattr(self, 'ui', None)
-                        print(f"[BACKHAND ENGINE] Using UI: {ui_to_use}")
                         if backhand_skill.trigger_skill_reflect(target_unit, unit, skill.name, self, ui_to_use):
                             # Skill was reflected, skip normal execution
-                            print(f"[BACKHAND ENGINE] Skill {skill.name} reflected by {target_unit.get_display_name()}'s Backhand")
                             # Mark skill as reflected so animation doesn't play
                             unit.skill_was_reflected = True
                             continue
-                        else:
-                            print(f"[BACKHAND ENGINE] trigger_skill_reflect returned False (skill not reflectable or failed)")
 
                 # Execute the skill if it has an execute method
                 if hasattr(skill, 'execute'):
@@ -3088,9 +3077,11 @@ class Game:
                     skill.execute(unit, target_pos, self, ui)
                     self.current_attacker = None
 
-                    # If unit is under Neural Shunt effects, put the skill on cooldown
+                    # Put the skill on cooldown after execution
+                    skill.current_cooldown = skill.cooldown
+
+                    # If unit is under Neural Shunt effects, the cooldown was already set
                     if (hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected):
-                        skill.current_cooldown = skill.cooldown
                         logger.debug(f"Neural Shunt: {unit.get_display_name()}'s {skill.name} placed on cooldown ({skill.cooldown} turns)")
                 else:
                     logger.warning(f"Skill {skill.name} has no execute method")
@@ -4033,7 +4024,8 @@ class Game:
                 unit._prt_absorbed_this_action = False
 
                 # Reset dissociation PRT boost (from prt=999 back to 0) for all units
-                if unit.prt > 1:  # If boosted from dissociation
+                # BUT preserve HEINOUS_VAPOR invulnerability
+                if unit.prt > 1 and unit.type != UnitType.HEINOUS_VAPOR:  # If boosted from dissociation
                     unit.prt = 0
                     from boneglaive.utils.debug import logger
                     logger.info(f"DISSOCIATION RESET: {unit.get_display_name()} prt reset to 0")
@@ -5325,15 +5317,16 @@ class Game:
             
         
         # Animate the rail explosions if UI is available - all at once!
-        if ui and hasattr(ui, 'renderer'):
+        # ASCII mode animation only
+        if ui and hasattr(ui, 'renderer') and hasattr(ui.renderer, 'draw_tile'):
             explosion_frames = ['*', '#', '*', '#', '*']
             explosion_colors = [19, 7, 19, 7, 19]  # Red text, yellow text, red text, yellow text, red text
-            
+
             # Clear any highlights/selections that might interfere
             if hasattr(ui, 'cursor_manager'):
                 ui.cursor_manager.highlighted_positions = []
                 ui.cursor_manager.clear_selection()
-            
+
             # Flash all rails simultaneously through explosion sequence
             for frame_char, color in zip(explosion_frames, explosion_colors):
                 # Draw explosion frame on each rail position
@@ -5342,7 +5335,7 @@ class Game:
                     ui.renderer.draw_tile(rail_y, rail_x, ' ', 0, 0)
                     # Then draw the explosion character with proper colors
                     ui.renderer.draw_tile(rail_y, rail_x, frame_char, color, curses.A_BOLD)
-                
+
                 ui.renderer.refresh()
                 time.sleep(0.12)  # Quick flash timing
         

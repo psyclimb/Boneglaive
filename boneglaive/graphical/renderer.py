@@ -41,6 +41,9 @@ from .ui_adapter import GraphicalUIAdapter
 # Import TerrainType for terrain/furniture rendering
 from boneglaive.game.map import TerrainType
 
+# Import global message log for combat log sync
+from boneglaive.utils.message_log import message_log
+
 
 # Screen constants (must match menu system)
 SCREEN_WIDTH = 1480
@@ -81,7 +84,7 @@ PRE_EXECUTION_BLOCKING_SKILLS = [
     "Gaussian Dusk Charge", "GAUSSIAN_DUSK_CHARGE",
     "Gaussian Dusk Fire", "GAUSSIAN_DUSK_FIRE",
     "Pry", "PRY",
-    "Judgement", "JUDGEMENT",
+    # NOTE: Judgement removed from pre-execution so it plays AFTER moves execute
     "Autoclave", "AUTOCLAVE",
     "Matador", "MATADOR",
     "Poach", "POACH"
@@ -1003,9 +1006,15 @@ class GraphicalRenderer:
 
                     # Restore normal range display
                     if game_unit:
-                        self.valid_positions = self.game_adapter.get_movement_range(game_unit)
-                        self.attack_positions = self.game_adapter.get_attack_range(game_unit)
-                        self.show_movement_range = True
+                        # Check if unit has pending move - if so, calculate from ghost position
+                        if game_unit.move_target:
+                            self.valid_positions = []
+                            self.attack_positions = self.game_adapter.get_attack_range(game_unit, from_pos=game_unit.move_target)
+                            self.show_movement_range = False
+                        else:
+                            self.valid_positions = self.game_adapter.get_movement_range(game_unit)
+                            self.attack_positions = self.game_adapter.get_attack_range(game_unit)
+                            self.show_movement_range = True
                         self.show_target_range = True
                     else:
                         print(f"Failed to use skill")
@@ -1026,15 +1035,12 @@ class GraphicalRenderer:
                 # Query movement range and attack range from game logic
                 game_unit = self._get_game_unit(unit)
                 if game_unit:
-                    # If unit has a pending move, calculate ranges from ghost position
+                    # If unit has a pending move, don't show movement range (only attack range from ghost position)
                     if game_unit.move_target:
-                        # Temporarily swap position to calculate ranges from ghost
-                        original_y, original_x = game_unit.y, game_unit.x
-                        game_unit.y, game_unit.x = game_unit.move_target
-                        self.valid_positions = self.game_adapter.get_movement_range(game_unit)
-                        self.attack_positions = self.game_adapter.get_attack_range(game_unit)
-                        # Restore original position
-                        game_unit.y, game_unit.x = original_y, original_x
+                        self.valid_positions = []  # No movement range - already moved
+                        # Calculate attack range from ghost position by passing from_pos
+                        self.attack_positions = self.game_adapter.get_attack_range(game_unit, from_pos=game_unit.move_target)
+                        self.show_movement_range = False  # Don't show movement highlights
                     else:
                         # Normal range calculation from current position
                         self.valid_positions = self.game_adapter.get_movement_range(game_unit)
@@ -1160,6 +1166,11 @@ class GraphicalRenderer:
                     # Execute movement
                     game_unit = self._get_game_unit(self.selected_unit)
                     if game_unit:
+                        # Check if unit already has a pending move
+                        if game_unit.move_target:
+                            print(f"{self.selected_unit.name} already has a pending move - cannot move again")
+                            return
+
                         # Set move target (game uses y, x coordinates)
                         game_unit.move_target = (grid_y, grid_x)
                         game_unit.took_no_actions = False
@@ -1204,7 +1215,11 @@ class GraphicalRenderer:
                 # Show attack range
                 game_unit = self._get_game_unit(self.selected_unit)
                 if game_unit:
-                    self.attack_positions = self.game_adapter.get_attack_range(game_unit)
+                    # If unit has pending move, calculate attack range from ghost position
+                    if game_unit.move_target:
+                        self.attack_positions = self.game_adapter.get_attack_range(game_unit, from_pos=game_unit.move_target)
+                    else:
+                        self.attack_positions = self.game_adapter.get_attack_range(game_unit)
                     self.show_target_range = True
                     self.show_movement_range = False
                     self.show_skill_range = False
@@ -1783,6 +1798,10 @@ class GraphicalRenderer:
         # Update particles
         self.particle_emitter.update(delta_time)
         self.floating_texts = [t for t in self.floating_texts if t.update(delta_time)]
+
+        # Sync combat log with game's message log
+        if self.game_adapter.game:
+            self.combat_log.add_messages_from_game_log(message_log, count=20)
 
         # Update debris with collision detection (for PRY splash damage)
         if len(self.debris_particles) > 0 and not hasattr(self, '_debris_logged'):
@@ -2477,7 +2496,6 @@ class GraphicalRenderer:
 
         # Check if skill was reflected by Backhand
         if caster and hasattr(caster, 'skill_was_reflected') and caster.skill_was_reflected:
-            print(f"  [Renderer] Skill {skill_name} was reflected - SKIPPING original animation")
             caster.skill_was_reflected = False  # Reset flag
             return  # Don't create the original skill animation
 
@@ -3161,6 +3179,29 @@ class GraphicalRenderer:
             print(f"[Local Multiplayer] Switched from Player {old_player} to Player {self.game_adapter.game.current_player}")
             self.combat_log.add_message(f"Player {self.game_adapter.game.current_player}'s turn", "system")
 
+        # Process AI turn if it's player 2's turn and AI is enabled
+        if self.game_adapter.ai_interface and self.game_adapter.game.current_player == 2:
+            print(f"[AI] Waiting 3 seconds before AI turn...")
+            self.combat_log.add_message("AI is thinking...", "system")
+
+            # Wait 3 seconds before AI processes its turn
+            # Keep rendering during the wait so the game doesn't freeze
+            import time
+            start_time = time.time()
+            while time.time() - start_time < 3.0:
+                delta_time = self.clock.tick(60) / 1000.0
+                self.update(delta_time)
+                self.draw()
+                pygame.display.flip()
+
+            print(f"[AI] Processing AI turn...")
+
+            # Process AI turn (this will set unit actions)
+            self.game_adapter.ai_interface.process_turn()
+
+            # Execute the AI's planned actions immediately
+            self.execute_turn()
+
         print(f"Turn {self.game_adapter.game.turn} - Current player: {self.game_adapter.game.current_player}\n")
 
     def draw_selection_highlight(self, surface: pygame.Surface, unit: AnimatedUnit):
@@ -3183,10 +3224,18 @@ class GraphicalRenderer:
         border_color = (*COLOR_SELECTION, 255)
         pygame.draw.rect(highlight_surf, border_color, highlight_surf.get_rect(), 3)
 
-        # Position on grid
+        # Position on grid (current position)
         tile_x = GRID_OFFSET_X + grid_x * TILE_SIZE
         tile_y = GRID_OFFSET_Y + grid_y * TILE_SIZE
         surface.blit(highlight_surf, (tile_x, tile_y))
+
+        # If unit has a pending move, also highlight the ghost position
+        game_unit = self._get_game_unit(unit)
+        if game_unit and hasattr(game_unit, 'move_target') and game_unit.move_target:
+            ghost_y, ghost_x = game_unit.move_target
+            ghost_tile_x = GRID_OFFSET_X + ghost_x * TILE_SIZE
+            ghost_tile_y = GRID_OFFSET_Y + ghost_y * TILE_SIZE
+            surface.blit(highlight_surf, (ghost_tile_x, ghost_tile_y))
 
     def draw_astral_values(self, surface: pygame.Surface):
         """Draw pulsating golden astral values over furniture when DELPHIC APPRAISER is selected."""
@@ -3795,22 +3844,28 @@ class GraphicalRenderer:
 
 def main():
     """Entry point for graphical version."""
-    # Load config to get selected map
+    # Load config to get selected map and network mode
     from boneglaive.utils.config import ConfigManager
     config = ConfigManager()
     selected_map = config.get('selected_map', 'hard_pressed')
+    network_mode = config.get('network_mode', 'single')
 
     # Create game state adapter
     adapter = GameStateAdapter()
 
+    # Create renderer first (needed for AI animations)
+    renderer = GraphicalRenderer(adapter)
+
+    # Create UI adapter for AI animations
+    from boneglaive.graphical.ui_adapter import GraphicalUIAdapter
+    ui_adapter = GraphicalUIAdapter(renderer)
+
     # Initialize game with real game logic
     print("Initializing game...")
+    print(f"Network mode: {network_mode}")
     # skip_setup=False means game starts in setup phase
-    adapter.initialize_game(skip_setup=False, map_name=selected_map)
+    adapter.initialize_game(skip_setup=False, map_name=selected_map, network_mode=network_mode, ui_adapter=ui_adapter)
     print(f"Game created - starting in setup phase on map: {selected_map}")
-
-    # Create renderer
-    renderer = GraphicalRenderer(adapter)
 
     # Sync units from game
     print("Syncing units from game to renderer...")

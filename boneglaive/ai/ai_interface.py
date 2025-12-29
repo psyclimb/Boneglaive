@@ -44,8 +44,9 @@ class AIInterface(NetworkInterface):
             self.ui = ui
             
             # Import and initialize the AI controller
-            from boneglaive.ai.simple_ai import SimpleAI
-            self.ai_controller = SimpleAI(game, ui)
+            # Use SmartAI for intelligent decision-making
+            from boneglaive.ai.smart_ai import SmartAI
+            self.ai_controller = SmartAI(game, ui)
             
             logger.info("AI interface initialized successfully")
             self.initialized = True

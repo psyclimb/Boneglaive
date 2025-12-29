@@ -166,6 +166,9 @@ class GameStateAdapter:
         # Game logic instance (headless)
         self.game: Optional[Game] = None
 
+        # AI interface (if playing vs AI)
+        self.ai_interface = None
+
         # Visual state
         self.visual_units: Dict[str, VisualUnit] = {}  # unit_id (UUID) -> VisualUnit
         self.animation_queue: List[AnimationEvent] = []
@@ -193,7 +196,7 @@ class GameStateAdapter:
         # Set of (y, x) positions that have been revealed by Site Inspection
         self.revealed_scalar_nodes: set = set()
 
-    def initialize_game(self, game_instance=None, skip_setup=False, map_name="hard_pressed"):
+    def initialize_game(self, game_instance=None, skip_setup=False, map_name="hard_pressed", network_mode="single", ui_adapter=None):
         """
         Initialize or attach to a game instance.
 
@@ -201,6 +204,8 @@ class GameStateAdapter:
             game_instance: Existing game instance, or None to create new
             skip_setup: If False (default), game starts in setup phase where players place units
             map_name: Name of the map to use
+            network_mode: Network mode ("single", "vs_ai", "local", etc.)
+            ui_adapter: GraphicalUIAdapter for AI animations
         """
         if game_instance:
             self.game = game_instance
@@ -208,6 +213,17 @@ class GameStateAdapter:
             # Create new game instance
             # skip_setup=False means game starts in setup phase
             self.game = Game(skip_setup=skip_setup, map_name=map_name)
+
+        # Initialize AI if in vs_ai mode
+        print(f"[GameStateAdapter] Network mode: {network_mode}")
+        if network_mode == "vs_ai":
+            print("[GameStateAdapter] Initializing AI for player 2...")
+            from boneglaive.ai.ai_interface import AIInterface
+            self.ai_interface = AIInterface()
+            self.ai_interface.initialize(self.game, ui=ui_adapter)
+            print(f"[GameStateAdapter] AI initialized: {self.ai_interface}")
+        else:
+            print("[GameStateAdapter] AI not initialized (not in vs_ai mode)")
 
         # Register callbacks for detecting status effects
         self.game.pre_status_clear_callback = self._detect_status_effects_callback
@@ -1002,12 +1018,13 @@ class GameStateAdapter:
 
         return movement_range
 
-    def get_attack_range(self, game_unit) -> List[Tuple[int, int]]:
+    def get_attack_range(self, game_unit, from_pos=None) -> List[Tuple[int, int]]:
         """
         Get valid attack positions for a unit.
 
         Args:
             game_unit: The game logic unit
+            from_pos: Optional (y, x) position to calculate attack range from (for ghost position)
 
         Returns:
             List of (x, y) tuples in renderer coordinates (column, row)
@@ -1016,7 +1033,8 @@ class GameStateAdapter:
             return []
 
         # Get possible attacks from game (returns list of (y, x) tuples)
-        possible_attacks = self.game.get_possible_attacks(game_unit)
+        # Pass from_pos to calculate from ghost position if unit has pending move
+        possible_attacks = self.game.get_possible_attacks(game_unit, from_pos=from_pos)
 
         # Convert from game coordinates (y, x) to renderer coordinates (x, y)
         # Game: (y, x) = (row, col)

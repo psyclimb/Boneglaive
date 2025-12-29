@@ -145,6 +145,8 @@ class DischargeSkill(ActiveSkill):
         from_x = user.x
         if user.move_target:
             from_y, from_x = user.move_target
+            # Store the planned position for the animation to use
+            user.expedite_planned_start = user.move_target
             # Clear the move target - Expedite IS the movement, don't walk first
             user.move_target = None
             
@@ -197,34 +199,43 @@ class DischargeSkill(ActiveSkill):
         path_positions = []
         
         # Calculate path from start to end
-        # Note: By this time, any planned move has already been executed,
-        # so we no longer need to check move_target - just use current position
+        # Check if we stored a planned start position during use() phase
+        # This handles the case where the unit had a move_target that was cleared
+        if hasattr(user, 'expedite_planned_start') and user.expedite_planned_start:
+            start_pos = user.expedite_planned_start
+            # Clear the stored position
+            user.expedite_planned_start = None
+        else:
+            # No planned start - use current position
+            start_pos = (user.y, user.x)
+
         from boneglaive.utils.coordinates import get_line, Position
-        path = get_line(Position(user.y, user.x), Position(target_pos[0], target_pos[1]))
+        path = get_line(Position(start_pos[0], start_pos[1]), Position(target_pos[0], target_pos[1]))
         
         # Find the first enemy in the path
         for pos in path[1:]:  # Skip the starting position
             y, x = pos.y, pos.x
-            
+
             # Check if position is valid
             if not game.is_valid_position(y, x):
                 continue
-                
+
             # Check if position is passable
             if not game.map.is_passable(y, x):
                 # Stop at first impassable terrain
                 break
-                
-            # Add to path positions for movement
-            path_positions.append((y, x))
-                
-            # Check if there's an enemy unit at this position
+
+            # Check if there's an enemy unit at this position BEFORE adding to path
             unit = game.get_unit_at(y, x)
             if unit and unit.player != user.player:
                 enemy_hit = unit
                 enemy_pos = (y, x)
+                # Don't add enemy's position to path - we stop before it
                 # Stop at the first enemy hit
                 break
+
+            # Add to path positions for movement (only if no enemy here)
+            path_positions.append((y, x))
         
         # Log the skill activation
         message_log.add_message(
@@ -239,20 +250,11 @@ class DischargeSkill(ActiveSkill):
         # UPDATE FOREMAN POSITION FIRST (before applying trap, so movement doesn't break the trap!)
         # With ENEMY targeting, we always target an enemy unit, so we always stop before it
         if enemy_hit:
-            # Stop at the position just before the enemy
-            if len(path_positions) > 1 and enemy_pos in path_positions:
-                # Find position just before enemy
-                index = path_positions.index(enemy_pos)
-                if index > 0:
-                    stop_pos = path_positions[index - 1]
-                    user.y, user.x = stop_pos
-                else:
-                    # Enemy is adjacent - don't move from starting position
-                    pass
-            elif path_positions:
-                # Enemy not in path but we have path positions - move to last position before enemy
+            # Move to last position in path (which is the tile just before the enemy)
+            # If path_positions is empty, enemy was adjacent, so don't move
+            if path_positions:
                 user.y, user.x = path_positions[-1]
-            # else: No valid path positions, stay at original position
+            # else: No valid path positions means enemy is adjacent - stay at starting position
         # Note: With ENEMY targeting, there should always be an enemy_hit since we require targeting an enemy
 
         # NOW apply damage and trapping AFTER foreman has moved to final position
