@@ -6603,52 +6603,123 @@ class UpgradeMenuComponent(UIComponent):
         # Get terminal dimensions
         max_y, max_x = self.renderer.stdscr.getmaxyx()
 
-        # Calculate menu dimensions (centered)
-        menu_width = 70
-        menu_height = min(20, len(self.available_upgrades) + 5)
-        start_y = (max_y - menu_height) // 2
-        start_x = (max_x - menu_width) // 2
+        # Calculate menu dimensions that scale with terminal size
+        # Use 80% of width or max 80 chars, whichever is smaller
+        menu_width = min(80, int(max_x * 0.8))
+        # Ensure minimum width
+        menu_width = max(40, menu_width)
+
+        # Calculate height based on content (2 lines per upgrade + header/footer)
+        content_height = len(self.available_upgrades) * 2 + 8
+        # Use up to 80% of terminal height
+        max_menu_height = int(max_y * 0.8)
+        menu_height = min(content_height, max_menu_height)
+
+        # Position: centered vertically but shifted up slightly
+        start_y = max(0, (max_y - menu_height) // 2 - 3)
+        start_x = max(0, (max_x - menu_width) // 2)
+
+        # Ensure menu fits on screen
+        if start_y + menu_height > max_y:
+            start_y = max(0, max_y - menu_height)
 
         # Draw menu background
-        for y in range(start_y, start_y + menu_height):
-            self.renderer.stdscr.addstr(y, start_x, " " * menu_width, curses.A_REVERSE)
+        try:
+            for y in range(start_y, min(start_y + menu_height, max_y)):
+                if y >= 0 and start_x >= 0 and start_x + menu_width <= max_x:
+                    self.renderer.stdscr.addstr(y, start_x, " " * menu_width, curses.A_REVERSE)
+        except curses.error:
+            pass  # Ignore curses errors from drawing at boundaries
 
         # Draw title
         title = f"Upgrade {self.selected_unit.get_display_name()}"
-        self.renderer.stdscr.addstr(start_y + 1, start_x + 2, title, curses.A_BOLD | curses.A_REVERSE)
+        try:
+            if start_y + 1 < max_y and start_x + 2 + len(title) < max_x:
+                self.renderer.stdscr.addstr(start_y + 1, start_x + 2, title[:menu_width-4], curses.A_BOLD | curses.A_REVERSE)
+        except curses.error:
+            pass
 
         # Draw upgrade points available
         game = self.game_ui.game
         points = game.player1_upgrade_points if self.selected_unit.player == 1 else game.player2_upgrade_points
         points_text = f"Upgrade Points: {points}"
-        self.renderer.stdscr.addstr(start_y + 2, start_x + 2, points_text, curses.A_REVERSE)
+        try:
+            if start_y + 2 < max_y:
+                self.renderer.stdscr.addstr(start_y + 2, start_x + 2, points_text[:menu_width-4], curses.A_REVERSE)
+        except curses.error:
+            pass
 
         # Draw available upgrades
         hotkeys = ['Q', 'W', 'E', 'R', 'T', 'Y']  # Up to 6 upgrades
+        current_y = start_y + 4
         for i, upgrade in enumerate(self.available_upgrades):
             if i >= len(hotkeys):
                 break  # Max 6 upgrades displayable
 
-            y_pos = start_y + 4 + (i * 2)
+            if current_y >= max_y - 3:  # Leave room for footer
+                break
+
             hotkey = hotkeys[i]
             upgrade_text = f"[{hotkey}] {upgrade['name']}"
             desc_text = f"    {upgrade['description']}"
 
+            # Calculate available width for text
+            text_width = menu_width - 4
+
             # Draw upgrade option
-            self.renderer.stdscr.addstr(y_pos, start_x + 2, upgrade_text, curses.A_BOLD | curses.A_REVERSE)
-            if y_pos + 1 < start_y + menu_height - 2:
-                self.renderer.stdscr.addstr(y_pos + 1, start_x + 2, desc_text[:menu_width-4], curses.A_REVERSE)
+            try:
+                if current_y < max_y:
+                    self.renderer.stdscr.addstr(current_y, start_x + 2, upgrade_text[:text_width], curses.A_BOLD | curses.A_REVERSE)
+            except curses.error:
+                pass
 
-        # Draw instructions
+            # Wrap description text if needed
+            if current_y + 1 < max_y and current_y + 1 < start_y + menu_height - 2:
+                # Simple text wrapping
+                if len(desc_text) <= text_width:
+                    try:
+                        self.renderer.stdscr.addstr(current_y + 1, start_x + 2, desc_text, curses.A_REVERSE)
+                    except curses.error:
+                        pass
+                else:
+                    # Wrap long descriptions
+                    wrapped_lines = []
+                    words = desc_text.split()
+                    current_line = ""
+                    for word in words:
+                        if len(current_line) + len(word) + 1 <= text_width:
+                            current_line += word + " "
+                        else:
+                            if current_line:
+                                wrapped_lines.append(current_line.rstrip())
+                            current_line = "    " + word + " "
+                    if current_line:
+                        wrapped_lines.append(current_line.rstrip())
+
+                    # Draw first wrapped line
+                    if wrapped_lines and current_y + 1 < max_y:
+                        try:
+                            self.renderer.stdscr.addstr(current_y + 1, start_x + 2, wrapped_lines[0], curses.A_REVERSE)
+                        except curses.error:
+                            pass
+
+            current_y += 2
+
+        # Draw instructions at bottom
         instructions = "[ESC] Cancel"
-        self.renderer.stdscr.addstr(
-            start_y + menu_height - 2,
-            start_x + 2,
-            instructions,
-            curses.A_DIM | curses.A_REVERSE
-        )
+        try:
+            footer_y = min(start_y + menu_height - 2, max_y - 1)
+            if footer_y >= 0 and start_x + 2 + len(instructions) < max_x:
+                self.renderer.stdscr.addstr(
+                    footer_y,
+                    start_x + 2,
+                    instructions[:menu_width-4],
+                    curses.A_DIM | curses.A_REVERSE
+                )
+        except curses.error:
+            pass
 
-        self.renderer.stdscr.refresh()
+        # Note: Don't call refresh() here - ui_renderer.draw_board() calls it after drawing all components
 
     def handle_input(self, key: int) -> bool:
         """Handle input for upgrade menu."""

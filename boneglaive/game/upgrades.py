@@ -12,8 +12,33 @@ from boneglaive.utils.message_log import message_log, MessageType
 # ============================================================================
 
 SKILL_UPGRADES = {
-    # Unit upgrades will be defined here
-    # Format: "UNIT_TYPE_NAME": { "SkillName": { upgrade_def }, ... }
+    "GLAIVEMAN": {
+        "Autoclave": {
+            "name": "Autoclave",
+            "description": "After Autoclave triggers, another mini Autoclave is prepared.",
+            "type": "buff",
+            "cost": 1
+        },
+        "Pry": {
+            "name": "Pry",
+            "description": "Movement penalty increases from -1 to -2.",
+            "type": "buff",
+            "cost": 1
+        },
+        "Vault": {
+            "name": "Vault",
+            "description": "Range increases from 2 to 3.",
+            "type": "buff",
+            "cost": 1
+        },
+        "Judgement": {
+            "name": "Judgement",
+            "description": "If Judgement kills a target, cooldown reduced by 2.",
+            "type": "buff",
+            "cost": 1
+        }
+    },
+    # More units can be added here
 }
 
 # ============================================================================
@@ -40,7 +65,7 @@ class UpgradeManager:
         # Get unit type name
         unit_type_name = None
         for ut in UnitType:
-            if ut.value == unit.type:
+            if ut == unit.type:  # Compare enum to enum, not value
                 unit_type_name = ut.name
                 break
 
@@ -95,7 +120,7 @@ class UpgradeManager:
         from boneglaive.utils.constants import UnitType
         unit_type_name = None
         for ut in UnitType:
-            if ut.value == unit.type:
+            if ut == unit.type:  # Compare enum to enum, not value
                 unit_type_name = ut.name
                 break
 

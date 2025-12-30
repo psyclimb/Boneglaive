@@ -385,6 +385,11 @@ class GameUI:
         
     def handle_input(self, key: int) -> bool:
         """Handle user input using the input manager."""
+        # Prevent unnecessary redraws when upgrade menu is open and no input received
+        # (nodelay mode causes getch() to return -1 when no key is waiting)
+        if key == -1 and self.upgrade_menu.show_upgrade_menu:
+            return True
+
         # Handle setup instructions screen
         if self.game.setup_phase and self.mode_manager.show_setup_instructions:
             self.mode_manager.show_setup_instructions = False
@@ -405,9 +410,8 @@ class GameUI:
         # Check if upgrade menu is open first (highest priority)
         if self.upgrade_menu.show_upgrade_menu:
             handled = self.upgrade_menu.handle_input(key)
-            if handled:
-                self.draw_board()  # Always draw after handling input
-                return True
+            self.draw_board()  # Always draw after handling input
+            return True  # Consume all input while menu is open
 
         # Check for U key to open upgrade menu
         if key == ord('u') or key == ord('U'):
