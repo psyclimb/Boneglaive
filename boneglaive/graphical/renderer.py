@@ -26,6 +26,7 @@ from .game_state import GameStateAdapter, AnimationEvent
 from .camera import Camera
 from .ui.skill_bar import SkillBar
 from .ui.combat_log import CombatLog
+from .ui.message_log_window import MessageLogWindow
 from .ui.status_effects import StatusEffectsPanel
 from .ui.unit_info import UnitInfoPanel
 from .ui.top_bar import TopBar
@@ -173,6 +174,7 @@ class GraphicalRenderer:
         self.unit_status_bar = UnitStatusBar(self.font, self.small_font)
         self.skill_bar = SkillBar(self.font, self.small_font)
         self.combat_log = CombatLog(self.small_font)
+        self.message_log_window = MessageLogWindow(self.font, self.small_font)
         self.status_effects_panel = StatusEffectsPanel(self.font, self.small_font)
         self.unit_info_panel = UnitInfoPanel(self.font, self.small_font, self.large_font)
         self.action_menu = ActionMenu(self.font, self.small_font)
@@ -637,7 +639,18 @@ class GraphicalRenderer:
                     self.respawn_window.handle_mouse_up()
 
             elif event.type == pygame.KEYDOWN:
-                # Check if help page is open first
+                # Check if message log window is open first
+                if self.message_log_window.visible:
+                    if event.key == pygame.K_ESCAPE:
+                        self.message_log_window.hide()
+                    elif event.key == pygame.K_UP:
+                        self.message_log_window.handle_scroll(-1)
+                    elif event.key == pygame.K_DOWN:
+                        self.message_log_window.handle_scroll(1)
+                    # Ignore all other keys when message log is open
+                    continue
+
+                # Check if help page is open
                 if self.help_page.visible:
                     if event.key == pygame.K_ESCAPE:
                         self.help_page.hide()
@@ -684,6 +697,10 @@ class GraphicalRenderer:
                 elif event.key == pygame.K_t:
                     # End turn (T key for backwards compatibility)
                     self.execute_turn()
+                elif event.key == pygame.K_TAB:
+                    # Cycle through player's units (SHIFT+TAB for backwards)
+                    shift_pressed = pygame.key.get_mods() & pygame.KMOD_SHIFT
+                    self._cycle_unit_selection(backwards=shift_pressed)
 
                 # Check action menu hotkeys first
                 elif event.key in [pygame.K_m, pygame.K_a, pygame.K_r, pygame.K_e, pygame.K_c, pygame.K_h]:
@@ -761,7 +778,9 @@ class GraphicalRenderer:
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 # Handle mouse wheel scrolling
                 if event.button == 4:  # Scroll up
-                    if self.help_page.visible:
+                    if self.message_log_window.visible:
+                        self.message_log_window.handle_scroll(-1)
+                    elif self.help_page.visible:
                         self.help_page.handle_scroll(-1)
                     elif self.setup_selecting_unit:
                         # Check if scrolling in help panel (when focused)
@@ -774,7 +793,9 @@ class GraphicalRenderer:
                         # Add scroll support for respawn window too
                         pass
                 elif event.button == 5:  # Scroll down
-                    if self.help_page.visible:
+                    if self.message_log_window.visible:
+                        self.message_log_window.handle_scroll(1)
+                    elif self.help_page.visible:
                         self.help_page.handle_scroll(1)
                     elif self.setup_selecting_unit:
                         # Check if scrolling in help panel (when focused)
@@ -791,6 +812,17 @@ class GraphicalRenderer:
                     if self.help_page.visible:
                         if self.help_page.handle_mouse_down(event.pos):
                             continue  # Scrollbar was clicked, don't process other clicks
+
+                    # Check if clicking on combat log to open expanded view (only when not in setup mode)
+                    if not self.setup_mode:
+                        combat_log_x = LEFT_PANEL_WIDTH + 10
+                        combat_log_y = GRID_OFFSET_Y + GAME_BOARD_HEIGHT + 10
+                        combat_log_rect = pygame.Rect(combat_log_x, combat_log_y, 900, 90)
+                        if combat_log_rect.collidepoint(event.pos):
+                            # Open expanded message log
+                            self.message_log_window.show(self.combat_log.messages)
+                            continue
+
                     # Handle respawn window clicks
                     if self.respawn_selecting_unit:
                         # Check scrollbar first
@@ -897,6 +929,11 @@ class GraphicalRenderer:
                             self.handle_grid_click(grid_pos[0], grid_pos[1])
 
                 elif event.button == 3:  # Right click
+                    # Check if message log window is open first
+                    if self.message_log_window.visible:
+                        self.message_log_window.hide()
+                        continue
+
                     # Cancel selection and skill mode
                     self.selected_unit = None
                     self.selected_skill = None
@@ -2596,6 +2633,65 @@ class GraphicalRenderer:
                 return unit
         return None
 
+    def _cycle_unit_selection(self, backwards: bool = False):
+        """
+        Cycle through the current player's units.
+
+        Args:
+            backwards: If True, cycle backwards (SHIFT+TAB), otherwise forward (TAB)
+        """
+        if not self.game_adapter.game:
+            return
+
+        # Get current player's alive units
+        current_player = self.game_adapter.game.current_player
+        player_units = [u for u in self.game_adapter.game.units
+                       if u.player == current_player and u.is_alive()]
+
+        if not player_units:
+            return
+
+        # Sort by position for consistent cycling (top-left to bottom-right)
+        player_units.sort(key=lambda u: (u.y, u.x))
+
+        # Find currently selected unit in the list
+        current_index = -1
+        if self.selected_unit:
+            game_unit = self._get_game_unit(self.selected_unit)
+            if game_unit in player_units:
+                current_index = player_units.index(game_unit)
+
+        # Cycle to next/previous unit
+        if backwards:
+            next_index = (current_index - 1) % len(player_units)
+        else:
+            next_index = (current_index + 1) % len(player_units)
+
+        # Select the new unit
+        next_game_unit = player_units[next_index]
+        next_animated_unit = self._find_animated_unit_by_game_unit(next_game_unit)
+
+        if next_animated_unit:
+            # Select the unit
+            self.selected_unit = next_animated_unit
+            self.current_action_mode = "MOVE"
+
+            # Update UI
+            has_actions = any(u.move_target or u.attack_target or u.skill_target
+                            for u in self.game_adapter.game.units if u.is_alive())
+            self.action_menu.update(
+                self.game_adapter.game,
+                next_game_unit,
+                self.current_action_mode,
+                has_actions
+            )
+            self.skill_bar.update(next_animated_unit, next_game_unit)
+
+            # Show movement range
+            self.show_movement_range = True
+            self.show_attack_range = False
+            self.movement_positions = self.game_adapter.get_movement_range(next_game_unit)
+
     def draw(self):
         """Render the current frame."""
         # Apply screen shake
@@ -2694,7 +2790,10 @@ class GraphicalRenderer:
         # Draw help page overlay (must be drawn last, on top of everything)
         self.help_page.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
 
-        # Draw respawn window (on top of everything except help page)
+        # Draw message log window (on top of help page)
+        self.message_log_window.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
+
+        # Draw respawn window (on top of everything except help page and message log)
         if self.respawn_mode and self.respawn_selecting_unit:
             self.respawn_window.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
 

@@ -6,15 +6,21 @@ Displays scrolling log of game actions and events.
 import pygame
 from typing import List, Dict, Optional
 
-# Colors
+# Colors - matching ASCII version color scheme
 COLOR_BG = (30, 34, 42)
-COLOR_TEXT_SYSTEM = (200, 200, 200)
-COLOR_TEXT_COMBAT = (255, 200, 100)
-COLOR_TEXT_ABILITY = (200, 150, 255)
-COLOR_TEXT_MOVEMENT = (150, 200, 150)
-COLOR_TEXT_ERROR = (255, 100, 100)
-COLOR_TEXT_PLAYER1 = (100, 255, 100)  # Green
-COLOR_TEXT_PLAYER2 = (100, 150, 255)  # Blue
+COLOR_TEXT_SYSTEM = (200, 200, 200)  # Gray - default/system messages
+COLOR_TEXT_COMBAT = (255, 200, 100)  # Orange - combat messages (deprecated, use player colors)
+COLOR_TEXT_ABILITY = (200, 150, 255)  # Light purple - ability messages (deprecated, use player colors)
+COLOR_TEXT_MOVEMENT = (150, 200, 150)  # Light green - movement messages (deprecated, use player colors)
+COLOR_TEXT_ERROR = (255, 100, 100)  # Red - error messages
+COLOR_TEXT_WARNING = (255, 255, 100)  # Yellow - warnings and debuffs
+COLOR_TEXT_DEATH = (150, 50, 50)  # Dark red - death messages
+COLOR_TEXT_WRETCH = (255, 100, 100)  # Bright red - wretch messages
+COLOR_TEXT_DOMINION = (255, 100, 255)  # Bright magenta - Dominion upgrade messages
+COLOR_TEXT_DAMAGE = (200, 100, 255)  # Magenta - damage numbers
+COLOR_TEXT_HEAL = (255, 255, 255)  # White - healing numbers
+COLOR_TEXT_PLAYER1 = (100, 255, 100)  # Green - Player 1 messages
+COLOR_TEXT_PLAYER2 = (100, 150, 255)  # Blue - Player 2 messages
 
 LOG_WIDTH = 900  # Horizontal bar spanning game board width
 LOG_HEIGHT = 90  # Maximum height fitting below map
@@ -28,9 +34,10 @@ class CombatLog:
     def __init__(self, font):
         self.font = font
         self.messages: List[Dict] = []
-        self.max_messages = 50
+        self.max_messages = 200  # Expanded log capacity
         self.scroll_offset = 0
         self.auto_scroll = True
+        self.last_synced_timestamp = 0.0  # Track last message timestamp to avoid duplicates
 
     def add_message(self, text: str, msg_type: str = "system", player: Optional[int] = None):
         """
@@ -75,22 +82,86 @@ class CombatLog:
         # Get recent messages
         recent = game_message_log.get_recent_messages(count=count)
 
-        # Check if we need to add new messages
-        # (avoid duplicates by checking timestamps or message text)
-        for msg in recent:
-            # Simple deduplication: check if message text already in recent messages
-            if not any(m['text'] == msg['text'] for m in self.messages[-5:]):
-                msg_type_str = msg['type'].value if hasattr(msg['type'], 'value') else str(msg['type'])
-                self.add_message(
-                    text=msg['text'],
-                    msg_type=msg_type_str,
-                    player=msg.get('player')
-                )
+        # Only add messages newer than our last synced timestamp
+        # This prevents duplicates when called every frame (60 times per second)
+        new_messages = [msg for msg in recent if msg.get('timestamp', 0) > self.last_synced_timestamp]
+
+        for msg in new_messages:
+            msg_type_str = msg['type'].value if hasattr(msg['type'], 'value') else str(msg['type'])
+            # Process message text to add damage/heal placeholders (matching ASCII version)
+            processed_text = self._process_message_placeholders(msg['text'], msg['type'])
+
+            self.add_message(
+                text=processed_text,
+                msg_type=msg_type_str,
+                player=msg.get('player')
+            )
+
+            # Update last synced timestamp
+            self.last_synced_timestamp = msg.get('timestamp', 0)
 
     def clear(self):
         """Clear all messages."""
         self.messages.clear()
         self.scroll_offset = 0
+        self.last_synced_timestamp = 0.0  # Reset timestamp when clearing
+
+    def _process_message_placeholders(self, text: str, msg_type) -> str:
+        """
+        Process message text to add damage/heal placeholders (matching ASCII version).
+
+        Args:
+            text: Original message text
+            msg_type: Message type (from MessageType enum)
+
+        Returns:
+            Processed text with #DAMAGE_X# and #HEAL_X# placeholders
+        """
+        import re
+        from boneglaive.utils.message_log import MessageType
+
+        # Convert to MessageType if needed
+        if isinstance(msg_type, str):
+            try:
+                msg_type = MessageType(msg_type)
+            except:
+                return text
+
+        # Special handling for damage numbers - highlight them in magenta
+        # Look for combat or ability messages containing damage info
+        if (msg_type == MessageType.COMBAT or msg_type == MessageType.ABILITY) and 'damage' in text:
+            # Find the damage number in the text
+            # Pattern to match "for X damage" or "suffers X [type] damage" where X is a number
+            damage_match = re.search(r'for (\d+) damage', text)
+            if not damage_match:
+                damage_match = re.search(r'suffers (\d+) (?:\w+ )?damage', text)
+
+            if damage_match:
+                damage_num = damage_match.group(1)
+
+                # Replace with the placeholder
+                if f"for {damage_num} damage" in text:
+                    text = text.replace(f"for {damage_num} damage", f"for #DAMAGE_{damage_num}# damage")
+                elif f"suffers {damage_num}" in text:
+                    # Handle "suffers X radiation damage" pattern
+                    text = re.sub(f"suffers {damage_num} (\\w+ )?damage", f"suffers #DAMAGE_{damage_num}# \\1damage", text)
+
+        # Special handling for healing numbers - highlight them in white
+        # Look for healing messages (typical format: "X heals Y for Z HP" or "healing for Z HP")
+        heal_match = re.search(r'heals .+ for (\d+) HP', text)
+        if heal_match:
+            heal_num = heal_match.group(1)
+            # Replace the healing number with a placeholder
+            text = text.replace(f"for {heal_num} HP", f"for #HEAL_{heal_num}# HP")
+        else:
+            # Also check for "healing for Z HP" format used by skills like Autoclave
+            heal_match = re.search(r'healing for (\d+) HP', text)
+            if heal_match:
+                heal_num = heal_match.group(1)
+                # Replace the healing number with a placeholder
+                text = text.replace(f"for {heal_num} HP", f"for #HEAL_{heal_num}# HP")
+
+        return text
 
     def scroll_up(self, lines: int = 1):
         """Scroll up in the log."""
@@ -146,45 +217,127 @@ class CombatLog:
             # Get color for message
             color = self._get_message_color(message)
 
-            # Truncate text to fit width
+            # Get text and check for special number placeholders
             text = message['text']
             max_width = log_width - (LOG_PADDING * 2)
-            text_surface = self.font.render(text, True, color)
 
-            # If text is too wide, truncate with ellipsis
-            if text_surface.get_width() > max_width:
-                while text and self.font.render(text + "...", True, color).get_width() > max_width:
-                    text = text[:-1]
-                text += "..."
+            # Check for damage or heal number placeholders (matching ASCII version)
+            import re
+            damage_pattern = re.compile(r'#DAMAGE_(\d+)#')
+            heal_pattern = re.compile(r'#HEAL_(\d+)#')
+
+            damage_match = damage_pattern.search(text)
+            heal_match = heal_pattern.search(text)
+
+            if damage_match:
+                # Split text around damage number
+                damage_num = damage_match.group(1)
+                parts = text.split(f'#DAMAGE_{damage_num}#')
+
+                # Render parts with different colors
+                pos_x = x + LOG_PADDING
+
+                # First part (before damage)
+                if parts[0]:
+                    part_surface = self.font.render(parts[0], True, color)
+                    surface.blit(part_surface, (pos_x, text_y))
+                    pos_x += part_surface.get_width()
+
+                # Damage number in magenta
+                damage_surface = self.font.render(damage_num, True, COLOR_TEXT_DAMAGE)
+                surface.blit(damage_surface, (pos_x, text_y))
+                pos_x += damage_surface.get_width()
+
+                # Remaining part (after damage)
+                if len(parts) > 1 and parts[1]:
+                    remaining_surface = self.font.render(parts[1], True, color)
+                    surface.blit(remaining_surface, (pos_x, text_y))
+
+            elif heal_match:
+                # Split text around heal number
+                heal_num = heal_match.group(1)
+                parts = text.split(f'#HEAL_{heal_num}#')
+
+                # Render parts with different colors
+                pos_x = x + LOG_PADDING
+
+                # First part (before heal)
+                if parts[0]:
+                    part_surface = self.font.render(parts[0], True, color)
+                    surface.blit(part_surface, (pos_x, text_y))
+                    pos_x += part_surface.get_width()
+
+                # Heal number in white
+                heal_surface = self.font.render(heal_num, True, COLOR_TEXT_HEAL)
+                surface.blit(heal_surface, (pos_x, text_y))
+                pos_x += heal_surface.get_width()
+
+                # Remaining part (after heal)
+                if len(parts) > 1 and parts[1]:
+                    remaining_surface = self.font.render(parts[1], True, color)
+                    surface.blit(remaining_surface, (pos_x, text_y))
+
+            else:
+                # No special numbers, render normally
                 text_surface = self.font.render(text, True, color)
 
-            # Draw message
-            surface.blit(text_surface, (x + LOG_PADDING, text_y))
+                # If text is too wide, truncate with ellipsis
+                if text_surface.get_width() > max_width:
+                    while text and self.font.render(text + "...", True, color).get_width() > max_width:
+                        text = text[:-1]
+                    text += "..."
+                    text_surface = self.font.render(text, True, color)
+
+                # Draw message
+                surface.blit(text_surface, (x + LOG_PADDING, text_y))
+
             text_y -= LINE_HEIGHT
             messages_drawn += 1
 
     def _get_message_color(self, message: Dict) -> tuple:
-        """Get color for a message based on its type and player."""
+        """Get color for a message based on its type, player, and content (matching ASCII version)."""
         msg_type = message['type']
         player = message.get('player')
+        text = message['text']
 
-        # Player-specific colors
+        # Content-based colors (highest priority - matches ASCII logic from message_log.py)
+        # Check for critical event messages first
+        if " perishes!" in text or "perishes from falling debris!" in text:
+            return COLOR_TEXT_DEATH  # Dark red for death messages
+        elif " retches!" in text:
+            return COLOR_TEXT_WRETCH  # Bright red for retching messages
+        elif "DOMINION:" in text or "absorbs power from the fallen" in text:
+            return COLOR_TEXT_DOMINION  # Bright magenta for Dominion upgrades
+
+        # Check for debuff/warning messages
+        elif ("movement reduced" in text or "debuff" in text.lower() or
+              ("penalty" in text.lower() and "due to Stasiality" not in text) or
+              "displaced from" in text or "collides with" in text or
+              ("immobilized" in text and "immune to" not in text) or
+              ("trapped in" in text and "due to Stasiality" not in text) or
+              "slogs through" in text):
+            return COLOR_TEXT_WARNING  # Yellow for debuffs and negative effects
+
+        # Error messages
+        if msg_type == 'error':
+            return COLOR_TEXT_ERROR  # Red for errors
+
+        # Player-specific colors for combat/ability messages
+        # (matches ASCII: use player color for messages with attacker info or ability usage)
+        if player is not None and (msg_type == 'combat' or msg_type == 'ability'):
+            if player == 1:
+                return COLOR_TEXT_PLAYER1
+            elif player == 2:
+                return COLOR_TEXT_PLAYER2
+
+        # Chat messages (player messages without combat/ability type)
         if player == 1:
             return COLOR_TEXT_PLAYER1
         elif player == 2:
             return COLOR_TEXT_PLAYER2
 
-        # Type-based colors
-        if msg_type == 'combat':
-            return COLOR_TEXT_COMBAT
-        elif msg_type == 'ability':
-            return COLOR_TEXT_ABILITY
-        elif msg_type == 'movement':
-            return COLOR_TEXT_MOVEMENT
-        elif msg_type == 'error':
-            return COLOR_TEXT_ERROR
-        else:
-            return COLOR_TEXT_SYSTEM
+        # Default to gray for system messages
+        return COLOR_TEXT_SYSTEM
 
     def _wrap_text(self, text: str, max_width: int) -> List[str]:
         """
