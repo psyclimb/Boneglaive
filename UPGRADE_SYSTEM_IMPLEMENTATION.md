@@ -6,7 +6,21 @@ Players earn upgrade points at GP thresholds (2 GP = 1 point, 4 GP = 1 point, wi
 
 ---
 
-## Phase 1: Backend Core System
+## Implementation Order
+
+**IMPORTANT CHANGE**: The implementation order has been revised:
+
+1. **Phase 1**: Backend Core System ✅ **COMPLETE**
+2. **Phase 2**: ASCII UI (upgrade menu, status display, hotkeys)
+3. **Phase 3**: Graphical UI (upgrade window, button integration)
+4. **Phase 4**: Define ALL skill upgrades in `SKILL_UPGRADES` dictionary (FINAL STEP)
+5. **Phase 5**: Update individual skill files to check for upgrades and apply effects
+
+**The `SKILL_UPGRADES` dictionary will remain EMPTY until Phase 4.** All infrastructure and UI will be built and tested first, then upgrades will be defined and integrated.
+
+---
+
+## Phase 1: Backend Core System ✅ COMPLETE
 
 ### 1.1 Add Upgrade Point Tracking to Game Class
 
@@ -336,7 +350,13 @@ def apply_unit_upgrade(self, unit, skill_name: str) -> bool:
 
 ---
 
-## Phase 2: Test with 2-3 Units
+## Phase 2: ASCII UI (SKIPPED - MOVED TO PHASE 3)
+
+This phase has been moved. See Phase 3 below.
+
+---
+
+## Phase 3: ASCII UI
 
 ### 2.1 Update GLAIVEMAN Skills to Check for Upgrades
 
