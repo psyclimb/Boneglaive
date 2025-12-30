@@ -122,8 +122,9 @@ class ActionMenu:
         self.buttons = [
             ActionButton("attack", "A", "ATTACK"),
             ActionButton("respawn", "R", "RESPAWN"),
-            ActionButton("help", "H", "HELP"),
             ActionButton("execute", "E", "EXECUTE TURN"),
+            ActionButton("upgrade", "U", "UPGRADE"),
+            ActionButton("help", "H", "HELP"),
             ActionButton("concede", "C", "CONCEDE"),
         ]
 

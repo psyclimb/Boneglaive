@@ -2869,6 +2869,22 @@ class GraphicalRenderer:
                     if terrain_surface:
                         # Blit the SVG surface at tile position
                         surface.blit(terrain_surface, (tile_x, tile_y))
+
+                        # Add player-colored outline for MARROW_WALL
+                        if terrain_type == TerrainType.MARROW_WALL:
+                            if hasattr(self.game_adapter.game, 'marrow_dike_tiles'):
+                                pos_tuple = (y, x)
+                                if pos_tuple in self.game_adapter.game.marrow_dike_tiles:
+                                    wall_info = self.game_adapter.game.marrow_dike_tiles[pos_tuple]
+                                    if 'owner' in wall_info and wall_info['owner']:
+                                        # Use owner's player color for outline
+                                        if wall_info['owner'].player == 1:
+                                            outline_color = (0, 255, 100)  # Green
+                                        else:
+                                            outline_color = (100, 150, 255)  # Blue
+
+                                        # Draw outline around the tile (same as units)
+                                        pygame.draw.rect(surface, outline_color, rect, 2)
                     else:
                         # Fallback: draw a colored rectangle to indicate terrain/furniture
                         # Use different colors for different types

@@ -386,7 +386,17 @@ class MarrowDikeSkill(ActiveSkill):
         # Create a dictionary to track tiles that need to be restored later
         if not hasattr(game, 'previous_terrain'):
             game.previous_terrain = {}
-        
+
+        # Set up interior tracking BEFORE moving units so deaths count toward DOMINION
+        for tile_y, tile_x in dike_interior:
+            tile = (tile_y, tile_x)
+            # Pre-establish interior tracking so pull damage deaths count for DOMINION
+            game.marrow_dike_interior[tile] = {
+                'owner': user,
+                'duration': self.duration,
+                'upgraded': self.upgraded
+            }
+
         # First, identify and move units on the perimeter with improved pull logic
         units_to_move = []
         unit_movements = []  # Store original and new positions for animation
@@ -427,12 +437,12 @@ class MarrowDikeSkill(ActiveSkill):
                         'dx': new_x - tile_x
                     })
         
-        # Move units to inside the dike
+        # Move units to inside the dike and deal pull damage
         for movement in unit_movements:
             unit = movement['unit']
             from_y, from_x = movement['from']
             new_y, new_x = movement['to']
-            
+
             # Double-check the position is still available (should be due to reservation system)
             if not game.get_unit_at(new_y, new_x):
                 # Log the movement
@@ -442,10 +452,29 @@ class MarrowDikeSkill(ActiveSkill):
                     player=user.player,
                     target_name=unit.get_display_name()
                 )
-                
+
                 # Move the unit
                 unit.y = new_y
                 unit.x = new_x
+
+                # Deal pull damage (3 damage, respects defense, min 1)
+                pull_damage = 3
+                actual_damage = max(1, pull_damage - unit.get_effective_stats()['defense'])
+                previous_hp = unit.hp
+                unit.hp = max(0, unit.hp - actual_damage)
+
+                # Log the pull damage
+                message_log.add_message(
+                    f"{unit.get_display_name()} tumbles down the edge of the Marrow Dike for {actual_damage} damage.",
+                    MessageType.ABILITY,
+                    player=user.player,
+                    target_name=unit.get_display_name()
+                )
+
+                # Check if unit was killed by pull damage
+                if unit.hp <= 0 and previous_hp > 0:
+                    # Use centralized death handling - this will trigger DOMINION since unit is now inside
+                    game.handle_unit_death(unit, user, cause="marrow_dike_pull", ui=ui)
         
         # Now store the previous terrain and place the dike walls as actual terrain
         for tile_y, tile_x in dike_tiles:
@@ -483,7 +512,7 @@ class MarrowDikeSkill(ActiveSkill):
                 'hp': 2 if self.upgraded else 1  # 2 HP when upgraded, 1 HP otherwise
             }
         
-        # Track interior tiles for Dominion passive detection
+        # Update interior tiles for blood plasma terrain (tracking already set up earlier)
         for tile_y, tile_x in dike_interior:
             tile = (tile_y, tile_x)
 
@@ -495,22 +524,6 @@ class MarrowDikeSkill(ActiveSkill):
                     game.previous_terrain[tile] = current_terrain
                 # Place blood plasma
                 game.map.set_terrain_at(tile_y, tile_x, TerrainType.BLOOD_PLASMA)
-
-            # Check if this tile was pre-established during turn resolution
-            if tile in game.marrow_dike_interior and game.marrow_dike_interior[tile].get('pre_established', False):
-                # Update the pre-established tracking with final values - DOMINION tracking officially begins now
-                game.marrow_dike_interior[tile].update({
-                    'duration': self.duration,
-                    'upgraded': self.upgraded,
-                    'pre_established': False  # Mark as no longer pre-established - now "real" tracking
-                })
-            else:
-                # Associate this interior tile with the dike - DOMINION tracking begins now
-                game.marrow_dike_interior[tile] = {
-                    'owner': user,
-                    'duration': self.duration,
-                    'upgraded': self.upgraded
-                }
         
         # Log the skill activation
         if self.upgraded:

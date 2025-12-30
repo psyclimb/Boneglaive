@@ -53,22 +53,27 @@ class DischargeSkill(ActiveSkill):
             return False
         if not game or not target_pos:
             return False
-            
+
         # Check if position is valid and passable
         if not game.is_valid_position(target_pos[0], target_pos[1]):
             return False
-            
+
         # Check if target position is passable
         if not game.map.is_passable(target_pos[0], target_pos[1]):
             return False
-            
+
         # Use the correct starting position (current position or planned move position)
         from_y = user.y
         from_x = user.x
-        
+
         # If unit has a planned move, use that position instead
         if user.move_target:
             from_y, from_x = user.move_target
+
+        # Check distance - must be at least 2 tiles away (not adjacent)
+        distance = game.chess_distance(from_y, from_x, target_pos[0], target_pos[1])
+        if distance < 2:
+            return False
             
         # Calculate vector components to ensure this is a straight line
         # Expedite only works in cardinal directions (horizontal, vertical, or diagonal)

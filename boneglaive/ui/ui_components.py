@@ -751,13 +751,13 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'EXPEDITE (Active) [Key: E]',
-                        'description': 'The MANDIBLE FOREMAN rushes forward up to 4 tiles in a straight line, hydraulic systems screaming, stopping at the first enemy encountered. The collision deals 6 damage and immediately clamps the target in Viseroy jaws. This aggressive repositioning skill combines gap-closing with guaranteed trap application.',
+                        'description': 'The MANDIBLE FOREMAN rushes forward up to 4 tiles in a straight line, hydraulic systems screaming, stopping at the first enemy encountered. The collision deals 6 damage and immediately clamps the target in Viseroy jaws. This aggressive repositioning skill combines gap-closing with guaranteed trap application. Cannot target adjacent enemies—requires at least 1 tile of separation to build momentum.',
                         'details': [
                             'Type: Active',
-                            'Range: 4',
+                            'Range: 4 (minimum 2 tiles)',
                             'Damage: 6',
                             'Cooldown: 3 turns',
-                            'Special: Must move in straight lines (cardinal or diagonal); stops at first enemy; applies Viseroy trap'
+                            'Special: Must move in straight lines (cardinal or diagonal); stops at first enemy; applies Viseroy trap; cannot target adjacent units'
                         ]
                     },
                     {
