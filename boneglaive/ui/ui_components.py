@@ -6562,3 +6562,136 @@ class UnitSelectionMenuComponent(UIComponent):
                 # Draw normally
                 self.renderer.draw_text(y_pos, menu_x, f"  {unit_name}")
     
+
+
+class UpgradeMenuComponent(UIComponent):
+    """Component for displaying and selecting upgrades during gameplay."""
+
+    def __init__(self, renderer, game_ui):
+        super().__init__(renderer, game_ui)
+        self.show_upgrade_menu = False
+        self.selected_unit = None
+        self.available_upgrades = []
+        self.scroll_offset = 0
+
+    def open_menu(self, unit):
+        """Open upgrade menu for the specified unit."""
+        from boneglaive.game.upgrades import UpgradeManager
+
+        self.selected_unit = unit
+        self.available_upgrades = UpgradeManager.get_available_upgrades(unit)
+
+        if len(self.available_upgrades) == 0:
+            # Set UI message instead of logging to message log
+            self.game_ui.message = "No upgrades available for this unit."
+            return
+
+        self.show_upgrade_menu = True
+        self.scroll_offset = 0
+
+    def close_menu(self):
+        """Close the upgrade menu."""
+        self.show_upgrade_menu = False
+        self.selected_unit = None
+        self.available_upgrades = []
+
+    def draw(self):
+        """Draw the upgrade menu overlay."""
+        if not self.show_upgrade_menu or not self.selected_unit:
+            return
+
+        # Get terminal dimensions
+        max_y, max_x = self.renderer.stdscr.getmaxyx()
+
+        # Calculate menu dimensions (centered)
+        menu_width = 70
+        menu_height = min(20, len(self.available_upgrades) + 5)
+        start_y = (max_y - menu_height) // 2
+        start_x = (max_x - menu_width) // 2
+
+        # Draw menu background
+        for y in range(start_y, start_y + menu_height):
+            self.renderer.stdscr.addstr(y, start_x, " " * menu_width, curses.A_REVERSE)
+
+        # Draw title
+        title = f"Upgrade {self.selected_unit.get_display_name()}"
+        self.renderer.stdscr.addstr(start_y + 1, start_x + 2, title, curses.A_BOLD | curses.A_REVERSE)
+
+        # Draw upgrade points available
+        game = self.game_ui.game
+        points = game.player1_upgrade_points if self.selected_unit.player == 1 else game.player2_upgrade_points
+        points_text = f"Upgrade Points: {points}"
+        self.renderer.stdscr.addstr(start_y + 2, start_x + 2, points_text, curses.A_REVERSE)
+
+        # Draw available upgrades
+        hotkeys = ['Q', 'W', 'E', 'R', 'T', 'Y']  # Up to 6 upgrades
+        for i, upgrade in enumerate(self.available_upgrades):
+            if i >= len(hotkeys):
+                break  # Max 6 upgrades displayable
+
+            y_pos = start_y + 4 + (i * 2)
+            hotkey = hotkeys[i]
+            upgrade_text = f"[{hotkey}] {upgrade['name']}"
+            desc_text = f"    {upgrade['description']}"
+
+            # Draw upgrade option
+            self.renderer.stdscr.addstr(y_pos, start_x + 2, upgrade_text, curses.A_BOLD | curses.A_REVERSE)
+            if y_pos + 1 < start_y + menu_height - 2:
+                self.renderer.stdscr.addstr(y_pos + 1, start_x + 2, desc_text[:menu_width-4], curses.A_REVERSE)
+
+        # Draw instructions
+        instructions = "[ESC] Cancel"
+        self.renderer.stdscr.addstr(
+            start_y + menu_height - 2,
+            start_x + 2,
+            instructions,
+            curses.A_DIM | curses.A_REVERSE
+        )
+
+        self.renderer.stdscr.refresh()
+
+    def handle_input(self, key: int) -> bool:
+        """Handle input for upgrade menu."""
+        if not self.show_upgrade_menu:
+            return False
+
+        # ESC to cancel
+        if key == 27:  # ESC
+            self.close_menu()
+            return True
+
+        # Hotkey selection (Q=0, W=1, E=2, R=3, T=4, Y=5)
+        hotkey_map = {
+            ord('q'): 0, ord('Q'): 0,
+            ord('w'): 1, ord('W'): 1,
+            ord('e'): 2, ord('E'): 2,
+            ord('r'): 3, ord('R'): 3,
+            ord('t'): 4, ord('T'): 4,
+            ord('y'): 5, ord('Y'): 5,
+        }
+
+        if key in hotkey_map:
+            idx = hotkey_map[key]
+            if idx < len(self.available_upgrades):
+                # Apply upgrade
+                upgrade = self.available_upgrades[idx]
+                game = self.game_ui.game
+                success = game.apply_unit_upgrade(self.selected_unit, upgrade['skill_name'])
+
+                if success:
+                    message_log.add_message(
+                        f"Upgraded {upgrade['skill_name']}!",
+                        MessageType.SYSTEM,
+                        player=self.selected_unit.player
+                    )
+                    self.close_menu()
+                else:
+                    message_log.add_message(
+                        "Failed to apply upgrade.",
+                        MessageType.WARNING,
+                        player=self.selected_unit.player
+                    )
+
+                return True
+
+        return False

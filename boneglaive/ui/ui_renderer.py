@@ -265,7 +265,10 @@ class UIRenderer:
             message_log_component.draw_log_history_screen()
             self.renderer.refresh()
             return
-            
+
+        # If upgrade menu is being shown, draw everything but with upgrade menu on top
+        # (don't return early - let the game board render first)
+
         # If setup instructions are being shown, draw them and return
         if self.game_ui.game.setup_phase and mode_manager.show_setup_instructions:
             mode_manager.draw_setup_instructions()
@@ -318,14 +321,16 @@ class UIRenderer:
             mode_text = f"MODE: {display_mode.upper()}"
             self.renderer.draw_text(header_y, len(player_text) + 4, mode_text, 1)
             
-            # Draw GP scores
+            # Draw GP scores and upgrade points
             gp_text = f"GP:{self.game_ui.game.player1_gp}|{self.game_ui.game.player2_gp}"
-            self.renderer.draw_text(header_y, len(player_text) + len(mode_text) + 6, gp_text, 1)
+            up_text = f" UP:{self.game_ui.game.player1_upgrade_points}|{self.game_ui.game.player2_upgrade_points}"
+            combined_text = gp_text + up_text
+            self.renderer.draw_text(header_y, len(player_text) + len(mode_text) + 6, combined_text, 1)
             
             # Add turn indicator for network play
             if self.game_ui.multiplayer.is_network_multiplayer():
                 turn_text = "YOUR TURN" if self.game_ui.multiplayer.is_current_player_turn() else "WAITING"
-                self.renderer.draw_text(header_y, len(player_text) + len(mode_text) + len(gp_text) + 8, turn_text, 1, curses.A_BOLD)
+                self.renderer.draw_text(header_y, len(player_text) + len(mode_text) + len(combined_text) + 8, turn_text, 1, curses.A_BOLD)
         
         # Add chat mode indicator if active
         if chat_component.chat_mode:
@@ -1640,7 +1645,11 @@ class UIRenderer:
         # Draw unit selection menu during setup phase
         if self.game_ui.game.setup_phase:
             self.game_ui.unit_selection_menu.draw()
-        
+
+        # Draw upgrade menu on top if open (highest z-order)
+        if self.game_ui.upgrade_menu.show_upgrade_menu:
+            self.game_ui.upgrade_menu.draw()
+
         self.renderer.refresh()
     
     def _draw_unit_status_bar(self):

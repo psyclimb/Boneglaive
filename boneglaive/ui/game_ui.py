@@ -24,7 +24,8 @@ from boneglaive.ui.ui_components import (
     MessageLogComponent, HelpComponent, UnitHelpComponent, ChatComponent,
     CursorManager, GameModeManager, DebugComponent,
     AnimationComponent, InputManager, ActionMenuComponent,
-    GameOverPrompt, ConcedePrompt, UnitSelectionMenuComponent
+    GameOverPrompt, ConcedePrompt, UnitSelectionMenuComponent,
+    UpgradeMenuComponent
 )
 from boneglaive.ui.ui_renderer import UIRenderer
 
@@ -113,6 +114,7 @@ class GameUI:
         self.game_over_prompt = GameOverPrompt(self.renderer, self)  # Add game over prompt
         self.concede_prompt = ConcedePrompt(self.renderer, self)  # Add concede prompt
         self.unit_selection_menu = UnitSelectionMenuComponent(self.renderer, self)
+        self.upgrade_menu = UpgradeMenuComponent(self.renderer, self)  # Add upgrade menu
         self.input_manager = InputManager(self.renderer, self, self.input_handler)
         self.ui_renderer = UIRenderer(self.renderer, self)
         
@@ -400,6 +402,37 @@ class GameUI:
                 return True
             # Otherwise, let it pass through as movement
             
+        # Check if upgrade menu is open first (highest priority)
+        if self.upgrade_menu.show_upgrade_menu:
+            handled = self.upgrade_menu.handle_input(key)
+            if handled:
+                self.draw_board()  # Always draw after handling input
+                return True
+
+        # Check for U key to open upgrade menu
+        if key == ord('u') or key == ord('U'):
+            if not self.game.setup_phase and self.cursor_manager.selected_unit:
+                selected_unit = self.cursor_manager.selected_unit
+                # Only allow upgrading your own units on your turn
+                if selected_unit.player == self.game.current_player:
+                    self.upgrade_menu.open_menu(selected_unit)
+                    self.draw_board()
+                    return True
+                else:
+                    message_log.add_message(
+                        "You can only upgrade your own units.",
+                        MessageType.WARNING,
+                        player=self.game.current_player
+                    )
+                    return True
+            elif not self.game.setup_phase:
+                message_log.add_message(
+                    "Select a unit to upgrade.",
+                    MessageType.WARNING,
+                    player=self.game.current_player
+                )
+                return True
+
         # Check if action menu wants to handle direct key presses first (for m/a/s keys)
         # But this won't block other inputs like movement keys
         if self.action_menu_component.visible:
