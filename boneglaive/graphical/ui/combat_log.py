@@ -27,6 +27,11 @@ LOG_HEIGHT = 90  # Maximum height fitting below map
 LOG_PADDING = 8
 LINE_HEIGHT = 16  # Tighter line spacing
 
+# Pre-compile regex patterns for performance (don't recompile every frame!)
+import re
+DAMAGE_PATTERN = re.compile(r'#DAMAGE_(\d+)#')
+HEAL_PATTERN = re.compile(r'#HEAL_(\d+)#')
+
 
 class CombatLog:
     """Combat log UI component showing recent game events."""
@@ -38,6 +43,10 @@ class CombatLog:
         self.scroll_offset = 0
         self.auto_scroll = True
         self.last_synced_timestamp = 0.0  # Track last message timestamp to avoid duplicates
+
+        # Cache background panel surface (create once, reuse every frame)
+        self._cached_panel = None
+        self._cached_panel_size = None
 
     def add_message(self, text: str, msg_type: str = "system", player: Optional[int] = None):
         """
@@ -191,11 +200,16 @@ class CombatLog:
         log_height = height if height is not None else LOG_HEIGHT
         log_width = width if width is not None else LOG_WIDTH
 
-        # Draw background panel
+        # Draw background panel using cached surface
         panel_rect = pygame.Rect(x, y, log_width, log_height)
-        panel_surface = pygame.Surface((panel_rect.width, panel_rect.height), pygame.SRCALPHA)
-        panel_surface.fill((*COLOR_BG, 220))
-        surface.blit(panel_surface, (panel_rect.x, panel_rect.y))
+
+        # Create or reuse cached panel surface
+        if self._cached_panel is None or self._cached_panel_size != (log_width, log_height):
+            self._cached_panel = pygame.Surface((log_width, log_height), pygame.SRCALPHA)
+            self._cached_panel.fill((*COLOR_BG, 220))
+            self._cached_panel_size = (log_width, log_height)
+
+        surface.blit(self._cached_panel, (panel_rect.x, panel_rect.y))
 
         # Draw border
         pygame.draw.rect(surface, (100, 100, 100), panel_rect, 2)
@@ -221,13 +235,9 @@ class CombatLog:
             text = message['text']
             max_width = log_width - (LOG_PADDING * 2)
 
-            # Check for damage or heal number placeholders (matching ASCII version)
-            import re
-            damage_pattern = re.compile(r'#DAMAGE_(\d+)#')
-            heal_pattern = re.compile(r'#HEAL_(\d+)#')
-
-            damage_match = damage_pattern.search(text)
-            heal_match = heal_pattern.search(text)
+            # Check for damage or heal number placeholders (using pre-compiled patterns)
+            damage_match = DAMAGE_PATTERN.search(text)
+            heal_match = HEAL_PATTERN.search(text)
 
             if damage_match:
                 # Split text around damage number

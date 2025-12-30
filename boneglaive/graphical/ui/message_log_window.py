@@ -29,6 +29,11 @@ LINE_HEIGHT = 20
 PADDING = 20
 SCROLLBAR_WIDTH = 12
 
+# Pre-compile regex patterns for performance
+import re
+DAMAGE_PATTERN = re.compile(r'#DAMAGE_(\d+)#')
+HEAL_PATTERN = re.compile(r'#HEAL_(\d+)#')
+
 
 class MessageLogWindow:
     """Expanded message log window with full message history."""
@@ -40,6 +45,10 @@ class MessageLogWindow:
         self.messages: List[Dict] = []
         self.scroll_offset = 0  # Number of lines scrolled from bottom
         self.max_visible_lines = 30
+
+        # Cache overlay surface (only when visible)
+        self._cached_overlay = None
+        self._cached_overlay_size = None
 
     def show(self, messages: List[Dict]):
         """
@@ -55,6 +64,9 @@ class MessageLogWindow:
     def hide(self):
         """Hide the window."""
         self.visible = False
+        # Clear cached overlay to free memory when not visible
+        self._cached_overlay = None
+        self._cached_overlay_size = None
 
     def handle_scroll(self, direction: int):
         """
@@ -123,10 +135,13 @@ class MessageLogWindow:
         window_x = (screen_width - window_width) // 2
         window_y = (screen_height - window_height) // 2
 
-        # Draw semi-transparent overlay
-        overlay = pygame.Surface((screen_width, screen_height), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 180))
-        surface.blit(overlay, (0, 0))
+        # Draw semi-transparent overlay (cached)
+        if self._cached_overlay is None or self._cached_overlay_size != (screen_width, screen_height):
+            self._cached_overlay = pygame.Surface((screen_width, screen_height), pygame.SRCALPHA)
+            self._cached_overlay.fill((0, 0, 0, 180))
+            self._cached_overlay_size = (screen_width, screen_height)
+
+        surface.blit(self._cached_overlay, (0, 0))
 
         # Draw window background
         window_rect = pygame.Rect(window_x, window_y, window_width, window_height)
@@ -160,17 +175,14 @@ class MessageLogWindow:
 
         # Draw messages with special handling for damage/heal numbers
         y = content_y
-        import re
-        damage_pattern = re.compile(r'#DAMAGE_(\d+)#')
-        heal_pattern = re.compile(r'#HEAL_(\d+)#')
 
         for line_data in visible_lines:
             text = line_data['text']
             color = line_data['color']
 
-            # Check for damage or heal number placeholders (matching ASCII version)
-            damage_match = damage_pattern.search(text)
-            heal_match = heal_pattern.search(text)
+            # Check for damage or heal number placeholders (using pre-compiled patterns)
+            damage_match = DAMAGE_PATTERN.search(text)
+            heal_match = HEAL_PATTERN.search(text)
 
             pos_x = window_x + PADDING
 

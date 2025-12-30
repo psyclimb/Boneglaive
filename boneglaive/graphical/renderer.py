@@ -233,6 +233,10 @@ class GraphicalRenderer:
         self.fps_values = []  # Rolling window of recent FPS values
         self.fps_display = 0  # Smoothed FPS to display
 
+        # Cached surfaces for performance (avoid creating SRCALPHA surfaces every frame)
+        self._selection_highlight_cache = None
+        self._last_selection_alpha = None
+
         self.running = True
         self.paused = False
 
@@ -3315,13 +3319,19 @@ class GraphicalRenderer:
         pulse = (math.sin(time.time() * 3) + 1) / 2  # 0 to 1
         alpha = int(100 + pulse * 100)  # 100 to 200
 
-        # Create semi-transparent highlight
-        highlight_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
-        pygame.draw.rect(highlight_surf, (*COLOR_SELECTION, alpha), highlight_surf.get_rect())
+        # Create or reuse cached highlight surface (performance optimization)
+        if self._selection_highlight_cache is None or self._last_selection_alpha != alpha:
+            self._selection_highlight_cache = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+            self._selection_highlight_cache.fill((0, 0, 0, 0))  # Clear
+            pygame.draw.rect(self._selection_highlight_cache, (*COLOR_SELECTION, alpha),
+                           self._selection_highlight_cache.get_rect())
+            # Draw border
+            border_color = (*COLOR_SELECTION, 255)
+            pygame.draw.rect(self._selection_highlight_cache, border_color,
+                           self._selection_highlight_cache.get_rect(), 3)
+            self._last_selection_alpha = alpha
 
-        # Draw border
-        border_color = (*COLOR_SELECTION, 255)
-        pygame.draw.rect(highlight_surf, border_color, highlight_surf.get_rect(), 3)
+        highlight_surf = self._selection_highlight_cache
 
         # Position on grid (current position)
         tile_x = GRID_OFFSET_X + grid_x * TILE_SIZE
