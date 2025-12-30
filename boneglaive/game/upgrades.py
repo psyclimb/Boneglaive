@@ -64,6 +64,32 @@ SKILL_UPGRADES = {
             "cost": 1
         }
     },
+    "GRAYMAN": {
+        "Stasiality": {
+            "name": "Stasiality",
+            "description": "Adds an active ability to enter stasis for 1 turn. Invulnerable but cannot act.",
+            "type": "buff",
+            "cost": 1
+        },
+        "Estrange": {
+            "name": "Estrange",
+            "description": "Estranging an already estranged target banishes them and spawns a GRAYMAN echo.",
+            "type": "buff",
+            "cost": 1
+        },
+        "Delta Config": {
+            "name": "Delta Config",
+            "description": "Abducts all adjacent enemies and takes them to the target location.",
+            "type": "buff",
+            "cost": 1
+        },
+        "Græ Exchange": {
+            "name": "Græ Exchange",
+            "description": "Echoes can use Græ Exchange.",
+            "type": "buff",
+            "cost": 1
+        }
+    },
     # More units can be added here
 }
 
