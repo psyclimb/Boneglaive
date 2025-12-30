@@ -6604,24 +6604,27 @@ class UpgradeMenuComponent(UIComponent):
         max_y, max_x = self.renderer.stdscr.getmaxyx()
 
         # Calculate menu dimensions that scale with terminal size
-        # Use 80% of width or max 80 chars, whichever is smaller
-        menu_width = min(80, int(max_x * 0.8))
+        # Use 60% of width or max 100 chars (increased from 80), whichever is smaller
+        menu_width = min(100, int(max_x * 0.6))
         # Ensure minimum width
         menu_width = max(40, menu_width)
 
-        # Calculate height based on content (2 lines per upgrade + header/footer)
-        content_height = len(self.available_upgrades) * 2 + 8
-        # Use up to 80% of terminal height
-        max_menu_height = int(max_y * 0.8)
+        # Calculate height based on content - need more space for wrapped text
+        # Estimate 3 lines per upgrade to account for wrapping (increased from 2)
+        content_height = len(self.available_upgrades) * 3 + 8
+        # Use up to 90% of terminal height (increased from 80%)
+        max_menu_height = int(max_y * 0.9)
         menu_height = min(content_height, max_menu_height)
 
-        # Position: centered vertically but shifted up slightly
-        start_y = max(0, (max_y - menu_height) // 2 - 3)
-        start_x = max(0, (max_x - menu_width) // 2)
+        # Position: top-left corner (offset slightly from edges)
+        start_y = 2
+        start_x = 2
 
         # Ensure menu fits on screen
         if start_y + menu_height > max_y:
-            start_y = max(0, max_y - menu_height)
+            menu_height = max_y - start_y - 1
+        if start_x + menu_width > max_x:
+            menu_width = max_x - start_x - 1
 
         # Draw menu background
         try:
@@ -6673,37 +6676,45 @@ class UpgradeMenuComponent(UIComponent):
             except curses.error:
                 pass
 
-            # Wrap description text if needed
+            # Wrap description text if needed - draw ALL wrapped lines
             if current_y + 1 < max_y and current_y + 1 < start_y + menu_height - 2:
-                # Simple text wrapping
-                if len(desc_text) <= text_width:
-                    try:
-                        self.renderer.stdscr.addstr(current_y + 1, start_x + 2, desc_text, curses.A_REVERSE)
-                    except curses.error:
-                        pass
-                else:
-                    # Wrap long descriptions
-                    wrapped_lines = []
-                    words = desc_text.split()
-                    current_line = ""
-                    for word in words:
-                        if len(current_line) + len(word) + 1 <= text_width:
-                            current_line += word + " "
-                        else:
-                            if current_line:
-                                wrapped_lines.append(current_line.rstrip())
-                            current_line = "    " + word + " "
-                    if current_line:
-                        wrapped_lines.append(current_line.rstrip())
+                # Wrap long descriptions
+                wrapped_lines = []
+                words = desc_text.split()
+                current_line = ""
+                indent = "    "
 
-                    # Draw first wrapped line
-                    if wrapped_lines and current_y + 1 < max_y:
+                for word in words:
+                    # Calculate potential line length with this word
+                    test_line = current_line + word + " " if current_line else indent + word + " "
+
+                    if len(test_line.rstrip()) <= text_width:
+                        current_line = test_line
+                    else:
+                        # Line would be too long, save current line and start new one
+                        if current_line:
+                            wrapped_lines.append(current_line.rstrip())
+                        current_line = indent + word + " "
+
+                # Don't forget the last line
+                if current_line:
+                    wrapped_lines.append(current_line.rstrip())
+
+                # Draw all wrapped lines (not just the first one)
+                lines_drawn = 0
+                for j, line in enumerate(wrapped_lines):
+                    line_y = current_y + 1 + j
+                    if line_y < max_y and line_y < start_y + menu_height - 2:
                         try:
-                            self.renderer.stdscr.addstr(current_y + 1, start_x + 2, wrapped_lines[0], curses.A_REVERSE)
+                            self.renderer.stdscr.addstr(line_y, start_x + 2, line, curses.A_REVERSE)
+                            lines_drawn += 1
                         except curses.error:
                             pass
+                    else:
+                        break  # No more room
 
-            current_y += 2
+            # Advance current_y by number of lines used (hotkey line + wrapped description lines + spacing)
+            current_y += 1 + lines_drawn + 1  # +1 for upgrade name, +lines_drawn for desc, +1 for spacing
 
         # Draw instructions at bottom
         instructions = "[ESC] Cancel"

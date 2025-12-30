@@ -15,25 +15,51 @@ SKILL_UPGRADES = {
     "GLAIVEMAN": {
         "Autoclave": {
             "name": "Autoclave",
-            "description": "After Autoclave triggers, another mini Autoclave is prepared.",
+            "description": "After Autoclave triggers, another glaive counter attack is prepared.",
             "type": "buff",
             "cost": 1
         },
         "Pry": {
             "name": "Pry",
-            "description": "Movement penalty increases from -1 to -2.",
+            "description": "Move penalty increased from -1 to -2.",
             "type": "buff",
             "cost": 1
         },
         "Vault": {
             "name": "Vault",
-            "description": "Range increases from 2 to 3.",
+            "description": "Range increased from 2 to 3. Added landing area damage.",
             "type": "buff",
             "cost": 1
         },
         "Judgement": {
             "name": "Judgement",
             "description": "If Judgement kills a target, cooldown reduced by 2.",
+            "type": "buff",
+            "cost": 1
+        }
+    },
+    "MANDIBLE_FOREMAN": {
+        "Viseroy": {
+            "name": "Viseroy",
+            "description": "Adds a 1 turn disarm when trap is applied. Disarm has a 3 turn cooldown.",
+            "type": "buff",
+            "cost": 1
+        },
+        "Expedite": {
+            "name": "Expedite",
+            "description": "Range increased from 4 to 5. Grants +2 defense for 1 turn after use.",
+            "type": "buff",
+            "cost": 1
+        },
+        "Site Inspection": {
+            "name": "Site Inspection",
+            "description": "Enhanced bonuses at all terrain levels. Adds +1 defense to clear areas. Obstructed areas now grant benefits.",
+            "type": "buff",
+            "cost": 1
+        },
+        "Jawline": {
+            "name": "Jawline",
+            "description": "Transforms into a directional 3x9 tile line. Blocked by terrain.",
             "type": "buff",
             "cost": 1
         }

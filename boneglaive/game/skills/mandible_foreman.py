@@ -497,7 +497,7 @@ class SiteInspectionSkill(ActiveSkill):
         super().__init__(
             name="Site Inspection",
             key="S",
-            description="Survey a 3x3 area for tactical analysis. No terrain: +1 attack & movement. 1 terrain: +1 attack only. 2+ terrain: no effect.",
+            description="Survey a 3x3 area for tactical analysis. No terrain: +1 attack & movement. 1 terrain: +1 movement only. 2+ terrain: no effect.",
             target_type=TargetType.AREA,
             cooldown=3,
             range_=3,
@@ -698,11 +698,11 @@ class SiteInspectionSkill(ActiveSkill):
                             effect_message = f"{ally.get_display_name()} gains +1 attack and movement from clear Site Inspection"
                             effect_symbol = "++"
                         else:  # impassable_count == 1
-                            # Partial effect: +1 attack only
+                            # Partial effect: +1 movement only
                             effect_type = "partial"
-                            attack_bonus = 1
-                            move_bonus = 0
-                            effect_message = f"{ally.get_display_name()} gains +1 attack from partially obstructed Site Inspection"
+                            attack_bonus = 0
+                            move_bonus = 1
+                            effect_message = f"{ally.get_display_name()} gains +1 movement from partially obstructed Site Inspection"
                             effect_symbol = "+1"
                         
                         # Check if ally already has any site inspection status effect
