@@ -80,7 +80,10 @@ class Unit:
         
         # Action order tracking (lower is earlier)
         self.action_timestamp = 0
-        
+
+        # Upgrade tracking
+        self.upgraded_skills = set()  # Set of skill names that have been upgraded
+
         # Status effects
         self.was_pried = False  # Track if this unit was affected by Pry skill
         self.trapped_by = None  # Reference to MANDIBLE_FOREMAN that trapped this unit, None if not trapped
@@ -866,6 +869,26 @@ class Unit:
                 MessageType.SYSTEM,
                 player=opposing_player
             )
+
+            # Check if player crossed any upgrade point thresholds
+            for threshold in self._game.upgrade_point_thresholds:
+                # Award point if threshold reached and not already awarded
+                if gp_total >= threshold and threshold not in self._game.upgrade_points_awarded[opposing_player]:
+                    # Award upgrade point
+                    if opposing_player == 1:
+                        self._game.player1_upgrade_points += 1
+                    else:
+                        self._game.player2_upgrade_points += 1
+
+                    # Mark threshold as awarded
+                    self._game.upgrade_points_awarded[opposing_player].add(threshold)
+
+                    # Log upgrade point award
+                    message_log.add_message(
+                        f"{winner_name} earned 1 upgrade point! ({gp_total} GP)",
+                        MessageType.SYSTEM,
+                        player=opposing_player
+                    )
 
             # Create DeadUnit entry for respawn
             dead_unit = DeadUnit(

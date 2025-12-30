@@ -53,6 +53,12 @@ class Game:
         self.dead_units = []  # List of DeadUnit objects awaiting respawn
         self.pending_respawns = {1: [], 2: []}  # Respawns queued for execution phase
 
+        # Upgrade System
+        self.player1_upgrade_points = 0
+        self.player2_upgrade_points = 0
+        self.upgrade_point_thresholds = [2, 4]  # GP thresholds for earning upgrade points
+        self.upgrade_points_awarded = {1: set(), 2: set()}  # Track which thresholds already awarded per player
+
         # Graphical mode callbacks
         # Called before status effects are cleared - allows detection before removal
         self.pre_status_clear_callback = None
@@ -99,6 +105,20 @@ class Game:
             The player's display name, or "Player {num}" as fallback
         """
         return self.player_names.get(player_num, f"Player {player_num}")
+
+    def apply_unit_upgrade(self, unit, skill_name: str) -> bool:
+        """
+        Apply an upgrade to a unit. Called from UI when player confirms upgrade.
+
+        Args:
+            unit: The unit to upgrade
+            skill_name: Name of the skill to upgrade
+
+        Returns:
+            True if successful, False otherwise
+        """
+        from boneglaive.game.upgrades import UpgradeManager
+        return UpgradeManager.apply_upgrade(unit, skill_name, self)
 
     def change_map(self, new_map_name):
         """
