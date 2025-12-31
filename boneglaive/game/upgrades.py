@@ -186,6 +186,26 @@ SKILL_UPGRADES = {
             "description": "Shell continues through a mirrored underground parabola. Second explosion swaps furniture positions with enemy positions from the first explosion.",
             "type": "buff",
             "cost": 1
+        },
+        "Fragcrest": {
+            "name": "Fragcrest",
+            "description": "Turns into a 5x5 self-targeted AOE.",
+            "type": "sidegrade",
+            "cost": 1
+        }
+    },
+    "GAS_MACHINIST": {
+        "Diverge": {
+            "name": "Diverge",
+            "description": "Adds Calibrating Gas as a 3rd vapor: resets all units in cloud to base stats.",
+            "type": "buff",
+            "cost": 1
+        },
+        "Effluvium Lathe": {
+            "name": "Effluvium Lathe",
+            "description": "Target an ally to spawn a leashed vapor weapon. Matches ally's attack. Follows at 1 tile distance.",
+            "type": "buff",
+            "cost": 1
         }
     },
     # More units can be added here
