@@ -90,6 +90,104 @@ SKILL_UPGRADES = {
             "cost": 1
         }
     },
+    "DELPHIC_APPRAISER": {
+        "Valuation Oracle": {
+            "name": "Valuation Oracle",
+            "description": "Enemy units are assigned astral values and treated as furniture.",
+            "type": "buff",
+            "cost": 1
+        },
+        "Market Futures": {
+            "name": "Market Futures",
+            "description": "Imbued furniture provides Valuation Oracle bonuses to adjacent allies.",
+            "type": "buff",
+            "cost": 1
+        },
+        "Auction Curse": {
+            "name": "Auction Curse",
+            "description": "If target's HP equals curse duration when applied and they die while cursed, award +1 GP.",
+            "type": "buff",
+            "cost": 1
+        },
+        "Divine Depreciation": {
+            "name": "Divine Depreciation",
+            "description": "Allows a second reroll of all furniture values.",
+            "type": "buff",
+            "cost": 1
+        }
+    },
+    "POTPOURRIST": {
+        "Melange Eminence": {
+            "name": "Melange Eminence",
+            "description": "Heals 4 HP upon upgrading. Increases max HP from 24 to 28.",
+            "type": "buff",
+            "cost": 1
+        },
+        "Infuse": {
+            "name": "Infuse",
+            "description": "Infused Demilune reduces enemy defense to 0. Infused Granite Geas deals +1 damage.",
+            "type": "buff",
+            "cost": 1
+        },
+        "Demilune": {
+            "name": "Demilune",
+            "description": "After swinging, places bowl of potpourri in the opposite direction, creating a mirrored crescent zone. Enemies within cannot attack POTPOURRIST.",
+            "type": "buff",
+            "cost": 1
+        },
+        "Granite Geas": {
+            "name": "Granite Geas",
+            "description": "Target's attack is treated as 2 when attacking POTPOURRIST.",
+            "type": "buff",
+            "cost": 1
+        }
+    },
+    "INTERFERER": {
+        "Neutron Illuminant": {
+            "name": "Neutron Illuminant",
+            "description": "Flash covers all adjacent tiles.",
+            "type": "buff",
+            "cost": 1
+        },
+        "Neural Shunt": {
+            "name": "Neural Shunt",
+            "description": "Range increased from 1 to 3. No longer flashes.",
+            "type": "buff",
+            "cost": 1
+        },
+        "Karrier Rave": {
+            "name": "Karrier Rave",
+            "description": "Adds an extra hit and gives +1 move while active.",
+            "type": "buff",
+            "cost": 1
+        },
+        "Scalar Node": {
+            "name": "Scalar Node",
+            "description": "Trap damage pierces defense.",
+            "type": "buff",
+            "cost": 1
+        }
+    },
+    "FOWL_CONTRIVANCE": {
+        "Rail Genesis": {
+            "name": "Rail Genesis",
+            "description": "Applies shrapnel to adjacent enemies when rails are destroyed.",
+            "type": "buff",
+            "cost": 1
+        },
+        "Gaussian Dusk": {
+            "name": "Gaussian Dusk",
+            "description": "Leaves a trail of rails in its wake.",
+            "type": "buff",
+            "cost": 1
+        },
+        "Parabol": {
+            "name": "Parabol",
+            "description": "Shell continues through a mirrored underground parabola. Second explosion swaps furniture positions with enemy positions from the first explosion.",
+            "type": "buff",
+            "cost": 1
+        }
+    },
     # More units can be added here
 }
 
