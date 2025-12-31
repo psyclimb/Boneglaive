@@ -84,6 +84,10 @@ class Unit:
         # Upgrade tracking
         self.upgraded_skills = set()  # Set of skill names that have been upgraded
 
+        # TEMPORARY: Auto-upgrade Parabol for testing
+        if unit_type == UnitType.FOWL_CONTRIVANCE:
+            self.upgraded_skills.add("Parabol")
+
         # Status effects
         self.was_pried = False  # Track if this unit was affected by Pry skill
         self.trapped_by = None  # Reference to MANDIBLE_FOREMAN that trapped this unit, None if not trapped

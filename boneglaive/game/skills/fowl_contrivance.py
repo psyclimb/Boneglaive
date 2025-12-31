@@ -556,6 +556,8 @@ class BigArcSkill(ActiveSkill):
         
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Parabol skill during turn resolution."""
+        from boneglaive.game.upgrades import UpgradeManager
+
         # Validate target position
         target_y, target_x = target_pos
         if not game.is_valid_position(target_y, target_x):
@@ -563,53 +565,83 @@ class BigArcSkill(ActiveSkill):
 
         # Clear the parabol indicator when skill is executed
         user.parabol_indicator = None
-            
+
+        # Check if skill is upgraded
+        is_upgraded = UpgradeManager.is_skill_upgraded(user, "Parabol")
+
         # Generate the area of effect (3x3 area centered on target_pos)
         affected_positions = []
         for dy in range(-1, 2):  # -1, 0, 1
             for dx in range(-1, 2):  # -1, 0, 1
                 pos_y, pos_x = target_y + dy, target_x + dx
-                
+
                 # Check if position is valid
                 if game.is_valid_position(pos_y, pos_x):
                     # Determine if this is primary target (center) or secondary
                     is_primary = (dy == 0 and dx == 0)
                     affected_positions.append((pos_y, pos_x, is_primary))
-        
+
         # Log the skill activation
         message_log.add_message(
             f"{user.get_display_name()}'s mortar barrage rains down",
             MessageType.ABILITY,
             player=user.player
         )
-        
+
         # Track units hit and damage dealt
         units_hit = 0
         total_damage = 0
         damaged_units = []  # Store units and damage for display after animation
-        
+
+        # UPGRADE: Track furniture and enemy positions for swapping
+        first_explosion_furniture = []  # Positions with furniture terrain
+        first_explosion_enemies = []    # Enemy unit positions
+
+        if is_upgraded:
+            # Scan first explosion area for furniture and enemies
+            for pos_y, pos_x, is_primary in affected_positions:
+                terrain = game.map.get_terrain_at(pos_y, pos_x)
+                # Check if it's furniture terrain
+                furniture_types = [
+                    TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
+                    TerrainType.OTTOMAN, TerrainType.CONSOLE,
+                    TerrainType.CURIOSITY_SHELF, TerrainType.TIFFANY_LAMP,
+                    TerrainType.EASEL, TerrainType.SCULPTURE,
+                    TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
+                    TerrainType.WORKBENCH, TerrainType.COUCH,
+                    TerrainType.TOOLBOX, TerrainType.COT,
+                    TerrainType.HYDRAULIC_PRESS, TerrainType.POTPOURRI_BOWL
+                ]
+                if terrain in furniture_types:
+                    first_explosion_furniture.append((pos_y, pos_x, terrain))
+
+                # Check for enemy units
+                unit = game.get_unit_at(pos_y, pos_x)
+                if unit and unit.is_alive() and unit.player != user.player:
+                    first_explosion_enemies.append((pos_y, pos_x, unit))
+
         # Apply damage to all units in the area
         for pos_y, pos_x, is_primary in affected_positions:
             unit = game.get_unit_at(pos_y, pos_x)
-            
+
             # Damage enemy units in area (no friendly fire)
             if unit and unit.is_alive() and unit.player != user.player:
                 # Calculate damage based on position and unit's defense
                 base_damage = self.primary_damage if is_primary else self.secondary_damage
                 effective_defense = unit.get_effective_stats()['defense']
                 damage = max(1, base_damage - effective_defense)
-                
+
                 # Store previous HP for critical health check
                 previous_hp = unit.hp
-                
+
                 # Apply damage
                 unit.hp = max(0, unit.hp - damage)
                 units_hit += 1
                 total_damage += damage
-                
+
                 # Store unit and damage for later display
                 damaged_units.append((unit, damage))
-                
+
                 # Log the damage
                 damage_type = "primary" if is_primary else "secondary"
                 message_log.add_combat_message(
@@ -620,7 +652,7 @@ class BigArcSkill(ActiveSkill):
                     attacker_player=user.player,
                     target_player=unit.player
                 )
-                
+
                 # Handle death if unit was killed
                 if unit.hp <= 0:
                     game.handle_unit_death(unit, user, cause="ability", ui=ui)
@@ -636,7 +668,135 @@ class BigArcSkill(ActiveSkill):
                 player=user.player
             )
         # Note: Individual unit damage messages are already shown above, no summary needed
-        
+
+        # UPGRADE: Execute second explosion with mirrored parabola
+        second_explosion_damaged = []
+        if is_upgraded:
+            # Calculate direction vector from user to first explosion
+            dist_y = target_y - user.y
+            dist_x = target_x - user.x
+
+            # Calculate half distance (rounded down) for parabolic arc
+            half_dist_y = abs(dist_y) // 2
+            half_dist_x = abs(dist_x) // 2
+
+            # Preserve direction - continues in same direction as original shot
+            direction_y = 1 if dist_y >= 0 else -1
+            direction_x = 1 if dist_x >= 0 else -1
+
+            # Second explosion continues from first explosion point, half the original distance
+            second_center_y = (target_y + (half_dist_y * direction_y)) % game.map.height
+            second_center_x = (target_x + (half_dist_x * direction_x)) % game.map.width
+
+            # Generate second explosion area (3x3 centered on second_center)
+            second_affected_positions = []
+            for dy in range(-1, 2):
+                for dx in range(-1, 2):
+                    pos_y = (second_center_y + dy) % game.map.height
+                    pos_x = (second_center_x + dx) % game.map.width
+                    is_primary = (dy == 0 and dx == 0)
+                    second_affected_positions.append((pos_y, pos_x, is_primary))
+
+            # Log second explosion
+            message_log.add_message(
+                f"The shell continues underground through a mirrored parabola, erupting at ({second_center_y},{second_center_x})",
+                MessageType.ABILITY,
+                player=user.player
+            )
+
+            # Collect units in secondary (non-primary) positions for displacement
+            secondary_explosion_units = []
+
+            # Apply damage to second explosion area
+            for pos_y, pos_x, is_primary in second_affected_positions:
+                # Destroy terrain/furniture at primary impact
+                if is_primary:
+                    terrain = game.map.get_terrain_at(pos_y, pos_x)
+                    destructible_terrain = [
+                        TerrainType.LIMESTONE, TerrainType.PILLAR, TerrainType.MARROW_WALL,
+                        TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK, TerrainType.OTTOMAN,
+                        TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF, TerrainType.TIFFANY_LAMP,
+                        TerrainType.STAINED_STONE, TerrainType.EASEL, TerrainType.SCULPTURE,
+                        TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
+                        TerrainType.HYDRAULIC_PRESS, TerrainType.WORKBENCH, TerrainType.COUCH,
+                        TerrainType.TOOLBOX, TerrainType.COT, TerrainType.CONVEYOR,
+                        TerrainType.MINI_PUMPKIN, TerrainType.POTPOURRI_BOWL
+                    ]
+                    if terrain in destructible_terrain:
+                        terrain_name = terrain.name.lower().replace('_', ' ')
+                        message_log.add_message(
+                            f"The underground explosion obliterates the {terrain_name} at ({pos_y},{pos_x})",
+                            MessageType.ABILITY,
+                            player=user.player
+                        )
+                        game.map.set_terrain_at(pos_y, pos_x, TerrainType.EMPTY)
+
+                unit = game.get_unit_at(pos_y, pos_x)
+
+                # Damage enemy units in area (no friendly fire)
+                if unit and unit.is_alive() and unit.player != user.player:
+                    base_damage = self.primary_damage if is_primary else self.secondary_damage
+                    effective_defense = unit.get_effective_stats()['defense']
+                    damage = max(1, base_damage - effective_defense)
+
+                    previous_hp = unit.hp
+                    unit.hp = max(0, unit.hp - damage)
+
+                    second_explosion_damaged.append((unit, damage))
+
+                    damage_type = "primary" if is_primary else "secondary"
+                    message_log.add_combat_message(
+                        attacker_name=user.get_display_name(),
+                        target_name=unit.get_display_name(),
+                        damage=damage,
+                        ability=f"Parabol Underground ({damage_type})",
+                        attacker_player=user.player,
+                        target_player=unit.player
+                    )
+
+                    if unit.hp <= 0:
+                        game.handle_unit_death(unit, user, cause="ability", ui=ui)
+                    else:
+                        game.check_critical_health(unit, user, previous_hp, ui)
+
+                    # Track secondary area units for displacement
+                    if not is_primary:
+                        secondary_explosion_units.append(unit)
+
+            # Execute displacement: enemies in secondary area of second explosion are randomly displaced to furniture positions from first explosion
+            if first_explosion_furniture and secondary_explosion_units:
+                # Filter to only living units
+                living_secondary_units = [u for u in secondary_explosion_units if u.is_alive()]
+
+                if living_secondary_units:
+                    import random
+
+                    # Randomly pair each secondary unit with a furniture position from first explosion
+                    for unit in living_secondary_units:
+                        if first_explosion_furniture:
+                            # Pick a random furniture position
+                            furn_y, furn_x, furn_terrain = random.choice(first_explosion_furniture)
+
+                            # Save original position
+                            orig_y, orig_x = unit.y, unit.x
+
+                            # Displace unit to furniture position
+                            unit.y = furn_y
+                            unit.x = furn_x
+
+                            # Place furniture at unit's original position
+                            game.map.set_terrain_at(orig_y, orig_x, furn_terrain)
+                            game.map.set_terrain_at(furn_y, furn_x, TerrainType.EMPTY)
+
+                            message_log.add_message(
+                                f"{unit.get_display_name()} is displaced from ({orig_y},{orig_x}) to ({furn_y},{furn_x}), swapping with furniture debris",
+                                MessageType.ABILITY,
+                                player=user.player
+                            )
+
+                            # Remove this furniture position so it's only used once
+                            first_explosion_furniture.remove((furn_y, furn_x, furn_terrain))
+
         # Play mortar barrage animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
             # Get launch animation
@@ -698,12 +858,65 @@ class BigArcSkill(ActiveSkill):
                         ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)
                         ui.renderer.refresh()
                         sleep_with_animation_speed(0.1)
-                    
+
                     # Final damage display (stays visible a bit longer)
                     ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
                     ui.renderer.refresh()
                     sleep_with_animation_speed(0.2)
-        
+
+        # UPGRADE: Show second explosion animations
+        if is_upgraded and ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager') and second_affected_positions:
+            # Show underground travel effect (optional brief pause)
+            sleep_with_animation_speed(0.2)
+
+            # Get impact animation
+            impact_animation = ui.asset_manager.get_skill_animation_sequence('parabol_impact')
+            if not impact_animation:
+                impact_animation = ['*', '#', '@', '%', '~', '.']
+
+            # Show impact animation on all second explosion positions
+            for frame in impact_animation:
+                for pos_y, pos_x, is_primary in second_affected_positions:
+                    color = 5 if is_primary else 6  # Magenta/cyan for underground explosion
+                    ui.renderer.draw_tile(pos_y, pos_x, frame, color)
+                ui.renderer.refresh()
+                sleep_with_animation_speed(0.05)
+
+            # Redraw the board after animation
+            if hasattr(ui, 'draw_board'):
+                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+
+            # Show damage numbers for second explosion
+            if second_explosion_damaged:
+                for unit, damage in second_explosion_damaged:
+                    if unit.is_alive():
+                        # Play impact animation
+                        if hasattr(ui, 'asset_manager'):
+                            impact_animation = ui.asset_manager.get_skill_animation_sequence('parabol_unit_impact')
+                            if not impact_animation:
+                                impact_animation = ['*', '@', '#', '%', '&', '+', '.']
+
+                            ui.renderer.animate_attack_sequence(
+                                unit.y, unit.x,
+                                impact_animation,
+                                5,  # Magenta color for underground explosion
+                                0.1
+                            )
+
+                        # Show damage numbers
+                        damage_text = f"-{damage}"
+
+                        for i in range(3):
+                            ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
+                            attrs = curses.A_BOLD if i % 2 == 0 else 0
+                            ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)
+                            ui.renderer.refresh()
+                            sleep_with_animation_speed(0.1)
+
+                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
+                        ui.renderer.refresh()
+                        sleep_with_animation_speed(0.2)
+
         return True
 
 
