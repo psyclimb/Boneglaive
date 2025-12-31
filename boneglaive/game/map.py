@@ -95,7 +95,7 @@ class GameMap:
         # All furniture types, pillars, limestone, stained stone, and marrow walls are impassable
         # Rails, canyon floor, concrete floor, leaf pits, melange fumes, blood plasma, and mini pumpkins are passable by all units
         return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.CONCRETE_FLOOR, TerrainType.RAIL, TerrainType.LEAF_PIT, TerrainType.MELANGE_FUME, TerrainType.BLOOD_PLASMA, TerrainType.MINI_PUMPKIN]
-    
+
     def can_place_unit(self, y: int, x: int) -> bool:
         """Check if a unit can be placed at this position."""
         terrain = self.get_terrain_at(y, x)
@@ -322,7 +322,7 @@ class GameMap:
         """Check if a rail can be placed at this position."""
         if not (0 <= y < self.height and 0 <= x < self.width):
             return False
-        
+
         terrain = self.get_terrain_at(y, x)
         # Rails can be placed on empty, dust, canyon floor, concrete floor, or existing rail tiles
         # Cannot be placed on blocking terrain or furniture
@@ -349,7 +349,8 @@ class GameMap:
             "ew" for East-West horizontal rails
             "cross" for 4-way junctions
         """
-        if self.get_terrain_at(y, x) != TerrainType.RAIL:
+        terrain = self.get_terrain_at(y, x)
+        if terrain != TerrainType.RAIL:
             return "ns"  # Default fallback
 
         # Check adjacent tiles for rails (N, S, E, W)
@@ -376,6 +377,10 @@ class GameMap:
     def get_rail_original_terrain(self, y: int, x: int) -> TerrainType:
         """Get the original terrain that was at this position before a rail was placed."""
         return self.rail_original_terrain.get((y, x), TerrainType.EMPTY)
+
+    def is_rail_junction(self, y: int, x: int) -> bool:
+        """Check if a position is a rail junction (cross-type rail)."""
+        return self.get_rail_type(y, x) == "cross"
 
     def remove_rail_network(self) -> None:
         """

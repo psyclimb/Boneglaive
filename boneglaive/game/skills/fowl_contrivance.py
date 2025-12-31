@@ -526,8 +526,47 @@ class BigArcSkill(ActiveSkill):
         )
         self.primary_damage = 8
         self.secondary_damage = 5
-        
+
+    def update_range_for_junction(self, user: 'Unit', game: Optional['Game'] = None):
+        """Update self.range based on whether user is on a junction."""
+        base_range = 6
+        self.range = base_range  # Reset to base
+
+        if not game:
+            return
+
+        from boneglaive.game.upgrades import UpgradeManager
+        rail_genesis_upgraded = UpgradeManager.is_skill_upgraded(user, "Rail Genesis")
+        if not rail_genesis_upgraded:
+            return
+
+        # Check if on junction
+        current_y, current_x = user.y, user.x
+        center_y = game.map.height // 2
+        center_x = game.map.width // 2
+
+        top_horizontal = 1
+        middle_horizontal = center_y - 2
+        bottom_horizontal = game.map.height - 2
+
+        vertical_line_1 = center_x - 2
+        vertical_line_2 = center_x + 2
+
+        junction_coords = [
+            (top_horizontal, vertical_line_1),
+            (top_horizontal, vertical_line_2),
+            (middle_horizontal, vertical_line_1),
+            (middle_horizontal, vertical_line_2),
+            (bottom_horizontal, vertical_line_1),
+            (bottom_horizontal, vertical_line_2)
+        ]
+
+        if (current_y, current_x) in junction_coords:
+            self.range = base_range + 1
+
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        # Update range based on junction bonus
+        self.update_range_for_junction(user, game)
         # Cannot use while recharging from Gaussian Dusk
         if hasattr(user, 'gaussian_dusk_recharge') and user.gaussian_dusk_recharge > 0:
             return False
@@ -546,11 +585,14 @@ class BigArcSkill(ActiveSkill):
         else:
             source_y, source_x = user.y, user.x
 
+        # Use the updated range (already updated by update_range_for_junction above)
+        max_range = self.range
+
         # Check if target position is within range
         y_dist = abs(target_pos[0] - source_y)
         x_dist = abs(target_pos[1] - source_x)
 
-        if max(y_dist, x_dist) > self.range:
+        if max(y_dist, x_dist) > max_range:
             return False
 
         # Cannot target within radius 3 of self (self-damage protection)
@@ -972,67 +1014,105 @@ class FragcrestSkill(ActiveSkill):
         self.shrapnel_damage = 1
         self.shrapnel_duration = 3
         self.knockback_distance = 2
+
+        # Upgrade values
+        self.upgraded_target_type = TargetType.SELF
+        self.upgraded_range = 0
+        self.upgraded_area = 2  # 5x5 (center + 2 in each direction)
+        self.upgraded_damage = 4  # Uniform damage for AOE
         
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         # Cannot use while recharging from Gaussian Dusk
         if hasattr(user, 'gaussian_dusk_recharge') and user.gaussian_dusk_recharge > 0:
             return False
 
+        # Check if upgraded and update target type dynamically
+        from boneglaive.game.upgrades import UpgradeManager
+        is_upgraded = UpgradeManager.is_skill_upgraded(user, "Fragcrest")
+
+        # Dynamically change targeting based on upgrade status
+        if is_upgraded:
+            self.target_type = TargetType.SELF
+            self.range = 0
+        else:
+            self.target_type = TargetType.ENEMY
+            self.range = 4
+
         # Basic validation
         if not super().can_use(user, target_pos, game):
             return False
 
+        # Upgraded version: self-targeted AOE (no target position needed)
+        if is_upgraded:
+            return True
+
+        # Base version: directional cone targeting enemy
         # Make sure there's a valid target position
         if not target_pos or not game or not game.is_valid_position(target_pos[0], target_pos[1]):
             return False
-        
+
         # If the unit has a move_target, use that position for range calculation
         if user.move_target:
             source_y, source_x = user.move_target
         else:
             source_y, source_x = user.y, user.x
-        
+
         # Check if target position is within range
         y_dist = abs(target_pos[0] - source_y)
         x_dist = abs(target_pos[1] - source_x)
-        
+
         if max(y_dist, x_dist) > self.range:
             return False
-        
+
         # Check if there's a unit at the target position
         target_unit = game.get_unit_at(target_pos[0], target_pos[1])
         if not target_unit or not target_unit.is_alive():
             return False
-        
+
         # Cannot target self
         if target_unit == user:
             return False
-        
+
         # Requires line of sight to primary target
         if not game.has_line_of_sight(source_y, source_x, target_pos[0], target_pos[1]):
             return False
-        
+
         return True
             
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Queue the Fragcrest skill for execution."""
         if not self.can_use(user, target_pos, game):
             return False
-            
+
+        # Check if upgraded
+        from boneglaive.game.upgrades import UpgradeManager
+        is_upgraded = UpgradeManager.is_skill_upgraded(user, "Fragcrest")
+
+        # For upgraded version, target self
+        if is_upgraded:
+            target_pos = (user.y, user.x)
+
         user.skill_target = target_pos
         user.selected_skill = self
-        
-        # Set visual indicator for the cone
+
+        # Set visual indicator for the cone or AOE
         user.fragcrest_indicator = target_pos
-        
+
         # Log that the skill has been queued
-        target_unit = game.get_unit_at(target_pos[0], target_pos[1])
-        message_log.add_message(
-            f"{user.get_display_name()} unfolds its tail and aims a fragmentation burst at {target_unit.get_display_name()}",
-            MessageType.ABILITY,
-            player=user.player
-        )
-        
+        if is_upgraded:
+            message_log.add_message(
+                f"{user.get_display_name()} unfolds its tail in all directions",
+                MessageType.ABILITY,
+                player=user.player
+            )
+        else:
+            target_unit = game.get_unit_at(target_pos[0], target_pos[1])
+            message_log.add_message(
+                f"{user.get_display_name()} unfolds its tail and aims a fragmentation burst at {target_unit.get_display_name()}",
+                MessageType.ABILITY,
+                player=user.player
+            )
+
         self.current_cooldown = self.cooldown
         return True
         
@@ -1040,37 +1120,59 @@ class FragcrestSkill(ActiveSkill):
         """Execute the Fragcrest skill during turn resolution."""
         # Clear indicator
         user.fragcrest_indicator = None
-        
-        # Get primary target
-        primary_target = game.get_unit_at(target_pos[0], target_pos[1])
-        if not primary_target or not primary_target.is_alive():
-            return False
-        
-        # Calculate cone direction and affected positions
-        target_y, target_x = target_pos
-        cone_positions = self._calculate_cone_positions(user.y, user.x, target_y, target_x, game)
-            
+
+        # Check if upgraded
+        from boneglaive.game.upgrades import UpgradeManager
+        is_upgraded = UpgradeManager.is_skill_upgraded(user, "Fragcrest")
+
+        # Calculate affected positions based on upgrade status
+        if is_upgraded:
+            # 5x5 AOE centered on user
+            affected_positions = self._calculate_aoe_positions(user.y, user.x, game)
+        else:
+            # Get primary target for base version
+            primary_target = game.get_unit_at(target_pos[0], target_pos[1])
+            if not primary_target or not primary_target.is_alive():
+                return False
+
+            # Calculate cone direction and affected positions
+            target_y, target_x = target_pos
+            affected_positions = self._calculate_cone_positions(user.y, user.x, target_y, target_x, game)
+
         # Log the skill activation
-        message_log.add_message(
-            f"{user.get_display_name()}'s fragmentation burst explodes in a deadly cone",
-            MessageType.ABILITY,
-            player=user.player
-        )
-        
+        if is_upgraded:
+            message_log.add_message(
+                f"{user.get_display_name()}'s fragmentation burst explodes in all directions",
+                MessageType.ABILITY,
+                player=user.player
+            )
+        else:
+            message_log.add_message(
+                f"{user.get_display_name()}'s fragmentation burst explodes in a deadly cone",
+                MessageType.ABILITY,
+                player=user.player
+            )
+
         # Track affected units
         affected_units = []
         units_hit = 0
         total_damage = 0
         damaged_units = []  # Store units and damage for display after animation
-        
-        # Apply damage and effects to all units in cone
-        for pos_y, pos_x, is_primary in cone_positions:
+
+        # Apply damage and effects to all units in affected area
+        for pos_y, pos_x, is_primary in affected_positions:
             unit = game.get_unit_at(pos_y, pos_x)
             
             # Only affect enemy units
             if unit and unit.is_alive() and unit.player != user.player:
-                # Calculate damage
-                base_damage = self.primary_damage if is_primary else self.secondary_damage
+                # Calculate damage based on upgrade status
+                if is_upgraded:
+                    # Upgraded: uniform damage across AOE
+                    base_damage = self.upgraded_damage
+                else:
+                    # Base: primary vs secondary damage in cone
+                    base_damage = self.primary_damage if is_primary else self.secondary_damage
+
                 effective_defense = unit.get_effective_stats()['defense']
                 damage = max(1, base_damage - effective_defense)
                 
@@ -1115,8 +1217,8 @@ class FragcrestSkill(ActiveSkill):
                     if unit.shrapnel_duration > previous_shrapnel:
                         message_log.add_message(
                             f"Shrapnel embeds deeply in {unit.get_display_name()}",
-                            MessageType.COMBAT,  # Use COMBAT type for potential yellow coloring
-                            player=user.player
+                            MessageType.ABILITY,
+                            player=unit.player
                         )
                 
                 # Calculate knockback
@@ -1140,22 +1242,30 @@ class FragcrestSkill(ActiveSkill):
             # Removed extraneous fragmentation message per notes
             pass
         
-        # Play fragmentation cone animation if UI is available
+        # Play fragmentation animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
             # Get fragmentation animation
             frag_animation = ui.asset_manager.get_skill_animation_sequence('fragcrest_burst')
             if not frag_animation:
                 frag_animation = ['.', ':', '*', '+', '#', 'x']
-            
+
             # Show tail unfold at user position
-            ui.renderer.draw_tile(user.y, user.x, 'V', 6)  # Yellow peacock tail spread
+            if is_upgraded:
+                ui.renderer.draw_tile(user.y, user.x, '@', 6)  # @ for omnidirectional burst
+            else:
+                ui.renderer.draw_tile(user.y, user.x, 'V', 6)  # V for directional cone
             ui.renderer.refresh()
             sleep_with_animation_speed(0.1)
-            
-            # Show fragmentation burst spreading through cone
+
+            # Show fragmentation burst spreading
             for frame in frag_animation:
-                for pos_y, pos_x, is_primary in cone_positions:
-                    color = 1 if is_primary else 3  # Red for primary, yellow for others
+                for pos_y, pos_x, is_primary in affected_positions:
+                    if is_upgraded:
+                        # Upgraded: uniform color for AOE
+                        color = 1  # Red for all
+                    else:
+                        # Base: primary vs secondary coloring
+                        color = 1 if is_primary else 3  # Red for primary, yellow for others
                     ui.renderer.draw_tile(pos_y, pos_x, frame, color)
                 ui.renderer.refresh()
                 sleep_with_animation_speed(0.05)
@@ -1246,6 +1356,26 @@ class FragcrestSkill(ActiveSkill):
                     is_primary = (pos_y == target_y and pos_x == target_x)
                     positions.append((pos_y, pos_x, is_primary))
         
+        return positions
+
+    def _calculate_aoe_positions(self, center_y: int, center_x: int, game: 'Game') -> List[Tuple[int, int, bool]]:
+        """Calculate all positions in a 5x5 AOE centered on the user."""
+        positions = []
+
+        # Generate 5x5 area (center + 2 in each direction)
+        for dy in range(-2, 3):  # -2, -1, 0, 1, 2
+            for dx in range(-2, 3):  # -2, -1, 0, 1, 2
+                # Skip the center tile (user's position)
+                if dy == 0 and dx == 0:
+                    continue
+
+                pos_y = center_y + dy
+                pos_x = center_x + dx
+
+                if game.is_valid_position(pos_y, pos_x):
+                    # All positions are treated as "primary" for uniform damage
+                    positions.append((pos_y, pos_x, True))
+
         return positions
 
     def _apply_knockback(self, user: 'Unit', target: 'Unit', game: 'Game') -> None:

@@ -49,7 +49,7 @@ class Game:
         # GP (Game Points) System
         self.player1_gp = 0
         self.player2_gp = 0
-        self.gp_win_threshold = 3  # First to 3 GP wins (testing)
+        self.gp_win_threshold = 6  # First to 6 GP wins
         self.dead_units = []  # List of DeadUnit objects awaiting respawn
         self.pending_respawns = {1: [], 2: []}  # Respawns queued for execution phase
 
@@ -1998,11 +1998,68 @@ class Game:
                     unit.move_range_bonus += 1
                     unit.prison_move_penalty = False
         
+        # Process Rail Genesis bonuses for FOWL_CONTRIVANCE
+        for unit in self.units:
+            if not unit.is_alive():
+                continue
+
+            # Check if unit is FOWL_CONTRIVANCE with Rail Genesis upgrade
+            if unit.type == UnitType.FOWL_CONTRIVANCE:
+                from boneglaive.game.upgrades import UpgradeManager
+                is_upgraded = UpgradeManager.is_skill_upgraded(unit, "Rail Genesis")
+
+                # Junction coordinates
+                center_y = self.map.height // 2
+                center_x = self.map.width // 2
+
+                top_horizontal = 1
+                middle_horizontal = center_y - 2
+                bottom_horizontal = self.map.height - 2
+
+                vertical_line_1 = center_x - 2
+                vertical_line_2 = center_x + 2
+
+                junction_coords = [
+                    (top_horizontal, vertical_line_1),
+                    (top_horizontal, vertical_line_2),
+                    (middle_horizontal, vertical_line_1),
+                    (middle_horizontal, vertical_line_2),
+                    (bottom_horizontal, vertical_line_1),
+                    (bottom_horizontal, vertical_line_2)
+                ]
+
+                on_junction = (unit.y, unit.x) in junction_coords
+                had_junction_bonus = getattr(unit, 'junction_bonus_active', False)
+
+                if is_upgraded and on_junction and not had_junction_bonus:
+                    # Apply junction bonuses
+                    unit.attack_range_bonus += 2
+                    unit.defense_bonus += 1
+                    unit.junction_bonus_active = True
+
+                    message_log.add_message(
+                        f"{unit.get_display_name()} harnesses the junction's power",
+                        MessageType.ABILITY,
+                        player=unit.player
+                    )
+                elif (not on_junction or not is_upgraded) and had_junction_bonus:
+                    # Remove junction bonuses
+                    unit.attack_range_bonus -= 2
+                    unit.defense_bonus -= 1
+                    unit.junction_bonus_active = False
+
+                    if not on_junction:
+                        message_log.add_message(
+                            f"{unit.get_display_name()} loses the junction's power",
+                            MessageType.ABILITY,
+                            player=unit.player
+                        )
+
         # Now process turn-based effects for current player's units only
         for unit in self.units:
             if not unit.is_alive() or unit.player != self.current_player:
                 continue
-                
+
             # Skip Marrow Dike movement penalty check (already handled above)
             # Process other status effects
                 

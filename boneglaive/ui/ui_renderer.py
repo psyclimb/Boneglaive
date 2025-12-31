@@ -471,7 +471,12 @@ class UIRenderer:
                     else:
                         color_id = 20  # Default red for Marrow Wall if no tracking dictionary
                 elif terrain == TerrainType.RAIL:
-                    tile = self.game_ui.asset_manager.get_terrain_tile("rail")
+                    # Check if this position is a junction
+                    is_junction = hasattr(self.game_ui.game.map, 'junction_positions') and (y, x) in self.game_ui.game.map.junction_positions
+                    if is_junction:
+                        tile = '┼'  # Cross symbol for junctions
+                    else:
+                        tile = self.game_ui.asset_manager.get_terrain_tile("rail")
                     color_id = 8  # Gray color for rails with black background
                     
                 # Stained Stones map terrain types (gray color scheme like Lime Foyer)

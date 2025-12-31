@@ -171,7 +171,7 @@ SKILL_UPGRADES = {
     "FOWL_CONTRIVANCE": {
         "Rail Genesis": {
             "name": "Rail Genesis",
-            "description": "Applies shrapnel to adjacent enemies when rails are destroyed.",
+            "description": "Rail junctions grant bonuses: Parabol max range +1, attack range +2, defense +1.",
             "type": "buff",
             "cost": 1
         },
@@ -349,6 +349,32 @@ class UpgradeManager:
             game.player1_upgrade_points -= upgrade_cost
         else:
             game.player2_upgrade_points -= upgrade_cost
+
+        # Special handling for Rail Genesis upgrade - mark junctions
+        from boneglaive.utils.constants import UnitType
+        if unit.type == UnitType.FOWL_CONTRIVANCE and skill_name == "Rail Genesis":
+            # Calculate junction coordinates
+            center_y = game.map.height // 2
+            center_x = game.map.width // 2
+
+            # Horizontal lines
+            top_horizontal = 1
+            middle_horizontal = center_y - 2
+            bottom_horizontal = game.map.height - 2
+
+            # Vertical lines
+            vertical_line_1 = center_x - 2
+            vertical_line_2 = center_x + 2
+
+            # Mark all 6 junction positions
+            if not hasattr(game.map, 'junction_positions'):
+                game.map.junction_positions = set()
+            game.map.junction_positions.add((top_horizontal, vertical_line_1))
+            game.map.junction_positions.add((top_horizontal, vertical_line_2))
+            game.map.junction_positions.add((middle_horizontal, vertical_line_1))
+            game.map.junction_positions.add((middle_horizontal, vertical_line_2))
+            game.map.junction_positions.add((bottom_horizontal, vertical_line_1))
+            game.map.junction_positions.add((bottom_horizontal, vertical_line_2))
 
         # Log upgrade message
         from boneglaive.utils.constants import UnitType
