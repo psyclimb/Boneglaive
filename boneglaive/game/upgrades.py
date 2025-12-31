@@ -206,6 +206,70 @@ SKILL_UPGRADES = {
             "description": "Target an ally to spawn a leashed vapor weapon. Matches ally's attack. Follows at 1 tile distance.",
             "type": "buff",
             "cost": 1
+        },
+        "Saft-E-Gas": {
+            "name": "Saft-E-Gas",
+            "description": "Adds +1 PRT to affected units.",
+            "type": "buff",
+            "cost": 1
+        },
+        "Broaching Gas": {
+            "name": "Broaching Gas",
+            "description": "Strips enemy buffs.",
+            "type": "buff",
+            "cost": 1
+        }
+    },
+    "DERELICTIONIST": {
+        "Severance": {
+            "name": "Severance",
+            "description": "Allows passage through furniture and terrain.",
+            "type": "buff",
+            "cost": 1
+        },
+        "Vagal Run": {
+            "name": "Vagal Run",
+            "description": "Allows targeting enemy units.",
+            "type": "buff",
+            "cost": 1
+        },
+        "Derelict": {
+            "name": "Derelict",
+            "description": "Creates an old decrepit building in a 3x3 circle around units affected by Derelicted.",
+            "type": "buff",
+            "cost": 1
+        },
+        "Partition": {
+            "name": "Partition",
+            "description": "Blocks all status effects and prevents stripping of existing status effects.",
+            "type": "buff",
+            "cost": 1
+        }
+    },
+    "MARROW_CONDENSER": {
+        "Ossify": {
+            "name": "Ossify",
+            "description": "Bones calcify to become sharp instead of dense. -1 defense, +2 attack.",
+            "type": "sidegrade",
+            "cost": 1
+        },
+        "Dominion": {
+            "name": "Dominion",
+            "description": "After all skills are upgraded, each additional kill grants +1 to a random stat (move/attack/defense/range).",
+            "type": "buff",
+            "cost": 1
+        },
+        "Marrow Dike": {
+            "name": "Marrow Spire",
+            "description": "Creates 3x3 bone tower. MARROW CONDENSER gains range 3. Units displaced to edges and bound.",
+            "type": "sidegrade",
+            "cost": 1
+        },
+        "Bone Tithe": {
+            "name": "Bone Tithe",
+            "description": "Single target at range 3. 3 damage. Cooldown increased to 2.",
+            "type": "sidegrade",
+            "cost": 1
         }
     },
     # More units can be added here
