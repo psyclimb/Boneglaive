@@ -99,6 +99,9 @@ class Unit:
         self.estranged = False  # Track if unit is affected by Estrange skill
         self.mired = False  # Track if unit is affected by upgraded Marrow Dike
         self.mired_duration = 0  # Duration remaining for mired effect
+        self.shredded = False  # Track if unit is affected by Gaussian Dusk upgrade
+        self.shredded_duration = 0  # Duration remaining for shredded effect
+        self.shredded_original_defense = 0  # Store original defense to restore later
         
         # Græ Exchange echo properties
         self.is_echo = False  # Whether this unit is an echo created by Græ Exchange

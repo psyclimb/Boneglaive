@@ -2216,6 +2216,27 @@ class Game:
                         player=unit.player
                     )
 
+            # Process shredded status effect (Gaussian Dusk upgrade)
+            if hasattr(unit, 'shredded') and unit.shredded:
+                # Decrement the duration
+                unit.shredded_duration -= 1
+                logger.debug(f"{unit.get_display_name()}'s shredded duration: {unit.shredded_duration}")
+
+                # Check if the status effect has expired
+                if unit.shredded_duration <= 0:
+                    # Restore defense
+                    unit.defense_bonus += unit.shredded_original_defense
+
+                    # Remove the status effect
+                    unit.shredded = False
+
+                    # Log the expiration
+                    message_log.add_message(
+                        f"{unit.get_display_name()}'s defenses recover from being shredded",
+                        MessageType.ABILITY,
+                        player=unit.player
+                    )
+
             # Process DERELICTIONIST status effects
             # Process Vagal Run status effect
             if hasattr(unit, 'vagal_run_active') and unit.vagal_run_active and hasattr(unit, 'vagal_run_duration'):

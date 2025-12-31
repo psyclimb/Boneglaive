@@ -310,57 +310,84 @@ class GaussianDuskSkill(ActiveSkill):
         total_damage = 0
         terrain_destroyed = 0
         damaged_units = []  # Store units and damage for display after animation
-        
-        # Apply effects to all positions in the line
-        for pos_y, pos_x in positions_in_line:
-            # Check for destructible terrain - hypersonic projectile destroys everything in its path
-            terrain = game.map.get_terrain_at(pos_y, pos_x)
-            destructible_terrain = [
-                TerrainType.LIMESTONE,     # Limestone formations
-                TerrainType.PILLAR,        # Limestone pillars
-                TerrainType.MARROW_WALL,   # Marrow Dike walls
-                TerrainType.RADIO_CONSOLE,     # Vintage radio console
-                TerrainType.COAT_RACK,     # Coat racks
-                TerrainType.OTTOMAN,       # Ottoman seating
-                TerrainType.CONSOLE,       # Console tables
-                TerrainType.CURIOSITY_SHELF,     # Decorative tables
-                TerrainType.TIFFANY_LAMP,  # Tiffany-style decorative lamp
-                TerrainType.STAINED_STONE, # Stained stone formation
-                TerrainType.EASEL,         # Artist's easel with canvas
-                TerrainType.SCULPTURE,     # Stone sculpture pedestal
-                TerrainType.BENCH,         # Viewing bench for art gallery
-                TerrainType.PODIUM,        # Display podium
-                TerrainType.VASE,          # Decorative pottery vase
-                TerrainType.HYDRAULIC_PRESS, # Industrial hydraulic press
-                TerrainType.WORKBENCH,     # Industrial workbench
-                TerrainType.COUCH,         # Household couch
-                TerrainType.TOOLBOX,       # Industrial toolbox
-                TerrainType.COT,           # Temporary sleeping cot
-                TerrainType.CONVEYOR,      # Industrial conveyor belt
-                TerrainType.MINI_PUMPKIN,  # Mini decorative pumpkin
-                TerrainType.POTPOURRI_BOWL # Decorative potpourri bowl
-            ]
-            
-            if terrain in destructible_terrain:
-                # Get terrain name for message
-                terrain_name = terrain.name.lower().replace('_', ' ')
 
-                # Log individual terrain destruction
+        # Calculate midpoint for terrain destruction
+        beam_length = len(positions_in_line)
+        midpoint_index = beam_length // 2
+        midpoint_pos = positions_in_line[midpoint_index] if beam_length > 0 else None
+
+        # Destroy terrain only at midpoint
+        if midpoint_pos:
+            mid_y, mid_x = midpoint_pos
+            terrain = game.map.get_terrain_at(mid_y, mid_x)
+            destructible_terrain = [
+                TerrainType.LIMESTONE, TerrainType.PILLAR, TerrainType.MARROW_WALL,
+                TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK, TerrainType.OTTOMAN,
+                TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF, TerrainType.TIFFANY_LAMP,
+                TerrainType.STAINED_STONE, TerrainType.EASEL, TerrainType.SCULPTURE,
+                TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
+                TerrainType.HYDRAULIC_PRESS, TerrainType.WORKBENCH, TerrainType.COUCH,
+                TerrainType.TOOLBOX, TerrainType.COT, TerrainType.CONVEYOR,
+                TerrainType.MINI_PUMPKIN, TerrainType.POTPOURRI_BOWL
+            ]
+
+            if terrain in destructible_terrain:
+                terrain_name = terrain.name.lower().replace('_', ' ')
                 message_log.add_message(
-                    f"The hypersonic projectile obliterates the {terrain_name} at ({pos_y},{pos_x})",
+                    f"The rail beam's center obliterates the {terrain_name} at ({mid_y},{mid_x})",
                     MessageType.ABILITY,
                     player=user.player
                 )
-
-                game.map.set_terrain_at(pos_y, pos_x, TerrainType.EMPTY)
+                game.map.set_terrain_at(mid_y, mid_x, TerrainType.EMPTY)
                 terrain_destroyed += 1
-            
+
+        # Apply damage to all positions in the line
+        for pos_y, pos_x in positions_in_line:
             # Check for units to damage
             unit = game.get_unit_at(pos_y, pos_x)
-            
-            # Damage all enemy units in path (ignores defense completely)
+
+            # Damage all enemy units in path with Gaussian curve based on HP%
             if unit and unit.is_alive() and unit.player != user.player:
-                damage = self.damage  # Fixed 10 damage, ignores defense
+                from boneglaive.game.upgrades import UpgradeManager
+                is_upgraded = UpgradeManager.is_skill_upgraded(user, "Gaussian Dusk")
+
+                # Calculate damage based on HP percentage (Gaussian curve peaking at 50%)
+                hp_percent = unit.hp / unit.max_hp
+
+                # Gaussian damage curve: peaks at 50% HP
+                if hp_percent >= 0.875:  # 87.5-100%
+                    damage = 4
+                elif hp_percent >= 0.625:  # 62.5-87.5%
+                    damage = 6
+                elif hp_percent >= 0.375:  # 37.5-62.5%
+                    damage = 8  # Peak damage at ~50% HP
+                elif hp_percent >= 0.25:  # 25-37.5%
+                    damage = 6
+                else:  # 0-25%
+                    damage = 4
+
+                # UPGRADE: Execute at low HP, defense shred at high HP
+                if is_upgraded:
+                    if hp_percent <= 0.25:  # Execute threshold
+                        # Instant kill
+                        damage = unit.hp
+                        message_log.add_message(
+                            f"{unit.get_display_name()} is executed by the rail beam's lethal precision",
+                            MessageType.ABILITY,
+                            player=user.player
+                        )
+                    elif hp_percent >= 0.875:  # Defense shred threshold
+                        # Apply shredded status (2 turns)
+                        unit.shredded = True
+                        unit.shredded_duration = 2
+                        unit.shredded_original_defense = unit.defense
+                        unit.defense_bonus -= unit.defense  # Reduce defense to 0 via bonus
+
+                        message_log.add_message(
+                            f"{unit.get_display_name()}'s defenses are completely shredded for 2 turns",
+                            MessageType.ABILITY,
+                            player=user.player
+                        )
                 
                 # Store previous HP for critical health check
                 previous_hp = unit.hp

@@ -177,7 +177,7 @@ SKILL_UPGRADES = {
         },
         "Gaussian Dusk": {
             "name": "Gaussian Dusk",
-            "description": "Leaves a trail of rails in its wake.",
+            "description": "Weaponizes the curve's extremes: executes enemies ≤25% HP, shreds defense to 0 for 2 turns on enemies ≥87.5% HP.",
             "type": "buff",
             "cost": 1
         },
