@@ -593,32 +593,18 @@ class BigArcSkill(ActiveSkill):
         total_damage = 0
         damaged_units = []  # Store units and damage for display after animation
 
-        # UPGRADE: Track furniture and enemy positions for swapping
-        first_explosion_furniture = []  # Positions with furniture terrain
-        first_explosion_enemies = []    # Enemy unit positions
+        # UPGRADE: Track enemy unit positions from first explosion (will be imprinted as destruction at second site)
+        first_explosion_enemy_offsets = []  # Relative positions of enemies
 
         if is_upgraded:
-            # Scan first explosion area for furniture and enemies
+            # Scan first explosion area for enemy units
             for pos_y, pos_x, is_primary in affected_positions:
-                terrain = game.map.get_terrain_at(pos_y, pos_x)
-                # Check if it's furniture terrain
-                furniture_types = [
-                    TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
-                    TerrainType.OTTOMAN, TerrainType.CONSOLE,
-                    TerrainType.CURIOSITY_SHELF, TerrainType.TIFFANY_LAMP,
-                    TerrainType.EASEL, TerrainType.SCULPTURE,
-                    TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
-                    TerrainType.WORKBENCH, TerrainType.COUCH,
-                    TerrainType.TOOLBOX, TerrainType.COT,
-                    TerrainType.HYDRAULIC_PRESS, TerrainType.POTPOURRI_BOWL
-                ]
-                if terrain in furniture_types:
-                    first_explosion_furniture.append((pos_y, pos_x, terrain))
-
-                # Check for enemy units
                 unit = game.get_unit_at(pos_y, pos_x)
                 if unit and unit.is_alive() and unit.player != user.player:
-                    first_explosion_enemies.append((pos_y, pos_x, unit))
+                    # Store relative offset from first explosion center
+                    offset_y = pos_y - target_y
+                    offset_x = pos_x - target_x
+                    first_explosion_enemy_offsets.append((offset_y, offset_x))
 
         # Apply damage to all units in the area
         for pos_y, pos_x, is_primary in affected_positions:
@@ -676,17 +662,9 @@ class BigArcSkill(ActiveSkill):
             dist_y = target_y - user.y
             dist_x = target_x - user.x
 
-            # Calculate half distance (rounded down) for parabolic arc
-            half_dist_y = abs(dist_y) // 2
-            half_dist_x = abs(dist_x) // 2
-
-            # Preserve direction - continues in same direction as original shot
-            direction_y = 1 if dist_y >= 0 else -1
-            direction_x = 1 if dist_x >= 0 else -1
-
-            # Second explosion continues from first explosion point, half the original distance
-            second_center_y = (target_y + (half_dist_y * direction_y)) % game.map.height
-            second_center_x = (target_x + (half_dist_x * direction_x)) % game.map.width
+            # Second explosion continues from first explosion point, same distance as original shot
+            second_center_y = (target_y + dist_y) % game.map.height
+            second_center_x = (target_x + dist_x) % game.map.width
 
             # Generate second explosion area (3x3 centered on second_center)
             second_affected_positions = []
@@ -704,33 +682,8 @@ class BigArcSkill(ActiveSkill):
                 player=user.player
             )
 
-            # Collect units in secondary (non-primary) positions for displacement
-            secondary_explosion_units = []
-
             # Apply damage to second explosion area
             for pos_y, pos_x, is_primary in second_affected_positions:
-                # Destroy terrain/furniture at primary impact
-                if is_primary:
-                    terrain = game.map.get_terrain_at(pos_y, pos_x)
-                    destructible_terrain = [
-                        TerrainType.LIMESTONE, TerrainType.PILLAR, TerrainType.MARROW_WALL,
-                        TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK, TerrainType.OTTOMAN,
-                        TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF, TerrainType.TIFFANY_LAMP,
-                        TerrainType.STAINED_STONE, TerrainType.EASEL, TerrainType.SCULPTURE,
-                        TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
-                        TerrainType.HYDRAULIC_PRESS, TerrainType.WORKBENCH, TerrainType.COUCH,
-                        TerrainType.TOOLBOX, TerrainType.COT, TerrainType.CONVEYOR,
-                        TerrainType.MINI_PUMPKIN, TerrainType.POTPOURRI_BOWL
-                    ]
-                    if terrain in destructible_terrain:
-                        terrain_name = terrain.name.lower().replace('_', ' ')
-                        message_log.add_message(
-                            f"The underground explosion obliterates the {terrain_name} at ({pos_y},{pos_x})",
-                            MessageType.ABILITY,
-                            player=user.player
-                        )
-                        game.map.set_terrain_at(pos_y, pos_x, TerrainType.EMPTY)
-
                 unit = game.get_unit_at(pos_y, pos_x)
 
                 # Damage enemy units in area (no friendly fire)
@@ -759,43 +712,93 @@ class BigArcSkill(ActiveSkill):
                     else:
                         game.check_critical_health(unit, user, previous_hp, ui)
 
-                    # Track secondary area units for displacement
-                    if not is_primary:
-                        secondary_explosion_units.append(unit)
+            # Apply the "imprint" effect at second explosion site
+            if first_explosion_enemy_offsets:
+                import random
 
-            # Execute displacement: enemies in secondary area of second explosion are randomly displaced to furniture positions from first explosion
-            if first_explosion_furniture and secondary_explosion_units:
-                # Filter to only living units
-                living_secondary_units = [u for u in secondary_explosion_units if u.is_alive()]
+                destructible_terrain = [
+                    TerrainType.LIMESTONE, TerrainType.PILLAR, TerrainType.MARROW_WALL,
+                    TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK, TerrainType.OTTOMAN,
+                    TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF, TerrainType.TIFFANY_LAMP,
+                    TerrainType.STAINED_STONE, TerrainType.EASEL, TerrainType.SCULPTURE,
+                    TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
+                    TerrainType.HYDRAULIC_PRESS, TerrainType.WORKBENCH, TerrainType.COUCH,
+                    TerrainType.TOOLBOX, TerrainType.COT, TerrainType.CONVEYOR,
+                    TerrainType.MINI_PUMPKIN, TerrainType.POTPOURRI_BOWL
+                ]
 
-                if living_secondary_units:
-                    import random
+                # Step 1: Destroy terrain/furniture at primary (center) impact
+                terrain = game.map.get_terrain_at(second_center_y, second_center_x)
+                if terrain in destructible_terrain:
+                    terrain_name = terrain.name.lower().replace('_', ' ')
+                    message_log.add_message(
+                        f"The underground explosion obliterates the {terrain_name} at ({second_center_y},{second_center_x})",
+                        MessageType.ABILITY,
+                        player=user.player
+                    )
+                    game.map.set_terrain_at(second_center_y, second_center_x, TerrainType.EMPTY)
 
-                    # Randomly pair each secondary unit with a furniture position from first explosion
-                    for unit in living_secondary_units:
-                        if first_explosion_furniture:
-                            # Pick a random furniture position
-                            furn_y, furn_x, furn_terrain = random.choice(first_explosion_furniture)
+                # Step 2: Collect all destructible terrain at second explosion site (excluding destroyed center)
+                second_site_terrain = []
+                for pos_y, pos_x, is_primary in second_affected_positions:
+                    if is_primary:
+                        continue  # Skip center, already destroyed
+                    terrain = game.map.get_terrain_at(pos_y, pos_x)
+                    if terrain in destructible_terrain and terrain != TerrainType.EMPTY:
+                        second_site_terrain.append((pos_y, pos_x, terrain))
 
-                            # Save original position
-                            orig_y, orig_x = unit.y, unit.x
+                # Step 3: Move terrain/furniture to match enemy image from first explosion
+                for terrain_y, terrain_x, terrain_type in second_site_terrain:
+                    # Clear terrain from its current position
+                    game.map.set_terrain_at(terrain_y, terrain_x, TerrainType.EMPTY)
 
-                            # Displace unit to furniture position
-                            unit.y = furn_y
-                            unit.x = furn_x
+                # Now place terrain/furniture at image positions
+                for i, (offset_y, offset_x) in enumerate(first_explosion_enemy_offsets):
+                    if i >= len(second_site_terrain):
+                        break  # More enemy positions than terrain available
 
-                            # Place furniture at unit's original position
-                            game.map.set_terrain_at(orig_y, orig_x, furn_terrain)
-                            game.map.set_terrain_at(furn_y, furn_x, TerrainType.EMPTY)
+                    terrain_y, terrain_x, terrain_type = second_site_terrain[i]
+
+                    # Calculate target position based on enemy image
+                    target_y = (second_center_y + offset_y) % game.map.height
+                    target_x = (second_center_x + offset_x) % game.map.width
+
+                    # Check if unit is standing at target position
+                    unit_at_target = game.get_unit_at(target_y, target_x)
+                    if unit_at_target and unit_at_target.is_alive():
+                        # Displace the unit first
+                        displacement_attempts = []
+                        for dy in range(-2, 3):
+                            for dx in range(-2, 3):
+                                if dy == 0 and dx == 0:
+                                    continue
+                                check_y = (target_y + dy) % game.map.height
+                                check_x = (target_x + dx) % game.map.width
+                                if (game.is_valid_position(check_y, check_x) and
+                                    game.map.is_passable(check_y, check_x) and
+                                    not game.get_unit_at(check_y, check_x)):
+                                    displacement_attempts.append((check_y, check_x))
+
+                        if displacement_attempts:
+                            new_y, new_x = random.choice(displacement_attempts)
+                            orig_y, orig_x = unit_at_target.y, unit_at_target.x
+                            unit_at_target.y = new_y
+                            unit_at_target.x = new_x
 
                             message_log.add_message(
-                                f"{unit.get_display_name()} is displaced from ({orig_y},{orig_x}) to ({furn_y},{furn_x}), swapping with furniture debris",
+                                f"{unit_at_target.get_display_name()} is violently displaced from ({orig_y},{orig_x}) to ({new_y},{new_x})",
                                 MessageType.ABILITY,
                                 player=user.player
                             )
 
-                            # Remove this furniture position so it's only used once
-                            first_explosion_furniture.remove((furn_y, furn_x, furn_terrain))
+                    # Place terrain/furniture at target position
+                    game.map.set_terrain_at(target_y, target_x, terrain_type)
+                    terrain_name = terrain_type.name.lower().replace('_', ' ')
+                    message_log.add_message(
+                        f"A {terrain_name} shifts to ({target_y},{target_x}), matching the enemy formation imprint",
+                        MessageType.ABILITY,
+                        player=user.player
+                    )
 
         # Play mortar barrage animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
