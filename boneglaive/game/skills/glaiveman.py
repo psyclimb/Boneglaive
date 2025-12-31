@@ -324,6 +324,42 @@ class Autoclave(PassiveSkill):
                         ui.renderer.refresh()
                         sleep_with_animation_speed(0.1)
 
+        # Check for Autoclave upgrade - trigger melee AOE counter attack
+        from boneglaive.game.upgrades import UpgradeManager
+        is_upgraded = UpgradeManager.is_skill_upgraded(user, "Autoclave")
+        if is_upgraded:
+            message_log.add_message(
+                f"{user.get_display_name()}'s glaive swings in a wide arc",
+                MessageType.ABILITY,
+                player=user.player
+            )
+
+            # Hit all 8 adjacent tiles
+            adjacent_offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+            melee_damage = 4  # Melee counter attack damage
+
+            for dy, dx in adjacent_offsets:
+                adj_y, adj_x = user.y + dy, user.x + dx
+                if game.is_valid_position(adj_y, adj_x):
+                    adjacent_target = game.get_unit_at(adj_y, adj_x)
+                    if adjacent_target and adjacent_target.player != user.player and adjacent_target.is_alive():
+                        # Calculate damage with defense
+                        defense_reduced = max(0, melee_damage - adjacent_target.defense)
+                        adjacent_target.hp -= defense_reduced
+
+                        message_log.add_combat_message(
+                            attacker_name=user.get_display_name(),
+                            target_name=adjacent_target.get_display_name(),
+                            damage=defense_reduced,
+                            ability="Glaive Sweep",
+                            attacker_player=user.player,
+                            target_player=adjacent_target.player
+                        )
+
+                        # Check for death
+                        if adjacent_target.hp <= 0:
+                            game.handle_unit_death(adjacent_target, user, cause="autoclave", ui=ui)
+
 
 class PrySkill(ActiveSkill):
     """
@@ -708,7 +744,11 @@ class PrySkill(ActiveSkill):
             )
         else:
             # Apply movement reduction effect to primary target
-            target.move_range_bonus = -1
+            from boneglaive.game.upgrades import UpgradeManager
+            is_upgraded = UpgradeManager.is_skill_upgraded(user, "Pry")
+            move_penalty = -2 if is_upgraded else -1
+
+            target.move_range_bonus = move_penalty
             target.was_pried = True  # Mark the unit as affected by Pry
 
             # Add a duration property for UI status display - use 2 for clearer visibility
@@ -734,7 +774,7 @@ class PrySkill(ActiveSkill):
 
             # Log the movement reduction
             message_log.add_message(
-                f"{target.get_display_name()}'s movement reduced by 1 for next turn",
+                f"{target.get_display_name()}'s movement reduced by {abs(move_penalty)} for next turn",
                 MessageType.ABILITY,
                 player=user.player,
                 target_name=target.get_display_name()
@@ -764,9 +804,16 @@ class VaultSkill(ActiveSkill):
             cooldown=4,
             range_=2
         )
+        self.landing_damage = 3  # Damage to adjacent enemies on landing (when upgraded)
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Check if Vault can be used on the target position."""
+        # Check for upgrade and update range dynamically
+        if game:
+            from boneglaive.game.upgrades import UpgradeManager
+            is_upgraded = UpgradeManager.is_skill_upgraded(user, "Vault")
+            self.range = 3 if is_upgraded else 2
+
         # Basic validation
         if not super().can_use(user, target_pos, game):
             return False
@@ -1020,7 +1067,38 @@ class VaultSkill(ActiveSkill):
             MessageType.ABILITY,
             player=user.player
         )
-        
+
+        # Check for upgrade and apply landing damage
+        from boneglaive.game.upgrades import UpgradeManager
+        is_upgraded = UpgradeManager.is_skill_upgraded(user, "Vault")
+
+        if is_upgraded:
+            # Find adjacent enemies and damage them
+            adjacent_offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+            damaged_units = []
+
+            for dy, dx in adjacent_offsets:
+                adj_y, adj_x = target_pos[0] + dy, target_pos[1] + dx
+                if game.is_valid_position(adj_y, adj_x):
+                    adjacent_unit = game.get_unit_at(adj_y, adj_x)
+                    if adjacent_unit and adjacent_unit.player != user.player and adjacent_unit.is_alive():
+                        # Calculate damage with defense
+                        defense_reduced_damage = max(0, self.landing_damage - adjacent_unit.defense)
+                        adjacent_unit.hp -= defense_reduced_damage
+                        damaged_units.append((adjacent_unit, defense_reduced_damage))
+
+                        message_log.add_message(
+                            f"{adjacent_unit.get_display_name()} takes {defense_reduced_damage} landing damage",
+                            MessageType.COMBAT,
+                            player=user.player,
+                            attacker_name=user.get_display_name(),
+                            target_name=adjacent_unit.get_display_name()
+                        )
+
+                        # Check for death
+                        if adjacent_unit.hp <= 0:
+                            game.handle_unit_death(adjacent_unit, user, cause="vault", ui=ui)
+
         return True
 
 
@@ -1301,9 +1379,20 @@ class JudgementSkill(ActiveSkill):
         if target.hp <= 0:
             # Use centralized death handling to ensure all systems (like DOMINION) are notified
             game.handle_unit_death(target, user, cause="judgement", ui=ui)
-            
+
+            # Check for Judgement upgrade - reduce cooldown by 2 on kill
+            from boneglaive.game.upgrades import UpgradeManager
+            is_upgraded = UpgradeManager.is_skill_upgraded(user, "Judgement")
+            if is_upgraded and self.current_cooldown >= 2:
+                self.current_cooldown -= 2
+                message_log.add_message(
+                    f"Judgement's cooldown reduced by 2 (now {self.current_cooldown} turns)",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
+
         # Redraw the board after animations
         if ui and hasattr(ui, 'draw_board'):
             ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-            
+
         return True

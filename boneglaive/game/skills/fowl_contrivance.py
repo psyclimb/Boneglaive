@@ -223,7 +223,7 @@ class GaussianDuskSkill(ActiveSkill):
             key="G",
             description="Fires a devastating rail gun shot in a cardinal direction. After firing, the unit must recharge for 1 turn and cannot take any actions.",
             target_type=TargetType.AREA,
-            cooldown=5,
+            cooldown=4,
             range_=999,  # Entire map range
             area=0
         )
