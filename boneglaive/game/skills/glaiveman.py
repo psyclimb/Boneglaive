@@ -338,6 +338,30 @@ class Autoclave(PassiveSkill):
             adjacent_offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
             melee_damage = 4  # Melee counter attack damage
 
+            # Animate glaive sweep in circular pattern if UI available (ASCII mode only)
+            if not is_graphical and ui and hasattr(ui, 'renderer'):
+                # Get sweep animation sequence
+                sweep_animation = ui.asset_manager.get_skill_animation_sequence('glaive_sweep') if hasattr(ui, 'asset_manager') else None
+                if not sweep_animation:
+                    sweep_animation = ['-', '\\', '|', '/']  # Rotating slash pattern
+
+                # Animate in circular pattern starting from top-left, going clockwise
+                circular_order = [(-1, -1), (-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1)]
+
+                for i, (dy, dx) in enumerate(circular_order):
+                    adj_y, adj_x = user.y + dy, user.x + dx
+                    if game.is_valid_position(adj_y, adj_x):
+                        # Use rotating animation frame
+                        frame = sweep_animation[i % len(sweep_animation)]
+                        ui.renderer.draw_tile(adj_y, adj_x, frame, 7)  # White color
+                        ui.renderer.refresh()
+                        sleep_with_animation_speed(0.06)
+
+                # Clear sweep animation and restore tiles
+                if hasattr(ui, 'draw_board'):
+                    ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+
+            # Calculate damage for all adjacent enemies
             for dy, dx in adjacent_offsets:
                 adj_y, adj_x = user.y + dy, user.x + dx
                 if game.is_valid_position(adj_y, adj_x):
@@ -355,6 +379,16 @@ class Autoclave(PassiveSkill):
                             attacker_player=user.player,
                             target_player=adjacent_target.player
                         )
+
+                        # Show damage number if UI available (ASCII mode only)
+                        if not is_graphical and ui and hasattr(ui, 'renderer') and hasattr(ui.renderer, 'draw_damage_text'):
+                            damage_text = f"-{defense_reduced}"
+                            for i in range(2):
+                                ui.renderer.draw_damage_text(adjacent_target.y-1, adjacent_target.x*2, " " * len(damage_text), 7)
+                                attrs = curses.A_BOLD if i % 2 == 0 else 0
+                                ui.renderer.draw_damage_text(adjacent_target.y-1, adjacent_target.x*2, damage_text, 7, attrs)
+                                ui.renderer.refresh()
+                                sleep_with_animation_speed(0.08)
 
                         # Check for death
                         if adjacent_target.hp <= 0:
