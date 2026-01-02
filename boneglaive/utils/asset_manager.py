@@ -57,6 +57,7 @@ class AssetManager:
             'curiosity_shelf': 'E',  # Victorian curiosity shelf (stacked shelves)
             'marrow_wall': '#',  # Marrow Dike wall uses hash character
             'rail': '+',      # Rail track uses cross symbol for intersections
+            'rail_junction': '┼',  # Upgraded rail junctions (Rail Genesis upgrade)
             # Stained Stones map terrain
             'tiffany_lamp': 'i',  # Tiffany lamp (lamp post shape)
             'stained_stone': '#',  # Full block for stained stone formations  
@@ -121,6 +122,7 @@ class AssetManager:
             'pry_debris': ['@', '#', '*', '+', '.'],  # Large chunks of debris falling straight down
             'vault': ['^', '^', '^', '^', '^'],  # Vault initiation animation - upward movement
             'vault_impact': ['v', 'v', 'V', '*', '.'],  # Vault landing animation
+            'vault_impact_upgraded': ['V', 'X', '*', '#', '@', '#', '*', '+', '.'],  # Upgraded vault landing with shockwave
             'judgement': ['*', '+', 'X', '#', 'O', '#', 'X', '+', '*'],  # Circular spinning Krull glaive animation - ASCII only
             'judgement_critical': ['X', '!', 'Z', '#', 'Z', '#', '*', '!', 'Z', '!', '*', '!'],  # Lightning striking the glaive at moment of critical impact - ASCII only
             'viseroy_trap': ['{', '{', '{', '#', '%', '&', '{'],  # Animation for Viseroy trap crushing effect

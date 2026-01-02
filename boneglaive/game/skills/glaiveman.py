@@ -324,75 +324,106 @@ class Autoclave(PassiveSkill):
                         ui.renderer.refresh()
                         sleep_with_animation_speed(0.1)
 
-        # Check for Autoclave upgrade - trigger melee AOE counter attack
+        # Check for Autoclave upgrade - queue glaive sweep for next critical health trigger
         from boneglaive.game.upgrades import UpgradeManager
         is_upgraded = UpgradeManager.is_skill_upgraded(user, "Autoclave")
         if is_upgraded:
+            # Instead of executing immediately, queue the sweep for next critical health trigger
+            user.glaive_sweep_queued = True
             message_log.add_message(
-                f"{user.get_display_name()}'s glaive swings in a wide arc",
+                f"{user.get_display_name()}'s glaive is prepared for another counter attack",
                 MessageType.ABILITY,
                 player=user.player
             )
 
-            # Hit all 8 adjacent tiles
-            adjacent_offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
-            melee_damage = 4  # Melee counter attack damage
+    def _execute_glaive_sweep(self, user: 'Unit', game: 'Game', ui=None) -> None:
+        """Execute the queued glaive sweep counter attack."""
+        from boneglaive.utils.message_log import message_log, MessageType
+        from boneglaive.utils.debug import logger
+        import time
+        import curses
+        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
-            # Animate glaive sweep in circular pattern if UI available (ASCII mode only)
-            if not is_graphical and ui and hasattr(ui, 'renderer'):
-                # Get sweep animation sequence
-                sweep_animation = ui.asset_manager.get_skill_animation_sequence('glaive_sweep') if hasattr(ui, 'asset_manager') else None
-                if not sweep_animation:
-                    sweep_animation = ['-', '\\', '|', '/']  # Rotating slash pattern
+        logger.debug(f"EXECUTING GLAIVE SWEEP for {user.get_display_name()}")
 
-                # Animate in circular pattern starting from top-left, going clockwise
-                circular_order = [(-1, -1), (-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1)]
+        message_log.add_message(
+            f"{user.get_display_name()}'s glaive swings in a wide arc",
+            MessageType.ABILITY,
+            player=user.player
+        )
 
-                for i, (dy, dx) in enumerate(circular_order):
-                    adj_y, adj_x = user.y + dy, user.x + dx
-                    if game.is_valid_position(adj_y, adj_x):
-                        # Use rotating animation frame
-                        frame = sweep_animation[i % len(sweep_animation)]
-                        ui.renderer.draw_tile(adj_y, adj_x, frame, 7)  # White color
-                        ui.renderer.refresh()
-                        sleep_with_animation_speed(0.06)
+        # Detect if running in graphical mode
+        is_graphical = hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'
 
-                # Clear sweep animation and restore tiles
-                if hasattr(ui, 'draw_board'):
-                    ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+        # Hit all 8 adjacent tiles
+        adjacent_offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+        melee_damage = 4  # Melee counter attack damage
 
-            # Calculate damage for all adjacent enemies
-            for dy, dx in adjacent_offsets:
+        # Animate glaive sweep in circular pattern if UI available (ASCII mode only)
+        if not is_graphical and ui and hasattr(ui, 'renderer'):
+            # Get sweep animation sequence
+            sweep_animation = ui.asset_manager.get_skill_animation_sequence('glaive_sweep') if hasattr(ui, 'asset_manager') else None
+            if not sweep_animation:
+                sweep_animation = ['-', '\\', '|', '/']  # Rotating slash pattern
+
+            # Animate in circular pattern starting from top-left, going clockwise
+            circular_order = [(-1, -1), (-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1)]
+
+            for i, (dy, dx) in enumerate(circular_order):
                 adj_y, adj_x = user.y + dy, user.x + dx
                 if game.is_valid_position(adj_y, adj_x):
-                    adjacent_target = game.get_unit_at(adj_y, adj_x)
-                    if adjacent_target and adjacent_target.player != user.player and adjacent_target.is_alive():
-                        # Calculate damage with defense
-                        defense_reduced = max(0, melee_damage - adjacent_target.defense)
-                        adjacent_target.hp -= defense_reduced
+                    # Use rotating animation frame
+                    frame = sweep_animation[i % len(sweep_animation)]
+                    ui.renderer.draw_tile(adj_y, adj_x, frame, 7)  # White color
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.06)
 
-                        message_log.add_combat_message(
-                            attacker_name=user.get_display_name(),
-                            target_name=adjacent_target.get_display_name(),
-                            damage=defense_reduced,
-                            ability="Glaive Sweep",
-                            attacker_player=user.player,
-                            target_player=adjacent_target.player
-                        )
+            # Clear sweep animation and restore tiles
+            if hasattr(ui, 'draw_board'):
+                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
 
-                        # Show damage number if UI available (ASCII mode only)
-                        if not is_graphical and ui and hasattr(ui, 'renderer') and hasattr(ui.renderer, 'draw_damage_text'):
-                            damage_text = f"-{defense_reduced}"
-                            for i in range(2):
-                                ui.renderer.draw_damage_text(adjacent_target.y-1, adjacent_target.x*2, " " * len(damage_text), 7)
-                                attrs = curses.A_BOLD if i % 2 == 0 else 0
-                                ui.renderer.draw_damage_text(adjacent_target.y-1, adjacent_target.x*2, damage_text, 7, attrs)
-                                ui.renderer.refresh()
-                                sleep_with_animation_speed(0.08)
+        # Calculate damage for all adjacent enemies
+        for dy, dx in adjacent_offsets:
+            adj_y, adj_x = user.y + dy, user.x + dx
+            if game.is_valid_position(adj_y, adj_x):
+                adjacent_target = game.get_unit_at(adj_y, adj_x)
+                if adjacent_target and adjacent_target.player != user.player and adjacent_target.is_alive():
+                    # Calculate damage with defense
+                    defense_reduced = max(0, melee_damage - adjacent_target.defense)
+                    adjacent_target.hp -= defense_reduced
 
-                        # Check for death
-                        if adjacent_target.hp <= 0:
-                            game.handle_unit_death(adjacent_target, user, cause="autoclave", ui=ui)
+                    message_log.add_combat_message(
+                        attacker_name=user.get_display_name(),
+                        target_name=adjacent_target.get_display_name(),
+                        damage=defense_reduced,
+                        ability="Glaive Sweep",
+                        attacker_player=user.player,
+                        target_player=adjacent_target.player
+                    )
+
+                    # Show damage number if UI available (ASCII mode only)
+                    if not is_graphical and ui and hasattr(ui, 'renderer') and hasattr(ui.renderer, 'draw_damage_text'):
+                        damage_text = f"-{defense_reduced}"
+
+                        # Make damage text more prominent with flashing effect
+                        for i in range(3):
+                            ui.renderer.draw_damage_text(adjacent_target.y-1, adjacent_target.x*2, " " * len(damage_text), 7)
+                            attrs = curses.A_BOLD if i % 2 == 0 else 0
+                            ui.renderer.draw_damage_text(adjacent_target.y-1, adjacent_target.x*2, damage_text, 7, attrs)
+                            ui.renderer.refresh()
+                            sleep_with_animation_speed(0.1)
+
+                        # Final damage display (stays visible a bit longer)
+                        ui.renderer.draw_damage_text(adjacent_target.y-1, adjacent_target.x*2, damage_text, 7, curses.A_BOLD)
+                        ui.renderer.refresh()
+                        sleep_with_animation_speed(0.2)
+
+                    # Check for death
+                    if adjacent_target.hp <= 0:
+                        game.handle_unit_death(adjacent_target, user, cause="glaive_sweep", ui=ui)
+
+        # Clear the queued flag after execution
+        user.glaive_sweep_queued = False
 
 
 class PrySkill(ActiveSkill):
@@ -938,15 +969,20 @@ class VaultSkill(ActiveSkill):
         # Store original position for animations
         original_pos = (user.y, user.x)
 
+        # Check for upgrade to determine animation
+        from boneglaive.game.upgrades import UpgradeManager
+        is_upgraded = UpgradeManager.is_skill_upgraded(user, "Vault")
+
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
             # Get vault animation sequence
             vault_animation = ui.asset_manager.get_skill_animation_sequence('vault')
             if not vault_animation:
                 vault_animation = ['^', 'A', '|', '*', '|']  # Fallback - ASCII only
-                
-            # Get landing animation sequence
-            landing_animation = ui.asset_manager.get_skill_animation_sequence('vault_impact')
+
+            # Get landing animation sequence (upgraded or normal)
+            landing_key = 'vault_impact_upgraded' if is_upgraded else 'vault_impact'
+            landing_animation = ui.asset_manager.get_skill_animation_sequence(landing_key)
             if not landing_animation:
                 landing_animation = ['v', 'V', '@', '*', '.']  # Fallback - ASCII only
                 
@@ -1083,13 +1119,33 @@ class VaultSkill(ActiveSkill):
             # Redraw board after animations
             if hasattr(ui, 'draw_board'):
                 ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-                
+
+            # If upgraded, show radial shockwave effects at all adjacent tiles
+            if is_upgraded:
+                import curses
+                # Show shockwave burst at all 8 adjacent tiles simultaneously
+                adjacent_offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+                shockwave_frames = ['*', '+', '.']  # Brief burst effect
+
+                # Animate all adjacent tiles with shockwave
+                for frame in shockwave_frames:
+                    for dy, dx in adjacent_offsets:
+                        adj_y, adj_x = target_pos[0] + dy, target_pos[1] + dx
+                        if game.is_valid_position(adj_y, adj_x):
+                            ui.renderer.draw_tile(adj_y, adj_x, frame, 7)  # White color
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.08)
+
+                # Redraw board to restore proper tiles
+                if hasattr(ui, 'draw_board'):
+                    ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+
             # Flash the unit to emphasize landing
             if hasattr(ui, 'asset_manager'):
                 tile_ids = [ui.asset_manager.get_unit_tile(user.type)] * 4
                 color_ids = [7, 3 if user.player == 1 else 4] * 2  # Alternate white with player color
                 durations = [0.1] * 4
-                
+
                 ui.renderer.flash_tile(user.y, user.x, tile_ids, color_ids, durations)
         else:
             # No UI, just set position without animations
@@ -1132,6 +1188,34 @@ class VaultSkill(ActiveSkill):
                         # Check for death
                         if adjacent_unit.hp <= 0:
                             game.handle_unit_death(adjacent_unit, user, cause="vault", ui=ui)
+
+            # Show damage numbers for all damaged units
+            if ui and hasattr(ui, 'renderer') and damaged_units:
+                import curses
+                for damaged_unit, damage_amount in damaged_units:
+                    damage_text = f"-{damage_amount}"
+
+                    # Make damage text more prominent with flashing effect
+                    for i in range(3):
+                        ui.renderer.draw_damage_text(
+                            damaged_unit.y - 1, damaged_unit.x * 2,
+                            " " * len(damage_text), 7
+                        )
+                        attrs = curses.A_BOLD if i % 2 == 0 else 0
+                        ui.renderer.draw_damage_text(
+                            damaged_unit.y - 1, damaged_unit.x * 2,
+                            damage_text, 23, attrs  # Color 23 = magenta for damage
+                        )
+                        ui.renderer.refresh()
+                        sleep_with_animation_speed(0.1)
+
+                    # Final damage display (stays visible a bit longer)
+                    ui.renderer.draw_damage_text(
+                        damaged_unit.y - 1, damaged_unit.x * 2,
+                        damage_text, 23, curses.A_BOLD
+                    )
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.2)
 
         return True
 

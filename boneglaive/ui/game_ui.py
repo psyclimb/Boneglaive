@@ -413,6 +413,26 @@ class GameUI:
             self.draw_board()  # Always draw after handling input
             return True  # Consume all input while menu is open
 
+        # DEV KEYBIND: Add upgrade points with '=' key (temporary for testing)
+        if key == ord('='):
+            if not self.game.setup_phase:
+                if self.game.current_player == 1:
+                    self.game.player1_upgrade_points += 1
+                    message_log.add_message(
+                        f"[DEV] Player 1 upgrade points: {self.game.player1_upgrade_points}",
+                        MessageType.SYSTEM,
+                        player=1
+                    )
+                else:
+                    self.game.player2_upgrade_points += 1
+                    message_log.add_message(
+                        f"[DEV] Player 2 upgrade points: {self.game.player2_upgrade_points}",
+                        MessageType.SYSTEM,
+                        player=2
+                    )
+                self.draw_board()
+                return True
+
         # Check for U key to open upgrade menu
         if key == ord('u') or key == ord('U'):
             if not self.game.setup_phase and self.cursor_manager.selected_unit:

@@ -664,13 +664,13 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'AUTOCLAVE (Passive)',
-                        'description': 'When the GLAIVEMAN is brought to critical health or takes damage while already at critical health, he unleashes a desperate cross-shaped retaliation in four cardinal directions (range 3). The burst deals 8 damage to all enemies in its path and heals the GLAIVEMAN for half the total damage dealt. This ability can only trigger once per match and requires at least one enemy within range to activate.',
+                        'description': 'When the GLAIVEMAN is brought to critical health or takes damage while already at critical health, he unleashes a desperate cross-shaped retaliation in four cardinal directions (range 3). The burst deals 8 damage to all enemies in its path and heals the GLAIVEMAN for half the total damage dealt. This ability can only trigger once per life and requires at least one enemy within range to activate. Resets on respawn.',
                         'details': [
                             'Type: Passive',
                             'Range: 3 (cross-shaped in 4 directions)',
                             'Damage: 8',
                             'Effect: Heals for 50% of total damage dealt',
-                            'Special: Once per game; triggers on critical health; requires enemy in range; pierces through terrain'
+                            'Special: Once per life; resets on respawn; triggers on critical health; requires enemy in range; pierces through terrain'
                         ]
                     },
                     {
@@ -6596,139 +6596,131 @@ class UpgradeMenuComponent(UIComponent):
         self.available_upgrades = []
 
     def draw(self):
-        """Draw the upgrade menu overlay."""
+        """Draw the upgrade menu as a full-screen overlay."""
         if not self.show_upgrade_menu or not self.selected_unit:
             return
 
         # Get terminal dimensions
         max_y, max_x = self.renderer.stdscr.getmaxyx()
 
-        # Calculate menu dimensions that scale with terminal size
-        # Use 60% of width or max 100 chars (increased from 80), whichever is smaller
-        menu_width = min(100, int(max_x * 0.6))
-        # Ensure minimum width
-        menu_width = max(40, menu_width)
+        # Use FULL screen dimensions
+        menu_width = max_x
+        menu_height = max_y
+        start_y = 0
+        start_x = 0
 
-        # Calculate height based on content - need more space for wrapped text
-        # Estimate 3 lines per upgrade to account for wrapping (increased from 2)
-        content_height = len(self.available_upgrades) * 3 + 8
-        # Use up to 90% of terminal height (increased from 80%)
-        max_menu_height = int(max_y * 0.9)
-        menu_height = min(content_height, max_menu_height)
-
-        # Position: top-left corner (offset slightly from edges)
-        start_y = 2
-        start_x = 2
-
-        # Ensure menu fits on screen
-        if start_y + menu_height > max_y:
-            menu_height = max_y - start_y - 1
-        if start_x + menu_width > max_x:
-            menu_width = max_x - start_x - 1
-
-        # Draw menu background
+        # Clear and draw full screen background
         try:
-            for y in range(start_y, min(start_y + menu_height, max_y)):
-                if y >= 0 and start_x >= 0 and start_x + menu_width <= max_x:
-                    self.renderer.stdscr.addstr(y, start_x, " " * menu_width, curses.A_REVERSE)
+            for y in range(max_y):
+                self.renderer.stdscr.addstr(y, 0, " " * max_x, curses.A_REVERSE)
         except curses.error:
             pass  # Ignore curses errors from drawing at boundaries
 
-        # Draw title
-        title = f"Upgrade {self.selected_unit.get_display_name()}"
+        # Draw title centered on first line
+        title = f"=== UPGRADE {self.selected_unit.get_display_name()} ==="
+        title_x = max(0, (max_x - len(title)) // 2)
         try:
-            if start_y + 1 < max_y and start_x + 2 + len(title) < max_x:
-                self.renderer.stdscr.addstr(start_y + 1, start_x + 2, title[:menu_width-4], curses.A_BOLD | curses.A_REVERSE)
+            if 0 < max_y and title_x + len(title) < max_x:
+                self.renderer.stdscr.addstr(0, title_x, title[:max_x-1], curses.A_BOLD | curses.A_REVERSE)
         except curses.error:
             pass
 
-        # Draw upgrade points available
+        # Draw upgrade points available on second line, centered
         game = self.game_ui.game
         points = game.player1_upgrade_points if self.selected_unit.player == 1 else game.player2_upgrade_points
-        points_text = f"Upgrade Points: {points}"
+        points_text = f"Upgrade Points Available: {points}"
+        points_x = max(0, (max_x - len(points_text)) // 2)
         try:
-            if start_y + 2 < max_y:
-                self.renderer.stdscr.addstr(start_y + 2, start_x + 2, points_text[:menu_width-4], curses.A_REVERSE)
+            if 2 < max_y:
+                self.renderer.stdscr.addstr(2, points_x, points_text[:max_x-1], curses.A_REVERSE)
         except curses.error:
             pass
 
-        # Draw available upgrades
+        # Draw horizontal separator
+        separator = "=" * (max_x - 1)
+        try:
+            if 3 < max_y:
+                self.renderer.stdscr.addstr(3, 0, separator, curses.A_REVERSE)
+        except curses.error:
+            pass
+
+        # Draw available upgrades (centered with padding)
         hotkeys = ['Q', 'W', 'E', 'R', 'T', 'Y']  # Up to 6 upgrades
-        current_y = start_y + 4
+        current_y = 5  # Start below separator with some padding
+
+        # Calculate left margin for centering (use 10% of screen width as margin)
+        left_margin = max(2, int(max_x * 0.1))
+        text_width = max_x - (left_margin * 2)
+
         for i, upgrade in enumerate(self.available_upgrades):
             if i >= len(hotkeys):
                 break  # Max 6 upgrades displayable
 
-            if current_y >= max_y - 3:  # Leave room for footer
+            if current_y >= max_y - 4:  # Leave room for footer
                 break
 
             hotkey = hotkeys[i]
+
+            # Draw upgrade name/hotkey on one line
             upgrade_text = f"[{hotkey}] {upgrade['name']}"
-            desc_text = f"    {upgrade['description']}"
-
-            # Calculate available width for text
-            text_width = menu_width - 4
-
-            # Draw upgrade option
             try:
                 if current_y < max_y:
-                    self.renderer.stdscr.addstr(current_y, start_x + 2, upgrade_text[:text_width], curses.A_BOLD | curses.A_REVERSE)
+                    self.renderer.stdscr.addstr(current_y, left_margin, upgrade_text[:text_width], curses.A_BOLD | curses.A_REVERSE)
             except curses.error:
                 pass
 
-            # Wrap description text if needed - draw ALL wrapped lines
-            if current_y + 1 < max_y and current_y + 1 < start_y + menu_height - 2:
-                # Wrap long descriptions
-                wrapped_lines = []
-                words = desc_text.split()
-                current_line = ""
-                indent = "    "
+            current_y += 1
 
-                for word in words:
-                    # Calculate potential line length with this word
-                    test_line = current_line + word + " " if current_line else indent + word + " "
+            # Draw description with wrapping
+            desc_indent = "    "
+            desc_text = upgrade['description']
 
-                    if len(test_line.rstrip()) <= text_width:
-                        current_line = test_line
-                    else:
-                        # Line would be too long, save current line and start new one
-                        if current_line:
-                            wrapped_lines.append(current_line.rstrip())
-                        current_line = indent + word + " "
+            # Wrap description text
+            wrapped_lines = []
+            words = desc_text.split()
+            current_line = desc_indent
 
-                # Don't forget the last line
-                if current_line:
-                    wrapped_lines.append(current_line.rstrip())
+            for word in words:
+                test_line = current_line + word + " "
 
-                # Draw all wrapped lines (not just the first one)
-                lines_drawn = 0
-                for j, line in enumerate(wrapped_lines):
-                    line_y = current_y + 1 + j
-                    if line_y < max_y and line_y < start_y + menu_height - 2:
-                        try:
-                            self.renderer.stdscr.addstr(line_y, start_x + 2, line, curses.A_REVERSE)
-                            lines_drawn += 1
-                        except curses.error:
-                            pass
-                    else:
-                        break  # No more room
+                if len(test_line.rstrip()) <= text_width:
+                    current_line = test_line
+                else:
+                    if current_line.strip():
+                        wrapped_lines.append(current_line.rstrip())
+                    current_line = desc_indent + word + " "
 
-            # Advance current_y by number of lines used (hotkey line + wrapped description lines + spacing)
-            current_y += 1 + lines_drawn + 1  # +1 for upgrade name, +lines_drawn for desc, +1 for spacing
+            if current_line.strip():
+                wrapped_lines.append(current_line.rstrip())
 
-        # Draw instructions at bottom
-        instructions = "[ESC] Cancel"
-        try:
-            footer_y = min(start_y + menu_height - 2, max_y - 1)
-            if footer_y >= 0 and start_x + 2 + len(instructions) < max_x:
-                self.renderer.stdscr.addstr(
-                    footer_y,
-                    start_x + 2,
-                    instructions[:menu_width-4],
-                    curses.A_DIM | curses.A_REVERSE
-                )
-        except curses.error:
-            pass
+            # Draw all wrapped description lines
+            for line in wrapped_lines:
+                if current_y < max_y - 4:
+                    try:
+                        self.renderer.stdscr.addstr(current_y, left_margin, line[:text_width], curses.A_REVERSE)
+                        current_y += 1
+                    except curses.error:
+                        pass
+
+            # Add blank line between upgrades
+            current_y += 1
+
+        # Draw footer/instructions at bottom (centered)
+        footer_lines = [
+            "=== CONTROLS ===",
+            "Press Q/W/E/R/T/Y to select an upgrade",
+            "Press ESC to cancel"
+        ]
+
+        footer_y = max_y - len(footer_lines) - 1
+        for i, line in enumerate(footer_lines):
+            line_x = max(0, (max_x - len(line)) // 2)
+            try:
+                if footer_y + i < max_y:
+                    attr = curses.A_BOLD | curses.A_REVERSE if i == 0 else curses.A_DIM | curses.A_REVERSE
+                    self.renderer.stdscr.addstr(footer_y + i, line_x, line[:max_x-1], attr)
+            except curses.error:
+                pass
 
         # Note: Don't call refresh() here - ui_renderer.draw_board() calls it after drawing all components
 

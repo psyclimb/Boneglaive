@@ -1330,6 +1330,14 @@ class Game:
             # Initialize skills
             unit.initialize_skills()
 
+            # Reset passive skill activation flags (once-per-life)
+            if hasattr(unit, 'passive_skill') and unit.passive_skill:
+                unit.passive_skill.activated = False
+
+            # Reset GLAIVEMAN glaive sweep queue flag (once-per-life)
+            if hasattr(unit, 'glaive_sweep_queued'):
+                unit.glaive_sweep_queued = False
+
             # Restore HP to max
             unit.hp = unit.max_hp
 
@@ -4248,24 +4256,57 @@ class Game:
             return False
     
     def try_trigger_autoclave(self, target_unit, ui=None):
-        """Try to trigger Autoclave if conditions are met."""
+        """Try to trigger Autoclave if conditions are met, or execute queued glaive sweep."""
         from boneglaive.utils.debug import logger
         from boneglaive.utils.message_log import message_log, MessageType
         from boneglaive.utils.constants import UnitType, CRITICAL_HEALTH_PERCENT
-        
+
         logger.debug(f"Checking Autoclave trigger for {target_unit.get_display_name()}")
-        
-        # Skip if not a GLAIVEMAN or already activated
+
+        # Skip if not a GLAIVEMAN
         if target_unit.type != UnitType.GLAIVEMAN:
             logger.debug("Not a GLAIVEMAN, skipping Autoclave check")
             return False
-            
+
         if not target_unit.passive_skill or target_unit.passive_skill.name != "Autoclave":
             logger.debug("No Autoclave passive skill, skipping")
             return False
-            
+
+        # Check if Autoclave has already been activated
         if target_unit.passive_skill.activated:
-            logger.debug("Autoclave already activated, skipping")
+            logger.debug("Autoclave already activated, checking for queued glaive sweep")
+
+            # Check if there's a queued glaive sweep from the upgrade
+            if hasattr(target_unit, 'glaive_sweep_queued') and target_unit.glaive_sweep_queued:
+                logger.debug("Glaive sweep is queued, checking conditions")
+
+                # Check if unit is in critical health
+                critical_threshold = int(target_unit.max_hp * CRITICAL_HEALTH_PERCENT)
+                if target_unit.hp > critical_threshold:
+                    logger.debug(f"Unit not in critical health ({target_unit.hp} > {critical_threshold}), not triggering sweep")
+                    return False
+
+                # Check if there's at least one adjacent enemy
+                adjacent_offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+                has_adjacent_enemy = False
+                for dy, dx in adjacent_offsets:
+                    adj_y, adj_x = target_unit.y + dy, target_unit.x + dx
+                    if self.is_valid_position(adj_y, adj_x):
+                        adjacent_unit = self.get_unit_at(adj_y, adj_x)
+                        if adjacent_unit and adjacent_unit.player != target_unit.player and adjacent_unit.is_alive():
+                            has_adjacent_enemy = True
+                            break
+
+                if not has_adjacent_enemy:
+                    logger.debug("No adjacent enemies, not triggering glaive sweep")
+                    return False
+
+                # All conditions met - execute the queued glaive sweep
+                logger.debug("TRIGGERING QUEUED GLAIVE SWEEP!")
+                target_unit.passive_skill._execute_glaive_sweep(target_unit, self, ui)
+                return True
+
+            # No queued sweep, just return
             return False
         
         # Check if unit is in critical health
