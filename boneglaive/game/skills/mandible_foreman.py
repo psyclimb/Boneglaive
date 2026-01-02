@@ -42,9 +42,16 @@ class DischargeSkill(ActiveSkill):
             description="Rush toward an enemy in a straight line. Traps and damages the target.",
             target_type=TargetType.ENEMY,
             cooldown=3,
-            range_=4
+            range_=4  # Base range, upgraded to 5
         )
         self.trap_damage = 4
+
+    def get_range(self, user: 'Unit') -> int:
+        """Get the effective range for this skill, accounting for upgrades."""
+        from boneglaive.game.upgrades import UpgradeManager
+        if UpgradeManager.is_skill_upgraded(user, "Expedite"):
+            return 5  # Upgraded range
+        return self.range
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Check if Expedite can be used to the target position."""
@@ -98,9 +105,10 @@ class DischargeSkill(ActiveSkill):
         # Calculate path from user's position (or planned move position) to target
         from boneglaive.utils.coordinates import get_line, Position
         path = get_line(Position(from_y, from_x), Position(target_pos[0], target_pos[1]))
-        
-        # Check if path is within range
-        if len(path) > self.range + 1:  # +1 because path includes starting position
+
+        # Check if path is within range (use get_range to account for upgrades)
+        effective_range = self.get_range(user)
+        if len(path) > effective_range + 1:  # +1 because path includes starting position
             return False
             
         # Check line of sight - cannot rush through impassable terrain
@@ -306,6 +314,43 @@ class DischargeSkill(ActiveSkill):
                         target=enemy_hit.player,
                         target_name=enemy_hit.get_display_name()
                     )
+
+                    # Check for Viseroy upgrade - apply disarm if available
+                    from boneglaive.game.upgrades import UpgradeManager
+                    if UpgradeManager.is_skill_upgraded(user, "Viseroy") and user.viseroy_disarm_cooldown == 0:
+                        # Apply disarm effect as a proper status effect
+                        enemy_hit.status_disarmed = True
+                        enemy_hit.status_disarmed_duration = 1
+                        user.viseroy_disarm_cooldown = 3  # 3 turn cooldown
+
+                        message_log.add_message(
+                            f"{enemy_hit.get_display_name()} is disarmed by enhanced mechanical jaws",
+                            MessageType.WARNING,
+                            player=user.player,
+                            target=enemy_hit.player,
+                            target_name=enemy_hit.get_display_name()
+                        )
+
+                        # Show disarm animation (ASCII mode only)
+                        if ui and hasattr(ui, 'renderer') and not is_graphical:
+                            enemy_pos = (enemy_hit.y, enemy_hit.x)
+
+                            # Phase 1: Crushing jaw animation with disarm symbols (ASCII only)
+                            disarm_sequence = ['X', 'x', '*', 'X', '*', 'x', 'X']
+                            ui.renderer.animate_attack_sequence(
+                                enemy_pos[0], enemy_pos[1],
+                                disarm_sequence,
+                                10,  # Red background to show danger
+                                0.08
+                            )
+
+                            # Phase 2: Flash the enemy in red multiple times
+                            if hasattr(ui, 'asset_manager'):
+                                tile_ids = [ui.asset_manager.get_unit_tile(enemy_hit.type)] * 6
+                                color_ids = [10, 1, 10, 1, 10, 1]  # Alternate red and white
+                                durations = [0.1] * 6
+
+                                ui.renderer.flash_tile(enemy_pos[0], enemy_pos[1], tile_ids, color_ids, durations)
                 elif enemy_hit.hp > 0:
                     message_log.add_message(
                         f"{enemy_hit.get_display_name()} is immune to Viseroy due to Stasiality",
@@ -484,6 +529,41 @@ class DischargeSkill(ActiveSkill):
         # Clear expediting flag now that trap has been applied
         user.expediting = False
 
+        # Check for Expedite upgrade - apply defense buff
+        from boneglaive.game.upgrades import UpgradeManager
+        if UpgradeManager.is_skill_upgraded(user, "Expedite"):
+            # Apply +2 defense buff for 1 turn as a proper status effect
+            user.status_tactical_momentum = True
+            user.status_tactical_momentum_duration = 1
+            user.defense_bonus += 2
+
+            message_log.add_message(
+                f"{user.get_display_name()} gains +2 defense from tactical momentum",
+                MessageType.ABILITY,
+                player=user.player
+            )
+
+            # Show enhanced tactical momentum animation (ASCII mode only)
+            if ui and hasattr(ui, 'renderer') and not is_graphical:
+                user_pos = (user.y, user.x)
+
+                # Phase 1: Momentum pulse - show speed and defense indicators
+                momentum_frames = ['>', '=', '#', '=', '>']
+                ui.renderer.animate_attack_sequence(
+                    user_pos[0], user_pos[1],
+                    momentum_frames,
+                    2,  # Green to show positive buff
+                    0.06
+                )
+
+                # Phase 2: Shield consolidates - flash the FOREMAN with green shield effect
+                if hasattr(ui, 'asset_manager'):
+                    tile_ids = [ui.asset_manager.get_unit_tile(user.type)] * 4
+                    color_ids = [2, 3 if user.player == 1 else 4, 2, 3 if user.player == 1 else 4]  # Alternate green and player color
+                    durations = [0.12] * 4
+
+                    ui.renderer.flash_tile(user_pos[0], user_pos[1], tile_ids, color_ids, durations)
+
         return True
 
 
@@ -593,6 +673,10 @@ class SiteInspectionSkill(ActiveSkill):
                 if not game.map.is_passable(check_y, check_x):
                     impassable_count += 1
 
+        # Check if Site Inspection is upgraded for enhanced animation
+        from boneglaive.game.upgrades import UpgradeManager
+        is_upgraded = UpgradeManager.is_skill_upgraded(user, "Site Inspection")
+
         # Play animation if UI is available (ASCII mode only)
         if not is_graphical and ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
             # Get the animation sequence
@@ -600,72 +684,154 @@ class SiteInspectionSkill(ActiveSkill):
             if not inspection_animation:
                 inspection_animation = ['#', 'O', '#', 'O', '#']  # Fallback with eye-like symbols
 
-            # Show scanning effect over the area
-            for dy in [-1, 0, 1]:
-                for dx in [-1, 0, 1]:
-                    check_y = y + dy
-                    check_x = x + dx
+            if is_upgraded:
+                # Enhanced animation for upgraded Site Inspection
+                # Phase 1: Faster, more intense scanning with double pass
+                for pass_num in range(2):  # Two scanning passes
+                    for dy in [-1, 0, 1]:
+                        for dx in [-1, 0, 1]:
+                            check_y = y + dy
+                            check_x = x + dx
 
-                    # Skip out of bounds positions
-                    if not game.is_valid_position(check_y, check_x):
-                        continue
+                            # Skip out of bounds positions
+                            if not game.is_valid_position(check_y, check_x):
+                                continue
 
-                    # Show inspection animation at each position
-                    ui.renderer.animate_attack_sequence(
-                        check_y, check_x,
-                        inspection_animation,
-                        3 if user.player == 1 else 4,  # Player color
-                        0.05  # fast animation
-                    )
+                            # Show inspection animation at each position (faster)
+                            ui.renderer.animate_attack_sequence(
+                                check_y, check_x,
+                                inspection_animation,
+                                3 if user.player == 1 else 4,  # Player color
+                                0.03  # faster animation for upgraded
+                            )
 
-            # Draw an outline around the inspection area
-            for i in range(2):  # Repeat the outline effect
-                # Top row
-                for dx in [-1, 0, 1]:
-                    if game.is_valid_position(y - 1, x + dx):
-                        ui.renderer.draw_tile(y - 1, x + dx, '─', 3 if user.player == 1 else 4)
+                # Phase 2: Radial pulse effect from center
+                for radius in range(3):
+                    for dy in [-1, 0, 1]:
+                        for dx in [-1, 0, 1]:
+                            if abs(dy) + abs(dx) == radius or (radius == 2 and abs(dy) == 1 and abs(dx) == 1):
+                                check_y = y + dy
+                                check_x = x + dx
+                                if game.is_valid_position(check_y, check_x):
+                                    ui.renderer.draw_tile(check_y, check_x, '●', 2)  # Green pulse
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.08)
 
-                # Bottom row
-                for dx in [-1, 0, 1]:
-                    if game.is_valid_position(y + 1, x + dx):
-                        ui.renderer.draw_tile(y + 1, x + dx, '─', 3 if user.player == 1 else 4)
+                # Phase 3: Enhanced outline with double-line effect
+                for i in range(3):  # More repetitions
+                    # Draw double-line effect (thicker border)
+                    # Top row
+                    for dx in [-1, 0, 1]:
+                        if game.is_valid_position(y - 1, x + dx):
+                            ui.renderer.draw_tile(y - 1, x + dx, '═', 3 if user.player == 1 else 4)
 
-                # Left column
-                for dy in [-1, 0, 1]:
-                    if game.is_valid_position(y + dy, x - 1):
-                        ui.renderer.draw_tile(y + dy, x - 1, '│', 3 if user.player == 1 else 4)
+                    # Bottom row
+                    for dx in [-1, 0, 1]:
+                        if game.is_valid_position(y + 1, x + dx):
+                            ui.renderer.draw_tile(y + 1, x + dx, '═', 3 if user.player == 1 else 4)
 
-                # Right column
-                for dy in [-1, 0, 1]:
-                    if game.is_valid_position(y + dy, x + 1):
-                        ui.renderer.draw_tile(y + dy, x + 1, '│', 3 if user.player == 1 else 4)
+                    # Left column
+                    for dy in [-1, 0, 1]:
+                        if game.is_valid_position(y + dy, x - 1):
+                            ui.renderer.draw_tile(y + dy, x - 1, '║', 3 if user.player == 1 else 4)
 
-                # Corners
-                if game.is_valid_position(y - 1, x - 1):
-                    ui.renderer.draw_tile(y - 1, x - 1, '┌', 3 if user.player == 1 else 4)
-                if game.is_valid_position(y - 1, x + 1):
-                    ui.renderer.draw_tile(y - 1, x + 1, '┐', 3 if user.player == 1 else 4)
-                if game.is_valid_position(y + 1, x - 1):
-                    ui.renderer.draw_tile(y + 1, x - 1, '└', 3 if user.player == 1 else 4)
-                if game.is_valid_position(y + 1, x + 1):
-                    ui.renderer.draw_tile(y + 1, x + 1, '┘', 3 if user.player == 1 else 4)
+                    # Right column
+                    for dy in [-1, 0, 1]:
+                        if game.is_valid_position(y + dy, x + 1):
+                            ui.renderer.draw_tile(y + dy, x + 1, '║', 3 if user.player == 1 else 4)
 
-                ui.renderer.refresh()
-                sleep_with_animation_speed(0.2)
+                    # Enhanced corners
+                    if game.is_valid_position(y - 1, x - 1):
+                        ui.renderer.draw_tile(y - 1, x - 1, '╔', 3 if user.player == 1 else 4)
+                    if game.is_valid_position(y - 1, x + 1):
+                        ui.renderer.draw_tile(y - 1, x + 1, '╗', 3 if user.player == 1 else 4)
+                    if game.is_valid_position(y + 1, x - 1):
+                        ui.renderer.draw_tile(y + 1, x - 1, '╚', 3 if user.player == 1 else 4)
+                    if game.is_valid_position(y + 1, x + 1):
+                        ui.renderer.draw_tile(y + 1, x + 1, '╝', 3 if user.player == 1 else 4)
 
-                # Clear outline (replace with spaces)
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.15)
+
+                    # Clear outline
+                    for dy in [-1, 0, 1]:
+                        for dx in [-1, 0, 1]:
+                            if dy == 0 and dx == 0:
+                                continue  # Skip center
+                            if game.is_valid_position(y + dy, x + dx):
+                                ui.renderer.draw_tile(y + dy, x + dx, ' ', 3 if user.player == 1 else 4)
+
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.08)
+            else:
+                # Base animation (unchanged)
+                # Show scanning effect over the area
                 for dy in [-1, 0, 1]:
                     for dx in [-1, 0, 1]:
-                        if dy == 0 and dx == 0:
-                            continue  # Skip center
-                        if game.is_valid_position(y + dy, x + dx):
-                            ui.renderer.draw_tile(y + dy, x + dx, ' ', 3 if user.player == 1 else 4)
+                        check_y = y + dy
+                        check_x = x + dx
 
-                ui.renderer.refresh()
-                sleep_with_animation_speed(0.1)
+                        # Skip out of bounds positions
+                        if not game.is_valid_position(check_y, check_x):
+                            continue
+
+                        # Show inspection animation at each position
+                        ui.renderer.animate_attack_sequence(
+                            check_y, check_x,
+                            inspection_animation,
+                            3 if user.player == 1 else 4,  # Player color
+                            0.05  # fast animation
+                        )
+
+                # Draw an outline around the inspection area
+                for i in range(2):  # Repeat the outline effect
+                    # Top row
+                    for dx in [-1, 0, 1]:
+                        if game.is_valid_position(y - 1, x + dx):
+                            ui.renderer.draw_tile(y - 1, x + dx, '─', 3 if user.player == 1 else 4)
+
+                    # Bottom row
+                    for dx in [-1, 0, 1]:
+                        if game.is_valid_position(y + 1, x + dx):
+                            ui.renderer.draw_tile(y + 1, x + dx, '─', 3 if user.player == 1 else 4)
+
+                    # Left column
+                    for dy in [-1, 0, 1]:
+                        if game.is_valid_position(y + dy, x - 1):
+                            ui.renderer.draw_tile(y + dy, x - 1, '│', 3 if user.player == 1 else 4)
+
+                    # Right column
+                    for dy in [-1, 0, 1]:
+                        if game.is_valid_position(y + dy, x + 1):
+                            ui.renderer.draw_tile(y + dy, x + 1, '│', 3 if user.player == 1 else 4)
+
+                    # Corners
+                    if game.is_valid_position(y - 1, x - 1):
+                        ui.renderer.draw_tile(y - 1, x - 1, '┌', 3 if user.player == 1 else 4)
+                    if game.is_valid_position(y - 1, x + 1):
+                        ui.renderer.draw_tile(y - 1, x + 1, '┐', 3 if user.player == 1 else 4)
+                    if game.is_valid_position(y + 1, x - 1):
+                        ui.renderer.draw_tile(y + 1, x - 1, '└', 3 if user.player == 1 else 4)
+                    if game.is_valid_position(y + 1, x + 1):
+                        ui.renderer.draw_tile(y + 1, x + 1, '┘', 3 if user.player == 1 else 4)
+
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.2)
+
+                    # Clear outline (replace with spaces)
+                    for dy in [-1, 0, 1]:
+                        for dx in [-1, 0, 1]:
+                            if dy == 0 and dx == 0:
+                                continue  # Skip center
+                            if game.is_valid_position(y + dy, x + dx):
+                                ui.renderer.draw_tile(y + dy, x + dx, ' ', 3 if user.player == 1 else 4)
+
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.1)
 
         # Apply scaled buffs based on terrain count (works in both ASCII and graphical modes)
-        if impassable_count <= 1:
+        # Upgrade adds +1 defense to all effects and makes 2+ terrain grant +1 defense
+        if impassable_count <= 1 or (impassable_count >= 2 and is_upgraded):
             # Find allies in the area and apply the buff
             for dy in [-1, 0, 1]:
                 for dx in [-1, 0, 1]:
@@ -688,22 +854,40 @@ class SiteInspectionSkill(ActiveSkill):
                                 target_name=ally.get_display_name()
                             )
                             continue
-                            
-                        # Determine effect type based on terrain count
+
+                        # Determine effect type based on terrain count and upgrade status
                         if impassable_count == 0:
-                            # Full effect: +1 attack and +1 movement
+                            # Clear: +1 attack, +1 movement (+1 defense if upgraded)
                             effect_type = "full"
                             attack_bonus = 1
                             move_bonus = 1
-                            effect_message = f"{ally.get_display_name()} gains +1 attack and movement from clear Site Inspection"
-                            effect_symbol = "++"
-                        else:  # impassable_count == 1
-                            # Partial effect: +1 movement only
+                            defense_bonus = 1 if is_upgraded else 0
+                            if is_upgraded:
+                                effect_message = f"{ally.get_display_name()} gains +1 attack, +1 movement, +1 defense from clear Site Inspection"
+                                effect_symbol = "+++"
+                            else:
+                                effect_message = f"{ally.get_display_name()} gains +1 attack and movement from clear Site Inspection"
+                                effect_symbol = "++"
+                        elif impassable_count == 1:
+                            # Partially obstructed: +1 movement (+1 defense if upgraded)
                             effect_type = "partial"
                             attack_bonus = 0
                             move_bonus = 1
-                            effect_message = f"{ally.get_display_name()} gains +1 movement from partially obstructed Site Inspection"
-                            effect_symbol = "+1"
+                            defense_bonus = 1 if is_upgraded else 0
+                            if is_upgraded:
+                                effect_message = f"{ally.get_display_name()} gains +1 movement, +1 defense from partially obstructed Site Inspection"
+                                effect_symbol = "++"
+                            else:
+                                effect_message = f"{ally.get_display_name()} gains +1 movement from partially obstructed Site Inspection"
+                                effect_symbol = "+1"
+                        else:  # impassable_count >= 2 (only possible if upgraded)
+                            # Heavily obstructed: +1 defense only (upgrade-only effect)
+                            effect_type = "obstructed"
+                            attack_bonus = 0
+                            move_bonus = 0
+                            defense_bonus = 1
+                            effect_message = f"{ally.get_display_name()} gains +1 defense from obstructed Site Inspection"
+                            effect_symbol = "+D"
                         
                         # Check if ally already has any site inspection status effect
                         has_full_effect = hasattr(ally, 'status_site_inspection') and ally.status_site_inspection
@@ -715,14 +899,27 @@ class SiteInspectionSkill(ActiveSkill):
                             if effect_type == "full":
                                 ally.status_site_inspection = True
                                 ally.status_site_inspection_duration = self.effect_duration
-                            else:  # partial
+                            elif effect_type == "partial":
                                 ally.status_site_inspection_partial = True
                                 ally.status_site_inspection_partial_duration = self.effect_duration
-                            
+                            else:  # obstructed (upgrade only)
+                                ally.status_site_inspection_obstructed = True
+                                ally.status_site_inspection_obstructed_duration = self.effect_duration
+
                             # Apply stat bonuses
                             ally.attack_bonus = getattr(ally, 'attack_bonus', 0) + attack_bonus
                             ally.move_range_bonus = getattr(ally, 'move_range_bonus', 0) + move_bonus
-                            
+                            ally.defense_bonus = getattr(ally, 'defense_bonus', 0) + defense_bonus
+
+                            # Track if defense was applied for cleanup
+                            if defense_bonus > 0:
+                                if effect_type == "full":
+                                    ally.status_site_inspection_had_defense = True
+                                elif effect_type == "partial":
+                                    ally.status_site_inspection_partial_had_defense = True
+                                elif effect_type == "obstructed":
+                                    ally.status_site_inspection_obstructed_had_defense = True
+
                             # Log the status effect application
                             message_log.add_message(effect_message, MessageType.ABILITY, player=user.player)
                             
@@ -783,12 +980,14 @@ class SiteInspectionSkill(ActiveSkill):
                                 ui.renderer.draw_damage_text(ally.y-1, ally.x*2, "  ", 7)
                                 ui.renderer.refresh()
         else:
-            # 2+ impassable terrain found - skill doesn't apply any buffs
-            message_log.add_message(
-                f"Multiple obstructions prevent effective site analysis ({impassable_count} terrain features detected)",
-                MessageType.ABILITY,
-                player=user.player
-            )
+            # 2+ impassable terrain found - skill doesn't apply any buffs (unless upgraded)
+            # This else block should not be reached when upgraded since the condition changed
+            if not is_upgraded:
+                message_log.add_message(
+                    f"Multiple obstructions prevent effective site analysis ({impassable_count} terrain features detected)",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
         
         # Check for INTERFERER scalar nodes in the inspection area
         if hasattr(game, 'scalar_nodes') and game.scalar_nodes:
@@ -861,37 +1060,96 @@ class JawlineSkill(ActiveSkill):
         )
         self.damage = 4
         self.effect_duration = 2
-    
+
+    def get_target_type(self, user: 'Unit') -> TargetType:
+        """Get the target type for this skill, accounting for upgrades."""
+        from boneglaive.game.upgrades import UpgradeManager
+        if UpgradeManager.is_skill_upgraded(user, "Jawline"):
+            return TargetType.AREA  # Upgraded: directional area targeting
+        return TargetType.SELF  # Base: self-targeted
+
+    def get_range(self, user: 'Unit') -> int:
+        """Get the effective range for this skill, accounting for upgrades."""
+        from boneglaive.game.upgrades import UpgradeManager
+        if UpgradeManager.is_skill_upgraded(user, "Jawline"):
+            return 9  # Upgraded: 9 tile range
+        return 0  # Base: self-targeted (no range)
+
+    def get_description(self, user: 'Unit') -> str:
+        """Get the description for this skill, accounting for upgrades."""
+        from boneglaive.game.upgrades import UpgradeManager
+        if UpgradeManager.is_skill_upgraded(user, "Jawline"):
+            return "Deploy directional 3x9 line of mechanical jaws. Deals 4 damage and completely immobilizes enemies for 2 turns. Blocked by terrain."
+        return self.description
+
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        # Check if Jawline is upgraded
+        from boneglaive.game.upgrades import UpgradeManager
+        is_upgraded = UpgradeManager.is_skill_upgraded(user, "Jawline")
+
         # Basic validation
         if not super().can_use(user, target_pos, game):
             return False
         if not game:
             return False
+
+        # If upgraded, require directional targeting (like Expedite)
+        if is_upgraded and target_pos:
+            # Use correct position (current or planned move)
+            from_y = user.y
+            from_x = user.x
+            if user.move_target:
+                from_y, from_x = user.move_target
+
+            # Calculate vector to target
+            delta_y = target_pos[0] - from_y
+            delta_x = target_pos[1] - from_x
+
+            # Must target at least 1 tile away
+            if delta_y == 0 and delta_x == 0:
+                return False
+
+            # Must be in a straight line (cardinal or diagonal)
+            is_straight_line = (delta_y == 0 or delta_x == 0 or abs(delta_y) == abs(delta_x))
+            if not is_straight_line:
+                return False
+
+            # Must be within range (9 tiles)
+            distance = game.chess_distance(from_y, from_x, target_pos[0], target_pos[1])
+            if distance > 9:
+                return False
+
         return True
             
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
-        # For self-targeted skills, we need the final position after any moves
-        if user.move_target:
-            # Use planned move position if unit has a pending move
-            target_pos = user.move_target
-        else:
-            # Otherwise use current position
-            target_pos = (user.y, user.x)
-            
+        # Check if Jawline is upgraded
+        from boneglaive.game.upgrades import UpgradeManager
+        is_upgraded = UpgradeManager.is_skill_upgraded(user, "Jawline")
+
+        # For upgraded version, target_pos is the direction endpoint
+        # For base version, use self-targeting
+        if not is_upgraded:
+            # For self-targeted skills, we need the final position after any moves
+            if user.move_target:
+                # Use planned move position if unit has a pending move
+                target_pos = user.move_target
+            else:
+                # Otherwise use current position
+                target_pos = (user.y, user.x)
+
         if not self.can_use(user, target_pos, game):
             return False
         user.skill_target = target_pos
         user.selected_skill = self
-        
+
         # Track action order
         if game:
             user.action_timestamp = game.action_counter
             game.action_counter += 1
-        
+
         # Set jawline indicator for UI - using the target position
         user.jawline_indicator = target_pos
-        
+
         # Log that the skill has been readied
         from boneglaive.utils.message_log import message_log, MessageType
         message_log.add_message(
@@ -899,7 +1157,7 @@ class JawlineSkill(ActiveSkill):
             MessageType.ABILITY,
             player=user.player
         )
-        
+
         self.current_cooldown = self.cooldown
         return True
         
@@ -908,40 +1166,119 @@ class JawlineSkill(ActiveSkill):
         from boneglaive.utils.message_log import message_log, MessageType
         import time
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-
         import curses
 
         # Detect if running in graphical mode to avoid blocking sleeps
         is_graphical = ui and hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'
 
-        # Update target position if unit has moved (due to move being executed before skill)
-        # This ensures we deploy Jawline at the unit's final position after movement
-        target_pos = (user.y, user.x)
+        # Check if Jawline is upgraded
+        from boneglaive.game.upgrades import UpgradeManager
+        is_upgraded = UpgradeManager.is_skill_upgraded(user, "Jawline")
 
         # Clear the jawline indicator after execution
         user.jawline_indicator = None
-        
+
         # Log the skill activation
         message_log.add_message(
             f"{user.get_display_name()} deploys JAWLINE network",
             MessageType.ABILITY,
             player=user.player
         )
-        
-        # Calculate the 3x3 area around the user
+
+        # Calculate affected positions
         area_positions = []
-        for dy in [-1, 0, 1]:
-            for dx in [-1, 0, 1]:
-                # Skip the center (user's position)
-                if dy == 0 and dx == 0:
-                    continue
-                    
-                y = user.y + dy
-                x = user.x + dx
-                
-                # Check if position is valid
-                if game.is_valid_position(y, x):
+
+        if is_upgraded:
+            # Upgraded: 3x9 directional line
+            # Calculate direction vector from user to target
+            delta_y = target_pos[0] - user.y
+            delta_x = target_pos[1] - user.x
+
+            # Normalize to unit direction
+            if delta_y != 0:
+                dir_y = delta_y // abs(delta_y)
+            else:
+                dir_y = 0
+
+            if delta_x != 0:
+                dir_x = delta_x // abs(delta_x)
+            else:
+                dir_x = 0
+
+            # Calculate perpendicular direction for the 3-wide part
+            if dir_y == 0:  # Horizontal line
+                perp_y, perp_x = 1, 0
+            elif dir_x == 0:  # Vertical line
+                perp_y, perp_x = 0, 1
+            else:  # Diagonal line
+                # For diagonals, perpendicular is the other diagonal
+                perp_y, perp_x = -dir_x, dir_y
+
+            # Build the 3x9 line, blocked by terrain, furniture, and enemy units
+            # Track which offsets have been blocked at each distance
+            blocked_offsets = set()
+
+            for distance in range(1, 10):  # 9 tiles forward
+                for offset in [-1, 0, 1]:  # 3 tiles wide
+                    # Skip this offset if it was blocked at a previous distance
+                    if offset in blocked_offsets:
+                        continue
+
+                    y = user.y + (dir_y * distance) + (perp_y * offset)
+                    x = user.x + (dir_x * distance) + (perp_x * offset)
+
+                    # Check if position is valid
+                    if not game.is_valid_position(y, x):
+                        blocked_offsets.add(offset)
+                        continue
+
+                    # Check if blocked by impassable terrain
+                    if not game.map.is_passable(y, x):
+                        blocked_offsets.add(offset)
+                        continue
+
+                    # Check if blocked by furniture along this specific lane
+                    # Check from the previous position in this lane, not from user
+                    if distance > 1:
+                        prev_y = user.y + (dir_y * (distance - 1)) + (perp_y * offset)
+                        prev_x = user.x + (dir_x * (distance - 1)) + (perp_x * offset)
+                        if not game.has_line_of_sight(prev_y, prev_x, y, x):
+                            blocked_offsets.add(offset)
+                            continue
+                    else:
+                        # For first tile, check from user
+                        if not game.has_line_of_sight(user.y, user.x, y, x):
+                            blocked_offsets.add(offset)
+                            continue
+
+                    # Check if there's an enemy unit here (blocks further extension)
+                    unit_at_pos = game.get_unit_at(y, x)
+                    if unit_at_pos and unit_at_pos.player != user.player:
+                        # Add this position (enemy gets hit) but block further extension
+                        area_positions.append((y, x))
+                        blocked_offsets.add(offset)
+                        continue
+
+                    # Position is valid and not blocked
                     area_positions.append((y, x))
+
+                # If all 3 offsets are blocked, stop extending entirely
+                if len(blocked_offsets) >= 3:
+                    break
+        else:
+            # Base version: 3x3 area around user
+            for dy in [-1, 0, 1]:
+                for dx in [-1, 0, 1]:
+                    # Skip the center (user's position)
+                    if dy == 0 and dx == 0:
+                        continue
+
+                    y = user.y + dy
+                    x = user.x + dx
+
+                    # Check if position is valid
+                    if game.is_valid_position(y, x):
+                        area_positions.append((y, x))
 
         # Play animation if UI is available (ASCII mode only)
         if not is_graphical and ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):

@@ -247,7 +247,7 @@ class Autoclave(PassiveSkill):
                 beam_animation = ['~', '=', '-', '/', '\\', '|', '+', 'x', '*']  # Fallback
 
             # Animate all beams simultaneously with cycling frames
-            num_cycles = 4  # Number of complete animation cycles
+            num_cycles = 3  # Number of complete animation cycles (reduced from 4, ~25% reduction)
             frames_per_cycle = len(beam_animation)
 
             for cycle in range(num_cycles):
@@ -262,7 +262,7 @@ class Autoclave(PassiveSkill):
 
                     # Refresh to show the frame
                     ui.renderer.refresh()
-                    sleep_with_animation_speed(0.05)  # Fast frame rate for smooth animation
+                    sleep_with_animation_speed(0.06)  # Slower frame rate (0.05 * 1.2 = 0.06)
 
             # Redraw board to restore proper tiles after animation
             if hasattr(ui, 'draw_board'):

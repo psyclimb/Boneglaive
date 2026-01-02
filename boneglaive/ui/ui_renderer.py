@@ -47,7 +47,10 @@ class UIRenderer:
 
         if hasattr(unit, 'shrapnel_duration') and unit.shrapnel_duration > 0:
             effects.append(('shrapnel', 'x', curses.A_DIM))
-            
+
+        if hasattr(unit, 'status_disarmed') and unit.status_disarmed:
+            effects.append(('disarmed', '[', curses.A_BOLD))
+
         if (hasattr(unit, 'pry_duration') and unit.pry_duration > 0) or \
            (hasattr(unit, 'pry_active') and unit.pry_active) or \
            (unit.was_pried and unit.move_range_bonus < 0):
@@ -92,7 +95,10 @@ class UIRenderer:
             effects.append(('site_inspection', '#', curses.A_BOLD))
         elif hasattr(unit, 'status_site_inspection_partial') and unit.status_site_inspection_partial:
             effects.append(('site_inspection_partial', ',', curses.A_BOLD))
-            
+
+        if hasattr(unit, 'status_tactical_momentum') and unit.status_tactical_momentum:
+            effects.append(('tactical_momentum', ']', curses.A_BOLD))
+
         if hasattr(unit, 'has_investment_effect') and unit.has_investment_effect:
             effects.append(('investment', '$', curses.A_BOLD))
             
@@ -994,14 +1000,92 @@ class UIRenderer:
                        u.selected_skill.name == "Jawline" and u.jawline_indicator is not None:
                         target_y, target_x = u.jawline_indicator
 
-                        # Check if this position is within the 3x3 area of Jawline
-                        in_area = (abs(y - target_y) <= 1 and abs(x - target_x) <= 1)
-                        # Skip center (that's the user's position)
-                        if (y, x) == (target_y, target_x):
-                            continue
+                        # Check if Jawline is upgraded
+                        from boneglaive.game.upgrades import UpgradeManager
+                        is_upgraded = UpgradeManager.is_skill_upgraded(u, "Jawline")
+
+                        in_area = False
+
+                        if is_upgraded:
+                            # Calculate the 3x9 directional line preview
+                            # Get direction from user to target
+                            delta_y = target_y - u.y
+                            delta_x = target_x - u.x
+
+                            # Normalize to unit direction
+                            if delta_y != 0:
+                                dir_y = delta_y // abs(delta_y)
+                            else:
+                                dir_y = 0
+
+                            if delta_x != 0:
+                                dir_x = delta_x // abs(delta_x)
+                            else:
+                                dir_x = 0
+
+                            # Calculate perpendicular direction for the 3-wide part
+                            if dir_y == 0:  # Horizontal line
+                                perp_y, perp_x = 1, 0
+                            elif dir_x == 0:  # Vertical line
+                                perp_y, perp_x = 0, 1
+                            else:  # Diagonal line
+                                perp_y, perp_x = -dir_x, dir_y
+
+                            # Check if current position (y, x) is in the 3x9 line
+                            # Track which offsets have been blocked
+                            blocked_offsets = set()
+                            for distance in range(1, 10):  # 9 tiles forward
+                                for offset in [-1, 0, 1]:  # 3 tiles wide
+                                    if offset in blocked_offsets:
+                                        continue
+
+                                    check_y = u.y + (dir_y * distance) + (perp_y * offset)
+                                    check_x = u.x + (dir_x * distance) + (perp_x * offset)
+
+                                    if not self.game_ui.game.is_valid_position(check_y, check_x):
+                                        blocked_offsets.add(offset)
+                                        continue
+
+                                    if not self.game_ui.game.map.is_passable(check_y, check_x):
+                                        blocked_offsets.add(offset)
+                                        continue
+
+                                    # Check if blocked by furniture along this specific lane
+                                    if distance > 1:
+                                        prev_y = u.y + (dir_y * (distance - 1)) + (perp_y * offset)
+                                        prev_x = u.x + (dir_x * (distance - 1)) + (perp_x * offset)
+                                        if not self.game_ui.game.has_line_of_sight(prev_y, prev_x, check_y, check_x):
+                                            blocked_offsets.add(offset)
+                                            continue
+                                    else:
+                                        # For first tile, check from user
+                                        if not self.game_ui.game.has_line_of_sight(u.y, u.x, check_y, check_x):
+                                            blocked_offsets.add(offset)
+                                            continue
+
+                                    unit_at_pos = self.game_ui.game.get_unit_at(check_y, check_x)
+                                    if unit_at_pos and unit_at_pos.player != u.player:
+                                        if (y, x) == (check_y, check_x):
+                                            in_area = True
+                                            break
+                                        blocked_offsets.add(offset)
+                                        continue
+
+                                    if (y, x) == (check_y, check_x):
+                                        in_area = True
+                                        break
+
+                                if in_area or len(blocked_offsets) >= 3:
+                                    break
+                        else:
+                            # Base version: 3x3 area
+                            in_area = (abs(y - target_y) <= 1 and abs(x - target_x) <= 1)
+                            # Skip center (that's the user's position)
+                            if (y, x) == (target_y, target_x):
+                                in_area = False
 
                         if in_area:
-                            # Draw jawline indicator - use mandible symbol for surrounding tiles
+                            # Draw jawline indicator - use mandible symbol
                             tile = "{"  # Mandible symbol for jawline network
                             color_id = 3 if u.player == 1 else 4  # Color based on player
 
@@ -1433,6 +1517,8 @@ class UIRenderer:
             # Duration-based effects (categorized as positive or negative)
             if hasattr(unit, 'shrapnel_duration') and unit.shrapnel_duration > 0:
                 negative_effects.append(f"Shrapnel({unit.shrapnel_duration})")
+            if hasattr(unit, 'status_disarmed') and unit.status_disarmed:
+                negative_effects.append(f"Disarmed({unit.status_disarmed_duration})")
             if hasattr(unit, 'auction_curse_dot') and unit.auction_curse_dot:
                 duration = getattr(unit, 'auction_curse_dot_duration', '?')
                 negative_effects.append(f"Auction Curse({duration})")
@@ -1484,6 +1570,8 @@ class UIRenderer:
                 positive_effects.append("Site Inspection")
             elif hasattr(unit, 'status_site_inspection_partial') and unit.status_site_inspection_partial:
                 positive_effects.append("Site Inspection (Partial)")
+            if hasattr(unit, 'status_tactical_momentum') and unit.status_tactical_momentum:
+                positive_effects.append(f"Tactical Momentum({unit.status_tactical_momentum_duration})")
             if hasattr(unit, 'first_turn_move_bonus') and unit.first_turn_move_bonus:
                 positive_effects.append("First Turn Bonus")
             if hasattr(unit, 'is_echo') and unit.is_echo and not (hasattr(unit, 'echo_duration') and unit.echo_duration > 0):

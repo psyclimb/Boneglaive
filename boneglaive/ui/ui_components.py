@@ -5114,10 +5114,11 @@ class ActionMenuComponent(UIComponent):
             'enabled': unit_can_move  # Enabled only if unit can move
         })
         
-        # Disable attack for recharging units, Neural Shunt, units with actions, or HEINOUS_VAPOR units
+        # Disable attack for recharging units, Neural Shunt, units with actions, disarmed units, or HEINOUS_VAPOR units
         unit_can_attack = (not unit_is_recharging and  # Recharging blocks ALL actions
                           not unit_has_action and
                           not (hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected) and
+                          not (hasattr(unit, 'status_disarmed') and unit.status_disarmed) and  # Disarmed by Viseroy upgrade
                           unit.type != UnitType.HEINOUS_VAPOR)
         self.actions.append({
             'key': 'a',
@@ -5827,7 +5828,42 @@ class ActionMenuComponent(UIComponent):
                 return
             
             # Different targeting logic based on skill target type
-            if skill.target_type == TargetType.SELF:
+            # Special case for upgraded Jawline - check if it's upgraded and treat as AREA targeting
+            is_jawline_upgraded = False
+            if skill.name == "Jawline":
+                from boneglaive.game.upgrades import UpgradeManager
+                is_jawline_upgraded = UpgradeManager.is_skill_upgraded(cursor_manager.selected_unit, "Jawline")
+
+            if is_jawline_upgraded:
+                # Upgraded Jawline uses directional targeting
+                # Only highlight the 8 adjacent tiles for direction selection
+                area_targets = []
+                for dy in [-1, 0, 1]:
+                    for dx in [-1, 0, 1]:
+                        # Skip center (user's position)
+                        if dy == 0 and dx == 0:
+                            continue
+
+                        y = from_y + dy
+                        x = from_x + dx
+
+                        # Check if position is valid
+                        if game.is_valid_position(y, x):
+                            area_targets.append((y, x))
+
+                cursor_manager.highlighted_positions = [Position(y, x) for y, x in area_targets]
+
+                # Set mode to skill targeting
+                mode_manager.set_mode("skill")
+
+                # Request UI redraw
+                self.publish_event(
+                    EventType.UI_REDRAW_REQUESTED,
+                    UIRedrawEventData()
+                )
+                return
+
+            elif skill.target_type == TargetType.SELF:
                 # Special case for Diverge skill which can target both self and vapors
                 if skill.name == "Diverge":
                     # Temporarily change mode to allow targeting

@@ -92,6 +92,11 @@ class Unit:
         self.took_no_actions = True  # Track if unit took no actions for health regeneration
         self.jawline_affected = False  # Track if unit is affected by Jawline skill
         self.jawline_duration = 0  # Duration remaining for Jawline effect
+        self.status_disarmed = False  # Track if unit is disarmed (cannot basic attack) - from Viseroy upgrade
+        self.status_disarmed_duration = 0  # Duration remaining for disarm effect
+        self.viseroy_disarm_cooldown = 0  # Cooldown for Viseroy disarm effect (MANDIBLE_FOREMAN only)
+        self.status_tactical_momentum = False  # Track if unit has Expedite defense buff (MANDIBLE_FOREMAN only)
+        self.status_tactical_momentum_duration = 0  # Duration remaining for Expedite defense buff
         self.estranged = False  # Track if unit is affected by Estrange skill
         self.mired = False  # Track if unit is affected by upgraded Marrow Dike
         self.mired_duration = 0  # Duration remaining for mired effect

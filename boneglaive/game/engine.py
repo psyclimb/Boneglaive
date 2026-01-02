@@ -1519,9 +1519,13 @@ class Game:
         return True
     
     def can_attack(self, unit, y, x):
+        # Check if unit is disarmed (cannot basic attack)
+        if hasattr(unit, 'status_disarmed') and unit.status_disarmed:
+            return False
+
         # First check for unit targets
         target = self.get_unit_at(y, x)
-        
+
         # Check universal targeting restrictions
         if not self.can_target_unit(unit, target):
             return False
@@ -2071,10 +2075,43 @@ class Game:
             # Skip Marrow Dike movement penalty check (already handled above)
             # Process other status effects
                 
+            # Process Viseroy disarm cooldown (MANDIBLE_FOREMAN)
+            if hasattr(unit, 'viseroy_disarm_cooldown') and unit.viseroy_disarm_cooldown > 0:
+                unit.viseroy_disarm_cooldown -= 1
+                logger.debug(f"{unit.get_display_name()}'s Viseroy disarm cooldown: {unit.viseroy_disarm_cooldown}")
+
+            # Process Disarmed status effect (Viseroy upgrade)
+            if hasattr(unit, 'status_disarmed') and unit.status_disarmed:
+                unit.status_disarmed_duration -= 1
+                logger.debug(f"{unit.get_display_name()}'s Disarmed duration: {unit.status_disarmed_duration}")
+
+                if unit.status_disarmed_duration <= 0:
+                    unit.status_disarmed = False
+                    message_log.add_message(
+                        f"{unit.get_display_name()} is no longer disarmed",
+                        MessageType.ABILITY,
+                        player=unit.player
+                    )
+
+            # Process Tactical Momentum status effect (MANDIBLE_FOREMAN Expedite upgrade)
+            if hasattr(unit, 'status_tactical_momentum') and unit.status_tactical_momentum:
+                unit.status_tactical_momentum_duration -= 1
+                logger.debug(f"{unit.get_display_name()}'s Tactical Momentum duration: {unit.status_tactical_momentum_duration}")
+
+                if unit.status_tactical_momentum_duration <= 0:
+                    unit.status_tactical_momentum = False
+                    unit.defense_bonus -= 2  # Remove the +2 defense
+
+                    message_log.add_message(
+                        f"{unit.get_display_name()}'s tactical momentum fades",
+                        MessageType.ABILITY,
+                        player=unit.player
+                    )
+
             # Process Pry movement penalty effect
             if hasattr(unit, 'pry_duration') and unit.pry_duration > 0:
                 logger.debug(f"Processing Pry effect for {unit.get_display_name()}, duration: {unit.pry_duration}")
-                
+
             # Process shrapnel damage at start of turn
             if hasattr(unit, 'shrapnel_duration') and unit.shrapnel_duration > 0:
                 damage = unit.apply_shrapnel_damage(self)
@@ -2092,10 +2129,14 @@ class Game:
                 if unit.status_site_inspection_duration <= 0:
                     # Remove the status effect
                     unit.status_site_inspection = False
-                    # Remove the stat bonuses
+                    # Remove the stat bonuses (including defense if it was upgraded)
                     unit.attack_bonus -= 1
                     unit.move_range_bonus -= 1
-                    
+                    # Check if defense bonus was applied (upgraded Site Inspection)
+                    if hasattr(unit, 'status_site_inspection_had_defense') and unit.status_site_inspection_had_defense:
+                        unit.defense_bonus -= 1
+                        unit.status_site_inspection_had_defense = False
+
                     # Log the expiration
                     message_log.add_message(
                         f"{unit.get_display_name()}'s Site Inspection effect has worn off.",
@@ -2108,17 +2149,41 @@ class Game:
                 # Decrement the duration
                 unit.status_site_inspection_partial_duration -= 1
                 logger.debug(f"{unit.get_display_name()}'s partial Site Inspection duration: {unit.status_site_inspection_partial_duration}")
-                
+
                 # Check if the status effect has expired
                 if unit.status_site_inspection_partial_duration <= 0:
                     # Remove the status effect
                     unit.status_site_inspection_partial = False
-                    # Remove the stat bonuses (only attack bonus for partial effect)
-                    unit.attack_bonus -= 1
-                    
+                    # Remove the stat bonuses (movement + optional defense)
+                    unit.move_range_bonus -= 1
+                    # Check if defense bonus was applied (upgraded Site Inspection)
+                    if hasattr(unit, 'status_site_inspection_partial_had_defense') and unit.status_site_inspection_partial_had_defense:
+                        unit.defense_bonus -= 1
+                        unit.status_site_inspection_partial_had_defense = False
+
                     # Log the expiration
                     message_log.add_message(
                         f"{unit.get_display_name()}'s partial Site Inspection effect has worn off.",
+                        MessageType.ABILITY,
+                        player=unit.player
+                    )
+
+            # Process obstructed Site Inspection status effect (upgrade only)
+            if hasattr(unit, 'status_site_inspection_obstructed') and unit.status_site_inspection_obstructed:
+                # Decrement the duration
+                unit.status_site_inspection_obstructed_duration -= 1
+                logger.debug(f"{unit.get_display_name()}'s obstructed Site Inspection duration: {unit.status_site_inspection_obstructed_duration}")
+
+                # Check if the status effect has expired
+                if unit.status_site_inspection_obstructed_duration <= 0:
+                    # Remove the status effect
+                    unit.status_site_inspection_obstructed = False
+                    # Remove defense bonus
+                    unit.defense_bonus -= 1
+
+                    # Log the expiration
+                    message_log.add_message(
+                        f"{unit.get_display_name()}'s obstructed Site Inspection effect has worn off.",
                         MessageType.ABILITY,
                         player=unit.player
                     )
@@ -2997,7 +3062,7 @@ class Game:
                             # Only trap if the target is still alive and not immune
                             target.trapped_by = unit
                             target.trap_duration = 0  # Initialize trap duration for incremental damage
-                            
+
                             # Log the trapping (using MessageType.COMBAT for yellow coloring)
                             message_log.add_message(
                                 f"{target.get_display_name()} is trapped in mechanical jaws",
@@ -3005,6 +3070,47 @@ class Game:
                                 player=unit.player,
                                 target_name=target.get_display_name()
                             )
+
+                            # Check for Viseroy upgrade - apply disarm if available
+                            from boneglaive.game.upgrades import UpgradeManager
+                            if UpgradeManager.is_skill_upgraded(unit, "Viseroy") and unit.viseroy_disarm_cooldown == 0:
+                                # Apply disarm effect as a proper status effect
+                                target.status_disarmed = True
+                                target.status_disarmed_duration = 1
+                                unit.viseroy_disarm_cooldown = 3  # 3 turn cooldown
+
+                                message_log.add_message(
+                                    f"{target.get_display_name()} is disarmed by enhanced mechanical jaws",
+                                    MessageType.WARNING,
+                                    player=unit.player,
+                                    target=target.player,
+                                    target_name=target.get_display_name()
+                                )
+
+                                # Show disarm animation (ASCII mode only)
+                                if ui and hasattr(ui, 'renderer'):
+                                    # Detect if running in graphical mode
+                                    is_graphical = hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'
+
+                                    if not is_graphical:
+                                        target_pos = (target.y, target.x)
+
+                                        # Phase 1: Crushing jaw animation with disarm symbols (ASCII only)
+                                        disarm_sequence = ['X', 'x', '*', 'X', '*', 'x', 'X']
+                                        ui.renderer.animate_attack_sequence(
+                                            target_pos[0], target_pos[1],
+                                            disarm_sequence,
+                                            10,  # Red background to show danger
+                                            0.08
+                                        )
+
+                                        # Phase 2: Flash the enemy in red multiple times
+                                        if hasattr(ui, 'asset_manager'):
+                                            tile_ids = [ui.asset_manager.get_unit_tile(target.type)] * 6
+                                            color_ids = [10, 1, 10, 1, 10, 1]  # Alternate red and white
+                                            durations = [0.1] * 6
+
+                                            ui.renderer.flash_tile(target_pos[0], target_pos[1], tile_ids, color_ids, durations)
                     
                     # Award XP to the attacker based on damage dealt
                     from boneglaive.utils.constants import XP_DAMAGE_FACTOR, XP_KILL_REWARD
