@@ -239,30 +239,32 @@ class Autoclave(PassiveSkill):
             if targets_in_direction:
                 targets_by_direction[direction_idx] = targets_in_direction
 
-        # Animate the cross-shaped attack in each direction if UI is available (ASCII mode only)
+        # Animate the cross-shaped attack with all beams firing simultaneously (ASCII mode only)
         if not is_graphical and ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Get the autoclave animation sequence
-            beam_animation = ui.asset_manager.get_skill_animation_sequence('autoclave')
+            # Get the steam + glaive animation sequence
+            beam_animation = ui.asset_manager.get_skill_animation_sequence('autoclave_steam')
             if not beam_animation:
-                beam_animation = ['+', 'X', '#']  # Fallback
+                beam_animation = ['~', '=', '-', '/', '\\', '|', '+', 'x', '*']  # Fallback
 
-            # Animate each direction sequentially, cycling animation frames spatially
-            for direction_idx, targets in targets_by_direction.items():
-                # Cycle through animation frames along the beam path
-                for i, (y, x) in enumerate(targets):
-                    # Use modulo to cycle through animation frames spatially
-                    frame_index = i % len(beam_animation)
-                    single_frame = [beam_animation[frame_index]]  # Single frame animation
+            # Animate all beams simultaneously with cycling frames
+            num_cycles = 4  # Number of complete animation cycles
+            frames_per_cycle = len(beam_animation)
 
-                    ui.renderer.animate_attack_sequence(
-                        y, x,
-                        single_frame,
-                        7,  # color ID (white)
-                        0.1  # quick but visible
-                    )
-                sleep_with_animation_speed(0.1)  # Small pause between directions
+            for cycle in range(num_cycles):
+                for frame_offset in range(frames_per_cycle):
+                    # Draw ALL tiles in ALL beams at once
+                    for direction_idx, targets in targets_by_direction.items():
+                        for distance, (y, x) in enumerate(targets):
+                            # Use distance from center for wave effect
+                            frame_index = (frame_offset + distance) % len(beam_animation)
+                            char = beam_animation[frame_index]
+                            ui.renderer.draw_tile(y, x, char, 7)  # White color
 
-            # Redraw board after animations
+                    # Refresh to show the frame
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.05)  # Fast frame rate for smooth animation
+
+            # Redraw board to restore proper tiles after animation
             if hasattr(ui, 'draw_board'):
                 ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
         
@@ -816,9 +818,8 @@ class PrySkill(ActiveSkill):
             target.move_range_bonus = move_penalty
             target.was_pried = True  # Mark the unit as affected by Pry
 
-            # Add a duration property for UI status display - use 2 for clearer visibility
-            # This will count down once at end of turn and still remain visible next turn
-            target.pry_duration = 2  # Will last until the end of next turn
+            # Add a duration property for UI status display
+            target.pry_duration = 2  # Duration is always 2 turns
 
             # Add a debug message
             logger.info(f"Applied Pry effect to {target.get_display_name()} with duration {target.pry_duration}")
@@ -837,10 +838,10 @@ class PrySkill(ActiveSkill):
                     # Clear the trap - messaging is handled elsewhere
                     unit.trapped_by = None
 
-            # Log the movement reduction
+            # Log the stagger/impact message
             message_log.add_message(
-                f"{target.get_display_name()}'s movement reduced by {abs(move_penalty)} for next turn",
-                MessageType.ABILITY,
+                f"{target.get_display_name()} is staggered by the impact",
+                MessageType.WARNING,  # Use WARNING for negative status effects
                 player=user.player,
                 target_name=target.get_display_name()
             )
@@ -1503,11 +1504,70 @@ class JudgementSkill(ActiveSkill):
             is_upgraded = UpgradeManager.is_skill_upgraded(user, "Judgement")
             if is_upgraded and self.current_cooldown >= 2:
                 self.current_cooldown -= 2
+
+                # Dramatic message about the glaive returning
                 message_log.add_message(
-                    f"Judgement's cooldown reduced by 2 (now {self.current_cooldown} turns)",
+                    f"Divine judgement rendered! The sacred glaive returns to {user.get_display_name()}",
                     MessageType.ABILITY,
                     player=user.player
                 )
+
+                # Animate the glaive returning from target to user
+                if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+                    from boneglaive.utils.coordinates import get_line, Position
+
+                    # Get path from target back to user (reverse of throw)
+                    return_path = get_line(Position(target.y, target.x), Position(user.y, user.x))
+
+                    # Animate glaive traveling back along the path
+                    if len(return_path) > 1:
+                        spinning_frames = ['*', '+', 'o', 'O']  # Spinning glaive
+
+                        # Store terrain for restoration
+                        terrain_backup = []
+                        for pos in return_path[1:-1]:  # Skip start (target) and end (user)
+                            terrain_type = game.map.get_terrain_at(pos.y, pos.x)
+                            terrain_name = terrain_type.name.lower() if hasattr(terrain_type, 'name') else 'empty'
+                            terrain_tile = ui.asset_manager.get_terrain_tile(terrain_name)
+
+                            # Determine terrain color
+                            if terrain_name == 'empty':
+                                terrain_color = 1
+                            elif terrain_name == 'dust':
+                                terrain_color = 11
+                            elif terrain_name == 'limestone':
+                                terrain_color = 12
+                            elif terrain_name == 'pillar':
+                                terrain_color = 13
+                            elif terrain_name == 'furniture' or terrain_name.startswith('coat_rack') or terrain_name.startswith('ottoman'):
+                                terrain_color = 14
+                            elif terrain_name == 'marrow_wall':
+                                terrain_color = 20
+                            else:
+                                terrain_color = 1
+
+                            terrain_backup.append((pos, terrain_tile, terrain_color))
+
+                        # Animate return projectile
+                        for i, (pos, original_tile, original_color) in enumerate(terrain_backup):
+                            # Show golden spinning glaive returning
+                            projectile_char = spinning_frames[i % len(spinning_frames)]
+                            ui.renderer.draw_tile(pos.y, pos.x, projectile_char, 6)  # Golden color
+                            ui.renderer.refresh()
+                            sleep_with_animation_speed(0.04)  # Slightly faster return
+
+                            # Restore terrain
+                            ui.renderer.draw_tile(pos.y, pos.x, original_tile, original_color)
+
+                        ui.renderer.refresh()
+
+                    # Golden flash animation on GLAIVEMAN when glaive arrives
+                    tile_ids = [ui.asset_manager.get_unit_tile(user.type)] * 8
+                    # Alternate between golden (color 6) and player color
+                    color_ids = [6, 3 if user.player == 1 else 4] * 4
+                    durations = [0.08] * 8
+
+                    ui.renderer.flash_tile(user.y, user.x, tile_ids, color_ids, durations)
 
         # Redraw the board after animations
         if ui and hasattr(ui, 'draw_board'):

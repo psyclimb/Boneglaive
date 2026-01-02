@@ -115,6 +115,7 @@ class AssetManager:
             'mandible_foreman_attack': ['<', '[', '{', '{', '{', '{'],  # Jaws opening and closing animation
             'grayman_attack': ['.', ':', '~', '~', '~', ':', '.'],  # Reality distortion wave
             'autoclave': ['*', '+', 'x', '#', 'X', '#', 'x', '+', '*'],  # Intense cross pattern for Autoclave
+            'autoclave_steam': ['~', '≈', '=', '-', '/', '\\', '|', '+', 'x', '*'],  # Steam jets with spinning glaives
             'pry_range1': ['/', '|', '\\', '_', '-', '^'],  # Close-range prying motion with similar visual language to extended range
             'pry_range2': ['-', '\\', '_', '_', '_', '/'],  # Extended range prying motion - similar to extended attack
             'pry_launch': ['-', '/', '|', 'I', 'i', '^', '.', ' '],  # Unit being pried from horizontal to vertical, then diminishing as it launches upward

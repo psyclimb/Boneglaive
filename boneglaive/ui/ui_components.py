@@ -675,12 +675,12 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'PRY (Active) [Key: P]',
-                        'description': 'The GLAIVEMAN pries an adjacent enemy straight up into the ceiling or skybox, causing them to crash down with falling debris. The primary target takes 6 damage and suffers -1 movement for 2 turns (Pried). All adjacent enemies take 3 splash damage from the falling debris.',
+                        'description': 'The GLAIVEMAN pries an adjacent enemy straight up into the ceiling or skybox, causing them to crash down with falling debris. The primary target takes 6 damage and is staggered by the brutal impact, suffering -1 movement for 2 turns (Pried). All adjacent enemies take 3 splash damage from the falling debris.',
                         'details': [
                             'Type: Active',
                             'Range: 1',
                             'Damage: 6 (primary target), 3 (splash to adjacent enemies)',
-                            'Effect: Pried (/) (-1 movement for 2 turns)',
+                            'Effect: Pried (/) (Staggered, -1 movement for 2 turns)',
                             'Cooldown: 3 turns',
                             'Special: Requires line of sight; splash damage affects all adjacent enemies of target'
                         ]
