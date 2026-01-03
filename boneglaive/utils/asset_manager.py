@@ -138,6 +138,12 @@ class AssetManager:
             'delta_config': ['Ψ', '.', ':', '=', ' ', '=', ':', '.', 'Ψ'],  # Teleportation effect
             'teleport_out': ['Ψ', '.', ':', '=', ' '],  # Teleport out animation
             'teleport_in': [' ', '=', ':', '.', 'Ψ'],  # Teleport in animation
+
+            # Delta Config upgrade animations - electromagnetic well abduction
+            'delta_config_well_expand': ['.', ':', 'o', 'O', '0', '@'],  # Well expansion around GRAYMAN
+            'delta_config_well_travel': ['~', '~', '~', '~'],  # Electromagnetic waves during travel
+            'delta_config_well_collapse': ['@', '0', 'O', 'o', ':', '.', ' '],  # Well collapse at destination
+
             'estrange': ['~', '=', '=', '~', '-', '-', '~', '='],  # Dramatic pulsing beam
             'grae_exchange': ['/', '_', '*', 'ψ', 'Ψ'],  # Echo creation effect
             'marrow_healing': ['<', '3', '<', '3', '<', '+', '+', '*'],  # Blood plasma healing animation

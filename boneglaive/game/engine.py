@@ -2620,15 +2620,11 @@ class Game:
                 # If duration reached zero, the echo expires
                 if unit.echo_duration <= 0:
                     logger.debug(f"Echo {unit.get_display_name()} expires after owner's turns completed")
-                    
-                    # Log the expiration
-                    message_log.add_message(
-                        f"{unit.get_display_name()} fades away...",
-                        MessageType.ABILITY,
-                        player=unit.player
-                    )
-                    
-                    # Kill the echo (this will trigger death handling later)
+
+                    # Trigger explosion effect (deals damage to adjacent enemies)
+                    self._trigger_echo_death_effect(unit, ui)
+
+                    # Kill the echo
                     unit.hp = 0
         
         # Create a single list of units with actions, ordered by timestamp

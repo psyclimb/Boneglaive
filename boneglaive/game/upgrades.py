@@ -67,8 +67,8 @@ SKILL_UPGRADES = {
     "GRAYMAN": {
         "Stasiality": {
             "name": "Stasiality",
-            "description": "Adds an active ability to enter stasis for 1 turn. Invulnerable but cannot act.",
-            "type": "buff",
+            "description": "GRAYMAN becomes completely inert. Move range reduced to 0. Delta Config cooldown reduced to 8. Græ Exchange cooldown reduced to 3. +1 PRT.",
+            "type": "sidegrade",
             "cost": 1
         },
         "Estrange": {

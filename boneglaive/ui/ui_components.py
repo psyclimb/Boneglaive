@@ -3559,10 +3559,28 @@ class GameModeManager(UIComponent):
                     )
                     return
                 
-                # Check if unit is an echo (cannot use skills)
+                # Check if unit is an echo
+                # Echoes CAN use skills if Græ Exchange is upgraded
                 if cursor_manager.selected_unit.is_echo:
-                    # Don't show a message, just silently return
-                    return
+                    # Check if this echo can use Græ Exchange (upgrade active)
+                    from boneglaive.game.upgrades import UpgradeManager
+                    from boneglaive.utils.constants import UnitType
+
+                    can_use_grae_exchange = False
+                    if (cursor_manager.selected_unit.type == UnitType.GRAYMAN and
+                        hasattr(cursor_manager.selected_unit, 'original_unit') and
+                        cursor_manager.selected_unit.original_unit):
+                        # Check if Græ Exchange is upgraded
+                        can_use_grae_exchange = UpgradeManager.is_skill_upgraded(
+                            cursor_manager.selected_unit.original_unit,
+                            "Græ Exchange"
+                        )
+
+                    if not can_use_grae_exchange:
+                        # Echo cannot use any skills - silently return
+                        return
+                    # Otherwise, allow echo to proceed to skill menu
+                    # (only Græ Exchange will be available, others will be grayed out)
 
                 # Check if unit is recharging from Gaussian Dusk
                 if hasattr(cursor_manager.selected_unit, 'gaussian_dusk_recharge') and cursor_manager.selected_unit.gaussian_dusk_recharge > 0:
@@ -5129,12 +5147,27 @@ class ActionMenuComponent(UIComponent):
         
         # Add skill action
         unit_has_skills = unit is not None and hasattr(unit, 'active_skills') and len(unit.get_available_skills()) > 0
+
+        # Check if echo can use skills (if Græ Exchange is upgraded)
+        echo_can_use_skills = False
+        if unit and hasattr(unit, 'is_echo') and unit.is_echo:
+            from boneglaive.game.upgrades import UpgradeManager
+            if (unit.type == UnitType.GRAYMAN and
+                hasattr(unit, 'original_unit') and
+                unit.original_unit):
+                # Check if Græ Exchange is upgraded
+                echo_can_use_skills = UpgradeManager.is_skill_upgraded(
+                    unit.original_unit,
+                    "Græ Exchange"
+                )
+
         # Allow skills to be used even when a move is planned (the unit can cast from the new position)
         # Disable skills when recharging, under Neural Shunt, or with actions
+        # EXCEPTION: Echoes can use skills if Græ Exchange is upgraded
         unit_can_use_skills = (unit_has_skills and
                               not unit_is_recharging and  # Recharging blocks ALL actions
                               unit.trapped_by is None and
-                              not unit.is_echo and
+                              (not unit.is_echo or echo_can_use_skills) and  # Allow echoes if upgrade active
                               not unit_has_action and
                               not (hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected))
         self.actions.append({
@@ -5230,34 +5263,49 @@ class ActionMenuComponent(UIComponent):
         
         # GRAYMAN skills
         elif unit.type == self.UnitType.GRAYMAN:
-            
+
             # Add Delta Config skill
             delta_config_skill = next((skill for skill in available_skills if skill.name == "Delta Config"), None)
+            # For echoes, check can_use() to properly gray out skills they can't use
+            delta_config_enabled = delta_config_skill is not None
+            if delta_config_enabled and hasattr(unit, 'is_echo') and unit.is_echo:
+                # Echo must pass can_use() check (which it won't for Delta Config)
+                delta_config_enabled = delta_config_skill.can_use(unit, None, self.game_ui.game)
             self.actions.append({
                 'key': 'd',
                 'label': 'elta Config',  # Will be displayed as [D]elta Config
                 'action': 'delta_config_skill',
-                'enabled': delta_config_skill is not None,
+                'enabled': delta_config_enabled,
                 'skill': delta_config_skill
             })
-            
+
             # Add Estrange skill
             estrange_skill = next((skill for skill in available_skills if skill.name == "Estrange"), None)
+            # For echoes, check can_use() to properly gray out skills they can't use
+            estrange_enabled = estrange_skill is not None
+            if estrange_enabled and hasattr(unit, 'is_echo') and unit.is_echo:
+                # Echo must pass can_use() check (which it won't for Estrange)
+                estrange_enabled = estrange_skill.can_use(unit, None, self.game_ui.game)
             self.actions.append({
                 'key': 'e',
                 'label': 'strange',  # Will be displayed as [E]strange
                 'action': 'estrange_skill',
-                'enabled': estrange_skill is not None,
+                'enabled': estrange_enabled,
                 'skill': estrange_skill
             })
-            
+
             # Add Græ Exchange skill
             grae_exchange_skill = next((skill for skill in available_skills if skill.name == "Græ Exchange"), None)
+            # For echoes, check can_use() to properly gray out skills they can't use
+            grae_exchange_enabled = grae_exchange_skill is not None
+            if grae_exchange_enabled and hasattr(unit, 'is_echo') and unit.is_echo:
+                # Echo must pass can_use() check (will pass if upgraded)
+                grae_exchange_enabled = grae_exchange_skill.can_use(unit, None, self.game_ui.game)
             self.actions.append({
                 'key': 'g',
                 'label': 'ræ Exchange',  # Will be displayed as [G]ræ Exchange
                 'action': 'grae_exchange_skill',
-                'enabled': grae_exchange_skill is not None,
+                'enabled': grae_exchange_enabled,
                 'skill': grae_exchange_skill
             })
             

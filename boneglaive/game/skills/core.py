@@ -60,13 +60,31 @@ class Skill:
         # Check cooldown
         if self.current_cooldown > 0:
             return False
-        
+
         # Echo units cannot use skills (they can only do basic attacks)
+        # EXCEPTION: Echoes CAN use Græ Exchange if the skill is upgraded
         if hasattr(user, 'is_echo') and user.is_echo:
             from boneglaive.utils.debug import logger
-            logger.debug(f"Skill cannot be used by echo unit: {user.get_display_name()}")
-            return False
-            
+
+            # Check if this is Græ Exchange skill
+            if self.name == "Græ Exchange":
+                # Check if the upgrade is active on the original unit
+                if hasattr(user, 'original_unit') and user.original_unit:
+                    from boneglaive.game.upgrades import UpgradeManager
+                    if not UpgradeManager.is_skill_upgraded(user.original_unit, "Græ Exchange"):
+                        logger.debug(f"Echo cannot use Græ Exchange - skill not upgraded")
+                        return False
+                    # Upgrade active - allow echo to use Græ Exchange
+                    logger.debug(f"Echo {user.get_display_name()} can use upgraded Græ Exchange")
+                else:
+                    # No original unit reference - block
+                    logger.debug(f"Echo has no original_unit reference - blocking skill")
+                    return False
+            else:
+                # Not Græ Exchange - block all other skills for echoes
+                logger.debug(f"Skill cannot be used by echo unit: {user.get_display_name()}")
+                return False
+
         # Additional checks can be implemented in subclasses
         return True
         

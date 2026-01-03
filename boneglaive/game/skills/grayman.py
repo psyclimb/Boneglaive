@@ -16,17 +16,38 @@ if TYPE_CHECKING:
 
 class Stasiality(PassiveSkill):
     """Passive skill for GRAYMAN. Immune to status effects and displacement."""
-    
+
     def __init__(self):
         super().__init__(
             name="Stasiality",
             key="S",
             description="Cannot have stats changed or be displaced. Immune to buffs, debuffs, forced movement, and terrain effects."
         )
-    
+
     def apply_passive(self, user: 'Unit', game=None, ui=None) -> None:
-        # Implementation handled in Unit.is_immune_to_effects()
-        pass
+        """
+        Apply Stasiality passive effects.
+        Base: Immunity to status effects (handled in Unit.is_immune_to_effects())
+        Upgraded: Reduce move to 0, reduce Delta Config cooldown to 8, reduce Græ Exchange cooldown to 3, +1 PRT
+        """
+        from boneglaive.game.upgrades import UpgradeManager
+
+        # Check if Stasiality is upgraded
+        if UpgradeManager.is_skill_upgraded(user, "Stasiality"):
+            # Reduce movement to 0 (GRAYMAN becomes completely inert)
+            user.move_range = 0
+
+            # Grant +1 PRT (Partition - damage reduction)
+            user.prt_bonus += 1
+
+            # Reduce skill cooldowns
+            for skill in user.active_skills:
+                if skill.name == "Delta Config":
+                    # Reduce from 12 to 8
+                    skill.cooldown = 8
+                elif skill.name == "Græ Exchange":
+                    # Reduce from 4 to 3
+                    skill.cooldown = 3
 
 
 class DeltaConfigSkill(ActiveSkill):
@@ -117,21 +138,45 @@ class DeltaConfigSkill(ActiveSkill):
         from boneglaive.utils.message_log import message_log, MessageType
         import time
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+        from boneglaive.game.upgrades import UpgradeManager
 
-        
+
         # Clear the teleport target indicator after execution
         user.teleport_target_indicator = None
-        
+
         # Store original position for animations
         original_pos = (user.y, user.x)
 
-        # Log the skill activation
-        message_log.add_message(
-            f"{user.get_display_name()} de-energizes",
-            MessageType.ABILITY,
-            player=user.player
-        )
-        
+        # Check if skill is upgraded
+        is_upgraded = UpgradeManager.is_skill_upgraded(user, "Delta Config")
+
+        # If upgraded, collect adjacent enemies for abduction
+        abducted_enemies = []
+        if is_upgraded:
+            adjacent_offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+            for dy, dx in adjacent_offsets:
+                adj_y = original_pos[0] + dy
+                adj_x = original_pos[1] + dx
+                if game.is_valid_position(adj_y, adj_x):
+                    enemy = game.get_unit_at(adj_y, adj_x)
+                    if enemy and enemy.player != user.player and enemy.is_alive():
+                        abducted_enemies.append((enemy, dy, dx))
+
+        # Log the skill activation with different message if upgraded
+        if is_upgraded and abducted_enemies:
+            enemy_names = ", ".join([e[0].get_display_name() for e in abducted_enemies])
+            message_log.add_message(
+                f"{user.get_display_name()} creates an electromagnetic well, capturing {enemy_names}",
+                MessageType.ABILITY,
+                player=user.player
+            )
+        else:
+            message_log.add_message(
+                f"{user.get_display_name()} de-energizes",
+                MessageType.ABILITY,
+                player=user.player
+            )
+
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
             # Calculate path between origin and destination
@@ -140,60 +185,127 @@ class DeltaConfigSkill(ActiveSkill):
                            Position(target_pos[0], target_pos[1]))
 
             # PHASE 1: ENERGIZE - GRAYMAN powers up at origin
-            energize_frames = ['Ψ', '*', 'Ψ', '*']
-            energize_colors = [7, 6, 7, 6]  # White and yellow alternating
+            if is_upgraded:
+                # Intensified energize for upgraded version
+                energize_frames = ['Ψ', '@', '#', '*', '@', '#', 'Ψ', '*']
+                energize_colors = [7, 6, 7, 6, 7, 6, 7, 6]  # More flashes
+            else:
+                # Normal energize
+                energize_frames = ['Ψ', '*', 'Ψ', '*']
+                energize_colors = [7, 6, 7, 6]  # White and yellow alternating
+
             for frame, color in zip(energize_frames, energize_colors):
                 ui.renderer.draw_tile(original_pos[0], original_pos[1], frame, color)
                 ui.renderer.refresh()
                 sleep_with_animation_speed(0.05)
 
-            # PHASE 2: PULL DESTINATION TOWARD ORIGIN - "Reeling in" the distant point
-            # Draw pull symbols progressively from destination toward origin
+            # PHASE 1.5 (UPGRADED ONLY): ELECTROMAGNETIC WELL EXPANSION
+            if is_upgraded and abducted_enemies:
+                adjacent_offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+                expand_anim = ui.asset_manager.get_skill_animation_sequence('delta_config_well_expand')
+                if not expand_anim:
+                    expand_anim = ['.', ':', 'o', 'O', '0', '@']
+
+                # Show electromagnetic field expanding around GRAYMAN
+                for frame in expand_anim:
+                    # Keep GRAYMAN visible during expansion
+                    ui.renderer.draw_tile(original_pos[0], original_pos[1], 'Ψ', 7)
+                    # Draw bubble on all 8 adjacent tiles
+                    for dy, dx in adjacent_offsets:
+                        adj_y, adj_x = original_pos[0] + dy, original_pos[1] + dx
+                        if game.is_valid_position(adj_y, adj_x):
+                            ui.renderer.draw_tile(adj_y, adj_x, frame, 6)  # Yellow
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.08)
+
+                # Pulse captured enemies to show they're trapped
+                for pulse_cycle in range(2):
+                    for enemy, _, _ in abducted_enemies:
+                        enemy_tile = ui.asset_manager.get_unit_tile(enemy.type)
+                        pulse_color = 6 if pulse_cycle % 2 == 0 else (3 if enemy.player == 1 else 4)
+                        ui.renderer.draw_tile(enemy.y, enemy.x, enemy_tile, pulse_color)
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.1)
+
+            # PHASE 2: PULL DESTINATION TOWARD ORIGIN
             max_pull_length = len(path) - 1  # Full distance visualization
-            for pull_distance in range(1, max_pull_length + 1):
-                # Keep GRAYMAN energized during pull
-                ui.renderer.draw_tile(original_pos[0], original_pos[1], '*', 6)
 
-                # Draw the "pulled" chain from destination back toward origin
-                for i in range(pull_distance):
-                    pos_index = len(path) - 1 - i  # Start from destination, work backward
-                    if pos_index > 0 and pos_index < len(path):  # Don't overdraw origin
-                        ui.renderer.draw_tile(path[pos_index].y, path[pos_index].x, '<', 6)
+            if is_upgraded and abducted_enemies:
+                # UPGRADED: Pull with electromagnetic field effect
+                # Same progressive pulling but with well visualization
+                for pull_distance in range(1, max_pull_length + 1):
+                    # Keep GRAYMAN and well energized during pull
+                    ui.renderer.draw_tile(original_pos[0], original_pos[1], '@', 6)  # More intense for upgraded
 
-                ui.renderer.refresh()
-                sleep_with_animation_speed(0.06)
+                    # Keep well visible around GRAYMAN
+                    adjacent_offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+                    for dy, dx in adjacent_offsets:
+                        adj_y, adj_x = original_pos[0] + dy, original_pos[1] + dx
+                        if game.is_valid_position(adj_y, adj_x):
+                            # Pulsing well during pull
+                            well_char = 'o' if pull_distance % 2 == 0 else 'O'
+                            ui.renderer.draw_tile(adj_y, adj_x, well_char, 6)
+
+                    # Draw the electromagnetic "pull chain" from destination back toward origin
+                    # Alternate between ~ and < for electromagnetic effect
+                    for i in range(pull_distance):
+                        pos_index = len(path) - 1 - i  # Start from destination, work backward
+                        if pos_index > 0 and pos_index < len(path):  # Don't overdraw origin
+                            # Alternate symbols for electromagnetic wave effect
+                            pull_char = '~' if i % 2 == 0 else '<'
+                            ui.renderer.draw_tile(path[pos_index].y, path[pos_index].x, pull_char, 6)
+
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.06)
+            else:
+                # NORMAL: Pull destination toward origin - "Reeling in" the distant point
+                # Draw pull symbols progressively from destination toward origin
+                for pull_distance in range(1, max_pull_length + 1):
+                    # Keep GRAYMAN energized during pull
+                    ui.renderer.draw_tile(original_pos[0], original_pos[1], '*', 6)
+
+                    # Draw the "pulled" chain from destination back toward origin
+                    for i in range(pull_distance):
+                        pos_index = len(path) - 1 - i  # Start from destination, work backward
+                        if pos_index > 0 and pos_index < len(path):  # Don't overdraw origin
+                            ui.renderer.draw_tile(path[pos_index].y, path[pos_index].x, '<', 6)
+
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.06)
 
             # PHASE 3: DE-ENERGIZE & HOLD - Brief pause showing full tension
             ui.renderer.draw_tile(original_pos[0], original_pos[1], 'Ψ', 7)
             ui.renderer.refresh()
             sleep_with_animation_speed(0.1)
 
-            # PHASE 4: ELASTIC SNAPBACK - Instant release
-            # Clear the entire pull chain
-            for i in range(max_pull_length):
-                pos_index = len(path) - 1 - i
-                if pos_index > 0 and pos_index < len(path):
-                    terrain_type = game.map.get_terrain_at(path[pos_index].y, path[pos_index].x)
-                    terrain_name = terrain_type.name.lower() if hasattr(terrain_type, 'name') else 'empty'
-                    terrain_tile = ui.asset_manager.get_terrain_tile(terrain_name)
+            # PHASE 4: ELASTIC SNAPBACK/TELEPORT - Instant release
+            if not is_upgraded:
+                # NORMAL: Clear the entire pull chain
+                max_pull_length = len(path) - 1
+                for i in range(max_pull_length):
+                    pos_index = len(path) - 1 - i
+                    if pos_index > 0 and pos_index < len(path):
+                        terrain_type = game.map.get_terrain_at(path[pos_index].y, path[pos_index].x)
+                        terrain_name = terrain_type.name.lower() if hasattr(terrain_type, 'name') else 'empty'
+                        terrain_tile = ui.asset_manager.get_terrain_tile(terrain_name)
 
-                    # Determine terrain color
-                    if terrain_name == 'empty':
-                        terrain_color = 1
-                    elif terrain_name == 'dust':
-                        terrain_color = 11
-                    elif terrain_name == 'limestone':
-                        terrain_color = 12
-                    elif terrain_name == 'pillar':
-                        terrain_color = 13
-                    elif terrain_name.startswith('furniture') or terrain_name in ['coat_rack', 'ottoman']:
-                        terrain_color = 14
-                    else:
-                        terrain_color = 1
+                        # Determine terrain color
+                        if terrain_name == 'empty':
+                            terrain_color = 1
+                        elif terrain_name == 'dust':
+                            terrain_color = 11
+                        elif terrain_name == 'limestone':
+                            terrain_color = 12
+                        elif terrain_name == 'pillar':
+                            terrain_color = 13
+                        elif terrain_name.startswith('furniture') or terrain_name in ['coat_rack', 'ottoman']:
+                            terrain_color = 14
+                        else:
+                            terrain_color = 1
 
-                    ui.renderer.draw_tile(path[pos_index].y, path[pos_index].x, terrain_tile, terrain_color)
+                        ui.renderer.draw_tile(path[pos_index].y, path[pos_index].x, terrain_tile, terrain_color)
 
-            # Clear origin position (GRAYMAN disappears)
+            # Clear origin position (GRAYMAN and well disappear)
             terrain_type = game.map.get_terrain_at(original_pos[0], original_pos[1])
             terrain_name = terrain_type.name.lower() if hasattr(terrain_type, 'name') else 'empty'
             terrain_tile = ui.asset_manager.get_terrain_tile(terrain_name)
@@ -202,7 +314,12 @@ class DeltaConfigSkill(ActiveSkill):
 
             # INSTANT: Move unit and appear at destination with impact
             user.y, user.x = target_pos
-            ui.renderer.draw_tile(target_pos[0], target_pos[1], '*', 6)  # Big flash
+
+            if is_upgraded:
+                # Big electromagnetic burst for upgraded version
+                ui.renderer.draw_tile(target_pos[0], target_pos[1], '@', 6)
+            else:
+                ui.renderer.draw_tile(target_pos[0], target_pos[1], '*', 6)  # Big flash
             ui.renderer.refresh()
             sleep_with_animation_speed(0.08)
 
@@ -210,6 +327,35 @@ class DeltaConfigSkill(ActiveSkill):
             ui.renderer.draw_tile(target_pos[0], target_pos[1], 'Ψ', 7)
             ui.renderer.refresh()
             sleep_with_animation_speed(0.05)
+
+            # PHASE 5 (UPGRADED ONLY): WELL COLLAPSE AND ENEMY PLACEMENT
+            if is_upgraded and abducted_enemies:
+                adjacent_offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+                collapse_anim = ui.asset_manager.get_skill_animation_sequence('delta_config_well_collapse')
+                if not collapse_anim:
+                    collapse_anim = ['@', '0', 'O', 'o', ':', '.', ' ']
+
+                # Show well collapsing around destination
+                for frame in collapse_anim:
+                    # Keep GRAYMAN visible during collapse
+                    ui.renderer.draw_tile(target_pos[0], target_pos[1], 'Ψ', 7)
+                    # Draw collapse on all 8 adjacent tiles
+                    for dy, dx in adjacent_offsets:
+                        adj_y, adj_x = target_pos[0] + dy, target_pos[1] + dx
+                        if game.is_valid_position(adj_y, adj_x):
+                            ui.renderer.draw_tile(adj_y, adj_x, frame, 6)  # Yellow
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.06)
+
+                # Shockwave burst
+                shockwave_frames = ['*', '+', '.']
+                for frame in shockwave_frames:
+                    for dy, dx in adjacent_offsets:
+                        adj_y, adj_x = target_pos[0] + dy, target_pos[1] + dx
+                        if game.is_valid_position(adj_y, adj_x):
+                            ui.renderer.draw_tile(adj_y, adj_x, frame, 7)  # White
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.05)
 
             # Redraw board to show final state
             if hasattr(ui, 'draw_board'):
@@ -225,14 +371,57 @@ class DeltaConfigSkill(ActiveSkill):
         else:
             # No UI, just set position without animations
             user.y, user.x = target_pos
-        
+
+        # MOVE ABDUCTED ENEMIES TO DESTINATION (both with and without UI)
+        if is_upgraded and abducted_enemies:
+            adjacent_offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+
+            # Move each abducted enemy to their new position around the destination
+            for enemy, rel_dy, rel_dx in abducted_enemies:
+                # Try to maintain relative position
+                dest_y = target_pos[0] + rel_dy
+                dest_x = target_pos[1] + rel_dx
+
+                # Check if target position is valid and empty
+                if (game.is_valid_position(dest_y, dest_x) and
+                    game.map.is_passable(dest_y, dest_x) and
+                    game.get_unit_at(dest_y, dest_x) is None):
+                    enemy.y = dest_y
+                    enemy.x = dest_x
+                else:
+                    # Fallback: find any valid adjacent position around destination
+                    placed = False
+                    for alt_dy, alt_dx in adjacent_offsets:
+                        alt_y = target_pos[0] + alt_dy
+                        alt_x = target_pos[1] + alt_dx
+                        if (game.is_valid_position(alt_y, alt_x) and
+                            game.map.is_passable(alt_y, alt_x) and
+                            game.get_unit_at(alt_y, alt_x) is None):
+                            enemy.y = alt_y
+                            enemy.x = alt_x
+                            placed = True
+                            break
+
+                    # If no position found, enemy stays at original position (well failed to capture fully)
+                    if not placed:
+                        # Reset to original position (where they were before abduction attempt)
+                        enemy.y = original_pos[0] + rel_dy
+                        enemy.x = original_pos[1] + rel_dx
+
         # Log the completion of teleportation
-        message_log.add_message(
-            f"{user.get_display_name()} and the distant point at ({original_pos[0]}, {original_pos[1]}) snap to position ({target_pos[0]}, {target_pos[1]})",
-            MessageType.ABILITY,
-            player=user.player
-        )
-        
+        if is_upgraded and abducted_enemies:
+            message_log.add_message(
+                f"The electromagnetic well warps from ({original_pos[0]}, {original_pos[1]}) to ({target_pos[0]}, {target_pos[1]}), releasing its cargo",
+                MessageType.ABILITY,
+                player=user.player
+            )
+        else:
+            message_log.add_message(
+                f"{user.get_display_name()} and the distant point at ({original_pos[0]}, {original_pos[1]}) snap to position ({target_pos[0]}, {target_pos[1]})",
+                MessageType.ABILITY,
+                player=user.player
+            )
+
         return True
 
 
@@ -608,12 +797,19 @@ class GraeExchangeSkill(ActiveSkill):
         # Store original position for creating the echo
         original_pos = (user.y, user.x)
 
-        # Log the skill activation
-        message_log.add_message(
-            f"{user.get_display_name()} begins the Græ Exchange ritual",
-            MessageType.ABILITY,
-            player=user.player
-        )
+        # Log the skill activation with special message for echoes
+        if hasattr(user, 'is_echo') and user.is_echo:
+            message_log.add_message(
+                f"The echo {user.get_display_name()} performs Græ Exchange!",
+                MessageType.ABILITY,
+                player=user.player
+            )
+        else:
+            message_log.add_message(
+                f"{user.get_display_name()} begins the Græ Exchange ritual",
+                MessageType.ABILITY,
+                player=user.player
+            )
         
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
@@ -647,16 +843,30 @@ class GraeExchangeSkill(ActiveSkill):
         # Set echo properties
         echo_unit.is_echo = True
         echo_unit.echo_duration = 2  # Echo lasts 2 turns
-        echo_unit.original_unit = user
+
+        # Preserve the original_unit chain
+        # If an echo is creating another echo, point to the ORIGINAL GRAYMAN, not the intermediate echo
+        if hasattr(user, 'is_echo') and user.is_echo and hasattr(user, 'original_unit'):
+            # Echo creating echo - preserve the chain to the original GRAYMAN
+            echo_unit.original_unit = user.original_unit
+        else:
+            # Normal GRAYMAN creating echo
+            echo_unit.original_unit = user
+
         echo_unit.hp = 5  # Echo has 5 HP and cannot be healed
-        
+        echo_unit.max_hp = 5  # Echo max HP is also 5
+
         # Set attack value for echo unit to exactly 3 (regardless of original unit's attack)
         echo_unit.attack = 3  # Increased from 2 to 3
-        
-        # Add Greek letter identifier like other units - to make it more obvious in the UI
+
+        # Add Greek letter identifier with visual differentiation
         if hasattr(user, 'greek_id') and user.greek_id:
-            # Use the same letter but lowercase to indicate it's an echo
-            echo_unit.greek_id = user.greek_id.lower()
+            if hasattr(user, 'is_echo') and user.is_echo:
+                # Echo creating echo - use dot symbol to show it's 2nd generation
+                echo_unit.greek_id = '·'
+            else:
+                # Normal unit creating echo - use lowercase
+                echo_unit.greek_id = user.greek_id.lower()
         
         # Log explicit debug message about echo creation
         logger.info(f"ECHO UNIT CREATED: {echo_unit.type.name} at position ({original_pos[0]}, {original_pos[1]}) with {echo_unit.hp} HP")
@@ -718,11 +928,18 @@ class GraeExchangeSkill(ActiveSkill):
             # Move the user to the target position
             user.y, user.x = target_pos
         
-        # Log the completion
-        message_log.add_message(
-            f"{user.get_display_name()} creates an echo and teleports from ({original_pos[0]}, {original_pos[1]}) to ({target_pos[0]}, {target_pos[1]})",
-            MessageType.ABILITY,
-            player=user.player
-        )
-        
+        # Log the completion with special message for echoes
+        if hasattr(user, 'is_echo') and user.is_echo:
+            message_log.add_message(
+                f"The echo {user.get_display_name()} splits into another echo and teleports from ({original_pos[0]}, {original_pos[1]}) to ({target_pos[0]}, {target_pos[1]})",
+                MessageType.ABILITY,
+                player=user.player
+            )
+        else:
+            message_log.add_message(
+                f"{user.get_display_name()} creates an echo and teleports from ({original_pos[0]}, {original_pos[1]}) to ({target_pos[0]}, {target_pos[1]})",
+                MessageType.ABILITY,
+                player=user.player
+            )
+
         return True
