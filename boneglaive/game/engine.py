@@ -5000,7 +5000,7 @@ class Game:
         """
         Handle the death effect when an echo unit is destroyed.
         Echoes explode and deal 3 damage to all adjacent units when destroyed.
-        
+
         Args:
             echo_unit: The echo unit that was destroyed
             ui: Optional UI reference for animations
@@ -5008,8 +5008,40 @@ class Game:
         import time
         from boneglaive.utils.message_log import message_log, MessageType
         from boneglaive.utils.debug import logger
-        
+
         logger.debug(f"Echo {echo_unit.get_display_name()} destroyed, triggering death effect")
+
+        # Check if this echo has a banished unit that needs to return
+        if hasattr(echo_unit, 'banished_unit') and echo_unit.banished_unit:
+            banished = echo_unit.banished_unit
+            # Return the banished unit to the game at the echo's position
+            banished.y = echo_unit.y
+            banished.x = echo_unit.x
+
+            # Clear the banished flag so they can award GP normally if killed later
+            if hasattr(banished, 'is_banished'):
+                banished.is_banished = False
+
+            self.units.append(banished)
+
+            logger.info(f"Banished unit {banished.get_display_name()} returns from banishment at ({banished.y}, {banished.x})")
+
+            # Log the return
+            message_log.add_message(
+                f"{banished.get_display_name()} returns from banishment!",
+                MessageType.ABILITY,
+                player=banished.player
+            )
+
+            # Show return animation if UI available
+            if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+                return_animation = ['·', ':', 'o', 'O', '@']
+                ui.renderer.animate_attack_sequence(
+                    banished.y, banished.x,
+                    return_animation,
+                    7,  # White
+                    0.12
+                )
         
         # Find all units in adjacent tiles (chess distance 1)
         affected_units = []
@@ -5092,8 +5124,8 @@ class Game:
             
         # Apply damage to affected units
         for unit in affected_units:
-            # Increased from 3 to 4 damage for GRAYMAN echo explosions
-            damage = 4
+            # Echo explosion damage
+            damage = 3
             # Apply defense reduction for explosions
             effective_defense = unit.get_effective_stats()['defense']
             damage = max(1, damage - effective_defense)

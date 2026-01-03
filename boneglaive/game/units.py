@@ -858,6 +858,14 @@ class Unit:
         from boneglaive.game.engine import DeadUnit
         from boneglaive.utils.message_log import message_log, MessageType
 
+        # Don't award GP for banished units (they will return)
+        if hasattr(self, 'is_banished') and self.is_banished:
+            return
+
+        # Don't award GP for echoes (they are temporary summons)
+        if hasattr(self, 'is_echo') and self.is_echo:
+            return
+
         # Check if this unit is GP-eligible (not a summon/echo)
         if self.type in GP_ELIGIBLE_UNITS:
             # Award GP to opposing player

@@ -38,7 +38,7 @@ class Stasiality(PassiveSkill):
             user.move_range = 0
 
             # Grant +1 PRT (Partition - damage reduction)
-            user.prt_bonus += 1
+            user.prt = 1
 
             # Reduce skill cooldowns
             for skill in user.active_skills:
@@ -511,14 +511,139 @@ class EstrangeSkill(ActiveSkill):
         from boneglaive.utils.message_log import message_log, MessageType
         import time
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+        from boneglaive.game.upgrades import UpgradeManager
 
         import curses
-        
+
         # Get target unit
         target = game.get_unit_at(target_pos[0], target_pos[1])
         if not target:
             return False
-            
+
+        # Check if upgrade is active and target is already estranged
+        is_upgraded = UpgradeManager.is_skill_upgraded(user, "Estrange")
+        target_already_estranged = hasattr(target, 'estranged') and target.estranged
+
+        if is_upgraded and target_already_estranged:
+            # UPGRADED PATH: Banish the already-estranged target and spawn echo
+            # Log the banishment
+            message_log.add_message(
+                f"{user.get_display_name()} fires an estrangement beam at the already-phased {target.get_display_name()}",
+                MessageType.ABILITY,
+                player=user.player,
+                attacker_name=user.get_display_name(),
+                target_name=target.get_display_name()
+            )
+
+            # Play enhanced banishment animation
+            if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+                # Get the path from user to target
+                from boneglaive.utils.coordinates import get_line, Position
+                path = get_line(Position(user.y, user.x), Position(target.y, target.x))
+
+                # Get estrange animation sequence
+                estrange_animation = ui.asset_manager.get_skill_animation_sequence('estrange')
+                if not estrange_animation:
+                    estrange_animation = ['=', '!', '~', '-', '~', '-', '~', '!', '=']
+
+                # Show intensified beam
+                ui.renderer.animate_attack_sequence(
+                    user.y, user.x,
+                    estrange_animation[:3],
+                    6,  # yellowish color
+                    0.1
+                )
+
+                # Animate the beam along the path (faster, more intense)
+                beam_tiles = []
+                for i, pos in enumerate(path[1:-1]):
+                    frame_index = (i + 3) % len(estrange_animation)
+                    beam_frame = estrange_animation[frame_index]
+                    ui.renderer.draw_tile(pos.y, pos.x, beam_frame, 6)
+                    beam_tiles.append((pos.y, pos.x, beam_frame))
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.03)  # Faster
+
+                # Show banishment effect - target implodes
+                implosion_animation = ['@', '0', 'o', '.', ' ']
+                ui.renderer.animate_attack_sequence(
+                    target.y, target.x,
+                    implosion_animation,
+                    19,  # Gray
+                    0.15
+                )
+
+            # Store target position for echo spawning
+            banished_pos = (target.y, target.x)
+
+            # Log banishment message
+            message_log.add_message(
+                f"{target.get_display_name()} is torn from reality and banished!",
+                MessageType.ABILITY,
+                player=user.player,
+                target_name=target.get_display_name()
+            )
+
+            # Remove target from game (banishment - temporary)
+            # Mark the unit as banished so they don't award GP
+            target.is_banished = True
+
+            # Store the banished unit so we can return them later
+            if target in game.units:
+                game.units.remove(target)
+
+            # Spawn GRAYMAN echo at the banished target's location
+            from boneglaive.game.units import Unit
+            from boneglaive.utils.debug import logger
+
+            echo_unit = Unit(user.type, user.player, banished_pos[0], banished_pos[1])
+            echo_unit.initialize_skills()
+            echo_unit.set_game_reference(game)
+
+            # Set echo properties
+            echo_unit.is_echo = True
+            echo_unit.echo_duration = 2
+            echo_unit.original_unit = user
+            echo_unit.hp = 5
+            echo_unit.max_hp = 5
+            echo_unit.attack = 3
+
+            # Store the banished unit in the echo so we can return them later
+            echo_unit.banished_unit = target
+
+            # Visual identifier
+            if hasattr(user, 'greek_id') and user.greek_id:
+                echo_unit.greek_id = user.greek_id.lower()
+
+            # Add echo to game
+            game.units.append(echo_unit)
+
+            logger.info(f"ECHO SPAWNED from banishment: {echo_unit.type.name} at position ({banished_pos[0]}, {banished_pos[1]})")
+
+            # Log echo spawn
+            message_log.add_message(
+                f"An echo manifests in {target.get_display_name()}'s place",
+                MessageType.ABILITY,
+                player=user.player
+            )
+
+            # Show echo spawn animation
+            if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+                spawn_animation = [' ', '.', ':', 'ψ', 'Ψ', 'ψ']
+                ui.renderer.animate_attack_sequence(
+                    banished_pos[0], banished_pos[1],
+                    spawn_animation,
+                    7,  # White
+                    0.15
+                )
+
+            # Redraw board
+            if ui and hasattr(ui, 'draw_board'):
+                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+
+            return True
+
+        # NORMAL PATH: Standard Estrange behavior
         # Log the skill activation
         message_log.add_message(
             f"{user.get_display_name()} fires an estrangement beam at {target.get_display_name()}",
@@ -689,7 +814,7 @@ class EstrangeSkill(ActiveSkill):
 
 class GraeExchangeSkill(ActiveSkill):
     """Active skill for GRAYMAN. Creates an echo that can attack but not move."""
-    
+
     def __init__(self):
         super().__init__(
             name="Græ Exchange",
@@ -699,12 +824,17 @@ class GraeExchangeSkill(ActiveSkill):
             cooldown=4,
             range_=3
         )
-    
+
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         # Basic validation
         if not super().can_use(user, target_pos, game):
             return False
-        if not game or not target_pos:
+
+        # If no target_pos provided, just check if skill is available (for UI menu)
+        if not target_pos:
+            return True
+
+        if not game:
             return False
 
         # Target position must be valid and passable
