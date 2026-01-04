@@ -56,9 +56,9 @@ class VagalRunSkill(ActiveSkill):
     def __init__(self):
         super().__init__(
             name="Vagal Run",
-            key="V", 
+            key="V",
             description="Immediately deals piercing damage and clears all status effects. After 3 turns, abreaction deals same damage and clears status effects again.",
-            target_type=TargetType.ALLY,
+            target_type=TargetType.AREA,  # Changed to AREA to allow targeting any unit
             cooldown=4,
             range_=3
         )
