@@ -197,25 +197,25 @@ SKILL_UPGRADES = {
     "GAS_MACHINIST": {
         "Diverge": {
             "name": "Diverge",
-            "description": "Adds Calibrating Gas as a 3rd vapor: resets all units in cloud to base stats.",
+            "description": "Adds Calibration Gas as a 3rd vapor: resets all units in cloud to base stats.",
             "type": "buff",
             "cost": 1
         },
         "Effluvium Lathe": {
             "name": "Effluvium Lathe",
-            "description": "Target an ally to spawn a leashed vapor weapon. Matches ally's attack. Follows at 1 tile distance.",
+            "description": "Unlocks Aerosolize Arms: Disarm target and spawn LIVING AEROSOL controlled by that player.",
             "type": "buff",
             "cost": 1
         },
         "Saft-E-Gas": {
             "name": "Saft-E-Gas",
-            "description": "Adds +1 PRT to affected units.",
+            "description": "Grants +1 PRT instead of +1 DEF.",
             "type": "buff",
             "cost": 1
         },
         "Broaching Gas": {
             "name": "Broaching Gas",
-            "description": "Strips enemy buffs.",
+            "description": "Damage increased to 3 and ignores defense.",
             "type": "buff",
             "cost": 1
         }

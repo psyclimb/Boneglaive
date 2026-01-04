@@ -1456,6 +1456,20 @@ class Game:
         if distance > effective_move_range:
             return False
 
+        # LIVING_AEROSOL leash restriction: can only move within 1 space of its target
+        if (unit.type == UnitType.HEINOUS_VAPOR and
+            hasattr(unit, 'vapor_type') and
+            unit.vapor_type == "LIVING_AEROSOL" and
+            hasattr(unit, 'source_unit') and
+            unit.source_unit and
+            unit.source_unit.is_alive()):
+            # Check distance from proposed position to source unit
+            leash_distance = self.chess_distance(y, x, unit.source_unit.y, unit.source_unit.x)
+            if leash_distance > 1:
+                from boneglaive.utils.debug import logger
+                logger.debug(f"LIVING_AEROSOL cannot move to ({y},{x}): would be {leash_distance} away from leash target (max 1)")
+                return False
+
         # Check if path passes through any units (both enemy and allied)
         # We only need to check this for moves that aren't adjacent
         if distance > 1:
@@ -2825,9 +2839,12 @@ class Game:
                         
                         # Check for trap release due to position change
                         self._check_position_change_trap_release(unit, start_y, start_x)
+
+                    # After unit moves, check if any LIVING_AEROSOL needs to follow
+                    self._move_leashed_aerosols(unit, start_y, start_x, ui)
                 else:
                     logger.warning(f"Invalid move target ({y},{x}) for unit at ({unit.y},{unit.x})")
-            
+
             # EXECUTE ATTACK if unit has an attack target
             if unit.attack_target:
                 from boneglaive.utils.message_log import message_log, MessageType
@@ -4727,7 +4744,69 @@ class Game:
             
             # Reset the foreman's action tracking
             foreman.took_action = False
-    
+
+    def _move_leashed_aerosols(self, unit, old_y, old_x, ui=None):
+        """
+        Move any LIVING_AEROSOL units that are leashed to the unit that just moved.
+        LIVING_AEROSOLs automatically follow their target within 1 space.
+        """
+        from boneglaive.utils.message_log import message_log, MessageType
+        from boneglaive.utils.debug import logger
+        import time
+
+        # Find all LIVING_AEROSOL units leashed to this unit
+        for aerosol in self.units:
+            if (aerosol.is_alive() and
+                aerosol.type == UnitType.HEINOUS_VAPOR and
+                hasattr(aerosol, 'vapor_type') and
+                aerosol.vapor_type == "LIVING_AEROSOL" and
+                hasattr(aerosol, 'source_unit') and
+                aerosol.source_unit == unit):
+
+                # Calculate distance to the moved unit
+                distance = self.chess_distance(aerosol.y, aerosol.x, unit.y, unit.x)
+
+                # If distance > 1, need to move aerosol closer
+                if distance > 1:
+                    logger.debug(f"LIVING_AEROSOL at ({aerosol.y},{aerosol.x}) following {unit.get_display_name()} to stay within leash range")
+
+                    # Find best adjacent position to target (prefer to stay close)
+                    from boneglaive.utils.coordinates import get_adjacent_positions
+                    adjacent_positions = get_adjacent_positions(unit.y, unit.x)
+
+                    # Filter for valid, passable, and unoccupied positions
+                    valid_positions = []
+                    for pos in adjacent_positions:
+                        y, x = pos
+                        if (self.is_valid_position(y, x) and
+                            self.map.is_passable(y, x) and
+                            self.get_unit_at(y, x) is None):
+                            valid_positions.append(pos)
+
+                    if valid_positions:
+                        # Choose position closest to aerosol's current position
+                        best_pos = min(valid_positions,
+                                     key=lambda pos: self.chess_distance(aerosol.y, aerosol.x, pos[0], pos[1]))
+
+                        old_aerosol_y, old_aerosol_x = aerosol.y, aerosol.x
+                        aerosol.y, aerosol.x = best_pos
+
+                        logger.debug(f"LIVING_AEROSOL moved from ({old_aerosol_y},{old_aerosol_x}) to ({aerosol.y},{aerosol.x})")
+
+                        # Show message
+                        message_log.add_message(
+                            f"{aerosol.get_display_name()} follows {unit.get_display_name()}",
+                            MessageType.MOVEMENT,
+                            player=aerosol.player
+                        )
+
+                        # Show movement animation if UI is available
+                        if ui and hasattr(ui, 'renderer'):
+                            ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+                            time.sleep(0.2)
+                    else:
+                        logger.warning(f"No valid position for LIVING_AEROSOL to follow {unit.get_display_name()}")
+
     def _check_scalar_node_traps(self, ui=None):
         """
         Check for scalar node traps when units end their turn.

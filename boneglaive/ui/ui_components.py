@@ -5132,12 +5132,15 @@ class ActionMenuComponent(UIComponent):
             'enabled': unit_can_move  # Enabled only if unit can move
         })
         
-        # Disable attack for recharging units, Neural Shunt, units with actions, disarmed units, or HEINOUS_VAPOR units
+        # Disable attack for recharging units, Neural Shunt, units with actions, disarmed units, or HEINOUS_VAPOR units (except LIVING_AEROSOL)
+        is_living_aerosol = (unit.type == UnitType.HEINOUS_VAPOR and
+                           hasattr(unit, 'vapor_type') and
+                           unit.vapor_type == "LIVING_AEROSOL")
         unit_can_attack = (not unit_is_recharging and  # Recharging blocks ALL actions
                           not unit_has_action and
                           not (hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected) and
                           not (hasattr(unit, 'status_disarmed') and unit.status_disarmed) and  # Disarmed by Viseroy upgrade
-                          unit.type != UnitType.HEINOUS_VAPOR)
+                          (unit.type != UnitType.HEINOUS_VAPOR or is_living_aerosol))
         self.actions.append({
             'key': 'a',
             'label': 'ttack',  # Will be displayed as [A]ttack without space
@@ -5410,6 +5413,17 @@ class ActionMenuComponent(UIComponent):
                 'enabled': diverge_skill is not None,
                 'skill': diverge_skill
             })
+
+            # Add Aerosolize Arms skill (only if Effluvium Lathe is upgraded)
+            aerosolize_arms_skill = next((skill for skill in available_skills if skill.name == "Aerosolize Arms"), None)
+            if aerosolize_arms_skill is not None:
+                self.actions.append({
+                    'key': 'a',
+                    'label': 'erosolize Arms',  # Will be displayed as [A]erosolize Arms
+                    'action': 'aerosolize_arms_skill',
+                    'enabled': True,
+                    'skill': aerosolize_arms_skill
+                })
 
         # DELPHIC_APPRAISER skills
         elif unit.type == self.UnitType.DELPHIC_APPRAISER:
