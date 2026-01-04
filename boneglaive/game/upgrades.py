@@ -223,7 +223,7 @@ SKILL_UPGRADES = {
     "DERELICTIONIST": {
         "Severance": {
             "name": "Severance",
-            "description": "Allows passage through furniture and terrain.",
+            "description": "Allows passage through units.",
             "type": "buff",
             "cost": 1
         },

@@ -46,6 +46,7 @@ class TerrainType(Enum):
     POTPOURRI_BOWL = 28 # Decorative potpourri bowl, blocks movement but not line of sight
     MELANGE_FUME = 29   # Aromatic fumes from potpourri bowl, passable, provides healing aura
     BLOOD_PLASMA = 30   # Blood plasma from upgraded Marrow Dike, passable, slows enemies
+    DERELICT_BUILDING = 31  # Old decrepit building walls from Derelict upgrade, blocks movement and line of sight
 
 
 class GameMap:
@@ -105,8 +106,8 @@ class GameMap:
     def blocks_line_of_sight(self, y: int, x: int) -> bool:
         """Check if a position blocks line of sight for ranged attacks."""
         terrain = self.get_terrain_at(y, x)
-        # Limestone, pillars, stained stone, hydraulic presses, and marrow walls block line of sight
-        return terrain in [TerrainType.LIMESTONE, TerrainType.PILLAR, TerrainType.STAINED_STONE, TerrainType.HYDRAULIC_PRESS, TerrainType.MARROW_WALL]
+        # Limestone, pillars, stained stone, hydraulic presses, marrow walls, and derelict buildings block line of sight
+        return terrain in [TerrainType.LIMESTONE, TerrainType.PILLAR, TerrainType.STAINED_STONE, TerrainType.HYDRAULIC_PRESS, TerrainType.MARROW_WALL, TerrainType.DERELICT_BUILDING]
 
     def get_cosmic_value(self, y: int, x: int, player=None, game=None) -> Optional[int]:
         """

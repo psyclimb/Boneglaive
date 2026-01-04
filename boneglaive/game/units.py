@@ -443,12 +443,21 @@ class Unit:
         """Check if this unit has immunity to status effects and debuffs.
         Currently only GRAYMAN with Stasiality passive has this immunity.
         HEINOUS_VAPOR units are also immune to all status effects.
+        Units protected by upgraded Partition are also immune to NEW status effects.
         Note: This includes immunity to physical traps like Viseroy."""
         # HEINOUS_VAPOR units are always immune to status effects
         if self.type == UnitType.HEINOUS_VAPOR:
             return True
         # GRAYMAN with Stasiality passive is immune
-        return self.passive_skill and self.passive_skill.name == "Stasiality"
+        if self.passive_skill and self.passive_skill.name == "Stasiality":
+            return True
+        # Check if protected by upgraded Partition shield
+        if hasattr(self, 'partition_shield_active') and self.partition_shield_active:
+            if hasattr(self, 'partition_shield_caster') and self.partition_shield_caster:
+                from boneglaive.game.upgrades import UpgradeManager
+                if UpgradeManager.is_skill_upgraded(self.partition_shield_caster, "Partition"):
+                    return True  # Upgraded Partition blocks new status effects
+        return False
 
     def is_immune_to_trap(self) -> bool:
         """Check if this unit is immune to being trapped.
@@ -493,16 +502,20 @@ class Unit:
         """
         Check if this unit can move to the specified position.
         FOWL_CONTRIVANCE units can only move along rail tiles.
+        DERELICTIONIST with upgraded Severance can pass through furniture and terrain.
         """
         if not game:
             return True  # No game context, allow move
-            
+
+        # DERELICTIONIST with upgraded Severance still needs passable terrain
+        # (unit-passing is handled in engine.py)
+
         # FOWL_CONTRIVANCE movement restrictions
         if self.type == UnitType.FOWL_CONTRIVANCE:
             # Cannot move while charging Gaussian Dusk
             if hasattr(self, 'gaussian_charging') and self.gaussian_charging:
                 return False
-                
+
             # Must move along rails (if rails exist)
             if game.map.has_rails():
                 from boneglaive.game.map import TerrainType
@@ -511,7 +524,7 @@ class Unit:
             else:
                 # No rails exist yet, can move normally
                 return game.map.is_passable(y, x)
-        
+
         # All other units can move normally
         return game.map.is_passable(y, x)
     

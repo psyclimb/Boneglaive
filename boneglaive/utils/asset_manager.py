@@ -79,7 +79,8 @@ class AssetManager:
             'leaf_pit': '*',       # Asterisk for scattered leaves
             'mini_pumpkin': 'o',   # Lowercase o for small round pumpkin
             'potpourri_bowl': 'u', # Lowercase u for bowl shape
-            'melange_fume': '~'    # Tilde for aromatic fumes
+            'melange_fume': '~',   # Tilde for aromatic fumes
+            'derelict_building': '&'  # Ampersand for old decrepit building walls
         }
         
         # UI symbols

@@ -647,7 +647,25 @@ class UIRenderer:
                     tile = self.game_ui.asset_manager.get_terrain_tile("melange_fume")
                     color_id = 21  # Canyon floor color (tan/brown) same as leaf pits
                     tile_attr = curses.A_DIM  # Dim to show fumes are translucent
-                        
+
+                elif terrain == TerrainType.DERELICT_BUILDING:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("derelict_building")
+
+                    # Check if we have owner information for this building to determine player color
+                    if hasattr(self.game_ui.game, 'derelict_building_tiles'):
+                        pos_tuple = (y, x)
+                        if pos_tuple in self.game_ui.game.derelict_building_tiles:
+                            building_info = self.game_ui.game.derelict_building_tiles[pos_tuple]
+                            # Use target's player color if available
+                            if 'target' in building_info and building_info['target']:
+                                color_id = 3 if building_info['target'].player == 1 else 4  # Player's color
+                            else:
+                                color_id = 8  # Default gray if no owner info
+                        else:
+                            color_id = 8  # Default gray if not in tracked tiles
+                    else:
+                        color_id = 8  # Default gray if no tracking dictionary
+
                 else:
                     # Fallback for any new terrain types
                     tile = self.game_ui.asset_manager.get_terrain_tile("empty")

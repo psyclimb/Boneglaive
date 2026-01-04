@@ -1440,8 +1440,16 @@ class Game:
             return False
 
         # Check if position is occupied by another unit
-        if self.get_unit_at(y, x):
-            return False
+        # DERELICTIONIST with upgraded Severance (when status is active) can pass through units
+        unit_at_pos = self.get_unit_at(y, x)
+        if unit_at_pos:
+            from boneglaive.game.upgrades import UpgradeManager
+            # Only allow passing through if Severance is upgraded and status is active
+            if not (unit.type == UnitType.DERELICTIONIST and
+                    UpgradeManager.is_skill_upgraded(unit, "Severance") and
+                    hasattr(unit, 'severance_active') and unit.severance_active):
+                return False
+            # Otherwise allow DERELICTIONIST to land on unit's position (they'll pass through)
 
         # Check if terrain is passable and unit-specific movement restrictions
         # Use unit's can_move_to method which handles FOWL_CONTRIVANCE rail restrictions
@@ -1483,9 +1491,16 @@ class Game:
             # Skip the first position (the unit's current position)
             for pos in path[1:-1]:  # Skip start and end positions
                 # Check if there's ANY unit at this position
+                # DERELICTIONIST with upgraded Severance (when status is active) can pass through units
                 blocking_unit = self.get_unit_at(pos.y, pos.x)
                 if blocking_unit:
-                    return False
+                    from boneglaive.game.upgrades import UpgradeManager
+                    # Only allow passing through units if Severance is upgraded and status is active
+                    if not (unit.type == UnitType.DERELICTIONIST and
+                            UpgradeManager.is_skill_upgraded(unit, "Severance") and
+                            hasattr(unit, 'severance_active') and unit.severance_active):
+                        return False
+                    # Otherwise allow passage through units
 
                 # Check if terrain along the path is passable
                 if not self.map.is_passable(pos.y, pos.x):
@@ -1931,7 +1946,29 @@ class Game:
                     MessageType.ABILITY,
                     target_name=unit.get_display_name()
                 )
-        
+
+        # Handle derelict building cleanup when unit dies
+        if hasattr(dying_unit, 'derelicted') and dying_unit.derelicted:
+            if hasattr(self, 'derelict_building_tiles'):
+                tiles_to_remove = []
+                for pos_tuple, building_info in self.derelict_building_tiles.items():
+                    if building_info['target'] == dying_unit:
+                        # Restore original terrain
+                        pos_y, pos_x = pos_tuple
+                        original_terrain = building_info.get('original_terrain')
+                        if original_terrain:
+                            self.map.set_terrain_at(pos_y, pos_x, original_terrain)
+                        tiles_to_remove.append(pos_tuple)
+
+                # Remove tracked tiles
+                for pos_tuple in tiles_to_remove:
+                    del self.derelict_building_tiles[pos_tuple]
+                    if hasattr(self, 'previous_terrain') and pos_tuple in self.previous_terrain:
+                        del self.previous_terrain[pos_tuple]
+
+                if tiles_to_remove:
+                    logger.debug(f"Cleaned up {len(tiles_to_remove)} derelict building tiles after {dying_unit.get_display_name()}'s death")
+
         # Handle FOWL_CONTRIVANCE death explosion
         if dying_unit.type == UnitType.FOWL_CONTRIVANCE and hasattr(dying_unit, 'passive_skill'):
             passive = dying_unit.passive_skill
@@ -2489,13 +2526,34 @@ class Game:
                 # Decrement the duration
                 unit.derelicted_duration -= 1
                 logger.debug(f"{unit.get_display_name()}'s Derelicted duration: {unit.derelicted_duration}")
-                
+
                 # Check if the status effect has expired
                 if unit.derelicted_duration <= 0:
                     # Remove the status effect
                     unit.derelicted = False
                     unit.derelicted_duration = 0
-                    
+
+                    # Clean up any derelict building tiles associated with this unit
+                    if hasattr(self, 'derelict_building_tiles'):
+                        tiles_to_remove = []
+                        for pos_tuple, building_info in self.derelict_building_tiles.items():
+                            if building_info['target'] == unit:
+                                # Restore original terrain
+                                pos_y, pos_x = pos_tuple
+                                original_terrain = building_info.get('original_terrain')
+                                if original_terrain:
+                                    self.map.set_terrain_at(pos_y, pos_x, original_terrain)
+                                tiles_to_remove.append(pos_tuple)
+
+                        # Remove tracked tiles
+                        for pos_tuple in tiles_to_remove:
+                            del self.derelict_building_tiles[pos_tuple]
+                            if pos_tuple in self.previous_terrain:
+                                del self.previous_terrain[pos_tuple]
+
+                        if tiles_to_remove:
+                            logger.debug(f"Cleaned up {len(tiles_to_remove)} derelict building tiles for {unit.get_display_name()}")
+
             
             # Process Partition Shield duration
             if hasattr(unit, 'partition_shield_active') and unit.partition_shield_active and hasattr(unit, 'partition_shield_duration'):
