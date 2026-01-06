@@ -125,13 +125,13 @@ SKILL_UPGRADES = {
         },
         "Infuse": {
             "name": "Infuse",
-            "description": "Infused Demilune reduces enemy defense to 0. Infused Granite Geas deals +1 damage.",
+            "description": "Half of infused Demilune's damage pierces defense. Infused Granite Geas deals +1 damage.",
             "type": "buff",
             "cost": 1
         },
         "Demilune": {
             "name": "Demilune",
-            "description": "After swinging, places bowl of potpourri in the opposite direction, creating a mirrored crescent zone. Enemies within cannot attack POTPOURRIST.",
+            "description": "After swinging, creates a mirrored crescent zone in the opposite direction. Enemies within cannot attack POTPOURRIST.",
             "type": "buff",
             "cost": 1
         },

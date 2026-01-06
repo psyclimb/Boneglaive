@@ -1555,6 +1555,22 @@ class Game:
         # First check for unit targets
         target = self.get_unit_at(y, x)
 
+        # Check if attacker is in any POTPOURRIST's Demilune zone (GRAYMAN is immune)
+        if unit.type != UnitType.GRAYMAN:
+            attacker_pos = (unit.y, unit.x)
+            for potpourrist in self.units:
+                if (potpourrist.type == UnitType.POTPOURRIST and
+                    potpourrist.is_alive() and
+                    hasattr(potpourrist, 'demilune_zone_duration') and
+                    potpourrist.demilune_zone_duration > 0):
+                    # Check if attacker is in this POTPOURRIST's mirrored zone
+                    if (hasattr(potpourrist, 'demilune_mirrored_zone_tiles') and
+                        attacker_pos in potpourrist.demilune_mirrored_zone_tiles):
+                        # Check if the target is this POTPOURRIST
+                        if target == potpourrist:
+                            # Attacker is in the zone and trying to attack the POTPOURRIST who created it
+                            return False
+
         # Check universal targeting restrictions
         if not self.can_target_unit(unit, target):
             return False
@@ -1668,9 +1684,10 @@ class Game:
                 # Check if there's an enemy unit at this position
                 target = self.get_unit_at(y, x)
                 if target and target.player != unit.player:
-                    # Add as valid target (SAFT-E-GAS now only provides +1 defense instead of protection)
-                    attacks.append((y, x))
-                    
+                    # Use can_attack to validate all restrictions (including Demilune zones)
+                    if self.can_attack(unit, y, x):
+                        attacks.append((y, x))
+
                     continue  # Skip wall check
                 
                 # Check for Marrow Dike wall tiles that can be attacked (both ally and enemy walls)
@@ -2942,7 +2959,26 @@ class Game:
                         player=unit.player
                     )
                     continue  # Skip this attack and go to next unit
-                
+
+                # Check if attacker is in a Demilune zone blocking this attack (GRAYMAN is immune)
+                if unit.type != UnitType.GRAYMAN:
+                    attacker_pos = (unit.y, unit.x)
+                    for potpourrist in self.units:
+                        if (potpourrist.type == UnitType.POTPOURRIST and
+                            potpourrist.is_alive() and
+                            hasattr(potpourrist, 'demilune_zone_duration') and
+                            potpourrist.demilune_zone_duration > 0):
+                            if (hasattr(potpourrist, 'demilune_mirrored_zone_tiles') and
+                                attacker_pos in potpourrist.demilune_mirrored_zone_tiles):
+                                if target == potpourrist:
+                                    logger.debug(f"Attack cancelled: {unit.get_display_name()} is in Demilune zone")
+                                    message_log.add_message(
+                                        f"{unit.get_display_name()}'s attack is repelled by the selenic zone",
+                                        MessageType.COMBAT,
+                                        player=unit.player
+                                    )
+                                    continue  # Skip this attack and go to next unit
+
                 # Check for Marrow Dike wall tiles that can be targeted
                 wall_target = None
                 if not target and (y, x) in self.marrow_dike_tiles:
@@ -3049,16 +3085,15 @@ class Game:
                         effective_stats = unit.get_effective_stats()
                         effective_attack = effective_stats['attack']
 
-                        # Get effective defense (check for Demilune defense halving)
+                        # Check for Granite Geas attack reduction (attacking POTPOURRIST)
+                        if (target.type == UnitType.POTPOURRIST and
+                            hasattr(unit, 'geas_attack_reduction') and unit.geas_attack_reduction and
+                            hasattr(unit, 'taunted_by') and unit.taunted_by == target):
+                            # Attacker's attack is treated as 2 when attacking this POTPOURRIST
+                            effective_attack = 2
+
+                        # Get effective defense
                         effective_defense = target.get_effective_stats()['defense']
-                        if (unit.type == UnitType.POTPOURRIST and
-                            hasattr(target, 'demilune_debuffed_by') and
-                            target.demilune_debuffed_by == unit and
-                            hasattr(target, 'demilune_defense_halved') and
-                            target.demilune_defense_halved):
-                            # Halve defense for enhanced Demilune
-                            effective_defense = effective_defense // 2
-                            logger.debug(f"DEMILUNE DEFENSE HALVING: {target.get_display_name()}'s defense halved from {target.get_effective_stats()['defense']} to {effective_defense}")
 
                         # Calculate damage with defense (PRT handled automatically by HP setter)
                         raw_damage = effective_attack
@@ -4060,6 +4095,7 @@ class Game:
                         unit.taunted_by = None
                         unit.taunt_duration = 0
                         unit.geas_affected = False  # Clear geas status icon
+                        unit.geas_attack_reduction = False  # Clear attack reduction
                         logger.debug(f"TAUNT EXPIRED: {unit.get_display_name()}'s taunt ended")
 
                     # Reset response flag for next turn
@@ -4078,7 +4114,20 @@ class Game:
                             # Remove the debuff
                             unit.demilune_debuffed = False
                             unit.demilune_debuffed_by = None
-                            unit.demilune_defense_halved = False
+
+                    # Process Demilune zone duration (POTPOURRIST only)
+                    if unit.type == UnitType.POTPOURRIST:
+                        if hasattr(unit, 'demilune_zone_duration') and unit.demilune_zone_duration > 0:
+                            # Decrement duration
+                            unit.demilune_zone_duration -= 1
+                            logger.debug(f"{unit.get_display_name()}'s Demilune zone duration: {unit.demilune_zone_duration}")
+
+                            # Check if zone has expired
+                            if unit.demilune_zone_duration <= 0:
+                                # Clear zones
+                                unit.demilune_zone_tiles = []
+                                unit.demilune_mirrored_zone_tiles = []
+                                logger.debug(f"{unit.get_display_name()}'s Demilune zones expired")
 
             # Process Karrier Rave duration for units of the current player (after combat phase)
             # This ensures the effect lasts through the attack execution

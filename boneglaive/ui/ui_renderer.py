@@ -1011,7 +1011,31 @@ class UIRenderer:
                                 # Use the center square for the target and dots for the surrounding area
                                 self.renderer.draw_tile(y, x, tile, color_id, attr)
                             continue
-                            
+
+                # Check if this position is in an active Demilune zone
+                for u in self.game_ui.game.units:
+                    if u.type == UnitType.POTPOURRIST and u.is_alive():
+                        if hasattr(u, 'demilune_zone_duration') and u.demilune_zone_duration > 0:
+                            # Check if position is in primary or mirrored zone
+                            in_primary_zone = (hasattr(u, 'demilune_zone_tiles') and (y, x) in u.demilune_zone_tiles)
+                            in_mirrored_zone = (hasattr(u, 'demilune_mirrored_zone_tiles') and (y, x) in u.demilune_mirrored_zone_tiles)
+
+                            if in_primary_zone or in_mirrored_zone:
+                                # Draw crescent zone marker
+                                tile = "("  # Crescent moon symbol
+                                color_id = 3 if u.player == 1 else 4  # Color based on player
+
+                                # Check if cursor is here
+                                is_cursor_here = (pos == cursor_manager.cursor_pos and show_cursor)
+
+                                if is_cursor_here:
+                                    # Draw with cursor color
+                                    self.renderer.draw_tile(y, x, tile, 2, curses.A_BOLD)
+                                else:
+                                    # Draw the zone marker
+                                    self.renderer.draw_tile(y, x, tile, color_id, 0)
+                                continue
+
                 # Check if this position is in a Jawline network area
                 for u in self.game_ui.game.units:
                     if u.is_alive() and u.selected_skill and hasattr(u.selected_skill, 'name') and \

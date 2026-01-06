@@ -39,6 +39,22 @@ class MelangeEminence(PassiveSkill):
         if not user.is_alive():
             return
 
+        # Check for upgrade and apply one-time max HP increase
+        from boneglaive.game.upgrades import UpgradeManager
+        if UpgradeManager.is_skill_upgraded(user, "Melange Eminence"):
+            # Check if max HP hasn't been increased yet
+            if user.max_hp < 28:
+                old_max_hp = user.max_hp
+                user.max_hp = 28
+                # Heal 4 HP immediately upon upgrade
+                user._hp = min(user.max_hp, user._hp + 4)
+
+                message_log.add_message(
+                    f"{user.get_display_name()} sucks up an extra potent fume of the clovey melange",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
+
         # Prevent duplicate triggers when initialize_next_player_turn() is called multiple times for the same player
         # This happens in VS AI mode where the turn switch is called redundantly
         if game:
@@ -365,7 +381,20 @@ class DemiluneSkill(ActiveSkill):
 
         # Check if enhanced by potpourri
         enhanced = user.potpourri_held
+
+        # Base damage is always 3, +1 if enhanced
         damage = 4 if enhanced else 3
+
+        # Check for Infuse upgrade
+        from boneglaive.game.upgrades import UpgradeManager
+        infuse_upgraded = UpgradeManager.is_skill_upgraded(user, "Infuse")
+
+        # Calculate defense-piercing damage (half if enhanced + upgraded)
+        piercing_damage = 0
+        defense_damage = damage
+        if enhanced and infuse_upgraded:
+            piercing_damage = damage // 2  # Half pierces defense
+            defense_damage = damage - piercing_damage  # Rest affected by defense
 
         # Consume potpourri if held
         if user.potpourri_held:
@@ -388,11 +417,42 @@ class DemiluneSkill(ActiveSkill):
         # Get arc tiles
         arc_tiles = self._get_arc_tiles(user.y, user.x, target_pos[0], target_pos[1])
 
-        message_log.add_message(
-            f"{user.get_display_name()} swings the granite pedestal in a crescent sweep",
-            MessageType.ABILITY,
-            player=user.player
-        )
+        # Check for Demilune upgrade (mirrored zone)
+        from boneglaive.game.upgrades import UpgradeManager
+        demilune_upgraded = UpgradeManager.is_skill_upgraded(user, "Demilune")
+
+        # If upgraded, create zone in opposite direction (NOT where attack hit)
+        if demilune_upgraded:
+            # Calculate opposite target position (reverse direction)
+            dy = target_pos[0] - user.y
+            dx = target_pos[1] - user.x
+            opposite_target = (user.y - dy, user.x - dx)
+
+            # Get mirrored arc tiles in opposite direction
+            mirrored_arc_tiles = self._get_arc_tiles(user.y, user.x, opposite_target[0], opposite_target[1])
+            user.demilune_mirrored_zone_tiles = mirrored_arc_tiles.copy()
+
+            # The zone only exists in the mirrored area, NOT the attack area
+            user.demilune_zone_tiles = []
+
+            # Set zone duration (starts at 3, decrements to 0, so it lasts 2 full turns)
+            user.demilune_zone_duration = 3
+
+            message_log.add_message(
+                f"{user.get_display_name()} swings the granite pedestal and creates a selenic backdraft",
+                MessageType.ABILITY,
+                player=user.player
+            )
+        else:
+            user.demilune_zone_tiles = []
+            user.demilune_mirrored_zone_tiles = []
+            user.demilune_zone_duration = 0
+
+            message_log.add_message(
+                f"{user.get_display_name()} swings the granite pedestal in a crescent sweep",
+                MessageType.ABILITY,
+                player=user.player
+            )
 
         # Show sweeping animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
@@ -432,11 +492,28 @@ class DemiluneSkill(ActiveSkill):
         for tile_y, tile_x in arc_tiles:
             target = game.get_unit_at(tile_y, tile_x)
             if target and target.player != user.player and target.is_alive():
-                # Deal damage
+                # Deal damage (split into defense-affected and piercing if upgraded)
                 game.current_attacker = user
                 old_hp = target.hp
-                target.hp = max(0, target.hp - damage)
-                actual_damage = old_hp - target.hp
+
+                if piercing_damage > 0:
+                    # Apply defense-affected damage first (goes through defense and PRT)
+                    target.hp = max(0, target.hp - defense_damage)
+                    after_defense = old_hp - target.hp
+
+                    # Apply piercing damage directly (still goes through PRT but not defense)
+                    target_defense = target.get_effective_stats()['defense']
+                    # Calculate what piercing would be after defense reduction
+                    piercing_after_def = max(1, piercing_damage - target_defense)
+                    # Apply the difference directly to bypass defense
+                    target._hp = max(0, target._hp - (piercing_damage - piercing_after_def))
+
+                    actual_damage = old_hp - target.hp
+                else:
+                    # Normal damage application
+                    target.hp = max(0, target.hp - damage)
+                    actual_damage = old_hp - target.hp
+
                 game.current_attacker = None
 
                 message_log.add_combat_message(
@@ -474,7 +551,6 @@ class DemiluneSkill(ActiveSkill):
                     target.demilune_debuffed = True
                     target.demilune_debuffed_by = user
                     target.demilune_debuff_duration = 2
-                    target.demilune_defense_halved = enhanced
 
                     # Show moon phase animation if UI is available
                     if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
@@ -666,8 +742,15 @@ class GraniteGeasSkill(ActiveSkill):
             if hasattr(ui, 'draw_board'):
                 ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
 
-        # Deal damage
+        # Deal damage (check for Infuse upgrade bonus)
+        from boneglaive.game.upgrades import UpgradeManager
+        infuse_upgraded = UpgradeManager.is_skill_upgraded(user, "Infuse")
+
+        # Base damage is 4, +1 if enhanced and Infuse is upgraded
         damage = 4
+        if enhanced and infuse_upgraded:
+            damage = 5
+
         game.current_attacker = user
         old_hp = target.hp
         target.hp = max(0, target.hp - damage)
@@ -710,6 +793,11 @@ class GraniteGeasSkill(ActiveSkill):
             target.taunt_duration = taunt_duration
             target.taunt_responded_this_turn = False
             target.geas_affected = True  # For status icon display
+
+            # Check for Granite Geas upgrade (attack reduction)
+            from boneglaive.game.upgrades import UpgradeManager
+            granite_geas_upgraded = UpgradeManager.is_skill_upgraded(user, "Granite Geas")
+            target.geas_attack_reduction = granite_geas_upgraded
 
             # Show geas binding animation - oils dripping and sealing
             if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):

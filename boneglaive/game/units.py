@@ -173,13 +173,16 @@ class Unit:
         self.demilune_debuffed = False  # Whether affected by Demilune debuff
         self.demilune_debuffed_by = None  # Reference to POTPOURRIST that applied Demilune debuff
         self.demilune_debuff_duration = 0  # Turns remaining for Demilune debuff
-        self.demilune_defense_halved = False  # Whether defense is halved (enhanced Demilune effect)
         self.taunted_by = None  # Reference to POTPOURRIST that applied taunt
         self.taunt_duration = 0  # Turns remaining for taunt
         self.taunt_responded_this_turn = False  # Track if unit attacked/skilled POTPOURRIST this turn
         self.geas_affected = False  # Whether unit is affected by Granite Geas (for status icon)
+        self.geas_attack_reduction = False  # Whether attack is reduced to 2 vs POTPOURRIST (upgraded Granite Geas)
         self.potpourri_held = False  # Whether POTPOURRIST is holding potpourri (POTPOURRIST only)
         self.potpourri_duration = 0  # Turns remaining for potpourri (POTPOURRIST only)
+        self.demilune_zone_tiles = []  # List of (y, x) tuples for active Demilune zone (POTPOURRIST only)
+        self.demilune_mirrored_zone_tiles = []  # List of (y, x) tuples for mirrored Demilune zone (upgraded only)
+        self.demilune_zone_duration = 0  # Turns remaining for Demilune zone
 
         # PELOTARI properties
         self.backhand_active = False  # Whether Backhand counter stance is active
