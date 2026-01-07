@@ -2480,7 +2480,26 @@ class CursorManager(UIComponent):
                 # Show information about enemy unit instead of selection error
                 # Use the unit's display name (includes Greek identifier) instead of "Player X's UNITTYPE"
                 unit_info = f"{unit.get_display_name()} - HP: {unit.hp}/{unit.max_hp}"
-                
+
+                # Check if enemy has astral value (Valuation Oracle upgrade)
+                current_player = self.game_ui.game.current_player
+                if unit.player != current_player:
+                    # Check if current player has DELPHIC_APPRAISER with Valuation Oracle upgrade
+                    from boneglaive.utils.constants import UnitType
+                    for appraiser in self.game_ui.game.units:
+                        if (appraiser.player == current_player and
+                            appraiser.is_alive() and
+                            appraiser.type == UnitType.DELPHIC_APPRAISER and
+                            hasattr(appraiser, 'passive_skill') and appraiser.passive_skill):
+                            from boneglaive.game.upgrades import UpgradeManager
+                            if UpgradeManager.is_skill_upgraded(appraiser, "Valuation Oracle"):
+                                enemy_value = appraiser.passive_skill._get_enemy_astral_value(
+                                    self.game_ui.game, current_player, unit
+                                )
+                                if enemy_value is not None:
+                                    unit_info += f" | Astral Value: {enemy_value}"
+                                break
+
                 # Send message through event system
                 self.publish_event(
                     EventType.MESSAGE_DISPLAY_REQUESTED,
@@ -3806,27 +3825,29 @@ class GameModeManager(UIComponent):
                     )
                     return
 
-                # Check if there are any teleport anchors
-                if not hasattr(game, 'teleport_anchors') or len(game.teleport_anchors) == 0:
-                    self.publish_event(
-                        EventType.MESSAGE_DISPLAY_REQUESTED,
-                        MessageDisplayEventData(
-                            message="No teleport anchors available",
-                            message_type=MessageType.WARNING
-                        )
-                    )
-                    return
-
-                # Find active teleport anchors that are adjacent to the unit
+                # Find active teleport anchors (furniture and imbued enemies) that are adjacent to the unit
                 active_anchors = []
                 unit = cursor_manager.selected_unit
 
-                for pos, anchor in game.teleport_anchors.items():
-                    if anchor['active']:
-                        # Check if the anchor is adjacent to the unit
-                        distance = game.chess_distance(unit.y, unit.x, pos[0], pos[1])
-                        if distance <= 1:  # Adjacent (including diagonals)
-                            active_anchors.append(pos)
+                # Check furniture anchors
+                if hasattr(game, 'teleport_anchors'):
+                    for pos, anchor in game.teleport_anchors.items():
+                        if anchor['active']:
+                            # Check if the anchor is adjacent to the unit
+                            distance = game.chess_distance(unit.y, unit.x, pos[0], pos[1])
+                            if distance <= 1:  # Adjacent (including diagonals)
+                                active_anchors.append(pos)
+
+                # Check imbued enemy units
+                for other_unit in game.units:
+                    if (other_unit.is_alive() and
+                        hasattr(other_unit, 'status_imbued') and
+                        other_unit.status_imbued and
+                        other_unit.status_imbued_player == unit.player):
+                        # Check if the imbued enemy is adjacent
+                        distance = game.chess_distance(unit.y, unit.x, other_unit.y, other_unit.x)
+                        if distance <= 1:
+                            active_anchors.append((other_unit.y, other_unit.x))
 
                 if not active_anchors:
                     self.publish_event(
@@ -3992,7 +4013,21 @@ class GameModeManager(UIComponent):
         if self.teleport_anchor is None:
             # Check if there's a teleport anchor at the cursor position
             cursor_pos_tuple = (pos.y, pos.x)
-            if cursor_pos_tuple not in game.teleport_anchors or not game.teleport_anchors[cursor_pos_tuple]['active']:
+
+            # Check for furniture anchor
+            is_furniture_anchor = (hasattr(game, 'teleport_anchors') and
+                                   cursor_pos_tuple in game.teleport_anchors and
+                                   game.teleport_anchors[cursor_pos_tuple]['active'])
+
+            # Check for imbued enemy anchor
+            imbued_unit = game.get_unit_at(pos.y, pos.x)
+            is_imbued_anchor = (imbued_unit and
+                               imbued_unit.is_alive() and
+                               hasattr(imbued_unit, 'status_imbued') and
+                               imbued_unit.status_imbued and
+                               imbued_unit.status_imbued_player == unit.player)
+
+            if not is_furniture_anchor and not is_imbued_anchor:
                 self.publish_event(
                     EventType.MESSAGE_DISPLAY_REQUESTED,
                     MessageDisplayEventData(
@@ -4007,7 +4042,12 @@ class GameModeManager(UIComponent):
 
             # Update highlighted positions to show valid teleport destinations
             cursor_manager.highlighted_positions = []
-            cosmic_value = game.teleport_anchors[cursor_pos_tuple]['cosmic_value']
+
+            # Get cosmic value from furniture anchor or imbued unit
+            if is_furniture_anchor:
+                cosmic_value = game.teleport_anchors[cursor_pos_tuple]['cosmic_value']
+            else:
+                cosmic_value = imbued_unit.status_imbued_cosmic_value
 
             # Highlight all positions within the astral value range
             for y in range(max(0, pos.y - cosmic_value), min(game.map.height, pos.y + cosmic_value + 1)):
@@ -4035,7 +4075,25 @@ class GameModeManager(UIComponent):
                 return False
 
             # Get the Market Futures skill from the anchor's creator
-            if not game.teleport_anchors[anchor_pos]['creator']:
+            # Check if it's a furniture anchor or imbued enemy
+            creator = None
+            if hasattr(game, 'teleport_anchors') and anchor_pos in game.teleport_anchors:
+                # Furniture anchor
+                creator = game.teleport_anchors[anchor_pos]['creator']
+            else:
+                # Imbued enemy anchor - find the DELPHIC_APPRAISER who imbued them
+                imbued_unit = game.get_unit_at(anchor_pos[0], anchor_pos[1])
+                if imbued_unit and hasattr(imbued_unit, 'status_imbued_player'):
+                    # Find the DELPHIC_APPRAISER for this player
+                    from boneglaive.utils.constants import UnitType
+                    for appraiser in game.units:
+                        if (appraiser.player == imbued_unit.status_imbued_player and
+                            appraiser.is_alive() and
+                            appraiser.type == UnitType.DELPHIC_APPRAISER):
+                            creator = appraiser
+                            break
+
+            if not creator:
                 self.publish_event(
                     EventType.MESSAGE_DISPLAY_REQUESTED,
                     MessageDisplayEventData(
@@ -4047,7 +4105,6 @@ class GameModeManager(UIComponent):
                 self.set_mode("select")
                 return False
 
-            creator = game.teleport_anchors[anchor_pos]['creator']
             market_futures_skill = None
 
             # Find the Market Futures skill on the creator's active skills
@@ -5461,15 +5518,27 @@ class ActionMenuComponent(UIComponent):
                 'skill': auction_curse_skill
             })
 
-            # Add Divine Depreciation skill
+            # Add Divine Depreciation skill OR Deft(?) Reroll (if transformed)
             divine_depreciation_skill = next((skill for skill in available_skills if skill.name == "Divine Depreciation"), None)
-            self.actions.append({
-                'key': 'd',
-                'label': 'ivine Depreciation',  # Will be displayed as [D]ivine Depreciation
-                'action': 'divine_depreciation_skill',
-                'enabled': divine_depreciation_skill is not None,
-                'skill': divine_depreciation_skill
-            })
+            deft_reroll_skill = next((skill for skill in available_skills if skill.name == "Deft(?) Reroll"), None)
+
+            # Priority: Deft(?) Reroll if available, otherwise Divine Depreciation
+            if deft_reroll_skill is not None:
+                self.actions.append({
+                    'key': 'd',
+                    'label': 'eft(?) Reroll',  # Will be displayed as [D]eft(?) Reroll
+                    'action': 'deft_reroll_skill',
+                    'enabled': True,
+                    'skill': deft_reroll_skill
+                })
+            else:
+                self.actions.append({
+                    'key': 'd',
+                    'label': 'ivine Depreciation',  # Will be displayed as [D]ivine Depreciation
+                    'action': 'divine_depreciation_skill',
+                    'enabled': divine_depreciation_skill is not None,
+                    'skill': divine_depreciation_skill
+                })
 
         # INTERFERER skills
         elif unit.type == self.UnitType.INTERFERER:
@@ -5816,6 +5885,18 @@ class ActionMenuComponent(UIComponent):
             if cursor_manager.selected_unit.move_target:
                 from_y, from_x = cursor_manager.selected_unit.move_target
             
+            # Handle instant self-targeting skills (Deft(?) Reroll)
+            if skill.name == "Deft(?) Reroll":
+                # Execute immediately without targeting mode
+                if skill.can_use(cursor_manager.selected_unit, (from_y, from_x), game):
+                    unit = cursor_manager.selected_unit
+                    skill.use(unit, (from_y, from_x), game)
+                    # Return to select mode
+                    mode_manager.set_mode("select")
+                    # Clear selection to prevent further actions
+                    cursor_manager.clear_selection()
+                return
+
             # Special visualization for MARROW_CONDENSER area skills
             if skill.name in ["Marrow Dike", "Bone Tithe"]:
                 # Special visual indicators for MARROW_CONDENSER's area skills
@@ -6210,9 +6291,13 @@ class ActionMenuComponent(UIComponent):
             elif skill.target_type == TargetType.AREA:
                 # Special case for DELPHIC APPRAISER furniture-targeting skills
                 if skill.name in ["Market Futures", "Divine Depreciation"]:
+                    # Check if Valuation Oracle is upgraded (allows targeting enemies)
+                    from boneglaive.game.upgrades import UpgradeManager
+                    valuation_upgraded = UpgradeManager.is_skill_upgraded(cursor_manager.selected_unit, "Valuation Oracle")
+
                     for y in range(HEIGHT):
                         for x in range(WIDTH):
-                            # Show furniture targets and floor tiles within range with line of sight
+                            # Show furniture targets, enemy targets (if upgraded), and floor tiles
                             distance = game.chess_distance(from_y, from_x, y, x)
                             if distance <= skill.range:
                                 # Check line of sight for furniture-targeting skills
@@ -6220,7 +6305,15 @@ class ActionMenuComponent(UIComponent):
                                     # Check if it's furniture (valid target)
                                     if game.map.is_furniture(y, x):
                                         targets.append((y, x))
-                                    # Also highlight empty floor tiles for range visualization
+                                    # With Valuation Oracle upgrade: Also check for enemy units
+                                    elif valuation_upgraded:
+                                        enemy_unit = game.get_unit_at(y, x)
+                                        if enemy_unit and enemy_unit.is_alive() and enemy_unit.player != cursor_manager.selected_unit.player:
+                                            targets.append((y, x))
+                                        # Also highlight empty floor tiles for range visualization
+                                        elif not game.get_unit_at(y, x) and game.map.is_passable(y, x):
+                                            targets.append((y, x))
+                                    # Without upgrade: Just highlight empty floor tiles for range visualization
                                     elif not game.get_unit_at(y, x) and game.map.is_passable(y, x):
                                         targets.append((y, x))
                 # Special case for Demilune - can target any adjacent tile (empty or with units)

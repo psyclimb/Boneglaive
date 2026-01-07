@@ -25,6 +25,7 @@ class ValuationOracle(PassiveSkill):
     """
     Passive skill for DELPHIC_APPRAISER.
     Perceives the 'astral value' of furniture terrain and grants team-wide bonuses.
+    With upgrade: Enemy units are assigned astral values and treated as furniture.
     """
 
     def __init__(self):
@@ -33,11 +34,61 @@ class ValuationOracle(PassiveSkill):
             key="V",
             description="Perceives the 'astral value' (1-14) of furniture terrain. Allies adjacent to furniture with astral value 9 or greater gain +1 to defense and attack range."
         )
+
+    def _get_enemy_astral_value(self, game: 'Game', appraiser_player: int, enemy_unit: 'Unit') -> Optional[int]:
+        """Get or assign astral value for an enemy unit."""
+        if not hasattr(game, 'enemy_astral_values'):
+            game.enemy_astral_values = {}
+
+        key = (appraiser_player, id(enemy_unit))
+        if key not in game.enemy_astral_values:
+            # Assign new random value (1-9)
+            game.enemy_astral_values[key] = random.randint(1, 9)
+
+        return game.enemy_astral_values[key]
+
+    def _set_enemy_astral_value(self, game: 'Game', appraiser_player: int, enemy_unit: 'Unit', value: int):
+        """Set astral value for an enemy unit."""
+        if not hasattr(game, 'enemy_astral_values'):
+            game.enemy_astral_values = {}
+
+        key = (appraiser_player, id(enemy_unit))
+        game.enemy_astral_values[key] = value
+
+    def _is_furniture_or_appraised_enemy(self, game: 'Game', y: int, x: int, appraiser_player: int, valuation_upgraded: bool) -> bool:
+        """Check if position has furniture or an appraised enemy (with upgrade)."""
+        # Check for actual furniture
+        if game.map.is_furniture(y, x):
+            return True
+
+        # With upgrade, check for enemy units
+        if valuation_upgraded:
+            unit = game.get_unit_at(y, x)
+            if unit and unit.is_alive() and unit.player != appraiser_player:
+                return True
+
+        return False
+
+    def _get_astral_value_at_position(self, game: 'Game', y: int, x: int, appraiser_player: int, valuation_upgraded: bool) -> Optional[int]:
+        """Get astral value at position (furniture or appraised enemy)."""
+        # Check for furniture first
+        if game.map.is_furniture(y, x):
+            return game.map.get_cosmic_value(y, x, player=appraiser_player, game=game)
+
+        # With upgrade, check for enemy units
+        if valuation_upgraded:
+            unit = game.get_unit_at(y, x)
+            if unit and unit.is_alive() and unit.player != appraiser_player:
+                return self._get_enemy_astral_value(game, appraiser_player, unit)
+
+        return None
         
     def apply_passive(self, user: 'Unit', game: Optional['Game'] = None, ui=None) -> None:
         """
         Apply the Valuation Oracle passive effect.
         Grants bonuses to ALL allies adjacent to furniture with astral value >= 9.
+        With Market Futures upgrade: Imbued furniture also provides bonuses to adjacent allies.
+        With Valuation Oracle upgrade: Enemy units are assigned astral values and treated as furniture.
         """
         if not game:
             return
@@ -48,12 +99,17 @@ class ValuationOracle(PassiveSkill):
             # Cosmic values will be perceived when the game starts (see engine.py setup completion)
             return
 
+        # Check if upgrades are active
+        from boneglaive.game.upgrades import UpgradeManager
+        market_futures_upgraded = UpgradeManager.is_skill_upgraded(user, "Market Futures")
+        valuation_oracle_upgraded = UpgradeManager.is_skill_upgraded(user, "Valuation Oracle")
+
         # Process ALL ally units (including the DELPHIC_APPRAISER)
         for ally in game.units:
             if not ally.is_alive() or ally.player != user.player:
                 continue
 
-            # Check if this ally is adjacent to any high-value furniture (>= 9)
+            # Check if this ally is adjacent to any high-value furniture (>= 9), imbued furniture, or appraised enemy
             adjacent_to_high_value = False
 
             # Check all eight adjacent positions
@@ -68,7 +124,7 @@ class ValuationOracle(PassiveSkill):
                     if not game.is_valid_position(y, x):
                         continue
 
-                    # Check if the tile is furniture
+                    # Check if the tile is furniture or appraised enemy
                     if game.map.is_furniture(y, x):
                         # Get astral value with the appraiser's player
                         cosmic_value = game.map.get_cosmic_value(y, x, player=user.player, game=game)
@@ -77,6 +133,25 @@ class ValuationOracle(PassiveSkill):
                         if cosmic_value is not None and cosmic_value >= 9:
                             adjacent_to_high_value = True
                             break
+
+                        # With Market Futures upgrade: Check if this is imbued furniture
+                        if market_futures_upgraded:
+                            if hasattr(game, 'teleport_anchors') and (y, x) in game.teleport_anchors:
+                                anchor = game.teleport_anchors[(y, x)]
+                                # Check if anchor is imbued and belongs to the same player
+                                if anchor.get('imbued', False) and anchor['creator'].player == user.player:
+                                    adjacent_to_high_value = True
+                                    break
+
+                    # With Valuation Oracle upgrade: Check for appraised enemies
+                    if valuation_oracle_upgraded:
+                        enemy_unit = game.get_unit_at(y, x)
+                        if enemy_unit and enemy_unit.is_alive() and enemy_unit.player != user.player:
+                            # Get or assign enemy astral value
+                            enemy_value = self._get_enemy_astral_value(game, user.player, enemy_unit)
+                            if enemy_value is not None and enemy_value >= 9:
+                                adjacent_to_high_value = True
+                                break
 
                 if adjacent_to_high_value:
                     break
@@ -138,15 +213,27 @@ class MarketFuturesSkill(ActiveSkill):
         if not game.is_valid_position(target_pos[0], target_pos[1]):
             return False
 
-        # Target must be a furniture piece
+        # Target must be a furniture piece OR (with upgrade) an enemy unit
         terrain = game.map.get_terrain_at(target_pos[0], target_pos[1])
-        if terrain not in [TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
-                         TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF, 
-                         TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE, 
+        is_furniture = terrain in [TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
+                         TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF,
+                         TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE,
                          TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                          TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
                          TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
-                         TerrainType.POTPOURRI_BOWL]:
+                         TerrainType.POTPOURRI_BOWL]
+
+        # If not furniture, check if it's an enemy (with Valuation Oracle upgrade)
+        is_valid_enemy = False
+        if not is_furniture:
+            from boneglaive.game.upgrades import UpgradeManager
+            if UpgradeManager.is_skill_upgraded(user, "Valuation Oracle"):
+                enemy_unit = game.get_unit_at(target_pos[0], target_pos[1])
+                if enemy_unit and enemy_unit.is_alive() and enemy_unit.player != user.player:
+                    is_valid_enemy = True
+
+        # Must be either furniture or valid enemy
+        if not is_furniture and not is_valid_enemy:
             return False
 
         # If the unit has a move_target, use that position for range calculation
@@ -199,40 +286,76 @@ class MarketFuturesSkill(ActiveSkill):
         return True
         
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
-        """Execute the Market Futures skill on a furniture piece."""
+        """Execute the Market Futures skill on a furniture piece or enemy unit."""
 
         # Clear the market futures indicator when skill is executed
         user.market_futures_indicator = None
 
-        # Get the astral value (will be generated if it doesn't exist)
-        cosmic_value = game.map.get_cosmic_value(target_pos[0], target_pos[1], player=user.player, game=game)
-        if cosmic_value is None:
-            cosmic_value = random.randint(1, 9)  # Fallback
-            
-        # Get the furniture name for messages
-        target_terrain = game.map.get_terrain_at(target_pos[0], target_pos[1])
-        furniture_name = self._get_furniture_name(target_terrain)
-        
-        # Create teleportation anchor
-        if not hasattr(game, 'teleport_anchors'):
-            game.teleport_anchors = {}
+        # Check if target is an enemy unit
+        target_unit = game.get_unit_at(target_pos[0], target_pos[1])
+        is_enemy_target = target_unit and target_unit.is_alive() and target_unit.player != user.player
 
-        game.teleport_anchors[target_pos] = {
-            'creator': user,
-            'cosmic_value': cosmic_value,
-            'active': True,
-            'imbued': True  # Mark as imbued for special rendering
-        }
-        
+        if is_enemy_target:
+            # Check if target is immune to status effects (GRAYMAN with Stasiality)
+            if target_unit.is_immune_to_effects():
+                # Log immunity message
+                message_log.add_message(
+                    f"{target_unit.get_display_name()} is immune to Market Futures due to Stasiality",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
+            else:
+                # Apply Imbued status effect to enemy
+                # Get or assign enemy astral value
+                if hasattr(user, 'passive_skill') and user.passive_skill:
+                    cosmic_value = user.passive_skill._get_enemy_astral_value(game, user.player, target_unit)
+                else:
+                    cosmic_value = random.randint(1, 9)
+
+                # Apply imbued status effect
+                target_unit.status_imbued = True
+                target_unit.status_imbued_duration = 7
+                target_unit.status_imbued_player = user.player
+                target_unit.status_imbued_cosmic_value = cosmic_value
+
+                # Log the skill activation
+                message_log.add_message(
+                    f"{user.get_display_name()} imbues {target_unit.get_display_name()} with Market Futures",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
+        else:
+            # Target is furniture - create normal anchor
+            # Get the astral value (will be generated if it doesn't exist)
+            cosmic_value = game.map.get_cosmic_value(target_pos[0], target_pos[1], player=user.player, game=game)
+            if cosmic_value is None:
+                cosmic_value = random.randint(1, 9)  # Fallback
+
+            # Get the furniture name for messages
+            target_terrain = game.map.get_terrain_at(target_pos[0], target_pos[1])
+            furniture_name = self._get_furniture_name(target_terrain)
+
+            # Create teleportation anchor
+            if not hasattr(game, 'teleport_anchors'):
+                game.teleport_anchors = {}
+
+            game.teleport_anchors[target_pos] = {
+                'creator': user,
+                'cosmic_value': cosmic_value,
+                'active': True,
+                'imbued': True,  # Mark as imbued for special rendering
+                'duration': 7  # Market Futures anchor lasts 7 turns
+            }
+
+            # Log the skill activation
+            message_log.add_message(
+                f"{user.get_display_name()} infuses the {furniture_name} with Market Futures",
+                MessageType.ABILITY,
+                player=user.player
+            )
+
         # Update anchor status effects for all units
         game.update_anchor_status_effects()
-        
-        # Log the skill activation
-        message_log.add_message(
-            f"{user.get_display_name()} infuses the {furniture_name} with Market Futures",
-            MessageType.ABILITY,
-            player=user.player
-        )
         
         # Play Market Futures animation sequence
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
@@ -249,24 +372,47 @@ class MarketFuturesSkill(ActiveSkill):
                 6,  # Cyan/blue color for market analysis
                 0.1  # Duration per frame
             )
-            
+
+        # If Market Futures upgrade is active, immediately apply Valuation Oracle to adjacent allies
+        from boneglaive.game.upgrades import UpgradeManager
+        if UpgradeManager.is_skill_upgraded(user, "Market Futures"):
+            # Apply Valuation Oracle passive to update bonuses for adjacent allies
+            if hasattr(user, 'passive_skill') and user.passive_skill:
+                user.passive_skill.apply_passive(user, game, ui)
+
         return True
         
     def activate_teleport(self, ally: 'Unit', anchor_pos: tuple, destination: tuple, game: 'Game', ui=None) -> bool:
-        """Activate the teleportation anchor for an ally."""
-        # Verify the anchor exists and is active
-        if not hasattr(game, 'teleport_anchors') or anchor_pos not in game.teleport_anchors:
-            return False
+        """Activate the teleportation anchor for an ally (furniture or imbued enemy)."""
 
-        anchor = game.teleport_anchors[anchor_pos]
-        if not anchor['active']:
-            return False
+        # Check if anchor_pos is a furniture anchor
+        anchor = None
+        cosmic_value = None
+        imbued_unit = None
 
-        # Check if the ally is on the same team as the anchor creator
-        if ally.player != anchor['creator'].player:
-            return False
+        if hasattr(game, 'teleport_anchors') and anchor_pos in game.teleport_anchors:
+            anchor = game.teleport_anchors[anchor_pos]
+            if not anchor['active']:
+                return False
 
-        # Check if the destination is valid and empty
+            # Check if the ally is on the same team as the anchor creator
+            if ally.player != anchor['creator'].player:
+                return False
+
+            cosmic_value = anchor['cosmic_value']
+        else:
+            # Check if anchor_pos has an imbued enemy unit
+            imbued_unit = game.get_unit_at(anchor_pos[0], anchor_pos[1])
+            if not (imbued_unit and
+                    imbued_unit.is_alive() and
+                    hasattr(imbued_unit, 'status_imbued') and
+                    imbued_unit.status_imbued and
+                    imbued_unit.status_imbued_player == ally.player):
+                return False
+
+            cosmic_value = imbued_unit.status_imbued_cosmic_value
+
+        # Validate destination
         if not game.is_valid_position(destination[0], destination[1]):
             return False
 
@@ -281,8 +427,7 @@ class MarketFuturesSkill(ActiveSkill):
         if distance_to_anchor > 1:  # Not adjacent
             return False
 
-        # Get astral value and check destination range
-        cosmic_value = anchor['cosmic_value']
+        # Check destination range based on cosmic value
         distance = game.chess_distance(anchor_pos[0], anchor_pos[1], destination[0], destination[1])
         if distance > cosmic_value:
             return False
@@ -354,10 +499,13 @@ class MarketFuturesSkill(ActiveSkill):
                 )
             
         # Deactivate the anchor after use
-        game.teleport_anchors[anchor_pos]['active'] = False
-        game.teleport_anchors[anchor_pos]['imbued'] = False  # Remove imbued status for rendering
-        
-        # Update anchor status effects for all units after deactivation
+        if hasattr(game, 'teleport_anchors') and anchor_pos in game.teleport_anchors:
+            # Furniture anchor - deactivate it
+            game.teleport_anchors[anchor_pos]['active'] = False
+            game.teleport_anchors[anchor_pos]['imbued'] = False  # Remove imbued status for rendering
+        # Note: Imbued enemies don't need deactivation - they remain imbued until duration expires
+
+        # Update anchor status effects for all units after use
         game.update_anchor_status_effects()
         
         return True
@@ -472,14 +620,20 @@ class AuctionCurseSkill(ActiveSkill):
         if not target_unit:
             return False
 
+        # Check if Valuation Oracle upgrade is active
+        from boneglaive.game.upgrades import UpgradeManager
+        valuation_oracle_upgraded = UpgradeManager.is_skill_upgraded(user, "Valuation Oracle")
+
         # Find nearby furniture and their astral values
+        # With upgrade, also include appraised enemies
         nearby_furniture = []
+        nearby_appraised_enemies = []
         for y in range(max(0, target_pos[0] - 2), min(game.map.height, target_pos[0] + 3)):
             for x in range(max(0, target_pos[1] - 2), min(game.map.width, target_pos[1] + 3)):
                 terrain = game.map.get_terrain_at(y, x)
                 if terrain in [TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
-                             TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF, 
-                             TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE, 
+                             TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF,
+                             TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE,
                              TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                              TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
                              TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
@@ -489,23 +643,36 @@ class AuctionCurseSkill(ActiveSkill):
                     # Get astral value (will be generated if it doesn't exist yet)
                     game.map.get_cosmic_value(y, x, player=user.player, game=game)
 
-        # Calculate average astral value of nearby furniture
+                # With Valuation Oracle upgrade: Check for appraised enemies (exclude the target)
+                if valuation_oracle_upgraded and (y, x) != target_pos:
+                    enemy_unit = game.get_unit_at(y, x)
+                    if enemy_unit and enemy_unit.is_alive() and enemy_unit.player != user.player:
+                        nearby_appraised_enemies.append(enemy_unit)
+
+        # Calculate average astral value of nearby furniture AND appraised enemies
         average_value = 0
-        if nearby_furniture:
-            # Get astral values for all nearby furniture
-            cosmic_values = []
-            for pos in nearby_furniture:
-                value = game.map.get_cosmic_value(pos[0], pos[1], player=user.player, game=game)
-                if value is not None:
-                    cosmic_values.append(value)
+        cosmic_values = []
 
-            if cosmic_values:
-                # Calculate the average, rounded up
-                import math
-                average_value = math.ceil(sum(cosmic_values) / len(cosmic_values))
+        # Add furniture values
+        for pos in nearby_furniture:
+            value = game.map.get_cosmic_value(pos[0], pos[1], player=user.player, game=game)
+            if value is not None:
+                cosmic_values.append(value)
 
-                # Ensure average value is within valid range
-                average_value = max(1, min(9, average_value))
+        # Add appraised enemy values
+        if hasattr(user, 'passive_skill') and user.passive_skill:
+            for enemy_unit in nearby_appraised_enemies:
+                enemy_value = user.passive_skill._get_enemy_astral_value(game, user.player, enemy_unit)
+                if enemy_value is not None:
+                    cosmic_values.append(enemy_value)
+
+        if cosmic_values:
+            # Calculate the average, rounded up
+            import math
+            average_value = math.ceil(sum(cosmic_values) / len(cosmic_values))
+
+            # Ensure average value is within valid range
+            average_value = max(1, min(14, average_value))
 
         # Apply DOT effect to the target enemy, if they're not immune
         dot_duration = average_value  # Duration equals the average value
@@ -517,8 +684,8 @@ class AuctionCurseSkill(ActiveSkill):
             player=user.player
         )
 
-        # Special message for maximum duration (9 turns)
-        if dot_duration == 9:
+        # Special message for maximum duration (14 turns)
+        if dot_duration == 14:
             message_log.add_message(
                 f"{user.get_display_name()} rolls deftly!",
                 MessageType.ABILITY,
@@ -540,7 +707,13 @@ class AuctionCurseSkill(ActiveSkill):
                 target_unit.auction_curse_dot = True
                 target_unit.auction_curse_dot_duration = dot_duration
                 target_unit.auction_curse_no_heal = True  # Prevent all healing
-                
+
+                # Store initial HP, duration, caster, and furniture positions for upgrade check
+                target_unit.auction_curse_initial_hp = target_unit.hp
+                target_unit.auction_curse_applied_duration = dot_duration
+                target_unit.auction_curse_caster = user
+                target_unit.auction_curse_furniture_positions = nearby_furniture.copy() if nearby_furniture else []
+
                 # Log the DOT application
                 message_log.add_message(
                     f"{target_unit.get_display_name()} has his vitality stunted",
@@ -663,15 +836,27 @@ class DivineDrepreciationSkill(ActiveSkill):
         if not game.is_valid_position(target_pos[0], target_pos[1]):
             return False
 
-        # Target must be a furniture piece
+        # Target must be a furniture piece OR (with upgrade) an enemy unit
         terrain = game.map.get_terrain_at(target_pos[0], target_pos[1])
-        if terrain not in [TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
-                         TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF, 
-                         TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE, 
+        is_furniture = terrain in [TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
+                         TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF,
+                         TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE,
                          TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                          TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
                          TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
-                         TerrainType.POTPOURRI_BOWL]:
+                         TerrainType.POTPOURRI_BOWL]
+
+        # If not furniture, check if it's an enemy (with Valuation Oracle upgrade)
+        is_valid_enemy = False
+        if not is_furniture:
+            from boneglaive.game.upgrades import UpgradeManager
+            if UpgradeManager.is_skill_upgraded(user, "Valuation Oracle"):
+                enemy_unit = game.get_unit_at(target_pos[0], target_pos[1])
+                if enemy_unit and enemy_unit.is_alive() and enemy_unit.player != user.player:
+                    is_valid_enemy = True
+
+        # Must be either furniture or valid enemy
+        if not is_furniture and not is_valid_enemy:
             return False
 
         # If the unit has a move_target, use that position for range calculation
@@ -720,18 +905,30 @@ class DivineDrepreciationSkill(ActiveSkill):
         return True
 
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
-        """Execute the Divine Depreciation skill on a furniture piece."""
+        """Execute the Divine Depreciation skill on a furniture piece or enemy."""
         # Clear the divine depreciation indicator when skill is executed
         user.divine_depreciation_indicator = None
 
-        # Get the astral value of the target (will be generated if it doesn't exist)
-        original_cosmic_value = game.map.get_cosmic_value(target_pos[0], target_pos[1], player=user.player, game=game)
-        if original_cosmic_value is None:
-            original_cosmic_value = random.randint(1, 9)  # Fallback
-            
-        # Get the furniture name for messages
+        # Check if target is furniture or enemy
         target_terrain = game.map.get_terrain_at(target_pos[0], target_pos[1])
-        furniture_name = self._get_furniture_name(target_terrain)
+        is_furniture = game.map.is_furniture(target_pos[0], target_pos[1])
+        target_enemy = game.get_unit_at(target_pos[0], target_pos[1]) if not is_furniture else None
+
+        # Get the astral value of the target
+        if is_furniture:
+            original_cosmic_value = game.map.get_cosmic_value(target_pos[0], target_pos[1], player=user.player, game=game)
+            if original_cosmic_value is None:
+                original_cosmic_value = random.randint(1, 9)  # Fallback
+            furniture_name = self._get_furniture_name(target_terrain)
+            target_name = furniture_name
+        else:
+            # Target is an enemy - get their astral value
+            if hasattr(user, 'passive_skill') and user.passive_skill:
+                original_cosmic_value = user.passive_skill._get_enemy_astral_value(game, user.player, target_enemy)
+            else:
+                original_cosmic_value = random.randint(1, 9)  # Fallback
+            target_name = target_enemy.get_display_name()
+            furniture_name = target_name  # Use for messages
 
         # Create reality distortion zone
         if not hasattr(game, 'reality_distortions'):
@@ -746,14 +943,20 @@ class DivineDrepreciationSkill(ActiveSkill):
                 if game.is_valid_position(y, x):
                     affected_area.append((y, x))
 
+        # Check if Valuation Oracle upgrade is active
+        from boneglaive.game.upgrades import UpgradeManager
+        valuation_oracle_upgraded = UpgradeManager.is_skill_upgraded(user, "Valuation Oracle")
+
         # Collect furniture in the area (excluding the target)
+        # With upgrade, also collect appraised enemies
         other_furniture = []
+        appraised_enemies = []  # Track enemies separately for rerolling
         for pos in affected_area:
             if pos != target_pos:  # Skip the target furniture
                 terrain = game.map.get_terrain_at(pos[0], pos[1])
                 if terrain in [TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
-                             TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF, 
-                             TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE, 
+                             TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF,
+                             TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE,
                              TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                              TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
                              TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
@@ -762,26 +965,46 @@ class DivineDrepreciationSkill(ActiveSkill):
                     # Ensure astral value exists for all furniture
                     game.map.get_cosmic_value(pos[0], pos[1], player=user.player, game=game)
 
-        # Calculate average astral value of other furniture (rounded up)
+                # With Valuation Oracle upgrade: Check for appraised enemies
+                if valuation_oracle_upgraded:
+                    enemy_unit = game.get_unit_at(pos[0], pos[1])
+                    if enemy_unit and enemy_unit.is_alive() and enemy_unit.player != user.player:
+                        appraised_enemies.append((pos, enemy_unit))
+
+        # Calculate average astral value of other furniture AND appraised enemies (rounded up)
         avg_cosmic_value = 1  # Default if no other furniture
-        if other_furniture:
-            total_value = 0
-            count = 0
-            for pos in other_furniture:
-                value = game.map.get_cosmic_value(pos[0], pos[1], player=user.player, game=game)
-                if value is not None:
-                    total_value += value
+        total_value = 0
+        count = 0
+
+        # Add furniture values
+        for pos in other_furniture:
+            value = game.map.get_cosmic_value(pos[0], pos[1], player=user.player, game=game)
+            if value is not None:
+                total_value += value
+                count += 1
+
+        # Add appraised enemy values
+        if hasattr(user, 'passive_skill') and user.passive_skill:
+            for pos, enemy_unit in appraised_enemies:
+                enemy_value = user.passive_skill._get_enemy_astral_value(game, user.player, enemy_unit)
+                if enemy_value is not None:
+                    total_value += enemy_value
                     count += 1
 
-            if count > 0:
-                import math
-                avg_cosmic_value = math.ceil(total_value / count)
+        if count > 0:
+            import math
+            avg_cosmic_value = math.ceil(total_value / count)
 
         # Store the original astral value BEFORE setting it to 1
         original_target_cosmic_value = original_cosmic_value
 
-        # Set target furniture's astral value to 1 for this player
-        game.map.set_cosmic_value(target_pos[0], target_pos[1], 1, user.player)
+        # Set target's astral value to 1 (furniture or enemy)
+        if is_furniture:
+            game.map.set_cosmic_value(target_pos[0], target_pos[1], 1, user.player)
+        else:
+            # Set enemy's astral value to 1
+            if hasattr(user, 'passive_skill') and user.passive_skill:
+                user.passive_skill._set_enemy_astral_value(game, user.player, target_enemy, 1)
 
         # Calculate effect value based on the difference between average value and target value (now 1)
         effect_value = max(1, avg_cosmic_value - 1)  # Ensure at least 1 damage/healing
@@ -866,6 +1089,29 @@ class DivineDrepreciationSkill(ActiveSkill):
             # Generate a new random astral value (1-9) for this player
             new_value = random.randint(1, 9)
             game.map.set_cosmic_value(pos[0], pos[1], new_value, user.player)
+
+        # With Valuation Oracle upgrade: Reroll astral values for appraised enemies
+        if hasattr(user, 'passive_skill') and user.passive_skill and appraised_enemies:
+            for pos, enemy_unit in appraised_enemies:
+                # Show flashing random numbers animation on enemy
+                if ui and hasattr(ui, 'renderer'):
+                    reroll_animation = [str(random.randint(1, 9)) for _ in range(12)]
+                    ui.renderer.animate_attack_sequence(
+                        pos[0], pos[1],
+                        reroll_animation,
+                        7,  # Yellow/white flashing
+                        0.1  # Fast flashing
+                    )
+
+                # Generate a new random astral value (1-9) for this enemy
+                new_value = random.randint(1, 9)
+                user.passive_skill._set_enemy_astral_value(game, user.player, enemy_unit, new_value)
+
+                # If enemy is imbued, also update their imbued cosmic value
+                if (hasattr(enemy_unit, 'status_imbued') and
+                    enemy_unit.status_imbued and
+                    enemy_unit.status_imbued_player == user.player):
+                    enemy_unit.status_imbued_cosmic_value = new_value
 
         # Log the skill activation with details about the astral values
         message_log.add_message(
@@ -1028,6 +1274,24 @@ class DivineDrepreciationSkill(ActiveSkill):
             if unit.hp <= 0:
                 # Use centralized death handling to ensure all systems (like DOMINION) are notified
                 game.handle_unit_death(unit, user, cause="divine_depreciation", ui=ui)
+
+        # Check for Divine Depreciation upgrade - transform into Deft(?) Reroll
+        from boneglaive.game.upgrades import UpgradeManager
+        if UpgradeManager.is_skill_upgraded(user, "Divine Depreciation"):
+            # Replace Divine Depreciation with Deft(?) Reroll in skill list
+            for i, skill in enumerate(user.active_skills):
+                if skill.name == "Divine Depreciation":
+                    user.active_skills[i] = DeftRerollSkill()
+                    user.deft_reroll_available = True
+                    user.deft_reroll_turn_expires = game.turn + 2  # Available for 1 full turn
+                    user.deft_reroll_distortion_id = distortion_id
+
+                    message_log.add_message(
+                        f"{user.get_display_name()}'s Divine Depreciation transforms into Deft(?) Reroll",
+                        MessageType.ABILITY,
+                        player=user.player
+                    )
+                    break
 
         return True
 
@@ -1244,3 +1508,116 @@ class ParallaxSkill(ActiveSkill):
                 return anchor_pos, anchor
 
         return None, None
+
+
+class DeftRerollSkill(ActiveSkill):
+    """
+    Temporary skill that replaces Divine Depreciation when upgraded.
+    Instantly rerolls all furniture from the last Divine Depreciation.
+    """
+
+    def __init__(self):
+        super().__init__(
+            name="Deft(?) Reroll",
+            key="D",
+            description="Instantly reroll all furniture values in the last Divine Depreciation area.",
+            target_type=TargetType.SELF,
+            cooldown=0,
+            range_=0
+        )
+
+    def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        """Check if Deft(?) Reroll can be used."""
+        # Always usable when available
+        if not hasattr(user, 'deft_reroll_distortion_id'):
+            return False
+        return True
+
+    def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        """Execute the skill immediately without queuing."""
+        if not self.can_use(user, target_pos, game):
+            return False
+
+        # Execute immediately - get the ui from game if available
+        ui = game.ui if game and hasattr(game, 'ui') else None
+        self.execute(user, (user.y, user.x), game, ui)
+
+        return True
+
+    def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
+        """Reroll all furniture from the last Divine Depreciation."""
+        # Get stored distortion
+        if not hasattr(user, 'deft_reroll_distortion_id'):
+            return False
+
+        distortion_id = user.deft_reroll_distortion_id
+        distortion = game.reality_distortions.get(distortion_id)
+
+        if not distortion:
+            return False
+
+        # Get furniture list from distortion (excluding center which is fixed at 1)
+        furniture_to_reroll = []
+        for pos in distortion['area']:
+            if pos != distortion['center']:  # Skip center furniture
+                terrain = game.map.get_terrain_at(pos[0], pos[1])
+                if terrain in [TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
+                             TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF,
+                             TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE,
+                             TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
+                             TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
+                             TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
+                             TerrainType.POTPOURRI_BOWL]:
+                    furniture_to_reroll.append(pos)
+
+        # Reroll animation + values for all furniture
+        for pos in furniture_to_reroll:
+            # Show flashing reroll animation
+            if ui and hasattr(ui, 'renderer'):
+                reroll_animation = [str(random.randint(1, 9)) for _ in range(12)]
+                ui.renderer.animate_attack_sequence(
+                    pos[0], pos[1],
+                    reroll_animation,
+                    7,  # Yellow/white
+                    0.5
+                )
+
+            # Generate new cosmic value
+            new_value = random.randint(1, 14)
+            game.map.set_cosmic_value(pos[0], pos[1], new_value, user.player)
+
+        # Redraw board
+        if ui and hasattr(ui, 'draw_board'):
+            ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+
+        message_log.add_message(
+            f"{user.get_display_name()} rerolls the astral values",
+            MessageType.ABILITY,
+            player=user.player
+        )
+
+        # Restore Divine Depreciation
+        self._restore_divine_depreciation(user)
+        return True
+
+    def _restore_divine_depreciation(self, user: 'Unit') -> None:
+        """Replace Deft(?) Reroll back with Divine Depreciation."""
+        for i, skill in enumerate(user.active_skills):
+            if skill.name == "Deft(?) Reroll":
+                divine_dep = DivineDrepreciationSkill()
+                divine_dep.current_cooldown = 6  # Full cooldown
+                user.active_skills[i] = divine_dep
+
+                message_log.add_message(
+                    f"{user.get_display_name()}'s Deft(?) Reroll reverts to Divine Depreciation",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
+                break
+
+        # Clear tracking attributes
+        user.deft_reroll_available = False
+        if hasattr(user, 'deft_reroll_distortion_id'):
+            delattr(user, 'deft_reroll_distortion_id')
+        if hasattr(user, 'deft_reroll_turn_expires'):
+            delattr(user, 'deft_reroll_turn_expires')

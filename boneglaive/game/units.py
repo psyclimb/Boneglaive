@@ -98,6 +98,10 @@ class Unit:
         self.viseroy_disarm_cooldown = 0  # Cooldown for Viseroy disarm effect (MANDIBLE_FOREMAN only)
         self.status_tactical_momentum = False  # Track if unit has Expedite defense buff (MANDIBLE_FOREMAN only)
         self.status_tactical_momentum_duration = 0  # Duration remaining for Expedite defense buff
+        self.status_imbued = False  # Track if enemy is imbued with Market Futures (acts as furniture anchor)
+        self.status_imbued_duration = 0  # Duration remaining for imbued effect
+        self.status_imbued_player = None  # Which player imbued this unit
+        self.status_imbued_cosmic_value = None  # The cosmic value assigned to this imbued unit
         self.estranged = False  # Track if unit is affected by Estrange skill
         self.mired = False  # Track if unit is affected by upgraded Marrow Dike
         self.mired_duration = 0  # Duration remaining for mired effect

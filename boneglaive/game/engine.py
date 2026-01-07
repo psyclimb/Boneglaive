@@ -1840,13 +1840,99 @@ class Game:
             
         # Continue normal processing
         return True
-    
+
+    def _play_auction_curse_perfect_collection_animation(self, dying_unit, caster, ui):
+        """Play dramatic animation when Auction Curse upgrade bonus triggers."""
+        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+
+        if not ui or not hasattr(ui, 'renderer'):
+            return
+
+        # Get furniture positions where auctioneers appeared
+        furniture_positions = []
+        if hasattr(dying_unit, 'auction_curse_furniture_positions'):
+            furniture_positions = dying_unit.auction_curse_furniture_positions
+
+        # Phase 1: Auctioneers reappear at furniture positions
+        if furniture_positions:
+            auctioneer_rise = ['i', 'I', 'Y', 'T']
+            for pos in furniture_positions:
+                ui.renderer.animate_attack_sequence(
+                    pos[0], pos[1],
+                    auctioneer_rise,
+                    7,  # White - astral beings
+                    0.15
+                )
+                sleep_with_animation_speed(0.02)  # Slight stagger
+
+            sleep_with_animation_speed(0.2)  # Pause after all rise
+
+            # Phase 2: Gavel strikes - "SOLD!"
+            gavel_strike = ['T', '|', 'T', '|', 'T']
+            for pos in furniture_positions:
+                ui.renderer.animate_attack_sequence(
+                    pos[0], pos[1],
+                    gavel_strike,
+                    7,  # White
+                    0.1
+                )
+                sleep_with_animation_speed(0.01)  # Quick stagger
+
+            sleep_with_animation_speed(0.25)  # Dramatic pause
+
+        # Phase 3: Soul emergence at dying unit position
+        soul_emergence = ['.', 'o', 'O', '0', '@']
+        ui.renderer.animate_attack_sequence(
+            dying_unit.y, dying_unit.x,
+            soul_emergence,
+            7,  # White/bright
+            0.12
+        )
+
+        sleep_with_animation_speed(0.15)
+
+        # Phase 4: Soul ascension and collection burst
+        ascension_collection = ['^', '^', '^', '*', '+', 'x', 'X', '#', 'X', 'x', '+', '*', '$']
+        ui.renderer.animate_attack_sequence(
+            dying_unit.y, dying_unit.x,
+            ascension_collection,
+            3,  # Yellow/gold for value
+            0.06
+        )
+
+        sleep_with_animation_speed(0.2)
+
+        # Phase 5: Value transfer to caster
+        value_transfer = ['$', '$', '$']
+        ui.renderer.animate_attack_sequence(
+            caster.y, caster.x,
+            value_transfer,
+            3,  # Yellow/gold
+            0.1
+        )
+
+        sleep_with_animation_speed(0.15)
+
+        # Phase 6: Auctioneers descend back into furniture
+        if furniture_positions:
+            auctioneer_descend = ['I', 'i', '_', '.', ' ']
+            for pos in furniture_positions:
+                ui.renderer.animate_attack_sequence(
+                    pos[0], pos[1],
+                    auctioneer_descend,
+                    7,  # White fading
+                    0.12
+                )
+                sleep_with_animation_speed(0.02)  # Slight stagger
+
+        sleep_with_animation_speed(0.2)  # Final pause
+
     @measure_perf
     def handle_unit_death(self, dying_unit, killer_unit=None, cause="combat", ui=None):
         """
         Centralized handling of unit death for consistent processing.
         Handles messages, special effects, and checks for Marrow Dike interactions.
-        
+
         Args:
             dying_unit: The unit that died
             killer_unit: Optional unit that caused the death
@@ -1855,7 +1941,32 @@ class Game:
         """
         from boneglaive.utils.message_log import message_log, MessageType
         from boneglaive.utils.debug import logger
-        
+
+        # Check for Auction Curse upgrade bonus (if unit dies while cursed)
+        if (hasattr(dying_unit, 'auction_curse_dot') and dying_unit.auction_curse_dot and
+            hasattr(dying_unit, 'auction_curse_caster') and dying_unit.auction_curse_caster and
+            hasattr(dying_unit, 'auction_curse_initial_hp') and
+            hasattr(dying_unit, 'auction_curse_applied_duration')):
+            caster = dying_unit.auction_curse_caster
+            from boneglaive.game.upgrades import UpgradeManager
+            if UpgradeManager.is_skill_upgraded(caster, "Auction Curse"):
+                # Check if initial HP matched the curse duration when applied
+                if dying_unit.auction_curse_initial_hp == dying_unit.auction_curse_applied_duration:
+                    # Play dramatic collection animation
+                    self._play_auction_curse_perfect_collection_animation(dying_unit, caster, ui)
+
+                    # Award +1 GP to caster's player
+                    if caster.player == 1:
+                        self.player1_gp += 1
+                    else:
+                        self.player2_gp += 1
+
+                    message_log.add_message(
+                        f"{caster.get_display_name()} collects the soul at its precise worth!",
+                        MessageType.ABILITY,
+                        player=caster.player
+                    )
+
         # Log the death with appropriate message
         message_log.add_message(
             f"{dying_unit.get_display_name()} perishes!",
@@ -2175,6 +2286,27 @@ class Game:
                         MessageType.ABILITY,
                         player=unit.player
                     )
+
+            # Process Imbued status effect (Market Futures on enemy units)
+            if hasattr(unit, 'status_imbued') and unit.status_imbued:
+                # Only decrement if the imbuing player is the current player
+                if unit.status_imbued_player == self.current_player:
+                    unit.status_imbued_duration -= 1
+                    logger.debug(f"{unit.get_display_name()}'s Imbued duration: {unit.status_imbued_duration}")
+
+                    if unit.status_imbued_duration <= 0:
+                        unit.status_imbued = False
+                        unit.status_imbued_player = None
+                        unit.status_imbued_cosmic_value = None
+
+                        message_log.add_message(
+                            f"{unit.get_display_name()}'s Market Futures imbuement fades",
+                            MessageType.ABILITY,
+                            player=unit.status_imbued_player if unit.status_imbued_player else unit.player
+                        )
+
+                        # Update anchor status effects after imbued status expires
+                        self.update_anchor_status_effects()
 
             # Process Pry movement penalty effect
             if hasattr(unit, 'pry_duration') and unit.pry_duration > 0:
@@ -2671,8 +2803,39 @@ class Game:
             # Process potpourri bowl healing aura (only for current player's units)
             if unit.player == self.current_player:
                 self._process_potpourri_bowl_healing(unit, ui)
-            
+
             # Health regeneration is now processed after all actions are complete
+
+        # Process Market Futures anchor durations (global, not per unit)
+        if hasattr(self, 'teleport_anchors') and self.teleport_anchors:
+            anchors_to_remove = []
+            for anchor_pos, anchor in self.teleport_anchors.items():
+                # Only process anchors created by the current player
+                if anchor['creator'].player == self.current_player:
+                    # Initialize duration if not set
+                    if 'duration' not in anchor:
+                        anchor['duration'] = 7
+
+                    # Decrement duration
+                    anchor['duration'] -= 1
+                    logger.debug(f"Market Futures anchor at {anchor_pos} duration: {anchor['duration']}")
+
+                    # Check if anchor has expired
+                    if anchor['duration'] <= 0:
+                        anchors_to_remove.append(anchor_pos)
+                        message_log.add_message(
+                            f"Market Futures anchor at {anchor_pos} has expired",
+                            MessageType.ABILITY,
+                            player=anchor['creator'].player
+                        )
+
+            # Remove expired anchors
+            for anchor_pos in anchors_to_remove:
+                del self.teleport_anchors[anchor_pos]
+
+            # Update anchor status effects after removal
+            if anchors_to_remove:
+                self.update_anchor_status_effects()
     
     @measure_perf
     def execute_turn(self, ui=None):
@@ -3539,6 +3702,31 @@ class Game:
                 
                 # Check if unit died from the DOT
                 if unit.hp <= 0:
+                    # Check for Auction Curse upgrade bonus
+                    if (hasattr(unit, 'auction_curse_caster') and
+                        hasattr(unit, 'auction_curse_initial_hp') and
+                        hasattr(unit, 'auction_curse_applied_duration') and
+                        unit.auction_curse_caster):
+                        caster = unit.auction_curse_caster
+                        from boneglaive.game.upgrades import UpgradeManager
+                        if UpgradeManager.is_skill_upgraded(caster, "Auction Curse"):
+                            # Check if initial HP matched the curse duration when applied
+                            if unit.auction_curse_initial_hp == unit.auction_curse_applied_duration:
+                                # Play dramatic collection animation
+                                self._play_auction_curse_perfect_collection_animation(unit, caster, ui)
+
+                                # Award +1 GP to caster's player
+                                if caster.player == 1:
+                                    self.player1_gp += 1
+                                else:
+                                    self.player2_gp += 1
+
+                                message_log.add_message(
+                                    f"{caster.get_display_name()} collects the soul at its precise worth!",
+                                    MessageType.ABILITY,
+                                    player=caster.player
+                                )
+
                     # Use consistent format for death messages
                     message_log.add_message(
                         f"{unit.get_display_name()} perishes!",
@@ -4351,6 +4539,34 @@ class Game:
                 # Other units' passives only trigger on their own turn
                 elif unit.player == self.current_player:
                     unit.apply_passive_skills(self, ui)
+
+                # Check for expired Deft(?) Reroll (DELPHIC_APPRAISER only)
+                if (unit.player == self.current_player and
+                    unit.type == UnitType.DELPHIC_APPRAISER and
+                    hasattr(unit, 'deft_reroll_available') and
+                    unit.deft_reroll_available):
+                    if self.turn >= unit.deft_reroll_turn_expires:
+                        # Expired - revert to Divine Depreciation
+                        from boneglaive.game.skills.delphic_appraiser import DivineDrepreciationSkill
+                        for i, skill in enumerate(unit.active_skills):
+                            if skill.name == "Deft(?) Reroll":
+                                divine_dep = DivineDrepreciationSkill()
+                                divine_dep.current_cooldown = 6  # Full cooldown after expiration
+                                unit.active_skills[i] = divine_dep
+
+                                message_log.add_message(
+                                    f"{unit.get_display_name()}'s Deft(?) Reroll expires",
+                                    MessageType.ABILITY,
+                                    player=unit.player
+                                )
+                                break
+
+                        # Clear tracking attributes
+                        unit.deft_reroll_available = False
+                        if hasattr(unit, 'deft_reroll_distortion_id'):
+                            delattr(unit, 'deft_reroll_distortion_id')
+                        if hasattr(unit, 'deft_reroll_turn_expires'):
+                            delattr(unit, 'deft_reroll_turn_expires')
 
                 # Reset partition message flag for new turn (all units)
                 unit._prt_absorbed_this_action = False
@@ -5851,25 +6067,25 @@ class Game:
             logger.info(f"Removed Valuation Oracle buffs from {buffs_removed} units - no DELPHIC_APPRAISER remaining for player {player}")
 
     def update_anchor_status_effects(self):
-        """Update anchor status effects for all units based on adjacency to friendly teleport anchors."""
+        """Update anchor status effects for all units based on adjacency to friendly teleport anchors and imbued enemies."""
         if not hasattr(self, 'teleport_anchors'):
-            return
-            
+            self.teleport_anchors = {}
+
         for unit in self.units:
             if not unit.is_alive():
                 continue
-                
+
             unit.can_use_anchor = False  # Reset status
-            
-            # Check if unit is adjacent to any friendly active anchor
+
+            # Check if unit is adjacent to any friendly active anchor (furniture)
             for anchor_pos, anchor in self.teleport_anchors.items():
                 if not anchor['active']:
                     continue
-                    
+
                 # Check if this unit can use this anchor (same team and adjacent)
-                if (anchor['creator'].player == unit.player and 
+                if (anchor['creator'].player == unit.player and
                     self.chess_distance(unit.y, unit.x, anchor_pos[0], anchor_pos[1]) <= 1):
-                    
+
                     # GRAYMAN is immune to Parallax and cannot use teleport anchors
                     if (unit.get_type_name() == "GRAYMAN" and unit.is_immune_to_effects()):
                         # Show immunity message when GRAYMAN would receive Parallax
@@ -5879,9 +6095,30 @@ class Game:
                             MessageType.SYSTEM
                         )
                         continue  # Skip setting can_use_anchor but continue checking other anchors
-                    
+
                     unit.can_use_anchor = True
                     break
+
+            # Also check for imbued enemies that act as anchors
+            if not unit.can_use_anchor:
+                for other_unit in self.units:
+                    if (other_unit.is_alive() and
+                        hasattr(other_unit, 'status_imbued') and
+                        other_unit.status_imbued and
+                        other_unit.status_imbued_player == unit.player and
+                        self.chess_distance(unit.y, unit.x, other_unit.y, other_unit.x) <= 1):
+
+                        # GRAYMAN is immune to Parallax and cannot use teleport anchors
+                        if (unit.get_type_name() == "GRAYMAN" and unit.is_immune_to_effects()):
+                            from boneglaive.utils.message_log import message_log, MessageType
+                            message_log.add_message(
+                                f"{unit.get_display_name()} is immune to Parallax due to Stasiality",
+                                MessageType.SYSTEM
+                            )
+                            continue
+
+                        unit.can_use_anchor = True
+                        break
     
     def _pre_establish_marrow_dike_tracking(self, units_with_actions):
         """

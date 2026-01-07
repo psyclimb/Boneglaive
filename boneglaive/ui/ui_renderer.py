@@ -51,6 +51,9 @@ class UIRenderer:
         if hasattr(unit, 'status_disarmed') and unit.status_disarmed:
             effects.append(('disarmed', '[', curses.A_BOLD))
 
+        if hasattr(unit, 'status_imbued') and unit.status_imbued:
+            effects.append(('imbued', '@', curses.A_BOLD))
+
         if (hasattr(unit, 'pry_duration') and unit.pry_duration > 0) or \
            (hasattr(unit, 'pry_active') and unit.pry_active) or \
            (unit.was_pried and unit.move_range_bonus < 0):
@@ -1561,6 +1564,8 @@ class UIRenderer:
                 negative_effects.append(f"Shrapnel({unit.shrapnel_duration})")
             if hasattr(unit, 'status_disarmed') and unit.status_disarmed:
                 negative_effects.append(f"Disarmed({unit.status_disarmed_duration})")
+            if hasattr(unit, 'status_imbued') and unit.status_imbued:
+                negative_effects.append(f"Imbued({unit.status_imbued_duration})")
             if hasattr(unit, 'auction_curse_dot') and unit.auction_curse_dot:
                 duration = getattr(unit, 'auction_curse_dot_duration', '?')
                 negative_effects.append(f"Auction Curse({duration})")
@@ -1712,6 +1717,33 @@ class UIRenderer:
                     msg_indicator = ">> "
                     self.renderer.draw_text(msg_line, 2, msg_indicator, 1, curses.A_BOLD)
                     self.renderer.draw_text(msg_line, 2 + len(msg_indicator), value_message, 1)
+        else:
+            # Check if cursor is on enemy unit (with Valuation Oracle upgrade)
+            enemy_unit = self.game_ui.game.get_unit_at(cursor_pos.y, cursor_pos.x)
+            if enemy_unit and enemy_unit.is_alive() and enemy_unit.player != current_player:
+                # Check if current player has DELPHIC_APPRAISER with Valuation Oracle upgrade
+                has_upgraded_appraiser = False
+                for unit in self.game_ui.game.units:
+                    if (unit.player == current_player and
+                        unit.is_alive() and
+                        unit.type == UnitType.DELPHIC_APPRAISER and
+                        hasattr(unit, 'passive_skill') and unit.passive_skill):
+                        # Check if Valuation Oracle is upgraded
+                        from boneglaive.game.upgrades import UpgradeManager
+                        if UpgradeManager.is_skill_upgraded(unit, "Valuation Oracle"):
+                            has_upgraded_appraiser = True
+                            # Get enemy astral value
+                            enemy_value = unit.passive_skill._get_enemy_astral_value(
+                                self.game_ui.game, current_player, enemy_unit
+                            )
+                            if enemy_value is not None:
+                                value_message = f"Enemy astral value: {enemy_value}"
+                                # Only show value message if there's no other message
+                                if not self.game_ui.message:
+                                    msg_indicator = ">> "
+                                    self.renderer.draw_text(msg_line, 2, msg_indicator, 1, curses.A_BOLD)
+                                    self.renderer.draw_text(msg_line, 2 + len(msg_indicator), value_message, 1)
+                            break
 
         # Display regular message if available
         if self.game_ui.message:
