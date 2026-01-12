@@ -1441,15 +1441,28 @@ class Game:
 
         # Check if position is occupied by another unit
         # DERELICTIONIST with upgraded Severance (when status is active) can pass through units
+        # INTERFERER with upgraded Karrier Rave (when active) can pass through units
         unit_at_pos = self.get_unit_at(y, x)
         if unit_at_pos:
             from boneglaive.game.upgrades import UpgradeManager
-            # Only allow passing through if Severance is upgraded and status is active
-            if not (unit.type == UnitType.DERELICTIONIST and
-                    UpgradeManager.is_skill_upgraded(unit, "Severance") and
-                    hasattr(unit, 'severance_active') and unit.severance_active):
+            # Check for units that can pass through
+            can_pass_through = False
+
+            # DERELICTIONIST with upgraded Severance and active status
+            if (unit.type == UnitType.DERELICTIONIST and
+                UpgradeManager.is_skill_upgraded(unit, "Severance") and
+                hasattr(unit, 'severance_active') and unit.severance_active):
+                can_pass_through = True
+
+            # INTERFERER with upgraded Karrier Rave and active status
+            if (unit.type == UnitType.INTERFERER and
+                UpgradeManager.is_skill_upgraded(unit, "Karrier Rave") and
+                hasattr(unit, 'carrier_rave_active') and unit.carrier_rave_active):
+                can_pass_through = True
+
+            if not can_pass_through:
                 return False
-            # Otherwise allow DERELICTIONIST to land on unit's position (they'll pass through)
+            # Otherwise allow unit to land on unit's position (they'll pass through)
 
         # Check if terrain is passable and unit-specific movement restrictions
         # Use unit's can_move_to method which handles FOWL_CONTRIVANCE rail restrictions
@@ -1492,13 +1505,26 @@ class Game:
             for pos in path[1:-1]:  # Skip start and end positions
                 # Check if there's ANY unit at this position
                 # DERELICTIONIST with upgraded Severance (when status is active) can pass through units
+                # INTERFERER with upgraded Karrier Rave (when active) can pass through units
                 blocking_unit = self.get_unit_at(pos.y, pos.x)
                 if blocking_unit:
                     from boneglaive.game.upgrades import UpgradeManager
-                    # Only allow passing through units if Severance is upgraded and status is active
-                    if not (unit.type == UnitType.DERELICTIONIST and
-                            UpgradeManager.is_skill_upgraded(unit, "Severance") and
-                            hasattr(unit, 'severance_active') and unit.severance_active):
+                    # Check for units that can pass through
+                    can_pass_through = False
+
+                    # DERELICTIONIST with upgraded Severance and active status
+                    if (unit.type == UnitType.DERELICTIONIST and
+                        UpgradeManager.is_skill_upgraded(unit, "Severance") and
+                        hasattr(unit, 'severance_active') and unit.severance_active):
+                        can_pass_through = True
+
+                    # INTERFERER with upgraded Karrier Rave and active status
+                    if (unit.type == UnitType.INTERFERER and
+                        UpgradeManager.is_skill_upgraded(unit, "Karrier Rave") and
+                        hasattr(unit, 'carrier_rave_active') and unit.carrier_rave_active):
+                        can_pass_through = True
+
+                    if not can_pass_through:
                         return False
                     # Otherwise allow passage through units
 
@@ -3651,8 +3677,15 @@ class Game:
                     target_player=unit.player
                 )
                 
-                # Inflate astral values of furniture within 2 tiles of cursed unit
+                # Inflate astral values of furniture AND appraised enemies within 2 tiles of cursed unit
+                # Check if Valuation Oracle upgrade is active
+                from boneglaive.game.upgrades import UpgradeManager
+                valuation_oracle_upgraded = False
+                if appraiser_unit and UpgradeManager.is_skill_upgraded(appraiser_unit, "Valuation Oracle"):
+                    valuation_oracle_upgraded = True
+
                 furniture_inflated = 0
+                enemies_inflated = 0
                 for dy in range(-2, 3):  # -2 to +2
                     for dx in range(-2, 3):  # -2 to +2
                         check_y = unit.y + dy
@@ -3688,13 +3721,59 @@ class Game:
                                     0.08  # Fast flashing
                                 )
 
-                # Log furniture value inflation if any occurred
-                if furniture_inflated > 0:
-                    message_log.add_message(
-                        f"{unit.get_display_name()}'s Auction Curse inflates the astral value of nearby furniture",
-                        MessageType.WARNING,
-                        player=caster_player
-                    )
+                        # With Valuation Oracle upgrade: Also inflate appraised enemy astral values
+                        if valuation_oracle_upgraded and appraiser_unit:
+                            enemy_unit = self.get_unit_at(check_y, check_x)
+                            if enemy_unit and enemy_unit.is_alive() and enemy_unit.player != caster_player:
+                                # Get appraiser's passive skill to access enemy astral values
+                                if hasattr(appraiser_unit, 'passive_skill') and appraiser_unit.passive_skill:
+                                    # Get current enemy astral value
+                                    current_value = appraiser_unit.passive_skill._get_enemy_astral_value(
+                                        self, caster_player, enemy_unit
+                                    )
+                                    # Increase by 1, capped at 9 (enemy values are 1-9)
+                                    new_value = min(current_value + 1, 9)
+                                    appraiser_unit.passive_skill._set_enemy_astral_value(
+                                        self, caster_player, enemy_unit, new_value
+                                    )
+                                    enemies_inflated += 1
+
+                                    # If enemy is imbued, also update their imbued cosmic value
+                                    if (hasattr(enemy_unit, 'status_imbued') and
+                                        enemy_unit.status_imbued and
+                                        enemy_unit.status_imbued_player == caster_player):
+                                        enemy_unit.status_imbued_cosmic_value = new_value
+
+                                    # Show cycling numbers animation on this enemy
+                                    if hasattr(self, 'ui') and self.ui and hasattr(self.ui, 'renderer'):
+                                        inflation_animation = [str(i) for i in range(10)]
+                                        self.ui.renderer.animate_attack_sequence(
+                                            check_y, check_x,
+                                            inflation_animation,
+                                            7,  # Yellow/white flashing
+                                            0.08  # Fast flashing
+                                        )
+
+                # Log furniture/enemy value inflation if any occurred
+                if furniture_inflated > 0 or enemies_inflated > 0:
+                    if furniture_inflated > 0 and enemies_inflated > 0:
+                        message_log.add_message(
+                            f"{unit.get_display_name()}'s Auction Curse inflates the astral value of nearby furniture and enemies",
+                            MessageType.WARNING,
+                            player=caster_player
+                        )
+                    elif furniture_inflated > 0:
+                        message_log.add_message(
+                            f"{unit.get_display_name()}'s Auction Curse inflates the astral value of nearby furniture",
+                            MessageType.WARNING,
+                            player=caster_player
+                        )
+                    else:
+                        message_log.add_message(
+                            f"{unit.get_display_name()}'s Auction Curse inflates the astral value of nearby enemies",
+                            MessageType.WARNING,
+                            player=caster_player
+                        )
 
                 # Decrement the duration
                 unit.auction_curse_dot_duration -= 1
@@ -5166,9 +5245,17 @@ class Game:
                     logger.debug(f"SCALAR NODE TRIGGERED! Triggering animation for unit {unit.get_display_name()}")
                     raw_damage = node_info['damage']
 
-                    # Apply regular damage (respects defense)
-                    effective_defense = unit.get_effective_stats()['defense']
-                    damage = max(1, raw_damage - effective_defense)
+                    # Check if Scalar Node is upgraded to pierce defense
+                    from boneglaive.game.upgrades import UpgradeManager
+                    scalar_node_upgraded = UpgradeManager.is_skill_upgraded(owner, "Scalar Node")
+
+                    if scalar_node_upgraded:
+                        # Upgraded: Pierce defense
+                        damage = raw_damage
+                    else:
+                        # Normal: Respects defense
+                        effective_defense = unit.get_effective_stats()['defense']
+                        damage = max(1, raw_damage - effective_defense)
 
                     # Apply damage
                     previous_hp = unit.hp
@@ -6071,6 +6158,15 @@ class Game:
         if not hasattr(self, 'teleport_anchors'):
             self.teleport_anchors = {}
 
+        # Find all DELPHIC_APPRAISER units and check if Market Futures is upgraded
+        from boneglaive.game.upgrades import UpgradeManager
+        appraisers_with_market_futures_upgrade = []
+        for unit in self.units:
+            if (unit.is_alive() and
+                unit.type == UnitType.DELPHIC_APPRAISER and
+                UpgradeManager.is_skill_upgraded(unit, "Market Futures")):
+                appraisers_with_market_futures_upgrade.append(unit)
+
         for unit in self.units:
             if not unit.is_alive():
                 continue
@@ -6119,6 +6215,56 @@ class Game:
 
                         unit.can_use_anchor = True
                         break
+
+            # With Market Futures upgrade: Apply Valuation Oracle buff if adjacent to imbued furniture or enemy
+            # This happens at the same time as Parallax is granted
+            for appraiser in appraisers_with_market_futures_upgrade:
+                if appraiser.player != unit.player:
+                    continue  # Only check appraisers on the same team
+
+                # Check if unit is adjacent to any imbued furniture or imbued enemy
+                adjacent_to_imbued = False
+                for dy in [-1, 0, 1]:
+                    for dx in [-1, 0, 1]:
+                        if dy == 0 and dx == 0:
+                            continue
+
+                        y, x = unit.y + dy, unit.x + dx
+                        if not self.is_valid_position(y, x):
+                            continue
+
+                        # Check for imbued furniture anchor at this position
+                        if (y, x) in self.teleport_anchors:
+                            anchor = self.teleport_anchors[(y, x)]
+                            if anchor.get('imbued', False) and anchor['creator'].player == unit.player:
+                                adjacent_to_imbued = True
+                                break
+
+                        # Check for imbued enemy at this position
+                        enemy_unit = self.get_unit_at(y, x)
+                        if (enemy_unit and enemy_unit.is_alive() and
+                            enemy_unit.player != unit.player and
+                            hasattr(enemy_unit, 'status_imbued') and
+                            enemy_unit.status_imbued and
+                            enemy_unit.status_imbued_player == unit.player):
+                            adjacent_to_imbued = True
+                            break
+
+                    if adjacent_to_imbued:
+                        break
+
+                # Apply Valuation Oracle buff based on adjacency to imbued furniture/enemy
+                if adjacent_to_imbued:
+                    # Set status effect flag and duration
+                    unit.valuation_oracle_buff = True
+                    unit.valuation_oracle_duration = 999
+
+                    # Apply bonuses
+                    unit.defense_bonus = 1
+                    unit.attack_range_bonus = 1
+                    break  # Found an appraiser that applies the buff, no need to check others
+                # Note: Don't remove the buff here - let the passive handle removal
+                # to avoid conflicts with furniture-based buffs
     
     def _pre_establish_marrow_dike_tracking(self, units_with_actions):
         """

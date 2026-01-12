@@ -32,7 +32,7 @@ class ValuationOracle(PassiveSkill):
         super().__init__(
             name="Valuation Oracle",
             key="V",
-            description="Perceives the 'astral value' (1-14) of furniture terrain. Allies adjacent to furniture with astral value 9 or greater gain +1 to defense and attack range."
+            description="Perceives the 'astral value' of furniture terrain (1-9, can inflate to 14). Allies adjacent to furniture with astral value 9 or greater gain +1 to defense and attack range. With upgrade: Enemy units are assigned astral values (1-9) and treated as furniture."
         )
 
     def _get_enemy_astral_value(self, game: 'Game', appraiser_player: int, enemy_unit: 'Unit') -> Optional[int]:
@@ -134,15 +134,6 @@ class ValuationOracle(PassiveSkill):
                             adjacent_to_high_value = True
                             break
 
-                        # With Market Futures upgrade: Check if this is imbued furniture
-                        if market_futures_upgraded:
-                            if hasattr(game, 'teleport_anchors') and (y, x) in game.teleport_anchors:
-                                anchor = game.teleport_anchors[(y, x)]
-                                # Check if anchor is imbued and belongs to the same player
-                                if anchor.get('imbued', False) and anchor['creator'].player == user.player:
-                                    adjacent_to_high_value = True
-                                    break
-
                     # With Valuation Oracle upgrade: Check for appraised enemies
                     if valuation_oracle_upgraded:
                         enemy_unit = game.get_unit_at(y, x)
@@ -156,7 +147,7 @@ class ValuationOracle(PassiveSkill):
                 if adjacent_to_high_value:
                     break
 
-            # Apply or remove bonuses based on adjacency to high-value furniture
+            # Apply or remove bonuses based on adjacency to high-value furniture/enemies
             if adjacent_to_high_value:
                 # If this is the first time applying the bonus to this ally, log a message
                 if not hasattr(ally, 'valuation_oracle_buff') or not ally.valuation_oracle_buff:
@@ -176,13 +167,47 @@ class ValuationOracle(PassiveSkill):
                 ally.defense_bonus = 1
                 ally.attack_range_bonus = 1
             else:
-                # If no longer adjacent to high-value furniture, remove the status effect immediately
-                if hasattr(ally, 'valuation_oracle_buff') and ally.valuation_oracle_buff:
-                    ally.valuation_oracle_buff = False
-                    ally.valuation_oracle_duration = 0
-                    # Remove bonuses
-                    ally.defense_bonus = 0
-                    ally.attack_range_bonus = 0
+                # Before removing, check if unit is adjacent to imbued furniture/enemy (Market Futures upgrade)
+                # These buffs are managed by update_anchor_status_effects(), so don't remove them here
+                adjacent_to_imbued = False
+                if market_futures_upgraded:
+                    for dy in [-1, 0, 1]:
+                        for dx in [-1, 0, 1]:
+                            if dy == 0 and dx == 0:
+                                continue
+
+                            check_y, check_x = ally.y + dy, ally.x + dx
+                            if not game.is_valid_position(check_y, check_x):
+                                continue
+
+                            # Check for imbued furniture anchor
+                            if hasattr(game, 'teleport_anchors') and (check_y, check_x) in game.teleport_anchors:
+                                anchor = game.teleport_anchors[(check_y, check_x)]
+                                if anchor.get('imbued', False) and anchor['creator'].player == user.player:
+                                    adjacent_to_imbued = True
+                                    break
+
+                            # Check for imbued enemy
+                            enemy_unit = game.get_unit_at(check_y, check_x)
+                            if (enemy_unit and enemy_unit.is_alive() and
+                                enemy_unit.player != user.player and
+                                hasattr(enemy_unit, 'status_imbued') and
+                                enemy_unit.status_imbued and
+                                enemy_unit.status_imbued_player == user.player):
+                                adjacent_to_imbued = True
+                                break
+
+                        if adjacent_to_imbued:
+                            break
+
+                # Only remove the buff if not adjacent to any imbued furniture/enemy
+                if not adjacent_to_imbued:
+                    if hasattr(ally, 'valuation_oracle_buff') and ally.valuation_oracle_buff:
+                        ally.valuation_oracle_buff = False
+                        ally.valuation_oracle_duration = 0
+                        # Remove bonuses
+                        ally.defense_bonus = 0
+                        ally.attack_range_bonus = 0
 
 
 class MarketFuturesSkill(ActiveSkill):
@@ -721,25 +746,33 @@ class AuctionCurseSkill(ActiveSkill):
                     player=target_unit.player
                 )
 
-        # Play Auction Curse animation - astral auctioneers appear at furniture locations
+        # Play Auction Curse animation - astral auctioneers appear at furniture AND appraised enemy locations
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Step 1: Podiums and astral auctioneers ascend at furniture locations
-            if nearby_furniture:
+            # Combine furniture and appraised enemy positions for animation
+            auctioneer_positions = nearby_furniture.copy() if nearby_furniture else []
+
+            # With Valuation Oracle upgrade: Add appraised enemy positions
+            if valuation_oracle_upgraded and nearby_appraised_enemies:
+                for enemy_unit in nearby_appraised_enemies:
+                    auctioneer_positions.append((enemy_unit.y, enemy_unit.x))
+
+            # Step 1: Podiums and astral auctioneers ascend at all auctioneer locations
+            if auctioneer_positions:
                 podium_ascension = ['.', '_', '=', 'i', 'I']  # Ground → podium → auctioneer rises
-                for pos in nearby_furniture:
+                for pos in auctioneer_positions:
                     ui.renderer.animate_attack_sequence(
                         pos[0], pos[1],
                         podium_ascension,
                         7,  # White/light color for astral beings
                         0.18  # Duration per frame
                     )
-                    sleep_with_animation_speed(0.03)  # Slight stagger between furniture locations
+                    sleep_with_animation_speed(0.03)  # Slight stagger between locations
 
                 sleep_with_animation_speed(0.15)  # Pause between major phases
 
                 # Step 2: Astral auctioneers raise bidding paddles
                 paddle_raising = ['I', 'Y', 'T']  # Auctioneer → raising paddle → paddle fully raised
-                for pos in nearby_furniture:
+                for pos in auctioneer_positions:
                     ui.renderer.animate_attack_sequence(
                         pos[0], pos[1],
                         paddle_raising,
@@ -754,7 +787,7 @@ class AuctionCurseSkill(ActiveSkill):
                 curse_descent = ['~', '*', 'v', 'V']  # Curse energy → swirling → descending → impact
 
                 # First show curse energy forming at each auctioneer
-                for pos in nearby_furniture:
+                for pos in auctioneer_positions:
                     ui.renderer.animate_attack_sequence(
                         pos[0], pos[1],
                         ['~', '*'],  # Just the initial curse energy
@@ -771,7 +804,7 @@ class AuctionCurseSkill(ActiveSkill):
                 )
 
             else:
-                # Fallback if no furniture nearby - simple curse effect
+                # Fallback if no furniture/enemies nearby - simple curse effect
                 simple_curse = ['~', '*', 'v', '@']
                 ui.renderer.animate_attack_sequence(
                     target_pos[0], target_pos[1],
@@ -1556,10 +1589,15 @@ class DeftRerollSkill(ActiveSkill):
         if not distortion:
             return False
 
+        # Check if Valuation Oracle upgrade is active
+        from boneglaive.game.upgrades import UpgradeManager
+        valuation_oracle_upgraded = UpgradeManager.is_skill_upgraded(user, "Valuation Oracle")
+
         # Get furniture list from distortion (excluding center which is fixed at 1)
         furniture_to_reroll = []
+        appraised_enemies = []  # Track enemies separately for rerolling
         for pos in distortion['area']:
-            if pos != distortion['center']:  # Skip center furniture
+            if pos != distortion['center']:  # Skip center furniture/enemy
                 terrain = game.map.get_terrain_at(pos[0], pos[1])
                 if terrain in [TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
                              TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF,
@@ -1569,6 +1607,12 @@ class DeftRerollSkill(ActiveSkill):
                              TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
                              TerrainType.POTPOURRI_BOWL]:
                     furniture_to_reroll.append(pos)
+
+                # With Valuation Oracle upgrade: Check for appraised enemies
+                if valuation_oracle_upgraded:
+                    enemy_unit = game.get_unit_at(pos[0], pos[1])
+                    if enemy_unit and enemy_unit.is_alive() and enemy_unit.player != user.player:
+                        appraised_enemies.append((pos, enemy_unit))
 
         # Reroll animation + values for all furniture
         for pos in furniture_to_reroll:
@@ -1583,8 +1627,31 @@ class DeftRerollSkill(ActiveSkill):
                 )
 
             # Generate new cosmic value
-            new_value = random.randint(1, 14)
+            new_value = random.randint(1, 9)
             game.map.set_cosmic_value(pos[0], pos[1], new_value, user.player)
+
+        # With Valuation Oracle upgrade: Reroll astral values for appraised enemies
+        if hasattr(user, 'passive_skill') and user.passive_skill and appraised_enemies:
+            for pos, enemy_unit in appraised_enemies:
+                # Show flashing reroll animation
+                if ui and hasattr(ui, 'renderer'):
+                    reroll_animation = [str(random.randint(1, 9)) for _ in range(12)]
+                    ui.renderer.animate_attack_sequence(
+                        pos[0], pos[1],
+                        reroll_animation,
+                        7,  # Yellow/white
+                        0.5
+                    )
+
+                # Generate a new random astral value (1-9) for this enemy
+                new_value = random.randint(1, 9)
+                user.passive_skill._set_enemy_astral_value(game, user.player, enemy_unit, new_value)
+
+                # If enemy is imbued, also update their imbued cosmic value
+                if (hasattr(enemy_unit, 'status_imbued') and
+                    enemy_unit.status_imbued and
+                    enemy_unit.status_imbued_player == user.player):
+                    enemy_unit.status_imbued_cosmic_value = new_value
 
         # Redraw board
         if ui and hasattr(ui, 'draw_board'):

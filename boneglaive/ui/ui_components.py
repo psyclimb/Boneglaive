@@ -4237,8 +4237,11 @@ class GameModeManager(UIComponent):
                 if unit.move_target:
                     from_y, from_x = unit.move_target
 
+                # Get effective skill range (supports upgrades via get_range method)
+                effective_range = skill.get_range(unit) if hasattr(skill, 'get_range') else skill.range
+
                 # Check if the target is in range and protected
-                if (self.game_ui.game.chess_distance(from_y, from_x, target_pos[0], target_pos[1]) <= skill.range and
+                if (self.game_ui.game.chess_distance(from_y, from_x, target_pos[0], target_pos[1]) <= effective_range and
                     hasattr(self.game_ui.game, 'is_protected_from') and
                     self.game_ui.game.is_protected_from(target, unit)):
                     # Show "Invalid target" message like with attacks
@@ -6037,7 +6040,9 @@ class ActionMenuComponent(UIComponent):
                             unit.is_alive()):
                             # Check if within range
                             distance = game.chess_distance(from_y, from_x, unit.y, unit.x)
-                            if distance <= skill.range:
+                            # Get effective skill range (supports upgrades via get_range method)
+                            effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
+                            if distance <= effective_range:
                                 # Check line of sight
                                 if game.has_line_of_sight(from_y, from_x, unit.y, unit.x):
                                     vapor_targets.append((unit.y, unit.x))
@@ -6053,7 +6058,9 @@ class ActionMenuComponent(UIComponent):
                     for y in range(HEIGHT):
                         for x in range(WIDTH):
                             distance = game.chess_distance(from_y, from_x, y, x)
-                            if distance <= skill.range:
+                            # Get effective skill range (supports upgrades via get_range method)
+                            effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
+                            if distance <= effective_range:
                                 # Check line of sight for DIVERGE
                                 if game.has_line_of_sight(from_y, from_x, y, x):
                                     target_unit = game.get_unit_at(y, x)
@@ -6132,7 +6139,9 @@ class ActionMenuComponent(UIComponent):
                         for x in range(WIDTH):
                             # PRY shows enemy targets and floor tiles within range for range visualization
                             distance = game.chess_distance(from_y, from_x, y, x)
-                            if distance <= skill.range:
+                            # Get effective skill range (supports upgrades via get_range method)
+                            effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
+                            if distance <= effective_range:
                                 target_unit = game.get_unit_at(y, x)
                                 if target_unit and target_unit.player != cursor_manager.selected_unit.player:
                                     # Highlight enemy units
@@ -6145,7 +6154,9 @@ class ActionMenuComponent(UIComponent):
                         for x in range(WIDTH):
                             # JUDGEMENT shows enemy targets and floor tiles within range with line of sight
                             distance = game.chess_distance(from_y, from_x, y, x)
-                            if distance <= skill.range:
+                            # Get effective skill range (supports upgrades via get_range method)
+                            effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
+                            if distance <= effective_range:
                                 # Check line of sight for JUDGEMENT
                                 if game.has_line_of_sight(from_y, from_x, y, x):
                                     target_unit = game.get_unit_at(y, x)
@@ -6160,7 +6171,9 @@ class ActionMenuComponent(UIComponent):
                         for x in range(WIDTH):
                             # ESTRANGE shows enemy targets and floor tiles within range with line of sight
                             distance = game.chess_distance(from_y, from_x, y, x)
-                            if distance <= skill.range:
+                            # Get effective skill range (supports upgrades via get_range method)
+                            effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
+                            if distance <= effective_range:
                                 # Check line of sight for ESTRANGE
                                 if game.has_line_of_sight(from_y, from_x, y, x):
                                     target_unit = game.get_unit_at(y, x)
@@ -6175,7 +6188,9 @@ class ActionMenuComponent(UIComponent):
                         for x in range(WIDTH):
                             # AUCTION CURSE shows enemy targets and floor tiles within range with line of sight
                             distance = game.chess_distance(from_y, from_x, y, x)
-                            if distance <= skill.range:
+                            # Get effective skill range (supports upgrades via get_range method)
+                            effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
+                            if distance <= effective_range:
                                 # Check line of sight for AUCTION CURSE
                                 if game.has_line_of_sight(from_y, from_x, y, x):
                                     target_unit = game.get_unit_at(y, x)
@@ -6190,7 +6205,9 @@ class ActionMenuComponent(UIComponent):
                         for x in range(WIDTH):
                             # NEURAL SHUNT shows enemy targets and floor tiles within range (no line of sight needed for range 1)
                             distance = game.chess_distance(from_y, from_x, y, x)
-                            if distance <= skill.range:
+                            # Get effective skill range (supports upgrades via get_range method)
+                            effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
+                            if distance <= effective_range:
                                 target_unit = game.get_unit_at(y, x)
                                 if target_unit and target_unit.player != cursor_manager.selected_unit.player:
                                     # Highlight enemy units
@@ -6208,7 +6225,9 @@ class ActionMenuComponent(UIComponent):
                                 # Check if target is within skill range
                                 distance = game.chess_distance(from_y, from_x, y, x)
 
-                                if distance <= skill.range:
+                                # Get effective skill range (supports upgrades via get_range method)
+                            effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
+                            if distance <= effective_range:
                                     # Check if skill can be used on this target
                                     if skill.can_use(cursor_manager.selected_unit, (y, x), game):
                                         # Check if target is protected by Saft-E-Gas (same behavior as attacks)
@@ -6225,7 +6244,9 @@ class ActionMenuComponent(UIComponent):
                         for x in range(WIDTH):
                             # DERELICTIONIST skills show ally targets and floor tiles within range with line of sight
                             distance = game.chess_distance(from_y, from_x, y, x)
-                            if distance <= skill.range:
+                            # Get effective skill range (supports upgrades via get_range method)
+                            effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
+                            if distance <= effective_range:
                                 # Check line of sight for DERELICTIONIST skills
                                 if game.has_line_of_sight(from_y, from_x, y, x):
                                     target_unit = game.get_unit_at(y, x)
@@ -6251,7 +6272,9 @@ class ActionMenuComponent(UIComponent):
                                 # Check if target is within skill range
                                 distance = game.chess_distance(from_y, from_x, y, x)
 
-                                if distance <= skill.range:
+                                # Get effective skill range (supports upgrades via get_range method)
+                            effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
+                            if distance <= effective_range:
                                     # Check if skill can be used on this target
                                     if skill.can_use(cursor_manager.selected_unit, (y, x), game):
                                         targets.append((y, x))
@@ -6263,7 +6286,9 @@ class ActionMenuComponent(UIComponent):
                         for x in range(WIDTH):
                             # DIVERGE shows valid targets and floor tiles within range with line of sight
                             distance = game.chess_distance(from_y, from_x, y, x)
-                            if distance <= skill.range:
+                            # Get effective skill range (supports upgrades via get_range method)
+                            effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
+                            if distance <= effective_range:
                                 # Check line of sight for DIVERGE
                                 if game.has_line_of_sight(from_y, from_x, y, x):
                                     target_unit = game.get_unit_at(y, x)
@@ -6283,7 +6308,9 @@ class ActionMenuComponent(UIComponent):
                             # Check if target is within skill range
                             distance = game.chess_distance(from_y, from_x, y, x)
 
-                            if distance <= skill.range:
+                            # Get effective skill range (supports upgrades via get_range method)
+                            effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
+                            if distance <= effective_range:
                                 # Check if skill can be used on this position
                                 if skill.can_use(cursor_manager.selected_unit, (y, x), game):
                                     targets.append((y, x))
@@ -6299,7 +6326,9 @@ class ActionMenuComponent(UIComponent):
                         for x in range(WIDTH):
                             # Show furniture targets, enemy targets (if upgraded), and floor tiles
                             distance = game.chess_distance(from_y, from_x, y, x)
-                            if distance <= skill.range:
+                            # Get effective skill range (supports upgrades via get_range method)
+                            effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
+                            if distance <= effective_range:
                                 # Check line of sight for furniture-targeting skills
                                 if game.has_line_of_sight(from_y, from_x, y, x):
                                     # Check if it's furniture (valid target)
@@ -6322,7 +6351,9 @@ class ActionMenuComponent(UIComponent):
                         for x in range(WIDTH):
                             # Check if position is within skill range (adjacent)
                             distance = game.chess_distance(from_y, from_x, y, x)
-                            if distance <= skill.range:
+                            # Get effective skill range (supports upgrades via get_range method)
+                            effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
+                            if distance <= effective_range:
                                 # Can target any tile within range (enemies, allies, empty tiles, terrain)
                                 # Just check if skill.can_use allows it (which checks range only)
                                 if skill.can_use(cursor_manager.selected_unit, (y, x), game):
@@ -6337,7 +6368,9 @@ class ActionMenuComponent(UIComponent):
 
                             # Check if position is within skill range
                             distance = game.chess_distance(from_y, from_x, y, x)
-                            if distance <= skill.range:
+                            # Get effective skill range (supports upgrades via get_range method)
+                            effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
+                            if distance <= effective_range:
                                 # Check if skill can be used on this position (will check for obstacles, etc.)
                                 if skill.can_use(cursor_manager.selected_unit, (y, x), game):
                                     targets.append((y, x))

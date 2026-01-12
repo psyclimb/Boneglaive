@@ -145,7 +145,7 @@ SKILL_UPGRADES = {
     "INTERFERER": {
         "Neutron Illuminant": {
             "name": "Neutron Illuminant",
-            "description": "Flash covers all adjacent tiles.",
+            "description": "Flashes the primary target.",
             "type": "buff",
             "cost": 1
         },
@@ -157,7 +157,7 @@ SKILL_UPGRADES = {
         },
         "Karrier Rave": {
             "name": "Karrier Rave",
-            "description": "Adds an extra hit and gives +1 move while active.",
+            "description": "Allows walking through units while active.",
             "type": "buff",
             "cost": 1
         },
