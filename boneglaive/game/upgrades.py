@@ -272,6 +272,14 @@ SKILL_UPGRADES = {
             "cost": 1
         }
     },
+    "PELOTARI": {
+        "Riposte": {
+            "name": "Riposte",
+            "description": "Increases def and ball count to 8.",
+            "type": "buff",
+            "cost": 1
+        }
+    },
     # More units can be added here
 }
 

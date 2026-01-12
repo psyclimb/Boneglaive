@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 class Riposte(PassiveSkill):
     """
     Passive skill for PELOTARI.
-    Grants +2 defense. When hit by basic attack, fires 4 diagonal balls (2 damage each).
+    Grants +4 defense. When hit by basic attack, fires 4 balls in cardinal or diagonal directions (2 damage each).
     Goes on 3 turn cooldown after triggering.
     """
 
@@ -29,9 +29,9 @@ class Riposte(PassiveSkill):
         super().__init__(
             name="Riposte",
             key="R",
-            description="Grants +2 DEF. When hit by basic attack, fires 8 balls in all directions (2 damage, 2 ricochets). 3 turn CD. Cannot be Poached - triggers counterattack instead."
+            description="Grants +4 DEF. When hit by basic attack, fires 4 balls in cardinal OR diagonal directions (2 damage, 2 ricochets). 3 turn CD. Cannot be Poached - triggers counterattack instead."
         )
-        self.defense_bonus = 2
+        self.defense_bonus = 4
         self.cooldown_turns = 3
         self.ball_damage = 2
         self.ball_range = 4
@@ -39,7 +39,7 @@ class Riposte(PassiveSkill):
     def apply_passive(self, user: 'Unit', game: Optional['Game'] = None, ui=None) -> None:
         """
         Apply Riposte passive effect.
-        Grants +2 defense and handles cooldown refresh.
+        Grants +4 defense and handles cooldown refresh.
         """
         if not game:
             return
@@ -76,7 +76,7 @@ class Riposte(PassiveSkill):
     def trigger_on_hit(self, user: 'Unit', attacker: 'Unit', game: 'Game', ui=None) -> None:
         """
         Trigger Riposte when PELOTARI is hit by basic attack.
-        Fires 4 diagonal balls and puts Riposte on cooldown.
+        Fires 4 balls (cardinal OR diagonal) and puts Riposte on cooldown.
 
         Args:
             user: PELOTARI unit that was hit
@@ -92,27 +92,36 @@ class Riposte(PassiveSkill):
         user.defense_bonus = 0
         user.riposte_cooldown = self.cooldown_turns
 
+        # Randomly choose cardinal or diagonal direction set
+        direction_type = random.choice(['cardinal', 'diagonal'])
+
         message_log.add_message(
-            f"Counter-strike. {user.get_display_name()}'s pelotas ricochet in all directions.",
+            f"Counter-strike. {user.get_display_name()}'s pelotas ricochet in {direction_type} directions.",
             MessageType.ABILITY,
             player=user.player
         )
 
-        # Execute diagonal spread shot
-        self._execute_diagonal_spread(user, game, ui)
+        # Execute 4-ball spread shot
+        self._execute_diagonal_spread(user, game, ui, direction_type)
 
-    def _execute_diagonal_spread(self, user: 'Unit', game: 'Game', ui=None) -> None:
+    def _execute_diagonal_spread(self, user: 'Unit', game: 'Game', ui=None, direction_type: str = 'cardinal') -> None:
         """
-        Execute 8-directional spread shot (N, NE, E, SE, S, SW, W, NW).
+        Execute 4-directional spread shot (either cardinal OR diagonal).
         Each ball: 2 damage, max 4 range, 2 ricochets.
 
         Args:
             user: PELOTARI unit
             game: Game instance
             ui: UI instance
+            direction_type: 'cardinal' (N,E,S,W) or 'diagonal' (NE,SE,SW,NW)
         """
-        # All 8 directions: N, NE, E, SE, S, SW, W, NW
-        directions = [(-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1)]
+        # Choose 4 directions based on type
+        if direction_type == 'cardinal':
+            # Cardinal directions: N, E, S, W
+            directions = [(-1, 0), (0, 1), (1, 0), (0, -1)]
+        else:
+            # Diagonal directions: NE, SE, SW, NW
+            directions = [(-1, 1), (1, 1), (1, -1), (-1, -1)]
 
         # Calculate all trajectories first
         trajectories = []
@@ -145,7 +154,7 @@ class Riposte(PassiveSkill):
         for trajectory in trajectories:
             self._apply_ball_damage(trajectory, user=user, game=game, ui=ui)
 
-        logger.debug(f"Riposte 8-directional spread executed: 8 balls")
+        logger.debug(f"Riposte {direction_type} spread executed: 4 balls")
 
     def _calculate_diagonal_trajectory(self, start_pos: tuple, direction: tuple,
                                        max_range: int, game: 'Game') -> list:

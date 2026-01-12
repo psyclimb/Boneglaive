@@ -11,11 +11,11 @@ UNIT_HELP_DATA = {
     'title': 'PELOTARI',
     'overview': [
         'A jai alai virtuoso wielding a cesta to launch ricocheting pelota balls with deadly precision.',
-        'This fragile but explosive specialist counters attacks with eight-directional spreads, steals',
-        'buffs through wall bounces, and delivers scaling finishers that end games.',
+        'This conditionally tanky ranged unit excels in counterattacks, retaliating with four-directional',
+        'spreads, stealing buffs through wall bounces, and delivering scaling finishers that end games.',
         '',
-        'Role: Burst Damage / Disabler / Displacer',
-        'Difficulty: ***** (5 Glaives - Highest Complexity)'
+        'Role: Tank / Burst Damage / Disabler / Displacer',
+        'Difficulty: *****'
     ],
     'stats': [
         'HP: 18',
@@ -28,11 +28,12 @@ UNIT_HELP_DATA = {
     'skills': [
         {
             'name': 'RIPOSTE (Passive)',
-            'description': 'Grants defensive stance that erupts into an eight-directional counter-barrage when struck by basic attacks. Each ricocheting ball deals damage before the stance enters cooldown.',
+            'description': 'Grants defensive stance that erupts into a four-directional counter-barrage when struck by basic attacks. Direction pattern (cardinal or diagonal) is chosen randomly. Each ricocheting ball deals damage before the stance enters cooldown.',
             'details': [
                 'Type: Passive',
-                'Effect: +2 Defense (2-turn cooldown after triggering)',
-                'Counter Damage: 2 per ball × 8 balls = 16 total',
+                'Effect: +4 Defense (3-turn cooldown after triggering)',
+                'Counter Damage: 2 per ball × 4 balls = 8 total',
+                'Counter Pattern: Cardinal (N,E,S,W) OR Diagonal (NE,SE,SW,NW), chosen randomly',
                 'Counter Range: 4 tiles per ball',
                 'Ricochets: Up to 2 bounces per ball',
                 'Special: Only triggers on basic attacks, not skills; cannot be Poached (triggers counterattack instead)'
@@ -77,13 +78,14 @@ UNIT_HELP_DATA = {
         }
     ],
     'tips': [
-        '- Riposte provides +2 DEF but goes on cooldown after triggering—bait attacks when off cooldown',
+        '- Riposte provides +4 DEF but goes on cooldown after triggering—bait attacks when off cooldown',
+        '- Riposte randomly fires cardinal OR diagonal spread—position near walls to maximize coverage',
         '- Poach requires the ball to ricochet before buff stealing works; angle shots off walls',
         '- Backhand nullifies the first enemy skill per turn—activate before enemy skill phase',
         '- Matador is a game-ending finisher: chip enemies down first, then unleash at 40-60% HP for 4-6 bounces',
         '- At 10% enemy HP, Matador gains 8 bounces—enough to cross the map 2.4x and wipe the team',
         '- 0 base defense means Riposte uptime is critical for survival',
-        '- Poaching an enemy PELOTARI with active Riposte triggers their diagonal counterattack'
+        '- Poaching an enemy PELOTARI with active Riposte triggers their 4-ball counterattack'
     ],
     'tactical': [
         '- Strong against: Buff-dependent units (DELPHIC APPRAISER, POTPOURRIST), single-target skill users (INTERFERER, GRAYMAN), static formations',
