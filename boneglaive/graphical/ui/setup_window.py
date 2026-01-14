@@ -47,6 +47,9 @@ class SetupWindow:
         self.small_font = small_font
         self.visible = False
 
+        # Cache overlay surface (performance)
+        self._overlay_cache = None
+
         # Build unit types list: base units + DLC units
         self.unit_types = [
             UnitType.GLAIVEMAN,
@@ -374,10 +377,11 @@ class SetupWindow:
         if not self.visible:
             return
 
-        # Draw overlay
-        overlay = pygame.Surface((screen_width, screen_height), pygame.SRCALPHA)
-        overlay.fill(COLOR_OVERLAY)
-        screen.blit(overlay, (0, 0))
+        # Draw overlay (cached for performance)
+        if self._overlay_cache is None or self._overlay_cache.get_size() != (screen_width, screen_height):
+            self._overlay_cache = pygame.Surface((screen_width, screen_height), pygame.SRCALPHA)
+            self._overlay_cache.fill(COLOR_OVERLAY)
+        screen.blit(self._overlay_cache, (0, 0))
 
         # Calculate window position (left side, vertically centered)
         window_x = 100  # Position on left side

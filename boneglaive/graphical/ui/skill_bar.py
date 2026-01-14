@@ -39,6 +39,7 @@ class SkillSlot:
         self.hovered = False
         self.icon_cache = icon_cache
         self.icon_surface = self._load_icon()
+        self.gray_icon_surface = None  # Cached grayscale version
         self.blocked_actions = set()  # LOTO: Set of blocked action types
         self.game_unit = game_unit  # Reference to game unit for checking upgrades
 
@@ -137,15 +138,17 @@ class SkillSlot:
         if self.icon_surface:
             # Apply grayscale if on cooldown
             if not self.is_available():
-                # Create grayscale version
-                gray_icon = self.icon_surface.copy()
-                arr = pygame.surfarray.pixels3d(gray_icon)
-                gray = (arr[:,:,0] * 0.3 + arr[:,:,1] * 0.59 + arr[:,:,2] * 0.11).astype('uint8')
-                arr[:,:,0] = gray
-                arr[:,:,1] = gray
-                arr[:,:,2] = gray
-                del arr
-                surface.blit(gray_icon, (icon_x, icon_y))
+                # Create grayscale version ONCE and cache it
+                if self.gray_icon_surface is None:
+                    gray_icon = self.icon_surface.copy()
+                    arr = pygame.surfarray.pixels3d(gray_icon)
+                    gray = (arr[:,:,0] * 0.3 + arr[:,:,1] * 0.59 + arr[:,:,2] * 0.11).astype('uint8')
+                    arr[:,:,0] = gray
+                    arr[:,:,1] = gray
+                    arr[:,:,2] = gray
+                    del arr
+                    self.gray_icon_surface = gray_icon
+                surface.blit(self.gray_icon_surface, (icon_x, icon_y))
             else:
                 surface.blit(self.icon_surface, (icon_x, icon_y))
 

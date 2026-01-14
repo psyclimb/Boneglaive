@@ -52,6 +52,9 @@ class UpgradeWindow:
         # Icon cache
         self.icon_cache = {}  # {skill_name: pygame.Surface}
 
+        # Cache overlay surface (performance)
+        self._overlay_cache = None
+
     def show(self, unit):
         """
         Open the upgrade window for a unit.
@@ -151,10 +154,11 @@ class UpgradeWindow:
         window_x = (screen_width - WINDOW_WIDTH) // 2
         window_y = (screen_height - WINDOW_HEIGHT) // 2
 
-        # Draw semi-transparent overlay
-        overlay = pygame.Surface((screen_width, screen_height), pygame.SRCALPHA)
-        overlay.fill(COLOR_OVERLAY)
-        surface.blit(overlay, (0, 0))
+        # Draw semi-transparent overlay (cached for performance)
+        if self._overlay_cache is None or self._overlay_cache.get_size() != (screen_width, screen_height):
+            self._overlay_cache = pygame.Surface((screen_width, screen_height), pygame.SRCALPHA)
+            self._overlay_cache.fill(COLOR_OVERLAY)
+        surface.blit(self._overlay_cache, (0, 0))
 
         # Draw window background
         self.window_rect = pygame.Rect(window_x, window_y, WINDOW_WIDTH, WINDOW_HEIGHT)

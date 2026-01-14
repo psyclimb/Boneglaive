@@ -227,6 +227,10 @@ class GraphicalRenderer:
         self._right_panel_surface = pygame.Surface((RIGHT_PANEL_WIDTH, SCREEN_HEIGHT - TOP_BAR_HEIGHT - BOTTOM_BAR_HEIGHT))
         self._flash_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
 
+        # Cached grid surface (to avoid redrawing 200 tiles every frame)
+        self._grid_surface = pygame.Surface((GAME_BOARD_WIDTH, GAME_BOARD_HEIGHT))
+        self._grid_dirty = True  # Redraw grid on first frame
+
         # Cache for sparkle surfaces (different sizes)
         self._sparkle_surf_cache: Dict[int, pygame.Surface] = {}
 
@@ -2898,15 +2902,25 @@ class GraphicalRenderer:
 
     def draw_grid(self, surface: pygame.Surface):
         """Draw the game grid with terrain and furniture using two-pass rendering for rails."""
+        # Performance optimization: cache the grid and only redraw when dirty
+        if self._grid_dirty:
+            self._render_grid_to_cache()
+            self._grid_dirty = False
+
+        # Blit the cached grid to the surface
+        surface.blit(self._grid_surface, (GRID_OFFSET_X, GRID_OFFSET_Y))
+
+    def _render_grid_to_cache(self):
+        """Render the grid to the cached surface (called only when grid changes)."""
         # Get game map if available
         game_map = self.game_adapter.game.map if self.game_adapter.game else None
 
         # PASS 1: Draw base terrain and furniture
         for y in range(GRID_HEIGHT):
             for x in range(GRID_WIDTH):
-                # Calculate tile position
-                tile_x = GRID_OFFSET_X + x * TILE_SIZE
-                tile_y = GRID_OFFSET_Y + y * TILE_SIZE
+                # Calculate tile position (relative to grid surface, not screen)
+                tile_x = x * TILE_SIZE
+                tile_y = y * TILE_SIZE
                 rect = pygame.Rect(tile_x, tile_y, TILE_SIZE, TILE_SIZE)
 
                 # Get terrain type at this position
@@ -2922,19 +2936,15 @@ class GraphicalRenderer:
                 # Determine base color (checkerboard pattern for empty/passable tiles)
                 base_color = COLOR_GRID_DARK if (x + y) % 2 == 0 else COLOR_GRID_LIGHT
 
-                # Highlight hovered tile
-                if self.hovered_grid_pos == (x, y):
-                    base_color = tuple(min(255, c + 30) for c in base_color)
-
                 # Draw base tile
-                pygame.draw.rect(surface, base_color, rect)
+                pygame.draw.rect(self._grid_surface, base_color, rect)
 
                 # Try to load and draw terrain/furniture SVG
                 if terrain_type != TerrainType.EMPTY:
                     terrain_surface = self._load_terrain_tile(terrain_type)
                     if terrain_surface:
                         # Blit the SVG surface at tile position
-                        surface.blit(terrain_surface, (tile_x, tile_y))
+                        self._grid_surface.blit(terrain_surface, (tile_x, tile_y))
 
                         # Add player-colored outline for MARROW_WALL
                         if terrain_type == TerrainType.MARROW_WALL:
@@ -2950,23 +2960,23 @@ class GraphicalRenderer:
                                             outline_color = (100, 150, 255)  # Blue
 
                                         # Draw outline around the tile (same as units)
-                                        pygame.draw.rect(surface, outline_color, rect, 2)
+                                        pygame.draw.rect(self._grid_surface, outline_color, rect, 2)
                     else:
                         # Fallback: draw a colored rectangle to indicate terrain/furniture
                         # Use different colors for different types
                         if terrain_type in [TerrainType.LIMESTONE, TerrainType.PILLAR,
                                            TerrainType.STAINED_STONE, TerrainType.HYDRAULIC_PRESS]:
                             # Blocking terrain - dark gray
-                            pygame.draw.rect(surface, (80, 80, 90), rect)
+                            pygame.draw.rect(self._grid_surface, (80, 80, 90), rect)
                         elif terrain_type in [TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.CONCRETE_FLOOR]:
                             # Passable terrain - slightly different shade
-                            pygame.draw.rect(surface, (70, 75, 80), rect)
+                            pygame.draw.rect(self._grid_surface, (70, 75, 80), rect)
                         else:
                             # Furniture - lighter color
-                            pygame.draw.rect(surface, (100, 110, 120), rect)
+                            pygame.draw.rect(self._grid_surface, (100, 110, 120), rect)
 
                 # Draw grid lines
-                pygame.draw.rect(surface, (30, 34, 42), rect, 1)
+                pygame.draw.rect(self._grid_surface, (30, 34, 42), rect, 1)
 
         # PASS 2: Draw universal rail bomb overlays on top of terrain
         if game_map and self.rail_universal:
@@ -2975,12 +2985,12 @@ class GraphicalRenderer:
                     terrain_type = game_map.get_terrain_at(y, x)
 
                     if terrain_type == TerrainType.RAIL:
-                        # Calculate tile position
-                        tile_x = GRID_OFFSET_X + x * TILE_SIZE
-                        tile_y = GRID_OFFSET_Y + y * TILE_SIZE
+                        # Calculate tile position (relative to grid surface)
+                        tile_x = x * TILE_SIZE
+                        tile_y = y * TILE_SIZE
 
                         # Blit the universal rail bomb overlay
-                        surface.blit(self.rail_universal, (tile_x, tile_y))
+                        self._grid_surface.blit(self.rail_universal, (tile_x, tile_y))
 
     def draw_revealed_traps(self, surface: pygame.Surface):
         """Draw revealed scalar node traps on the map."""
@@ -3336,6 +3346,9 @@ class GraphicalRenderer:
 
         self.game_adapter.executing_turn = False
         print("[Renderer] Setting executing_turn = False")
+
+        # Mark grid dirty (terrain may have changed from skills like Marrow Dike)
+        self._grid_dirty = True
 
         # Note: Motor will stop when animations finish (in flush_pending_events or update loop)
 
