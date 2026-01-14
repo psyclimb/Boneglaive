@@ -35,6 +35,7 @@ from .ui.action_menu import ActionMenu
 from .ui.motor_animation import MotorAnimation
 from .ui.help_page import HelpPage
 from .ui.respawn_window import RespawnWindow
+from .ui.upgrade_window import UpgradeWindow
 from .ui.setup_window import SetupWindow
 from .ui.setup_unit_help import SetupUnitHelp
 from .ui_adapter import GraphicalUIAdapter
@@ -181,6 +182,7 @@ class GraphicalRenderer:
         self.motor_animation = MotorAnimation()
         self.help_page = HelpPage(self.font, self.small_font)
         self.respawn_window = RespawnWindow(self.font, self.small_font)
+        self.upgrade_window = UpgradeWindow(self.font, self.small_font)
         self.setup_window = SetupWindow(self.font, self.small_font)
         self.setup_unit_help = SetupUnitHelp(self.font, self.small_font)
 
@@ -654,6 +656,29 @@ class GraphicalRenderer:
                     # Ignore all other keys when message log is open
                     continue
 
+                # Check if upgrade window is open
+                if self.upgrade_window.visible:
+                    result = self.upgrade_window.handle_key(event.key)
+                    if result == 'confirm':
+                        upgrade = self.upgrade_window.get_selected_upgrade()
+                        if upgrade:
+                            game_unit = self.upgrade_window.unit
+                            success = self.game_adapter.game.apply_unit_upgrade(game_unit, upgrade['skill_name'])
+                            if success:
+                                print(f"Upgraded {upgrade['skill_name']}!")
+                                self.combat_log.add_message(f"Upgraded {upgrade['skill_name']}!", "system")
+                                # Refresh the upgrade window with updated available upgrades
+                                if not self.upgrade_window.show(game_unit):
+                                    # No more upgrades available, close window
+                                    self.upgrade_window.hide()
+                                # Ignore all other keys when upgrade window is open
+                                continue
+                        self.upgrade_window.hide()
+                    elif result == 'cancel':
+                        self.upgrade_window.hide()
+                    # Ignore all other keys when upgrade window is open
+                    continue
+
                 # Check if help page is open
                 if self.help_page.visible:
                     if event.key == pygame.K_ESCAPE:
@@ -748,6 +773,9 @@ class GraphicalRenderer:
                 # Handle help page scrollbar dragging
                 if self.help_page.visible:
                     self.help_page.handle_mouse_motion(event.pos)
+                # Handle upgrade window mouse motion
+                elif self.upgrade_window.visible:
+                    self.upgrade_window.handle_mouse_motion(event.pos)
                 # Handle respawn window mouse motion
                 elif self.respawn_selecting_unit:
                     self.respawn_window.handle_mouse_motion(event.pos)
@@ -816,6 +844,31 @@ class GraphicalRenderer:
                     if self.help_page.visible:
                         if self.help_page.handle_mouse_down(event.pos):
                             continue  # Scrollbar was clicked, don't process other clicks
+
+                    # Handle upgrade window clicks (must be before other UI elements)
+                    if self.upgrade_window.visible:
+                        result = self.upgrade_window.handle_click(event.pos)
+                        if result == 'confirm':
+                            upgrade = self.upgrade_window.get_selected_upgrade()
+                            if upgrade:
+                                game_unit = self.upgrade_window.unit
+                                success = self.game_adapter.game.apply_unit_upgrade(game_unit, upgrade['skill_name'])
+                                if success:
+                                    print(f"Upgraded {upgrade['skill_name']}!")
+                                    self.combat_log.add_message(f"Upgraded {upgrade['skill_name']}!", "system")
+                                    # Refresh the upgrade window with updated available upgrades
+                                    if not self.upgrade_window.show(game_unit):
+                                        # No more upgrades available, close window
+                                        self.upgrade_window.hide()
+                                    continue
+                            self.upgrade_window.hide()
+                            continue
+                        elif result == 'cancel':
+                            self.upgrade_window.hide()
+                            continue
+                        elif result == 'consumed':
+                            # Click was on window but no action - just consume it
+                            continue
 
                     # Check if clicking on combat log to open expanded view (only when not in setup mode)
                     if not self.setup_mode:
@@ -1268,6 +1321,15 @@ class GraphicalRenderer:
         elif action == "respawn":
             print("Respawn mode activated")
             self.start_respawn_mode()
+
+        elif action == "upgrade":
+            print("Upgrade mode activated")
+            if self.selected_unit:
+                game_unit = self._get_game_unit(self.selected_unit)
+                if game_unit:
+                    success = self.upgrade_window.show(game_unit)
+                    if not success:
+                        print("No upgrades available for this unit")
 
         elif action == "help":
             print("Help button clicked")
@@ -2796,6 +2858,10 @@ class GraphicalRenderer:
 
         # Draw message log window (on top of help page)
         self.message_log_window.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
+
+        # Draw upgrade window (on top of everything except help/message log)
+        if self.upgrade_window.visible:
+            self.upgrade_window.draw(self.screen)
 
         # Draw respawn window (on top of everything except help page and message log)
         if self.respawn_mode and self.respawn_selecting_unit:
