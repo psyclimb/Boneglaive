@@ -49,7 +49,7 @@ class Game:
         # GP (Game Points) System
         self.player1_gp = 0
         self.player2_gp = 0
-        self.gp_win_threshold = 6  # First to 6 GP wins
+        self.gp_win_threshold = 7  # First to 7 GP wins
         self.dead_units = []  # List of DeadUnit objects awaiting respawn
         self.pending_respawns = {1: [], 2: []}  # Respawns queued for execution phase
 
@@ -2041,7 +2041,13 @@ class Game:
                 # Check if it's Dominion passive and increment kill count for ANY death in dike
                 if passive.name == "Dominion":
                     passive.kills += 1
-                
+
+                    # Check for manual Dominion upgrade (from upgrade points)
+                    from boneglaive.game.upgrades import UpgradeManager
+                    if UpgradeManager.is_skill_upgraded(dike_owner, "Dominion"):
+                        # Manual upgrade: +1 attack per kill in Marrow Dike
+                        dike_owner.attack_bonus += 1
+
                 # Apply the stat bonus based on upgrade tier
                 # Instead of granting all bonuses at once, apply them progressively based on upgrade level
                 if not passive.marrow_dike_upgraded and not passive.ossify_upgraded and not passive.bone_tithe_upgraded:
@@ -4661,6 +4667,27 @@ class Game:
                 if unit.player == self.current_player:
                     # Initialize the flag for health regeneration
                     unit.took_no_actions = True
+
+                    # Apply Marrow Dike mired damage if manually upgraded
+                    if hasattr(self, 'marrow_dike_interior'):
+                        unit_pos = (unit.y, unit.x)
+                        if unit_pos in self.marrow_dike_interior:
+                            dike_info = self.marrow_dike_interior[unit_pos]
+                            dike_owner = dike_info.get('owner')
+
+                            # Check if dike owner has manual upgrade
+                            if dike_owner:
+                                from boneglaive.game.upgrades import UpgradeManager
+                                if UpgradeManager.is_skill_upgraded(dike_owner, "Marrow Dike"):
+                                    # Only damage enemies
+                                    if unit.player != dike_owner.player:
+                                        # Deal 1 damage per turn
+                                        previous_hp = unit.hp
+                                        unit.hp = max(0, unit.hp - 1)
+
+                                        # Check if unit died
+                                        if unit.hp <= 0 and previous_hp > 0:
+                                            self.handle_unit_death(unit, dike_owner, cause="marrow_dike_mired", ui=ui)
 
                     # Reset DERELICTIONIST movement/skill flags at start of turn (Severance passive)
                     if unit.type == UnitType.DERELICTIONIST:

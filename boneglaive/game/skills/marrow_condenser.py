@@ -133,22 +133,30 @@ class OssifySkill(ActiveSkill):
         import time
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
-        
-        # Determine if this is upgraded version
+
+        # Check for Dominion auto-upgrade (from kills in Marrow Dike)
+        dominion_upgraded = False
         if hasattr(user, 'passive_skill') and hasattr(user.passive_skill, 'ossify_upgraded'):
-            self.upgraded = user.passive_skill.ossify_upgraded
-        
-        # Calculate defense bonus based on upgrade status
-        defense_bonus = 3 if self.upgraded else 2
-        
+            dominion_upgraded = user.passive_skill.ossify_upgraded
+
+        # Check for manual upgrade (from upgrade points)
+        from boneglaive.game.upgrades import UpgradeManager
+        manual_upgraded = UpgradeManager.is_skill_upgraded(user, "Ossify")
+
+        # Calculate defense bonus based on Dominion upgrade status
+        defense_bonus = 3 if dominion_upgraded else 2
+
+        # Calculate duration based on manual upgrade (2 base, 3 if manually upgraded)
+        duration = 3 if manual_upgraded else 2
+
         # Apply defense bonus
         user.defense_bonus += defense_bonus
-        
+
         # Apply movement penalty (always)
         user.move_range_bonus = -1
         # Set the ossify status effect flag and duration for UI display
         user.ossify_active = True
-        user.ossify_duration = self.duration  # Track duration
+        user.ossify_duration = duration  # Track duration
         
         # Use shorter message
         message_log.add_message(
@@ -344,14 +352,22 @@ class MarrowDikeSkill(ActiveSkill):
 
         # Auto-expire any existing dikes owned by this player
         self._expire_existing_player_dikes(user, game)
-        
-        # Determine if this is upgraded version
+
+        # Check for Dominion auto-upgrade (from kills in Marrow Dike)
+        dominion_upgraded = False
         if hasattr(user, 'passive_skill') and hasattr(user.passive_skill, 'marrow_dike_upgraded'):
-            self.upgraded = user.passive_skill.marrow_dike_upgraded
-            
-            # Update description for upgraded version
-            if self.upgraded:
-                self.description = "Creates a reinforced Marrow Dike that immobilizes enemies (-1 move) with stronger walls."
+            dominion_upgraded = user.passive_skill.marrow_dike_upgraded
+
+        # Check for manual upgrade (from upgrade points)
+        from boneglaive.game.upgrades import UpgradeManager
+        manual_upgraded = UpgradeManager.is_skill_upgraded(user, "Marrow Dike")
+
+        # Set upgraded flag (used for wall HP and mired effect from Dominion)
+        self.upgraded = dominion_upgraded
+
+        # Update description for upgraded version
+        if dominion_upgraded:
+            self.description = "Creates a reinforced Marrow Dike that immobilizes enemies (-1 move) with stronger walls."
         
         # Generate the dike area (perimeter of a 5x5 area centered on user)
         dike_tiles = []
@@ -457,8 +473,8 @@ class MarrowDikeSkill(ActiveSkill):
                 unit.y = new_y
                 unit.x = new_x
 
-                # Deal pull damage (3 damage, respects defense, min 1)
-                pull_damage = 3
+                # Deal pull damage (3 base, 4 if manually upgraded, respects defense, min 1)
+                pull_damage = 4 if manual_upgraded else 3
                 actual_damage = max(1, pull_damage - unit.get_effective_stats()['defense'])
                 previous_hp = unit.hp
                 unit.hp = max(0, unit.hp - actual_damage)
@@ -827,13 +843,18 @@ class BoneTitheSkill(ActiveSkill):
         # This matches the pattern used in other successful skills
         user.took_action = True
         
-        # Determine if this is upgraded version
+        # Check for Dominion auto-upgrade
+        dominion_upgraded = False
         if hasattr(user, 'passive_skill') and hasattr(user.passive_skill, 'bone_tithe_upgraded'):
-            self.upgraded = user.passive_skill.bone_tithe_upgraded
+            dominion_upgraded = user.passive_skill.bone_tithe_upgraded
 
-        # Calculate damage based on upgrade status
-        if self.upgraded:
-            # Upgraded version: Base damage + kill count (retroactive)
+        # Check for manual upgrade (from upgrade points)
+        from boneglaive.game.upgrades import UpgradeManager
+        manual_upgraded = UpgradeManager.is_skill_upgraded(user, "Bone Tithe")
+
+        # Calculate damage based on Dominion upgrade status
+        if dominion_upgraded:
+            # Dominion upgraded version: Base damage + kill count (retroactive)
             kill_count = 0
             if hasattr(user, 'passive_skill') and hasattr(user.passive_skill, 'kills'):
                 kill_count = user.passive_skill.kills
@@ -843,23 +864,44 @@ class BoneTitheSkill(ActiveSkill):
         else:
             # Base version: Flat damage with no kill count bonus
             damage = self.base_damage
-        
-        # Generate area of effect (3x3 area centered on user)
+
+        # Generate area of effect
         effect_area = []
         center_y, center_x = user.y, user.x
-        
-        # Generate all positions in 3x3 area
-        for dy in range(-1, 2):  # -1, 0, 1
-            for dx in range(-1, 2):  # -1, 0, 1
-                # Skip the center position (user's position)
-                if dy == 0 and dx == 0:
-                    continue
-                    
-                tile_y, tile_x = center_y + dy, center_x + dx
-                
-                # Check if position is valid
-                if game.is_valid_position(tile_y, tile_x):
-                    effect_area.append((tile_y, tile_x))
+
+        if manual_upgraded:
+            # Upgraded: Beam pattern in 8 directions, extending 2 tiles out
+            directions = [
+                (-1, 0),   # North
+                (-1, 1),   # Northeast
+                (0, 1),    # East
+                (1, 1),    # Southeast
+                (1, 0),    # South
+                (1, -1),   # Southwest
+                (0, -1),   # West
+                (-1, -1)   # Northwest
+            ]
+
+            # For each direction, add tiles at range 1 and range 2
+            for dy, dx in directions:
+                for distance in [1, 2]:
+                    tile_y = center_y + (dy * distance)
+                    tile_x = center_x + (dx * distance)
+
+                    if game.is_valid_position(tile_y, tile_x):
+                        effect_area.append((tile_y, tile_x))
+        else:
+            # Base: 3x3 area (all adjacent tiles)
+            for dy in range(-1, 2):
+                for dx in range(-1, 2):
+                    # Skip the center position (user's position)
+                    if dy == 0 and dx == 0:
+                        continue
+
+                    tile_y, tile_x = center_y + dy, center_x + dx
+
+                    if game.is_valid_position(tile_y, tile_x):
+                        effect_area.append((tile_y, tile_x))
         
         # Track affected units for effects and animation
         enemies_hit = []
@@ -990,16 +1032,17 @@ class BoneTitheSkill(ActiveSkill):
             for dy, dx in directions:
                 # Start from user position
                 y, x = user.y, user.x
-                
-                # Calculate up to two steps outward
-                for step in range(1, 3):
+
+                # Calculate steps outward (2 for base, 3 for upgraded 5x5)
+                max_steps = 3 if manual_upgraded else 2
+                for step in range(1, max_steps + 1):
                     next_y = y + dy
                     next_x = x + dx
-                    
+
                     # Skip if position is invalid
                     if not game.is_valid_position(next_y, next_x):
                         break
-                        
+
                     # Animate at this position
                     for frame in bone_tithe_animation:
                         # Determine color based on what's at this position

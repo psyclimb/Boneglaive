@@ -924,22 +924,23 @@ class Unit:
                 player=opposing_player
             )
 
-            # Check if player crossed any upgrade point thresholds
+            # Check if combined GP total crossed any upgrade point thresholds
+            combined_gp = self._game.player1_gp + self._game.player2_gp
             for threshold in self._game.upgrade_point_thresholds:
-                # Award point if threshold reached and not already awarded
-                if gp_total >= threshold and threshold not in self._game.upgrade_points_awarded[opposing_player]:
-                    # Award upgrade point
+                # Award points if threshold reached and not already awarded to this player
+                if combined_gp >= threshold and threshold not in self._game.upgrade_points_awarded[opposing_player]:
+                    # Award upgrade points to the player who scored the kill
                     if opposing_player == 1:
-                        self._game.player1_upgrade_points += 1
+                        self._game.player1_upgrade_points += 2
                     else:
-                        self._game.player2_upgrade_points += 1
+                        self._game.player2_upgrade_points += 2
 
-                    # Mark threshold as awarded
+                    # Mark threshold as awarded for this player
                     self._game.upgrade_points_awarded[opposing_player].add(threshold)
 
                     # Log upgrade point award
                     message_log.add_message(
-                        f"{winner_name} earned 1 upgrade point! ({gp_total} GP)",
+                        f"{winner_name} earned 2 upgrade points! (Combined GP: {combined_gp})",
                         MessageType.SYSTEM,
                         player=opposing_player
                     )

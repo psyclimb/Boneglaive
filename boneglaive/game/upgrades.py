@@ -71,15 +71,15 @@ SKILL_UPGRADES = {
             "type": "sidegrade",
             "cost": 1
         },
-        "Estrange": {
-            "name": "Estrange",
-            "description": "Estranging an already estranged target banishes them and spawns a GRAYMAN echo.",
-            "type": "buff",
-            "cost": 1
-        },
         "Delta Config": {
             "name": "Delta Config",
             "description": "Abducts all adjacent enemies and takes them to the target location.",
+            "type": "buff",
+            "cost": 1
+        },
+        "Estrange": {
+            "name": "Estrange",
+            "description": "Estranging an already estranged target banishes them and spawns a GRAYMAN echo.",
             "type": "buff",
             "cost": 1
         },
@@ -195,15 +195,15 @@ SKILL_UPGRADES = {
         }
     },
     "GAS_MACHINIST": {
-        "Diverge": {
-            "name": "Diverge",
-            "description": "Adds Calibration Gas as a 3rd vapor: resets all units in cloud to base stats.",
-            "type": "buff",
-            "cost": 1
-        },
         "Effluvium Lathe": {
             "name": "Effluvium Lathe",
             "description": "Unlocks Aerosolize Arms: Disarm target and spawn LIVING AEROSOL controlled by that player.",
+            "type": "buff",
+            "cost": 1
+        },
+        "Broaching Gas": {
+            "name": "Broaching Gas",
+            "description": "Damage increased to 3 and ignores defense.",
             "type": "buff",
             "cost": 1
         },
@@ -213,9 +213,9 @@ SKILL_UPGRADES = {
             "type": "buff",
             "cost": 1
         },
-        "Broaching Gas": {
-            "name": "Broaching Gas",
-            "description": "Damage increased to 3 and ignores defense.",
+        "Diverge": {
+            "name": "Diverge",
+            "description": "Adds Calibration Gas as a 3rd vapor: resets all units in cloud to base stats.",
             "type": "buff",
             "cost": 1
         }
@@ -247,28 +247,28 @@ SKILL_UPGRADES = {
         }
     },
     "MARROW_CONDENSER": {
-        "Ossify": {
-            "name": "Ossify",
-            "description": "Bones calcify to become sharp instead of dense. -1 defense, +2 attack.",
-            "type": "sidegrade",
-            "cost": 1
-        },
         "Dominion": {
             "name": "Dominion",
-            "description": "After all skills are upgraded, each additional kill grants +1 to a random stat (move/attack/defense/range).",
+            "description": "Each kill inside Marrow Dike grants +1 attack.",
+            "type": "buff",
+            "cost": 1
+        },
+        "Ossify": {
+            "name": "Ossify",
+            "description": "Duration increased from 2 to 3 turns.",
             "type": "buff",
             "cost": 1
         },
         "Marrow Dike": {
-            "name": "Marrow Spire",
-            "description": "Creates 3x3 bone tower. MARROW CONDENSER gains range 3. Units displaced to edges and bound.",
-            "type": "sidegrade",
+            "name": "Marrow Dike",
+            "description": "Pull damage increased from 3 to 4. Mired enemies take 1 damage per turn.",
+            "type": "buff",
             "cost": 1
         },
         "Bone Tithe": {
             "name": "Bone Tithe",
-            "description": "Single target at range 3. 3 damage. Cooldown increased to 2.",
-            "type": "sidegrade",
+            "description": "Area increased to range 2 (5x5 instead of 3x3).",
+            "type": "buff",
             "cost": 1
         }
     },

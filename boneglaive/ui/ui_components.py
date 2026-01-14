@@ -6882,7 +6882,7 @@ class UpgradeMenuComponent(UIComponent):
             pass
 
         # Draw available upgrades (centered with padding)
-        hotkeys = ['Q', 'W', 'E', 'R', 'T', 'Y']  # Up to 6 upgrades
+        hotkeys = ['1', '2', '3', '4']  # Up to 4 upgrades
         current_y = 5  # Start below separator with some padding
 
         # Calculate left margin for centering (use 10% of screen width as margin)
@@ -6971,14 +6971,12 @@ class UpgradeMenuComponent(UIComponent):
             self.close_menu()
             return True
 
-        # Hotkey selection (Q=0, W=1, E=2, R=3, T=4, Y=5)
+        # Hotkey selection (1=0, 2=1, 3=2, 4=3)
         hotkey_map = {
-            ord('q'): 0, ord('Q'): 0,
-            ord('w'): 1, ord('W'): 1,
-            ord('e'): 2, ord('E'): 2,
-            ord('r'): 3, ord('R'): 3,
-            ord('t'): 4, ord('T'): 4,
-            ord('y'): 5, ord('Y'): 5,
+            ord('1'): 0,
+            ord('2'): 1,
+            ord('3'): 2,
+            ord('4'): 3,
         }
 
         if key in hotkey_map:
