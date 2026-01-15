@@ -361,6 +361,11 @@ class Autoclave(PassiveSkill):
         adjacent_offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
         melee_damage = 4  # Melee counter attack damage
 
+        # Note: Graphical mode animation is handled by renderer detection system in renderer.py
+        # The renderer detects the glaive_sweep_queued flag via game_state.py state capture
+        # and triggers the GlaiveSweepAnimation when the passive executes during an attack.
+        # See: boneglaive/graphical/game_state.py (line ~724) and renderer.py (line ~2532)
+
         # Animate glaive sweep in circular pattern if UI available (ASCII mode only)
         if not is_graphical and ui and hasattr(ui, 'renderer'):
             # Get sweep animation sequence

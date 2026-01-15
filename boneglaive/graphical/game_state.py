@@ -719,13 +719,24 @@ class GameStateAdapter:
                                 hasattr(target_game_unit, 'riposte_active') and target_game_unit.riposte_active):
                                 target_has_riposte = True
 
+                        # Capture target's glaive_sweep_queued state BEFORE attack execution triggers it
+                        # (Upgraded Autoclave passive - GLAIVEMAN sweeps after being hit at critical health)
+                        target_has_glaive_sweep = False
+                        if target_game_unit:
+                            if (hasattr(target_game_unit, 'passive_skill') and target_game_unit.passive_skill and
+                                target_game_unit.passive_skill.name == "Autoclave" and
+                                hasattr(target_game_unit, 'glaive_sweep_queued') and target_game_unit.glaive_sweep_queued):
+                                target_has_glaive_sweep = True
+                                print(f"[GameState] Target has queued Glaive Sweep - will counterattack!")
+
                         events.append(AnimationEvent(
                             "attack",
                             source_unit=game_unit,
                             target_unit=target_game_unit,
                             attack_target=attack_target,
                             has_carrier_rave=has_carrier_rave,  # Pass flag to renderer
-                            target_has_riposte=target_has_riposte  # Pass flag to renderer
+                            target_has_riposte=target_has_riposte,  # Pass flag to renderer
+                            target_has_glaive_sweep=target_has_glaive_sweep  # Pass flag to renderer
                         ))
                         visual_unit.last_attack_target = game_unit.attack_target
                 elif visual_unit.last_attack_target is not None:
@@ -780,6 +791,13 @@ class GameStateAdapter:
                             # Calculate dynamic bounce count for Matador animation
                             if hasattr(game_unit, 'selected_skill') and hasattr(game_unit.selected_skill, '_calculate_matador_bounces'):
                                 bounce_count = game_unit.selected_skill._calculate_matador_bounces(game_unit, self.game)
+
+                        # Check if skill is upgraded and modify skill_name for upgraded animations
+                        # This allows the animation factory to use upgraded animation variants
+                        if skill_name == "Vault":
+                            from boneglaive.game.upgrades import UpgradeManager
+                            if UpgradeManager.is_skill_upgraded(game_unit, "Vault"):
+                                skill_name = "Vault_Upgraded"  # Use upgraded animation variant
 
                         events.append(AnimationEvent(
                             "skill",
