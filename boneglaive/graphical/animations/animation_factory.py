@@ -13,7 +13,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from boneglaive.graphical.animations.core import AnimatedUnit, TILE_SIZE
 from boneglaive.graphical.animations.glaiveman import (
     LightningBolt, CrossBeam, AutoclaveAnimation, AutoclaveAnimationV2, SpinningGlaiveProjectile,
-    PryImpactAnimation, VaultAnimationController, PryAnimation, JudgementAnimation
+    PryImpactAnimation, VaultAnimationController, VaultAnimationControllerUpgraded,
+    PryAnimation, JudgementAnimation, GlaiveSweepAnimation
 )
 from boneglaive.graphical.animations.mandible_foreman import (
     JawClamp, ViseroyTrap, ViseroyRelease, JawTighten, SiteInspectionBuff,
@@ -93,7 +94,9 @@ class AnimationFactory:
         "JUDGEMENT": (JudgementAnimation, {}),  # New full animation: wind-up, flight, impact (lightning on crit)
         "PRY": (PryAnimation, {}),  # New full animation: pry up, ceiling impact, falling debris, ground explosion
         "VAULT": (VaultAnimationController, {}),  # Acrobatic leap with flip
+        "VAULT_UPGRADED": (VaultAnimationControllerUpgraded, {}),  # Extended vault with double flip, higher arc, enhanced effects
         "AUTOCLAVE": (AutoclaveAnimationV2, {}),  # Enhanced: fire burst, steam cross, spinning glaives on every tile, healing
+        "GLAIVE_SWEEP": (GlaiveSweepAnimation, {}),  # Circular sweep attack hitting all 8 adjacent tiles (upgraded Autoclave 2nd activation)
 
         # MANDIBLE FOREMAN skills
         "EXPEDITE": (ExpediteRush, {}),  # Discharge skill is named "Expedite"
@@ -401,6 +404,18 @@ class AnimationFactory:
                 # VaultAnimationController needs target position
                 if not target_pos:
                     print("[AnimationFactory] VAULT requires a target position")
+                    return None
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_pos=target_pos,
+                    particle_emitter=particle_emitter,
+                    screen_shake_callback=screen_shake_callback,
+                    camera=camera
+                )
+            elif anim_class.__name__ == "VaultAnimationControllerUpgraded":
+                # VaultAnimationControllerUpgraded needs target position (same signature as regular Vault)
+                if not target_pos:
+                    print("[AnimationFactory] VAULT_UPGRADED requires a target position")
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
