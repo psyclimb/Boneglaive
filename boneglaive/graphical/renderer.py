@@ -736,6 +736,17 @@ class GraphicalRenderer:
                     shift_pressed = pygame.key.get_mods() & pygame.KMOD_SHIFT
                     self._cycle_unit_selection(backwards=shift_pressed)
 
+                # DEV KEYBIND: Add upgrade points with '=' key (temporary for testing)
+                elif event.key == pygame.K_EQUALS:
+                    if self.game_adapter and self.game_adapter.game:
+                        game = self.game_adapter.game
+                        if game.current_player == 1:
+                            game.player1_upgrade_points += 1
+                            print(f"[DEV] Player 1 upgrade points: {game.player1_upgrade_points}")
+                        else:
+                            game.player2_upgrade_points += 1
+                            print(f"[DEV] Player 2 upgrade points: {game.player2_upgrade_points}")
+
                 # Check action menu hotkeys first
                 elif event.key in [pygame.K_m, pygame.K_a, pygame.K_r, pygame.K_e, pygame.K_c, pygame.K_h]:
                     action = self.action_menu.handle_hotkey(event.key)

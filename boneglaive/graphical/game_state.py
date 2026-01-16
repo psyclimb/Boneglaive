@@ -798,6 +798,14 @@ class GameStateAdapter:
                             from boneglaive.game.upgrades import UpgradeManager
                             if UpgradeManager.is_skill_upgraded(game_unit, "Vault"):
                                 skill_name = "Vault_Upgraded"  # Use upgraded animation variant
+                        elif skill_name == "Site Inspection":
+                            from boneglaive.game.upgrades import UpgradeManager
+                            if UpgradeManager.is_skill_upgraded(game_unit, "Site Inspection"):
+                                skill_name = "Site Inspection_Upgraded"  # Use upgraded animation variant
+                        elif skill_name == "Jawline":
+                            from boneglaive.game.upgrades import UpgradeManager
+                            if UpgradeManager.is_skill_upgraded(game_unit, "Jawline"):
+                                skill_name = "Jawline_Upgraded"  # Use upgraded animation variant
 
                         events.append(AnimationEvent(
                             "skill",
@@ -1086,6 +1094,8 @@ class GameStateAdapter:
         # Get skill range (check for dynamic range method first)
         if hasattr(skill, 'get_skill_range') and callable(skill.get_skill_range):
             skill_range = skill.get_skill_range(game_unit, self.game)
+        elif hasattr(skill, 'get_range') and callable(skill.get_range):
+            skill_range = skill.get_range(game_unit)
         else:
             skill_range = skill.range
 

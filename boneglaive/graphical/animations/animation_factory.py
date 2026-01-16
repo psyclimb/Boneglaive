@@ -18,7 +18,7 @@ from boneglaive.graphical.animations.glaiveman import (
 )
 from boneglaive.graphical.animations.mandible_foreman import (
     JawClamp, ViseroyTrap, ViseroyRelease, JawTighten, SiteInspectionBuff,
-    SiteInspectionScan, ExpediteRush, JawlineNetwork
+    SiteInspectionScan, SiteInspectionScanUpgraded, ExpediteRush, JawlineNetwork, JawlineNetworkUpgraded
 )
 from boneglaive.graphical.animations.potpourrist import (
     PedestalStrike, InfuseEffect, DemiluneSwing, GraniteGeasEffect,
@@ -102,7 +102,9 @@ class AnimationFactory:
         "EXPEDITE": (ExpediteRush, {}),  # Discharge skill is named "Expedite"
         "DISCHARGE": (ViseroyRelease, {}),  # Release animation for Viseroy trap (when it ends)
         "SITE_INSPECTION": (SiteInspectionScan, {}),  # Laser scan animation
-        "JAWLINE": (JawlineNetwork, {}),  # Network of bear traps
+        "SITE_INSPECTION_UPGRADED": (SiteInspectionScanUpgraded, {}),  # Enhanced holographic scan with dual-pass analysis
+        "JAWLINE": (JawlineNetwork, {}),  # Network of bear traps (3x3 around FOREMAN)
+        "JAWLINE_UPGRADED": (JawlineNetworkUpgraded, {}),  # Directional cable spools with rolling traps (3x9 line)
         "VISEROY": (ViseroyTrap, {}),  # Passive (basic attack animation)
         "VISEROY_TICK": (JawTighten, {}),  # Trap tick damage animation
 
@@ -582,7 +584,7 @@ class AnimationFactory:
                     particle_emitter=particle_emitter,
                     screen_flash_callback=screen_flash_callback
                 )
-            elif anim_class.__name__ == "SiteInspectionScan":
+            elif anim_class.__name__ in ["SiteInspectionScan", "SiteInspectionScanUpgraded"]:
                 # Site Inspection scan animation - needs center position (target_pos)
                 # NOTE: target_pos is (grid_y, grid_x) format from renderer
                 # Target position is where the scan is centered
@@ -596,13 +598,31 @@ class AnimationFactory:
                     center_y=center_y,
                     camera=camera
                 )
-            elif anim_class.__name__ == "JawlineNetwork":
-                # Jawline network - deploys from caster position
-                animation = anim_class(
-                    center_x=caster_screen_x,
-                    center_y=caster_screen_y,
-                    camera=camera
-                )
+            elif anim_class.__name__ in ["JawlineNetwork", "JawlineNetworkUpgraded"]:
+                # Jawline network - base version deploys from caster, upgraded needs target
+                if anim_class.__name__ == "JawlineNetworkUpgraded":
+                    # Upgraded version needs target position for direction
+                    if not target_pos:
+                        print("[AnimationFactory] JAWLINE_UPGRADED requires a target position")
+                        return None
+                    # Convert grid to screen: target_pos[1] is grid_x, target_pos[0] is grid_y
+                    target_x, target_y = grid_to_screen(target_pos[1], target_pos[0])
+                    animation = anim_class(
+                        center_x=caster_screen_x,
+                        center_y=caster_screen_y,
+                        target_x=target_x,
+                        target_y=target_y,
+                        camera=camera,
+                        game=kwargs.get('game'),
+                        caster_unit=caster_unit
+                    )
+                else:
+                    # Base version - 3x3 around caster
+                    animation = anim_class(
+                        center_x=caster_screen_x,
+                        center_y=caster_screen_y,
+                        camera=camera
+                    )
             elif anim_class.__name__ == "ExpediteRush":
                 # Expedite rush - needs start, target, and caster unit
                 # NOTE: target_pos is (grid_y, grid_x) format from renderer

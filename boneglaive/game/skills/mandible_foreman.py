@@ -1251,15 +1251,8 @@ class JawlineSkill(ActiveSkill):
                             blocked_offsets.add(offset)
                             continue
 
-                    # Check if there's an enemy unit here (blocks further extension)
-                    unit_at_pos = game.get_unit_at(y, x)
-                    if unit_at_pos and unit_at_pos.player != user.player:
-                        # Add this position (enemy gets hit) but block further extension
-                        area_positions.append((y, x))
-                        blocked_offsets.add(offset)
-                        continue
-
-                    # Position is valid and not blocked
+                    # Position is valid and not blocked - add it
+                    # Note: Enemy units do NOT block - the line passes through them
                     area_positions.append((y, x))
 
                 # If all 3 offsets are blocked, stop extending entirely

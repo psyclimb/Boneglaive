@@ -1126,6 +1126,7 @@ class SiteInspectionScan:
         self.grid_size = tile_size  # Size of each grid cell
         self.active = True
         self.laser_alpha = 0
+        self.camera = camera
 
     def update(self, delta_time):
         """Update site inspection animation."""
@@ -1244,6 +1245,373 @@ class SiteInspectionScan:
             pygame.draw.line(surface, (255, 200, 0, self.laser_alpha),
                            (self.center_x, self.center_y - center_cross_size),
                            (self.center_x, self.center_y + center_cross_size), 3)
+
+
+class SiteInspectionScanUpgraded:
+    """
+    UPGRADED Site Inspection animation - Advanced tactical survey with holographic projection.
+    Features dual-pass scanning, holographic terrain mapping, and tactical overlay system.
+    """
+    def __init__(self, center_x, center_y, camera=None):
+        # Get tile size from camera (or fallback to default)
+        if camera:
+            tile_size = camera.tile_size
+        else:
+            tile_size = TILE_SIZE
+
+        self.center_x = center_x
+        self.center_y = center_y
+        self.phase = "initialization"  # initialization, first_scan, hologram_projection, second_scan, tactical_overlay, complete
+        self.timer = 0
+        self.scan_progress = 0  # 0 to 1
+        self.grid_size = tile_size
+        self.active = True
+        self.laser_alpha = 0
+        self.camera = camera
+
+        # Dual-pass scan tracking
+        self.scan_pass = 0  # 0 or 1 (two passes)
+
+        # Holographic grid nodes - 3x3 grid positions
+        self.grid_nodes = []
+        for dy in [-1, 0, 1]:
+            for dx in [-1, 0, 1]:
+                node_x = center_x + dx * tile_size
+                node_y = center_y + dy * tile_size
+                self.grid_nodes.append({
+                    'x': node_x,
+                    'y': node_y,
+                    'dx': dx,
+                    'dy': dy,
+                    'activation': 0.0,  # 0 to 1
+                    'pulse_phase': random.uniform(0, math.pi * 2)
+                })
+
+        # Data flow particles - flowing between nodes
+        self.data_particles = []
+
+        # Tactical markers that appear during overlay phase
+        self.tactical_markers = []
+
+    def update(self, delta_time):
+        """Update upgraded site inspection animation."""
+        self.timer += delta_time
+
+        if self.phase == "initialization":
+            # Deploy scanner array (0.3s) - corners activate first
+            if self.timer < 0.3:
+                progress = self.timer / 0.3
+                self.laser_alpha = int(255 * progress)
+
+                # Activate corner nodes first, then edges, then center
+                for node in self.grid_nodes:
+                    distance_from_corner = abs(node['dx']) + abs(node['dy'])
+                    if distance_from_corner == 2:  # Corners
+                        node['activation'] = min(1.0, progress * 1.5)
+                    elif distance_from_corner == 1:  # Edges
+                        node['activation'] = min(1.0, max(0, (progress - 0.3) * 2.0))
+                    else:  # Center
+                        node['activation'] = min(1.0, max(0, (progress - 0.6) * 2.5))
+            else:
+                self.phase = "first_scan"
+                self.timer = 0
+                self.laser_alpha = 255
+                for node in self.grid_nodes:
+                    node['activation'] = 1.0
+
+        elif self.phase == "first_scan":
+            # First rapid scan pass - horizontal and vertical sweeps simultaneously (0.6s)
+            if self.timer < 0.6:
+                self.scan_progress = self.timer / 0.6
+
+                # Spawn data particles during scan
+                if random.random() < 0.3:
+                    # Pick random node pair to connect
+                    node_a = random.choice(self.grid_nodes)
+                    node_b = random.choice(self.grid_nodes)
+                    if node_a != node_b:
+                        self.data_particles.append({
+                            'start_x': node_a['x'],
+                            'start_y': node_a['y'],
+                            'end_x': node_b['x'],
+                            'end_y': node_b['y'],
+                            'progress': 0.0,
+                            'speed': random.uniform(1.5, 2.5),
+                            'color': (255, 50, 50)  # Red data flow to match laser color
+                        })
+            else:
+                self.phase = "hologram_projection"
+                self.timer = 0
+
+        elif self.phase == "hologram_projection":
+            # Project holographic terrain map (0.4s)
+            if self.timer < 0.4:
+                progress = self.timer / 0.4
+
+                # All nodes pulse in sync
+                for node in self.grid_nodes:
+                    node['pulse_phase'] += delta_time * 8
+
+                # Spawn more data particles - denser network
+                if random.random() < 0.5:
+                    node_a = random.choice(self.grid_nodes)
+                    node_b = random.choice(self.grid_nodes)
+                    if node_a != node_b:
+                        self.data_particles.append({
+                            'start_x': node_a['x'],
+                            'start_y': node_a['y'],
+                            'end_x': node_b['x'],
+                            'end_y': node_b['y'],
+                            'progress': 0.0,
+                            'speed': random.uniform(2.0, 3.5),
+                            'color': (255, 100, 100)  # Brighter red for hologram phase
+                        })
+            else:
+                self.phase = "second_scan"
+                self.timer = 0
+                self.scan_pass = 1
+
+        elif self.phase == "second_scan":
+            # Second scan pass - diagonal sweeps for comprehensive coverage (0.5s)
+            if self.timer < 0.5:
+                self.scan_progress = self.timer / 0.5
+
+                # Even more data particles - analysis complete
+                if random.random() < 0.4:
+                    node_a = random.choice(self.grid_nodes)
+                    node_b = random.choice(self.grid_nodes)
+                    if node_a != node_b:
+                        self.data_particles.append({
+                            'start_x': node_a['x'],
+                            'start_y': node_a['y'],
+                            'end_x': node_b['x'],
+                            'end_y': node_b['y'],
+                            'progress': 0.0,
+                            'speed': random.uniform(2.5, 4.0),
+                            'color': (255, 200, 0)  # Yellow for second scan (matches center crosshair)
+                        })
+            else:
+                self.phase = "tactical_overlay"
+                self.timer = 0
+
+                # Create tactical markers at each node
+                for node in self.grid_nodes:
+                    self.tactical_markers.append({
+                        'x': node['x'],
+                        'y': node['y'],
+                        'alpha': 0,
+                        'size': 0
+                    })
+
+        elif self.phase == "tactical_overlay":
+            # Display tactical analysis overlay (0.5s display + 0.3s fade)
+            if self.timer < 0.5:
+                # Fade in tactical markers
+                progress = min(1.0, self.timer / 0.2)
+                for marker in self.tactical_markers:
+                    marker['alpha'] = int(255 * progress)
+                    marker['size'] = progress * 25
+
+                # Continue node pulsing
+                for node in self.grid_nodes:
+                    node['pulse_phase'] += delta_time * 5
+            elif self.timer < 0.8:
+                # Fade out
+                fade_progress = (self.timer - 0.5) / 0.3
+                fade_alpha = int(255 * (1.0 - fade_progress))
+                self.laser_alpha = fade_alpha
+                for marker in self.tactical_markers:
+                    marker['alpha'] = fade_alpha
+                for node in self.grid_nodes:
+                    node['activation'] = 1.0 - fade_progress
+            else:
+                self.phase = "complete"
+                self.timer = 0
+
+        elif self.phase == "complete":
+            # Brief hold then deactivate (0.1s)
+            if self.timer >= 0.1:
+                self.active = False
+                return False
+
+        # Update data particles
+        updated_particles = []
+        for particle in self.data_particles:
+            particle['progress'] += delta_time * particle['speed']
+            if particle['progress'] < 1.0:
+                updated_particles.append(particle)
+        self.data_particles = updated_particles
+
+        return True
+
+    def draw(self, surface):
+        """Draw the upgraded site inspection animation."""
+        if not self.active:
+            return
+
+        # Draw 3x3 grid structure
+        grid_offsets = [
+            (-1, -1), (0, -1), (1, -1),
+            (-1,  0), (0,  0), (1,  0),
+            (-1,  1), (0,  1), (1,  1)
+        ]
+
+        # Colors - matching base Site Inspection color scheme
+        laser_red = (255, 0, 0, self.laser_alpha)
+        laser_bright = (255, 100, 100, self.laser_alpha)
+        laser_yellow = (255, 200, 0, self.laser_alpha)
+        grid_line_color = (255, 50, 50, min(self.laser_alpha, 200))
+
+        # Draw grid framework
+        if self.phase != "initialization":
+            # Horizontal lines
+            for i in range(-1, 2):
+                y_pos = self.center_y + i * self.grid_size
+                pygame.draw.line(surface, grid_line_color,
+                               (self.center_x - self.grid_size * 1.5, y_pos),
+                               (self.center_x + self.grid_size * 1.5, y_pos), 2)
+
+            # Vertical lines
+            for i in range(-1, 2):
+                x_pos = self.center_x + i * self.grid_size
+                pygame.draw.line(surface, grid_line_color,
+                               (x_pos, self.center_y - self.grid_size * 1.5),
+                               (x_pos, self.center_y + self.grid_size * 1.5), 2)
+
+        # Draw holographic nodes with pulsing effect
+        for node in self.grid_nodes:
+            if node['activation'] > 0:
+                # Pulsing glow
+                pulse = (math.sin(node['pulse_phase']) + 1) / 2
+                node_alpha = int(self.laser_alpha * node['activation'])
+                glow_size = int(8 + pulse * 4)
+
+                # Outer glow
+                glow_surf = pygame.Surface((glow_size * 4, glow_size * 4), pygame.SRCALPHA)
+                pygame.draw.circle(glow_surf, (255, 50, 50, int(node_alpha * 0.3)),
+                                 (glow_size * 2, glow_size * 2), glow_size * 2)
+                glow_rect = glow_surf.get_rect(center=(int(node['x']), int(node['y'])))
+                surface.blit(glow_surf, glow_rect)
+
+                # Core node - red laser style
+                pygame.draw.circle(surface, (255, 100, 100, node_alpha),
+                                 (int(node['x']), int(node['y'])), glow_size)
+                pygame.draw.circle(surface, (255, 255, 100, node_alpha),  # Yellow center
+                                 (int(node['x']), int(node['y'])), int(glow_size * 0.5))
+
+        # Draw data flow particles - connections between nodes
+        for particle in self.data_particles:
+            current_x = particle['start_x'] + (particle['end_x'] - particle['start_x']) * particle['progress']
+            current_y = particle['start_y'] + (particle['end_y'] - particle['start_y']) * particle['progress']
+
+            # Draw particle with trail
+            particle_alpha = int(self.laser_alpha * (1.0 - particle['progress'] * 0.5))
+            particle_color = (*particle['color'], particle_alpha)
+
+            # Main particle
+            pygame.draw.circle(surface, particle_color,
+                             (int(current_x), int(current_y)), 4)
+
+            # Trail
+            if particle['progress'] > 0.1:
+                trail_progress = particle['progress'] - 0.1
+                trail_x = particle['start_x'] + (particle['end_x'] - particle['start_x']) * trail_progress
+                trail_y = particle['start_y'] + (particle['end_y'] - particle['start_y']) * trail_progress
+                trail_alpha = int(particle_alpha * 0.5)
+                pygame.draw.line(surface, (*particle['color'], trail_alpha),
+                               (int(trail_x), int(trail_y)),
+                               (int(current_x), int(current_y)), 2)
+
+        # Draw scanning beams during scan phases
+        if self.phase == "first_scan":
+            # Horizontal and vertical sweeps - bright red lasers
+            # Horizontal sweep
+            sweep_y = self.center_y - self.grid_size * 1.5 + self.scan_progress * (self.grid_size * 3)
+            pygame.draw.line(surface, laser_bright,
+                           (self.center_x - self.grid_size * 1.5, sweep_y),
+                           (self.center_x + self.grid_size * 1.5, sweep_y), 4)
+
+            # Vertical sweep
+            sweep_x = self.center_x - self.grid_size * 1.5 + self.scan_progress * (self.grid_size * 3)
+            pygame.draw.line(surface, laser_bright,
+                           (sweep_x, self.center_y - self.grid_size * 1.5),
+                           (sweep_x, self.center_y + self.grid_size * 1.5), 4)
+
+            # Intersection glow - yellow
+            pygame.draw.circle(surface, (255, 255, 100, self.laser_alpha),
+                             (int(sweep_x), int(sweep_y)), 8)
+
+        elif self.phase == "second_scan":
+            # Diagonal sweeps for second pass - yellow lasers
+            # Diagonal 1 (top-left to bottom-right)
+            diag_offset = (self.scan_progress - 0.5) * self.grid_size * 3
+            start1_x = self.center_x - self.grid_size * 1.5 + diag_offset
+            start1_y = self.center_y - self.grid_size * 1.5
+            end1_x = self.center_x + self.grid_size * 1.5 + diag_offset
+            end1_y = self.center_y + self.grid_size * 1.5
+            pygame.draw.line(surface, laser_yellow,
+                           (start1_x, start1_y), (end1_x, end1_y), 4)
+
+            # Diagonal 2 (top-right to bottom-left)
+            start2_x = self.center_x + self.grid_size * 1.5 - diag_offset
+            start2_y = self.center_y - self.grid_size * 1.5
+            end2_x = self.center_x - self.grid_size * 1.5 - diag_offset
+            end2_y = self.center_y + self.grid_size * 1.5
+            pygame.draw.line(surface, laser_yellow,
+                           (start2_x, start2_y), (end2_x, end2_y), 4)
+
+        # Draw tactical markers (appear during overlay phase) - green to match corner markers
+        for marker in self.tactical_markers:
+            if marker['alpha'] > 0:
+                # Hexagonal marker with directional indicators
+                size = marker['size']
+                alpha = marker['alpha']
+
+                # Outer hexagon - green
+                hex_points = []
+                for i in range(6):
+                    angle = math.radians(60 * i)
+                    px = marker['x'] + size * math.cos(angle)
+                    py = marker['y'] + size * math.sin(angle)
+                    hex_points.append((px, py))
+
+                pygame.draw.polygon(surface, (0, 255, 0, alpha), hex_points, 2)
+
+                # Inner crosshair - green
+                cross_size = size * 0.5
+                pygame.draw.line(surface, (0, 255, 0, alpha),
+                               (marker['x'] - cross_size, marker['y']),
+                               (marker['x'] + cross_size, marker['y']), 2)
+                pygame.draw.line(surface, (0, 255, 0, alpha),
+                               (marker['x'], marker['y'] - cross_size),
+                               (marker['x'], marker['y'] + cross_size), 2)
+
+        # Draw center reticle (always visible during active phases)
+        if self.phase not in ["initialization", "complete"]:
+            reticle_size = 15
+            reticle_alpha = self.laser_alpha
+
+            # Rotating outer ring
+            rotation = self.timer * 180  # Degrees
+            for i in range(4):
+                angle = math.radians(rotation + i * 90)
+                segment_start = angle
+                segment_end = angle + math.radians(60)
+
+                # Arc segment (approximated with lines)
+                arc_points = []
+                for step in range(10):
+                    arc_angle = segment_start + (segment_end - segment_start) * step / 9
+                    px = self.center_x + reticle_size * math.cos(arc_angle)
+                    py = self.center_y + reticle_size * math.sin(arc_angle)
+                    arc_points.append((int(px), int(py)))
+
+                if len(arc_points) > 1:
+                    pygame.draw.lines(surface, (255, 200, 0, reticle_alpha), False, arc_points, 3)
+
+            # Center dot
+            pygame.draw.circle(surface, (255, 255, 100, reticle_alpha),
+                             (int(self.center_x), int(self.center_y)), 4)
 
 
 class ExpediteRush:
@@ -1753,6 +2121,417 @@ class JawlineNetwork:
         # Draw upper and lower jaws
         self.draw_trap_jaw(trap_surf, center, center, jaw_angle, True, alpha)  # Upper jaw
         self.draw_trap_jaw(trap_surf, center, center, jaw_angle, False, alpha)  # Lower jaw
+
+        # Blit to main surface
+        trap_rect = trap_surf.get_rect(center=(int(x), int(y)))
+        surface.blit(trap_surf, trap_rect)
+
+    def draw_trap_jaw(self, surface, cx, cy, angle, is_upper, alpha):
+        """Draw a single jaw of the bear trap."""
+        # Metal colors
+        metal_light = (160, 160, 170, alpha)
+        metal_teeth = (200, 200, 210, alpha)
+        metal_dark = (100, 100, 110, alpha)
+
+        # Jaw parameters
+        jaw_length = 20
+        jaw_width = 9
+
+        # Calculate jaw angle (upper jaw rotates up, lower rotates down)
+        angle_rad = math.radians(angle if is_upper else -angle)
+
+        # Jaw arm as quadrilateral
+        arm_points = []
+        # Near points at hinge
+        for side_offset in [-jaw_width//2, jaw_width//2]:
+            px = cx + side_offset * math.cos(angle_rad + math.pi/2)
+            py = cy + side_offset * math.sin(angle_rad + math.pi/2)
+            arm_points.append((px, py))
+        # Far points at end
+        for side_offset in [jaw_width//2, -jaw_width//2]:
+            px = cx + jaw_length * math.cos(angle_rad) + side_offset * math.cos(angle_rad + math.pi/2)
+            py = cy + jaw_length * math.sin(angle_rad) + side_offset * math.sin(angle_rad + math.pi/2)
+            arm_points.append((px, py))
+
+        pygame.draw.polygon(surface, metal_light, arm_points)
+        pygame.draw.polygon(surface, metal_dark, arm_points, 2)
+
+        # Teeth along the jaw (4 sharp teeth pointing inward)
+        for tooth_idx in range(4):
+            tooth_dist = (tooth_idx + 0.7) * jaw_length / 4.5
+            tooth_base_x = cx + tooth_dist * math.cos(angle_rad)
+            tooth_base_y = cy + tooth_dist * math.sin(angle_rad)
+
+            # Tooth length and direction (perpendicular, pointing inward)
+            tooth_length = 6
+            tooth_angle = angle_rad + (math.pi/2 if not is_upper else -math.pi/2)
+
+            # Triangle tooth
+            tooth_tip_x = tooth_base_x + tooth_length * math.cos(tooth_angle)
+            tooth_tip_y = tooth_base_y + tooth_length * math.sin(tooth_angle)
+
+            tooth_base_offset = 2.5
+            tooth_base1_x = tooth_base_x + tooth_base_offset * math.cos(angle_rad)
+            tooth_base1_y = tooth_base_y + tooth_base_offset * math.sin(angle_rad)
+            tooth_base2_x = tooth_base_x - tooth_base_offset * math.cos(angle_rad)
+            tooth_base2_y = tooth_base_y - tooth_base_offset * math.sin(angle_rad)
+
+            tooth_points = [
+                (tooth_tip_x, tooth_tip_y),
+                (tooth_base1_x, tooth_base1_y),
+                (tooth_base2_x, tooth_base2_y)
+            ]
+            pygame.draw.polygon(surface, metal_teeth, tooth_points)
+            pygame.draw.polygon(surface, metal_light, tooth_points, 1)
+
+
+class JawlineNetworkUpgraded:
+    """
+    UPGRADED JAWLINE - Directional cable spools roll out in chosen direction.
+    Foreman releases 3 cable spools that roll forward, unspooling cables with bear traps.
+    """
+    def __init__(self, center_x, center_y, target_x, target_y, camera=None, game=None, caster_unit=None):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.target_x = target_x
+        self.target_y = target_y
+        self.phase = "launch"  # launch, rolling, deploying_traps, snapping, active, fading
+        self.timer = 0
+        self.active = True
+        self.camera = camera
+        self.game = game
+        self.caster_unit = caster_unit
+
+        # Get tile size from camera
+        if camera:
+            self.tile_size = camera.tile_size
+        else:
+            self.tile_size = TILE_SIZE
+
+        # Convert screen positions to grid positions to get proper direction
+        if camera:
+            from boneglaive.graphical.renderer import GRID_OFFSET_X, GRID_OFFSET_Y
+            caster_grid_x = (center_x - GRID_OFFSET_X) // self.tile_size
+            caster_grid_y = (center_y - GRID_OFFSET_Y) // self.tile_size
+            target_grid_x = (target_x - GRID_OFFSET_X) // self.tile_size
+            target_grid_y = (target_y - GRID_OFFSET_Y) // self.tile_size
+        else:
+            # Fallback without camera
+            caster_grid_x = center_x // self.tile_size
+            caster_grid_y = center_y // self.tile_size
+            target_grid_x = target_x // self.tile_size
+            target_grid_y = target_y // self.tile_size
+
+        # Calculate grid direction (unit vector in grid space)
+        grid_dx = target_grid_x - caster_grid_x
+        grid_dy = target_grid_y - caster_grid_y
+
+        # Normalize to unit direction (-1, 0, or 1 for each component)
+        if grid_dy != 0:
+            self.dir_grid_y = grid_dy // abs(grid_dy)
+        else:
+            self.dir_grid_y = 0
+
+        if grid_dx != 0:
+            self.dir_grid_x = grid_dx // abs(grid_dx)
+        else:
+            self.dir_grid_x = 0
+
+        # Calculate perpendicular direction in grid space for the 3-wide part
+        if self.dir_grid_y == 0:  # Horizontal line
+            self.perp_grid_y, self.perp_grid_x = 1, 0
+        elif self.dir_grid_x == 0:  # Vertical line
+            self.perp_grid_y, self.perp_grid_x = 0, 1
+        else:  # Diagonal line
+            self.perp_grid_y, self.perp_grid_x = -self.dir_grid_x, self.dir_grid_y
+
+        # Store caster grid position for calculations
+        self.caster_grid_x = caster_grid_x
+        self.caster_grid_y = caster_grid_y
+
+        # Three rolling cable spools (center, left, right) - positioned on grid
+        self.spools = []
+        for offset in [-1, 0, 1]:  # Left, center, right
+            # Calculate starting grid position for this lane
+            start_grid_x = caster_grid_x + self.perp_grid_x * offset
+            start_grid_y = caster_grid_y + self.perp_grid_y * offset
+
+            # Convert to screen coordinates (center of tile)
+            if camera:
+                spool_x = GRID_OFFSET_X + start_grid_x * self.tile_size + self.tile_size // 2
+                spool_y = GRID_OFFSET_Y + start_grid_y * self.tile_size + self.tile_size // 2
+            else:
+                spool_x = start_grid_x * self.tile_size + self.tile_size // 2
+                spool_y = start_grid_y * self.tile_size + self.tile_size // 2
+
+            self.spools.append({
+                'start_x': spool_x,
+                'start_y': spool_y,
+                'x': spool_x,
+                'y': spool_y,
+                'start_grid_x': start_grid_x,
+                'start_grid_y': start_grid_y,
+                'offset': offset,  # -1, 0, 1
+                'rotation': 0,  # Rotation angle for rolling
+                'tiles_traveled': 0,  # Number of tiles traveled
+                'traps_deployed': [],  # Trap positions along this spool's path
+                'blocked': False  # Whether this lane is blocked
+            })
+
+        # Track deployed traps across all spools
+        self.all_traps = []
+
+        # Rolling speed (tiles per second)
+        self.roll_speed = 6  # 6 tiles per second
+
+        # Maximum roll distance (9 tiles)
+        self.max_tiles = 9
+
+    def update(self, delta_time):
+        """Update upgraded jawline animation."""
+        self.timer += delta_time
+
+        if self.phase == "launch":
+            # Brief launch preparation (0.2s)
+            if self.timer >= 0.2:
+                self.phase = "rolling"
+                self.timer = 0
+
+        elif self.phase == "rolling":
+            # Spools roll forward tile-by-tile, deploying cable and traps
+            # Calculate how many tiles we should have traveled
+            tiles_should_travel = self.roll_speed * self.timer
+
+            for spool in self.spools:
+                if spool['blocked']:
+                    continue
+
+                # Calculate target tile for this spool
+                target_tiles = min(int(tiles_should_travel), self.max_tiles)
+
+                if target_tiles > spool['tiles_traveled']:
+                    # Deploy trap at the new tile
+                    new_tile_distance = target_tiles
+
+                    # Calculate grid position of new trap
+                    trap_grid_x = spool['start_grid_x'] + self.dir_grid_x * new_tile_distance
+                    trap_grid_y = spool['start_grid_y'] + self.dir_grid_y * new_tile_distance
+
+                    # Check if this position is blocked (terrain, furniture, or enemy unit)
+                    is_blocked = False
+                    if self.game:
+                        # Check if position is valid
+                        if not self.game.is_valid_position(trap_grid_y, trap_grid_x):
+                            is_blocked = True
+                        # Check if blocked by impassable terrain
+                        elif not self.game.map.is_passable(trap_grid_y, trap_grid_x):
+                            is_blocked = True
+                        # Check if blocked by furniture (line of sight check from previous tile)
+                        elif new_tile_distance > 1:
+                            prev_grid_x = spool['start_grid_x'] + self.dir_grid_x * (new_tile_distance - 1)
+                            prev_grid_y = spool['start_grid_y'] + self.dir_grid_y * (new_tile_distance - 1)
+                            if not self.game.has_line_of_sight(prev_grid_y, prev_grid_x, trap_grid_y, trap_grid_x):
+                                is_blocked = True
+                        else:
+                            # For first tile, check from caster
+                            if not self.game.has_line_of_sight(self.caster_grid_y, self.caster_grid_x, trap_grid_y, trap_grid_x):
+                                is_blocked = True
+
+                    # If blocked by terrain/furniture, stop this spool
+                    if is_blocked:
+                        spool['blocked'] = True
+                        spool['tiles_traveled'] = new_tile_distance - 1  # Stop at previous tile
+                        continue
+
+                    # Note: Enemy units do NOT block - spools pass through them
+
+                    # Convert to screen coordinates (center of tile)
+                    if self.camera:
+                        from boneglaive.graphical.renderer import GRID_OFFSET_X, GRID_OFFSET_Y
+                        trap_x = GRID_OFFSET_X + trap_grid_x * self.tile_size + self.tile_size // 2
+                        trap_y = GRID_OFFSET_Y + trap_grid_y * self.tile_size + self.tile_size // 2
+                    else:
+                        trap_x = trap_grid_x * self.tile_size + self.tile_size // 2
+                        trap_y = trap_grid_y * self.tile_size + self.tile_size // 2
+
+                    # Create trap at this position
+                    trap_data = {
+                        'x': trap_x,
+                        'y': trap_y,
+                        'grid_x': trap_grid_x,
+                        'grid_y': trap_grid_y,
+                        'jaw_angle': 45,  # Start open
+                        'deploy_time': self.timer,
+                        'spool': spool
+                    }
+                    spool['traps_deployed'].append(trap_data)
+                    self.all_traps.append(trap_data)
+                    spool['tiles_traveled'] = target_tiles
+
+                # Update spool position (smooth interpolation between tiles)
+                if not spool['blocked']:
+                    progress_to_next_tile = tiles_should_travel - spool['tiles_traveled']
+                    if progress_to_next_tile > 0 and spool['tiles_traveled'] < self.max_tiles:
+                        # Spool is between tiles - interpolate position
+                        current_tile_distance = spool['tiles_traveled'] + progress_to_next_tile
+                    else:
+                        current_tile_distance = spool['tiles_traveled']
+                else:
+                    # Blocked - stay at final position
+                    current_tile_distance = spool['tiles_traveled']
+
+                # Calculate spool screen position
+                spool_grid_x = spool['start_grid_x'] + self.dir_grid_x * current_tile_distance
+                spool_grid_y = spool['start_grid_y'] + self.dir_grid_y * current_tile_distance
+
+                if self.camera:
+                    from boneglaive.graphical.renderer import GRID_OFFSET_X, GRID_OFFSET_Y
+                    spool['x'] = GRID_OFFSET_X + spool_grid_x * self.tile_size + self.tile_size // 2
+                    spool['y'] = GRID_OFFSET_Y + spool_grid_y * self.tile_size + self.tile_size // 2
+                else:
+                    spool['x'] = spool_grid_x * self.tile_size + self.tile_size // 2
+                    spool['y'] = spool_grid_y * self.tile_size + self.tile_size // 2
+
+                # Update rotation (rolls as it moves)
+                spool['rotation'] = (current_tile_distance * 360)  # Full rotation per tile
+
+                # Check if reached max distance
+                if spool['tiles_traveled'] >= self.max_tiles:
+                    spool['blocked'] = True
+
+            # Check if all spools are blocked or at max distance
+            if all(spool['blocked'] for spool in self.spools):
+                self.phase = "deploying_traps"
+                self.timer = 0
+
+        elif self.phase == "deploying_traps":
+            # Brief pause to show all traps deployed (0.15s)
+            if self.timer >= 0.15:
+                self.phase = "snapping"
+                self.timer = 0
+
+        elif self.phase == "snapping":
+            # All traps snap shut simultaneously (0.12s)
+            if self.timer < 0.12:
+                snap_progress = self.timer / 0.12
+                for trap in self.all_traps:
+                    # Jaws close from 45° to 0° with ease-in
+                    ease = snap_progress * snap_progress
+                    trap['jaw_angle'] = 45 * (1.0 - ease)
+            else:
+                for trap in self.all_traps:
+                    trap['jaw_angle'] = 0
+                self.phase = "active"
+                self.timer = 0
+
+        elif self.phase == "active":
+            # Hold active state (0.8s)
+            if self.timer >= 0.8:
+                self.phase = "fading"
+                self.timer = 0
+
+        elif self.phase == "fading":
+            # Fade out (0.3s)
+            if self.timer >= 0.3:
+                self.active = False
+                return False
+
+        return True
+
+    def draw(self, surface):
+        """Draw the upgraded jawline animation."""
+        if not self.active:
+            return
+
+        # Calculate alpha for fading
+        if self.phase == "fading":
+            alpha = int(255 * (1.0 - self.timer / 0.3))
+        else:
+            alpha = 255
+
+        # Orange cable color
+        cable_color = (255, 102, 0, alpha)
+
+        # Draw cables from FOREMAN to each spool
+        for spool in self.spools:
+            if spool['tiles_traveled'] > 0:
+                # Draw cable as line from start to current spool position
+                pygame.draw.line(surface, cable_color,
+                               (int(spool['start_x']), int(spool['start_y'])),
+                               (int(spool['x']), int(spool['y'])), 3)
+
+        # Draw deployed traps
+        for trap in self.all_traps:
+            self.draw_bear_trap(surface, trap['x'], trap['y'], trap['jaw_angle'], alpha)
+
+        # Draw rolling cable spools
+        for spool in self.spools:
+            if not spool['blocked'] or self.phase in ["snapping", "active", "fading"]:
+                # Draw as rolling spool
+                self.draw_cable_spool(surface, spool['x'], spool['y'], spool['rotation'], alpha)
+
+    def draw_cable_spool(self, surface, x, y, rotation, alpha):
+        """Draw a rolling cable spool."""
+        spool_radius = 12
+
+        # Create surface for the spool
+        spool_surf = pygame.Surface((spool_radius * 4, spool_radius * 4), pygame.SRCALPHA)
+        center = spool_radius * 2
+
+        # Metal colors
+        metal_dark = (100, 100, 110, alpha)
+        metal_light = (160, 160, 170, alpha)
+        orange = (255, 102, 0, alpha)
+
+        # Outer rim
+        pygame.draw.circle(spool_surf, metal_dark, (center, center), spool_radius)
+        pygame.draw.circle(spool_surf, metal_light, (center, center), spool_radius, 2)
+
+        # Draw cable wrapped around spool (rotating lines)
+        num_spokes = 6
+        for i in range(num_spokes):
+            angle = math.radians(rotation + i * (360 / num_spokes))
+            start_x = center + math.cos(angle) * (spool_radius * 0.3)
+            start_y = center + math.sin(angle) * (spool_radius * 0.3)
+            end_x = center + math.cos(angle) * spool_radius
+            end_y = center + math.sin(angle) * spool_radius
+            pygame.draw.line(spool_surf, orange, (start_x, start_y), (end_x, end_y), 2)
+
+        # Center hub
+        pygame.draw.circle(spool_surf, metal_light, (center, center), int(spool_radius * 0.4))
+        pygame.draw.circle(spool_surf, metal_dark, (center, center), int(spool_radius * 0.4), 1)
+
+        # Blit to main surface
+        spool_rect = spool_surf.get_rect(center=(int(x), int(y)))
+        surface.blit(spool_surf, spool_rect)
+
+    def draw_bear_trap(self, surface, x, y, jaw_angle, alpha):
+        """Draw a mechanical bear trap (reusing base Jawline method)."""
+        trap_size = 24
+
+        # Create surface for the trap
+        trap_surf = pygame.Surface((trap_size * 3, trap_size * 3), pygame.SRCALPHA)
+        center = trap_size * 1.5
+
+        # Metal colors
+        metal_dark = (100, 100, 110, alpha)
+        metal_light = (160, 160, 170, alpha)
+        metal_teeth = (200, 200, 210, alpha)
+
+        # Base plate
+        base_w = int(trap_size * 0.8)
+        base_h = int(trap_size * 0.4)
+        base_rect = pygame.Rect(center - base_w // 2, center - base_h // 2, base_w, base_h)
+        pygame.draw.rect(trap_surf, metal_dark, base_rect)
+        pygame.draw.rect(trap_surf, metal_light, base_rect, 2)
+
+        # Central hinge pivot
+        pygame.draw.circle(trap_surf, metal_light, (int(center), int(center)), 5)
+        pygame.draw.circle(trap_surf, metal_dark, (int(center), int(center)), 5, 2)
+
+        # Draw upper and lower jaws
+        self.draw_trap_jaw(trap_surf, center, center, jaw_angle, True, alpha)
+        self.draw_trap_jaw(trap_surf, center, center, jaw_angle, False, alpha)
 
         # Blit to main surface
         trap_rect = trap_surf.get_rect(center=(int(x), int(y)))

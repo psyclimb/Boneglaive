@@ -34,8 +34,10 @@ from .mandible_foreman import (
     ViseroyRelease,
     SiteInspectionBuff,
     SiteInspectionScan,
+    SiteInspectionScanUpgraded,
     ExpediteRush,
-    JawlineNetwork
+    JawlineNetwork,
+    JawlineNetworkUpgraded
 )
 
 from .potpourrist import (
@@ -151,8 +153,10 @@ __all__ = [
     'ViseroyRelease',
     'SiteInspectionBuff',
     'SiteInspectionScan',
+    'SiteInspectionScanUpgraded',
     'ExpediteRush',
     'JawlineNetwork',
+    'JawlineNetworkUpgraded',
     # Potpourrist
     'PedestalStrike',
     'InfuseEffect',
