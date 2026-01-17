@@ -606,6 +606,14 @@ class GameStateAdapter:
                     # Clear the pending teleport flag
                     visual_unit.pending_teleport_skill = None
 
+                # Check if this unit was abducted by Delta Config (upgraded)
+                is_abducted = hasattr(game_unit, 'abducted_by_delta_config') and game_unit.abducted_by_delta_config
+                if is_abducted:
+                    # Clear the abduction flag
+                    game_unit.abducted_by_delta_config = False
+                    # Treat as teleport to prevent walk cycle
+                    is_teleport = True
+
                 # Check if this is a DERELICTIONIST defection teleport (partition dissociation)
                 is_defection_teleport = (hasattr(game_unit, 'pending_teleport_defection') and
                                         game_unit.pending_teleport_defection)

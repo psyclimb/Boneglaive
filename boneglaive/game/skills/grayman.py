@@ -378,6 +378,9 @@ class DeltaConfigSkill(ActiveSkill):
 
             # Move each abducted enemy to their new position around the destination
             for enemy, rel_dy, rel_dx in abducted_enemies:
+                # Mark enemy as being abducted (graphical system will use this to prevent walk cycle)
+                enemy.abducted_by_delta_config = True
+
                 # Try to maintain relative position
                 dest_y = target_pos[0] + rel_dy
                 dest_x = target_pos[1] + rel_dx

@@ -13,25 +13,41 @@ class DeltaConfigAnimation:
     """
     Teleportation animation that 'pulls' the destination point toward the caster,
     then snaps to the destination. Represents bending space-time.
+
+    When upgraded: Abducts all adjacent enemies and synchronizes their animations
+    with the GRAYMAN's teleport.
     """
 
-    def __init__(self, caster_unit, target_pos, particle_emitter, camera=None):
+    def __init__(self, caster_unit, target_pos, particle_emitter, camera=None, game=None, units_list=None):
         """
         Args:
             caster_unit: AnimatedUnit teleporting
             target_pos: Target grid position (grid_x, grid_y)
             particle_emitter: ParticleEmitter for spawning particles
             camera: Camera instance for coordinate conversion (optional)
+            game: Game instance for checking upgrade status
+            units_list: List of all AnimatedUnits (for enemy abduction)
         """
         self.caster_unit = caster_unit
         # NOTE: target_pos is (grid_y, grid_x) format from renderer - UNPACK CORRECTLY!
         self.target_grid_y, self.target_grid_x = target_pos
         self.particle_emitter = particle_emitter
         self.camera = camera
+        self.game = game
+        self.units_list = units_list if units_list else []
+
+        # Check if skill is upgraded
+        self.is_upgraded = False
+        if game and hasattr(caster_unit, 'game_unit') and caster_unit.game_unit:
+            from boneglaive.game.upgrades import UpgradeManager
+            self.is_upgraded = UpgradeManager.is_skill_upgraded(caster_unit.game_unit, "Delta Config")
 
         # Convert grid to screen coordinates using camera
         self.source_x = caster_unit.x
         self.source_y = caster_unit.y
+        self.source_grid_x = caster_unit.grid_x
+        self.source_grid_y = caster_unit.grid_y
+
         if self.camera:
             self.target_x, self.target_y = self.camera.grid_to_screen(self.target_grid_x, self.target_grid_y)
         else:
@@ -40,6 +56,11 @@ class DeltaConfigAnimation:
             GRID_OFFSET_Y = 50
             self.target_x = GRID_OFFSET_X + self.target_grid_x * TILE_SIZE + TILE_SIZE // 2
             self.target_y = GRID_OFFSET_Y + self.target_grid_y * TILE_SIZE + TILE_SIZE // 2
+
+        # Collect abducted enemies if upgraded
+        self.abducted_enemies = []
+        if self.is_upgraded:
+            self._collect_abducted_enemies()
 
         # Animation phases
         self.phase = "energize"  # energize, pull, hold, snap, appear
@@ -71,10 +92,96 @@ class DeltaConfigAnimation:
                 y = self.source_y + dy * t
                 self.pull_chain.append((x, y))
 
+        # Create pull chains for abducted enemies
+        self.enemy_pull_chains = []
+        for enemy_data in self.abducted_enemies:
+            enemy_unit = enemy_data['unit']
+            enemy_chain = []
+
+            # Calculate enemy's target position (maintaining relative offset)
+            enemy_target_x, enemy_target_y = self._calculate_enemy_target_screen(enemy_data)
+
+            # Calculate pull chain for this enemy
+            dx_enemy = enemy_target_x - enemy_unit.x
+            dy_enemy = enemy_target_y - enemy_unit.y
+            dist_enemy = math.sqrt(dx_enemy*dx_enemy + dy_enemy*dy_enemy)
+
+            if dist_enemy > 0:
+                num_pts = int(dist_enemy / 15) + 2
+                for i in range(num_pts):
+                    t = i / (num_pts - 1) if num_pts > 1 else 0
+                    x = enemy_unit.x + dx_enemy * t
+                    y = enemy_unit.y + dy_enemy * t
+                    enemy_chain.append((x, y))
+
+            self.enemy_pull_chains.append({
+                'unit': enemy_unit,
+                'chain': enemy_chain,
+                'source_x': enemy_unit.x,
+                'source_y': enemy_unit.y,
+                'target_x': enemy_target_x,
+                'target_y': enemy_target_y,
+                'relative_offset': enemy_data['relative_offset']
+            })
+
+        # Electromagnetic well state (upgraded only)
+        self.well_tiles = []  # List of 8 adjacent tile positions (screen coords)
+        if self.is_upgraded and self.camera:
+            # Calculate 3x3 grid around source (excluding center)
+            offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+            for dy, dx in offsets:
+                well_x, well_y = self.camera.grid_to_screen(
+                    self.source_grid_x + dx,
+                    self.source_grid_y + dy,
+                    centered=True
+                )
+                self.well_tiles.append((well_x, well_y))
+
         # Flags
         self.energize_particles_spawned = False
         self.snap_particles_spawned = False
         self.teleported = False
+
+    def _collect_abducted_enemies(self):
+        """Collect all adjacent enemy units for upgraded Delta Config."""
+        if not hasattr(self.caster_unit, 'game_unit') or not self.caster_unit.game_unit:
+            return
+
+        caster_player = self.caster_unit.game_unit.player
+
+        # Check all 8 adjacent positions
+        adjacent_offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+
+        for animated_unit in self.units_list:
+            if not hasattr(animated_unit, 'game_unit') or not animated_unit.game_unit:
+                continue
+
+            # Check if enemy (different player) and adjacent to caster
+            if animated_unit.game_unit.player != caster_player:
+                dy = animated_unit.grid_y - self.source_grid_y
+                dx = animated_unit.grid_x - self.source_grid_x
+
+                if (dy, dx) in adjacent_offsets:
+                    self.abducted_enemies.append({
+                        'unit': animated_unit,
+                        'relative_offset': (dy, dx)  # Store relative position
+                    })
+
+    def _calculate_enemy_target_screen(self, enemy_data):
+        """Calculate screen position where enemy should end up (maintaining relative offset)."""
+        dy, dx = enemy_data['relative_offset']
+        target_grid_y = self.target_grid_y + dy
+        target_grid_x = self.target_grid_x + dx
+
+        if self.camera:
+            return self.camera.grid_to_screen(target_grid_x, target_grid_y)
+        else:
+            # Fallback
+            GRID_OFFSET_X = 100
+            GRID_OFFSET_Y = 50
+            screen_x = GRID_OFFSET_X + target_grid_x * TILE_SIZE + TILE_SIZE // 2
+            screen_y = GRID_OFFSET_Y + target_grid_y * TILE_SIZE + TILE_SIZE // 2
+            return screen_x, screen_y
 
     def update(self, delta_time):
         """Update animation state."""
@@ -130,6 +237,12 @@ class DeltaConfigAnimation:
             if not self.teleported:
                 # Hide caster temporarily (will reappear at target)
                 self.caster_unit.visible = False
+
+                # Hide abducted enemies if upgraded
+                if self.is_upgraded:
+                    for enemy_chain in self.enemy_pull_chains:
+                        enemy_chain['unit'].visible = False
+
                 self.teleported = True
 
             if self.timer >= self.snap_duration:
@@ -146,7 +259,33 @@ class DeltaConfigAnimation:
                 self.caster_unit.y = self.target_y
                 self.caster_unit.visible = True
 
-                # Spawn arrival particles
+                # Move abducted enemies to their target positions if upgraded
+                if self.is_upgraded:
+                    for enemy_chain in self.enemy_pull_chains:
+                        enemy_unit = enemy_chain['unit']
+                        dy, dx = enemy_chain['relative_offset']
+
+                        # Update grid position
+                        enemy_unit.grid_x = self.target_grid_x + dx
+                        enemy_unit.grid_y = self.target_grid_y + dy
+
+                        # Update screen position
+                        enemy_unit.x = enemy_chain['target_x']
+                        enemy_unit.y = enemy_chain['target_y']
+                        enemy_unit.visible = True
+
+                        # Spawn arrival particles for each enemy
+                        for _ in range(15):  # Fewer particles per enemy
+                            angle = random.uniform(0, 2 * math.pi)
+                            speed = random.uniform(80, 200)
+                            vx = math.cos(angle) * speed
+                            vy = math.sin(angle) * speed
+                            color = random.choice([self.color_outer, self.color_inner])
+                            particle = Particle(enemy_unit.x, enemy_unit.y, vx, vy,
+                                              lifetime=0.4, size=4, color=color)
+                            self.particle_emitter.particles.append(particle)
+
+                # Spawn arrival particles for caster
                 for _ in range(30):
                     angle = random.uniform(0, 2 * math.pi)
                     speed = random.uniform(80, 200)
@@ -206,6 +345,20 @@ class DeltaConfigAnimation:
                 ]
                 pygame.draw.polygon(surface, self.color_bright, points, 2)
 
+            # Draw expanding electromagnetic well (upgraded only)
+            if self.is_upgraded:
+                # Draw expanding electromagnetic field (bubble effect)
+                well_progress = min(1.0, progress * 1.5)  # Faster expansion
+                for tile_x, tile_y in self.well_tiles:
+                    # Expanding circles on each adjacent tile
+                    well_radius = int(TILE_SIZE * 0.3 * well_progress)
+                    if well_radius > 2:
+                        well_surf = pygame.Surface((well_radius * 2, well_radius * 2), pygame.SRCALPHA)
+                        alpha = int(100 * well_progress)
+                        pygame.draw.circle(well_surf, (*self.color_outer, alpha),
+                                         (well_radius, well_radius), well_radius, 2)
+                        surface.blit(well_surf, (int(tile_x - well_radius), int(tile_y - well_radius)))
+
         elif self.phase == "pull":
             # Draw pulsing energy at source
             pulse = 0.8 + 0.2 * math.sin(self.timer * 20)
@@ -237,6 +390,93 @@ class DeltaConfigAnimation:
                             pygame.draw.line(surface, self.color_inner,
                                           (int(x1), int(y1)), (int(x2), int(y2)), 2)
 
+            # Draw pull chains for abducted enemies if upgraded
+            if self.is_upgraded:
+                for enemy_chain_data in self.enemy_pull_chains:
+                    enemy_chain = enemy_chain_data['chain']
+                    enemy_unit = enemy_chain_data['unit']
+                    enemy_source_x = enemy_chain_data['source_x']
+                    enemy_source_y = enemy_chain_data['source_y']
+                    enemy_target_x = enemy_chain_data['target_x']
+                    enemy_target_y = enemy_chain_data['target_y']
+
+                    # Draw pulsing energy at enemy source
+                    enemy_glow_radius = int(12 * pulse)
+                    enemy_glow_surf = pygame.Surface((enemy_glow_radius * 2, enemy_glow_radius * 2), pygame.SRCALPHA)
+                    pygame.draw.circle(enemy_glow_surf, (*self.color_outer, 120),
+                                     (enemy_glow_radius, enemy_glow_radius), enemy_glow_radius)
+                    surface.blit(enemy_glow_surf, (int(enemy_source_x - enemy_glow_radius),
+                                                  int(enemy_source_y - enemy_glow_radius)))
+
+                    # Draw enemy pull chain
+                    if len(enemy_chain) > 1:
+                        visible_points_enemy = int(len(enemy_chain) * self.pull_progress)
+                        if visible_points_enemy > 1:
+                            for i in range(len(enemy_chain) - 1, max(len(enemy_chain) - visible_points_enemy, 0), -1):
+                                if i > 0:
+                                    x1, y1 = enemy_chain[i]
+                                    x2, y2 = enemy_chain[i - 1]
+
+                                    # Fade effect
+                                    fade = (i / len(enemy_chain))
+                                    alpha = int(180 * fade)  # Slightly dimmer than main chain
+
+                                    # Draw thinner lines for enemies
+                                    pygame.draw.line(surface, (*self.color_outer, alpha),
+                                                  (int(x1), int(y1)), (int(x2), int(y2)), 3)
+                                    pygame.draw.line(surface, (*self.color_inner, alpha),
+                                                  (int(x1), int(y1)), (int(x2), int(y2)), 1)
+
+                    # Draw small glow at enemy target
+                    enemy_target_glow = int(8 * self.pull_progress)
+                    if enemy_target_glow > 2:
+                        enemy_target_glow_surf = pygame.Surface((enemy_target_glow * 2, enemy_target_glow * 2), pygame.SRCALPHA)
+                        pygame.draw.circle(enemy_target_glow_surf, (*self.color_outer, 100),
+                                         (enemy_target_glow, enemy_target_glow), enemy_target_glow)
+                        surface.blit(enemy_target_glow_surf, (int(enemy_target_x - enemy_target_glow),
+                                                             int(enemy_target_y - enemy_target_glow)))
+
+            # Draw electromagnetic well moving during pull (upgraded only)
+            if self.is_upgraded:
+                # Draw electromagnetic well moving with pull progress
+                # Interpolate well position from source to target
+                offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+                for i, (source_tile_x, source_tile_y) in enumerate(self.well_tiles):
+                    # Calculate corresponding target tile position
+                    dy, dx = offsets[i]
+                    if self.camera:
+                        target_tile_x, target_tile_y = self.camera.grid_to_screen(
+                            self.target_grid_x + dx,
+                            self.target_grid_y + dy,
+                            centered=True
+                        )
+                    else:
+                        target_tile_x = self.target_x + dx * TILE_SIZE
+                        target_tile_y = self.target_y + dy * TILE_SIZE
+
+                    # Interpolate position based on pull progress
+                    interp_x = source_tile_x + (target_tile_x - source_tile_x) * self.pull_progress
+                    interp_y = source_tile_y + (target_tile_y - source_tile_y) * self.pull_progress
+
+                    # Draw pulsing hexagonal well boundary
+                    hex_radius = int(TILE_SIZE * 0.35)
+                    hex_points = []
+                    for angle_i in range(6):
+                        angle = (angle_i / 6) * 2 * math.pi + self.timer * 2  # Rotating
+                        px = interp_x + math.cos(angle) * hex_radius
+                        py = interp_y + math.sin(angle) * hex_radius
+                        hex_points.append((int(px), int(py)))
+
+                    # Draw hexagon outline with pulsing alpha
+                    alpha = int(120 + 50 * math.sin(self.timer * 10))
+                    pygame.draw.polygon(surface, (*self.color_outer, alpha), hex_points, 2)
+
+                    # Inner glow
+                    inner_glow_surf = pygame.Surface((hex_radius * 2, hex_radius * 2), pygame.SRCALPHA)
+                    pygame.draw.circle(inner_glow_surf, (*self.color_inner, 60),
+                                     (hex_radius, hex_radius), hex_radius)
+                    surface.blit(inner_glow_surf, (int(interp_x - hex_radius), int(interp_y - hex_radius)))
+
             # Draw small glow at target
             target_glow = int(10 * self.pull_progress)
             if target_glow > 2:
@@ -252,6 +492,19 @@ class DeltaConfigAnimation:
                           (int(self.source_x), int(self.source_y)),
                           (int(self.target_x), int(self.target_y)), 3)
 
+            # Draw lines for abducted enemies if upgraded
+            if self.is_upgraded:
+                for enemy_chain_data in self.enemy_pull_chains:
+                    enemy_source_x = enemy_chain_data['source_x']
+                    enemy_source_y = enemy_chain_data['source_y']
+                    enemy_target_x = enemy_chain_data['target_x']
+                    enemy_target_y = enemy_chain_data['target_y']
+
+                    # Draw bright line for each enemy
+                    pygame.draw.line(surface, (*self.color_inner, 200),
+                                  (int(enemy_source_x), int(enemy_source_y)),
+                                  (int(enemy_target_x), int(enemy_target_y)), 2)
+
             # Pulsing glow at both ends
             pulse = 0.7 + 0.3 * math.sin(self.timer * 30)
             for x, y in [(self.source_x, self.source_y), (self.target_x, self.target_y)]:
@@ -260,6 +513,43 @@ class DeltaConfigAnimation:
                 pygame.draw.circle(glow_surf, (*self.color_bright, 200),
                                  (glow_radius, glow_radius), glow_radius)
                 surface.blit(glow_surf, (int(x - glow_radius), int(y - glow_radius)))
+
+            # Pulsing glows at enemy endpoints if upgraded
+            if self.is_upgraded:
+                for enemy_chain_data in self.enemy_pull_chains:
+                    for x, y in [(enemy_chain_data['source_x'], enemy_chain_data['source_y']),
+                                 (enemy_chain_data['target_x'], enemy_chain_data['target_y'])]:
+                        glow_radius = int(12 * pulse)
+                        glow_surf = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
+                        pygame.draw.circle(glow_surf, (*self.color_inner, 150),
+                                         (glow_radius, glow_radius), glow_radius)
+                        surface.blit(glow_surf, (int(x - glow_radius), int(y - glow_radius)))
+
+            # Draw electromagnetic field at maximum tension (upgraded only)
+            if self.is_upgraded:
+                offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+                for i, (source_tile_x, source_tile_y) in enumerate(self.well_tiles):
+                    dy, dx = offsets[i]
+                    if self.camera:
+                        target_tile_x, target_tile_y = self.camera.grid_to_screen(
+                            self.target_grid_x + dx, self.target_grid_y + dy, centered=True
+                        )
+                    else:
+                        target_tile_x = self.target_x + dx * TILE_SIZE
+                        target_tile_y = self.target_y + dy * TILE_SIZE
+
+                    # Well stretched between source and target
+                    pygame.draw.line(surface, (*self.color_inner, 150),
+                                    (int(source_tile_x), int(source_tile_y)),
+                                    (int(target_tile_x), int(target_tile_y)), 1)
+
+                    # Pulsing nodes at both ends
+                    for pos_x, pos_y in [(source_tile_x, source_tile_y), (target_tile_x, target_tile_y)]:
+                        node_radius = int(8 * pulse)
+                        node_surf = pygame.Surface((node_radius * 2, node_radius * 2), pygame.SRCALPHA)
+                        pygame.draw.circle(node_surf, (*self.color_bright, 180),
+                                         (node_radius, node_radius), node_radius)
+                        surface.blit(node_surf, (int(pos_x - node_radius), int(pos_y - node_radius)))
 
         elif self.phase == "appear":
             # Draw arrival flash at destination
@@ -284,6 +574,57 @@ class DeltaConfigAnimation:
                 ]
                 alpha = int(255 * (1.0 - progress))
                 pygame.draw.polygon(surface, (*self.color_inner, alpha), points, 3)
+
+            # Draw collapsing electromagnetic well at destination (upgraded only)
+            if self.is_upgraded:
+                # Draw collapsing electromagnetic well at destination
+                collapse_progress = progress  # 0 to 1 over appear_duration
+                offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+
+                for i in range(len(offsets)):
+                    dy, dx = offsets[i]
+                    if self.camera:
+                        dest_tile_x, dest_tile_y = self.camera.grid_to_screen(
+                            self.target_grid_x + dx, self.target_grid_y + dy, centered=True
+                        )
+                    else:
+                        dest_tile_x = self.target_x + dx * TILE_SIZE
+                        dest_tile_y = self.target_y + dy * TILE_SIZE
+
+                    # Collapsing circle effect (shrinks from full size to nothing)
+                    collapse_radius = int(TILE_SIZE * 0.4 * (1.0 - collapse_progress))
+                    if collapse_radius > 2:
+                        collapse_surf = pygame.Surface((collapse_radius * 2, collapse_radius * 2), pygame.SRCALPHA)
+                        alpha = int(150 * (1.0 - collapse_progress))  # Fades as it shrinks
+                        pygame.draw.circle(collapse_surf, (*self.color_outer, alpha),
+                                         (collapse_radius, collapse_radius), collapse_radius, 2)
+
+                        # Inner fill that pulses
+                        fill_alpha = int(80 * (1.0 - collapse_progress) * (0.5 + 0.5 * math.sin(self.timer * 20)))
+                        pygame.draw.circle(collapse_surf, (*self.color_inner, fill_alpha),
+                                         (collapse_radius, collapse_radius), collapse_radius)
+
+                        surface.blit(collapse_surf, (int(dest_tile_x - collapse_radius),
+                                                    int(dest_tile_y - collapse_radius)))
+
+                # Add shockwave burst at 50% collapse
+                if 0.45 < collapse_progress < 0.55:
+                    shockwave_radius = int(TILE_SIZE * 1.5)
+                    for i in range(len(offsets)):
+                        dy, dx = offsets[i]
+                        if self.camera:
+                            dest_tile_x, dest_tile_y = self.camera.grid_to_screen(
+                                self.target_grid_x + dx, self.target_grid_y + dy, centered=True
+                            )
+                        else:
+                            dest_tile_x = self.target_x + dx * TILE_SIZE
+                            dest_tile_y = self.target_y + dy * TILE_SIZE
+
+                        shockwave_surf = pygame.Surface((shockwave_radius * 2, shockwave_radius * 2), pygame.SRCALPHA)
+                        pygame.draw.circle(shockwave_surf, (*self.color_bright, 100),
+                                         (shockwave_radius, shockwave_radius), shockwave_radius, 3)
+                        surface.blit(shockwave_surf, (int(dest_tile_x - shockwave_radius),
+                                                     int(dest_tile_y - shockwave_radius)))
 
 
 class GraeExchangeAnimation:

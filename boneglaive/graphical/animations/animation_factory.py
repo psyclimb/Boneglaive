@@ -437,6 +437,7 @@ class AnimationFactory:
                 )
             elif anim_class.__name__ == "DeltaConfigAnimation":
                 # DeltaConfigAnimation needs caster unit, target position, and particle emitter
+                # Also needs game and units_list for upgraded abduction mechanics
                 if not target_pos:
                     print("[AnimationFactory] DELTA_CONFIG requires a target position")
                     return None
@@ -444,7 +445,9 @@ class AnimationFactory:
                     caster_unit=caster_unit,
                     target_pos=target_pos,
                     particle_emitter=particle_emitter,
-                    camera=camera
+                    camera=camera,
+                    game=kwargs.get('game'),
+                    units_list=units_list if units_list else []
                 )
             elif anim_class.__name__ == "GraeExchangeAnimation":
                 # GraeExchangeAnimation needs caster unit, target position, and particle emitter
