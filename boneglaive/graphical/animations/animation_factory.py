@@ -59,6 +59,7 @@ from boneglaive.graphical.animations.derelictionist import (
 )
 from boneglaive.graphical.animations.fowl_contrivance import (
     ParabolAnimation,
+    ParabolAnimationUpgraded,
     FragcrestAnimation,
     GaussianDuskFireAnimation,
     RailGenesisDeathExplosionAnimation,
@@ -876,24 +877,50 @@ class AnimationFactory:
                 )
             elif anim_class.__name__ == "ParabolAnimation":
                 # Parabol - 3x3 mortar barrage with indirect fire
+                # Check if skill is upgraded (uses underground parabola with second explosion)
                 # Requires: target_pos (center of 3x3 area), camera, callbacks
                 if not target_pos:
                     print("[AnimationFactory] PARABOL requires a target position")
                     return None
-                animation = anim_class(
-                    caster_unit=caster_unit,
-                    target_unit=None,  # Area attack, no specific target unit
-                    target_pos=target_pos,  # Center of 3x3 area (grid_y, grid_x)
-                    is_crit=is_crit,
-                    is_infused=is_infused,
-                    particle_emitter=particle_emitter,
-                    debris_list=[],
-                    screen_shake_callback=screen_shake_callback,
-                    screen_flash_callback=screen_flash_callback,
-                    units_list=units_list if units_list else [],
-                    camera=camera,
-                    game=kwargs.get('game')
-                )
+
+                # Check for upgrade
+                is_upgraded = False
+                game = kwargs.get('game')
+                if game and hasattr(caster_unit, 'game_unit') and caster_unit.game_unit:
+                    from boneglaive.game.upgrades import UpgradeManager
+                    is_upgraded = UpgradeManager.is_skill_upgraded(caster_unit.game_unit, "Parabol")
+
+                # Use upgraded animation if skill is upgraded
+                if is_upgraded:
+                    animation = ParabolAnimationUpgraded(
+                        caster_unit=caster_unit,
+                        target_unit=None,  # Area attack, no specific target unit
+                        target_pos=target_pos,  # Center of 3x3 area (grid_y, grid_x)
+                        is_crit=is_crit,
+                        is_infused=is_infused,
+                        particle_emitter=particle_emitter,
+                        debris_list=[],
+                        screen_shake_callback=screen_shake_callback,
+                        screen_flash_callback=screen_flash_callback,
+                        units_list=units_list if units_list else [],
+                        camera=camera,
+                        game=game
+                    )
+                else:
+                    animation = anim_class(
+                        caster_unit=caster_unit,
+                        target_unit=None,  # Area attack, no specific target unit
+                        target_pos=target_pos,  # Center of 3x3 area (grid_y, grid_x)
+                        is_crit=is_crit,
+                        is_infused=is_infused,
+                        particle_emitter=particle_emitter,
+                        debris_list=[],
+                        screen_shake_callback=screen_shake_callback,
+                        screen_flash_callback=screen_flash_callback,
+                        units_list=units_list if units_list else [],
+                        camera=camera,
+                        game=game
+                    )
             elif anim_class.__name__ == "FragcrestAnimation":
                 # Fragcrest - directional fragmentation cone with knockback
                 # Requires: target_pos (primary target), target_unit, camera, callbacks, game
