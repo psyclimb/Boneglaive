@@ -138,6 +138,10 @@ class GraphicalRenderer:
         # Active animations (skill animations, projectiles, etc.)
         self.active_animations = []  # List of animation objects
 
+        # Background animations (persistent zones, environmental effects - NON-BLOCKING)
+        # These don't prevent pending animations from flushing
+        self.background_animations = []
+
         # Pending animation events (damage/heal numbers to show after animations finish)
         self.pending_animation_events = []
 
@@ -1831,6 +1835,14 @@ class GraphicalRenderer:
                 updated_animations.append(anim)
         self.active_animations = updated_animations
 
+        # Update background animations (non-blocking persistent effects like zones)
+        updated_background = []
+        for anim in self.background_animations:
+            still_active = anim.update(delta_time)
+            if still_active:
+                updated_background.append(anim)
+        self.background_animations = updated_background
+
         # Update motor animation
         self.motor_animation.update(delta_time)
 
@@ -2054,6 +2066,14 @@ class GraphicalRenderer:
 
         self.active_animations = updated_animations
 
+        # Update background animations (non-blocking persistent effects like zones)
+        updated_background = []
+        for anim in self.background_animations:
+            still_active = anim.update(delta_time)
+            if still_active:
+                updated_background.append(anim)
+        self.background_animations = updated_background
+
         # Update motor animation
         self.motor_animation.update(delta_time)
 
@@ -2126,6 +2146,53 @@ class GraphicalRenderer:
             # This takes priority and should not be queued
             self._show_event_immediately(event)
             print(f"  [Renderer] Triggered partition dissociation animation immediately")
+
+        elif event.event_type == "zone_create":
+            # Zone creation (e.g., Selenic Backdraft from upgraded Demilune)
+            # Create persistent zone animation immediately - NON-BLOCKING
+            # Zone should appear and persist independently of skill animations
+            zone_name = event.kwargs.get('zone_name')
+            zone_tiles = event.kwargs.get('zone_tiles', [])
+
+            print(f"  [Renderer] Received zone_create event: zone_name={zone_name}, tiles={zone_tiles}")
+
+            if zone_name and zone_tiles:
+                print(f"  [Renderer] Creating {zone_name} zone animation IMMEDIATELY on {len(zone_tiles)} tiles")
+
+                # Find animated unit for caster
+                caster_animated = self._find_animated_unit_by_game_unit(event.source_unit)
+
+                if caster_animated:
+                    # Create zone animation via AnimationFactory
+                    from boneglaive.graphical.animations import AnimationFactory
+
+                    zone_animation = AnimationFactory.create_animation(
+                        skill_name=zone_name,
+                        caster_unit=caster_animated,
+                        target_unit=None,
+                        target_pos=None,
+                        is_crit=False,
+                        is_infused=False,
+                        particle_emitter=self.particle_emitter,
+                        screen_shake_callback=self.trigger_screen_shake,
+                        screen_flash_callback=self.trigger_screen_flash,
+                        units_list=self.units,
+                        camera=self.camera,
+                        game=self.game_adapter.game,
+                        zone_tiles=zone_tiles  # Pass zone tiles as kwarg
+                    )
+
+                    if zone_animation:
+                        # Add to background_animations - non-blocking, persistent effect
+                        # Background animations don't block pending_animation_events from flushing
+                        self.background_animations.append(zone_animation)
+                        print(f"  [Animation] Successfully created {zone_name} zone in BACKGROUND (non-blocking)")
+                    else:
+                        print(f"  [Animation] WARNING: Failed to create {zone_name} zone animation")
+                else:
+                    print(f"  [Renderer] WARNING: Could not find animated unit for zone caster")
+
+            # DON'T BLOCK - zone is independent background effect
 
         elif event.event_type == "movement":
             # Animate unit movement - already handled in sync_state()
@@ -2872,6 +2939,10 @@ class GraphicalRenderer:
 
             unit.draw(main_surface, self.small_font)
 
+        # Draw background animations FIRST (zones, environmental effects - render below other animations)
+        for animation in self.background_animations:
+            animation.draw(main_surface)
+
         # Draw active animations
         for animation in self.active_animations:
             animation.draw(main_surface)
@@ -3391,7 +3462,15 @@ class GraphicalRenderer:
         # Sync state AFTER turn execution
         print("[Renderer] Post-execution sync...")
         post_events = self.game_adapter.sync_state()
-        for event in post_events:
+
+        # Process zone_create events FIRST so zones appear immediately before skill animations
+        # This ensures persistent zone effects are visible during the skill animation
+        zone_events = [e for e in post_events if e.event_type == "zone_create"]
+        other_events = [e for e in post_events if e.event_type != "zone_create"]
+
+        for event in zone_events:
+            self.handle_animation_event(event)
+        for event in other_events:
             self.handle_animation_event(event)
 
         self.game_adapter.executing_turn = False

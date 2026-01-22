@@ -22,7 +22,8 @@ from boneglaive.graphical.animations.mandible_foreman import (
 )
 from boneglaive.graphical.animations.potpourrist import (
     PedestalStrike, InfuseEffect, DemiluneSwing, GraniteGeasEffect,
-    MelangeEminenceHealAnimation, MelangeEminenceInfusedHealAnimation
+    MelangeEminenceHealAnimation, MelangeEminenceInfusedHealAnimation,
+    SelenicBackdraftZone
 )
 from boneglaive.graphical.animations.grayman import (
     DeltaConfigAnimation,
@@ -114,6 +115,7 @@ class AnimationFactory:
         "INFUSE": (InfuseEffect, {}),
         "DEMILUNE": (DemiluneSwing, {}),
         "DEMILUNE_INFUSED": (DemiluneSwing, {"infused": True}),
+        "SELENIC_BACKDRAFT": (SelenicBackdraftZone, {}),  # Persistent zone for upgraded Demilune
         "GRANITE_GEAS": (GraniteGeasEffect, {}),
         "MELANGE_EMINENCE_HEAL": (MelangeEminenceHealAnimation, {}),
         "MELANGE_EMINENCE_INFUSED_HEAL": (MelangeEminenceInfusedHealAnimation, {}),
@@ -193,7 +195,8 @@ class AnimationFactory:
                         game = None,
                         bounce_count: int = 2,
                         trajectory = None,
-                        reflected_skill_name: str = None):
+                        reflected_skill_name: str = None,
+                        zone_tiles = None):
         """
         Create an animation for a skill.
 
@@ -1108,6 +1111,19 @@ class AnimationFactory:
                     bounce_count=bounce_count,
                     is_infused=is_infused,
                     is_crit=is_crit
+                )
+            elif anim_class.__name__ == "SelenicBackdraftZone":
+                # Selenic Backdraft Zone - Persistent ground effect for upgraded Demilune
+                # Requires: zone_tiles (list of grid positions), caster_unit, camera, game
+                if not zone_tiles:
+                    print("[AnimationFactory] ERROR: SelenicBackdraftZone requires zone_tiles")
+                    return None
+
+                animation = anim_class(
+                    zone_tiles=zone_tiles,
+                    caster_unit=caster_unit,
+                    camera=camera,
+                    game=game
                 )
             else:
                 # Most animations expect just target coordinates

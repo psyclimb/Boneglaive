@@ -46,6 +46,8 @@ class VisualUnit:
         self.last_trapped_by = getattr(game_unit, 'trapped_by', None)
         # Track vagal run duration for abreaction animation
         self.last_vagal_run_duration = getattr(game_unit, 'vagal_run_duration', 0)
+        # Track demilune zone duration to detect when upgraded Demilune creates a new zone
+        self.last_demilune_zone_duration = getattr(game_unit, 'demilune_zone_duration', 0)
 
     def _get_passive_activation_state(self, game_unit):
         """Get current activation state of passive skill."""
@@ -891,6 +893,27 @@ class GameStateAdapter:
             # This ensures we have the "before" state for next cycle's geas heal detection
             new_taunted = visual_unit._get_taunted_units(game_unit, self.game)
             visual_unit.last_taunted_units = new_taunted
+
+            # Detect Demilune zone creation (upgraded Demilune only)
+            # Zone is created during skill execution, so we detect when duration goes from 0 to >0
+            current_demilune_zone_duration = getattr(game_unit, 'demilune_zone_duration', 0)
+            if current_demilune_zone_duration > 0 and visual_unit.last_demilune_zone_duration == 0:
+                # New Demilune zone was just created!
+                if (hasattr(game_unit, 'demilune_mirrored_zone_tiles') and
+                    game_unit.demilune_mirrored_zone_tiles):
+
+                    print(f"  [GameState] Detected new Selenic Backdraft zone on {len(game_unit.demilune_mirrored_zone_tiles)} tiles")
+
+                    # Create zone animation event
+                    events.append(AnimationEvent(
+                        "zone_create",
+                        source_unit=game_unit,
+                        zone_name="SELENIC_BACKDRAFT",
+                        zone_tiles=game_unit.demilune_mirrored_zone_tiles.copy()
+                    ))
+
+            # Update zone duration tracking
+            visual_unit.last_demilune_zone_duration = current_demilune_zone_duration
 
         # Status effects are shown after damage numbers via _show_active_status_effects()
         # in the renderer, using _effects_to_show_after_damage populated by the callback
