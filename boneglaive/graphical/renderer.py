@@ -2194,6 +2194,75 @@ class GraphicalRenderer:
 
             # DON'T BLOCK - zone is independent background effect
 
+        elif event.event_type == "building_create":
+            # Building creation (e.g., Derelict buildings from upgraded Derelict)
+            # Create building formation animation (one-time) and persistent building tiles (background)
+            building_tiles = event.kwargs.get('building_tiles', [])
+
+            print(f"  [Renderer] Received building_create event: {len(building_tiles)} tiles")
+
+            if building_tiles:
+                print(f"  [Renderer] Creating Derelict building animations on {len(building_tiles)} tiles")
+
+                # Find animated unit for caster
+                caster_animated = self._find_animated_unit_by_game_unit(event.source_unit)
+
+                if caster_animated:
+                    # Create building formation animation via AnimationFactory
+                    from boneglaive.graphical.animations import AnimationFactory
+
+                    # 1. Building formation animation (one-time, blocking)
+                    formation_animation = AnimationFactory.create_animation(
+                        skill_name="DERELICT_BUILDING_FORMATION",
+                        caster_unit=caster_animated,
+                        target_unit=None,
+                        target_pos=None,
+                        is_crit=False,
+                        is_infused=False,
+                        particle_emitter=self.particle_emitter,
+                        screen_shake_callback=self.trigger_screen_shake,
+                        screen_flash_callback=self.trigger_screen_flash,
+                        units_list=self.units,
+                        camera=self.camera,
+                        game=self.game_adapter.game,
+                        building_tiles=building_tiles
+                    )
+
+                    if formation_animation:
+                        # Add to active_animations - this is a one-time formation effect
+                        self.active_animations.append(formation_animation)
+                        print(f"  [Animation] Successfully created building formation animation")
+                    else:
+                        print(f"  [Animation] WARNING: Failed to create building formation animation")
+
+                    # 2. Building tiles persistent effect (background, non-blocking)
+                    tiles_animation = AnimationFactory.create_animation(
+                        skill_name="DERELICT_BUILDING_TILES",
+                        caster_unit=caster_animated,
+                        target_unit=None,
+                        target_pos=None,
+                        is_crit=False,
+                        is_infused=False,
+                        particle_emitter=self.particle_emitter,
+                        screen_shake_callback=self.trigger_screen_shake,
+                        screen_flash_callback=self.trigger_screen_flash,
+                        units_list=self.units,
+                        camera=self.camera,
+                        game=self.game_adapter.game,
+                        building_tiles=building_tiles
+                    )
+
+                    if tiles_animation:
+                        # Add to background_animations - non-blocking, persistent effect
+                        self.background_animations.append(tiles_animation)
+                        print(f"  [Animation] Successfully created building tiles in BACKGROUND (non-blocking)")
+                    else:
+                        print(f"  [Animation] WARNING: Failed to create building tiles animation")
+                else:
+                    print(f"  [Renderer] WARNING: Could not find animated unit for building caster")
+
+            # Building formation is blocking, but tiles are background effect
+
         elif event.event_type == "movement":
             # Animate unit movement - already handled in sync_state()
             # The AnimatedUnit.move_to_grid() is called automatically
@@ -3463,10 +3532,10 @@ class GraphicalRenderer:
         print("[Renderer] Post-execution sync...")
         post_events = self.game_adapter.sync_state()
 
-        # Process zone_create events FIRST so zones appear immediately before skill animations
-        # This ensures persistent zone effects are visible during the skill animation
-        zone_events = [e for e in post_events if e.event_type == "zone_create"]
-        other_events = [e for e in post_events if e.event_type != "zone_create"]
+        # Process zone_create and building_create events FIRST so they appear immediately before skill animations
+        # This ensures persistent zone/building effects are visible during the skill animation
+        zone_events = [e for e in post_events if e.event_type in ["zone_create", "building_create"]]
+        other_events = [e for e in post_events if e.event_type not in ["zone_create", "building_create"]]
 
         for event in zone_events:
             self.handle_animation_event(event)

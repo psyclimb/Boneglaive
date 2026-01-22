@@ -57,6 +57,8 @@ from boneglaive.graphical.animations.derelictionist import (
     PartitionHitAnimation,
     VagalRunAnimation,
     VagalRunAbreactionAnimation,
+    DerelictBuildingFormation,
+    DerelictBuildingTiles,
 )
 from boneglaive.graphical.animations.fowl_contrivance import (
     ParabolAnimation,
@@ -171,6 +173,8 @@ class AnimationFactory:
         "VAGAL_RUN": (VagalRunAnimation, {}),
         "VAGAL_RUN_ABREACTION": (VagalRunAbreactionAnimation, {}),  # Delayed effect (no connection arc)
         "PARTITION": (PartitionAnimation, {}),
+        "DERELICT_BUILDING_FORMATION": (DerelictBuildingFormation, {}),  # Building rising animation
+        "DERELICT_BUILDING_TILES": (DerelictBuildingTiles, {}),  # Persistent building tiles
 
         # PELOTARI skills (DLC)
         "MATADOR": (MatadorAnimation, {}),
@@ -196,7 +200,8 @@ class AnimationFactory:
                         bounce_count: int = 2,
                         trajectory = None,
                         reflected_skill_name: str = None,
-                        zone_tiles = None):
+                        zone_tiles = None,
+                        building_tiles = None):
         """
         Create an animation for a skill.
 
@@ -1122,6 +1127,30 @@ class AnimationFactory:
                 animation = anim_class(
                     zone_tiles=zone_tiles,
                     caster_unit=caster_unit,
+                    camera=camera,
+                    game=game
+                )
+            elif anim_class.__name__ == "DerelictBuildingFormation":
+                # Derelict Building Formation - Building rising animation
+                # Requires: building_tiles (list of grid positions), camera, game
+                if not building_tiles:
+                    print("[AnimationFactory] ERROR: DerelictBuildingFormation requires building_tiles")
+                    return None
+
+                animation = anim_class(
+                    building_tiles=building_tiles,
+                    camera=camera,
+                    game=game
+                )
+            elif anim_class.__name__ == "DerelictBuildingTiles":
+                # Derelict Building Tiles - Persistent building tile effect
+                # Requires: building_tiles (list of grid positions), camera, game
+                if not building_tiles:
+                    print("[AnimationFactory] ERROR: DerelictBuildingTiles requires building_tiles")
+                    return None
+
+                animation = anim_class(
+                    building_tiles=building_tiles,
                     camera=camera,
                     game=game
                 )

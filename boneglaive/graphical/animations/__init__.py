@@ -92,6 +92,8 @@ from .derelictionist import (
     DerelictionistDefectTeleportAnimation,
     VagalRunAnimation,
     VagalRunAbreactionAnimation,
+    DerelictBuildingFormation,
+    DerelictBuildingTiles,
 )
 
 from .fowl_contrivance import (
@@ -200,6 +202,8 @@ __all__ = [
     'DerelictionistDefectTeleportAnimation',
     'VagalRunAnimation',
     'VagalRunAbreactionAnimation',
+    'DerelictBuildingFormation',
+    'DerelictBuildingTiles',
     # Fowl Contrivance
     'ParabolAnimation',
     'FragcrestAnimation',

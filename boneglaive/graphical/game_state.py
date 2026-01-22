@@ -48,6 +48,8 @@ class VisualUnit:
         self.last_vagal_run_duration = getattr(game_unit, 'vagal_run_duration', 0)
         # Track demilune zone duration to detect when upgraded Demilune creates a new zone
         self.last_demilune_zone_duration = getattr(game_unit, 'demilune_zone_duration', 0)
+        # Track derelicted duration to detect when upgraded Derelict creates buildings
+        self.last_derelicted_duration = getattr(game_unit, 'derelicted_duration', 0)
 
     def _get_passive_activation_state(self, game_unit):
         """Get current activation state of passive skill."""
@@ -914,6 +916,37 @@ class GameStateAdapter:
 
             # Update zone duration tracking
             visual_unit.last_demilune_zone_duration = current_demilune_zone_duration
+
+            # Detect Derelict building creation (upgraded Derelict only)
+            # Buildings are created during skill execution when Derelicted status is applied
+            current_derelicted_duration = getattr(game_unit, 'derelicted_duration', 0)
+            if current_derelicted_duration > 0 and visual_unit.last_derelicted_duration == 0:
+                # Unit just got derelicted! Check if buildings were created around it
+                if hasattr(self.game, 'derelict_building_tiles') and self.game.derelict_building_tiles:
+                    # Find buildings that are centered on this unit (or close to it)
+                    # Buildings are in a 3x3 circle around the derelicted unit
+                    unit_pos = (game_unit.y, game_unit.x)
+                    nearby_building_tiles = []
+
+                    for tile_pos in self.game.derelict_building_tiles.keys():
+                        # Check if this tile is within range of the unit (roughly 3x3 area)
+                        dy = abs(tile_pos[0] - unit_pos[0])
+                        dx = abs(tile_pos[1] - unit_pos[1])
+                        if dy <= 2 and dx <= 2:
+                            nearby_building_tiles.append(tile_pos)
+
+                    if nearby_building_tiles:
+                        print(f"  [GameState] Detected new Derelict building with {len(nearby_building_tiles)} tiles around {game_unit.type}")
+
+                        # Create building formation event
+                        events.append(AnimationEvent(
+                            "building_create",
+                            source_unit=game_unit,
+                            building_tiles=nearby_building_tiles
+                        ))
+
+            # Update derelicted duration tracking
+            visual_unit.last_derelicted_duration = current_derelicted_duration
 
         # Status effects are shown after damage numbers via _show_active_status_effects()
         # in the renderer, using _effects_to_show_after_damage populated by the callback
