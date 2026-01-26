@@ -1760,7 +1760,7 @@ class PryAnimation:
             self.target_unit.pry_start_y = self.target_unit.y
             self.target_unit.pry_phase = "launching"
             self.target_unit.pry_timer = 0
-            self.target_unit.pry_duration = 0.4  # Phase 1: launching duration
+            self.target_unit.pry_duration = 0.32  # Phase 1: launching duration (20% faster)
 
         # Start Phase 1
         self._start_prying_up()
@@ -1941,26 +1941,26 @@ class PryAnimation:
         for shockwave in self.shockwaves:
             shockwave.update(delta_time)
 
-        # Phase transitions
-        if self.phase == "prying_up" and self.timer >= 0.4:
+        # Phase transitions (20% faster - durations multiplied by 0.8)
+        if self.phase == "prying_up" and self.timer >= 0.32:  # was 0.4
             if self.target_unit and hasattr(self.target_unit, 'pry_phase'):
                 self.target_unit.pry_phase = "at_ceiling"
                 self.target_unit.pry_timer = 0  # Reset timer for new phase
-                self.target_unit.pry_duration = 0.5  # Phase 2: at_ceiling duration
+                self.target_unit.pry_duration = 0.4  # was 0.5
             self._start_ceiling_impact()
-        elif self.phase == "ceiling_impact" and self.timer >= 0.5:
+        elif self.phase == "ceiling_impact" and self.timer >= 0.4:  # was 0.5
             if self.target_unit and hasattr(self.target_unit, 'pry_phase'):
                 self.target_unit.pry_phase = "falling"
                 self.target_unit.pry_timer = 0  # Reset timer for new phase
-                self.target_unit.pry_duration = 0.8  # Phase 3: falling duration
+                self.target_unit.pry_duration = 0.64  # was 0.8
             self._start_falling()
-        elif self.phase == "falling" and self.timer >= 0.8:
+        elif self.phase == "falling" and self.timer >= 0.64:  # was 0.8
             if self.target_unit and hasattr(self.target_unit, 'pry_phase'):
                 self.target_unit.pry_phase = "landed"
                 self.target_unit.pry_timer = 0  # Reset timer for new phase
-                self.target_unit.pry_duration = 0.6  # Phase 4: landed duration
+                self.target_unit.pry_duration = 0.48  # was 0.6
             self._start_ground_impact()
-        elif self.phase == "ground_impact" and self.timer >= 0.6:
+        elif self.phase == "ground_impact" and self.timer >= 0.48:  # was 0.6
             # Reset target unit state - animation complete
             if self.target_unit and hasattr(self.target_unit, 'pry_phase'):
                 self.target_unit.pry_phase = None
