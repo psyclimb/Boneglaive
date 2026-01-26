@@ -3166,19 +3166,6 @@ class GraphicalRenderer:
             surface.blit(self.rail_universal, (tile_x, tile_y))
 
     def draw_grid(self, surface: pygame.Surface):
-<<<<<<< Updated upstream
-        """Draw the game grid with terrain and furniture using two-pass rendering for rails."""
-        # Performance optimization: cache the grid and only redraw when dirty
-        if self._grid_dirty:
-            self._render_grid_to_cache()
-            self._grid_dirty = False
-
-        # Blit the cached grid to the surface
-        surface.blit(self._grid_surface, (GRID_OFFSET_X, GRID_OFFSET_Y))
-
-    def _render_grid_to_cache(self):
-        """Render the grid to the cached surface (called only when grid changes)."""
-=======
         """
         Draw the game grid with terrain and furniture.
         OPTIMIZED: Uses dirty rectangle tracking to only redraw changed tiles.
@@ -3216,7 +3203,6 @@ class GraphicalRenderer:
         OLD IMPLEMENTATION - kept for reference.
         Draw the game grid with terrain and furniture using two-pass rendering for rails.
         """
->>>>>>> Stashed changes
         # Get game map if available
         game_map = self.game_adapter.game.map if self.game_adapter.game else None
 
