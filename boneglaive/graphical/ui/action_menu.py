@@ -43,8 +43,8 @@ class ActionButton:
         self.blocked_actions = set()  # LOTO: Set of blocked action types
         self.has_upgrade_points = False  # Special flag for upgrade button glow
 
-    def draw(self, surface: pygame.Surface, x: int, y: int, font, small_font, loto_renderer: Optional[LOTORenderer] = None):
-        """Draw the action button."""
+    def draw(self, surface: pygame.Surface, x: int, y: int, font, small_font, loto_renderer: Optional[LOTORenderer] = None) -> Optional[dict]:
+        """Draw the action button. Returns particle data if upgrade button has points available."""
         self.rect = pygame.Rect(x, y, BUTTON_WIDTH, BUTTON_HEIGHT)
 
         # Determine background color
@@ -74,7 +74,8 @@ class ActionButton:
         border_width = 3 if (self.hovered or self.active) else 2
         pygame.draw.rect(surface, border_color, self.rect, border_width)
 
-        # Draw upgrade points glow effect (gold pulsating with particles)
+        # Draw upgrade points glow effect (gold pulsating) - GLOW ONLY, particles come later
+        upgrade_glow_data = None
         if self.action == "upgrade" and self.has_upgrade_points:
             import math
             import time
@@ -103,30 +104,14 @@ class ActionButton:
             # Blit glow surface
             surface.blit(glow_surface, (x - 10, y - 10), special_flags=pygame.BLEND_RGBA_ADD)
 
-            # Draw particles
-            # Use button position as seed for consistent but pseudo-random particle positions
-            random.seed(int(time_val * 10) + x + y)
-            num_particles = 8
-            for i in range(num_particles):
-                # Calculate particle position around button
-                angle = (time_val + i * (3.14159 * 2 / num_particles)) % (3.14159 * 2)
-                distance = 30 + pulse * 10
-                px = x + BUTTON_WIDTH // 2 + int(math.cos(angle) * distance)
-                py = y + BUTTON_HEIGHT // 2 + int(math.sin(angle) * distance)
-
-                # Particle size varies with pulse
-                particle_size = int(2 + pulse * 2)
-                particle_alpha = int(60 + pulse * 50)  # 60 to 110 alpha (subtler particles)
-
-                # Draw particle
-                particle_surf = pygame.Surface((particle_size * 2, particle_size * 2), pygame.SRCALPHA)
-                pygame.draw.circle(particle_surf, (*gold_color, particle_alpha),
-                                 (particle_size, particle_size), particle_size)
-                surface.blit(particle_surf, (px - particle_size, py - particle_size),
-                           special_flags=pygame.BLEND_RGBA_ADD)
-
-            # Reset random seed to not affect other random calls
-            random.seed()
+            # Store data for particle drawing later (after text)
+            upgrade_glow_data = {
+                'time_val': time_val,
+                'pulse': pulse,
+                'gold_color': gold_color,
+                'x': x,
+                'y': y
+            }
 
         # Draw hotkey in top-left corner
         text_color = COLOR_TEXT_DISABLED if not self.enabled else COLOR_HOTKEY
@@ -158,6 +143,9 @@ class ActionButton:
         # Draw LOTO overlay if action is blocked
         if loto_renderer and self.blocked_actions:
             loto_renderer.draw_loto_overlay(surface, self.rect, self.blocked_actions, scale=0.6)
+
+        # Return particle data to be drawn later (after all buttons)
+        return upgrade_glow_data
 
     def contains_point(self, pos: Tuple[int, int]) -> bool:
         """Check if position is inside this button."""
@@ -269,10 +257,48 @@ class ActionMenu:
         """
         current_y = y + MENU_PADDING
 
-        # Draw each button
+        # Draw each button and collect particle data
+        particle_data_list = []
         for button in self.buttons:
-            button.draw(surface, x + MENU_PADDING, current_y, self.font, self.small_font, self.loto_renderer)
+            particle_data = button.draw(surface, x + MENU_PADDING, current_y, self.font, self.small_font, self.loto_renderer)
+            if particle_data:
+                particle_data_list.append(particle_data)
             current_y += BUTTON_HEIGHT + BUTTON_SPACING
+
+        # Draw all particles AFTER all buttons (so they appear on top)
+        for particle_data in particle_data_list:
+            import random
+            import math
+            time_val = particle_data['time_val']
+            pulse = particle_data['pulse']
+            gold_color = particle_data['gold_color']
+            px = particle_data['x']
+            py = particle_data['y']
+
+            # Draw particles
+            # Use button position as seed for consistent but pseudo-random particle positions
+            random.seed(int(time_val * 10) + px + py)
+            num_particles = 8
+            for i in range(num_particles):
+                # Calculate particle position around button
+                angle = (time_val + i * (3.14159 * 2 / num_particles)) % (3.14159 * 2)
+                distance = 30 + pulse * 10
+                particle_x = px + BUTTON_WIDTH // 2 + int(math.cos(angle) * distance)
+                particle_y = py + BUTTON_HEIGHT // 2 + int(math.sin(angle) * distance)
+
+                # Particle size varies with pulse
+                particle_size = int(2 + pulse * 2)
+                particle_alpha = int(60 + pulse * 50)  # 60 to 110 alpha (subtler particles)
+
+                # Draw particle
+                particle_surf = pygame.Surface((particle_size * 2, particle_size * 2), pygame.SRCALPHA)
+                pygame.draw.circle(particle_surf, (*gold_color, particle_alpha),
+                                 (particle_size, particle_size), particle_size)
+                surface.blit(particle_surf, (particle_x - particle_size, particle_y - particle_size),
+                           special_flags=pygame.BLEND_RGBA_ADD)
+
+            # Reset random seed to not affect other random calls
+            random.seed()
 
     def handle_mouse_motion(self, mouse_pos: Tuple[int, int]):
         """Update hovered button based on mouse position."""

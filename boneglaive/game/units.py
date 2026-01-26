@@ -927,23 +927,62 @@ class Unit:
             # Check if combined GP total crossed any upgrade point thresholds
             combined_gp = self._game.player1_gp + self._game.player2_gp
             for threshold in self._game.upgrade_point_thresholds:
-                # Award points if threshold reached and not already awarded to this player
-                if combined_gp >= threshold and threshold not in self._game.upgrade_points_awarded[opposing_player]:
-                    # Award upgrade points to the player who scored the kill
-                    if opposing_player == 1:
-                        self._game.player1_upgrade_points += 2
+                # Award points if threshold reached and not already processed
+                if combined_gp >= threshold and threshold not in self._game.upgrade_points_awarded:
+                    # Determine base UP and bonus UP for this threshold
+                    if threshold == 2:
+                        base_up = 2  # Everyone gets 2 UP
+                        leader_bonus = 1  # Leader gets +1 bonus (3 total)
+                    elif threshold == 4:
+                        base_up = 1  # Everyone gets 1 UP
+                        leader_bonus = 1  # Leader gets +1 bonus (2 total)
+                    elif threshold == 6:
+                        base_up = 1  # Everyone gets 1 UP
+                        leader_bonus = 1  # Leader gets +1 bonus (2 total)
                     else:
-                        self._game.player2_upgrade_points += 2
+                        continue  # Unknown threshold, skip
 
-                    # Mark threshold as awarded for this player
-                    self._game.upgrade_points_awarded[opposing_player].add(threshold)
+                    # Determine who's in the lead
+                    if self._game.player1_gp > self._game.player2_gp:
+                        leader = 1
+                    elif self._game.player2_gp > self._game.player1_gp:
+                        leader = 2
+                    else:
+                        leader = None  # Tied
 
-                    # Log upgrade point award
-                    message_log.add_message(
-                        f"{winner_name} earned 2 upgrade points! (Combined GP: {combined_gp})",
-                        MessageType.SYSTEM,
-                        player=opposing_player
-                    )
+                    # Award base UP to both players
+                    self._game.player1_upgrade_points += base_up
+                    self._game.player2_upgrade_points += base_up
+
+                    # Award leader bonus if there's a leader
+                    if leader == 1:
+                        self._game.player1_upgrade_points += leader_bonus
+                    elif leader == 2:
+                        self._game.player2_upgrade_points += leader_bonus
+
+                    # Mark threshold as processed
+                    self._game.upgrade_points_awarded.add(threshold)
+
+                    # Log upgrade point awards
+                    player1_name = self._game.get_player_name(1)
+                    player2_name = self._game.get_player_name(2)
+
+                    if leader == 1:
+                        message_log.add_message(
+                            f"Combined GP reached {threshold}! {player1_name} earns {base_up + leader_bonus} UP (leading), {player2_name} earns {base_up} UP",
+                            MessageType.SYSTEM
+                        )
+                    elif leader == 2:
+                        message_log.add_message(
+                            f"Combined GP reached {threshold}! {player2_name} earns {base_up + leader_bonus} UP (leading), {player1_name} earns {base_up} UP",
+                            MessageType.SYSTEM
+                        )
+                    else:
+                        # Tied
+                        message_log.add_message(
+                            f"Combined GP reached {threshold}! Both players earn {base_up} UP (tied)",
+                            MessageType.SYSTEM
+                        )
 
             # Create DeadUnit entry for respawn
             dead_unit = DeadUnit(

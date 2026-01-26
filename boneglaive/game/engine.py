@@ -59,8 +59,8 @@ class Game:
         # Upgrade System
         self.player1_upgrade_points = 0
         self.player2_upgrade_points = 0
-        self.upgrade_point_thresholds = [2, 4]  # GP thresholds for earning upgrade points
-        self.upgrade_points_awarded = {1: set(), 2: set()}  # Track which thresholds already awarded per player
+        self.upgrade_point_thresholds = [2, 4, 6]  # GP thresholds for earning upgrade points
+        self.upgrade_points_awarded = set()  # Track which thresholds have been triggered globally
 
         # Graphical mode callbacks
         # Called before status effects are cleared - allows detection before removal
