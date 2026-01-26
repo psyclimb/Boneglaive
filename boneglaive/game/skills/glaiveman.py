@@ -968,7 +968,18 @@ class VaultSkill(ActiveSkill):
         import time
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
-        
+        # SAFETY CHECK: Verify target position is still valid and empty
+        # (Another unit might have moved there between planning and execution)
+        if game.get_unit_at(target_pos[0], target_pos[1]) is not None:
+            message_log.add_message(
+                f"{user.get_display_name()}'s Vault failed - target position occupied",
+                MessageType.WARNING,
+                player=user.player
+            )
+            # Clear indicators and return failure
+            user.vault_target_indicator = None
+            return False
+
         # Clear the vault target indicator after execution
         user.vault_target_indicator = None
 

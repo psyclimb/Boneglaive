@@ -234,7 +234,6 @@ class GraphicalRenderer:
 
         # Cached grid surface (to avoid redrawing 200 tiles every frame)
         self._grid_surface = pygame.Surface((GAME_BOARD_WIDTH, GAME_BOARD_HEIGHT))
-        self._grid_dirty = True  # Redraw grid on first frame
 
         # Cache for sparkle surfaces (different sizes)
         self._sparkle_surf_cache: Dict[int, pygame.Surface] = {}
@@ -1300,12 +1299,19 @@ class GraphicalRenderer:
 
                         print(f"Move planned: {self.selected_unit.name} → ({grid_x}, {grid_y})")
 
-                        # Clear selection and movement range
-                        self.selected_unit = None
+                        # Keep unit selected but update to show attack range from new position
+                        # Clear movement range since unit already moved
                         self.show_movement_range = False
-                        self.show_astral_values = False  # Hide astral values
                         self.valid_positions = []
-                        self.current_action_mode = "SELECT"
+
+                        # Calculate and show attack range from ghost position
+                        self.attack_positions = self.game_adapter.get_attack_range(game_unit, from_pos=game_unit.move_target)
+                        self.show_target_range = True
+
+                        # Switch to ATTACK mode automatically so user can attack after moving
+                        self.current_action_mode = "ATTACK"
+
+                        print(f"  Attack range updated: {len(self.attack_positions)} targets from new position")
                     else:
                         print(f"ERROR: Could not find game unit for {self.selected_unit.name}")
                 else:
@@ -3104,6 +3110,18 @@ class GraphicalRenderer:
         self._grid_fully_dirty = True
         self._static_grid_surface = None
 
+    @property
+    def _grid_dirty(self):
+        """Legacy property for compatibility - always returns True if grid is dirty."""
+        return self._grid_fully_dirty
+
+    @_grid_dirty.setter
+    def _grid_dirty(self, value: bool):
+        """Legacy setter - redirects to _grid_fully_dirty for compatibility."""
+        if value:
+            self.mark_all_tiles_dirty()
+        # If setting to False, we ignore it since the new system auto-clears dirty flags
+
     def _render_single_tile(self, surface: pygame.Surface, x: int, y: int, game_map):
         """Render a single tile (used for dirty rectangle updates)."""
         # Calculate tile position (relative to grid surface, not screen)
@@ -3579,6 +3597,7 @@ class GraphicalRenderer:
         # Skill animations will be triggered by detecting skill usage in sync_state
         print("[Renderer] Setting executing_turn = True")
         self.game_adapter.executing_turn = True
+        self.game_adapter.post_execution_sync = False  # Flag to skip attack animations in pre-sync
 
         # Sync state BEFORE turn execution to catch planned skills
         print("[Renderer] Pre-execution sync...")
@@ -3631,6 +3650,7 @@ class GraphicalRenderer:
 
         # Sync state AFTER turn execution
         print("[Renderer] Post-execution sync...")
+        self.game_adapter.post_execution_sync = True  # Now detect attack animations
         post_events = self.game_adapter.sync_state()
 
         # Process zone_create and building_create events FIRST so they appear immediately before skill animations
@@ -4369,6 +4389,11 @@ def main():
     # skip_setup=False means game starts in setup phase
     adapter.initialize_game(skip_setup=False, map_name=selected_map, network_mode=network_mode, ui_adapter=ui_adapter)
     print(f"Game created - starting in setup phase on map: {selected_map}")
+
+    # Set up terrain change callback so renderer marks tiles dirty when terrain changes
+    if adapter.game and adapter.game.map:
+        adapter.game.map.terrain_change_callback = renderer.mark_tile_dirty
+        print("Terrain change callback registered")
 
     # Sync units from game
     print("Syncing units from game to renderer...")

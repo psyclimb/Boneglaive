@@ -177,6 +177,7 @@ class GameStateAdapter:
         self.visual_units: Dict[str, VisualUnit] = {}  # unit_id (UUID) -> VisualUnit
         self.animation_queue: List[AnimationEvent] = []
         self.executing_turn = False  # Track if we're in turn execution
+        self.post_execution_sync = False  # Track if we're in post-execution sync (for attack animations)
 
         # State tracking
         self.current_turn = 0
@@ -705,9 +706,10 @@ class GameStateAdapter:
                     animated_unit.grid_x = game_unit.x
                     animated_unit.grid_y = game_unit.y
 
-            # Detect basic attack ONLY during turn execution
-            # Attacks get set when planned, but we only want to animate them when executed
-            if self.executing_turn:
+            # Detect basic attack ONLY during POST-execution sync
+            # Attacks get set when planned, but we only want to animate them AFTER validation in execute_turn
+            # This prevents false attack animations when AI plans attacks that fail validation (range/LOS)
+            if self.executing_turn and self.post_execution_sync:
                 if hasattr(game_unit, 'attack_target') and game_unit.attack_target:
                     # Check if this is a new attack (not already animated)
                     if game_unit.attack_target != visual_unit.last_attack_target:

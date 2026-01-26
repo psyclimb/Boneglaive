@@ -52,6 +52,11 @@ def run_game():
     # skip_setup=False means game starts in setup phase
     adapter.initialize_game(skip_setup=False, map_name=selected_map, network_mode=network_mode, ui_adapter=ui_adapter)
 
+    # Set up terrain change callback so renderer marks tiles dirty when terrain changes
+    if adapter.game and adapter.game.map:
+        adapter.game.map.terrain_change_callback = renderer.mark_tile_dirty
+        print("Terrain change callback registered for dynamic terrain updates")
+
     # Set multiplayer mode based on config
     print(f"[DEBUG] LOCAL_MULTIPLAYER.value: {NetworkMode.LOCAL_MULTIPLAYER.value}")
     if network_mode == NetworkMode.LOCAL_MULTIPLAYER.value:

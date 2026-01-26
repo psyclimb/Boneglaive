@@ -1621,7 +1621,7 @@ class Game:
             
         return True
     
-    def can_attack(self, unit, y, x):
+    def can_attack(self, unit, y, x, from_pos=None):
         # Check if unit is disarmed (cannot basic attack)
         if hasattr(unit, 'status_disarmed') and unit.status_disarmed:
             return False
@@ -1629,9 +1629,12 @@ class Game:
         # First check for unit targets
         target = self.get_unit_at(y, x)
 
+        # Use provided position or unit's current position
+        unit_y, unit_x = from_pos if from_pos else (unit.y, unit.x)
+
         # Check if attacker is in any POTPOURRIST's Demilune zone (GRAYMAN is immune)
         if unit.type != UnitType.GRAYMAN:
-            attacker_pos = (unit.y, unit.x)
+            attacker_pos = (unit_y, unit_x)
             for potpourrist in self.units:
                 if (potpourrist.type == UnitType.POTPOURRIST and
                     potpourrist.is_alive() and
@@ -1648,19 +1651,19 @@ class Game:
         # Check universal targeting restrictions
         if not self.can_target_unit(unit, target):
             return False
-        
+
         # Calculate attack distance regardless of target type
-        distance = self.chess_distance(unit.y, unit.x, y, x)
+        distance = self.chess_distance(unit_y, unit_x, y, x)
         effective_stats = unit.get_effective_stats()
         effective_attack_range = effective_stats['attack_range']
-        
+
         # Basic range check for all target types
         if distance > effective_attack_range:
             return False
-            
+
         # Line of sight check for all units
         # Check if there is a clear line of sight to the target
-        los_check = self.has_line_of_sight(unit.y, unit.x, y, x)
+        los_check = self.has_line_of_sight(unit_y, unit_x, y, x)
         if not los_check:
             from boneglaive.utils.debug import logger
             logger.debug(f"{unit.get_display_name()} cannot attack target at ({y}, {x}) due to blocked line of sight")
@@ -1759,7 +1762,8 @@ class Game:
                 target = self.get_unit_at(y, x)
                 if target and target.player != unit.player:
                     # Use can_attack to validate all restrictions (including Demilune zones)
-                    if self.can_attack(unit, y, x):
+                    # Pass from_pos so it uses the correct attack position (ghost pos if moved)
+                    if self.can_attack(unit, y, x, from_pos=from_pos):
                         attacks.append((y, x))
 
                     continue  # Skip wall check

@@ -61,12 +61,15 @@ class GameMap:
         # Dictionary to store astral values for furniture per player
         # Format: {player: {(y, x): value}}
         self.cosmic_values: Dict[int, Dict[Tuple[int, int], int]] = {}
-        
+
         # Dictionary to store lighting effects
         self.lighting_effects: Dict[Tuple[int, int], Dict] = {}
 
         # Dictionary to store original terrain that was replaced by rails
         self.rail_original_terrain: Dict[Tuple[int, int], TerrainType] = {}
+
+        # Callback for terrain changes (used by graphical renderer to mark tiles dirty)
+        self.terrain_change_callback = None
 
         # Generate an empty map by default
         self.reset_to_empty()
@@ -89,6 +92,11 @@ class GameMap:
     def set_terrain_at(self, y: int, x: int, terrain_type: TerrainType) -> None:
         """Set terrain type at the given coordinates."""
         self.terrain[(y, x)] = terrain_type
+
+        # Notify renderer if callback is set (for graphical mode)
+        # Note: renderer.mark_tile_dirty expects (x, y) while this method receives (y, x)
+        if self.terrain_change_callback:
+            self.terrain_change_callback(x, y)
     
     def is_passable(self, y: int, x: int) -> bool:
         """Check if a position is passable (can be moved through)."""
