@@ -1426,10 +1426,20 @@ class ExpediteRush:
                 self.timer = 0
 
         elif self.phase == "complete":
-            # Fade out (0.3s) - keep FOREMAN at new position
+            # Fade out (0.3s) - sync FOREMAN visual position to grid position
             if self.timer >= 0.3:
-                # Don't restore position - FOREMAN stays where he rushed to
-                # Position will be reset at end of full skill rotation
+                # CRITICAL FIX: Sync visual position (x, y) to match grid position (grid_x, grid_y)
+                # During the animation, we modified screen coords directly which caused desync
+                # Now force visual position to match the actual grid position
+                if self.camera:
+                    self.foreman.x, self.foreman.y = self.camera.grid_to_screen(self.foreman.grid_x, self.foreman.grid_y)
+                else:
+                    # Fallback without camera
+                    from boneglaive.graphical.renderer import GRID_OFFSET_X, GRID_OFFSET_Y
+                    self.foreman.x = GRID_OFFSET_X + self.foreman.grid_x * self.tile_size + self.tile_size // 2
+                    self.foreman.y = GRID_OFFSET_Y + self.foreman.grid_y * self.tile_size + self.tile_size // 2
+
+                print(f"[ExpediteRush COMPLETE] Synced foreman visual position to grid ({self.foreman.grid_x}, {self.foreman.grid_y}) -> screen ({self.foreman.x}, {self.foreman.y})")
                 self.active = False
                 return False
 

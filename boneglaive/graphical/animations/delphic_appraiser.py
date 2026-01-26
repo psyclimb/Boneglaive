@@ -507,16 +507,16 @@ class DivineDrepreciationAnimation:
             # Glow fades
             self.glow_intensity = max(0, 1.0 - self.timer / 0.5)
 
-        # Phase transitions
-        if self.phase == "fracture" and self.timer >= 0.8:
+        # Phase transitions (20% faster - durations multiplied by 0.8)
+        if self.phase == "fracture" and self.timer >= 0.64:  # was 0.8
             self._start_collapse_phase()
-        elif self.phase == "collapse" and self.timer >= 1.2:
+        elif self.phase == "collapse" and self.timer >= 0.96:  # was 1.2
             self._start_implosion_phase()
-        elif self.phase == "implosion" and self.timer >= 0.6:
+        elif self.phase == "implosion" and self.timer >= 0.48:  # was 0.6
             self._start_reroll_phase()
-        elif self.phase == "reroll" and self.timer >= 1.5:
+        elif self.phase == "reroll" and self.timer >= 1.2:  # was 1.5
             self._start_aftermath_phase()
-        elif self.phase == "aftermath" and self.timer >= 0.5:
+        elif self.phase == "aftermath" and self.timer >= 0.4:  # was 0.5
             self.active = False
 
         # Update sub-effects
@@ -1155,16 +1155,16 @@ class AuctionCurseAnimation:
 
         self.timer += delta_time
 
-        # Phase transitions
-        if self.phase == "podiums" and self.timer >= 0.8:
+        # Phase transitions (20% faster - durations multiplied by 0.8)
+        if self.phase == "podiums" and self.timer >= 0.64:  # was 0.8
             self._start_auctioneer_phase()
-        elif self.phase == "auctioneers" and self.timer >= 0.6:
+        elif self.phase == "auctioneers" and self.timer >= 0.48:  # was 0.6
             self._start_bidding_phase()
-        elif self.phase == "bidding" and self.timer >= 1.0:
+        elif self.phase == "bidding" and self.timer >= 0.8:  # was 1.0
             self._start_convergence_phase()
-        elif self.phase == "convergence" and self.timer >= 0.8:
+        elif self.phase == "convergence" and self.timer >= 0.64:  # was 0.8
             self._start_aftermath_phase()
-        elif self.phase == "aftermath" and self.timer >= 0.8:  # Extended duration
+        elif self.phase == "aftermath" and self.timer >= 0.64:  # was 0.8
             self.active = False
 
         # Update sub-effects
