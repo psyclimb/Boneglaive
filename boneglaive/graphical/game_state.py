@@ -710,11 +710,12 @@ class GameStateAdapter:
             # Attacks get set when planned, but we only want to animate them AFTER validation in execute_turn
             # This prevents false attack animations when AI plans attacks that fail validation (range/LOS)
             if self.executing_turn and self.post_execution_sync:
-                if hasattr(game_unit, 'attack_target') and game_unit.attack_target:
+                # Check for executed attacks (stored before action targets are cleared)
+                if hasattr(game_unit, 'last_executed_attack') and game_unit.last_executed_attack:
                     # Check if this is a new attack (not already animated)
-                    if game_unit.attack_target != visual_unit.last_attack_target:
+                    if game_unit.last_executed_attack != visual_unit.last_attack_target:
                         # Basic attack is being executed!
-                        attack_target = game_unit.attack_target  # (y, x) in game coords
+                        attack_target = game_unit.last_executed_attack  # (y, x) in game coords
 
                         # Capture INTERFERER's carrier_rave_active state BEFORE attack execution clears it
                         # (Similar to Potpourrist infusion check below)
@@ -752,7 +753,9 @@ class GameStateAdapter:
                             target_has_riposte=target_has_riposte,  # Pass flag to renderer
                             target_has_glaive_sweep=target_has_glaive_sweep  # Pass flag to renderer
                         ))
-                        visual_unit.last_attack_target = game_unit.attack_target
+                        visual_unit.last_attack_target = game_unit.last_executed_attack
+                        # Clear the executed attack flag after detecting it
+                        game_unit.last_executed_attack = None
                 elif visual_unit.last_attack_target is not None:
                     # Attack was cleared - reset our tracking
                     visual_unit.last_attack_target = None

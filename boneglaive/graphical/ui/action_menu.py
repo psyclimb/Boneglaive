@@ -41,6 +41,7 @@ class ActionButton:
         self.enabled = True
         self.active = False  # Current active mode
         self.blocked_actions = set()  # LOTO: Set of blocked action types
+        self.has_upgrade_points = False  # Special flag for upgrade button glow
 
     def draw(self, surface: pygame.Surface, x: int, y: int, font, small_font, loto_renderer: Optional[LOTORenderer] = None):
         """Draw the action button."""
@@ -72,6 +73,60 @@ class ActionButton:
 
         border_width = 3 if (self.hovered or self.active) else 2
         pygame.draw.rect(surface, border_color, self.rect, border_width)
+
+        # Draw upgrade points glow effect (gold pulsating with particles)
+        if self.action == "upgrade" and self.has_upgrade_points:
+            import math
+            import time
+            import random
+
+            # Pulsating glow effect
+            time_val = time.time()
+            pulse = (math.sin(time_val * 3) + 1) / 2  # 0 to 1 pulsating
+
+            # Darker gold color with lower alpha for subtler effect
+            gold_color = (180, 140, 40)  # Darker, more bronze-gold
+            glow_alpha = int(40 + pulse * 40)  # 40 to 80 alpha (much subtler)
+
+            # Create glow surface with per-pixel alpha
+            glow_surface = pygame.Surface((BUTTON_WIDTH + 20, BUTTON_HEIGHT + 20), pygame.SRCALPHA)
+
+            # Draw multiple expanding glows for layered effect
+            for i in range(3):
+                offset = 10 - i * 3
+                alpha = glow_alpha // (i + 1)
+                glow_rect = pygame.Rect(offset, offset,
+                                       BUTTON_WIDTH + (i * 2),
+                                       BUTTON_HEIGHT + (i * 2))
+                pygame.draw.rect(glow_surface, (*gold_color, alpha), glow_rect, border_radius=4)
+
+            # Blit glow surface
+            surface.blit(glow_surface, (x - 10, y - 10), special_flags=pygame.BLEND_RGBA_ADD)
+
+            # Draw particles
+            # Use button position as seed for consistent but pseudo-random particle positions
+            random.seed(int(time_val * 10) + x + y)
+            num_particles = 8
+            for i in range(num_particles):
+                # Calculate particle position around button
+                angle = (time_val + i * (3.14159 * 2 / num_particles)) % (3.14159 * 2)
+                distance = 30 + pulse * 10
+                px = x + BUTTON_WIDTH // 2 + int(math.cos(angle) * distance)
+                py = y + BUTTON_HEIGHT // 2 + int(math.sin(angle) * distance)
+
+                # Particle size varies with pulse
+                particle_size = int(2 + pulse * 2)
+                particle_alpha = int(60 + pulse * 50)  # 60 to 110 alpha (subtler particles)
+
+                # Draw particle
+                particle_surf = pygame.Surface((particle_size * 2, particle_size * 2), pygame.SRCALPHA)
+                pygame.draw.circle(particle_surf, (*gold_color, particle_alpha),
+                                 (particle_size, particle_size), particle_size)
+                surface.blit(particle_surf, (px - particle_size, py - particle_size),
+                           special_flags=pygame.BLEND_RGBA_ADD)
+
+            # Reset random seed to not affect other random calls
+            random.seed()
 
         # Draw hotkey in top-left corner
         text_color = COLOR_TEXT_DISABLED if not self.enabled else COLOR_HOTKEY
@@ -178,6 +233,18 @@ class ActionMenu:
             elif button.action == "respawn":
                 button.enabled = self.has_respawns_available
                 button.active = (self.current_mode == "respawn")
+                button.blocked_actions = set()
+            elif button.action == "upgrade":
+                # Check if current player has upgrade points available
+                if game:
+                    if game.current_player == 1:
+                        button.has_upgrade_points = game.player1_upgrade_points > 0
+                    else:
+                        button.has_upgrade_points = game.player2_upgrade_points > 0
+                else:
+                    button.has_upgrade_points = False
+                button.enabled = True
+                button.active = False
                 button.blocked_actions = set()
             elif button.action == "help":
                 button.enabled = True

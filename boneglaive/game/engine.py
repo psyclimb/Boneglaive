@@ -4047,7 +4047,14 @@ class Game:
                     
                     # Kill the vapor using expire() to bypass invulnerability
                     vapor_unit.expire()
-            
+
+        # Store executed attacks for animation before clearing them
+        # This allows graphical mode to detect which attacks actually happened
+        for unit in self.units:
+            if unit.is_alive() and hasattr(unit, 'attack_target') and unit.attack_target:
+                # Mark that this attack was executed (for animation detection)
+                unit.last_executed_attack = unit.attack_target
+
         # Clear all actions and update skill cooldowns
         for unit in self.units:
             if unit.is_alive():
