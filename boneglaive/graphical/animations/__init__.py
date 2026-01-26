@@ -20,9 +20,11 @@ from .glaiveman import (
     AutoclaveAnimation,
     PryImpactAnimation,
     VaultAnimationController,
+    VaultAnimationControllerUpgraded,
     PryAnimation,
     JudgementAnimation,
-    AutoclaveAnimationV2
+    AutoclaveAnimationV2,
+    GlaiveSweepAnimation
 )
 
 from .mandible_foreman import (
@@ -32,14 +34,17 @@ from .mandible_foreman import (
     ViseroyRelease,
     SiteInspectionBuff,
     SiteInspectionScan,
+    SiteInspectionScanUpgraded,
     ExpediteRush,
-    JawlineNetwork
+    JawlineNetwork,
+    JawlineNetworkUpgraded
 )
 
 from .potpourrist import (
     PedestalStrike,
     InfuseEffect,
     DemiluneSwing,
+    SelenicBackdraftZone,
     LunacyEffect,
     GraniteGeasEffect,
     GeasBreakHeal,
@@ -87,6 +92,8 @@ from .derelictionist import (
     DerelictionistDefectTeleportAnimation,
     VagalRunAnimation,
     VagalRunAbreactionAnimation,
+    DerelictBuildingFormation,
+    DerelictBuildingTiles,
 )
 
 from .fowl_contrivance import (
@@ -137,9 +144,11 @@ __all__ = [
     'AutoclaveAnimation',
     'PryImpactAnimation',
     'VaultAnimationController',
+    'VaultAnimationControllerUpgraded',
     'PryAnimation',
     'JudgementAnimation',
     'AutoclaveAnimationV2',
+    'GlaiveSweepAnimation',
     # Mandible Foreman
     'JawClamp',
     'JawRelease',
@@ -147,12 +156,15 @@ __all__ = [
     'ViseroyRelease',
     'SiteInspectionBuff',
     'SiteInspectionScan',
+    'SiteInspectionScanUpgraded',
     'ExpediteRush',
     'JawlineNetwork',
+    'JawlineNetworkUpgraded',
     # Potpourrist
     'PedestalStrike',
     'InfuseEffect',
     'DemiluneSwing',
+    'SelenicBackdraftZone',
     'LunacyEffect',
     'GraniteGeasEffect',
     'GeasBreakHeal',
@@ -190,6 +202,8 @@ __all__ = [
     'DerelictionistDefectTeleportAnimation',
     'VagalRunAnimation',
     'VagalRunAbreactionAnimation',
+    'DerelictBuildingFormation',
+    'DerelictBuildingTiles',
     # Fowl Contrivance
     'ParabolAnimation',
     'FragcrestAnimation',

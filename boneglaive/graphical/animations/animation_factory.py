@@ -13,15 +13,17 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from boneglaive.graphical.animations.core import AnimatedUnit, TILE_SIZE
 from boneglaive.graphical.animations.glaiveman import (
     LightningBolt, CrossBeam, AutoclaveAnimation, AutoclaveAnimationV2, SpinningGlaiveProjectile,
-    PryImpactAnimation, VaultAnimationController, PryAnimation, JudgementAnimation
+    PryImpactAnimation, VaultAnimationController, VaultAnimationControllerUpgraded,
+    PryAnimation, JudgementAnimation, GlaiveSweepAnimation
 )
 from boneglaive.graphical.animations.mandible_foreman import (
     JawClamp, ViseroyTrap, ViseroyRelease, JawTighten, SiteInspectionBuff,
-    SiteInspectionScan, ExpediteRush, JawlineNetwork
+    SiteInspectionScan, SiteInspectionScanUpgraded, ExpediteRush, JawlineNetwork, JawlineNetworkUpgraded
 )
 from boneglaive.graphical.animations.potpourrist import (
     PedestalStrike, InfuseEffect, DemiluneSwing, GraniteGeasEffect,
-    MelangeEminenceHealAnimation, MelangeEminenceInfusedHealAnimation
+    MelangeEminenceHealAnimation, MelangeEminenceInfusedHealAnimation,
+    SelenicBackdraftZone
 )
 from boneglaive.graphical.animations.grayman import (
     DeltaConfigAnimation,
@@ -55,9 +57,12 @@ from boneglaive.graphical.animations.derelictionist import (
     PartitionHitAnimation,
     VagalRunAnimation,
     VagalRunAbreactionAnimation,
+    DerelictBuildingFormation,
+    DerelictBuildingTiles,
 )
 from boneglaive.graphical.animations.fowl_contrivance import (
     ParabolAnimation,
+    ParabolAnimationUpgraded,
     FragcrestAnimation,
     GaussianDuskFireAnimation,
     RailGenesisDeathExplosionAnimation,
@@ -93,13 +98,17 @@ class AnimationFactory:
         "JUDGEMENT": (JudgementAnimation, {}),  # New full animation: wind-up, flight, impact (lightning on crit)
         "PRY": (PryAnimation, {}),  # New full animation: pry up, ceiling impact, falling debris, ground explosion
         "VAULT": (VaultAnimationController, {}),  # Acrobatic leap with flip
+        "VAULT_UPGRADED": (VaultAnimationControllerUpgraded, {}),  # Extended vault with double flip, higher arc, enhanced effects
         "AUTOCLAVE": (AutoclaveAnimationV2, {}),  # Enhanced: fire burst, steam cross, spinning glaives on every tile, healing
+        "GLAIVE_SWEEP": (GlaiveSweepAnimation, {}),  # Circular sweep attack hitting all 8 adjacent tiles (upgraded Autoclave 2nd activation)
 
         # MANDIBLE FOREMAN skills
         "EXPEDITE": (ExpediteRush, {}),  # Discharge skill is named "Expedite"
         "DISCHARGE": (ViseroyRelease, {}),  # Release animation for Viseroy trap (when it ends)
         "SITE_INSPECTION": (SiteInspectionScan, {}),  # Laser scan animation
-        "JAWLINE": (JawlineNetwork, {}),  # Network of bear traps
+        "SITE_INSPECTION_UPGRADED": (SiteInspectionScanUpgraded, {}),  # Enhanced holographic scan with dual-pass analysis
+        "JAWLINE": (JawlineNetwork, {}),  # Network of bear traps (3x3 around FOREMAN)
+        "JAWLINE_UPGRADED": (JawlineNetworkUpgraded, {}),  # Directional cable spools with rolling traps (3x9 line)
         "VISEROY": (ViseroyTrap, {}),  # Passive (basic attack animation)
         "VISEROY_TICK": (JawTighten, {}),  # Trap tick damage animation
 
@@ -108,6 +117,7 @@ class AnimationFactory:
         "INFUSE": (InfuseEffect, {}),
         "DEMILUNE": (DemiluneSwing, {}),
         "DEMILUNE_INFUSED": (DemiluneSwing, {"infused": True}),
+        "SELENIC_BACKDRAFT": (SelenicBackdraftZone, {}),  # Persistent zone for upgraded Demilune
         "GRANITE_GEAS": (GraniteGeasEffect, {}),
         "MELANGE_EMINENCE_HEAL": (MelangeEminenceHealAnimation, {}),
         "MELANGE_EMINENCE_INFUSED_HEAL": (MelangeEminenceInfusedHealAnimation, {}),
@@ -163,6 +173,8 @@ class AnimationFactory:
         "VAGAL_RUN": (VagalRunAnimation, {}),
         "VAGAL_RUN_ABREACTION": (VagalRunAbreactionAnimation, {}),  # Delayed effect (no connection arc)
         "PARTITION": (PartitionAnimation, {}),
+        "DERELICT_BUILDING_FORMATION": (DerelictBuildingFormation, {}),  # Building rising animation
+        "DERELICT_BUILDING_TILES": (DerelictBuildingTiles, {}),  # Persistent building tiles
 
         # PELOTARI skills (DLC)
         "MATADOR": (MatadorAnimation, {}),
@@ -187,7 +199,9 @@ class AnimationFactory:
                         game = None,
                         bounce_count: int = 2,
                         trajectory = None,
-                        reflected_skill_name: str = None):
+                        reflected_skill_name: str = None,
+                        zone_tiles = None,
+                        building_tiles = None):
         """
         Create an animation for a skill.
 
@@ -409,6 +423,18 @@ class AnimationFactory:
                     screen_shake_callback=screen_shake_callback,
                     camera=camera
                 )
+            elif anim_class.__name__ == "VaultAnimationControllerUpgraded":
+                # VaultAnimationControllerUpgraded needs target position (same signature as regular Vault)
+                if not target_pos:
+                    print("[AnimationFactory] VAULT_UPGRADED requires a target position")
+                    return None
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_pos=target_pos,
+                    particle_emitter=particle_emitter,
+                    screen_shake_callback=screen_shake_callback,
+                    camera=camera
+                )
             elif anim_class.__name__ == "EstrangeBeam":
                 # EstrangeBeam needs source, target, and particle emitter
                 animation = anim_class(
@@ -420,6 +446,7 @@ class AnimationFactory:
                 )
             elif anim_class.__name__ == "DeltaConfigAnimation":
                 # DeltaConfigAnimation needs caster unit, target position, and particle emitter
+                # Also needs game and units_list for upgraded abduction mechanics
                 if not target_pos:
                     print("[AnimationFactory] DELTA_CONFIG requires a target position")
                     return None
@@ -427,7 +454,9 @@ class AnimationFactory:
                     caster_unit=caster_unit,
                     target_pos=target_pos,
                     particle_emitter=particle_emitter,
-                    camera=camera
+                    camera=camera,
+                    game=kwargs.get('game'),
+                    units_list=units_list if units_list else []
                 )
             elif anim_class.__name__ == "GraeExchangeAnimation":
                 # GraeExchangeAnimation needs caster unit, target position, and particle emitter
@@ -567,7 +596,7 @@ class AnimationFactory:
                     particle_emitter=particle_emitter,
                     screen_flash_callback=screen_flash_callback
                 )
-            elif anim_class.__name__ == "SiteInspectionScan":
+            elif anim_class.__name__ in ["SiteInspectionScan", "SiteInspectionScanUpgraded"]:
                 # Site Inspection scan animation - needs center position (target_pos)
                 # NOTE: target_pos is (grid_y, grid_x) format from renderer
                 # Target position is where the scan is centered
@@ -581,13 +610,31 @@ class AnimationFactory:
                     center_y=center_y,
                     camera=camera
                 )
-            elif anim_class.__name__ == "JawlineNetwork":
-                # Jawline network - deploys from caster position
-                animation = anim_class(
-                    center_x=caster_screen_x,
-                    center_y=caster_screen_y,
-                    camera=camera
-                )
+            elif anim_class.__name__ in ["JawlineNetwork", "JawlineNetworkUpgraded"]:
+                # Jawline network - base version deploys from caster, upgraded needs target
+                if anim_class.__name__ == "JawlineNetworkUpgraded":
+                    # Upgraded version needs target position for direction
+                    if not target_pos:
+                        print("[AnimationFactory] JAWLINE_UPGRADED requires a target position")
+                        return None
+                    # Convert grid to screen: target_pos[1] is grid_x, target_pos[0] is grid_y
+                    target_x, target_y = grid_to_screen(target_pos[1], target_pos[0])
+                    animation = anim_class(
+                        center_x=caster_screen_x,
+                        center_y=caster_screen_y,
+                        target_x=target_x,
+                        target_y=target_y,
+                        camera=camera,
+                        game=kwargs.get('game'),
+                        caster_unit=caster_unit
+                    )
+                else:
+                    # Base version - 3x3 around caster
+                    animation = anim_class(
+                        center_x=caster_screen_x,
+                        center_y=caster_screen_y,
+                        camera=camera
+                    )
             elif anim_class.__name__ == "ExpediteRush":
                 # Expedite rush - needs start, target, and caster unit
                 # NOTE: target_pos is (grid_y, grid_x) format from renderer
@@ -838,24 +885,50 @@ class AnimationFactory:
                 )
             elif anim_class.__name__ == "ParabolAnimation":
                 # Parabol - 3x3 mortar barrage with indirect fire
+                # Check if skill is upgraded (uses underground parabola with second explosion)
                 # Requires: target_pos (center of 3x3 area), camera, callbacks
                 if not target_pos:
                     print("[AnimationFactory] PARABOL requires a target position")
                     return None
-                animation = anim_class(
-                    caster_unit=caster_unit,
-                    target_unit=None,  # Area attack, no specific target unit
-                    target_pos=target_pos,  # Center of 3x3 area (grid_y, grid_x)
-                    is_crit=is_crit,
-                    is_infused=is_infused,
-                    particle_emitter=particle_emitter,
-                    debris_list=[],
-                    screen_shake_callback=screen_shake_callback,
-                    screen_flash_callback=screen_flash_callback,
-                    units_list=units_list if units_list else [],
-                    camera=camera,
-                    game=kwargs.get('game')
-                )
+
+                # Check for upgrade
+                is_upgraded = False
+                game = kwargs.get('game')
+                if game and hasattr(caster_unit, 'game_unit') and caster_unit.game_unit:
+                    from boneglaive.game.upgrades import UpgradeManager
+                    is_upgraded = UpgradeManager.is_skill_upgraded(caster_unit.game_unit, "Parabol")
+
+                # Use upgraded animation if skill is upgraded
+                if is_upgraded:
+                    animation = ParabolAnimationUpgraded(
+                        caster_unit=caster_unit,
+                        target_unit=None,  # Area attack, no specific target unit
+                        target_pos=target_pos,  # Center of 3x3 area (grid_y, grid_x)
+                        is_crit=is_crit,
+                        is_infused=is_infused,
+                        particle_emitter=particle_emitter,
+                        debris_list=[],
+                        screen_shake_callback=screen_shake_callback,
+                        screen_flash_callback=screen_flash_callback,
+                        units_list=units_list if units_list else [],
+                        camera=camera,
+                        game=game
+                    )
+                else:
+                    animation = anim_class(
+                        caster_unit=caster_unit,
+                        target_unit=None,  # Area attack, no specific target unit
+                        target_pos=target_pos,  # Center of 3x3 area (grid_y, grid_x)
+                        is_crit=is_crit,
+                        is_infused=is_infused,
+                        particle_emitter=particle_emitter,
+                        debris_list=[],
+                        screen_shake_callback=screen_shake_callback,
+                        screen_flash_callback=screen_flash_callback,
+                        units_list=units_list if units_list else [],
+                        camera=camera,
+                        game=game
+                    )
             elif anim_class.__name__ == "FragcrestAnimation":
                 # Fragcrest - directional fragmentation cone with knockback
                 # Requires: target_pos (primary target), target_unit, camera, callbacks, game
@@ -1043,6 +1116,43 @@ class AnimationFactory:
                     bounce_count=bounce_count,
                     is_infused=is_infused,
                     is_crit=is_crit
+                )
+            elif anim_class.__name__ == "SelenicBackdraftZone":
+                # Selenic Backdraft Zone - Persistent ground effect for upgraded Demilune
+                # Requires: zone_tiles (list of grid positions), caster_unit, camera, game
+                if not zone_tiles:
+                    print("[AnimationFactory] ERROR: SelenicBackdraftZone requires zone_tiles")
+                    return None
+
+                animation = anim_class(
+                    zone_tiles=zone_tiles,
+                    caster_unit=caster_unit,
+                    camera=camera,
+                    game=game
+                )
+            elif anim_class.__name__ == "DerelictBuildingFormation":
+                # Derelict Building Formation - Building rising animation
+                # Requires: building_tiles (list of grid positions), camera, game
+                if not building_tiles:
+                    print("[AnimationFactory] ERROR: DerelictBuildingFormation requires building_tiles")
+                    return None
+
+                animation = anim_class(
+                    building_tiles=building_tiles,
+                    camera=camera,
+                    game=game
+                )
+            elif anim_class.__name__ == "DerelictBuildingTiles":
+                # Derelict Building Tiles - Persistent building tile effect
+                # Requires: building_tiles (list of grid positions), camera, game
+                if not building_tiles:
+                    print("[AnimationFactory] ERROR: DerelictBuildingTiles requires building_tiles")
+                    return None
+
+                animation = anim_class(
+                    building_tiles=building_tiles,
+                    camera=camera,
+                    game=game
                 )
             else:
                 # Most animations expect just target coordinates

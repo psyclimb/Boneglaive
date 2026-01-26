@@ -24,7 +24,8 @@ from boneglaive.ui.ui_components import (
     MessageLogComponent, HelpComponent, UnitHelpComponent, ChatComponent,
     CursorManager, GameModeManager, DebugComponent,
     AnimationComponent, InputManager, ActionMenuComponent,
-    GameOverPrompt, ConcedePrompt, UnitSelectionMenuComponent
+    GameOverPrompt, ConcedePrompt, UnitSelectionMenuComponent,
+    UpgradeMenuComponent
 )
 from boneglaive.ui.ui_renderer import UIRenderer
 
@@ -113,6 +114,7 @@ class GameUI:
         self.game_over_prompt = GameOverPrompt(self.renderer, self)  # Add game over prompt
         self.concede_prompt = ConcedePrompt(self.renderer, self)  # Add concede prompt
         self.unit_selection_menu = UnitSelectionMenuComponent(self.renderer, self)
+        self.upgrade_menu = UpgradeMenuComponent(self.renderer, self)  # Add upgrade menu
         self.input_manager = InputManager(self.renderer, self, self.input_handler)
         self.ui_renderer = UIRenderer(self.renderer, self)
         
@@ -383,6 +385,11 @@ class GameUI:
         
     def handle_input(self, key: int) -> bool:
         """Handle user input using the input manager."""
+        # Prevent unnecessary redraws when upgrade menu is open and no input received
+        # (nodelay mode causes getch() to return -1 when no key is waiting)
+        if key == -1 and self.upgrade_menu.show_upgrade_menu:
+            return True
+
         # Handle setup instructions screen
         if self.game.setup_phase and self.mode_manager.show_setup_instructions:
             self.mode_manager.show_setup_instructions = False
@@ -400,6 +407,56 @@ class GameUI:
                 return True
             # Otherwise, let it pass through as movement
             
+        # Check if upgrade menu is open first (highest priority)
+        if self.upgrade_menu.show_upgrade_menu:
+            handled = self.upgrade_menu.handle_input(key)
+            self.draw_board()  # Always draw after handling input
+            return True  # Consume all input while menu is open
+
+        # DEV KEYBIND: Add upgrade points with '=' key (temporary for testing)
+        if key == ord('='):
+            if not self.game.setup_phase:
+                if self.game.current_player == 1:
+                    self.game.player1_upgrade_points += 1
+                    message_log.add_message(
+                        f"[DEV] Player 1 upgrade points: {self.game.player1_upgrade_points}",
+                        MessageType.SYSTEM,
+                        player=1
+                    )
+                else:
+                    self.game.player2_upgrade_points += 1
+                    message_log.add_message(
+                        f"[DEV] Player 2 upgrade points: {self.game.player2_upgrade_points}",
+                        MessageType.SYSTEM,
+                        player=2
+                    )
+                self.draw_board()
+                return True
+
+        # Check for U key to open upgrade menu
+        if key == ord('u') or key == ord('U'):
+            if not self.game.setup_phase and self.cursor_manager.selected_unit:
+                selected_unit = self.cursor_manager.selected_unit
+                # Only allow upgrading your own units on your turn
+                if selected_unit.player == self.game.current_player:
+                    self.upgrade_menu.open_menu(selected_unit)
+                    self.draw_board()
+                    return True
+                else:
+                    message_log.add_message(
+                        "You can only upgrade your own units.",
+                        MessageType.WARNING,
+                        player=self.game.current_player
+                    )
+                    return True
+            elif not self.game.setup_phase:
+                message_log.add_message(
+                    "Select a unit to upgrade.",
+                    MessageType.WARNING,
+                    player=self.game.current_player
+                )
+                return True
+
         # Check if action menu wants to handle direct key presses first (for m/a/s keys)
         # But this won't block other inputs like movement keys
         if self.action_menu_component.visible:

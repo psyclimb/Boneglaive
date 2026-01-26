@@ -109,13 +109,26 @@ class NeutronIlluminant(PassiveSkill):
         """Trigger radiation burn in directional pattern around the INTERFERER."""
         if not self.can_trigger():
             return
-            
+
         # Set cooldown (0, so always triggers)
         self.current_cooldown = self.cooldown
-        
+
+        # Check if Neutron Illuminant is upgraded
+        from boneglaive.game.upgrades import UpgradeManager
+        neutron_upgraded = UpgradeManager.is_skill_upgraded(user, "Neutron Illuminant")
+
         # Get radiation positions
         radiation_positions = self._get_radiation_positions(user, target_pos)
-        
+
+        # With upgrade: Also flash the primary target
+        if neutron_upgraded:
+            primary_target = game.get_unit_at(target_pos[0], target_pos[1])
+            if primary_target and primary_target.player != user.player and primary_target.is_alive():
+                if not primary_target.is_immune_to_effects():
+                    if not hasattr(primary_target, 'radiation_stacks'):
+                        primary_target.radiation_stacks = []
+                    primary_target.radiation_stacks.append(2)
+
         # Apply radiation to valid positions
         affected_units = []
         immune_units = []
@@ -138,7 +151,7 @@ class NeutronIlluminant(PassiveSkill):
                 # Add new radiation stack (2 turns duration)
                 target.radiation_stacks.append(2)
                 affected_units.append(target)
-        
+
         # Log radiation effect only if units were affected
         if affected_units:
             message_log.add_message(
@@ -173,6 +186,13 @@ class NeuralShuntSkill(ActiveSkill):
         )
         self.damage = 7
         self.effect_duration = 1
+
+    def get_range(self, user: 'Unit') -> int:
+        """Get effective range based on upgrade status."""
+        from boneglaive.game.upgrades import UpgradeManager
+        if UpgradeManager.is_skill_upgraded(user, "Neural Shunt"):
+            return 3
+        return self.range
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         # Basic validation
@@ -180,22 +200,23 @@ class NeuralShuntSkill(ActiveSkill):
             return False
         if not game or not target_pos:
             return False
-            
+
         # Check if target is an enemy unit
         target = game.get_unit_at(target_pos[0], target_pos[1])
         if not target or target.player == user.player:
             return False
-            
-        # Check range
+
+        # Check range (use get_range for upgrade support)
         from_y = user.y
         from_x = user.x
         if user.move_target:
             from_y, from_x = user.move_target
-            
+
         distance = game.chess_distance(from_y, from_x, target_pos[0], target_pos[1])
-        if distance > self.range:
+        effective_range = self.get_range(user)
+        if distance > effective_range:
             return False
-            
+
         return True
     
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
@@ -365,12 +386,17 @@ class NeuralShuntSkill(ActiveSkill):
                 )
         
         # Trigger Neutron Illuminant flash and radiation effects
+        # With Neural Shunt upgrade: No flash
+        from boneglaive.game.upgrades import UpgradeManager
+        neural_shunt_upgraded = UpgradeManager.is_skill_upgraded(user, "Neural Shunt")
+
         if user.passive_skill and user.passive_skill.name == "Neutron Illuminant":
-            # Always trigger flash effect for Neural Shunt attacks
-            user.passive_skill.trigger_flash_effect(user, target_pos, game, ui)
-            # Also trigger radiation effect (only applies if enemies are in range)
+            # Only trigger flash effect if Neural Shunt is not upgraded
+            if not neural_shunt_upgraded:
+                user.passive_skill.trigger_flash_effect(user, target_pos, game, ui)
+            # Always trigger radiation effect (only applies if enemies are in range)
             user.passive_skill.trigger_radiation(user, target_pos, game, ui)
-        
+
         return True
 
 

@@ -664,23 +664,23 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'AUTOCLAVE (Passive)',
-                        'description': 'When the GLAIVEMAN is brought to critical health or takes damage while already at critical health, he unleashes a desperate cross-shaped retaliation in four cardinal directions (range 3). The burst deals 8 damage to all enemies in its path and heals the GLAIVEMAN for half the total damage dealt. This ability can only trigger once per match and requires at least one enemy within range to activate.',
+                        'description': 'When the GLAIVEMAN is brought to critical health or takes damage while already at critical health, he unleashes a desperate cross-shaped retaliation in four cardinal directions (range 3). The burst deals 8 damage to all enemies in its path and heals the GLAIVEMAN for half the total damage dealt. This ability can only trigger once per life and requires at least one enemy within range to activate. Resets on respawn.',
                         'details': [
                             'Type: Passive',
                             'Range: 3 (cross-shaped in 4 directions)',
                             'Damage: 8',
                             'Effect: Heals for 50% of total damage dealt',
-                            'Special: Once per game; triggers on critical health; requires enemy in range; pierces through terrain'
+                            'Special: Once per life; resets on respawn; triggers on critical health; requires enemy in range; pierces through terrain'
                         ]
                     },
                     {
                         'name': 'PRY (Active) [Key: P]',
-                        'description': 'The GLAIVEMAN pries an adjacent enemy straight up into the ceiling or skybox, causing them to crash down with falling debris. The primary target takes 6 damage and suffers -1 movement for 2 turns (Pried). All adjacent enemies take 3 splash damage from the falling debris.',
+                        'description': 'The GLAIVEMAN pries an adjacent enemy straight up into the ceiling or skybox, causing them to crash down with falling debris. The primary target takes 6 damage and is staggered by the brutal impact, suffering -1 movement for 2 turns (Pried). All adjacent enemies take 3 splash damage from the falling debris.',
                         'details': [
                             'Type: Active',
                             'Range: 1',
                             'Damage: 6 (primary target), 3 (splash to adjacent enemies)',
-                            'Effect: Pried (/) (-1 movement for 2 turns)',
+                            'Effect: Pried (/) (Staggered, -1 movement for 2 turns)',
                             'Cooldown: 3 turns',
                             'Special: Requires line of sight; splash damage affects all adjacent enemies of target'
                         ]
@@ -2480,7 +2480,26 @@ class CursorManager(UIComponent):
                 # Show information about enemy unit instead of selection error
                 # Use the unit's display name (includes Greek identifier) instead of "Player X's UNITTYPE"
                 unit_info = f"{unit.get_display_name()} - HP: {unit.hp}/{unit.max_hp}"
-                
+
+                # Check if enemy has astral value (Valuation Oracle upgrade)
+                current_player = self.game_ui.game.current_player
+                if unit.player != current_player:
+                    # Check if current player has DELPHIC_APPRAISER with Valuation Oracle upgrade
+                    from boneglaive.utils.constants import UnitType
+                    for appraiser in self.game_ui.game.units:
+                        if (appraiser.player == current_player and
+                            appraiser.is_alive() and
+                            appraiser.type == UnitType.DELPHIC_APPRAISER and
+                            hasattr(appraiser, 'passive_skill') and appraiser.passive_skill):
+                            from boneglaive.game.upgrades import UpgradeManager
+                            if UpgradeManager.is_skill_upgraded(appraiser, "Valuation Oracle"):
+                                enemy_value = appraiser.passive_skill._get_enemy_astral_value(
+                                    self.game_ui.game, current_player, unit
+                                )
+                                if enemy_value is not None:
+                                    unit_info += f" | Astral Value: {enemy_value}"
+                                break
+
                 # Send message through event system
                 self.publish_event(
                     EventType.MESSAGE_DISPLAY_REQUESTED,
@@ -2498,15 +2517,28 @@ class CursorManager(UIComponent):
                 terrain = self.game_ui.game.map.get_terrain_at(y, x)
                 terrain_name = terrain.name.lower().replace('_', ' ')
 
-                # Check if this position is inside an upgraded Marrow Dike interior (viscous plasma)
+                # Check if this position is in a Demilune zone
                 pos_tuple = (y, x)
-                if (hasattr(self.game_ui.game, 'marrow_dike_interior') and 
-                    pos_tuple in self.game_ui.game.marrow_dike_interior):
-                    dike_info = self.game_ui.game.marrow_dike_interior[pos_tuple]
-                    # If this is an upgraded Marrow Dike on passable terrain, show plasma label
-                    if (dike_info.get('upgraded', False) and 
-                        self.game_ui.game.map.is_passable(y, x)):
-                        terrain_name = "viscous plasma"
+                from boneglaive.utils.constants import UnitType
+                for potpourrist in self.game_ui.game.units:
+                    if (potpourrist.type == UnitType.POTPOURRIST and
+                        potpourrist.is_alive() and
+                        hasattr(potpourrist, 'demilune_zone_duration') and
+                        potpourrist.demilune_zone_duration > 0):
+                        if (hasattr(potpourrist, 'demilune_mirrored_zone_tiles') and
+                            pos_tuple in potpourrist.demilune_mirrored_zone_tiles):
+                            terrain_name = "selenic backdraft"
+                            break
+
+                # Check if this position is inside an upgraded Marrow Dike interior (viscous plasma)
+                if terrain_name != "selenic backdraft":
+                    if (hasattr(self.game_ui.game, 'marrow_dike_interior') and
+                        pos_tuple in self.game_ui.game.marrow_dike_interior):
+                        dike_info = self.game_ui.game.marrow_dike_interior[pos_tuple]
+                        # If this is an upgraded Marrow Dike on passable terrain, show plasma label
+                        if (dike_info.get('upgraded', False) and
+                            self.game_ui.game.map.is_passable(y, x)):
+                            terrain_name = "viscous plasma"
 
                 # Check if terrain is furniture and player has DELPHIC_APPRAISER
                 message = f"Tile: {terrain_name}"
@@ -3559,10 +3591,28 @@ class GameModeManager(UIComponent):
                     )
                     return
                 
-                # Check if unit is an echo (cannot use skills)
+                # Check if unit is an echo
+                # Echoes CAN use skills if Græ Exchange is upgraded
                 if cursor_manager.selected_unit.is_echo:
-                    # Don't show a message, just silently return
-                    return
+                    # Check if this echo can use Græ Exchange (upgrade active)
+                    from boneglaive.game.upgrades import UpgradeManager
+                    from boneglaive.utils.constants import UnitType
+
+                    can_use_grae_exchange = False
+                    if (cursor_manager.selected_unit.type == UnitType.GRAYMAN and
+                        hasattr(cursor_manager.selected_unit, 'original_unit') and
+                        cursor_manager.selected_unit.original_unit):
+                        # Check if Græ Exchange is upgraded
+                        can_use_grae_exchange = UpgradeManager.is_skill_upgraded(
+                            cursor_manager.selected_unit.original_unit,
+                            "Græ Exchange"
+                        )
+
+                    if not can_use_grae_exchange:
+                        # Echo cannot use any skills - silently return
+                        return
+                    # Otherwise, allow echo to proceed to skill menu
+                    # (only Græ Exchange will be available, others will be grayed out)
 
                 # Check if unit is recharging from Gaussian Dusk
                 if hasattr(cursor_manager.selected_unit, 'gaussian_dusk_recharge') and cursor_manager.selected_unit.gaussian_dusk_recharge > 0:
@@ -3775,27 +3825,29 @@ class GameModeManager(UIComponent):
                     )
                     return
 
-                # Check if there are any teleport anchors
-                if not hasattr(game, 'teleport_anchors') or len(game.teleport_anchors) == 0:
-                    self.publish_event(
-                        EventType.MESSAGE_DISPLAY_REQUESTED,
-                        MessageDisplayEventData(
-                            message="No teleport anchors available",
-                            message_type=MessageType.WARNING
-                        )
-                    )
-                    return
-
-                # Find active teleport anchors that are adjacent to the unit
+                # Find active teleport anchors (furniture and imbued enemies) that are adjacent to the unit
                 active_anchors = []
                 unit = cursor_manager.selected_unit
 
-                for pos, anchor in game.teleport_anchors.items():
-                    if anchor['active']:
-                        # Check if the anchor is adjacent to the unit
-                        distance = game.chess_distance(unit.y, unit.x, pos[0], pos[1])
-                        if distance <= 1:  # Adjacent (including diagonals)
-                            active_anchors.append(pos)
+                # Check furniture anchors
+                if hasattr(game, 'teleport_anchors'):
+                    for pos, anchor in game.teleport_anchors.items():
+                        if anchor['active']:
+                            # Check if the anchor is adjacent to the unit
+                            distance = game.chess_distance(unit.y, unit.x, pos[0], pos[1])
+                            if distance <= 1:  # Adjacent (including diagonals)
+                                active_anchors.append(pos)
+
+                # Check imbued enemy units
+                for other_unit in game.units:
+                    if (other_unit.is_alive() and
+                        hasattr(other_unit, 'status_imbued') and
+                        other_unit.status_imbued and
+                        other_unit.status_imbued_player == unit.player):
+                        # Check if the imbued enemy is adjacent
+                        distance = game.chess_distance(unit.y, unit.x, other_unit.y, other_unit.x)
+                        if distance <= 1:
+                            active_anchors.append((other_unit.y, other_unit.x))
 
                 if not active_anchors:
                     self.publish_event(
@@ -3961,7 +4013,21 @@ class GameModeManager(UIComponent):
         if self.teleport_anchor is None:
             # Check if there's a teleport anchor at the cursor position
             cursor_pos_tuple = (pos.y, pos.x)
-            if cursor_pos_tuple not in game.teleport_anchors or not game.teleport_anchors[cursor_pos_tuple]['active']:
+
+            # Check for furniture anchor
+            is_furniture_anchor = (hasattr(game, 'teleport_anchors') and
+                                   cursor_pos_tuple in game.teleport_anchors and
+                                   game.teleport_anchors[cursor_pos_tuple]['active'])
+
+            # Check for imbued enemy anchor
+            imbued_unit = game.get_unit_at(pos.y, pos.x)
+            is_imbued_anchor = (imbued_unit and
+                               imbued_unit.is_alive() and
+                               hasattr(imbued_unit, 'status_imbued') and
+                               imbued_unit.status_imbued and
+                               imbued_unit.status_imbued_player == unit.player)
+
+            if not is_furniture_anchor and not is_imbued_anchor:
                 self.publish_event(
                     EventType.MESSAGE_DISPLAY_REQUESTED,
                     MessageDisplayEventData(
@@ -3976,7 +4042,12 @@ class GameModeManager(UIComponent):
 
             # Update highlighted positions to show valid teleport destinations
             cursor_manager.highlighted_positions = []
-            cosmic_value = game.teleport_anchors[cursor_pos_tuple]['cosmic_value']
+
+            # Get cosmic value from furniture anchor or imbued unit
+            if is_furniture_anchor:
+                cosmic_value = game.teleport_anchors[cursor_pos_tuple]['cosmic_value']
+            else:
+                cosmic_value = imbued_unit.status_imbued_cosmic_value
 
             # Highlight all positions within the astral value range
             for y in range(max(0, pos.y - cosmic_value), min(game.map.height, pos.y + cosmic_value + 1)):
@@ -4004,7 +4075,25 @@ class GameModeManager(UIComponent):
                 return False
 
             # Get the Market Futures skill from the anchor's creator
-            if not game.teleport_anchors[anchor_pos]['creator']:
+            # Check if it's a furniture anchor or imbued enemy
+            creator = None
+            if hasattr(game, 'teleport_anchors') and anchor_pos in game.teleport_anchors:
+                # Furniture anchor
+                creator = game.teleport_anchors[anchor_pos]['creator']
+            else:
+                # Imbued enemy anchor - find the DELPHIC_APPRAISER who imbued them
+                imbued_unit = game.get_unit_at(anchor_pos[0], anchor_pos[1])
+                if imbued_unit and hasattr(imbued_unit, 'status_imbued_player'):
+                    # Find the DELPHIC_APPRAISER for this player
+                    from boneglaive.utils.constants import UnitType
+                    for appraiser in game.units:
+                        if (appraiser.player == imbued_unit.status_imbued_player and
+                            appraiser.is_alive() and
+                            appraiser.type == UnitType.DELPHIC_APPRAISER):
+                            creator = appraiser
+                            break
+
+            if not creator:
                 self.publish_event(
                     EventType.MESSAGE_DISPLAY_REQUESTED,
                     MessageDisplayEventData(
@@ -4016,7 +4105,6 @@ class GameModeManager(UIComponent):
                 self.set_mode("select")
                 return False
 
-            creator = game.teleport_anchors[anchor_pos]['creator']
             market_futures_skill = None
 
             # Find the Market Futures skill on the creator's active skills
@@ -4149,8 +4237,11 @@ class GameModeManager(UIComponent):
                 if unit.move_target:
                     from_y, from_x = unit.move_target
 
+                # Get effective skill range (supports upgrades via get_range method)
+                effective_range = skill.get_range(unit) if hasattr(skill, 'get_range') else skill.range
+
                 # Check if the target is in range and protected
-                if (self.game_ui.game.chess_distance(from_y, from_x, target_pos[0], target_pos[1]) <= skill.range and
+                if (self.game_ui.game.chess_distance(from_y, from_x, target_pos[0], target_pos[1]) <= effective_range and
                     hasattr(self.game_ui.game, 'is_protected_from') and
                     self.game_ui.game.is_protected_from(target, unit)):
                     # Show "Invalid target" message like with attacks
@@ -5114,11 +5205,15 @@ class ActionMenuComponent(UIComponent):
             'enabled': unit_can_move  # Enabled only if unit can move
         })
         
-        # Disable attack for recharging units, Neural Shunt, units with actions, or HEINOUS_VAPOR units
+        # Disable attack for recharging units, Neural Shunt, units with actions, disarmed units, or HEINOUS_VAPOR units (except LIVING_AEROSOL)
+        is_living_aerosol = (unit.type == UnitType.HEINOUS_VAPOR and
+                           hasattr(unit, 'vapor_type') and
+                           unit.vapor_type == "LIVING_AEROSOL")
         unit_can_attack = (not unit_is_recharging and  # Recharging blocks ALL actions
                           not unit_has_action and
                           not (hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected) and
-                          unit.type != UnitType.HEINOUS_VAPOR)
+                          not (hasattr(unit, 'status_disarmed') and unit.status_disarmed) and  # Disarmed by Viseroy upgrade
+                          (unit.type != UnitType.HEINOUS_VAPOR or is_living_aerosol))
         self.actions.append({
             'key': 'a',
             'label': 'ttack',  # Will be displayed as [A]ttack without space
@@ -5128,12 +5223,27 @@ class ActionMenuComponent(UIComponent):
         
         # Add skill action
         unit_has_skills = unit is not None and hasattr(unit, 'active_skills') and len(unit.get_available_skills()) > 0
+
+        # Check if echo can use skills (if Græ Exchange is upgraded)
+        echo_can_use_skills = False
+        if unit and hasattr(unit, 'is_echo') and unit.is_echo:
+            from boneglaive.game.upgrades import UpgradeManager
+            if (unit.type == UnitType.GRAYMAN and
+                hasattr(unit, 'original_unit') and
+                unit.original_unit):
+                # Check if Græ Exchange is upgraded
+                echo_can_use_skills = UpgradeManager.is_skill_upgraded(
+                    unit.original_unit,
+                    "Græ Exchange"
+                )
+
         # Allow skills to be used even when a move is planned (the unit can cast from the new position)
         # Disable skills when recharging, under Neural Shunt, or with actions
+        # EXCEPTION: Echoes can use skills if Græ Exchange is upgraded
         unit_can_use_skills = (unit_has_skills and
                               not unit_is_recharging and  # Recharging blocks ALL actions
                               unit.trapped_by is None and
-                              not unit.is_echo and
+                              (not unit.is_echo or echo_can_use_skills) and  # Allow echoes if upgrade active
                               not unit_has_action and
                               not (hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected))
         self.actions.append({
@@ -5229,34 +5339,49 @@ class ActionMenuComponent(UIComponent):
         
         # GRAYMAN skills
         elif unit.type == self.UnitType.GRAYMAN:
-            
+
             # Add Delta Config skill
             delta_config_skill = next((skill for skill in available_skills if skill.name == "Delta Config"), None)
+            # For echoes, check can_use() to properly gray out skills they can't use
+            delta_config_enabled = delta_config_skill is not None
+            if delta_config_enabled and hasattr(unit, 'is_echo') and unit.is_echo:
+                # Echo must pass can_use() check (which it won't for Delta Config)
+                delta_config_enabled = delta_config_skill.can_use(unit, None, self.game_ui.game)
             self.actions.append({
                 'key': 'd',
                 'label': 'elta Config',  # Will be displayed as [D]elta Config
                 'action': 'delta_config_skill',
-                'enabled': delta_config_skill is not None,
+                'enabled': delta_config_enabled,
                 'skill': delta_config_skill
             })
-            
+
             # Add Estrange skill
             estrange_skill = next((skill for skill in available_skills if skill.name == "Estrange"), None)
+            # For echoes, check can_use() to properly gray out skills they can't use
+            estrange_enabled = estrange_skill is not None
+            if estrange_enabled and hasattr(unit, 'is_echo') and unit.is_echo:
+                # Echo must pass can_use() check (which it won't for Estrange)
+                estrange_enabled = estrange_skill.can_use(unit, None, self.game_ui.game)
             self.actions.append({
                 'key': 'e',
                 'label': 'strange',  # Will be displayed as [E]strange
                 'action': 'estrange_skill',
-                'enabled': estrange_skill is not None,
+                'enabled': estrange_enabled,
                 'skill': estrange_skill
             })
-            
+
             # Add Græ Exchange skill
             grae_exchange_skill = next((skill for skill in available_skills if skill.name == "Græ Exchange"), None)
+            # For echoes, check can_use() to properly gray out skills they can't use
+            grae_exchange_enabled = grae_exchange_skill is not None
+            if grae_exchange_enabled and hasattr(unit, 'is_echo') and unit.is_echo:
+                # Echo must pass can_use() check (will pass if upgraded)
+                grae_exchange_enabled = grae_exchange_skill.can_use(unit, None, self.game_ui.game)
             self.actions.append({
                 'key': 'g',
                 'label': 'ræ Exchange',  # Will be displayed as [G]ræ Exchange
                 'action': 'grae_exchange_skill',
-                'enabled': grae_exchange_skill is not None,
+                'enabled': grae_exchange_enabled,
                 'skill': grae_exchange_skill
             })
             
@@ -5362,6 +5487,17 @@ class ActionMenuComponent(UIComponent):
                 'skill': diverge_skill
             })
 
+            # Add Aerosolize Arms skill (only if Effluvium Lathe is upgraded)
+            aerosolize_arms_skill = next((skill for skill in available_skills if skill.name == "Aerosolize Arms"), None)
+            if aerosolize_arms_skill is not None:
+                self.actions.append({
+                    'key': 'a',
+                    'label': 'erosolize Arms',  # Will be displayed as [A]erosolize Arms
+                    'action': 'aerosolize_arms_skill',
+                    'enabled': True,
+                    'skill': aerosolize_arms_skill
+                })
+
         # DELPHIC_APPRAISER skills
         elif unit.type == self.UnitType.DELPHIC_APPRAISER:
 
@@ -5385,15 +5521,27 @@ class ActionMenuComponent(UIComponent):
                 'skill': auction_curse_skill
             })
 
-            # Add Divine Depreciation skill
+            # Add Divine Depreciation skill OR Deft(?) Reroll (if transformed)
             divine_depreciation_skill = next((skill for skill in available_skills if skill.name == "Divine Depreciation"), None)
-            self.actions.append({
-                'key': 'd',
-                'label': 'ivine Depreciation',  # Will be displayed as [D]ivine Depreciation
-                'action': 'divine_depreciation_skill',
-                'enabled': divine_depreciation_skill is not None,
-                'skill': divine_depreciation_skill
-            })
+            deft_reroll_skill = next((skill for skill in available_skills if skill.name == "Deft(?) Reroll"), None)
+
+            # Priority: Deft(?) Reroll if available, otherwise Divine Depreciation
+            if deft_reroll_skill is not None:
+                self.actions.append({
+                    'key': 'd',
+                    'label': 'eft(?) Reroll',  # Will be displayed as [D]eft(?) Reroll
+                    'action': 'deft_reroll_skill',
+                    'enabled': True,
+                    'skill': deft_reroll_skill
+                })
+            else:
+                self.actions.append({
+                    'key': 'd',
+                    'label': 'ivine Depreciation',  # Will be displayed as [D]ivine Depreciation
+                    'action': 'divine_depreciation_skill',
+                    'enabled': divine_depreciation_skill is not None,
+                    'skill': divine_depreciation_skill
+                })
 
         # INTERFERER skills
         elif unit.type == self.UnitType.INTERFERER:
@@ -5740,6 +5888,18 @@ class ActionMenuComponent(UIComponent):
             if cursor_manager.selected_unit.move_target:
                 from_y, from_x = cursor_manager.selected_unit.move_target
             
+            # Handle instant self-targeting skills (Deft(?) Reroll)
+            if skill.name == "Deft(?) Reroll":
+                # Execute immediately without targeting mode
+                if skill.can_use(cursor_manager.selected_unit, (from_y, from_x), game):
+                    unit = cursor_manager.selected_unit
+                    skill.use(unit, (from_y, from_x), game)
+                    # Return to select mode
+                    mode_manager.set_mode("select")
+                    # Clear selection to prevent further actions
+                    cursor_manager.clear_selection()
+                return
+
             # Special visualization for MARROW_CONDENSER area skills
             if skill.name in ["Marrow Dike", "Bone Tithe"]:
                 # Special visual indicators for MARROW_CONDENSER's area skills
@@ -5827,7 +5987,42 @@ class ActionMenuComponent(UIComponent):
                 return
             
             # Different targeting logic based on skill target type
-            if skill.target_type == TargetType.SELF:
+            # Special case for upgraded Jawline - check if it's upgraded and treat as AREA targeting
+            is_jawline_upgraded = False
+            if skill.name == "Jawline":
+                from boneglaive.game.upgrades import UpgradeManager
+                is_jawline_upgraded = UpgradeManager.is_skill_upgraded(cursor_manager.selected_unit, "Jawline")
+
+            if is_jawline_upgraded:
+                # Upgraded Jawline uses directional targeting
+                # Only highlight the 8 adjacent tiles for direction selection
+                area_targets = []
+                for dy in [-1, 0, 1]:
+                    for dx in [-1, 0, 1]:
+                        # Skip center (user's position)
+                        if dy == 0 and dx == 0:
+                            continue
+
+                        y = from_y + dy
+                        x = from_x + dx
+
+                        # Check if position is valid
+                        if game.is_valid_position(y, x):
+                            area_targets.append((y, x))
+
+                cursor_manager.highlighted_positions = [Position(y, x) for y, x in area_targets]
+
+                # Set mode to skill targeting
+                mode_manager.set_mode("skill")
+
+                # Request UI redraw
+                self.publish_event(
+                    EventType.UI_REDRAW_REQUESTED,
+                    UIRedrawEventData()
+                )
+                return
+
+            elif skill.target_type == TargetType.SELF:
                 # Special case for Diverge skill which can target both self and vapors
                 if skill.name == "Diverge":
                     # Temporarily change mode to allow targeting
@@ -5845,7 +6040,9 @@ class ActionMenuComponent(UIComponent):
                             unit.is_alive()):
                             # Check if within range
                             distance = game.chess_distance(from_y, from_x, unit.y, unit.x)
-                            if distance <= skill.range:
+                            # Get effective skill range (supports upgrades via get_range method)
+                            effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
+                            if distance <= effective_range:
                                 # Check line of sight
                                 if game.has_line_of_sight(from_y, from_x, unit.y, unit.x):
                                     vapor_targets.append((unit.y, unit.x))
@@ -5861,7 +6058,9 @@ class ActionMenuComponent(UIComponent):
                     for y in range(HEIGHT):
                         for x in range(WIDTH):
                             distance = game.chess_distance(from_y, from_x, y, x)
-                            if distance <= skill.range:
+                            # Get effective skill range (supports upgrades via get_range method)
+                            effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
+                            if distance <= effective_range:
                                 # Check line of sight for DIVERGE
                                 if game.has_line_of_sight(from_y, from_x, y, x):
                                     target_unit = game.get_unit_at(y, x)
@@ -5940,7 +6139,9 @@ class ActionMenuComponent(UIComponent):
                         for x in range(WIDTH):
                             # PRY shows enemy targets and floor tiles within range for range visualization
                             distance = game.chess_distance(from_y, from_x, y, x)
-                            if distance <= skill.range:
+                            # Get effective skill range (supports upgrades via get_range method)
+                            effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
+                            if distance <= effective_range:
                                 target_unit = game.get_unit_at(y, x)
                                 if target_unit and target_unit.player != cursor_manager.selected_unit.player:
                                     # Highlight enemy units
@@ -5953,7 +6154,9 @@ class ActionMenuComponent(UIComponent):
                         for x in range(WIDTH):
                             # JUDGEMENT shows enemy targets and floor tiles within range with line of sight
                             distance = game.chess_distance(from_y, from_x, y, x)
-                            if distance <= skill.range:
+                            # Get effective skill range (supports upgrades via get_range method)
+                            effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
+                            if distance <= effective_range:
                                 # Check line of sight for JUDGEMENT
                                 if game.has_line_of_sight(from_y, from_x, y, x):
                                     target_unit = game.get_unit_at(y, x)
@@ -5968,7 +6171,9 @@ class ActionMenuComponent(UIComponent):
                         for x in range(WIDTH):
                             # ESTRANGE shows enemy targets and floor tiles within range with line of sight
                             distance = game.chess_distance(from_y, from_x, y, x)
-                            if distance <= skill.range:
+                            # Get effective skill range (supports upgrades via get_range method)
+                            effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
+                            if distance <= effective_range:
                                 # Check line of sight for ESTRANGE
                                 if game.has_line_of_sight(from_y, from_x, y, x):
                                     target_unit = game.get_unit_at(y, x)
@@ -5983,7 +6188,9 @@ class ActionMenuComponent(UIComponent):
                         for x in range(WIDTH):
                             # AUCTION CURSE shows enemy targets and floor tiles within range with line of sight
                             distance = game.chess_distance(from_y, from_x, y, x)
-                            if distance <= skill.range:
+                            # Get effective skill range (supports upgrades via get_range method)
+                            effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
+                            if distance <= effective_range:
                                 # Check line of sight for AUCTION CURSE
                                 if game.has_line_of_sight(from_y, from_x, y, x):
                                     target_unit = game.get_unit_at(y, x)
@@ -5998,7 +6205,9 @@ class ActionMenuComponent(UIComponent):
                         for x in range(WIDTH):
                             # NEURAL SHUNT shows enemy targets and floor tiles within range (no line of sight needed for range 1)
                             distance = game.chess_distance(from_y, from_x, y, x)
-                            if distance <= skill.range:
+                            # Get effective skill range (supports upgrades via get_range method)
+                            effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
+                            if distance <= effective_range:
                                 target_unit = game.get_unit_at(y, x)
                                 if target_unit and target_unit.player != cursor_manager.selected_unit.player:
                                     # Highlight enemy units
@@ -6016,7 +6225,9 @@ class ActionMenuComponent(UIComponent):
                                 # Check if target is within skill range
                                 distance = game.chess_distance(from_y, from_x, y, x)
 
-                                if distance <= skill.range:
+                                # Get effective skill range (supports upgrades via get_range method)
+                            effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
+                            if distance <= effective_range:
                                     # Check if skill can be used on this target
                                     if skill.can_use(cursor_manager.selected_unit, (y, x), game):
                                         # Check if target is protected by Saft-E-Gas (same behavior as attacks)
@@ -6033,7 +6244,9 @@ class ActionMenuComponent(UIComponent):
                         for x in range(WIDTH):
                             # DERELICTIONIST skills show ally targets and floor tiles within range with line of sight
                             distance = game.chess_distance(from_y, from_x, y, x)
-                            if distance <= skill.range:
+                            # Get effective skill range (supports upgrades via get_range method)
+                            effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
+                            if distance <= effective_range:
                                 # Check line of sight for DERELICTIONIST skills
                                 if game.has_line_of_sight(from_y, from_x, y, x):
                                     target_unit = game.get_unit_at(y, x)
@@ -6059,7 +6272,9 @@ class ActionMenuComponent(UIComponent):
                                 # Check if target is within skill range
                                 distance = game.chess_distance(from_y, from_x, y, x)
 
-                                if distance <= skill.range:
+                                # Get effective skill range (supports upgrades via get_range method)
+                            effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
+                            if distance <= effective_range:
                                     # Check if skill can be used on this target
                                     if skill.can_use(cursor_manager.selected_unit, (y, x), game):
                                         targets.append((y, x))
@@ -6071,7 +6286,9 @@ class ActionMenuComponent(UIComponent):
                         for x in range(WIDTH):
                             # DIVERGE shows valid targets and floor tiles within range with line of sight
                             distance = game.chess_distance(from_y, from_x, y, x)
-                            if distance <= skill.range:
+                            # Get effective skill range (supports upgrades via get_range method)
+                            effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
+                            if distance <= effective_range:
                                 # Check line of sight for DIVERGE
                                 if game.has_line_of_sight(from_y, from_x, y, x):
                                     target_unit = game.get_unit_at(y, x)
@@ -6091,7 +6308,9 @@ class ActionMenuComponent(UIComponent):
                             # Check if target is within skill range
                             distance = game.chess_distance(from_y, from_x, y, x)
 
-                            if distance <= skill.range:
+                            # Get effective skill range (supports upgrades via get_range method)
+                            effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
+                            if distance <= effective_range:
                                 # Check if skill can be used on this position
                                 if skill.can_use(cursor_manager.selected_unit, (y, x), game):
                                     targets.append((y, x))
@@ -6099,17 +6318,31 @@ class ActionMenuComponent(UIComponent):
             elif skill.target_type == TargetType.AREA:
                 # Special case for DELPHIC APPRAISER furniture-targeting skills
                 if skill.name in ["Market Futures", "Divine Depreciation"]:
+                    # Check if Valuation Oracle is upgraded (allows targeting enemies)
+                    from boneglaive.game.upgrades import UpgradeManager
+                    valuation_upgraded = UpgradeManager.is_skill_upgraded(cursor_manager.selected_unit, "Valuation Oracle")
+
                     for y in range(HEIGHT):
                         for x in range(WIDTH):
-                            # Show furniture targets and floor tiles within range with line of sight
+                            # Show furniture targets, enemy targets (if upgraded), and floor tiles
                             distance = game.chess_distance(from_y, from_x, y, x)
-                            if distance <= skill.range:
+                            # Get effective skill range (supports upgrades via get_range method)
+                            effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
+                            if distance <= effective_range:
                                 # Check line of sight for furniture-targeting skills
                                 if game.has_line_of_sight(from_y, from_x, y, x):
                                     # Check if it's furniture (valid target)
                                     if game.map.is_furniture(y, x):
                                         targets.append((y, x))
-                                    # Also highlight empty floor tiles for range visualization
+                                    # With Valuation Oracle upgrade: Also check for enemy units
+                                    elif valuation_upgraded:
+                                        enemy_unit = game.get_unit_at(y, x)
+                                        if enemy_unit and enemy_unit.is_alive() and enemy_unit.player != cursor_manager.selected_unit.player:
+                                            targets.append((y, x))
+                                        # Also highlight empty floor tiles for range visualization
+                                        elif not game.get_unit_at(y, x) and game.map.is_passable(y, x):
+                                            targets.append((y, x))
+                                    # Without upgrade: Just highlight empty floor tiles for range visualization
                                     elif not game.get_unit_at(y, x) and game.map.is_passable(y, x):
                                         targets.append((y, x))
                 # Special case for Demilune - can target any adjacent tile (empty or with units)
@@ -6118,7 +6351,9 @@ class ActionMenuComponent(UIComponent):
                         for x in range(WIDTH):
                             # Check if position is within skill range (adjacent)
                             distance = game.chess_distance(from_y, from_x, y, x)
-                            if distance <= skill.range:
+                            # Get effective skill range (supports upgrades via get_range method)
+                            effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
+                            if distance <= effective_range:
                                 # Can target any tile within range (enemies, allies, empty tiles, terrain)
                                 # Just check if skill.can_use allows it (which checks range only)
                                 if skill.can_use(cursor_manager.selected_unit, (y, x), game):
@@ -6133,7 +6368,9 @@ class ActionMenuComponent(UIComponent):
 
                             # Check if position is within skill range
                             distance = game.chess_distance(from_y, from_x, y, x)
-                            if distance <= skill.range:
+                            # Get effective skill range (supports upgrades via get_range method)
+                            effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
+                            if distance <= effective_range:
                                 # Check if skill can be used on this position (will check for obstacles, etc.)
                                 if skill.can_use(cursor_manager.selected_unit, (y, x), game):
                                     targets.append((y, x))
@@ -6562,3 +6799,208 @@ class UnitSelectionMenuComponent(UIComponent):
                 # Draw normally
                 self.renderer.draw_text(y_pos, menu_x, f"  {unit_name}")
     
+
+
+class UpgradeMenuComponent(UIComponent):
+    """Component for displaying and selecting upgrades during gameplay."""
+
+    def __init__(self, renderer, game_ui):
+        super().__init__(renderer, game_ui)
+        self.show_upgrade_menu = False
+        self.selected_unit = None
+        self.available_upgrades = []
+        self.scroll_offset = 0
+
+    def open_menu(self, unit):
+        """Open upgrade menu for the specified unit."""
+        from boneglaive.game.upgrades import UpgradeManager
+
+        self.selected_unit = unit
+        self.available_upgrades = UpgradeManager.get_available_upgrades(unit)
+
+        if len(self.available_upgrades) == 0:
+            # Set UI message instead of logging to message log
+            self.game_ui.message = "No upgrades available for this unit."
+            return
+
+        self.show_upgrade_menu = True
+        self.scroll_offset = 0
+
+    def close_menu(self):
+        """Close the upgrade menu."""
+        self.show_upgrade_menu = False
+        self.selected_unit = None
+        self.available_upgrades = []
+
+    def draw(self):
+        """Draw the upgrade menu as a full-screen overlay."""
+        if not self.show_upgrade_menu or not self.selected_unit:
+            return
+
+        # Get terminal dimensions
+        max_y, max_x = self.renderer.stdscr.getmaxyx()
+
+        # Use FULL screen dimensions
+        menu_width = max_x
+        menu_height = max_y
+        start_y = 0
+        start_x = 0
+
+        # Clear and draw full screen background
+        try:
+            for y in range(max_y):
+                self.renderer.stdscr.addstr(y, 0, " " * max_x, curses.A_REVERSE)
+        except curses.error:
+            pass  # Ignore curses errors from drawing at boundaries
+
+        # Draw title centered on first line
+        title = f"=== UPGRADE {self.selected_unit.get_display_name()} ==="
+        title_x = max(0, (max_x - len(title)) // 2)
+        try:
+            if 0 < max_y and title_x + len(title) < max_x:
+                self.renderer.stdscr.addstr(0, title_x, title[:max_x-1], curses.A_BOLD | curses.A_REVERSE)
+        except curses.error:
+            pass
+
+        # Draw upgrade points available on second line, centered
+        game = self.game_ui.game
+        points = game.player1_upgrade_points if self.selected_unit.player == 1 else game.player2_upgrade_points
+        points_text = f"Upgrade Points Available: {points}"
+        points_x = max(0, (max_x - len(points_text)) // 2)
+        try:
+            if 2 < max_y:
+                self.renderer.stdscr.addstr(2, points_x, points_text[:max_x-1], curses.A_REVERSE)
+        except curses.error:
+            pass
+
+        # Draw horizontal separator
+        separator = "=" * (max_x - 1)
+        try:
+            if 3 < max_y:
+                self.renderer.stdscr.addstr(3, 0, separator, curses.A_REVERSE)
+        except curses.error:
+            pass
+
+        # Draw available upgrades (centered with padding)
+        hotkeys = ['1', '2', '3', '4']  # Up to 4 upgrades
+        current_y = 5  # Start below separator with some padding
+
+        # Calculate left margin for centering (use 10% of screen width as margin)
+        left_margin = max(2, int(max_x * 0.1))
+        text_width = max_x - (left_margin * 2)
+
+        for i, upgrade in enumerate(self.available_upgrades):
+            if i >= len(hotkeys):
+                break  # Max 6 upgrades displayable
+
+            if current_y >= max_y - 4:  # Leave room for footer
+                break
+
+            hotkey = hotkeys[i]
+
+            # Draw upgrade name/hotkey on one line
+            upgrade_text = f"[{hotkey}] {upgrade['name']}"
+            try:
+                if current_y < max_y:
+                    self.renderer.stdscr.addstr(current_y, left_margin, upgrade_text[:text_width], curses.A_BOLD | curses.A_REVERSE)
+            except curses.error:
+                pass
+
+            current_y += 1
+
+            # Draw description with wrapping
+            desc_indent = "    "
+            desc_text = upgrade['description']
+
+            # Wrap description text
+            wrapped_lines = []
+            words = desc_text.split()
+            current_line = desc_indent
+
+            for word in words:
+                test_line = current_line + word + " "
+
+                if len(test_line.rstrip()) <= text_width:
+                    current_line = test_line
+                else:
+                    if current_line.strip():
+                        wrapped_lines.append(current_line.rstrip())
+                    current_line = desc_indent + word + " "
+
+            if current_line.strip():
+                wrapped_lines.append(current_line.rstrip())
+
+            # Draw all wrapped description lines
+            for line in wrapped_lines:
+                if current_y < max_y - 4:
+                    try:
+                        self.renderer.stdscr.addstr(current_y, left_margin, line[:text_width], curses.A_REVERSE)
+                        current_y += 1
+                    except curses.error:
+                        pass
+
+            # Add blank line between upgrades
+            current_y += 1
+
+        # Draw footer/instructions at bottom (centered)
+        footer_lines = [
+            "=== CONTROLS ===",
+            "Press Q/W/E/R/T/Y to select an upgrade",
+            "Press ESC to cancel"
+        ]
+
+        footer_y = max_y - len(footer_lines) - 1
+        for i, line in enumerate(footer_lines):
+            line_x = max(0, (max_x - len(line)) // 2)
+            try:
+                if footer_y + i < max_y:
+                    attr = curses.A_BOLD | curses.A_REVERSE if i == 0 else curses.A_DIM | curses.A_REVERSE
+                    self.renderer.stdscr.addstr(footer_y + i, line_x, line[:max_x-1], attr)
+            except curses.error:
+                pass
+
+        # Note: Don't call refresh() here - ui_renderer.draw_board() calls it after drawing all components
+
+    def handle_input(self, key: int) -> bool:
+        """Handle input for upgrade menu."""
+        if not self.show_upgrade_menu:
+            return False
+
+        # ESC to cancel
+        if key == 27:  # ESC
+            self.close_menu()
+            return True
+
+        # Hotkey selection (1=0, 2=1, 3=2, 4=3)
+        hotkey_map = {
+            ord('1'): 0,
+            ord('2'): 1,
+            ord('3'): 2,
+            ord('4'): 3,
+        }
+
+        if key in hotkey_map:
+            idx = hotkey_map[key]
+            if idx < len(self.available_upgrades):
+                # Apply upgrade
+                upgrade = self.available_upgrades[idx]
+                game = self.game_ui.game
+                success = game.apply_unit_upgrade(self.selected_unit, upgrade['skill_name'])
+
+                if success:
+                    message_log.add_message(
+                        f"Upgraded {upgrade['skill_name']}!",
+                        MessageType.SYSTEM,
+                        player=self.selected_unit.player
+                    )
+                    self.close_menu()
+                else:
+                    message_log.add_message(
+                        "Failed to apply upgrade.",
+                        MessageType.WARNING,
+                        player=self.selected_unit.player
+                    )
+
+                return True
+
+        return False

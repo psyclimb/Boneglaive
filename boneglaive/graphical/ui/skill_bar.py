@@ -31,7 +31,7 @@ SKILL_ICON_SIZE = 50  # Size of skill icons
 class SkillSlot:
     """Individual skill slot in the skill bar."""
 
-    def __init__(self, skill, hotkey: str, index: int, icon_cache: Dict):
+    def __init__(self, skill, hotkey: str, index: int, icon_cache: Dict, game_unit=None):
         self.skill = skill
         self.hotkey = hotkey
         self.index = index
@@ -39,7 +39,9 @@ class SkillSlot:
         self.hovered = False
         self.icon_cache = icon_cache
         self.icon_surface = self._load_icon()
+        self.gray_icon_surface = None  # Cached grayscale version
         self.blocked_actions = set()  # LOTO: Set of blocked action types
+        self.game_unit = game_unit  # Reference to game unit for checking upgrades
 
     def _load_icon(self) -> Optional[pygame.Surface]:
         """Load skill icon from file."""
@@ -91,6 +93,11 @@ class SkillSlot:
         # Create rect
         self.rect = pygame.Rect(x, y, SKILL_SLOT_WIDTH, SKILL_SLOT_HEIGHT)
 
+        # Check if this skill has been upgraded
+        is_upgraded = False
+        if self.game_unit and hasattr(self.game_unit, 'upgraded_skills'):
+            is_upgraded = self.skill.name in self.game_unit.upgraded_skills
+
         # Determine background color
         if not self.is_available():
             bg_color = COLOR_BG_DISABLED
@@ -102,8 +109,13 @@ class SkillSlot:
         # Draw background
         pygame.draw.rect(surface, bg_color, self.rect)
 
-        # Draw border
-        border_color = COLOR_BORDER_HOVER if self.hovered else COLOR_BORDER
+        # Draw border (gold if upgraded)
+        if is_upgraded:
+            border_color = (255, 215, 0)  # Gold
+        elif self.hovered:
+            border_color = COLOR_BORDER_HOVER
+        else:
+            border_color = COLOR_BORDER
         pygame.draw.rect(surface, border_color, self.rect, 2)
 
         # Draw hotkey in top-left
@@ -126,17 +138,37 @@ class SkillSlot:
         if self.icon_surface:
             # Apply grayscale if on cooldown
             if not self.is_available():
-                # Create grayscale version
-                gray_icon = self.icon_surface.copy()
-                arr = pygame.surfarray.pixels3d(gray_icon)
-                gray = (arr[:,:,0] * 0.3 + arr[:,:,1] * 0.59 + arr[:,:,2] * 0.11).astype('uint8')
-                arr[:,:,0] = gray
-                arr[:,:,1] = gray
-                arr[:,:,2] = gray
-                del arr
-                surface.blit(gray_icon, (icon_x, icon_y))
+                # Create grayscale version ONCE and cache it
+                if self.gray_icon_surface is None:
+                    gray_icon = self.icon_surface.copy()
+                    arr = pygame.surfarray.pixels3d(gray_icon)
+                    gray = (arr[:,:,0] * 0.3 + arr[:,:,1] * 0.59 + arr[:,:,2] * 0.11).astype('uint8')
+                    arr[:,:,0] = gray
+                    arr[:,:,1] = gray
+                    arr[:,:,2] = gray
+                    del arr
+                    self.gray_icon_surface = gray_icon
+                surface.blit(self.gray_icon_surface, (icon_x, icon_y))
             else:
                 surface.blit(self.icon_surface, (icon_x, icon_y))
+
+            # Draw upgrade indicator if skill is upgraded
+            if is_upgraded:
+                # Small star/diamond indicator in top-right corner of icon
+                indicator_size = 12
+                indicator_x = icon_x + SKILL_ICON_SIZE - indicator_size - 2
+                indicator_y = icon_y + 2
+
+                # Draw small circle with "UP" text
+                pygame.draw.circle(surface, (255, 215, 0), (indicator_x + indicator_size // 2, indicator_y + indicator_size // 2), indicator_size // 2)
+                pygame.draw.circle(surface, (0, 0, 0), (indicator_x + indicator_size // 2, indicator_y + indicator_size // 2), indicator_size // 2, 1)
+
+                # Draw small "+" symbol
+                plus_color = (0, 0, 0)
+                center_x = indicator_x + indicator_size // 2
+                center_y = indicator_y + indicator_size // 2
+                pygame.draw.line(surface, plus_color, (center_x - 3, center_y), (center_x + 3, center_y), 2)
+                pygame.draw.line(surface, plus_color, (center_x, center_y - 3), (center_x, center_y + 3), 2)
 
         # Draw skill name to the right of the icon
         text_color = COLOR_TEXT_DISABLED if not self.is_available() else COLOR_TEXT
@@ -225,7 +257,7 @@ class SkillBar:
         # Create skill slots
         for i, skill in enumerate(active_skills):
             if i < len(self.hotkeys):
-                slot = SkillSlot(skill, self.hotkeys[i], i, self.icon_cache)
+                slot = SkillSlot(skill, self.hotkeys[i], i, self.icon_cache, game_unit)
                 # Check if skills are blocked
                 if LOTOChecker.is_action_blocked(game_unit, 'skill'):
                     slot.blocked_actions = blocked_actions

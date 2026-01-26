@@ -47,7 +47,13 @@ class UIRenderer:
 
         if hasattr(unit, 'shrapnel_duration') and unit.shrapnel_duration > 0:
             effects.append(('shrapnel', 'x', curses.A_DIM))
-            
+
+        if hasattr(unit, 'status_disarmed') and unit.status_disarmed:
+            effects.append(('disarmed', '[', curses.A_BOLD))
+
+        if hasattr(unit, 'status_imbued') and unit.status_imbued:
+            effects.append(('imbued', '@', curses.A_BOLD))
+
         if (hasattr(unit, 'pry_duration') and unit.pry_duration > 0) or \
            (hasattr(unit, 'pry_active') and unit.pry_active) or \
            (unit.was_pried and unit.move_range_bonus < 0):
@@ -92,7 +98,10 @@ class UIRenderer:
             effects.append(('site_inspection', '#', curses.A_BOLD))
         elif hasattr(unit, 'status_site_inspection_partial') and unit.status_site_inspection_partial:
             effects.append(('site_inspection_partial', ',', curses.A_BOLD))
-            
+
+        if hasattr(unit, 'status_tactical_momentum') and unit.status_tactical_momentum:
+            effects.append(('tactical_momentum', ']', curses.A_BOLD))
+
         if hasattr(unit, 'has_investment_effect') and unit.has_investment_effect:
             effects.append(('investment', '$', curses.A_BOLD))
             
@@ -265,7 +274,10 @@ class UIRenderer:
             message_log_component.draw_log_history_screen()
             self.renderer.refresh()
             return
-            
+
+        # If upgrade menu is being shown, draw everything but with upgrade menu on top
+        # (don't return early - let the game board render first)
+
         # If setup instructions are being shown, draw them and return
         if self.game_ui.game.setup_phase and mode_manager.show_setup_instructions:
             mode_manager.draw_setup_instructions()
@@ -318,14 +330,16 @@ class UIRenderer:
             mode_text = f"MODE: {display_mode.upper()}"
             self.renderer.draw_text(header_y, len(player_text) + 4, mode_text, 1)
             
-            # Draw GP scores
+            # Draw GP scores and upgrade points
             gp_text = f"GP:{self.game_ui.game.player1_gp}|{self.game_ui.game.player2_gp}"
-            self.renderer.draw_text(header_y, len(player_text) + len(mode_text) + 6, gp_text, 1)
+            up_text = f" UP:{self.game_ui.game.player1_upgrade_points}|{self.game_ui.game.player2_upgrade_points}"
+            combined_text = gp_text + up_text
+            self.renderer.draw_text(header_y, len(player_text) + len(mode_text) + 6, combined_text, 1)
             
             # Add turn indicator for network play
             if self.game_ui.multiplayer.is_network_multiplayer():
                 turn_text = "YOUR TURN" if self.game_ui.multiplayer.is_current_player_turn() else "WAITING"
-                self.renderer.draw_text(header_y, len(player_text) + len(mode_text) + len(gp_text) + 8, turn_text, 1, curses.A_BOLD)
+                self.renderer.draw_text(header_y, len(player_text) + len(mode_text) + len(combined_text) + 8, turn_text, 1, curses.A_BOLD)
         
         # Add chat mode indicator if active
         if chat_component.chat_mode:
@@ -466,7 +480,12 @@ class UIRenderer:
                     else:
                         color_id = 20  # Default red for Marrow Wall if no tracking dictionary
                 elif terrain == TerrainType.RAIL:
-                    tile = self.game_ui.asset_manager.get_terrain_tile("rail")
+                    # Check if this position is a junction
+                    is_junction = hasattr(self.game_ui.game.map, 'junction_positions') and (y, x) in self.game_ui.game.map.junction_positions
+                    if is_junction:
+                        tile = '┼'  # Cross symbol for junctions
+                    else:
+                        tile = self.game_ui.asset_manager.get_terrain_tile("rail")
                     color_id = 8  # Gray color for rails with black background
                     
                 # Stained Stones map terrain types (gray color scheme like Lime Foyer)
@@ -631,7 +650,25 @@ class UIRenderer:
                     tile = self.game_ui.asset_manager.get_terrain_tile("melange_fume")
                     color_id = 21  # Canyon floor color (tan/brown) same as leaf pits
                     tile_attr = curses.A_DIM  # Dim to show fumes are translucent
-                        
+
+                elif terrain == TerrainType.DERELICT_BUILDING:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("derelict_building")
+
+                    # Check if we have owner information for this building to determine player color
+                    if hasattr(self.game_ui.game, 'derelict_building_tiles'):
+                        pos_tuple = (y, x)
+                        if pos_tuple in self.game_ui.game.derelict_building_tiles:
+                            building_info = self.game_ui.game.derelict_building_tiles[pos_tuple]
+                            # Use target's player color if available
+                            if 'target' in building_info and building_info['target']:
+                                color_id = 3 if building_info['target'].player == 1 else 4  # Player's color
+                            else:
+                                color_id = 8  # Default gray if no owner info
+                        else:
+                            color_id = 8  # Default gray if not in tracked tiles
+                    else:
+                        color_id = 8  # Default gray if no tracking dictionary
+
                 else:
                     # Fallback for any new terrain types
                     tile = self.game_ui.asset_manager.get_terrain_tile("empty")
@@ -977,21 +1014,123 @@ class UIRenderer:
                                 # Use the center square for the target and dots for the surrounding area
                                 self.renderer.draw_tile(y, x, tile, color_id, attr)
                             continue
-                            
+
+                # Check if this position is in an active Demilune zone
+                for u in self.game_ui.game.units:
+                    if u.type == UnitType.POTPOURRIST and u.is_alive():
+                        if hasattr(u, 'demilune_zone_duration') and u.demilune_zone_duration > 0:
+                            # Check if position is in primary or mirrored zone
+                            in_primary_zone = (hasattr(u, 'demilune_zone_tiles') and (y, x) in u.demilune_zone_tiles)
+                            in_mirrored_zone = (hasattr(u, 'demilune_mirrored_zone_tiles') and (y, x) in u.demilune_mirrored_zone_tiles)
+
+                            if in_primary_zone or in_mirrored_zone:
+                                # Draw crescent zone marker
+                                tile = "("  # Crescent moon symbol
+                                color_id = 3 if u.player == 1 else 4  # Color based on player
+
+                                # Check if cursor is here
+                                is_cursor_here = (pos == cursor_manager.cursor_pos and show_cursor)
+
+                                if is_cursor_here:
+                                    # Draw with cursor color
+                                    self.renderer.draw_tile(y, x, tile, 2, curses.A_BOLD)
+                                else:
+                                    # Draw the zone marker
+                                    self.renderer.draw_tile(y, x, tile, color_id, 0)
+                                continue
+
                 # Check if this position is in a Jawline network area
                 for u in self.game_ui.game.units:
                     if u.is_alive() and u.selected_skill and hasattr(u.selected_skill, 'name') and \
                        u.selected_skill.name == "Jawline" and u.jawline_indicator is not None:
                         target_y, target_x = u.jawline_indicator
 
-                        # Check if this position is within the 3x3 area of Jawline
-                        in_area = (abs(y - target_y) <= 1 and abs(x - target_x) <= 1)
-                        # Skip center (that's the user's position)
-                        if (y, x) == (target_y, target_x):
-                            continue
+                        # Check if Jawline is upgraded
+                        from boneglaive.game.upgrades import UpgradeManager
+                        is_upgraded = UpgradeManager.is_skill_upgraded(u, "Jawline")
+
+                        in_area = False
+
+                        if is_upgraded:
+                            # Calculate the 3x9 directional line preview
+                            # Get direction from user to target
+                            delta_y = target_y - u.y
+                            delta_x = target_x - u.x
+
+                            # Normalize to unit direction
+                            if delta_y != 0:
+                                dir_y = delta_y // abs(delta_y)
+                            else:
+                                dir_y = 0
+
+                            if delta_x != 0:
+                                dir_x = delta_x // abs(delta_x)
+                            else:
+                                dir_x = 0
+
+                            # Calculate perpendicular direction for the 3-wide part
+                            if dir_y == 0:  # Horizontal line
+                                perp_y, perp_x = 1, 0
+                            elif dir_x == 0:  # Vertical line
+                                perp_y, perp_x = 0, 1
+                            else:  # Diagonal line
+                                perp_y, perp_x = -dir_x, dir_y
+
+                            # Check if current position (y, x) is in the 3x9 line
+                            # Track which offsets have been blocked
+                            blocked_offsets = set()
+                            for distance in range(1, 10):  # 9 tiles forward
+                                for offset in [-1, 0, 1]:  # 3 tiles wide
+                                    if offset in blocked_offsets:
+                                        continue
+
+                                    check_y = u.y + (dir_y * distance) + (perp_y * offset)
+                                    check_x = u.x + (dir_x * distance) + (perp_x * offset)
+
+                                    if not self.game_ui.game.is_valid_position(check_y, check_x):
+                                        blocked_offsets.add(offset)
+                                        continue
+
+                                    if not self.game_ui.game.map.is_passable(check_y, check_x):
+                                        blocked_offsets.add(offset)
+                                        continue
+
+                                    # Check if blocked by furniture along this specific lane
+                                    if distance > 1:
+                                        prev_y = u.y + (dir_y * (distance - 1)) + (perp_y * offset)
+                                        prev_x = u.x + (dir_x * (distance - 1)) + (perp_x * offset)
+                                        if not self.game_ui.game.has_line_of_sight(prev_y, prev_x, check_y, check_x):
+                                            blocked_offsets.add(offset)
+                                            continue
+                                    else:
+                                        # For first tile, check from user
+                                        if not self.game_ui.game.has_line_of_sight(u.y, u.x, check_y, check_x):
+                                            blocked_offsets.add(offset)
+                                            continue
+
+                                    unit_at_pos = self.game_ui.game.get_unit_at(check_y, check_x)
+                                    if unit_at_pos and unit_at_pos.player != u.player:
+                                        if (y, x) == (check_y, check_x):
+                                            in_area = True
+                                            break
+                                        blocked_offsets.add(offset)
+                                        continue
+
+                                    if (y, x) == (check_y, check_x):
+                                        in_area = True
+                                        break
+
+                                if in_area or len(blocked_offsets) >= 3:
+                                    break
+                        else:
+                            # Base version: 3x3 area
+                            in_area = (abs(y - target_y) <= 1 and abs(x - target_x) <= 1)
+                            # Skip center (that's the user's position)
+                            if (y, x) == (target_y, target_x):
+                                in_area = False
 
                         if in_area:
-                            # Draw jawline indicator - use mandible symbol for surrounding tiles
+                            # Draw jawline indicator - use mandible symbol
                             tile = "{"  # Mandible symbol for jawline network
                             color_id = 3 if u.player == 1 else 4  # Color based on player
 
@@ -1423,6 +1562,10 @@ class UIRenderer:
             # Duration-based effects (categorized as positive or negative)
             if hasattr(unit, 'shrapnel_duration') and unit.shrapnel_duration > 0:
                 negative_effects.append(f"Shrapnel({unit.shrapnel_duration})")
+            if hasattr(unit, 'status_disarmed') and unit.status_disarmed:
+                negative_effects.append(f"Disarmed({unit.status_disarmed_duration})")
+            if hasattr(unit, 'status_imbued') and unit.status_imbued:
+                negative_effects.append(f"Imbued({unit.status_imbued_duration})")
             if hasattr(unit, 'auction_curse_dot') and unit.auction_curse_dot:
                 duration = getattr(unit, 'auction_curse_dot_duration', '?')
                 negative_effects.append(f"Auction Curse({duration})")
@@ -1474,6 +1617,8 @@ class UIRenderer:
                 positive_effects.append("Site Inspection")
             elif hasattr(unit, 'status_site_inspection_partial') and unit.status_site_inspection_partial:
                 positive_effects.append("Site Inspection (Partial)")
+            if hasattr(unit, 'status_tactical_momentum') and unit.status_tactical_momentum:
+                positive_effects.append(f"Tactical Momentum({unit.status_tactical_momentum_duration})")
             if hasattr(unit, 'first_turn_move_bonus') and unit.first_turn_move_bonus:
                 positive_effects.append("First Turn Bonus")
             if hasattr(unit, 'is_echo') and unit.is_echo and not (hasattr(unit, 'echo_duration') and unit.echo_duration > 0):
@@ -1572,6 +1717,33 @@ class UIRenderer:
                     msg_indicator = ">> "
                     self.renderer.draw_text(msg_line, 2, msg_indicator, 1, curses.A_BOLD)
                     self.renderer.draw_text(msg_line, 2 + len(msg_indicator), value_message, 1)
+        else:
+            # Check if cursor is on enemy unit (with Valuation Oracle upgrade)
+            enemy_unit = self.game_ui.game.get_unit_at(cursor_pos.y, cursor_pos.x)
+            if enemy_unit and enemy_unit.is_alive() and enemy_unit.player != current_player:
+                # Check if current player has DELPHIC_APPRAISER with Valuation Oracle upgrade
+                has_upgraded_appraiser = False
+                for unit in self.game_ui.game.units:
+                    if (unit.player == current_player and
+                        unit.is_alive() and
+                        unit.type == UnitType.DELPHIC_APPRAISER and
+                        hasattr(unit, 'passive_skill') and unit.passive_skill):
+                        # Check if Valuation Oracle is upgraded
+                        from boneglaive.game.upgrades import UpgradeManager
+                        if UpgradeManager.is_skill_upgraded(unit, "Valuation Oracle"):
+                            has_upgraded_appraiser = True
+                            # Get enemy astral value
+                            enemy_value = unit.passive_skill._get_enemy_astral_value(
+                                self.game_ui.game, current_player, enemy_unit
+                            )
+                            if enemy_value is not None:
+                                value_message = f"Enemy astral value: {enemy_value}"
+                                # Only show value message if there's no other message
+                                if not self.game_ui.message:
+                                    msg_indicator = ">> "
+                                    self.renderer.draw_text(msg_line, 2, msg_indicator, 1, curses.A_BOLD)
+                                    self.renderer.draw_text(msg_line, 2 + len(msg_indicator), value_message, 1)
+                            break
 
         # Display regular message if available
         if self.game_ui.message:
@@ -1640,7 +1812,11 @@ class UIRenderer:
         # Draw unit selection menu during setup phase
         if self.game_ui.game.setup_phase:
             self.game_ui.unit_selection_menu.draw()
-        
+
+        # Draw upgrade menu on top if open (highest z-order)
+        if self.game_ui.upgrade_menu.show_upgrade_menu:
+            self.game_ui.upgrade_menu.draw()
+
         self.renderer.refresh()
     
     def _draw_unit_status_bar(self):

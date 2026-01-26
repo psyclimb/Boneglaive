@@ -26,7 +26,7 @@ from boneglaive.game.skills.fowl_contrivance import (
 )
 
 from boneglaive.game.skills.gas_machinist import (
-    EffluviumLathe, EnbroachmentGasSkill, SaftEGasSkill, DivergeSkill
+    EffluviumLathe, EnbroachmentGasSkill, SaftEGasSkill, DivergeSkill, AerosolizeArmsSkill
 )
 
 from boneglaive.game.skills.delphic_appraiser import (
@@ -69,7 +69,7 @@ UNIT_SKILLS = {
     },
     "GAS_MACHINIST": {
         "passive": EffluviumLathe(),
-        "active": [EnbroachmentGasSkill(), SaftEGasSkill(), DivergeSkill()]
+        "active": [EnbroachmentGasSkill(), SaftEGasSkill(), DivergeSkill(), AerosolizeArmsSkill()]
     },
     "DELPHIC_APPRAISER": {
         "passive": ValuationOracle(),

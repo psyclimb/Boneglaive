@@ -46,6 +46,10 @@ class VisualUnit:
         self.last_trapped_by = getattr(game_unit, 'trapped_by', None)
         # Track vagal run duration for abreaction animation
         self.last_vagal_run_duration = getattr(game_unit, 'vagal_run_duration', 0)
+        # Track demilune zone duration to detect when upgraded Demilune creates a new zone
+        self.last_demilune_zone_duration = getattr(game_unit, 'demilune_zone_duration', 0)
+        # Track derelicted duration to detect when upgraded Derelict creates buildings
+        self.last_derelicted_duration = getattr(game_unit, 'derelicted_duration', 0)
 
     def _get_passive_activation_state(self, game_unit):
         """Get current activation state of passive skill."""
@@ -606,6 +610,14 @@ class GameStateAdapter:
                     # Clear the pending teleport flag
                     visual_unit.pending_teleport_skill = None
 
+                # Check if this unit was abducted by Delta Config (upgraded)
+                is_abducted = hasattr(game_unit, 'abducted_by_delta_config') and game_unit.abducted_by_delta_config
+                if is_abducted:
+                    # Clear the abduction flag
+                    game_unit.abducted_by_delta_config = False
+                    # Treat as teleport to prevent walk cycle
+                    is_teleport = True
+
                 # Check if this is a DERELICTIONIST defection teleport (partition dissociation)
                 is_defection_teleport = (hasattr(game_unit, 'pending_teleport_defection') and
                                         game_unit.pending_teleport_defection)
@@ -719,13 +731,24 @@ class GameStateAdapter:
                                 hasattr(target_game_unit, 'riposte_active') and target_game_unit.riposte_active):
                                 target_has_riposte = True
 
+                        # Capture target's glaive_sweep_queued state BEFORE attack execution triggers it
+                        # (Upgraded Autoclave passive - GLAIVEMAN sweeps after being hit at critical health)
+                        target_has_glaive_sweep = False
+                        if target_game_unit:
+                            if (hasattr(target_game_unit, 'passive_skill') and target_game_unit.passive_skill and
+                                target_game_unit.passive_skill.name == "Autoclave" and
+                                hasattr(target_game_unit, 'glaive_sweep_queued') and target_game_unit.glaive_sweep_queued):
+                                target_has_glaive_sweep = True
+                                print(f"[GameState] Target has queued Glaive Sweep - will counterattack!")
+
                         events.append(AnimationEvent(
                             "attack",
                             source_unit=game_unit,
                             target_unit=target_game_unit,
                             attack_target=attack_target,
                             has_carrier_rave=has_carrier_rave,  # Pass flag to renderer
-                            target_has_riposte=target_has_riposte  # Pass flag to renderer
+                            target_has_riposte=target_has_riposte,  # Pass flag to renderer
+                            target_has_glaive_sweep=target_has_glaive_sweep  # Pass flag to renderer
                         ))
                         visual_unit.last_attack_target = game_unit.attack_target
                 elif visual_unit.last_attack_target is not None:
@@ -780,6 +803,21 @@ class GameStateAdapter:
                             # Calculate dynamic bounce count for Matador animation
                             if hasattr(game_unit, 'selected_skill') and hasattr(game_unit.selected_skill, '_calculate_matador_bounces'):
                                 bounce_count = game_unit.selected_skill._calculate_matador_bounces(game_unit, self.game)
+
+                        # Check if skill is upgraded and modify skill_name for upgraded animations
+                        # This allows the animation factory to use upgraded animation variants
+                        if skill_name == "Vault":
+                            from boneglaive.game.upgrades import UpgradeManager
+                            if UpgradeManager.is_skill_upgraded(game_unit, "Vault"):
+                                skill_name = "Vault_Upgraded"  # Use upgraded animation variant
+                        elif skill_name == "Site Inspection":
+                            from boneglaive.game.upgrades import UpgradeManager
+                            if UpgradeManager.is_skill_upgraded(game_unit, "Site Inspection"):
+                                skill_name = "Site Inspection_Upgraded"  # Use upgraded animation variant
+                        elif skill_name == "Jawline":
+                            from boneglaive.game.upgrades import UpgradeManager
+                            if UpgradeManager.is_skill_upgraded(game_unit, "Jawline"):
+                                skill_name = "Jawline_Upgraded"  # Use upgraded animation variant
 
                         events.append(AnimationEvent(
                             "skill",
@@ -857,6 +895,58 @@ class GameStateAdapter:
             # This ensures we have the "before" state for next cycle's geas heal detection
             new_taunted = visual_unit._get_taunted_units(game_unit, self.game)
             visual_unit.last_taunted_units = new_taunted
+
+            # Detect Demilune zone creation (upgraded Demilune only)
+            # Zone is created during skill execution, so we detect when duration goes from 0 to >0
+            current_demilune_zone_duration = getattr(game_unit, 'demilune_zone_duration', 0)
+            if current_demilune_zone_duration > 0 and visual_unit.last_demilune_zone_duration == 0:
+                # New Demilune zone was just created!
+                if (hasattr(game_unit, 'demilune_mirrored_zone_tiles') and
+                    game_unit.demilune_mirrored_zone_tiles):
+
+                    print(f"  [GameState] Detected new Selenic Backdraft zone on {len(game_unit.demilune_mirrored_zone_tiles)} tiles")
+
+                    # Create zone animation event
+                    events.append(AnimationEvent(
+                        "zone_create",
+                        source_unit=game_unit,
+                        zone_name="SELENIC_BACKDRAFT",
+                        zone_tiles=game_unit.demilune_mirrored_zone_tiles.copy()
+                    ))
+
+            # Update zone duration tracking
+            visual_unit.last_demilune_zone_duration = current_demilune_zone_duration
+
+            # Detect Derelict building creation (upgraded Derelict only)
+            # Buildings are created during skill execution when Derelicted status is applied
+            current_derelicted_duration = getattr(game_unit, 'derelicted_duration', 0)
+            if current_derelicted_duration > 0 and visual_unit.last_derelicted_duration == 0:
+                # Unit just got derelicted! Check if buildings were created around it
+                if hasattr(self.game, 'derelict_building_tiles') and self.game.derelict_building_tiles:
+                    # Find buildings that are centered on this unit (or close to it)
+                    # Buildings are in a 3x3 circle around the derelicted unit
+                    unit_pos = (game_unit.y, game_unit.x)
+                    nearby_building_tiles = []
+
+                    for tile_pos in self.game.derelict_building_tiles.keys():
+                        # Check if this tile is within range of the unit (roughly 3x3 area)
+                        dy = abs(tile_pos[0] - unit_pos[0])
+                        dx = abs(tile_pos[1] - unit_pos[1])
+                        if dy <= 2 and dx <= 2:
+                            nearby_building_tiles.append(tile_pos)
+
+                    if nearby_building_tiles:
+                        print(f"  [GameState] Detected new Derelict building with {len(nearby_building_tiles)} tiles around {game_unit.type}")
+
+                        # Create building formation event
+                        events.append(AnimationEvent(
+                            "building_create",
+                            source_unit=game_unit,
+                            building_tiles=nearby_building_tiles
+                        ))
+
+            # Update derelicted duration tracking
+            visual_unit.last_derelicted_duration = current_derelicted_duration
 
         # Status effects are shown after damage numbers via _show_active_status_effects()
         # in the renderer, using _effects_to_show_after_damage populated by the callback
@@ -1068,6 +1158,8 @@ class GameStateAdapter:
         # Get skill range (check for dynamic range method first)
         if hasattr(skill, 'get_skill_range') and callable(skill.get_skill_range):
             skill_range = skill.get_skill_range(game_unit, self.game)
+        elif hasattr(skill, 'get_range') and callable(skill.get_range):
+            skill_range = skill.get_range(game_unit)
         else:
             skill_range = skill.range
 

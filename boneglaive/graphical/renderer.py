@@ -35,6 +35,7 @@ from .ui.action_menu import ActionMenu
 from .ui.motor_animation import MotorAnimation
 from .ui.help_page import HelpPage
 from .ui.respawn_window import RespawnWindow
+from .ui.upgrade_window import UpgradeWindow
 from .ui.setup_window import SetupWindow
 from .ui.setup_unit_help import SetupUnitHelp
 from .ui_adapter import GraphicalUIAdapter
@@ -88,7 +89,8 @@ PRE_EXECUTION_BLOCKING_SKILLS = [
     # NOTE: Judgement removed from pre-execution so it plays AFTER moves execute
     "Autoclave", "AUTOCLAVE",
     "Matador", "MATADOR",
-    "Poach", "POACH"
+    "Poach", "POACH",
+    "Vault_Upgraded", "VAULT_UPGRADED"  # Upgraded Vault with AOE landing impact
 ]
 
 
@@ -136,6 +138,10 @@ class GraphicalRenderer:
         # Active animations (skill animations, projectiles, etc.)
         self.active_animations = []  # List of animation objects
 
+        # Background animations (persistent zones, environmental effects - NON-BLOCKING)
+        # These don't prevent pending animations from flushing
+        self.background_animations = []
+
         # Pending animation events (damage/heal numbers to show after animations finish)
         self.pending_animation_events = []
 
@@ -181,6 +187,7 @@ class GraphicalRenderer:
         self.motor_animation = MotorAnimation()
         self.help_page = HelpPage(self.font, self.small_font)
         self.respawn_window = RespawnWindow(self.font, self.small_font)
+        self.upgrade_window = UpgradeWindow(self.font, self.small_font)
         self.setup_window = SetupWindow(self.font, self.small_font)
         self.setup_unit_help = SetupUnitHelp(self.font, self.small_font)
 
@@ -224,6 +231,10 @@ class GraphicalRenderer:
         self._left_panel_surface = pygame.Surface((LEFT_PANEL_WIDTH, SCREEN_HEIGHT - TOP_BAR_HEIGHT - BOTTOM_BAR_HEIGHT))
         self._right_panel_surface = pygame.Surface((RIGHT_PANEL_WIDTH, SCREEN_HEIGHT - TOP_BAR_HEIGHT - BOTTOM_BAR_HEIGHT))
         self._flash_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+
+        # Cached grid surface (to avoid redrawing 200 tiles every frame)
+        self._grid_surface = pygame.Surface((GAME_BOARD_WIDTH, GAME_BOARD_HEIGHT))
+        self._grid_dirty = True  # Redraw grid on first frame
 
         # Cache for sparkle surfaces (different sizes)
         self._sparkle_surf_cache: Dict[int, pygame.Surface] = {}
@@ -654,6 +665,29 @@ class GraphicalRenderer:
                     # Ignore all other keys when message log is open
                     continue
 
+                # Check if upgrade window is open
+                if self.upgrade_window.visible:
+                    result = self.upgrade_window.handle_key(event.key)
+                    if result == 'confirm':
+                        upgrade = self.upgrade_window.get_selected_upgrade()
+                        if upgrade:
+                            game_unit = self.upgrade_window.unit
+                            success = self.game_adapter.game.apply_unit_upgrade(game_unit, upgrade['skill_name'])
+                            if success:
+                                print(f"Upgraded {upgrade['skill_name']}!")
+                                self.combat_log.add_message(f"Upgraded {upgrade['skill_name']}!", "system")
+                                # Refresh the upgrade window with updated available upgrades
+                                if not self.upgrade_window.show(game_unit):
+                                    # No more upgrades available, close window
+                                    self.upgrade_window.hide()
+                                # Ignore all other keys when upgrade window is open
+                                continue
+                        self.upgrade_window.hide()
+                    elif result == 'cancel':
+                        self.upgrade_window.hide()
+                    # Ignore all other keys when upgrade window is open
+                    continue
+
                 # Check if help page is open
                 if self.help_page.visible:
                     if event.key == pygame.K_ESCAPE:
@@ -706,6 +740,17 @@ class GraphicalRenderer:
                     shift_pressed = pygame.key.get_mods() & pygame.KMOD_SHIFT
                     self._cycle_unit_selection(backwards=shift_pressed)
 
+                # DEV KEYBIND: Add upgrade points with '=' key (temporary for testing)
+                elif event.key == pygame.K_EQUALS:
+                    if self.game_adapter and self.game_adapter.game:
+                        game = self.game_adapter.game
+                        if game.current_player == 1:
+                            game.player1_upgrade_points += 1
+                            print(f"[DEV] Player 1 upgrade points: {game.player1_upgrade_points}")
+                        else:
+                            game.player2_upgrade_points += 1
+                            print(f"[DEV] Player 2 upgrade points: {game.player2_upgrade_points}")
+
                 # Check action menu hotkeys first
                 elif event.key in [pygame.K_m, pygame.K_a, pygame.K_r, pygame.K_e, pygame.K_c, pygame.K_h]:
                     action = self.action_menu.handle_hotkey(event.key)
@@ -748,6 +793,9 @@ class GraphicalRenderer:
                 # Handle help page scrollbar dragging
                 if self.help_page.visible:
                     self.help_page.handle_mouse_motion(event.pos)
+                # Handle upgrade window mouse motion
+                elif self.upgrade_window.visible:
+                    self.upgrade_window.handle_mouse_motion(event.pos)
                 # Handle respawn window mouse motion
                 elif self.respawn_selecting_unit:
                     self.respawn_window.handle_mouse_motion(event.pos)
@@ -816,6 +864,31 @@ class GraphicalRenderer:
                     if self.help_page.visible:
                         if self.help_page.handle_mouse_down(event.pos):
                             continue  # Scrollbar was clicked, don't process other clicks
+
+                    # Handle upgrade window clicks (must be before other UI elements)
+                    if self.upgrade_window.visible:
+                        result = self.upgrade_window.handle_click(event.pos)
+                        if result == 'confirm':
+                            upgrade = self.upgrade_window.get_selected_upgrade()
+                            if upgrade:
+                                game_unit = self.upgrade_window.unit
+                                success = self.game_adapter.game.apply_unit_upgrade(game_unit, upgrade['skill_name'])
+                                if success:
+                                    print(f"Upgraded {upgrade['skill_name']}!")
+                                    self.combat_log.add_message(f"Upgraded {upgrade['skill_name']}!", "system")
+                                    # Refresh the upgrade window with updated available upgrades
+                                    if not self.upgrade_window.show(game_unit):
+                                        # No more upgrades available, close window
+                                        self.upgrade_window.hide()
+                                    continue
+                            self.upgrade_window.hide()
+                            continue
+                        elif result == 'cancel':
+                            self.upgrade_window.hide()
+                            continue
+                        elif result == 'consumed':
+                            # Click was on window but no action - just consume it
+                            continue
 
                     # Check if clicking on combat log to open expanded view (only when not in setup mode)
                     if not self.setup_mode:
@@ -1268,6 +1341,15 @@ class GraphicalRenderer:
         elif action == "respawn":
             print("Respawn mode activated")
             self.start_respawn_mode()
+
+        elif action == "upgrade":
+            print("Upgrade mode activated")
+            if self.selected_unit:
+                game_unit = self._get_game_unit(self.selected_unit)
+                if game_unit:
+                    success = self.upgrade_window.show(game_unit)
+                    if not success:
+                        print("No upgrades available for this unit")
 
         elif action == "help":
             print("Help button clicked")
@@ -1753,6 +1835,14 @@ class GraphicalRenderer:
                 updated_animations.append(anim)
         self.active_animations = updated_animations
 
+        # Update background animations (non-blocking persistent effects like zones)
+        updated_background = []
+        for anim in self.background_animations:
+            still_active = anim.update(delta_time)
+            if still_active:
+                updated_background.append(anim)
+        self.background_animations = updated_background
+
         # Update motor animation
         self.motor_animation.update(delta_time)
 
@@ -1976,6 +2066,14 @@ class GraphicalRenderer:
 
         self.active_animations = updated_animations
 
+        # Update background animations (non-blocking persistent effects like zones)
+        updated_background = []
+        for anim in self.background_animations:
+            still_active = anim.update(delta_time)
+            if still_active:
+                updated_background.append(anim)
+        self.background_animations = updated_background
+
         # Update motor animation
         self.motor_animation.update(delta_time)
 
@@ -2048,6 +2146,122 @@ class GraphicalRenderer:
             # This takes priority and should not be queued
             self._show_event_immediately(event)
             print(f"  [Renderer] Triggered partition dissociation animation immediately")
+
+        elif event.event_type == "zone_create":
+            # Zone creation (e.g., Selenic Backdraft from upgraded Demilune)
+            # Create persistent zone animation immediately - NON-BLOCKING
+            # Zone should appear and persist independently of skill animations
+            zone_name = event.kwargs.get('zone_name')
+            zone_tiles = event.kwargs.get('zone_tiles', [])
+
+            print(f"  [Renderer] Received zone_create event: zone_name={zone_name}, tiles={zone_tiles}")
+
+            if zone_name and zone_tiles:
+                print(f"  [Renderer] Creating {zone_name} zone animation IMMEDIATELY on {len(zone_tiles)} tiles")
+
+                # Find animated unit for caster
+                caster_animated = self._find_animated_unit_by_game_unit(event.source_unit)
+
+                if caster_animated:
+                    # Create zone animation via AnimationFactory
+                    from boneglaive.graphical.animations import AnimationFactory
+
+                    zone_animation = AnimationFactory.create_animation(
+                        skill_name=zone_name,
+                        caster_unit=caster_animated,
+                        target_unit=None,
+                        target_pos=None,
+                        is_crit=False,
+                        is_infused=False,
+                        particle_emitter=self.particle_emitter,
+                        screen_shake_callback=self.trigger_screen_shake,
+                        screen_flash_callback=self.trigger_screen_flash,
+                        units_list=self.units,
+                        camera=self.camera,
+                        game=self.game_adapter.game,
+                        zone_tiles=zone_tiles  # Pass zone tiles as kwarg
+                    )
+
+                    if zone_animation:
+                        # Add to background_animations - non-blocking, persistent effect
+                        # Background animations don't block pending_animation_events from flushing
+                        self.background_animations.append(zone_animation)
+                        print(f"  [Animation] Successfully created {zone_name} zone in BACKGROUND (non-blocking)")
+                    else:
+                        print(f"  [Animation] WARNING: Failed to create {zone_name} zone animation")
+                else:
+                    print(f"  [Renderer] WARNING: Could not find animated unit for zone caster")
+
+            # DON'T BLOCK - zone is independent background effect
+
+        elif event.event_type == "building_create":
+            # Building creation (e.g., Derelict buildings from upgraded Derelict)
+            # Create building formation animation (one-time) and persistent building tiles (background)
+            building_tiles = event.kwargs.get('building_tiles', [])
+
+            print(f"  [Renderer] Received building_create event: {len(building_tiles)} tiles")
+
+            if building_tiles:
+                print(f"  [Renderer] Creating Derelict building animations on {len(building_tiles)} tiles")
+
+                # Find animated unit for caster
+                caster_animated = self._find_animated_unit_by_game_unit(event.source_unit)
+
+                if caster_animated:
+                    # Create building formation animation via AnimationFactory
+                    from boneglaive.graphical.animations import AnimationFactory
+
+                    # 1. Building formation animation (one-time, blocking)
+                    formation_animation = AnimationFactory.create_animation(
+                        skill_name="DERELICT_BUILDING_FORMATION",
+                        caster_unit=caster_animated,
+                        target_unit=None,
+                        target_pos=None,
+                        is_crit=False,
+                        is_infused=False,
+                        particle_emitter=self.particle_emitter,
+                        screen_shake_callback=self.trigger_screen_shake,
+                        screen_flash_callback=self.trigger_screen_flash,
+                        units_list=self.units,
+                        camera=self.camera,
+                        game=self.game_adapter.game,
+                        building_tiles=building_tiles
+                    )
+
+                    if formation_animation:
+                        # Add to active_animations - this is a one-time formation effect
+                        self.active_animations.append(formation_animation)
+                        print(f"  [Animation] Successfully created building formation animation")
+                    else:
+                        print(f"  [Animation] WARNING: Failed to create building formation animation")
+
+                    # 2. Building tiles persistent effect (background, non-blocking)
+                    tiles_animation = AnimationFactory.create_animation(
+                        skill_name="DERELICT_BUILDING_TILES",
+                        caster_unit=caster_animated,
+                        target_unit=None,
+                        target_pos=None,
+                        is_crit=False,
+                        is_infused=False,
+                        particle_emitter=self.particle_emitter,
+                        screen_shake_callback=self.trigger_screen_shake,
+                        screen_flash_callback=self.trigger_screen_flash,
+                        units_list=self.units,
+                        camera=self.camera,
+                        game=self.game_adapter.game,
+                        building_tiles=building_tiles
+                    )
+
+                    if tiles_animation:
+                        # Add to background_animations - non-blocking, persistent effect
+                        self.background_animations.append(tiles_animation)
+                        print(f"  [Animation] Successfully created building tiles in BACKGROUND (non-blocking)")
+                    else:
+                        print(f"  [Animation] WARNING: Failed to create building tiles animation")
+                else:
+                    print(f"  [Renderer] WARNING: Could not find animated unit for building caster")
+
+            # Building formation is blocking, but tiles are background effect
 
         elif event.event_type == "movement":
             # Animate unit movement - already handled in sync_state()
@@ -2462,6 +2676,44 @@ class GraphicalRenderer:
                 else:
                     print(f"  [Animation] WARNING: Could not find animated unit for Riposte target")
 
+            # Check if TARGET has Glaive Sweep queued (GLAIVEMAN upgraded Autoclave counterattack)
+            # Use captured flag from BEFORE attack execution triggered it
+            target_has_glaive_sweep = event.kwargs.get("target_has_glaive_sweep", False)
+
+            if target_has_glaive_sweep and event.target_unit:
+                print(f"  [Renderer] *** GLAIVE SWEEP COUNTERATTACK DETECTED on {event.target_unit.get_display_name()} ***")
+
+                from boneglaive.graphical.animations.glaiveman import GlaiveSweepAnimation
+
+                # Get animated unit for target (GLAIVEMAN)
+                target_animated = self._find_animated_unit_by_game_unit(event.target_unit)
+
+                if target_animated:
+                    # Create Glaive Sweep animation
+                    # The animation will detect adjacent enemies within its own code
+                    glaive_sweep_animation = GlaiveSweepAnimation(
+                        caster_unit=target_animated,
+                        target_unit=None,  # AOE around caster
+                        target_pos=(event.target_unit.y, event.target_unit.x),  # Caster position
+                        is_crit=False,
+                        is_infused=False,
+                        particle_emitter=self.particle_emitter,
+                        debris_list=[],
+                        screen_shake_callback=self.trigger_screen_shake,
+                        screen_flash_callback=self.trigger_screen_flash,
+                        units_list=self.units,
+                        camera=self.camera,
+                        game=self.game_adapter.game
+                    )
+
+                    if glaive_sweep_animation:
+                        self.active_animations.append(glaive_sweep_animation)
+                        print(f"  [Animation] Successfully triggered Glaive Sweep counterattack")
+                    else:
+                        print(f"  [Animation] WARNING: Failed to create Glaive Sweep animation")
+                else:
+                    print(f"  [Animation] WARNING: Could not find animated unit for Glaive Sweep target")
+
             if attacker.type not in [UnitType.INTERFERER, UnitType.MANDIBLE_FOREMAN, UnitType.GLAIVEMAN,
                                       UnitType.GRAYMAN, UnitType.MARROW_CONDENSER, UnitType.FOWL_CONTRIVANCE,
                                       UnitType.DELPHIC_APPRAISER, UnitType.GAS_MACHINIST, UnitType.DERELICTIONIST,
@@ -2756,6 +3008,10 @@ class GraphicalRenderer:
 
             unit.draw(main_surface, self.small_font)
 
+        # Draw background animations FIRST (zones, environmental effects - render below other animations)
+        for animation in self.background_animations:
+            animation.draw(main_surface)
+
         # Draw active animations
         for animation in self.active_animations:
             animation.draw(main_surface)
@@ -2797,6 +3053,10 @@ class GraphicalRenderer:
         # Draw message log window (on top of help page)
         self.message_log_window.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
 
+        # Draw upgrade window (on top of everything except help/message log)
+        if self.upgrade_window.visible:
+            self.upgrade_window.draw(self.screen)
+
         # Draw respawn window (on top of everything except help page and message log)
         if self.respawn_mode and self.respawn_selecting_unit:
             self.respawn_window.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
@@ -2832,15 +3092,25 @@ class GraphicalRenderer:
 
     def draw_grid(self, surface: pygame.Surface):
         """Draw the game grid with terrain and furniture using two-pass rendering for rails."""
+        # Performance optimization: cache the grid and only redraw when dirty
+        if self._grid_dirty:
+            self._render_grid_to_cache()
+            self._grid_dirty = False
+
+        # Blit the cached grid to the surface
+        surface.blit(self._grid_surface, (GRID_OFFSET_X, GRID_OFFSET_Y))
+
+    def _render_grid_to_cache(self):
+        """Render the grid to the cached surface (called only when grid changes)."""
         # Get game map if available
         game_map = self.game_adapter.game.map if self.game_adapter.game else None
 
         # PASS 1: Draw base terrain and furniture
         for y in range(GRID_HEIGHT):
             for x in range(GRID_WIDTH):
-                # Calculate tile position
-                tile_x = GRID_OFFSET_X + x * TILE_SIZE
-                tile_y = GRID_OFFSET_Y + y * TILE_SIZE
+                # Calculate tile position (relative to grid surface, not screen)
+                tile_x = x * TILE_SIZE
+                tile_y = y * TILE_SIZE
                 rect = pygame.Rect(tile_x, tile_y, TILE_SIZE, TILE_SIZE)
 
                 # Get terrain type at this position
@@ -2856,19 +3126,15 @@ class GraphicalRenderer:
                 # Determine base color (checkerboard pattern for empty/passable tiles)
                 base_color = COLOR_GRID_DARK if (x + y) % 2 == 0 else COLOR_GRID_LIGHT
 
-                # Highlight hovered tile
-                if self.hovered_grid_pos == (x, y):
-                    base_color = tuple(min(255, c + 30) for c in base_color)
-
                 # Draw base tile
-                pygame.draw.rect(surface, base_color, rect)
+                pygame.draw.rect(self._grid_surface, base_color, rect)
 
                 # Try to load and draw terrain/furniture SVG
                 if terrain_type != TerrainType.EMPTY:
                     terrain_surface = self._load_terrain_tile(terrain_type)
                     if terrain_surface:
                         # Blit the SVG surface at tile position
-                        surface.blit(terrain_surface, (tile_x, tile_y))
+                        self._grid_surface.blit(terrain_surface, (tile_x, tile_y))
 
                         # Add player-colored outline for MARROW_WALL
                         if terrain_type == TerrainType.MARROW_WALL:
@@ -2884,23 +3150,23 @@ class GraphicalRenderer:
                                             outline_color = (100, 150, 255)  # Blue
 
                                         # Draw outline around the tile (same as units)
-                                        pygame.draw.rect(surface, outline_color, rect, 2)
+                                        pygame.draw.rect(self._grid_surface, outline_color, rect, 2)
                     else:
                         # Fallback: draw a colored rectangle to indicate terrain/furniture
                         # Use different colors for different types
                         if terrain_type in [TerrainType.LIMESTONE, TerrainType.PILLAR,
                                            TerrainType.STAINED_STONE, TerrainType.HYDRAULIC_PRESS]:
                             # Blocking terrain - dark gray
-                            pygame.draw.rect(surface, (80, 80, 90), rect)
+                            pygame.draw.rect(self._grid_surface, (80, 80, 90), rect)
                         elif terrain_type in [TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.CONCRETE_FLOOR]:
                             # Passable terrain - slightly different shade
-                            pygame.draw.rect(surface, (70, 75, 80), rect)
+                            pygame.draw.rect(self._grid_surface, (70, 75, 80), rect)
                         else:
                             # Furniture - lighter color
-                            pygame.draw.rect(surface, (100, 110, 120), rect)
+                            pygame.draw.rect(self._grid_surface, (100, 110, 120), rect)
 
                 # Draw grid lines
-                pygame.draw.rect(surface, (30, 34, 42), rect, 1)
+                pygame.draw.rect(self._grid_surface, (30, 34, 42), rect, 1)
 
         # PASS 2: Draw universal rail bomb overlays on top of terrain
         if game_map and self.rail_universal:
@@ -2909,12 +3175,12 @@ class GraphicalRenderer:
                     terrain_type = game_map.get_terrain_at(y, x)
 
                     if terrain_type == TerrainType.RAIL:
-                        # Calculate tile position
-                        tile_x = GRID_OFFSET_X + x * TILE_SIZE
-                        tile_y = GRID_OFFSET_Y + y * TILE_SIZE
+                        # Calculate tile position (relative to grid surface)
+                        tile_x = x * TILE_SIZE
+                        tile_y = y * TILE_SIZE
 
                         # Blit the universal rail bomb overlay
-                        surface.blit(self.rail_universal, (tile_x, tile_y))
+                        self._grid_surface.blit(self.rail_universal, (tile_x, tile_y))
 
     def draw_revealed_traps(self, surface: pygame.Surface):
         """Draw revealed scalar node traps on the map."""
@@ -3265,11 +3531,22 @@ class GraphicalRenderer:
         # Sync state AFTER turn execution
         print("[Renderer] Post-execution sync...")
         post_events = self.game_adapter.sync_state()
-        for event in post_events:
+
+        # Process zone_create and building_create events FIRST so they appear immediately before skill animations
+        # This ensures persistent zone/building effects are visible during the skill animation
+        zone_events = [e for e in post_events if e.event_type in ["zone_create", "building_create"]]
+        other_events = [e for e in post_events if e.event_type not in ["zone_create", "building_create"]]
+
+        for event in zone_events:
+            self.handle_animation_event(event)
+        for event in other_events:
             self.handle_animation_event(event)
 
         self.game_adapter.executing_turn = False
         print("[Renderer] Setting executing_turn = False")
+
+        # Mark grid dirty (terrain may have changed from skills like Marrow Dike)
+        self._grid_dirty = True
 
         # Note: Motor will stop when animations finish (in flush_pending_events or update loop)
 

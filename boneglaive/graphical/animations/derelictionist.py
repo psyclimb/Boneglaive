@@ -3540,3 +3540,597 @@ class DerelictionistVoidAttack:
                         surface.blit(flash_surf, (int(self.target.x - layer_radius),
                                                  int(self.target.y - layer_radius)))
 
+
+# ============================================================================
+# DERELICT BUILDING ANIMATIONS (Upgraded Derelict)
+# ============================================================================
+
+class DerelictBuildingFormation:
+    """
+    Building formation animation for upgraded Derelict skill.
+    Shows old decrepit building walls rising from the ground around the target.
+
+    Visual: Stone/brick structures emerge tile by tile with crumbling texture.
+    """
+
+    def __init__(self, building_tiles, camera, game):
+        """
+        Initialize building formation animation.
+
+        Args:
+            building_tiles: List of (grid_y, grid_x) tuples for building positions
+            camera: Camera for coordinate conversion
+            game: Game instance
+        """
+        self.building_tiles = building_tiles
+        self.camera = camera
+        self.game = game
+
+        # Animation state
+        self.phase = "rising"  # rising -> complete
+        self.timer = 0
+        self.active = True
+
+        # Phase durations
+        self.rise_duration = 0.6  # Building emerges over 0.6s
+
+        # Building colors - bare steel frame skeleton from derelict.svg
+        self.color_steel_beam = (106, 122, 138)     # #6a7a8a - main steel beams
+        self.color_steel_dark = (90, 106, 122)      # #5a6a7a - darker steel
+        self.color_steel_darker = (74, 90, 106)     # #4a5a6a - darkest steel
+        self.color_rust = (139, 106, 74)            # #8b6a4a - rust patches
+        self.color_rust_dark = (122, 90, 58)        # #7a5a3a - darker rust
+        self.color_outline = (42, 58, 74)           # #2a3a4a - dark outline
+        self.color_shadow = (26, 42, 58)            # #1a2a3a - deep shadow
+
+        # Convert to screen coordinates
+        self.screen_tiles = []
+        for grid_y, grid_x in building_tiles:
+            screen_x, screen_y = camera.grid_to_screen(grid_x, grid_y, centered=True)
+            self.screen_tiles.append((screen_x, screen_y, grid_x, grid_y))
+
+        # Debris particles for crumbling effect
+        self.debris_particles = []
+
+        # Rise progress per tile (stagger slightly for organic feel)
+        self.tile_offsets = {}
+        for i, (sx, sy, gx, gy) in enumerate(self.screen_tiles):
+            self.tile_offsets[(gx, gy)] = random.uniform(0, 0.1)  # Slight stagger
+
+    def update(self, delta_time):
+        """Update building formation. Returns True if still active."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Rising phase
+        if self.phase == "rising":
+            # Spawn debris particles during rise
+            if random.random() < 0.3:  # 30% chance per frame
+                if self.screen_tiles:
+                    sx, sy, _, _ = random.choice(self.screen_tiles)
+                    self.debris_particles.append({
+                        'x': sx + random.uniform(-20, 20),
+                        'y': sy + random.uniform(-10, 10),
+                        'vx': random.uniform(-30, 30),
+                        'vy': random.uniform(-80, -40),  # Fly upward
+                        'lifetime': random.uniform(0.3, 0.6),
+                        'max_lifetime': random.uniform(0.3, 0.6),
+                        'size': random.uniform(1, 3),
+                        'color': random.choice([self.color_steel_dark, self.color_rust, self.color_rust_dark])
+                    })
+
+            if self.timer >= self.rise_duration:
+                self.phase = "complete"
+                self.active = False
+
+        # Update debris particles
+        for particle in self.debris_particles[:]:
+            particle['x'] += particle['vx'] * delta_time
+            particle['y'] += particle['vy'] * delta_time
+            particle['vy'] += 200 * delta_time  # Gravity
+            particle['lifetime'] -= delta_time
+
+            if particle['lifetime'] <= 0:
+                self.debris_particles.remove(particle)
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw building formation."""
+        if not self.active:
+            return
+
+        import pygame
+
+        # Draw each building tile rising from ground
+        for screen_x, screen_y, grid_x, grid_y in self.screen_tiles:
+            # Calculate rise progress with offset
+            offset = self.tile_offsets.get((grid_x, grid_y), 0)
+            adjusted_timer = max(0, self.timer - offset)
+            progress = min(1.0, adjusted_timer / self.rise_duration)
+
+            if progress <= 0:
+                continue
+
+            # Ease-out for smooth rise
+            rise_factor = 1.0 - (1.0 - progress) ** 3
+
+            # Building rises from below (offset Y position)
+            current_height = int(TILE_SIZE * rise_factor)
+            offset_y = TILE_SIZE - current_height
+
+            # Draw building wall segment
+            wall_rect = pygame.Rect(
+                int(screen_x - TILE_SIZE // 2),
+                int(screen_y - TILE_SIZE // 2 + offset_y),
+                TILE_SIZE,
+                current_height
+            )
+
+            # Draw steel frame structure
+            # Vertical I-beams (left and right edges)
+            beam_width = 3
+
+            # Left vertical beam
+            left_beam_rect = pygame.Rect(
+                wall_rect.left + 5,
+                wall_rect.top,
+                beam_width,
+                current_height
+            )
+            pygame.draw.rect(surface, self.color_steel_beam, left_beam_rect)
+            pygame.draw.rect(surface, self.color_outline, left_beam_rect, 1)  # Outline
+
+            # Highlight on left beam
+            pygame.draw.line(
+                surface,
+                self.color_steel_beam,
+                (left_beam_rect.left + 1, left_beam_rect.top),
+                (left_beam_rect.left + 1, left_beam_rect.bottom),
+                1
+            )
+
+            # Right vertical beam
+            right_beam_rect = pygame.Rect(
+                wall_rect.right - 8,
+                wall_rect.top,
+                beam_width,
+                current_height
+            )
+            pygame.draw.rect(surface, self.color_steel_beam, right_beam_rect)
+            pygame.draw.rect(surface, self.color_outline, right_beam_rect, 1)  # Outline
+
+            # Horizontal cross beams (appear as structure rises)
+            if progress > 0.3:
+                beam_spacing = 12
+                for beam_y in range(wall_rect.top, wall_rect.bottom, beam_spacing):
+                    if beam_y + 2 <= wall_rect.bottom:
+                        # Horizontal beam
+                        h_beam_rect = pygame.Rect(
+                            wall_rect.left + 5,
+                            beam_y,
+                            TILE_SIZE - 10,
+                            2
+                        )
+                        pygame.draw.rect(surface, self.color_steel_dark, h_beam_rect)
+                        # Top highlight
+                        pygame.draw.line(
+                            surface,
+                            self.color_steel_beam,
+                            (h_beam_rect.left, h_beam_rect.top),
+                            (h_beam_rect.right, h_beam_rect.top),
+                            1
+                        )
+
+            # Diagonal cross bracing (appears later in rise)
+            if progress > 0.6:
+                # X-brace pattern
+                pygame.draw.line(
+                    surface,
+                    self.color_steel_darker,
+                    (wall_rect.left + 8, wall_rect.top + 5),
+                    (wall_rect.right - 11, wall_rect.bottom - 5),
+                    1
+                )
+
+            # Rust patches on beams
+            if progress > 0.7:
+                # Rust on left beam
+                rust_rect = pygame.Rect(
+                    left_beam_rect.left,
+                    left_beam_rect.top + current_height // 3,
+                    beam_width,
+                    6
+                )
+                rust_surf = pygame.Surface((beam_width, 6), pygame.SRCALPHA)
+                rust_surf.fill((*self.color_rust, 120))
+                surface.blit(rust_surf, rust_rect.topleft)
+
+                # Rust on right beam
+                rust_rect2 = pygame.Rect(
+                    right_beam_rect.left,
+                    right_beam_rect.top + current_height // 2,
+                    beam_width,
+                    8
+                )
+                rust_surf2 = pygame.Surface((beam_width, 8), pygame.SRCALPHA)
+                rust_surf2.fill((*self.color_rust_dark, 100))
+                surface.blit(rust_surf2, rust_rect2.topleft)
+
+            # Bolted connections at beam joints
+            if progress > 0.5:
+                # Connection points (rivets/bolts)
+                for joint_y in range(wall_rect.top + 10, wall_rect.bottom - 5, 15):
+                    if joint_y <= wall_rect.bottom:
+                        # Left connection
+                        pygame.draw.circle(
+                            surface,
+                            self.color_steel_darker,
+                            (wall_rect.left + 6, joint_y),
+                            2
+                        )
+                        pygame.draw.circle(
+                            surface,
+                            self.color_outline,
+                            (wall_rect.left + 6, joint_y),
+                            2,
+                            1
+                        )
+
+                        # Right connection
+                        pygame.draw.circle(
+                            surface,
+                            self.color_steel_darker,
+                            (wall_rect.right - 9, joint_y),
+                            2
+                        )
+                        pygame.draw.circle(
+                            surface,
+                            self.color_outline,
+                            (wall_rect.right - 9, joint_y),
+                            2,
+                            1
+                        )
+
+            # Shadow at base
+            shadow_rect = pygame.Rect(
+                wall_rect.left,
+                wall_rect.bottom - 3,
+                TILE_SIZE,
+                3
+            )
+            shadow_surf = pygame.Surface((TILE_SIZE, 3), pygame.SRCALPHA)
+            shadow_surf.fill((*self.color_shadow, 100))
+            surface.blit(shadow_surf, shadow_rect.topleft)
+
+        # Draw debris particles
+        for particle in self.debris_particles:
+            size = int(particle['size'])
+            if size > 0:
+                pygame.draw.circle(
+                    surface,
+                    particle['color'],
+                    (int(particle['x']), int(particle['y'])),
+                    size
+                )
+
+
+class DerelictBuildingTiles:
+    """
+    Persistent background effect for derelict building tiles.
+    Shows subtle weathering, cracks, and age on the building walls.
+    """
+
+    def __init__(self, building_tiles, camera, game):
+        """
+        Initialize persistent building tiles.
+
+        Args:
+            building_tiles: List of (grid_y, grid_x) tuples for building positions
+            camera: Camera for coordinate conversion
+            game: Game instance to check building duration
+        """
+        self.building_tiles = building_tiles
+        self.camera = camera
+        self.game = game
+
+        # Animation state
+        self.active = True
+        self.timer = 0
+
+        # Building colors - bare steel frame skeleton from derelict.svg
+        self.color_steel_beam = (106, 122, 138)     # #6a7a8a - main steel beams
+        self.color_steel_dark = (90, 106, 122)      # #5a6a7a - darker steel
+        self.color_steel_darker = (74, 90, 106)     # #4a5a6a - darkest steel
+        self.color_rust = (139, 106, 74)            # #8b6a4a - rust patches
+        self.color_rust_dark = (122, 90, 58)        # #7a5a3a - darker rust
+        self.color_outline = (42, 58, 74)           # #2a3a4a - dark outline
+        self.color_shadow = (26, 42, 58)            # #1a2a3a - deep shadow
+
+        # Convert to screen coordinates
+        self.screen_tiles = []
+        for grid_y, grid_x in building_tiles:
+            screen_x, screen_y = camera.grid_to_screen(grid_x, grid_y, centered=True)
+            self.screen_tiles.append((screen_x, screen_y, grid_x, grid_y))
+
+        # Weathering/decay effects per tile (random but consistent for steel framework)
+        self.tile_weathering = {}
+        for gx, gy in building_tiles:
+            self.tile_weathering[(gx, gy)] = {
+                'rust_patches': [(random.randint(5, TILE_SIZE - 5), random.randint(5, TILE_SIZE - 5),
+                                 random.randint(4, 8)) for _ in range(random.randint(2, 4))],
+                'broken_sections': [(random.randint(10, TILE_SIZE - 10), random.randint(0, TILE_SIZE))
+                                   for _ in range(random.randint(1, 3))],
+                'bent_beams': random.choice([True, False])
+            }
+
+    def update(self, delta_time):
+        """Update building tiles. Returns True if still active."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Check if any building tiles still exist in game
+        still_exist = False
+        if hasattr(self.game, 'derelict_building_tiles'):
+            for grid_y, grid_x in self.building_tiles:
+                if (grid_y, grid_x) in self.game.derelict_building_tiles:
+                    still_exist = True
+                    break
+
+        if not still_exist:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw persistent building tiles as unified structure."""
+        if not self.active:
+            return
+
+        import pygame
+
+        # First pass: Collect all active tiles and find structure bounds
+        active_tiles = []
+        for screen_x, screen_y, grid_x, grid_y in self.screen_tiles:
+            if hasattr(self.game, 'derelict_building_tiles'):
+                if (grid_y, grid_x) in self.game.derelict_building_tiles:
+                    active_tiles.append((screen_x, screen_y, grid_x, grid_y))
+
+        if not active_tiles:
+            return
+
+        # Find min/max grid positions to determine structure layout
+        grid_positions = {(gx, gy) for _, _, gx, gy in active_tiles}
+
+        # Second pass: Draw continuous beams across tiles
+        beam_width = 3
+
+        # Draw vertical columns that span multiple tiles
+        drawn_columns = set()
+        for screen_x, screen_y, grid_x, grid_y in active_tiles:
+            wall_rect = pygame.Rect(
+                int(screen_x - TILE_SIZE // 2),
+                int(screen_y - TILE_SIZE // 2),
+                TILE_SIZE,
+                TILE_SIZE
+            )
+
+            # Check if there's a tile above this one
+            has_tile_above = (grid_x, grid_y - 1) in grid_positions
+            has_tile_below = (grid_x, grid_y + 1) in grid_positions
+
+            # Left vertical column
+            left_col_key = (grid_x, 'left')
+            if left_col_key not in drawn_columns:
+                # Calculate column height based on connected tiles
+                col_start_y = wall_rect.top
+                col_end_y = wall_rect.bottom
+
+                # Extend upward if tile above
+                check_y = grid_y - 1
+                while (grid_x, check_y) in grid_positions:
+                    col_start_y -= TILE_SIZE
+                    check_y -= 1
+
+                # Extend downward if tile below
+                check_y = grid_y + 1
+                while (grid_x, check_y) in grid_positions:
+                    col_end_y += TILE_SIZE
+                    check_y += 1
+
+                # Draw continuous column
+                left_beam_rect = pygame.Rect(
+                    wall_rect.left + 5,
+                    col_start_y,
+                    beam_width,
+                    col_end_y - col_start_y
+                )
+                pygame.draw.rect(surface, self.color_steel_beam, left_beam_rect)
+                pygame.draw.rect(surface, self.color_outline, left_beam_rect, 1)
+                # Highlight
+                pygame.draw.line(
+                    surface,
+                    self.color_steel_beam,
+                    (left_beam_rect.left + 1, left_beam_rect.top),
+                    (left_beam_rect.left + 1, left_beam_rect.bottom),
+                    1
+                )
+
+                # Mark all tiles in this column as drawn
+                check_y = grid_y
+                while (grid_x, check_y) in grid_positions:
+                    drawn_columns.add((grid_x, 'left'))
+                    check_y += 1
+                check_y = grid_y - 1
+                while (grid_x, check_y) in grid_positions:
+                    drawn_columns.add((grid_x, 'left'))
+                    check_y -= 1
+
+            # Right vertical column
+            right_col_key = (grid_x, 'right')
+            if right_col_key not in drawn_columns:
+                col_start_y = wall_rect.top
+                col_end_y = wall_rect.bottom
+
+                # Extend upward
+                check_y = grid_y - 1
+                while (grid_x, check_y) in grid_positions:
+                    col_start_y -= TILE_SIZE
+                    check_y -= 1
+
+                # Extend downward
+                check_y = grid_y + 1
+                while (grid_x, check_y) in grid_positions:
+                    col_end_y += TILE_SIZE
+                    check_y += 1
+
+                # Draw continuous column
+                right_beam_rect = pygame.Rect(
+                    wall_rect.right - 8,
+                    col_start_y,
+                    beam_width,
+                    col_end_y - col_start_y
+                )
+                pygame.draw.rect(surface, self.color_steel_beam, right_beam_rect)
+                pygame.draw.rect(surface, self.color_outline, right_beam_rect, 1)
+
+                # Mark as drawn
+                check_y = grid_y
+                while (grid_x, check_y) in grid_positions:
+                    drawn_columns.add((grid_x, 'right'))
+                    check_y += 1
+                check_y = grid_y - 1
+                while (grid_x, check_y) in grid_positions:
+                    drawn_columns.add((grid_x, 'right'))
+                    check_y -= 1
+
+        # Third pass: Draw horizontal beams and details per tile
+        for screen_x, screen_y, grid_x, grid_y in active_tiles:
+            wall_rect = pygame.Rect(
+                int(screen_x - TILE_SIZE // 2),
+                int(screen_y - TILE_SIZE // 2),
+                TILE_SIZE,
+                TILE_SIZE
+            )
+
+            # Check for adjacent tiles to connect beams
+            has_tile_left = (grid_x - 1, grid_y) in grid_positions
+            has_tile_right = (grid_x + 1, grid_y) in grid_positions
+
+            # Horizontal cross beams - extend beyond tile if adjacent tiles exist
+            beam_spacing = 12
+            for beam_y in range(wall_rect.top, wall_rect.bottom, beam_spacing):
+                if beam_y + 2 <= wall_rect.bottom:
+                    # Calculate beam extent
+                    beam_left = wall_rect.left + 5
+                    beam_right = wall_rect.right - 5
+
+                    # Extend left if adjacent tile
+                    if has_tile_left:
+                        beam_left = wall_rect.left
+
+                    # Extend right if adjacent tile
+                    if has_tile_right:
+                        beam_right = wall_rect.right
+
+                    h_beam_rect = pygame.Rect(
+                        beam_left,
+                        beam_y,
+                        beam_right - beam_left,
+                        2
+                    )
+                    pygame.draw.rect(surface, self.color_steel_dark, h_beam_rect)
+                    # Top highlight
+                    pygame.draw.line(
+                        surface,
+                        self.color_steel_beam,
+                        (h_beam_rect.left, h_beam_rect.top),
+                        (h_beam_rect.right, h_beam_rect.top),
+                        1
+                    )
+
+            # Diagonal cross bracing (only in isolated tiles or corners)
+            is_corner = not (has_tile_left and has_tile_right)
+            if is_corner:
+                pygame.draw.line(
+                    surface,
+                    self.color_steel_darker,
+                    (wall_rect.left + 8, wall_rect.top + 5),
+                    (wall_rect.right - 11, wall_rect.bottom - 5),
+                    1
+                )
+
+            # Weathering/decay for this tile
+            weathering = self.tile_weathering.get((grid_x, grid_y), {})
+
+            # Rust patches on beams
+            for rust_x, rust_y, rust_size in weathering.get('rust_patches', []):
+                rust_surf = pygame.Surface((rust_size, rust_size), pygame.SRCALPHA)
+                rust_surf.fill((*self.color_rust, 100))
+                surface.blit(rust_surf, (wall_rect.left + rust_x, wall_rect.top + rust_y))
+
+            # Missing/broken beam sections (gaps in structure)
+            for break_x, break_y in weathering.get('broken_sections', []):
+                break_rect = pygame.Rect(
+                    wall_rect.left + break_x - 3,
+                    wall_rect.top + break_y,
+                    6,
+                    8
+                )
+                pygame.draw.rect(surface, self.color_shadow, break_rect)
+
+            # Bent/sagging beams
+            if weathering.get('bent_beams', False):
+                mid_y = wall_rect.centery
+                pygame.draw.line(
+                    surface,
+                    self.color_steel_darker,
+                    (wall_rect.left + 8, mid_y),
+                    (wall_rect.centerx, mid_y + 3),
+                    2
+                )
+                pygame.draw.line(
+                    surface,
+                    self.color_steel_darker,
+                    (wall_rect.centerx, mid_y + 3),
+                    (wall_rect.right - 11, mid_y),
+                    2
+                )
+
+            # Bolted connections at beam joints
+            for joint_y in range(wall_rect.top + 10, wall_rect.bottom - 5, 15):
+                if joint_y <= wall_rect.bottom:
+                    # Left connection
+                    pygame.draw.circle(
+                        surface,
+                        self.color_steel_darker,
+                        (wall_rect.left + 6, joint_y),
+                        2
+                    )
+                    pygame.draw.circle(
+                        surface,
+                        self.color_outline,
+                        (wall_rect.left + 6, joint_y),
+                        2,
+                        1
+                    )
+
+                    # Right connection
+                    pygame.draw.circle(
+                        surface,
+                        self.color_steel_darker,
+                        (wall_rect.right - 9, joint_y),
+                        2
+                    )
+                    pygame.draw.circle(
+                        surface,
+                        self.color_outline,
+                        (wall_rect.right - 9, joint_y),
+                        2,
+                        1
+                    )
+

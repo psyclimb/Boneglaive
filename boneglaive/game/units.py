@@ -47,6 +47,7 @@ class Unit:
         self.defense_bonus = 0
         self.move_range_bonus = 0
         self.attack_range_bonus = 0
+        self.prt_bonus = 0
         # Set PRT (Partition) stat - reduces damage before defense
         if unit_type == UnitType.HEINOUS_VAPOR:
             self.prt = 999  # HEINOUS VAPOR units have massive damage reduction
@@ -80,7 +81,10 @@ class Unit:
         
         # Action order tracking (lower is earlier)
         self.action_timestamp = 0
-        
+
+        # Upgrade tracking
+        self.upgraded_skills = set()  # Set of skill names that have been upgraded
+
         # Status effects
         self.was_pried = False  # Track if this unit was affected by Pry skill
         self.trapped_by = None  # Reference to MANDIBLE_FOREMAN that trapped this unit, None if not trapped
@@ -89,9 +93,21 @@ class Unit:
         self.took_no_actions = True  # Track if unit took no actions for health regeneration
         self.jawline_affected = False  # Track if unit is affected by Jawline skill
         self.jawline_duration = 0  # Duration remaining for Jawline effect
+        self.status_disarmed = False  # Track if unit is disarmed (cannot basic attack) - from Viseroy upgrade
+        self.status_disarmed_duration = 0  # Duration remaining for disarm effect
+        self.viseroy_disarm_cooldown = 0  # Cooldown for Viseroy disarm effect (MANDIBLE_FOREMAN only)
+        self.status_tactical_momentum = False  # Track if unit has Expedite defense buff (MANDIBLE_FOREMAN only)
+        self.status_tactical_momentum_duration = 0  # Duration remaining for Expedite defense buff
+        self.status_imbued = False  # Track if enemy is imbued with Market Futures (acts as furniture anchor)
+        self.status_imbued_duration = 0  # Duration remaining for imbued effect
+        self.status_imbued_player = None  # Which player imbued this unit
+        self.status_imbued_cosmic_value = None  # The cosmic value assigned to this imbued unit
         self.estranged = False  # Track if unit is affected by Estrange skill
         self.mired = False  # Track if unit is affected by upgraded Marrow Dike
         self.mired_duration = 0  # Duration remaining for mired effect
+        self.shredded = False  # Track if unit is affected by Gaussian Dusk upgrade
+        self.shredded_duration = 0  # Duration remaining for shredded effect
+        self.shredded_original_defense = 0  # Store original defense to restore later
         
         # Græ Exchange echo properties
         self.is_echo = False  # Whether this unit is an echo created by Græ Exchange
@@ -161,13 +177,16 @@ class Unit:
         self.demilune_debuffed = False  # Whether affected by Demilune debuff
         self.demilune_debuffed_by = None  # Reference to POTPOURRIST that applied Demilune debuff
         self.demilune_debuff_duration = 0  # Turns remaining for Demilune debuff
-        self.demilune_defense_halved = False  # Whether defense is halved (enhanced Demilune effect)
         self.taunted_by = None  # Reference to POTPOURRIST that applied taunt
         self.taunt_duration = 0  # Turns remaining for taunt
         self.taunt_responded_this_turn = False  # Track if unit attacked/skilled POTPOURRIST this turn
         self.geas_affected = False  # Whether unit is affected by Granite Geas (for status icon)
+        self.geas_attack_reduction = False  # Whether attack is reduced to 2 vs POTPOURRIST (upgraded Granite Geas)
         self.potpourri_held = False  # Whether POTPOURRIST is holding potpourri (POTPOURRIST only)
         self.potpourri_duration = 0  # Turns remaining for potpourri (POTPOURRIST only)
+        self.demilune_zone_tiles = []  # List of (y, x) tuples for active Demilune zone (POTPOURRIST only)
+        self.demilune_mirrored_zone_tiles = []  # List of (y, x) tuples for mirrored Demilune zone (upgraded only)
+        self.demilune_zone_duration = 0  # Turns remaining for Demilune zone
 
         # PELOTARI properties
         self.backhand_active = False  # Whether Backhand counter stance is active
@@ -313,12 +332,12 @@ class Unit:
     
     def get_effective_prt(self):
         """Get effective PRT including bonuses from status effects."""
-        effective_prt = self.prt
-        
+        effective_prt = self.prt + self.prt_bonus
+
         # Add Pumped Up status effect bonus (+1 PRT)
         if hasattr(self, 'pumped_up_active') and self.pumped_up_active:
             effective_prt += 1
-            
+
         return effective_prt
         
     def get_type_name(self) -> str:
@@ -367,6 +386,10 @@ class Unit:
                     vapor_name = "COOLANT GAS"
                 elif self.vapor_type == "CUTTING":
                     vapor_name = "CUTTING GAS"
+                elif self.vapor_type == "CALIBRATION":
+                    vapor_name = "CALIBRATION GAS"
+                elif self.vapor_type == "LIVING_AEROSOL":
+                    vapor_name = "LIVING AEROSOL"
                 else:
                     vapor_name = "HEINOUS VAPOR"
                 
@@ -427,12 +450,21 @@ class Unit:
         """Check if this unit has immunity to status effects and debuffs.
         Currently only GRAYMAN with Stasiality passive has this immunity.
         HEINOUS_VAPOR units are also immune to all status effects.
+        Units protected by upgraded Partition are also immune to NEW status effects.
         Note: This includes immunity to physical traps like Viseroy."""
         # HEINOUS_VAPOR units are always immune to status effects
         if self.type == UnitType.HEINOUS_VAPOR:
             return True
         # GRAYMAN with Stasiality passive is immune
-        return self.passive_skill and self.passive_skill.name == "Stasiality"
+        if self.passive_skill and self.passive_skill.name == "Stasiality":
+            return True
+        # Check if protected by upgraded Partition shield
+        if hasattr(self, 'partition_shield_active') and self.partition_shield_active:
+            if hasattr(self, 'partition_shield_caster') and self.partition_shield_caster:
+                from boneglaive.game.upgrades import UpgradeManager
+                if UpgradeManager.is_skill_upgraded(self.partition_shield_caster, "Partition"):
+                    return True  # Upgraded Partition blocks new status effects
+        return False
 
     def is_immune_to_trap(self) -> bool:
         """Check if this unit is immune to being trapped.
@@ -442,10 +474,23 @@ class Unit:
     
     def get_available_skills(self) -> List:
         """
-        Get list of available active skills (not on cooldown).
+        Get list of available active skills (not on cooldown and can be used).
+        This filters out skills that require upgrades that aren't active.
         """
-        # Just check cooldown for all skills
-        return [skill for skill in self.active_skills if skill.current_cooldown == 0]
+        available = []
+        for skill in self.active_skills:
+            if skill.current_cooldown == 0:
+                # Check if skill requires an upgrade by trying can_use with no target
+                # Skills that require upgrades will check in their can_use() method
+                if skill.name == "Aerosolize Arms":
+                    # Special check for Aerosolize Arms - only show if Effluvium Lathe is upgraded
+                    from boneglaive.game.upgrades import UpgradeManager
+                    if UpgradeManager.is_skill_upgraded(self, "Effluvium Lathe"):
+                        available.append(skill)
+                else:
+                    # All other skills are available if not on cooldown
+                    available.append(skill)
+        return available
     
     def tick_cooldowns(self) -> None:
         """
@@ -464,16 +509,20 @@ class Unit:
         """
         Check if this unit can move to the specified position.
         FOWL_CONTRIVANCE units can only move along rail tiles.
+        DERELICTIONIST with upgraded Severance can pass through furniture and terrain.
         """
         if not game:
             return True  # No game context, allow move
-            
+
+        # DERELICTIONIST with upgraded Severance still needs passable terrain
+        # (unit-passing is handled in engine.py)
+
         # FOWL_CONTRIVANCE movement restrictions
         if self.type == UnitType.FOWL_CONTRIVANCE:
             # Cannot move while charging Gaussian Dusk
             if hasattr(self, 'gaussian_charging') and self.gaussian_charging:
                 return False
-                
+
             # Must move along rails (if rails exist)
             if game.map.has_rails():
                 from boneglaive.game.map import TerrainType
@@ -482,7 +531,7 @@ class Unit:
             else:
                 # No rails exist yet, can move normally
                 return game.map.is_passable(y, x)
-        
+
         # All other units can move normally
         return game.map.is_passable(y, x)
     
@@ -847,6 +896,14 @@ class Unit:
         from boneglaive.game.engine import DeadUnit
         from boneglaive.utils.message_log import message_log, MessageType
 
+        # Don't award GP for banished units (they will return)
+        if hasattr(self, 'is_banished') and self.is_banished:
+            return
+
+        # Don't award GP for echoes (they are temporary summons)
+        if hasattr(self, 'is_echo') and self.is_echo:
+            return
+
         # Check if this unit is GP-eligible (not a summon/echo)
         if self.type in GP_ELIGIBLE_UNITS:
             # Award GP to opposing player
@@ -866,6 +923,27 @@ class Unit:
                 MessageType.SYSTEM,
                 player=opposing_player
             )
+
+            # Check if combined GP total crossed any upgrade point thresholds
+            combined_gp = self._game.player1_gp + self._game.player2_gp
+            for threshold in self._game.upgrade_point_thresholds:
+                # Award points if threshold reached and not already awarded to this player
+                if combined_gp >= threshold and threshold not in self._game.upgrade_points_awarded[opposing_player]:
+                    # Award upgrade points to the player who scored the kill
+                    if opposing_player == 1:
+                        self._game.player1_upgrade_points += 2
+                    else:
+                        self._game.player2_upgrade_points += 2
+
+                    # Mark threshold as awarded for this player
+                    self._game.upgrade_points_awarded[opposing_player].add(threshold)
+
+                    # Log upgrade point award
+                    message_log.add_message(
+                        f"{winner_name} earned 2 upgrade points! (Combined GP: {combined_gp})",
+                        MessageType.SYSTEM,
+                        player=opposing_player
+                    )
 
             # Create DeadUnit entry for respawn
             dead_unit = DeadUnit(
@@ -992,7 +1070,11 @@ class Unit:
         # Only process if this is a HEINOUS_VAPOR
         if self.type != UnitType.HEINOUS_VAPOR or not hasattr(self, 'vapor_type') or not self.vapor_type:
             return
-            
+
+        # LIVING_AEROSOL does not produce gas clouds
+        if self.vapor_type == "LIVING_AEROSOL":
+            return
+
         # Define the 3x3 area around the vapor
         affected_area = []
         for dy in [-1, 0, 1]:
@@ -1021,6 +1103,10 @@ class Unit:
                     vapor_animation = ['~', '*', '+']
                 elif self.vapor_type == "CUTTING":
                     vapor_animation = ['~', '%', '#']
+                elif self.vapor_type == "CALIBRATION":
+                    vapor_animation = ['~', '=', '≡']
+                elif self.vapor_type == "LIVING_AEROSOL":
+                    vapor_animation = ['5', '†', '‡']
                 else:
                     vapor_animation = ['~', 'o', 'O']
             
@@ -1046,6 +1132,10 @@ class Unit:
                         color = 6  # Cyan/blue
                     elif self.vapor_type == "CUTTING":
                         color = 1  # Red
+                    elif self.vapor_type == "CALIBRATION":
+                        color = 2  # Green
+                    elif self.vapor_type == "LIVING_AEROSOL":
+                        color = 7  # White
                     else:
                         color = 7  # White default
                 
@@ -1067,13 +1157,31 @@ class Unit:
                 
         # Process effects based on vapor type
         if self.vapor_type == "BROACHING":
-            # Broaching Gas: Damages enemies (2 damage) and cleanses allies of status effects
+            # Broaching Gas: Damages enemies (2 damage base, 3 if upgraded and ignores defense) and cleanses allies of status effects
+
+            # Check if Broaching Gas is upgraded (increased damage + ignores defense)
+            from boneglaive.game.upgrades import UpgradeManager
+            is_upgraded = False
+            if hasattr(self, 'vapor_creator') and self.vapor_creator:
+                is_upgraded = UpgradeManager.is_skill_upgraded(self.vapor_creator, "Broaching Gas")
+
             for unit in affected_units:
                 if unit.player != self.player:
                     # Enemy unit - apply damage
-                    damage = 2
+                    if is_upgraded:
+                        damage = 3  # Upgraded: 3 damage that ignores defense
+                    else:
+                        damage = 2  # Base: 2 damage (reduced by defense in HP setter)
+
                     previous_hp = unit.hp
-                    unit.hp = max(0, unit.hp - damage)
+
+                    # For upgraded broaching gas, damage bypasses defense (like GRAYMAN)
+                    if is_upgraded:
+                        # Directly reduce HP without defense calculation
+                        unit.hp = max(0, unit.hp - damage)
+                    else:
+                        # Normal damage (defense applies via HP setter)
+                        unit.hp = max(0, unit.hp - damage)
                     
                     # Log damage
                     message_log.add_combat_message(
@@ -1181,24 +1289,34 @@ class Unit:
             # Saft-E-Gas performs two functions:
             # 1. Protection zone: Always active, prevents targeting of allied units inside
             # 2. Healing: Heals allies by 1 HP per tick
-            
+
             # Grab reference to game for debugging
             game = self._game
-            
+
+            # Check if Saft-E-Gas is upgraded (grants PRT instead of DEF)
+            from boneglaive.game.upgrades import UpgradeManager
+            is_upgraded = False
+            if hasattr(self, 'vapor_creator') and self.vapor_creator:
+                is_upgraded = UpgradeManager.is_skill_upgraded(self.vapor_creator, "Saft-E-Gas")
+
             # First, find all units that were previously protected by this vapor but are no longer in range
             # We need to clean up their protection lists
             for game_unit in game.units:
-                if (game_unit.is_alive() and 
-                    hasattr(game_unit, 'protected_by_safety_gas') and 
+                if (game_unit.is_alive() and
+                    hasattr(game_unit, 'protected_by_safety_gas') and
                     game_unit.protected_by_safety_gas and
                     self in game_unit.protected_by_safety_gas and
                     game_unit not in affected_units):
-                    
-                    # Unit is no longer affected by this vapor - remove protection and defense bonus
+
+                    # Unit is no longer affected by this vapor - remove protection bonus
                     game_unit.protected_by_safety_gas.remove(self)
-                    game_unit.defense_bonus -= 1
-                    logger.debug(f"{game_unit.get_display_name()} loses +1 defense from {self.get_display_name()} (moved out of range)")
-                    
+                    if is_upgraded:
+                        game_unit.prt_bonus -= 1
+                        logger.debug(f"{game_unit.get_display_name()} loses +1 PRT from {self.get_display_name()} (moved out of range)")
+                    else:
+                        game_unit.defense_bonus -= 1
+                        logger.debug(f"{game_unit.get_display_name()} loses +1 defense from {self.get_display_name()} (moved out of range)")
+
                     # If there are no more protecting vapors, clean up the attribute
                     if not game_unit.protected_by_safety_gas:
                         logger.debug(f"{game_unit.get_display_name()} is no longer protected by any safety gas")
@@ -1207,13 +1325,17 @@ class Unit:
                     elif hasattr(game, 'units') and self not in game.units:
                         if self in game_unit.protected_by_safety_gas:
                             game_unit.protected_by_safety_gas.remove(self)
-                            game_unit.defense_bonus -= 1
-                            logger.debug(f"{game_unit.get_display_name()} loses +1 defense from removed vapor")
+                            if is_upgraded:
+                                game_unit.prt_bonus -= 1
+                                logger.debug(f"{game_unit.get_display_name()} loses +1 PRT from removed vapor")
+                            else:
+                                game_unit.defense_bonus -= 1
+                                logger.debug(f"{game_unit.get_display_name()} loses +1 defense from removed vapor")
                             # If there are no more protecting vapors after this, clean up the attribute
                             if not game_unit.protected_by_safety_gas:
                                 delattr(game_unit, 'protected_by_safety_gas')
-            
-            # DEFENSE EFFECT: Grant +1 defense to all allied units in the cloud
+
+            # STAT BOOST EFFECT: Grant +1 PRT (upgraded) or +1 DEF (base) to all allied units in the cloud
             for unit in affected_units:
                 if unit.player == self.player and unit != self:
                     # Set a property on the unit to mark it as protected by safety gas
@@ -1222,8 +1344,11 @@ class Unit:
                         logger.debug(f"{unit.get_display_name()} gains +1 defense from first safety gas")
                     if self not in unit.protected_by_safety_gas:
                         unit.protected_by_safety_gas.append(self)
-                        # Apply defense bonus
-                        unit.defense_bonus += 1
+                        # Apply stat bonus based on upgrade
+                        if is_upgraded:
+                            unit.prt_bonus += 1
+                        else:
+                            unit.defense_bonus += 1
                         logger.debug(f"{unit.get_display_name()} gains +1 defense from safety gas from {self.get_display_name()}")
             
             # HEALING EFFECT: Heal allied units in the cloud
@@ -1364,7 +1489,95 @@ class Unit:
                             target=unit.player,
                             target_name=unit.get_display_name()
                         )
-                        
+
+        elif self.vapor_type == "CALIBRATION":
+            # Calibration Gas: Temporarily resets all units (allies and enemies) to base stats
+
+            # Grab reference to game
+            game = self._game
+
+            # First, restore stats for units that left the calibration cloud
+            for game_unit in game.units:
+                if (game_unit.is_alive() and
+                    hasattr(game_unit, 'calibrated_by') and
+                    self in game_unit.calibrated_by and
+                    game_unit not in affected_units):
+
+                    # Unit left the vapor - restore their original stat bonuses
+                    game_unit.calibrated_by.remove(self)
+
+                    # Restore saved bonuses
+                    if hasattr(game_unit, 'pre_calibration_stats'):
+                        saved_stats = game_unit.pre_calibration_stats.get(self, {})
+                        game_unit.attack_bonus = saved_stats.get('attack_bonus', 0)
+                        game_unit.defense_bonus = saved_stats.get('defense_bonus', 0)
+                        game_unit.move_range_bonus = saved_stats.get('move_range_bonus', 0)
+                        game_unit.attack_range_bonus = saved_stats.get('attack_range_bonus', 0)
+                        game_unit.prt_bonus = saved_stats.get('prt_bonus', 0)
+
+                        # Clean up the saved stats for this vapor
+                        del game_unit.pre_calibration_stats[self]
+                        if not game_unit.pre_calibration_stats:
+                            delattr(game_unit, 'pre_calibration_stats')
+
+                        logger.debug(f"{game_unit.get_display_name()} stats restored after leaving Calibration Gas")
+
+                    # Clean up the calibrated_by list
+                    if not game_unit.calibrated_by:
+                        delattr(game_unit, 'calibrated_by')
+
+            # Apply normalization to units currently in the cloud
+            for unit in affected_units:
+                if unit != self:  # Don't affect self (the vapor)
+                    # Track if this unit is newly affected by this vapor
+                    if not hasattr(unit, 'calibrated_by'):
+                        unit.calibrated_by = []
+
+                    if self not in unit.calibrated_by:
+                        # First time this vapor is affecting this unit - save current stats
+                        unit.calibrated_by.append(self)
+
+                        if not hasattr(unit, 'pre_calibration_stats'):
+                            unit.pre_calibration_stats = {}
+
+                        # Save current stat bonuses before normalization
+                        unit.pre_calibration_stats[self] = {
+                            'attack_bonus': unit.attack_bonus,
+                            'defense_bonus': unit.defense_bonus,
+                            'move_range_bonus': unit.move_range_bonus,
+                            'attack_range_bonus': unit.attack_range_bonus,
+                            'prt_bonus': unit.prt_bonus
+                        }
+
+                        # Check if any stats will be reset
+                        stats_reset = []
+                        if unit.attack_bonus != 0:
+                            stats_reset.append("ATK")
+                        if unit.defense_bonus != 0:
+                            stats_reset.append("DEF")
+                        if unit.move_range_bonus != 0:
+                            stats_reset.append("MOVE")
+                        if unit.attack_range_bonus != 0:
+                            stats_reset.append("RANGE")
+                        if unit.prt_bonus != 0:
+                            stats_reset.append("PRT")
+
+                        # Reset all stat bonuses to 0
+                        unit.attack_bonus = 0
+                        unit.defense_bonus = 0
+                        unit.move_range_bonus = 0
+                        unit.attack_range_bonus = 0
+                        unit.prt_bonus = 0
+
+                        # Log normalization if any stats were reset
+                        if stats_reset:
+                            message_log.add_message(
+                                f"{unit.get_display_name()} is normalized by Calibration Gas",
+                                MessageType.WARNING,
+                                player=self.player
+                            )
+                            logger.debug(f"{unit.get_display_name()} normalized by Calibration Gas")
+
         # Redraw board after effects
         if ui and hasattr(ui, 'draw_board'):
             ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)

@@ -2692,3 +2692,252 @@ class PotpourristAromaticAttack:
                         surface.blit(flash_surf, (int(self.target.x - layer_radius + offset_x),
                                                  int(self.target.y - layer_radius + offset_y)))
 
+
+# ============================================================================
+# SELENIC BACKDRAFT ZONE ANIMATION (Upgraded Demilune)
+# ============================================================================
+
+class SelenicBackdraftZone:
+    """
+    Selenic Backdraft Zone - Persistent ground effect for upgraded Demilune.
+    Shows moonlight shining up from beneath the ground with dark fuming fog.
+
+    The zone appears in the mirrored arc opposite to the Demilune swing direction.
+    Enemies within the zone cannot attack POTPOURRIST.
+
+    Visual: White/cream light emerging from ground + dark wispy smoke rising
+    Color scheme from demilune.svg icon.
+    """
+
+    def __init__(self, zone_tiles, caster_unit, camera, game):
+        """
+        Initialize Selenic Backdraft Zone.
+
+        Args:
+            zone_tiles: List of (grid_y, grid_x) tuples for zone coverage
+            caster_unit: AnimatedUnit reference to check zone duration
+            camera: Camera for coordinate conversion
+            game: Game instance to check zone_duration attribute
+        """
+        self.zone_tiles = zone_tiles  # Grid coordinates
+        self.caster = caster_unit
+        self.camera = camera
+        self.game = game
+
+        # Animation state
+        self.phase = "fade_in"  # fade_in -> active -> fade_out -> complete
+        self.timer = 0
+        self.active = True
+
+        # Phase durations
+        self.fade_in_duration = 0.4
+        self.fade_out_duration = 0.6
+
+        # Color scheme from demilune.svg
+        self.color_light_core = (255, 255, 255)      # #ffffff - bright white
+        self.color_light_mid = (232, 232, 216)       # #e8e8d8 - pale cream
+        self.color_light_edge = (216, 200, 184)      # #d8c8b8 - warm cream
+        self.color_fume_dark1 = (26, 26, 26)         # #1a1a1a - deep shadow
+        self.color_fume_dark2 = (42, 42, 42)         # #2a2a2a - medium shadow
+        self.color_fume_dark3 = (58, 58, 58)         # #3a3a3a - lighter shadow
+
+        # Convert zone tiles to screen coordinates
+        self.screen_tiles = []
+        for grid_y, grid_x in zone_tiles:
+            screen_x, screen_y = camera.grid_to_screen(grid_x, grid_y, centered=True)
+            self.screen_tiles.append((screen_x, screen_y))
+
+        # Fume particles (dark smoke rising from each tile)
+        self.fume_particles = []
+
+        # Global fade for fade in/out
+        self.global_alpha = 0.0
+
+        # Pulsing effect timer
+        self.pulse_timer = 0
+
+    def _spawn_fume_particles(self, delta_time):
+        """Spawn dark smoke particles rising from zone tiles."""
+        import random
+        import math
+
+        # Spawn rate: smaller but more frequent particles
+        if self.phase == "fade_in":
+            spawn_rate = 7  # particles per tile per second
+        elif self.phase == "active":
+            spawn_rate = 3  # particles per tile per second
+        else:  # fade_out
+            spawn_rate = 1.5  # particles per tile per second
+
+        for screen_x, screen_y in self.screen_tiles:
+            # Spawn particles based on delta_time
+            spawn_count = int(spawn_rate * delta_time)
+            if random.random() < (spawn_rate * delta_time - spawn_count):
+                spawn_count += 1
+
+            for _ in range(spawn_count):
+                # Randomize spawn position within tile
+                offset_x = random.uniform(-20, 20)
+                offset_y = random.uniform(-15, 15)
+
+                self.fume_particles.append({
+                    'x': screen_x + offset_x,
+                    'y': screen_y + offset_y,
+                    'vx': random.uniform(-8, 8),  # Slow horizontal drift
+                    'vy': random.uniform(-40, -60),  # Rising upward
+                    'lifetime': random.uniform(0.8, 1.4),  # Even shorter lifetime
+                    'max_lifetime': random.uniform(0.8, 1.4),
+                    'size': random.uniform(4, 10),  # Much smaller particles (was 8-16)
+                    'color': random.choice([
+                        self.color_fume_dark1,
+                        self.color_fume_dark2,
+                        self.color_fume_dark3
+                    ]),
+                    'swirl_phase': random.uniform(0, math.pi * 2),
+                    'swirl_speed': random.uniform(1.5, 3.0)
+                })
+
+
+    def update(self, delta_time):
+        """Update zone animation. Returns True if still active."""
+        if not self.active:
+            return False
+
+        import math
+
+        self.timer += delta_time
+        self.pulse_timer += delta_time
+
+        # Check if zone still exists on caster
+        zone_active = False
+        if self.caster and hasattr(self.caster, 'game_unit'):
+            game_unit = self.caster.game_unit
+            if hasattr(game_unit, 'demilune_zone_duration') and game_unit.demilune_zone_duration > 0:
+                zone_active = True
+
+        # Phase management
+        if self.phase == "fade_in":
+            # Fade in the zone
+            progress = min(1.0, self.timer / self.fade_in_duration)
+            self.global_alpha = progress
+
+            if self.timer >= self.fade_in_duration:
+                self.phase = "active"
+                self.timer = 0
+
+        elif self.phase == "active":
+            self.global_alpha = 1.0
+
+            # Check if zone expired
+            if not zone_active:
+                self.phase = "fade_out"
+                self.timer = 0
+
+        elif self.phase == "fade_out":
+            # Fade out the zone
+            progress = min(1.0, self.timer / self.fade_out_duration)
+            self.global_alpha = 1.0 - progress
+
+            if self.timer >= self.fade_out_duration:
+                self.phase = "complete"
+                self.active = False
+
+        # Spawn fume particles
+        self._spawn_fume_particles(delta_time)
+
+        # Update fume particles
+        for fume in self.fume_particles[:]:
+            # Swirling motion
+            fume['swirl_phase'] += fume['swirl_speed'] * delta_time
+            swirl_x = math.sin(fume['swirl_phase']) * 8
+
+            # Move particle
+            fume['x'] += (fume['vx'] + swirl_x) * delta_time
+            fume['y'] += fume['vy'] * delta_time
+
+            # Age particle
+            fume['lifetime'] -= delta_time
+            if fume['lifetime'] <= 0:
+                self.fume_particles.remove(fume)
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw the selenic backdraft zone."""
+        if not self.active or self.global_alpha <= 0:
+            return
+
+        import pygame
+        import math
+
+        # Pulsing intensity (breathing effect - high intensity)
+        pulse = 0.5 + 0.5 * math.sin(self.pulse_timer * 2.0)
+
+        # Draw ground light on each tile (balanced for visibility)
+        for screen_x, screen_y in self.screen_tiles:
+            # Large outer glow (cream) - increased slightly
+            outer_radius = 32
+            outer_alpha = int(30 * self.global_alpha * pulse)
+            if outer_alpha > 0:
+                glow_surf = pygame.Surface((outer_radius * 2, outer_radius * 2), pygame.SRCALPHA)
+                pygame.draw.circle(
+                    glow_surf,
+                    (*self.color_light_edge, outer_alpha),
+                    (outer_radius, outer_radius),
+                    outer_radius
+                )
+                surface.blit(glow_surf, (int(screen_x - outer_radius), int(screen_y - outer_radius)))
+
+            # Medium glow (pale cream) - increased slightly
+            mid_radius = 22
+            mid_alpha = int(50 * self.global_alpha * pulse)
+            if mid_alpha > 0:
+                glow_surf = pygame.Surface((mid_radius * 2, mid_radius * 2), pygame.SRCALPHA)
+                pygame.draw.circle(
+                    glow_surf,
+                    (*self.color_light_mid, mid_alpha),
+                    (mid_radius, mid_radius),
+                    mid_radius
+                )
+                surface.blit(glow_surf, (int(screen_x - mid_radius), int(screen_y - mid_radius)))
+
+            # Bright core (white) - increased slightly
+            core_radius = 12
+            core_alpha = int(70 * self.global_alpha * pulse)
+            if core_alpha > 0:
+                glow_surf = pygame.Surface((core_radius * 2, core_radius * 2), pygame.SRCALPHA)
+                pygame.draw.circle(
+                    glow_surf,
+                    (*self.color_light_core, core_alpha),
+                    (core_radius, core_radius),
+                    core_radius
+                )
+                surface.blit(glow_surf, (int(screen_x - core_radius), int(screen_y - core_radius)))
+
+        # Draw dark fume particles (on top of light)
+        for fume in self.fume_particles:
+            # Calculate fade based on lifetime
+            age_progress = 1.0 - (fume['lifetime'] / fume['max_lifetime'])
+
+            # Fade in quickly, fade out slowly
+            if age_progress < 0.2:
+                alpha_factor = age_progress / 0.2  # Fade in over first 20%
+            else:
+                alpha_factor = 1.0 - ((age_progress - 0.2) / 0.8) * 0.7  # Fade out over remaining 80%
+
+            alpha = int(80 * alpha_factor * self.global_alpha)  # reduced from 140
+
+            if alpha > 5:
+                size = int(fume['size'])
+                fume_surf = pygame.Surface((size * 2, size * 2), pygame.SRCALPHA)
+
+                # Draw wispy smoke blob (soft circle)
+                pygame.draw.circle(
+                    fume_surf,
+                    (*fume['color'], alpha),
+                    (size, size),
+                    size
+                )
+
+                surface.blit(fume_surf, (int(fume['x'] - size), int(fume['y'] - size)))
+

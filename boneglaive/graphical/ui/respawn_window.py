@@ -51,6 +51,9 @@ class RespawnWindow:
         # Unit sprite cache
         self.sprite_cache = {}  # {unit_type: pygame.Surface}
 
+        # Cache overlay surface (performance)
+        self._overlay_cache = None
+
     def show(self, dead_units: List):
         """
         Show the respawn window with available dead units.
@@ -241,10 +244,11 @@ class RespawnWindow:
         if not self.visible:
             return
 
-        # Draw semi-transparent overlay
-        overlay = pygame.Surface((screen_width, screen_height), pygame.SRCALPHA)
-        overlay.fill(COLOR_OVERLAY)
-        surface.blit(overlay, (0, 0))
+        # Draw semi-transparent overlay (cached for performance)
+        if self._overlay_cache is None or self._overlay_cache.get_size() != (screen_width, screen_height):
+            self._overlay_cache = pygame.Surface((screen_width, screen_height), pygame.SRCALPHA)
+            self._overlay_cache.fill(COLOR_OVERLAY)
+        surface.blit(self._overlay_cache, (0, 0))
 
         # Calculate window position (centered)
         window_x = (screen_width - WINDOW_WIDTH) // 2

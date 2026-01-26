@@ -57,6 +57,7 @@ class AssetManager:
             'curiosity_shelf': 'E',  # Victorian curiosity shelf (stacked shelves)
             'marrow_wall': '#',  # Marrow Dike wall uses hash character
             'rail': '+',      # Rail track uses cross symbol for intersections
+            'rail_junction': '┼',  # Upgraded rail junctions (Rail Genesis upgrade)
             # Stained Stones map terrain
             'tiffany_lamp': 'i',  # Tiffany lamp (lamp post shape)
             'stained_stone': '#',  # Full block for stained stone formations  
@@ -78,7 +79,8 @@ class AssetManager:
             'leaf_pit': '*',       # Asterisk for scattered leaves
             'mini_pumpkin': 'o',   # Lowercase o for small round pumpkin
             'potpourri_bowl': 'u', # Lowercase u for bowl shape
-            'melange_fume': '~'    # Tilde for aromatic fumes
+            'melange_fume': '~',   # Tilde for aromatic fumes
+            'derelict_building': '&'  # Ampersand for old decrepit building walls
         }
         
         # UI symbols
@@ -114,6 +116,7 @@ class AssetManager:
             'mandible_foreman_attack': ['<', '[', '{', '{', '{', '{'],  # Jaws opening and closing animation
             'grayman_attack': ['.', ':', '~', '~', '~', ':', '.'],  # Reality distortion wave
             'autoclave': ['*', '+', 'x', '#', 'X', '#', 'x', '+', '*'],  # Intense cross pattern for Autoclave
+            'autoclave_steam': ['~', '≈', '=', '-', '/', '\\', '|', '+', 'x', '*'],  # Steam jets with spinning glaives
             'pry_range1': ['/', '|', '\\', '_', '-', '^'],  # Close-range prying motion with similar visual language to extended range
             'pry_range2': ['-', '\\', '_', '_', '_', '/'],  # Extended range prying motion - similar to extended attack
             'pry_launch': ['-', '/', '|', 'I', 'i', '^', '.', ' '],  # Unit being pried from horizontal to vertical, then diminishing as it launches upward
@@ -121,6 +124,7 @@ class AssetManager:
             'pry_debris': ['@', '#', '*', '+', '.'],  # Large chunks of debris falling straight down
             'vault': ['^', '^', '^', '^', '^'],  # Vault initiation animation - upward movement
             'vault_impact': ['v', 'v', 'V', '*', '.'],  # Vault landing animation
+            'vault_impact_upgraded': ['V', 'X', '*', '#', '@', '#', '*', '+', '.'],  # Upgraded vault landing with shockwave
             'judgement': ['*', '+', 'X', '#', 'O', '#', 'X', '+', '*'],  # Circular spinning Krull glaive animation - ASCII only
             'judgement_critical': ['X', '!', 'Z', '#', 'Z', '#', '*', '!', 'Z', '!', '*', '!'],  # Lightning striking the glaive at moment of critical impact - ASCII only
             'viseroy_trap': ['{', '{', '{', '#', '%', '&', '{'],  # Animation for Viseroy trap crushing effect
@@ -135,6 +139,12 @@ class AssetManager:
             'delta_config': ['Ψ', '.', ':', '=', ' ', '=', ':', '.', 'Ψ'],  # Teleportation effect
             'teleport_out': ['Ψ', '.', ':', '=', ' '],  # Teleport out animation
             'teleport_in': [' ', '=', ':', '.', 'Ψ'],  # Teleport in animation
+
+            # Delta Config upgrade animations - electromagnetic well abduction
+            'delta_config_well_expand': ['.', ':', 'o', 'O', '0', '@'],  # Well expansion around GRAYMAN
+            'delta_config_well_travel': ['~', '~', '~', '~'],  # Electromagnetic waves during travel
+            'delta_config_well_collapse': ['@', '0', 'O', 'o', ':', '.', ' '],  # Well collapse at destination
+
             'estrange': ['~', '=', '=', '~', '-', '-', '~', '='],  # Dramatic pulsing beam
             'grae_exchange': ['/', '_', '*', 'ψ', 'Ψ'],  # Echo creation effect
             'marrow_healing': ['<', '3', '<', '3', '<', '+', '+', '*'],  # Blood plasma healing animation

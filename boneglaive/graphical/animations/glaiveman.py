@@ -537,6 +537,414 @@ class VaultAnimationController:
         pass
 
 
+class VaultAnimationControllerUpgraded:
+    """
+    Controller for UPGRADED VAULT animation - extended acrobatic leap with double flip.
+    Enhanced version with 720-degree rotation, higher arc, enhanced trail, and stronger landing.
+    Uses attribute-based animation (manipulates caster position during vault).
+    """
+
+    def __init__(self, caster_unit, target_pos, particle_emitter, screen_shake_callback, camera=None):
+        """
+        Args:
+            caster_unit: AnimatedUnit performing the vault
+            target_pos: Tuple (grid_x, grid_y) destination
+            particle_emitter: ParticleEmitter for effects
+            screen_shake_callback: Function(intensity, duration)
+            camera: Camera instance for coordinate conversion (optional, will use defaults)
+        """
+        self.caster = caster_unit
+        self.particle_emitter = particle_emitter
+        self.screen_shake = screen_shake_callback
+        self.camera = camera
+
+        # Set up vault animation state
+        self.caster.vault_phase = "vaulting"
+        self.caster.vault_timer = 0
+        self.caster.vault_duration = 0.8  # Longer duration for extended vault (was 0.6)
+        self.caster.vault_start_x = caster_unit.x
+        self.caster.vault_start_y = caster_unit.y
+        self.caster.wind_up_rotation = 0  # Initialize rotation for double flip
+
+        # Calculate target screen position using camera
+        # NOTE: target_pos is (grid_y, grid_x) format from renderer
+        target_grid_y, target_grid_x = target_pos
+        if self.camera:
+            self.caster.vault_target_x, self.caster.vault_target_y = self.camera.grid_to_screen(target_grid_x, target_grid_y)
+        else:
+            # Fallback to defaults
+            from .core import TILE_SIZE
+            GRID_OFFSET_X = 100
+            GRID_OFFSET_Y = 50
+            self.caster.vault_target_x = GRID_OFFSET_X + target_grid_x * TILE_SIZE + TILE_SIZE // 2
+            self.caster.vault_target_y = GRID_OFFSET_Y + target_grid_y * TILE_SIZE + TILE_SIZE // 2
+        self.caster.vault_target_grid_x = target_grid_x
+        self.caster.vault_target_grid_y = target_grid_y
+
+        print(f"  [VAULT_UPGRADED] Starting extended vault from ({caster_unit.grid_x}, {caster_unit.grid_y}) to {target_pos}")
+
+        # Enhanced launch particles (more particles, brighter colors)
+        for _ in range(35):  # Was 20
+            angle = random.uniform(0, 2 * math.pi)
+            speed = random.uniform(70, 200)  # Faster particles
+            self.particle_emitter.particles.append(
+                Particle(caster_unit.x, caster_unit.y,
+                        math.cos(angle) * speed, math.sin(angle) * speed,
+                        (150, 220, 255), random.uniform(3, 7), 0.5)  # Brighter blue, larger
+            )
+
+        # Launch screen shake (stronger than regular vault)
+        self.screen_shake(6, 0.3)
+
+        self.active = True
+        self.trail_timer = 0  # Timer for continuous particle trail
+
+    def update(self, delta_time):
+        """Update vault animation - returns True if still active."""
+        if not self.active:
+            return False
+
+        if hasattr(self.caster, 'vault_phase') and self.caster.vault_phase == "vaulting":
+            self.caster.vault_timer += delta_time
+            self.trail_timer += delta_time
+            progress = min(1.0, self.caster.vault_timer / self.caster.vault_duration)
+
+            # Horizontal movement (linear interpolation)
+            self.caster.x = self.caster.vault_start_x + (self.caster.vault_target_x - self.caster.vault_start_x) * progress
+            base_y = self.caster.vault_start_y + (self.caster.vault_target_y - self.caster.vault_start_y) * progress
+
+            # ENHANCED vertical arc (higher peak for extended vault)
+            arc_height = 180  # Increased from 120 for more dramatic arc
+            vertical_offset = math.sin(progress * math.pi) * arc_height
+            self.caster.y = base_y - vertical_offset
+
+            # DOUBLE FLIP ROTATION - Complete 720 degree rotation (two full spins)
+            self.caster.wind_up_rotation = progress * 720  # Double rotation (was 360)
+
+            # Enhanced continuous particle trail during flight
+            if self.trail_timer >= 0.02:  # Emit trail every 0.02 seconds
+                self.trail_timer = 0
+                # Bright trail particles following the arc
+                for _ in range(3):  # More particles per emission
+                    self.particle_emitter.particles.append(
+                        Particle(self.caster.x, self.caster.y,
+                                random.uniform(-20, 20), random.uniform(-20, 20),
+                                (100, 200, 255), random.uniform(4, 6), 0.3)
+                    )
+
+            # Landing phase
+            if progress >= 1.0:
+                self.caster.vault_phase = "landing"
+                self.caster.vault_timer = 0
+                # Snap to target grid position
+                self.caster.grid_x = self.caster.vault_target_grid_x
+                self.caster.grid_y = self.caster.vault_target_grid_y
+                self.caster.x = self.caster.vault_target_x
+                self.caster.y = self.caster.vault_target_y
+                self.caster.wind_up_rotation = 0  # Reset rotation
+
+                # ENHANCED landing effects (stronger impact)
+                self.particle_emitter.emit_burst(self.caster.x, self.caster.y, (100, 200, 255), 50)  # More particles (was 30)
+                self.screen_shake(8, 0.3)  # Stronger shake (was 5, 0.2)
+
+                # Larger dust cloud on landing
+                for _ in range(25):  # More dust (was 15)
+                    angle = random.uniform(0, 2 * math.pi)
+                    speed = random.uniform(50, 120)  # Faster spread
+                    particle = Particle(self.caster.x, self.caster.y + 20,
+                                       math.cos(angle) * speed, math.sin(angle) * speed - 10,
+                                       (180, 180, 200), random.uniform(5, 10), 0.7)  # Larger particles
+                    particle.gravity = 100
+                    self.particle_emitter.particles.append(particle)
+
+                # Shockwave ring (expanding ring of particles)
+                for i in range(30):  # Ring of particles
+                    angle = (i / 30) * 2 * math.pi
+                    speed = 200
+                    vx = math.cos(angle) * speed
+                    vy = math.sin(angle) * speed
+                    particle = Particle(self.caster.x, self.caster.y, vx, vy,
+                                      (150, 220, 255), 4, 0.4)
+                    self.particle_emitter.particles.append(particle)
+
+                # AOE impact effects on all 8 adjacent tiles
+                # Calculate adjacent tile positions using camera
+                adjacent_offsets = [
+                    (-1, -1), (-1, 0), (-1, 1),  # Top row
+                    (0, -1),           (0, 1),   # Middle row (skip center)
+                    (1, -1),  (1, 0),  (1, 1)    # Bottom row
+                ]
+
+                if self.camera:
+                    for dy, dx in adjacent_offsets:
+                        adj_grid_x = self.caster.vault_target_grid_x + dx
+                        adj_grid_y = self.caster.vault_target_grid_y + dy
+                        adj_x, adj_y = self.camera.grid_to_screen(adj_grid_x, adj_grid_y, centered=True)
+
+                        # Impact burst on each adjacent tile
+                        self.particle_emitter.emit_burst(adj_x, adj_y, (120, 200, 255), 15)
+
+                        # Ground crack particles radiating from center tile to adjacent
+                        for _ in range(5):
+                            # Particles travel from center to adjacent tile
+                            t = random.uniform(0.3, 0.7)
+                            start_x = self.caster.x + (adj_x - self.caster.x) * t
+                            start_y = self.caster.y + (adj_y - self.caster.y) * t
+                            vx = (adj_x - self.caster.x) * 0.3
+                            vy = (adj_y - self.caster.y) * 0.3
+                            particle = Particle(start_x, start_y, vx, vy,
+                                              (160, 160, 180), random.uniform(3, 6), 0.5)
+                            particle.gravity = 50
+                            self.particle_emitter.particles.append(particle)
+
+        elif hasattr(self.caster, 'vault_phase') and self.caster.vault_phase == "landing":
+            # Brief landing recovery (0.15s, slightly longer for upgraded)
+            self.caster.vault_timer += delta_time
+            if self.caster.vault_timer >= 0.15:
+                self.caster.vault_phase = None
+                self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """No additional drawing needed - unit renders itself with rotation."""
+        pass
+
+
+class GlaiveSweepAnimation:
+    """
+    Glaive Sweep animation - wide circular arc attack hitting all 8 adjacent tiles.
+    Triggered by upgraded Autoclave's second activation.
+
+    Phases:
+    1. Windup (0.2s) - GLAIVEMAN pulls back
+    2. Sweep (0.6s) - Circular blade arc sweeps through all 8 adjacent tiles
+    3. Impact (0.3s) - Impact flashes on all hit tiles
+
+    Total duration: 1.1s
+    """
+
+    def __init__(self, caster_unit, target_unit, target_pos, is_crit, is_infused,
+                 particle_emitter, debris_list, screen_shake_callback,
+                 screen_flash_callback, units_list, camera, game=None):
+        """
+        Initialize Glaive Sweep animation.
+
+        Args:
+            caster_unit: GLAIVEMAN performing the sweep
+            units_list: All units (to find adjacent targets)
+            camera: Camera instance for coordinate conversion
+        """
+        self.caster = caster_unit
+        self.camera = camera
+        self.particle_emitter = particle_emitter
+        self.screen_shake_callback = screen_shake_callback
+        self.game = game
+
+        # Get caster screen position
+        self.caster_x, self.caster_y = camera.grid_to_screen(caster_unit.grid_x,
+                                                             caster_unit.grid_y,
+                                                             centered=True)
+
+        # Find all adjacent tiles and enemy units
+        self.adjacent_tiles = []
+        self.hit_units = []
+        adjacent_offsets = [
+            (-1, -1), (-1, 0), (-1, 1),  # Top row
+            (0, -1),           (0, 1),   # Middle row
+            (1, -1),  (1, 0),  (1, 1)    # Bottom row
+        ]
+
+        for dy, dx in adjacent_offsets:
+            adj_grid_x = caster_unit.grid_x + dx
+            adj_grid_y = caster_unit.grid_y + dy
+            adj_x, adj_y = camera.grid_to_screen(adj_grid_x, adj_grid_y, centered=True)
+
+            self.adjacent_tiles.append({
+                'x': adj_x,
+                'y': adj_y,
+                'grid_x': adj_grid_x,
+                'grid_y': adj_grid_y,
+                'dx': dx,
+                'dy': dy
+            })
+
+            # Check for enemy units at this position
+            if units_list:
+                for unit in units_list:
+                    if (unit.grid_x == adj_grid_x and unit.grid_y == adj_grid_y and
+                        unit.player != caster_unit.player):
+                        self.hit_units.append(unit)
+
+        # Animation state
+        self.phase = "windup"
+        self.timer = 0
+        self.active = True
+
+        # Phase durations
+        self.windup_duration = 0.2
+        self.sweep_duration = 0.6
+        self.impact_duration = 0.3
+
+        # Arc sweep state
+        self.sweep_angle = 0  # Current angle of the sweeping blade (in degrees)
+        self.arc_particles = []
+
+        print(f"  [GLAIVE_SWEEP] Starting sweep animation, {len(self.hit_units)} enemies in range")
+
+        # Start windup
+        self._start_windup()
+
+    def _start_windup(self):
+        """Phase 1: Windup - pull back the glaive."""
+        self.phase = "windup"
+        self.timer = 0
+
+        # Slight screen shake
+        self.screen_shake_callback(4, 0.15)
+
+        # Windup particles
+        if self.particle_emitter:
+            self.particle_emitter.emit_burst(self.caster_x, self.caster_y, (192, 192, 192), count=15)
+
+    def _start_sweep(self):
+        """Phase 2: Circular sweep - blade arcs through all adjacent tiles."""
+        self.phase = "sweep"
+        self.timer = 0
+        self.sweep_angle = 0
+
+        # Medium screen shake during sweep
+        self.screen_shake_callback(6, 0.4)
+
+    def _start_impact(self):
+        """Phase 3: Impact on all hit tiles."""
+        self.phase = "impact"
+        self.timer = 0
+
+        # Impact effects on each hit unit
+        for unit in self.hit_units:
+            unit_x, unit_y = self.camera.grid_to_screen(unit.grid_x, unit.grid_y, centered=True)
+
+            # Impact burst
+            if self.particle_emitter:
+                self.particle_emitter.emit_burst(unit_x, unit_y, (255, 255, 255), count=20)
+
+            # Shake hit units
+            unit.shake_intensity = 12
+
+        # Strong final shake
+        self.screen_shake_callback(7, 0.2)
+
+    def update(self, delta_time):
+        """Update animation state."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Phase transitions
+        if self.phase == "windup":
+            if self.timer >= self.windup_duration:
+                self._start_sweep()
+
+        elif self.phase == "sweep":
+            # Update sweep angle (full 360° rotation)
+            progress = self.timer / self.sweep_duration
+            self.sweep_angle = progress * 360
+
+            # Emit arc particles continuously
+            if self.timer % 0.03 < delta_time:  # Every ~30ms
+                # Create particles along the arc
+                num_particles = 8
+                for i in range(num_particles):
+                    angle_offset = (i / num_particles) * 30 - 15  # Spread over 30°
+                    angle_rad = math.radians(self.sweep_angle + angle_offset)
+
+                    # Arc radius - reaches diagonal corners of 3x3 grid (sqrt(2) ≈ 1.414)
+                    radius = TILE_SIZE * 1.414
+
+                    px = self.caster_x + math.cos(angle_rad) * radius
+                    py = self.caster_y + math.sin(angle_rad) * radius
+
+                    # Velocity continues in arc direction
+                    speed = 150
+                    vx = math.cos(angle_rad) * speed
+                    vy = math.sin(angle_rad) * speed
+
+                    # Silver/white blade trail
+                    color = random.choice([
+                        (192, 192, 192),  # Silver
+                        (232, 232, 232),  # Light silver
+                        (255, 255, 255),  # White
+                    ])
+
+                    particle = Particle(px, py, vx, vy, color, random.uniform(5, 8), 0.2)
+                    particle.gravity = 0
+                    self.particle_emitter.particles.append(particle)
+
+            if self.timer >= self.sweep_duration:
+                self._start_impact()
+
+        elif self.phase == "impact":
+            if self.timer >= self.impact_duration:
+                self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw the sweeping blade arc."""
+        if not self.active:
+            return
+
+        if self.phase == "sweep":
+            # Draw the sweeping blade as a thick arc
+            progress = self.timer / self.sweep_duration
+
+            # Draw thick blade arc
+            arc_surf = pygame.Surface((TILE_SIZE * 4, TILE_SIZE * 4), pygame.SRCALPHA)
+            center = TILE_SIZE * 2
+
+            # Calculate arc parameters - reaches diagonal corners of 3x3 grid (sqrt(2) ≈ 1.414)
+            radius = int(TILE_SIZE * 1.414)
+            start_angle = math.radians(self.sweep_angle - 15)  # Arc width
+            end_angle = math.radians(self.sweep_angle + 15)
+
+            # Draw thick white/silver arc
+            thickness = 8
+            for i in range(thickness):
+                r = radius - i
+                alpha = int(200 * (1 - i / thickness))
+                color = (255, 255, 255, alpha)
+
+                # Draw arc segments
+                segments = 20
+                for j in range(segments):
+                    t = j / segments
+                    angle = start_angle + (end_angle - start_angle) * t
+                    x = center + math.cos(angle) * r
+                    y = center + math.sin(angle) * r
+
+                    if j > 0:
+                        pygame.draw.line(arc_surf, color, (prev_x, prev_y), (x, y), 3)
+                    prev_x, prev_y = x, y
+
+            # Blit arc surface centered on caster
+            arc_rect = arc_surf.get_rect(center=(int(self.caster_x), int(self.caster_y)))
+            surface.blit(arc_surf, arc_rect)
+
+        elif self.phase == "impact":
+            # Flash white rings on each adjacent tile
+            alpha = int(255 * (1 - self.timer / self.impact_duration))
+
+            for tile in self.adjacent_tiles:
+                ring_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                center = TILE_SIZE // 2
+                pygame.draw.circle(ring_surf, (255, 255, 255, alpha), (center, center), TILE_SIZE // 3, 3)
+
+                ring_rect = ring_surf.get_rect(center=(int(tile['x']), int(tile['y'])))
+                surface.blit(ring_surf, ring_rect)
+
+
 class PryImpactAnimation:
     """
     NEW simplified PRY animation - instant impact with particle effects only.

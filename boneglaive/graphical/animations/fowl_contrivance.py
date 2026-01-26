@@ -305,6 +305,130 @@ class ShockwaveRing:
             surface.blit(ring_surf, (int(self.center_x - radius), int(self.center_y - radius)))
 
 
+class CyanExplosionFireball:
+    """
+    Cyan/blue fireball explosion for underground emergence.
+    Matches the underground projectile color (#00ccff from Parabol icon).
+    Same structure as ExplosionFireball but with cyan color palette.
+    """
+    def __init__(self, center_x, center_y, is_primary=False):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.timer = 0
+        self.duration = 0.4 if is_primary else 0.3
+        self.active = True
+        self.max_radius = 55 if is_primary else 30
+        self.is_primary = is_primary
+
+    def update(self, delta_time):
+        """Update explosion expansion."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw expanding cyan fireball."""
+        if not self.active:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+
+        # Fast expansion, then fade
+        if progress < 0.4:
+            radius = int(self.max_radius * (progress / 0.4))
+        else:
+            radius = self.max_radius
+
+        # Fade out
+        alpha = int(255 * (1.0 - progress))
+
+        if alpha > 0 and radius > 0:
+            fireball_surf = pygame.Surface((radius * 2 + 20, radius * 2 + 20), pygame.SRCALPHA)
+            center = radius + 10
+
+            # Multiple layers for depth - cyan color scheme
+            # Outer cyan glow
+            outer_radius = radius + 8
+            pygame.draw.circle(fireball_surf, (0, 204, 255, alpha // 3),  # #00ccff
+                             (center, center), outer_radius)
+
+            # Main cyan fireball
+            pygame.draw.circle(fireball_surf, (0, 204, 255, alpha),  # #00ccff
+                             (center, center), radius)
+
+            # Inner light cyan/white core
+            inner_radius = int(radius * 0.6)
+            pygame.draw.circle(fireball_surf, (102, 238, 255, alpha),  # Lighter cyan
+                             (center, center), inner_radius)
+
+            # Bright white center
+            if progress < 0.3:
+                core_radius = int(radius * 0.3)
+                pygame.draw.circle(fireball_surf, (255, 255, 255, alpha),
+                                 (center, center), core_radius)
+
+            surface.blit(fireball_surf, (int(self.center_x - center), int(self.center_y - center)))
+
+
+class CyanShockwaveRing:
+    """
+    Expanding cyan shockwave ring from underground impact.
+    Matches the cyan underground projectile color.
+    """
+    def __init__(self, center_x, center_y, delay=0):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.timer = -delay
+        self.duration = 0.5
+        self.active = True
+        self.max_radius = 50
+
+    def update(self, delta_time):
+        """Update shockwave expansion."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw expanding cyan shockwave ring."""
+        if not self.active or self.timer < 0:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+
+        # Expand outward
+        radius = int(self.max_radius * progress)
+
+        # Fade out as expanding
+        alpha = int(180 * (1.0 - progress))
+
+        if alpha > 20 and radius > 5:
+            ring_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+
+            # Cyan shockwave ring
+            pygame.draw.circle(ring_surf, (0, 204, 255, alpha),  # #00ccff
+                             (radius, radius), radius, 4)
+
+            # Inner brighter cyan ring
+            if alpha > 60:
+                pygame.draw.circle(ring_surf, (102, 238, 255, alpha // 2),  # Lighter cyan
+                                 (radius, radius), radius - 2, 2)
+
+            surface.blit(ring_surf, (int(self.center_x - radius), int(self.center_y - radius)))
+
+
 class ParabolAnimation:
     """
     Parabol (massive mortar) skill animation for FOWL CONTRIVANCE.
@@ -498,6 +622,866 @@ class ParabolAnimation:
 
             for explosion in self.explosions:
                 explosion.draw(surface)
+
+
+# ============================================================================
+# PARABOL UPGRADED ANIMATION COMPONENTS
+# ============================================================================
+
+class BurrowEffect:
+    """
+    Shell burrows into ground at first explosion site.
+    Spiral particles sinking into a dark vortex.
+    """
+    def __init__(self, center_x, center_y):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.timer = 0
+        self.duration = 0.3
+        self.active = True
+
+        # Create spiral particle positions
+        self.particles = []
+        for i in range(20):
+            angle = (i / 20) * 2 * math.pi
+            radius = 30 + (i * 2)
+            self.particles.append({
+                'angle': angle,
+                'radius': radius,
+                'spiral_speed': 3.0  # Radians per second
+            })
+
+    def update(self, delta_time):
+        """Update spiral particles sinking inward."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Update particle spiral
+        for particle in self.particles:
+            particle['angle'] += particle['spiral_speed'] * delta_time
+            particle['radius'] -= 80 * delta_time  # Shrink inward
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw spiral burrow effect."""
+        if not self.active:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+
+        # Draw dark vortex at center
+        vortex_radius = int(25 * (1.0 - progress * 0.5))  # Shrinks slightly
+        if vortex_radius > 0:
+            vortex_surf = pygame.Surface((vortex_radius * 2, vortex_radius * 2), pygame.SRCALPHA)
+            alpha = int(180 * progress)
+            # Dark brown/black vortex
+            pygame.draw.circle(vortex_surf, (40, 20, 10, alpha),
+                             (vortex_radius, vortex_radius), vortex_radius)
+            pygame.draw.circle(vortex_surf, (20, 10, 5, alpha),
+                             (vortex_radius, vortex_radius), vortex_radius // 2)
+            surface.blit(vortex_surf, (int(self.center_x - vortex_radius),
+                                      int(self.center_y - vortex_radius)))
+
+        # Draw spiral particles (brown/orange)
+        for particle in self.particles:
+            if particle['radius'] > 0:
+                x = self.center_x + math.cos(particle['angle']) * particle['radius']
+                y = self.center_y + math.sin(particle['angle']) * particle['radius']
+
+                # Particle alpha based on radius (fade as they approach center)
+                alpha = min(255, int(200 * (particle['radius'] / 50)))
+                if alpha > 0:
+                    particle_surf = pygame.Surface((8, 8), pygame.SRCALPHA)
+                    # Brown earth particles with orange accents (from Parabol icon)
+                    if particle['radius'] > 15:
+                        color = (204, 51, 0, alpha)  # #cc3300 - red-orange from icon
+                    else:
+                        color = (255, 102, 0, alpha)  # #ff6600 - orange from icon
+                    pygame.draw.circle(particle_surf, color, (4, 4), 4)
+                    surface.blit(particle_surf, (int(x - 4), int(y - 4)))
+
+
+class UndergroundPath:
+    """
+    Visualizes underground shell travel from first to second explosion.
+    Follows an inverted parabolic arc (mirrored downward) with cyan glow pulse.
+    """
+    def __init__(self, start_x, start_y, end_x, end_y):
+        self.start_x = start_x
+        self.start_y = start_y
+        self.end_x = end_x
+        self.end_y = end_y
+        self.timer = 0
+        self.duration = 0.6
+        self.active = True
+
+        # Calculate parabolic arc parameters
+        dx = end_x - start_x
+        dy = end_y - start_y
+        distance = math.sqrt(dx * dx + dy * dy)
+
+        # Inverted arc height (goes DOWN instead of up, representing underground travel)
+        # Match the magnitude of the surface arc but invert it
+        self.arc_height = min(150, distance * 0.5)  # Same as MortarShell
+
+        # Create dash points along inverted parabolic path
+        self.dash_points = []
+        num_dashes = int(distance / 20) + 1
+        for i in range(num_dashes):
+            t = i / (num_dashes - 1) if num_dashes > 1 else 0
+
+            # Linear interpolation for x
+            x = start_x + dx * t
+
+            # Inverted parabolic arc for y (mirrored downward)
+            # Surface uses: y = start_y + dy*t - arc_y_offset (where offset = -4h(t-0.5)² + h)
+            # Underground inverts by ADDING the arc instead of subtracting
+            arc_progress = t - 0.5
+            arc_y_offset = -4 * self.arc_height * (arc_progress * arc_progress) + self.arc_height
+            y = start_y + dy * t + arc_y_offset  # ADD the arc (inverts it downward)
+
+            self.dash_points.append((x, y))
+
+    def update(self, delta_time):
+        """Update traveling glow."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw underground path with traveling pulse."""
+        if not self.active:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+
+        # Draw dashed line (deep purple/magenta)
+        for i, (x, y) in enumerate(self.dash_points):
+            # Dash visibility
+            if i % 3 != 0:  # Every third dash for dotted effect
+                continue
+
+            dash_surf = pygame.Surface((12, 12), pygame.SRCALPHA)
+            # Cyan underground color (from Parabol icon - axis of symmetry)
+            # More transparent to show it's underground
+            pygame.draw.circle(dash_surf, (0, 204, 255, 80), (6, 6), 6)  # #00ccff - semi-transparent
+            surface.blit(dash_surf, (int(x - 6), int(y - 6)))
+
+        # Draw traveling glow pulse
+        glow_index = int(len(self.dash_points) * progress)
+        if 0 <= glow_index < len(self.dash_points):
+            glow_x, glow_y = self.dash_points[glow_index]
+
+            glow_surf = pygame.Surface((40, 40), pygame.SRCALPHA)
+            # Bright cyan/blue glow for underground projectile (from Parabol icon)
+            # More transparent to emphasize underground travel
+            pygame.draw.circle(glow_surf, (0, 204, 255, 100), (20, 20), 20)  # #00ccff - outer glow
+            pygame.draw.circle(glow_surf, (102, 238, 255, 140), (20, 20), 14)  # Lighter cyan - mid layer
+            pygame.draw.circle(glow_surf, (255, 255, 255, 180), (20, 20), 8)  # White core - brightest but still transparent
+            surface.blit(glow_surf, (int(glow_x - 20), int(glow_y - 20)))
+
+
+class GroundRumble:
+    """
+    Brown particle bursts along underground path.
+    Simulates ground shaking above the traveling shell.
+    """
+    def __init__(self, path_points, delay=0):
+        self.path_points = path_points
+        self.timer = -delay
+        self.duration = 0.6
+        self.active = True
+        self.rumble_sites = []
+
+        # Select random points along path for rumbles
+        for i in range(0, len(path_points), max(1, len(path_points) // 5)):
+            if i < len(path_points):
+                x, y = path_points[i]
+                self.rumble_sites.append({
+                    'x': x,
+                    'y': y,
+                    'trigger_time': (i / len(path_points)) * 0.5,
+                    'active': False,
+                    'timer': 0
+                })
+
+    def update(self, delta_time):
+        """Update rumble bursts."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Trigger rumbles at appropriate times
+        for rumble in self.rumble_sites:
+            if not rumble['active'] and self.timer >= rumble['trigger_time']:
+                rumble['active'] = True
+
+            if rumble['active']:
+                rumble['timer'] += delta_time
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw ground rumble particle bursts."""
+        if not self.active or self.timer < 0:
+            return
+
+        for rumble in self.rumble_sites:
+            if rumble['active'] and rumble['timer'] < 0.3:
+                # Small brown particle burst
+                burst_progress = rumble['timer'] / 0.3
+                offset_y = -15 * burst_progress  # Rise upward
+                alpha = int(150 * (1.0 - burst_progress))
+
+                if alpha > 0:
+                    for i in range(3):
+                        angle = (i / 3) * 2 * math.pi
+                        x = rumble['x'] + math.cos(angle) * 10 * burst_progress
+                        y = rumble['y'] + offset_y + math.sin(angle) * 5 * burst_progress
+
+                        particle_surf = pygame.Surface((6, 6), pygame.SRCALPHA)
+                        # Earth brown particles complementing Parabol's orange palette
+                        pygame.draw.circle(particle_surf, (139, 69, 19, alpha), (3, 3), 3)
+                        surface.blit(particle_surf, (int(x - 3), int(y - 3)))
+
+
+class GroundRupture:
+    """
+    Ground cracks spreading from second explosion center before eruption.
+    Dark lines radiating outward with brown particles.
+    """
+    def __init__(self, center_x, center_y):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.timer = 0
+        self.duration = 0.15
+        self.active = True
+
+        # Create crack lines radiating outward
+        self.cracks = []
+        for i in range(8):
+            angle = (i / 8) * 2 * math.pi
+            self.cracks.append({
+                'angle': angle,
+                'length': 0,
+                'max_length': 35 + random.randint(-5, 5)
+            })
+
+    def update(self, delta_time):
+        """Update spreading cracks."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Grow cracks outward
+        growth_rate = 200  # pixels per second
+        for crack in self.cracks:
+            crack['length'] = min(crack['max_length'],
+                                 crack['length'] + growth_rate * delta_time)
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw spreading crack lines."""
+        if not self.active:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+        alpha = int(200 * progress)
+
+        # Draw crack lines
+        for crack in self.cracks:
+            if crack['length'] > 0:
+                end_x = self.center_x + math.cos(crack['angle']) * crack['length']
+                end_y = self.center_y + math.sin(crack['angle']) * crack['length']
+
+                # Dark gray crack
+                pygame.draw.line(surface, (64, 64, 64, alpha),
+                               (int(self.center_x), int(self.center_y)),
+                               (int(end_x), int(end_y)), 2)
+
+                # Orange/brown debris at crack tip (from Parabol palette)
+                if crack['length'] > 10:
+                    debris_surf = pygame.Surface((8, 8), pygame.SRCALPHA)
+                    pygame.draw.circle(debris_surf, (204, 51, 0, alpha), (4, 4), 4)  # #cc3300
+                    surface.blit(debris_surf, (int(end_x - 4), int(end_y - 4)))
+
+
+class TerrainGhost:
+    """
+    Semi-transparent ghost of terrain piece fading at source position.
+    """
+    def __init__(self, x, y, terrain_type):
+        self.x = x
+        self.y = y
+        self.terrain_type = terrain_type
+        self.timer = 0
+        self.duration = 0.3
+        self.active = True
+
+    def update(self, delta_time):
+        """Fade out ghost."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw fading terrain ghost."""
+        if not self.active:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+        alpha = int(100 * (1.0 - progress))  # Fade from 100 to 0
+
+        if alpha > 5:
+            # Simple rectangle representing terrain
+            ghost_surf = pygame.Surface((TILE_SIZE - 4, TILE_SIZE - 4), pygame.SRCALPHA)
+            # White ghost
+            pygame.draw.rect(ghost_surf, (255, 255, 255, alpha),
+                           (0, 0, TILE_SIZE - 4, TILE_SIZE - 4), 2)
+            surface.blit(ghost_surf, (int(self.x - (TILE_SIZE - 4) // 2),
+                                     int(self.y - (TILE_SIZE - 4) // 2)))
+
+
+class TerrainSlide:
+    """
+    Animated terrain piece sliding from source to target position.
+    """
+    def __init__(self, source_x, source_y, target_x, target_y, terrain_type, delay=0):
+        self.source_x = source_x
+        self.source_y = source_y
+        self.target_x = target_x
+        self.target_y = target_y
+        self.terrain_type = terrain_type
+        self.timer = -delay
+        self.duration = 0.4
+        self.active = True
+
+        self.current_x = source_x
+        self.current_y = source_y
+
+    def update(self, delta_time):
+        """Update sliding position."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.timer >= 0:
+            # Interpolate position
+            progress = min(1.0, self.timer / self.duration)
+            # Ease-out for smooth deceleration
+            eased_progress = 1.0 - (1.0 - progress) ** 2
+
+            self.current_x = self.source_x + (self.target_x - self.source_x) * eased_progress
+            self.current_y = self.source_y + (self.target_y - self.source_y) * eased_progress
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw sliding terrain piece with dust trail."""
+        if not self.active or self.timer < 0:
+            return
+
+        progress = max(0.0, min(1.0, self.timer / self.duration))
+
+        # Draw terrain piece (simple colored rectangle)
+        terrain_surf = pygame.Surface((TILE_SIZE - 4, TILE_SIZE - 4), pygame.SRCALPHA)
+        # Gray/brown for furniture
+        terrain_color = (128, 128, 128, 220)
+        if 'MARROW' in str(self.terrain_type):
+            terrain_color = (208, 197, 181, 220)  # Bone color
+        elif any(wood in str(self.terrain_type) for wood in ['OTTOMAN', 'BENCH', 'COUCH', 'COT']):
+            terrain_color = (139, 90, 43, 220)  # Wood brown
+
+        pygame.draw.rect(terrain_surf, terrain_color,
+                        (0, 0, TILE_SIZE - 4, TILE_SIZE - 4))
+        pygame.draw.rect(terrain_surf, (80, 80, 80, 220),
+                        (0, 0, TILE_SIZE - 4, TILE_SIZE - 4), 1)
+
+        surface.blit(terrain_surf, (int(self.current_x - (TILE_SIZE - 4) // 2),
+                                   int(self.current_y - (TILE_SIZE - 4) // 2)))
+
+        # Draw dust trail particles behind sliding object
+        if progress > 0.1:
+            trail_x = self.current_x - (self.target_x - self.source_x) * 0.2
+            trail_y = self.current_y - (self.target_y - self.source_y) * 0.2
+
+            dust_surf = pygame.Surface((12, 12), pygame.SRCALPHA)
+            dust_alpha = int(120 * (1.0 - progress))
+            pygame.draw.circle(dust_surf, (210, 180, 140, dust_alpha), (6, 6), 6)
+            surface.blit(dust_surf, (int(trail_x - 6), int(trail_y - 6)))
+
+
+class ParabolAnimationUpgraded(ParabolAnimation):
+    """
+    Upgraded Parabol skill animation for FOWL CONTRIVANCE.
+    Extends base Parabol with:
+    - Underground travel phase after first explosion
+    - Second explosion at mirrored parabolic location
+    - Terrain rearrangement matching enemy formation imprint
+
+    Phases:
+    1. Launch (0.4s) - Same as base
+    2. Arc Travel (0.7s) - Same as base
+    3. Impact (0.9s) - First explosion (same as base)
+    4. Underground Travel (0.6s) - Shell burrows and travels underground
+    5. Second Impact (0.9s) - Eruption and explosion at second location
+    6. Terrain Manipulation (0.7s) - Terrain pieces slide to match enemy formation
+    7. Aftermath (0.5s) - Final dissipation
+    """
+
+    def __init__(self, caster_unit, target_unit, target_pos, is_crit, is_infused,
+                 particle_emitter, debris_list, screen_shake_callback,
+                 screen_flash_callback, units_list, camera, game=None):
+        """
+        Initialize upgraded Parabol animation.
+
+        Args:
+            Same as ParabolAnimation, with game required for calculations
+        """
+        # Initialize base animation
+        super().__init__(caster_unit, target_unit, target_pos, is_crit, is_infused,
+                        particle_emitter, debris_list, screen_shake_callback,
+                        screen_flash_callback, units_list, camera, game)
+
+        # Calculate second explosion position
+        self.second_explosion_pos = None
+        self.second_impact_positions = []
+
+        if game:
+            self.second_explosion_pos = self._calculate_second_explosion(target_pos, game)
+            self._calculate_second_impact_positions()
+
+        # Underground travel effects
+        self.burrow_effect = None
+        self.underground_path = None
+        self.ground_rumble = None
+
+        # Second explosion effects
+        self.ground_rupture = None
+        self.second_explosions = []
+        self.second_shockwaves = []
+
+        # Terrain manipulation effects
+        self.terrain_ghosts = []
+        self.terrain_slides = []
+        self.terrain_movements = []
+
+        # Calculate terrain movements if game available
+        if game and units_list:
+            self.terrain_movements = self._calculate_terrain_movements(
+                target_pos, self.second_explosion_pos, game, units_list
+            )
+
+    def _calculate_second_explosion(self, first_pos, game):
+        """Calculate second explosion center using mirrored parabola logic."""
+        grid_y, grid_x = first_pos
+        caster_y = self.caster.grid_y
+        caster_x = self.caster.grid_x
+
+        # Calculate distance vector from caster to first explosion
+        dist_y = grid_y - caster_y
+        dist_x = grid_x - caster_x
+
+        # Second explosion continues same distance/direction, wrapping around map
+        second_y = (grid_y + dist_y) % game.map.height
+        second_x = (grid_x + dist_x) % game.map.width
+
+        return (second_y, second_x)
+
+    def _calculate_second_impact_positions(self):
+        """Calculate 3x3 grid of second impact positions."""
+        if not self.second_explosion_pos:
+            return
+
+        grid_y, grid_x = self.second_explosion_pos
+
+        for dy in range(-1, 2):
+            for dx in range(-1, 2):
+                impact_grid_y = grid_y + dy
+                impact_grid_x = grid_x + dx
+
+                # Convert to screen coords
+                impact_x, impact_y = self.camera.grid_to_screen(impact_grid_x, impact_grid_y, centered=True)
+
+                is_primary = (dy == 0 and dx == 0)
+
+                self.second_impact_positions.append({
+                    'x': impact_x,
+                    'y': impact_y,
+                    'is_primary': is_primary,
+                    'delay': 0 if is_primary else 0.1 * (abs(dy) + abs(dx))
+                })
+
+    def _calculate_terrain_movements(self, first_pos, second_pos, game, units_list):
+        """
+        Calculate terrain rearrangement to match enemy formation.
+        Returns list of terrain movement data.
+        """
+        movements = []
+
+        if not second_pos:
+            return movements
+
+        # Scan first explosion for enemy positions (relative offsets)
+        first_grid_y, first_grid_x = first_pos
+        enemy_offsets = []
+
+        for dy in range(-1, 2):
+            for dx in range(-1, 2):
+                check_y = first_grid_y + dy
+                check_x = first_grid_x + dx
+
+                # Check if enemy unit at this position
+                for unit in units_list:
+                    if (hasattr(unit, 'game_unit') and unit.game_unit and
+                        unit.game_unit.is_alive() and
+                        unit.grid_y == check_y and unit.grid_x == check_x and
+                        unit.game_unit.player != self.caster.game_unit.player):
+                        enemy_offsets.append((dy, dx))
+                        break
+
+        # Scan second explosion area for destructible terrain
+        from boneglaive.game.map import TerrainType
+        second_grid_y, second_grid_x = second_pos
+        terrain_pieces = []
+
+        destructible_terrain = [
+            TerrainType.LIMESTONE, TerrainType.PILLAR, TerrainType.MARROW_WALL,
+            TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK, TerrainType.OTTOMAN,
+            TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF, TerrainType.TIFFANY_LAMP,
+            TerrainType.STAINED_STONE, TerrainType.EASEL, TerrainType.SCULPTURE,
+            TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
+            TerrainType.HYDRAULIC_PRESS, TerrainType.WORKBENCH, TerrainType.COUCH,
+            TerrainType.TOOLBOX, TerrainType.COT, TerrainType.CONVEYOR,
+            TerrainType.MINI_PUMPKIN, TerrainType.POTPOURRI_BOWL
+        ]
+
+        for dy in range(-1, 2):
+            for dx in range(-1, 2):
+                if dy == 0 and dx == 0:
+                    continue  # Skip center (will be destroyed)
+
+                check_y = second_grid_y + dy
+                check_x = second_grid_x + dx
+
+                if game.is_valid_position(check_y, check_x):
+                    terrain = game.map.get_terrain_at(check_y, check_x)
+                    if terrain in destructible_terrain:
+                        source_x, source_y = self.camera.grid_to_screen(check_x, check_y, centered=True)
+                        terrain_pieces.append({
+                            'grid_y': check_y,
+                            'grid_x': check_x,
+                            'screen_x': source_x,
+                            'screen_y': source_y,
+                            'terrain_type': terrain
+                        })
+
+        # Match terrain to enemy offsets
+        for i, (offset_y, offset_x) in enumerate(enemy_offsets):
+            if i >= len(terrain_pieces):
+                break  # More enemies than terrain
+
+            terrain = terrain_pieces[i]
+            target_grid_y = second_grid_y + offset_y
+            target_grid_x = second_grid_x + offset_x
+            target_x, target_y = self.camera.grid_to_screen(target_grid_x, target_grid_y, centered=True)
+
+            movements.append({
+                'source_x': terrain['screen_x'],
+                'source_y': terrain['screen_y'],
+                'target_x': target_x,
+                'target_y': target_y,
+                'terrain_type': terrain['terrain_type']
+            })
+
+        return movements
+
+    def _start_underground_travel(self):
+        """Phase 4: Shell burrows and travels underground."""
+        self.phase = "underground_travel"
+        self.timer = 0
+
+        # Create burrow effect at first explosion center
+        self.burrow_effect = BurrowEffect(self.target_x, self.target_y)
+
+        # Create underground path from first to second explosion
+        if self.second_explosion_pos and self.game:
+            second_grid_y, second_grid_x = self.second_explosion_pos
+            second_screen_x, second_screen_y = self.camera.grid_to_screen(
+                second_grid_x, second_grid_y, centered=True
+            )
+
+            # Detect map wrapping and adjust path to go off-screen properly
+            first_grid_y, first_grid_x = self.target_pos
+
+            # Calculate screen dimensions based on map size and tile size
+            map_screen_width = self.game.map.width * self.camera.tile_size
+            map_screen_height = self.game.map.height * self.camera.tile_size
+
+            # Check if we wrapped horizontally
+            wrapped_x = False
+            if abs(second_grid_x - first_grid_x) > self.game.map.width / 2:
+                wrapped_x = True
+                # Determine which direction to wrap
+                if second_grid_x < first_grid_x:
+                    # Wrapped to left side, path should go right off screen
+                    # Adjust target to be off the right edge
+                    second_screen_x += map_screen_width
+                else:
+                    # Wrapped to right side, path should go left off screen
+                    # Adjust target to be off the left edge
+                    second_screen_x -= map_screen_width
+
+            # Check if we wrapped vertically
+            wrapped_y = False
+            if abs(second_grid_y - first_grid_y) > self.game.map.height / 2:
+                wrapped_y = True
+                # Determine which direction to wrap
+                if second_grid_y < first_grid_y:
+                    # Wrapped to top side, path should go down off screen
+                    second_screen_y += map_screen_height
+                else:
+                    # Wrapped to bottom side, path should go up off screen
+                    second_screen_y -= map_screen_height
+
+            self.underground_path = UndergroundPath(
+                self.target_x, self.target_y,
+                second_screen_x, second_screen_y
+            )
+
+            # Create ground rumble along path
+            if self.underground_path:
+                self.ground_rumble = GroundRumble(self.underground_path.dash_points, delay=0.2)
+
+    def _start_second_impact(self):
+        """Phase 5: Second explosion erupts from underground."""
+        self.phase = "second_impact"
+        self.timer = 0
+
+        if not self.second_explosion_pos:
+            return
+
+        # Get second explosion center screen coords
+        center_x, center_y = self.camera.grid_to_screen(
+            self.second_explosion_pos[1], self.second_explosion_pos[0], centered=True
+        )
+
+        # Create ground rupture
+        self.ground_rupture = GroundRupture(center_x, center_y)
+
+        # Create CYAN explosions for each impact position (matching underground projectile)
+        for impact in self.second_impact_positions:
+            # Cyan explosion matching the underground projectile color
+            explosion = CyanExplosionFireball(impact['x'], impact['y'], is_primary=impact['is_primary'])
+            explosion.timer = -impact['delay'] - 0.15  # Delay for rupture
+            self.second_explosions.append(explosion)
+
+            # Cyan shockwave
+            shockwave = CyanShockwaveRing(impact['x'], impact['y'], delay=impact['delay'] + 0.15)
+            self.second_shockwaves.append(shockwave)
+
+            # Emit upward-biased particles (erupting from below)
+            if self.particle_emitter and impact['delay'] == 0:
+                for _ in range(30):
+                    angle = random.uniform(-math.pi/3, -2*math.pi/3)  # Upward bias
+                    speed = random.uniform(100, 250)
+                    vx = math.cos(angle) * speed
+                    vy = math.sin(angle) * speed
+                    # Cyan/blue particles with brown debris (Parabol icon colors)
+                    color = random.choice([(0, 204, 255), (139, 69, 19), (204, 51, 0)])
+                    from .core import Particle
+                    particle = Particle(impact['x'], impact['y'], vx, vy,
+                                      lifetime=0.5, size=5, color=color)
+                    self.particle_emitter.particles.append(particle)
+
+        # Heavy screen shake for underground eruption
+        self.screen_shake_callback(7, 0.5)
+
+    def _start_terrain_manipulation(self):
+        """Phase 6: Terrain pieces rearrange to match enemy formation."""
+        self.phase = "terrain_manipulation"
+        self.timer = 0
+
+        # Create terrain ghosts at source positions
+        for movement in self.terrain_movements:
+            ghost = TerrainGhost(movement['source_x'], movement['source_y'],
+                               movement['terrain_type'])
+            self.terrain_ghosts.append(ghost)
+
+            # Create sliding terrain with staggered delays
+            delay = random.uniform(0, 0.2)
+            slide = TerrainSlide(movement['source_x'], movement['source_y'],
+                               movement['target_x'], movement['target_y'],
+                               movement['terrain_type'], delay=delay)
+            self.terrain_slides.append(slide)
+
+    def _start_aftermath(self):
+        """Phase 7: Aftermath - Floating particles at both impact sites (mirrored)."""
+        self.phase = "aftermath"
+        self.timer = 0
+
+        # Emit floating ORANGE ember particles at FIRST impact (rising upward - normal)
+        if self.particle_emitter:
+            for impact in self.impact_positions:
+                self.particle_emitter.emit_float(impact['x'], impact['y'], (255, 102, 0), count=8)
+
+        # Emit floating CYAN particles at SECOND impact (sinking downward - inverted/mirrored)
+        if self.particle_emitter and self.second_impact_positions:
+            from .core import Particle
+            for impact in self.second_impact_positions:
+                # Manually create particles with DOWNWARD velocity (inverted from emit_float)
+                for _ in range(8):
+                    vx = random.uniform(-10, 10)
+                    vy = random.uniform(20, 60)  # POSITIVE = downward (mirrored from emit_float's -60 to -20)
+                    size = random.uniform(2, 4)
+                    lifetime = random.uniform(0.5, 1.5)
+                    # Cyan color matching underground projectile
+                    particle = Particle(impact['x'], impact['y'], vx, vy, (0, 204, 255), size, lifetime)
+                    self.particle_emitter.particles.append(particle)
+
+    def update(self, delta_time):
+        """Update animation state with extended phases."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Update base effects
+        if self.launch_smoke:
+            self.launch_smoke.update(delta_time)
+
+        for shell in self.mortar_shells:
+            shell.update(delta_time)
+
+        for explosion in self.explosions:
+            explosion.update(delta_time)
+
+        for shockwave in self.shockwaves:
+            shockwave.update(delta_time)
+
+        # Update upgraded effects
+        if self.burrow_effect:
+            self.burrow_effect.update(delta_time)
+
+        if self.underground_path:
+            self.underground_path.update(delta_time)
+
+        if self.ground_rumble:
+            self.ground_rumble.update(delta_time)
+
+        if self.ground_rupture:
+            self.ground_rupture.update(delta_time)
+
+        for explosion in self.second_explosions:
+            explosion.update(delta_time)
+
+        for shockwave in self.second_shockwaves:
+            shockwave.update(delta_time)
+
+        for ghost in self.terrain_ghosts:
+            ghost.update(delta_time)
+
+        for slide in self.terrain_slides:
+            slide.update(delta_time)
+
+        # Phase transitions (extended for upgraded)
+        if self.phase == "launch" and self.timer >= 0.4:
+            self._start_arc_travel()
+        elif self.phase == "arc_travel" and self.timer >= 0.7:
+            self._start_impact()
+        elif self.phase == "impact" and self.timer >= 0.9:
+            self._start_underground_travel()  # NEW PHASE
+        elif self.phase == "underground_travel" and self.timer >= 0.6:
+            self._start_second_impact()  # NEW PHASE
+        elif self.phase == "second_impact" and self.timer >= 0.9:
+            self._start_terrain_manipulation()  # NEW PHASE
+        elif self.phase == "terrain_manipulation" and self.timer >= 0.7:
+            self._start_aftermath()
+        elif self.phase == "aftermath" and self.timer >= 0.5:
+            self.active = False  # Animation complete
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw animation with extended phases."""
+        if not self.active:
+            return
+
+        # Draw phase-specific effects
+        if self.phase == "launch":
+            if self.launch_smoke:
+                self.launch_smoke.draw(surface)
+
+        elif self.phase == "arc_travel":
+            for shell in self.mortar_shells:
+                shell.draw(surface)
+
+        elif self.phase == "impact":
+            # First explosion
+            for shockwave in self.shockwaves:
+                shockwave.draw(surface)
+            for explosion in self.explosions:
+                explosion.draw(surface)
+
+        elif self.phase == "underground_travel":
+            # Underground phase
+            if self.burrow_effect:
+                self.burrow_effect.draw(surface)
+            if self.underground_path:
+                self.underground_path.draw(surface)
+            if self.ground_rumble:
+                self.ground_rumble.draw(surface)
+
+        elif self.phase == "second_impact":
+            # Second explosion with rupture
+            if self.ground_rupture:
+                self.ground_rupture.draw(surface)
+            for shockwave in self.second_shockwaves:
+                shockwave.draw(surface)
+            for explosion in self.second_explosions:
+                explosion.draw(surface)
+
+        elif self.phase == "terrain_manipulation":
+            # Terrain rearrangement
+            for ghost in self.terrain_ghosts:
+                ghost.draw(surface)
+            for slide in self.terrain_slides:
+                slide.draw(surface)
+
+        elif self.phase == "aftermath":
+            # Final dissipation (particles handled by particle emitter)
+            pass
 
 
 # ============================================================================
