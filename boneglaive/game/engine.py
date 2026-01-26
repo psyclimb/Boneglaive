@@ -34,6 +34,9 @@ class Game:
         self.test_mode = False  # For debugging
         self.local_multiplayer = False
 
+        # OPTIMIZATION: Spatial grid for O(1) unit lookups
+        self.unit_grid = {}  # {(y, x): unit} - maps position to unit
+
         # Track whether this is player 2's first turn
         self.is_player2_first_turn = True
 
@@ -1173,12 +1176,14 @@ class Game:
         Called from recruitment menu when game starts.
         """
         self._resolve_unit_placement_conflicts()
+        # OPTIMIZATION: Rebuild spatial grid after resolving conflicts
+        self._rebuild_unit_grid()
     
     def add_unit(self, unit_type, player, y, x):
         # Check if position is valid for placement
         if not self.map.can_place_unit(y, x):
             raise ValueError(f"Cannot place unit at ({y}, {x}) - invalid terrain")
-        
+
         # Check if there's already a unit at this position
         existing_unit = self.get_unit_at(y, x)
         if existing_unit is not None:
@@ -1187,22 +1192,65 @@ class Game:
             if existing_unit.player == player:
                 raise ValueError(f"Position ({y}, {x}) is already occupied by your {existing_unit.get_type_name()}")
             # For different players, allow placement - conflicts will be resolved when game starts
-        
+
         unit = Unit(unit_type, player, y, x)
         unit.initialize_skills()  # Initialize skills for the unit
         unit.set_game_reference(self)  # Set game reference for trap checks
 
         # Apply passive skills immediately when unit is added
         unit.apply_passive_skills(self, None)
-        
+
         self.units.append(unit)
+
+        # OPTIMIZATION: Add unit to spatial grid
+        self._update_unit_grid(unit)
     
-    def get_unit_at(self, y, x):
+    def _update_unit_grid(self, unit, old_y=None, old_x=None):
+        """
+        Update spatial grid when unit moves or is added.
+
+        Args:
+            unit: The unit to update
+            old_y, old_x: Previous position (if moving), None if adding new unit
+        """
+        # Remove from old position if moving
+        if old_y is not None and old_x is not None:
+            old_key = (old_y, old_x)
+            if old_key in self.unit_grid:
+                del self.unit_grid[old_key]
+
+        # Add to new position if alive
+        if unit.is_alive():
+            new_key = (unit.y, unit.x)
+            self.unit_grid[new_key] = unit
+
+    def _remove_from_unit_grid(self, unit):
+        """Remove unit from spatial grid (when unit dies or is removed)."""
+        key = (unit.y, unit.x)
+        if key in self.unit_grid and self.unit_grid[key] == unit:
+            del self.unit_grid[key]
+
+    def _rebuild_unit_grid(self):
+        """Rebuild spatial grid from scratch (used for initialization or after complex operations)."""
+        self.unit_grid.clear()
         for unit in self.units:
-            if unit.is_alive() and unit.y == y and unit.x == x:
-                return unit
+            if unit.is_alive():
+                self.unit_grid[(unit.y, unit.x)] = unit
+
+    def get_unit_at(self, y, x):
+        """
+        Get unit at position (y, x).
+        OPTIMIZED: Uses spatial grid for O(1) lookup instead of O(n) linear search.
+        """
+        unit = self.unit_grid.get((y, x))
+        # Verify unit is still alive (safety check)
+        if unit and unit.is_alive():
+            return unit
+        # Clean up stale entry if unit is dead
+        if unit:
+            del self.unit_grid[(y, x)]
         return None
-        
+
     def _assign_unit_identifiers(self):
         """
         Assign letter identifiers to all units based on unit type.

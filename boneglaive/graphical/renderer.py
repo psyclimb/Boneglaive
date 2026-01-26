@@ -239,6 +239,11 @@ class GraphicalRenderer:
         # Cache for sparkle surfaces (different sizes)
         self._sparkle_surf_cache: Dict[int, pygame.Surface] = {}
 
+        # OPTIMIZATION: Dirty rectangle system for grid rendering
+        self._static_grid_surface = None  # Cached full grid render
+        self._dirty_tiles = set()  # Set of (x, y) tiles that need redrawing
+        self._grid_fully_dirty = True  # Flag to force full redraw
+
         # FPS counter (for troubleshooting)
         self.show_fps = True  # Set to False to hide FPS counter
         self.fps_values = []  # Rolling window of recent FPS values
@@ -3090,7 +3095,78 @@ class GraphicalRenderer:
 
         pygame.display.flip()
 
+    def mark_tile_dirty(self, x: int, y: int):
+        """Mark a tile as needing redraw. Call this when terrain/furniture changes."""
+        self._dirty_tiles.add((x, y))
+
+    def mark_all_tiles_dirty(self):
+        """Force full grid redraw on next frame."""
+        self._grid_fully_dirty = True
+        self._static_grid_surface = None
+
+    def _render_single_tile(self, surface: pygame.Surface, x: int, y: int, game_map):
+        """Render a single tile (used for dirty rectangle updates)."""
+        # Calculate tile position (relative to grid surface, not screen)
+        tile_x = x * TILE_SIZE
+        tile_y = y * TILE_SIZE
+        rect = pygame.Rect(tile_x, tile_y, TILE_SIZE, TILE_SIZE)
+
+        # Get terrain type at this position
+        terrain_type = TerrainType.EMPTY
+        if game_map:
+            terrain_type = game_map.get_terrain_at(y, x)
+
+        # For rail tiles, render the underlying terrain instead
+        if terrain_type == TerrainType.RAIL and game_map:
+            terrain_type = game_map.get_rail_original_terrain(y, x)
+
+        # Determine base color (checkerboard pattern)
+        base_color = COLOR_GRID_DARK if (x + y) % 2 == 0 else COLOR_GRID_LIGHT
+
+        # Highlight hovered tile
+        if self.hovered_grid_pos == (x, y):
+            base_color = tuple(min(255, c + 30) for c in base_color)
+
+        # Draw base tile
+        pygame.draw.rect(surface, base_color, rect)
+
+        # Try to load and draw terrain/furniture SVG
+        if terrain_type != TerrainType.EMPTY:
+            terrain_surface = self._load_terrain_tile(terrain_type)
+            if terrain_surface:
+                surface.blit(terrain_surface, (tile_x, tile_y))
+
+                # Add player-colored outline for MARROW_WALL
+                if terrain_type == TerrainType.MARROW_WALL:
+                    if hasattr(self.game_adapter.game, 'marrow_dike_tiles'):
+                        pos_tuple = (y, x)
+                        if pos_tuple in self.game_adapter.game.marrow_dike_tiles:
+                            wall_info = self.game_adapter.game.marrow_dike_tiles[pos_tuple]
+                            if 'owner' in wall_info and wall_info['owner']:
+                                if wall_info['owner'].player == 1:
+                                    outline_color = (0, 255, 100)
+                                else:
+                                    outline_color = (100, 150, 255)
+                                pygame.draw.rect(surface, outline_color, rect, 2)
+            else:
+                # Fallback: draw colored rectangle
+                if terrain_type in [TerrainType.LIMESTONE, TerrainType.PILLAR,
+                                   TerrainType.STAINED_STONE, TerrainType.HYDRAULIC_PRESS]:
+                    pygame.draw.rect(surface, (80, 80, 90), rect)
+                elif terrain_type in [TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.CONCRETE_FLOOR]:
+                    pygame.draw.rect(surface, (70, 75, 80), rect)
+                else:
+                    pygame.draw.rect(surface, (100, 110, 120), rect)
+
+        # Draw grid lines
+        pygame.draw.rect(surface, (30, 34, 42), rect, 1)
+
+        # Draw rail overlay if needed
+        if game_map and self.rail_universal and game_map.get_terrain_at(y, x) == TerrainType.RAIL:
+            surface.blit(self.rail_universal, (tile_x, tile_y))
+
     def draw_grid(self, surface: pygame.Surface):
+<<<<<<< Updated upstream
         """Draw the game grid with terrain and furniture using two-pass rendering for rails."""
         # Performance optimization: cache the grid and only redraw when dirty
         if self._grid_dirty:
@@ -3102,6 +3178,45 @@ class GraphicalRenderer:
 
     def _render_grid_to_cache(self):
         """Render the grid to the cached surface (called only when grid changes)."""
+=======
+        """
+        Draw the game grid with terrain and furniture.
+        OPTIMIZED: Uses dirty rectangle tracking to only redraw changed tiles.
+        """
+        game_map = self.game_adapter.game.map if self.game_adapter.game else None
+
+        # Full redraw if needed (first frame or major change)
+        if self._grid_fully_dirty or self._static_grid_surface is None:
+            # Create cached surface if needed
+            if self._static_grid_surface is None:
+                grid_width = GRID_WIDTH * TILE_SIZE
+                grid_height = GRID_HEIGHT * TILE_SIZE
+                self._static_grid_surface = pygame.Surface((grid_width, grid_height))
+
+            # Render all tiles to cache
+            for y in range(GRID_HEIGHT):
+                for x in range(GRID_WIDTH):
+                    self._render_single_tile(self._static_grid_surface, x, y, game_map)
+
+            self._grid_fully_dirty = False
+            self._dirty_tiles.clear()
+
+        # Update only dirty tiles
+        elif self._dirty_tiles:
+            for x, y in self._dirty_tiles:
+                if 0 <= x < GRID_WIDTH and 0 <= y < GRID_HEIGHT:
+                    self._render_single_tile(self._static_grid_surface, x, y, game_map)
+            self._dirty_tiles.clear()
+
+        # Blit cached grid to main surface
+        surface.blit(self._static_grid_surface, (GRID_OFFSET_X, GRID_OFFSET_Y))
+
+    def draw_grid_old(self, surface: pygame.Surface):
+        """
+        OLD IMPLEMENTATION - kept for reference.
+        Draw the game grid with terrain and furniture using two-pass rendering for rails.
+        """
+>>>>>>> Stashed changes
         # Get game map if available
         game_map = self.game_adapter.game.map if self.game_adapter.game else None
 

@@ -17,14 +17,14 @@ class Unit:
         # Basic unit properties
         self.type = unit_type
         self.player = player  # 1 or 2
-        
+
         # Use private attributes for position to enable property setters
         self._y = y
         self._x = x
         self._applying_damage = False  # Flag to prevent infinite recursion
         self._prt_absorbed_this_action = False  # Flag to prevent duplicate partition messages
-        
-        # Game reference for trap checks (will be set by engine)
+
+        # Game reference for trap checks and spatial grid updates (will be set by engine)
         self._game = None
         
         # Letter identifier (assigned later when all units are spawned)
@@ -970,18 +970,21 @@ class Unit:
         
     @y.setter
     def y(self, value):
-        # Store old position for trap checks
+        # Store old position for trap checks and spatial grid updates
         old_y = self._y
-        
+
         # Update position
         self._y = value
-        
+
         # Only check if position actually changed and game reference exists
         if old_y != value and self._game:
+            # OPTIMIZATION: Update spatial grid
+            self._game._update_unit_grid(self, old_y, self._x)
+
             # Case 1: If this is a MANDIBLE_FOREMAN, check for trap release
             if self.type == UnitType.MANDIBLE_FOREMAN:
                 self._game._check_position_change_trap_release(self, old_y, self._x)
-                
+
             # Case 2: If this unit is trapped, check for trap release
             if self.trapped_by is not None:
                 self._game._check_position_change_trap_release(self, old_y, self._x)
@@ -992,18 +995,21 @@ class Unit:
         
     @x.setter
     def x(self, value):
-        # Store old position for trap checks
+        # Store old position for trap checks and spatial grid updates
         old_x = self._x
-        
+
         # Update position
         self._x = value
-        
+
         # Only check if position actually changed and game reference exists
         if old_x != value and self._game:
+            # OPTIMIZATION: Update spatial grid
+            self._game._update_unit_grid(self, self._y, old_x)
+
             # Case 1: If this is a MANDIBLE_FOREMAN, check for trap release
             if self.type == UnitType.MANDIBLE_FOREMAN:
                 self._game._check_position_change_trap_release(self, self._y, old_x)
-                
+
             # Case 2: If this unit is trapped, check for trap release
             if self.trapped_by is not None:
                 self._game._check_position_change_trap_release(self, self._y, old_x)

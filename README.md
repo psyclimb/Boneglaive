@@ -1,48 +1,91 @@
 # Boneglaive
 
-**BETA VERSION 0.9.0b** - Core gameplay complete, some features in development
+**VERSION 1.0.0** - Tactical Turn-Based Combat Game
 
-**Linux & BSD Terminal Gaming** - A tactical turn-based combat game designed for *nix terminal environments using ncurses.
+A strategic turn-based combat game featuring unit abilities, status effects, and tactical positioning. Available in both terminal (ASCII) and graphical (pygame) versions.
 
-> **Platform Support**: Boneglaive is designed for Linux and BSD systems, taking full advantage of native terminal capabilities.
+> **Platform Support**: Linux, BSD, macOS, and Windows
 
-### Linux & BSD Setup
-Boneglaive requires Python 3.8+ and uses the native curses library available on Linux and BSD systems:
+## Quick Start
 
+### Graphical Version (Recommended)
 ```bash
-# Ensure you have Python 3.8 or later
-python3 --version
+# Install pygame (if not already installed)
+pip install pygame
 
-# No additional dependencies needed for core gameplay!
-# Run directly from your Boneglaive directory:
-python3 -m boneglaive.main
+# Run the game
+python run_graphical.py
 ```
 
+### ASCII Terminal Version
+```bash
+# No dependencies needed - uses Python standard library
+python -m boneglaive.main
+```
 
 ## Features
 
-- **Pure Terminal**: Authentic ncurses terminal interface
-- **Native Terminal**: Optimized for Linux and BSD environments
-- **Complex Combat**: Unit skills, status effects, terrain
-- **Singleplayer**: Singleplayer vs bots
-- **Multiplayer**: Hotseat multiplayer
-- **Zero Dependencies**: Pure Python standard library
+- **Two Game Versions**: Modern graphical UI or classic terminal interface
+- **GP Scoring System**: Race to 10 GP - units respawn after death
+- **Tactical Combat**: Grid-based movement, ranged attacks, area effects
+- **10+ Unique Units**: Each with 4 active skills and 1 passive ability
+- **Multiple Game Modes**:
+  - Single player vs AI
+  - Local multiplayer (hotseat)
+  - LAN multiplayer
+- **Status Effects**: Debuffs, buffs, crowd control, damage over time
+- **DLC System**: Expandable with custom units
 
 ## Controls
 
-- **Arrow Keys**: Movement
+### Graphical Version
+- **Mouse**: Click to select units, move, attack, use skills
+- **1-4, Q-R**: Activate skills by hotkey
+- **E**: Execute turn
+- **ESC**: Cancel/deselect
+
+### ASCII Terminal Version
+- **Arrow Keys**: Navigate
 - **Enter/Space**: Select/Confirm
 - **m**: Move mode
-- **a**: Attack mode  
-- **s**: Skill mode
+- **a**: Attack mode
+- **s**: Skill mode (1-4, Q-R to select)
+- **r**: Respawn menu
 - **t**: End turn
 - **c**: Cancel action
-- **?**: Help
 - **l**: Toggle message log
-- **L**: Toggle full message log
-- **Tab**: Cycle through units
-- **Shift+Tab**: Cycle backwards through units
-- **p**: Activate appraiser anchor
+- **L**: Expand message log
+- **Tab**: Cycle units
+- **?**: Help
+
+## Game Modes
+
+```bash
+# Graphical version (interactive menu)
+python run_graphical.py
+
+# ASCII version - vs AI
+python -m boneglaive.main --mode vs_ai
+
+# ASCII version - local multiplayer
+python -m boneglaive.main --mode local
+
+# ASCII version - LAN host
+python -m boneglaive.main --mode lan_host --port 7777
+
+# ASCII version - LAN client
+python -m boneglaive.main --mode lan_client --server 192.168.1.100 --port 7777
+```
+
+## Requirements
+
+**Graphical Version:**
+- Python 3.8+
+- pygame 2.0+
+
+**ASCII Version:**
+- Python 3.8+ with curses (included on Linux/BSD/macOS)
+- Terminal with UTF-8 support and Greek character rendering
 
 ## License
 See LICENSE file for details.

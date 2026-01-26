@@ -1,124 +1,58 @@
 #+TITLE: Boneglaive Development Guide
 #+AUTHOR: Claude
-#+DATE: 2025-12-01
+#+DATE: 2026-01-26
 
 * Project Overview
-Tactical turn-based combat game in Python. Two parallel versions:
+Tactical turn-based combat game in Python with two fully functional versions:
 1. *ASCII Version*: Complete terminal game using curses (stable, playable)
-2. *Graphical Version*: Modern pygame renderer (IN DEVELOPMENT - Phase 1: 80% complete)
+2. *Graphical Version*: Modern pygame renderer with full game functionality
 
 *IMPORTANT*: Work with current codebase state only. Do not reference git history, past commits, or previous code versions unless explicitly requested by the user.
 
-* NEXT SESSION: GP System Testing & Polish
+* CURRENT FOCUS: Release Preparation for itch.io
 
-** GP System Status: IMPLEMENTED ✅ (2025-12-01)
-The new GP (Game Points) scoring system has been fully implemented and is ready for playtesting!
+** Current Status: PREPARING FOR RELEASE
+Both ASCII and graphical versions are feature-complete and playable. Focus is on packaging, testing, and polish for public release on itch.io, followed by Steam.
 
-*What Changed*:
-- Replaced elimination-based win condition with point-based system
-- First player to reach 10 GP wins
-- 1 GP awarded per kill (main 10 units only, no summons)
-- Dead units respawn after 3-turn timer
-- Respawns execute during combat/execution phase (not planning phase)
+** Game Features (COMPLETE)
+1. ✅ GP (Game Points) scoring system
+   - First player to reach 10 GP wins
+   - 1 GP awarded per kill (main units only, no summons)
+   - Dead units respawn after 3-turn timer
+   - Respawn selection system (press 'r' in ASCII mode)
 
-*Implementation Complete*:
-1. ✅ Core GP tracking (engine.py)
-   - GP_ELIGIBLE_UNITS constant defines scoreable units
-   - DeadUnit class tracks respawn timers
-   - _handle_death() awards GP and queues respawns
-   - _execute_respawns() spawns units during execution phase
-   - check_game_over() checks GP threshold (10)
+2. ✅ Both game versions fully functional
+   - ASCII version: curses-based terminal UI
+   - Graphical version: pygame-based with animations and modern UI
 
-2. ✅ UI Updates (ui_renderer.py)
-   - GP display: "GP:0|0" replaces "GAME: LAN"
-   - Dead units shown grayed with timers: "Gα3 Ψα Gβ1"
+3. ✅ Game modes
+   - Single player vs AI
+   - Local multiplayer (hotseat)
+   - LAN multiplayer (host/client)
 
-3. ✅ Respawn Selection System (ui_components.py, input_handler.py)
-   - Press 'r' to enter respawn mode
-   - Menu shows ready units in action window area
-   - Arrow keys to select unit, Enter to confirm
-   - Select spawn location on map, Enter to confirm
-   - 'c' to cancel at any point
+4. ✅ Unit roster and skills
+   - Multiple unit types with unique abilities
+   - Full skill system with cooldowns and targeting
+   - Status effects with visual indicators
+   - DLC unit system
 
-*Known Issues Fixed*:
-- ✅ Respawn timers now decrement correctly
-- ✅ Respawned units have skills initialized properly
-- ✅ UNIT_SYMBOLS imported for respawn animations
+5. ✅ Graphical version features
+   - Main menu with map selection
+   - Full animations for all units
+   - Combat log with scrolling history
+   - Skill bar with hotkeys
+   - Status effect icons
+   - Unit info panels
 
-*Next Session Tasks*:
-1. PLAYTESTING - Run full games to verify:
-   - GP scoring awards correctly on kills
-   - Respawn timers count down properly
-   - Respawn menu displays and works smoothly
-   - Respawned units spawn at correct locations
-   - Respawned units have full stats/skills/HP
-   - Game ends correctly at 10 GP threshold
-   - Both players can respawn units
+** Running the Game
+ASCII version:
+  =python -m boneglaive.main=
+  =python -m boneglaive.main --mode vs_ai=
+  =python -m boneglaive.main --mode local=
 
-2. BALANCE TUNING (if needed):
-   - Adjust GP threshold (currently 10)
-   - Adjust respawn timer (currently 3 turns)
-   - Consider spawn location restrictions?
-
-3. POLISH:
-   - Add visual feedback when GP is awarded
-   - Improve respawn menu styling
-   - Add sound effects for respawns (graphical mode)
-   - Add respawn indicator on map tiles?
-
-4. GRAPHICAL MODE SUPPORT:
-   - GP display in graphical UI
-   - Respawn menu in graphical mode
-   - Respawn animations in pygame
-
-*Files Modified*:
-- boneglaive/game/engine.py - Core GP system
-- boneglaive/game/units.py - Death handling
-- boneglaive/ui/ui_renderer.py - GP display, respawn menu
-- boneglaive/ui/ui_components.py - Respawn mode logic
-- boneglaive/utils/input_handler.py - 'r' key binding
-- boneglaive/utils/constants.py - GP_ELIGIBLE_UNITS
-
-*Branch*: feature/graphical-version (clean working tree)
-
-* Current Development Focus: Graphical Version Integration
-
-** Status: Phase 3 - UI Layer (COMPLETE ✅)
-All UI components implemented: skill bar, skill targeting, combat log, status effects, and unit info panel!
-
-** After /compact - Essential Reading Order:
-1. *GRAPHICAL_QUICKSTART.md* - Start here! Quick reference and current status
-2. *boneglaive/graphical/INTEGRATION_COMPLETE.md* - What's done and working
-3. *boneglaive/graphical/GAME_ARCHITECTURE.md* - How game logic works
-4. *boneglaive/graphical/ROADMAP.md* - Full development plan (8 phases)
-5. *boneglaive/graphical/README.md* - Architecture details
-
-** Quick Context Recovery:
-- Location: =boneglaive/graphical/= package
-- Main files: =renderer.py= (pygame), =game_state.py= (adapter)
-- Test: =python run_graphical.py=
-- Progress: Phase 1 DONE, Phase 2 DONE (8/8 tasks ✅)
-- Next: Phase 3 - UI Layer
-
-** What Works Now (Phase 2: Complete Input System):
-- Phase 1 complete: State sync, HP tracking, visual effects
-- ✅ Click to select units (blue highlight)
-- ✅ Movement range display (green tiles)
-- ✅ Attack range display (red overlays on enemies)
-- ✅ Click to move units
-- ✅ Click to attack enemies
-- ✅ Press E to execute turn
-- ✅ Turns advance, players switch
-- ✅ All actions validated by game logic
-
-** Phase 3 Complete (UI Layer):
-✅ Skill bar with hotkeys (1-4, Q-R)
-✅ Skill targeting system with purple overlays
-✅ Combat log with scrolling history
-✅ Status effects panel (appears on unit selection)
-✅ Enhanced unit info panel (HP bar, stats, modifiers)
-
-**Next: Phase 4 - Animations**
+Graphical version:
+  =python run_graphical.py=
+  =python run_graphical.py --skip-menu=
 
 * Essential Architecture
 
@@ -132,14 +66,13 @@ All UI components implemented: skill bar, skill targeting, combat log, status ef
 - =renderers/curses_renderer.py= - Terminal rendering backend
 - =utils/= - Config, events, assets, debugging utilities
 
-** Graphical Version Structure (IN DEVELOPMENT)
-- =boneglaive/graphical/= - New graphical package
+** Graphical Version Structure (COMPLETE)
+- =boneglaive/graphical/= - Graphical package
   - =renderer.py= - Pygame renderer (main game loop, input, rendering)
   - =game_state.py= - Adapter bridging ASCII game logic with graphics
-  - =ui/= - UI components (skill bar, unit info, etc.)
+  - =ui/= - UI components (skill bar, unit info, menus, etc.)
   - =animations/= - Skill animations (see Animation Architecture below)
   - =assets/= - Sprites, fonts, sounds
-- =demo_animations/= - Reference animations (complete for 3 units)
 - =run_graphical.py= - Launch script for graphical version
 
 ** Animation Architecture (IMPORTANT - Keep Consistent!)
