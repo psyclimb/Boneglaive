@@ -427,6 +427,10 @@ class DivineDrepreciationAnimation:
         self.phase = "reroll"
         self.timer = 0
 
+        # Get rerolled values from caster
+        caster_game_unit = self.caster.game_unit if hasattr(self.caster, 'game_unit') else self.caster
+        rerolled_values = getattr(caster_game_unit, 'divine_depreciation_rerolled_values', {})
+
         # Create reroll effects for all tiles in 7×7 AoE that have furniture
         # Center is target_pos, so check ±3 grid tiles in each direction
         grid_y, grid_x = self.target_pos
@@ -480,8 +484,8 @@ class DivineDrepreciationAnimation:
                                          start_value, start_delay=0)  # No delay for target
                     )
                 else:
-                    # Other furniture: random reroll
-                    final_value = random.randint(1, 9)
+                    # Other furniture: use actual rerolled value
+                    final_value = rerolled_values.get((tile_grid_y, tile_grid_x), random.randint(1, 9))
                     self.reroll_numbers.append(
                         CosmicRerollNumber(tile_screen_x, tile_screen_y, self.camera,
                                          final_value, start_delay=delay)
@@ -2756,4 +2760,316 @@ class DelphicAppraiserAstralAttack:
 
                 surface.blit(flash_surf, (int(self.target.x - flash_radius),
                                          int(self.target.y - flash_radius)))
+
+
+# ============================================================================
+# DEFT(?) REROLL ANIMATION
+# ============================================================================
+
+class SpinningNumberEffect:
+    """
+    Spinning slot-machine number effect at a single position.
+    """
+    def __init__(self, x, y, final_value=None, delay=0):
+        self.x = x
+        self.y = y
+        self.timer = -delay
+        self.spin_duration = 0.8
+        self.lock_duration = 0.5
+        self.active = True
+        self.phase = "spinning"  # spinning -> locking -> done
+
+        # Visual state
+        self.current_number = random.randint(1, 9)
+        self.spin_speed = 15  # Numbers per second
+        self.final_number = final_value if final_value is not None else random.randint(1, 9)
+        self.lock_flash_alpha = 0
+
+    def update(self, delta_time):
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.timer < 0:  # Delay not elapsed
+            return True
+
+        if self.phase == "spinning":
+            # Rapidly cycle numbers
+            self.current_number = 1 + int((self.timer * self.spin_speed) % 9)
+
+            if self.timer >= self.spin_duration:
+                self.phase = "locking"
+                self.timer = 0
+                self.current_number = self.final_number
+                self.lock_flash_alpha = 255
+
+        elif self.phase == "locking":
+            # Flash and fade
+            progress = self.timer / self.lock_duration
+            self.lock_flash_alpha = int(255 * (1.0 - progress))
+
+            if self.timer >= self.lock_duration:
+                self.phase = "done"
+                self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        if self.timer < 0:  # Don't draw during delay
+            return
+
+        # Colors
+        gold = (255, 215, 0)
+        white = (255, 255, 255)
+
+        # Draw number
+        font = pygame.font.Font(None, 32)
+
+        if self.phase == "spinning":
+            # Blur effect during spin (draw multiple overlapping numbers)
+            for offset in [-2, 0, 2]:
+                alpha = 150 if offset != 0 else 255
+                text = font.render(str(self.current_number), True, gold)
+                text.set_alpha(alpha)
+                text_rect = text.get_rect(center=(int(self.x), int(self.y + offset)))
+                surface.blit(text, text_rect)
+
+        elif self.phase == "locking":
+            # Lock-in flash
+            if self.lock_flash_alpha > 0:
+                # Draw flash ring
+                flash_radius = 20
+                flash_surf = pygame.Surface((flash_radius * 2, flash_radius * 2), pygame.SRCALPHA)
+                pygame.draw.circle(flash_surf, (*gold, self.lock_flash_alpha),
+                                 (flash_radius, flash_radius), flash_radius, 3)
+                surface.blit(flash_surf, (int(self.x - flash_radius),
+                                         int(self.y - flash_radius)))
+
+            # Draw final number
+            text = font.render(str(self.final_number), True, white)
+            text_rect = text.get_rect(center=(int(self.x), int(self.y)))
+            surface.blit(text, text_rect)
+
+
+class DeftRerollAnimation:
+    """
+    DEFT(?) REROLL skill animation for DELPHIC APPRAISER.
+    Rerolls all furniture values in the Divine Depreciation distortion area.
+
+    Phases:
+    1. Activation - Gold pulse from caster
+    2. Spinning Values - Slot machine number cycling
+    3. Resolution - Values lock in with flashes
+    4. Completion - Effects fade
+    """
+
+    # Delphic Appraiser color palette
+    color_gold = (255, 215, 0)
+    color_goldenrod = (218, 165, 32)
+    color_dark_goldenrod = (184, 134, 11)
+
+    def __init__(self, caster_unit, target_unit, target_pos, is_crit, is_infused,
+                 particle_emitter, debris_list, screen_shake_callback,
+                 screen_flash_callback, units_list, camera, game=None):
+        """
+        Initialize Deft(?) Reroll animation.
+
+        Args:
+            caster_unit: The Delphic Appraiser
+            target_pos: Not used (self-targeted)
+            game: Game instance to access distortion area
+            camera: Camera for coordinate conversion
+        """
+        self.caster = caster_unit
+        self.camera = camera
+        self.particle_emitter = particle_emitter
+        self.screen_shake_callback = screen_shake_callback
+        self.screen_flash_callback = screen_flash_callback
+        self.game = game
+
+        # Get caster game unit
+        if hasattr(caster_unit, 'game_unit'):
+            caster_game_unit = caster_unit.game_unit
+        elif hasattr(caster_unit, 'x') and hasattr(caster_unit, 'y'):
+            caster_game_unit = caster_unit
+        else:
+            # Fallback: no valid caster
+            caster_game_unit = None
+            self.caster_x = 0
+            self.caster_y = 0
+
+        if caster_game_unit:
+            self.caster_x, self.caster_y = camera.grid_to_screen(caster_game_unit.x, caster_game_unit.y, centered=True)
+
+        # Animation state
+        self.phase = "activation"
+        self.timer = 0
+        self.active = True
+
+        # Phase durations
+        self.activation_duration = 0.2
+        self.spinning_duration = 0.8
+        self.resolution_duration = 0.5
+        self.completion_duration = 0.3
+
+        # Get furniture positions to animate (only furniture tiles, not all distortion area)
+        self.reroll_positions = []  # List of (screen_x, screen_y, final_value)
+        if game and caster_game_unit and hasattr(caster_game_unit, 'deft_reroll_distortion_id'):
+            from boneglaive.game.terrain import TerrainType
+            distortion_id = caster_game_unit.deft_reroll_distortion_id
+            distortion = game.reality_distortions.get(distortion_id)
+
+            # Get rerolled values from caster unit
+            rerolled_values = getattr(caster_game_unit, 'deft_reroll_values', {})
+
+            if distortion and 'area' in distortion:
+                # Only add positions that have furniture
+                for pos in distortion['area']:
+                    if pos != distortion.get('center'):  # Skip center
+                        terrain = game.map.get_terrain_at(pos[0], pos[1])
+                        if terrain in [TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
+                                     TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF,
+                                     TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE,
+                                     TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
+                                     TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
+                                     TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
+                                     TerrainType.POTPOURRI_BOWL]:
+                            screen_x, screen_y = camera.grid_to_screen(pos[1], pos[0], centered=True)
+                            final_value = rerolled_values.get(pos, random.randint(1, 9))
+                            self.reroll_positions.append((screen_x, screen_y, final_value))
+
+        # Visual elements
+        self.activation_pulse = 0
+        self.spinning_effects = []
+
+        # Start activation
+        self._start_activation()
+
+    def _start_activation(self):
+        """Phase 1: Activation."""
+        self.phase = "activation"
+        self.timer = 0
+
+        # Light screen flash
+        self.screen_flash_callback((255, 215, 0), 0.2)
+
+    def _start_spinning(self):
+        """Phase 2: Spinning Values."""
+        self.phase = "spinning"
+        self.timer = 0
+
+        # Create spinning number effects at each position with final value
+        for i, (x, y, final_value) in enumerate(self.reroll_positions):
+            delay = i * 0.05  # Stagger slightly
+            self.spinning_effects.append(SpinningNumberEffect(x, y, final_value=final_value, delay=delay))
+
+        # Screen shake
+        self.screen_shake_callback(intensity=3, duration=0.8)
+
+    def _start_resolution(self):
+        """Phase 3: Resolution."""
+        self.phase = "resolution"
+        self.timer = 0
+
+    def _start_completion(self):
+        """Phase 4: Completion."""
+        self.phase = "completion"
+        self.timer = 0
+
+    def update(self, delta_time):
+        """Update animation."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.phase == "activation":
+            # Pulse grows from caster
+            progress = self.timer / self.activation_duration
+            self.activation_pulse = progress
+
+            if self.timer >= self.activation_duration:
+                self._start_spinning()
+
+        elif self.phase == "spinning":
+            # Update all spinning effects
+            all_done = True
+            for effect in self.spinning_effects:
+                if effect.update(delta_time):
+                    all_done = False
+
+            # Once all effects are done spinning, move to resolution
+            if all_done or self.timer >= self.spinning_duration + 1.0:
+                self._start_resolution()
+
+        elif self.phase == "resolution":
+            # Wait for lock-in effects to complete
+            if self.timer >= self.resolution_duration:
+                self._start_completion()
+
+        elif self.phase == "completion":
+            # Fade out
+            if self.timer >= self.completion_duration:
+                self.active = False
+                return False
+
+        return True
+
+    def draw(self, surface):
+        """Draw animation."""
+        if not self.active:
+            return
+
+        if self.phase == "activation":
+            # Gold pulse from caster
+            if self.activation_pulse > 0:
+                radius = int(40 * self.activation_pulse)
+                alpha = int(180 * (1.0 - self.activation_pulse))
+
+                if alpha > 0:
+                    pulse_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+                    pygame.draw.circle(pulse_surf, (*self.color_gold, alpha),
+                                     (radius, radius), radius)
+                    surface.blit(pulse_surf, (int(self.caster_x - radius),
+                                             int(self.caster_y - radius)))
+
+            # Highlight reroll positions
+            for x, y, _ in self.reroll_positions:
+                alpha = int(120 * self.activation_pulse)
+                if alpha > 0:
+                    highlight_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                    pygame.draw.rect(highlight_surf, (*self.color_gold, alpha),
+                                   highlight_surf.get_rect(), 2)
+                    surface.blit(highlight_surf, (int(x - TILE_SIZE // 2),
+                                                 int(y - TILE_SIZE // 2)))
+
+        elif self.phase == "spinning" or self.phase == "resolution":
+            # Draw all spinning number effects
+            for effect in self.spinning_effects:
+                effect.draw(surface)
+
+            # Draw orbiting particles during spin
+            if self.phase == "spinning":
+                for x, y, _ in self.reroll_positions:
+                    for i in range(4):
+                        angle = (self.timer * 3 + i * (math.pi / 2))
+                        radius = 15
+                        px = x + math.cos(angle) * radius
+                        py = y + math.sin(angle) * radius
+
+                        pygame.draw.circle(surface, self.color_goldenrod,
+                                         (int(px), int(py)), 2)
+
+        elif self.phase == "completion":
+            # Fade out any remaining effects
+            progress = self.timer / self.completion_duration
+            alpha = int(255 * (1.0 - progress))
+
+            if alpha > 0:
+                for x, y, _ in self.reroll_positions:
+                    glow_surf = pygame.Surface((30, 30), pygame.SRCALPHA)
+                    pygame.draw.circle(glow_surf, (*self.color_gold, alpha // 2),
+                                     (15, 15), 15)
+                    surface.blit(glow_surf, (int(x - 15), int(y - 15)))
 

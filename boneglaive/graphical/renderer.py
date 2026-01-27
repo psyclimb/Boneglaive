@@ -1114,6 +1114,32 @@ class GraphicalRenderer:
                                     self.handle_animation_event(event)
 
                             print(f"[Renderer] Parallax animation triggered")
+
+                        # Special handling for Deft(?) Reroll - it executes immediately, not during turn execution
+                        if self.selected_skill.name == "Deft(?) Reroll":
+                            print(f"[Renderer] Deft(?) Reroll executed immediately - triggering animation")
+
+                            # Create animation event for immediate execution
+                            from boneglaive.graphical.game_state import AnimationEvent
+                            anim_event = AnimationEvent(
+                                event_type="skill",
+                                source_unit=game_unit,
+                                target_unit=None,
+                                skill_name="DEFT(?) REROLL",
+                                skill_target=(game_unit.y, game_unit.x),
+                                is_infused=False
+                            )
+
+                            # Create skill animation IMMEDIATELY (don't queue it)
+                            self._create_skill_animation(anim_event)
+
+                            # Sync state to update visual effects
+                            sync_events = self.game_adapter.sync_state()
+                            for event in sync_events:
+                                if event.event_type != "skill":  # Skip skill events, we already handled it
+                                    self.handle_animation_event(event)
+
+                            print(f"[Renderer] Deft(?) Reroll animation triggered")
                     else:
                         print(f"Failed to use skill: {self.selected_skill.name}")
 

@@ -1106,6 +1106,9 @@ class DivineDrepreciationSkill(ActiveSkill):
                 'distance': distance
             })
 
+        # Store rerolled values for graphical animation
+        rerolled_values = {}  # {(y, x): new_value}
+
         # Reroll astral values for all other furniture in the AOE
         for pos in other_furniture:
             # Show flashing random numbers animation on this furniture before setting final value
@@ -1122,6 +1125,7 @@ class DivineDrepreciationSkill(ActiveSkill):
             # Generate a new random astral value (1-9) for this player
             new_value = random.randint(1, 9)
             game.map.set_cosmic_value(pos[0], pos[1], new_value, user.player)
+            rerolled_values[pos] = new_value
 
         # With Valuation Oracle upgrade: Reroll astral values for appraised enemies
         if hasattr(user, 'passive_skill') and user.passive_skill and appraised_enemies:
@@ -1139,12 +1143,16 @@ class DivineDrepreciationSkill(ActiveSkill):
                 # Generate a new random astral value (1-9) for this enemy
                 new_value = random.randint(1, 9)
                 user.passive_skill._set_enemy_astral_value(game, user.player, enemy_unit, new_value)
+                rerolled_values[pos] = new_value
 
                 # If enemy is imbued, also update their imbued cosmic value
                 if (hasattr(enemy_unit, 'status_imbued') and
                     enemy_unit.status_imbued and
                     enemy_unit.status_imbued_player == user.player):
                     enemy_unit.status_imbued_cosmic_value = new_value
+
+        # Store rerolled values on user for animation to access
+        user.divine_depreciation_rerolled_values = rerolled_values
 
         # Log the skill activation with details about the astral values
         message_log.add_message(
@@ -1589,6 +1597,8 @@ class DeftRerollSkill(ActiveSkill):
         if not distortion:
             return False
 
+        # Note: Animation is handled by renderer.py for immediate execution skills
+
         # Check if Valuation Oracle upgrade is active
         from boneglaive.game.upgrades import UpgradeManager
         valuation_oracle_upgraded = UpgradeManager.is_skill_upgraded(user, "Valuation Oracle")
@@ -1614,6 +1624,9 @@ class DeftRerollSkill(ActiveSkill):
                     if enemy_unit and enemy_unit.is_alive() and enemy_unit.player != user.player:
                         appraised_enemies.append((pos, enemy_unit))
 
+        # Store rerolled values for graphical animation
+        rerolled_values = {}  # {(y, x): new_value}
+
         # Reroll animation + values for all furniture
         for pos in furniture_to_reroll:
             # Show flashing reroll animation
@@ -1629,6 +1642,7 @@ class DeftRerollSkill(ActiveSkill):
             # Generate new cosmic value
             new_value = random.randint(1, 9)
             game.map.set_cosmic_value(pos[0], pos[1], new_value, user.player)
+            rerolled_values[pos] = new_value
 
         # With Valuation Oracle upgrade: Reroll astral values for appraised enemies
         if hasattr(user, 'passive_skill') and user.passive_skill and appraised_enemies:
@@ -1646,12 +1660,16 @@ class DeftRerollSkill(ActiveSkill):
                 # Generate a new random astral value (1-9) for this enemy
                 new_value = random.randint(1, 9)
                 user.passive_skill._set_enemy_astral_value(game, user.player, enemy_unit, new_value)
+                rerolled_values[pos] = new_value
 
                 # If enemy is imbued, also update their imbued cosmic value
                 if (hasattr(enemy_unit, 'status_imbued') and
                     enemy_unit.status_imbued and
                     enemy_unit.status_imbued_player == user.player):
                     enemy_unit.status_imbued_cosmic_value = new_value
+
+        # Store rerolled values on user for animation to access
+        user.deft_reroll_values = rerolled_values
 
         # Redraw board
         if ui and hasattr(ui, 'draw_board'):

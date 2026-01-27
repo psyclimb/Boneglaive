@@ -45,6 +45,7 @@ from boneglaive.graphical.animations.delphic_appraiser import (
     AuctionCurseTickAnimation,
     MarketFuturesAnimation,
     MarketFuturesTeleportAnimation,
+    DeftRerollAnimation,
 )
 from boneglaive.graphical.animations.marrow_condenser import (
     OssifyAnimation,
@@ -165,6 +166,9 @@ class AnimationFactory:
         "AUCTION_CURSE": (AuctionCurseAnimation, {}),
         "AUCTION_CURSE_TICK": (AuctionCurseTickAnimation, {}),
         "DIVINE_DEPRECIATION": (DivineDrepreciationAnimation, {}),
+        "DEFT(?) REROLL": (DeftRerollAnimation, {}),
+        "DEFT(?)_REROLL": (DeftRerollAnimation, {}),  # Normalized version (space → underscore)
+        "DEFT_REROLL": (DeftRerollAnimation, {}),  # Fallback if converted with underscores
         "PARALLAX": (MarketFuturesTeleportAnimation, {}),
 
         # INTERFERER skills
@@ -745,6 +749,23 @@ class AnimationFactory:
                     caster_unit=caster_unit,
                     target_unit=target_unit,
                     target_pos=target_pos,
+                    is_crit=is_crit,
+                    is_infused=is_infused,
+                    particle_emitter=particle_emitter,
+                    debris_list=[],
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,
+                    units_list=units_list if units_list else [],
+                    camera=camera,
+                    game=kwargs.get('game')
+                )
+            elif anim_class.__name__ == "DeftRerollAnimation":
+                # Deft(?) Reroll - reroll furniture values in Divine Depreciation area
+                # Requires: caster unit, game instance (for distortion), camera, callbacks
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_unit=None,  # Self-targeting
+                    target_pos=(caster_unit.grid_y, caster_unit.grid_x) if caster_unit else (0, 0),
                     is_crit=is_crit,
                     is_infused=is_infused,
                     particle_emitter=particle_emitter,
