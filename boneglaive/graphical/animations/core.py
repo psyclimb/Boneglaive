@@ -180,7 +180,9 @@ class VaporParticleCloud:
         'BROACHING': [(34, 139, 34), (50, 205, 50), (144, 238, 144)],    # Green bottle colors
         'SAFETY': [(30, 144, 255), (65, 105, 225), (135, 206, 250)],     # Blue bottle colors
         'COOLANT': [(240, 248, 255), (255, 255, 255), (248, 248, 255)],  # White
-        'CUTTING': [(220, 20, 60), (255, 99, 71), (255, 127, 80)]        # Red bottle colors
+        'CUTTING': [(220, 20, 60), (255, 99, 71), (255, 127, 80)],       # Red bottle colors
+        'CALIBRATION': [(255, 215, 0), (218, 165, 32), (255, 223, 0)],  # Yellow (safety glasses)
+        'LIVING_AEROSOL': [(106, 106, 106), (139, 139, 139), (176, 176, 176)]  # Gray (matching icon)
     }
 
     def __init__(self, vapor_type='BROACHING'):

@@ -69,7 +69,7 @@ UNIT_SKILLS = {
     },
     "GAS_MACHINIST": {
         "passive": EffluviumLathe(),
-        "active": [EnbroachmentGasSkill(), SaftEGasSkill(), DivergeSkill(), AerosolizeArmsSkill()]
+        "active": [EnbroachmentGasSkill(), SaftEGasSkill(), DivergeSkill()]
     },
     "DELPHIC_APPRAISER": {
         "passive": ValuationOracle(),

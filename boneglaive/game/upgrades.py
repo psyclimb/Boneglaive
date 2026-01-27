@@ -384,6 +384,13 @@ class UpgradeManager:
             game.map.junction_positions.add((bottom_horizontal, vertical_line_1))
             game.map.junction_positions.add((bottom_horizontal, vertical_line_2))
 
+        # Special handling for Effluvium Lathe upgrade - unlock Aerosolize Arms skill
+        if unit.type == UnitType.GAS_MACHINIST and skill_name == "Effluvium Lathe":
+            from boneglaive.game.skills.gas_machinist import AerosolizeArmsSkill
+            # Add Aerosolize Arms to the unit's active skills
+            aerosolize_skill = AerosolizeArmsSkill()
+            unit.active_skills.append(aerosolize_skill)
+
         # Log upgrade message
         from boneglaive.utils.constants import UnitType
         unit_type_name = None

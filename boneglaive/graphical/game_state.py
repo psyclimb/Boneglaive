@@ -982,22 +982,17 @@ class GameStateAdapter:
                     unit.just_applied_aoe and
                     hasattr(unit, 'vapor_type')):
 
-                    # Skip if this is a newly created vapor (has diverged_user flag from Diverge)
-                    # These vapors play their spawn animation instead of AOE tick
-                    is_newly_diverged = hasattr(unit, 'diverged_user') and unit.diverged_user
+                    # Queue vapor AOE tick animation
+                    vapor_type = unit.vapor_type
+                    skill_name = f"vapor_aoe_{vapor_type.lower()}"
 
-                    if not is_newly_diverged:
-                        # Queue vapor AOE tick animation
-                        vapor_type = unit.vapor_type
-                        skill_name = f"vapor_aoe_{vapor_type.lower()}"
-
-                        events.append(AnimationEvent(
-                            "skill",
-                            source_unit=unit,
-                            target_unit=None,
-                            skill_name=skill_name,
-                            skill_target=(unit.y, unit.x)  # Vapor's position
-                        ))
+                    events.append(AnimationEvent(
+                        "skill",
+                        source_unit=unit,
+                        target_unit=None,
+                        skill_name=skill_name,
+                        skill_target=(unit.y, unit.x)  # Vapor's position
+                    ))
 
                     # Clear the flag
                     unit.just_applied_aoe = False

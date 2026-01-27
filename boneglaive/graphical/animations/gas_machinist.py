@@ -756,6 +756,678 @@ class DivergeAnimation:
                                  (int(px), int(py)), int(size))
 
 
+class DivergeAnimationUpgraded:
+    """
+    UPGRADED DIVERGE skill animation for GAS MACHINIST.
+    Violently splits target into THREE specialized vapor entities (adds CALIBRATION gas).
+
+    Phases:
+    1. Compression - Target compresses as pressure builds
+    2. Split - Explosive rupture into white, red, and yellow gas streams
+    3. Formation - Streams arc to spawn positions and condense
+    4. Manifestation - Final vapors materialize with eyes
+    """
+
+    # Use vapor colors for consistency
+    COOLANT_COLORS = VaporParticleCloud.VAPOR_COLORS['COOLANT']
+    CUTTING_COLORS = VaporParticleCloud.VAPOR_COLORS['CUTTING']
+    CALIBRATION_COLORS = VaporParticleCloud.VAPOR_COLORS['CALIBRATION']
+    INDUSTRIAL_GREY = (138, 138, 138)
+
+    def __init__(self, caster_unit, target_unit, target_pos, is_crit, is_infused,
+                 particle_emitter, debris_list, screen_shake_callback,
+                 screen_flash_callback, units_list, camera, game=None):
+        """
+        Initialize Upgraded Diverge animation.
+
+        Args:
+            target_unit: The unit/vapor being split
+            target_pos: (grid_y, grid_x) - position being targeted
+            camera: Camera for coordinate conversion
+        """
+        self.caster = caster_unit
+        self.target_unit = target_unit
+        self.target_pos = target_pos
+        self.camera = camera
+        self.particle_emitter = particle_emitter
+        self.screen_shake_callback = screen_shake_callback
+        self.screen_flash_callback = screen_flash_callback
+        self.game = game
+
+        # Convert target position to screen coordinates
+        grid_y, grid_x = target_pos
+        self.target_x, self.target_y = camera.grid_to_screen(grid_x, grid_y, centered=True)
+
+        # Animation state
+        self.phase = "compression"
+        self.timer = 0
+        self.active = True
+
+        # Phase durations
+        self.compression_duration = 0.3
+        self.split_duration = 0.5  # Slightly longer for 3 streams
+        self.formation_duration = 0.7  # Slightly longer for 3 streams
+        self.manifestation_duration = 0.8
+
+        # Visual elements
+        self.compression_scale = 1.0
+        self.glow_intensity = 0
+        self.split_streams = []
+        self.split_triggered = False
+
+        # Vapor positions - will be updated during first update() call
+        self.coolant_x = self.target_x - TILE_SIZE
+        self.coolant_y = self.target_y
+        self.cutting_x = self.target_x + TILE_SIZE
+        self.cutting_y = self.target_y
+        self.calibration_x = self.target_x
+        self.calibration_y = self.target_y - TILE_SIZE  # Above center
+
+        # Flag to track if we've found vapor positions yet
+        self.vapor_positions_found = False
+
+        # Start compression
+        self._start_compression()
+
+    def _start_compression(self):
+        """Phase 1: Compression."""
+        self.phase = "compression"
+        self.timer = 0
+
+        # Light screen shake
+        self.screen_shake_callback(intensity=4, duration=0.3)
+
+    def _start_split(self):
+        """Phase 2: Split into THREE streams."""
+        self.phase = "split"
+        self.timer = 0
+
+        # NOW find vapor positions - they should exist by the time split phase starts
+        if not self.vapor_positions_found and self.game:
+            from boneglaive.utils.constants import UnitType
+
+            # Get the game unit from the AnimatedUnit if that's what we have
+            caster_game_unit = None
+            if hasattr(self.caster, 'game_unit'):
+                caster_game_unit = self.caster.game_unit
+            else:
+                caster_game_unit = self.caster
+
+            # Find matching vapors
+            for unit in self.game.units:
+                if (unit.type == UnitType.HEINOUS_VAPOR and
+                    hasattr(unit, 'vapor_type') and
+                    hasattr(unit, 'vapor_creator') and
+                    unit.vapor_creator == caster_game_unit):
+
+                    vapor_screen_x, vapor_screen_y = self.camera.grid_to_screen(unit.x, unit.y, centered=True)
+
+                    if unit.vapor_type == "COOLANT":
+                        self.coolant_x = vapor_screen_x
+                        self.coolant_y = vapor_screen_y
+                    elif unit.vapor_type == "CUTTING":
+                        self.cutting_x = vapor_screen_x
+                        self.cutting_y = vapor_screen_y
+                    elif unit.vapor_type == "CALIBRATION":
+                        self.calibration_x = vapor_screen_x
+                        self.calibration_y = vapor_screen_y
+
+            self.vapor_positions_found = True
+
+        # Create THREE gas streams with staggered delays
+        self.split_streams = [
+            # Coolant stream (white)
+            GasSplitStream(self.target_x, self.target_y,
+                          self.coolant_x, self.coolant_y,
+                          self.COOLANT_COLORS, delay=0),
+
+            # Cutting stream (red)
+            GasSplitStream(self.target_x, self.target_y,
+                          self.cutting_x, self.cutting_y,
+                          self.CUTTING_COLORS, delay=0.05),
+
+            # Calibration stream (yellow) - NEW!
+            GasSplitStream(self.target_x, self.target_y,
+                          self.calibration_x, self.calibration_y,
+                          self.CALIBRATION_COLORS, delay=0.1)
+        ]
+
+        # Heavy screen shake at split moment (more intense for 3-way split)
+        self.screen_shake_callback(intensity=10, duration=0.5)
+
+        # More explosion particles for 3-way split
+        if self.particle_emitter:
+            for _ in range(60):
+                angle = random.uniform(0, 2 * math.pi)
+                speed = random.uniform(100, 300)
+
+                from .core import Particle
+                particle = Particle(
+                    x=self.target_x,
+                    y=self.target_y,
+                    vx=math.cos(angle) * speed,
+                    vy=math.sin(angle) * speed,
+                    color=random.choice(self.COOLANT_COLORS + self.CUTTING_COLORS + self.CALIBRATION_COLORS),
+                    size=random.uniform(2, 6),
+                    lifetime=random.uniform(0.3, 0.8)
+                )
+                particle.gravity = 80
+                self.particle_emitter.particles.append(particle)
+
+    def _start_formation(self):
+        """Phase 3: Formation."""
+        self.phase = "formation"
+        self.timer = 0
+
+    def _start_manifestation(self):
+        """Phase 4: Manifestation."""
+        self.phase = "manifestation"
+        self.timer = 0
+
+    def update(self, delta_time):
+        """Update animation."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Update based on phase
+        if self.phase == "compression":
+            # Compress target unit
+            progress = min(1.0, self.timer / self.compression_duration)
+            self.compression_scale = 1.0 - (progress * 0.3)  # Compress to 70%
+            self.glow_intensity = progress
+
+            # Manipulate target unit visually
+            if self.target_unit:
+                # Store original scale if not already stored
+                if not hasattr(self.target_unit, 'original_scale_y'):
+                    self.target_unit.original_scale_y = getattr(self.target_unit, 'pry_stretch_y', 1.0)
+
+                self.target_unit.pry_stretch_y = self.compression_scale
+
+            if self.timer >= self.compression_duration:
+                self._start_split()
+
+        elif self.phase == "split":
+            # Update gas streams
+            for stream in self.split_streams:
+                stream.update(delta_time)
+
+            # Reset target unit scale
+            if self.target_unit and hasattr(self.target_unit, 'original_scale_y'):
+                self.target_unit.pry_stretch_y = self.target_unit.original_scale_y
+                delattr(self.target_unit, 'original_scale_y')
+
+            if self.timer >= self.split_duration:
+                self._start_formation()
+
+        elif self.phase == "formation":
+            # Keep streams updating
+            for stream in self.split_streams:
+                stream.update(delta_time)
+
+            if self.timer >= self.formation_duration:
+                self._start_manifestation()
+
+        elif self.phase == "manifestation":
+            # Final vapor condensation effects at all three positions
+            progress = self.timer / self.manifestation_duration
+
+            if self.timer >= self.manifestation_duration:
+                self.active = False
+                return False
+
+        return True
+
+    def draw(self, surface):
+        """Draw animation."""
+        if not self.active:
+            return
+
+        if self.phase == "compression":
+            # Draw pulsing industrial grey glow (more intense for 3-way)
+            if self.glow_intensity > 0:
+                pulse = 1.0 + math.sin(self.timer * 12) * 0.3
+                radius = int(35 * self.glow_intensity * pulse)
+                alpha = int(180 * self.glow_intensity)
+
+                glow_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+                pygame.draw.circle(glow_surf, (*self.INDUSTRIAL_GREY, alpha),
+                                 (radius, radius), radius)
+
+                surface.blit(glow_surf, (int(self.target_x - radius),
+                                        int(self.target_y - radius)))
+
+        elif self.phase == "split":
+            # Draw gas streams
+            for stream in self.split_streams:
+                stream.draw(surface)
+
+            # Draw split flash at center (more intense)
+            progress = self.timer / self.split_duration
+            if progress < 0.3:
+                flash_alpha = int(230 * (1.0 - progress / 0.3))
+                flash_radius = int(50 + progress / 0.3 * 30)
+
+                flash_surf = pygame.Surface((flash_radius * 2, flash_radius * 2), pygame.SRCALPHA)
+                pygame.draw.circle(flash_surf, (255, 255, 255, flash_alpha),
+                                 (flash_radius, flash_radius), flash_radius)
+
+                surface.blit(flash_surf, (int(self.target_x - flash_radius),
+                                         int(self.target_y - flash_radius)))
+
+        elif self.phase == "formation":
+            # Continue drawing streams
+            for stream in self.split_streams:
+                stream.draw(surface)
+
+            # Draw condensation at all three endpoints
+            progress = self.timer / self.formation_duration
+            if progress > 0.4:
+                cond_progress = (progress - 0.4) / 0.6
+
+                # Coolant condensation
+                self._draw_condensation(surface, self.coolant_x, self.coolant_y,
+                                       self.COOLANT_COLORS, cond_progress)
+
+                # Cutting condensation
+                self._draw_condensation(surface, self.cutting_x, self.cutting_y,
+                                       self.CUTTING_COLORS, cond_progress)
+
+                # Calibration condensation (yellow)
+                self._draw_condensation(surface, self.calibration_x, self.calibration_y,
+                                       self.CALIBRATION_COLORS, cond_progress)
+
+        elif self.phase == "manifestation":
+            # Draw final materialization at all three positions
+            progress = self.timer / self.manifestation_duration
+
+            # Industrial metal "clang" rings at all three positions
+            for pos_x, pos_y, colors in [(self.coolant_x, self.coolant_y, self.COOLANT_COLORS),
+                                          (self.cutting_x, self.cutting_y, self.CUTTING_COLORS),
+                                          (self.calibration_x, self.calibration_y, self.CALIBRATION_COLORS)]:
+                num_rings = 3
+                for i in range(num_rings):
+                    ring_delay = i * 0.15
+                    ring_progress = min(1.0, max(0.0, (progress - ring_delay) / (1.0 - ring_delay)))
+
+                    if ring_progress > 0:
+                        radius = int(15 + 25 * ring_progress)
+                        alpha = int(180 * (1.0 - ring_progress))
+
+                        if alpha > 0:
+                            color = colors[i % len(colors)]
+                            pygame.draw.circle(surface, (*color, alpha),
+                                             (int(pos_x), int(pos_y)), radius, 3)
+
+    def _draw_condensation(self, surface, x, y, colors, progress):
+        """Draw condensation effect at a position."""
+        # Swirling particles
+        for i in range(12):
+            angle = (i / 12) * 2 * math.pi + progress * 3
+            radius = 25 * (1.0 - progress * 0.5)
+            px = x + math.cos(angle) * radius
+            py = y + math.sin(angle) * radius
+
+            alpha = int(180 * (1.0 - progress * 0.5))
+            size = 4 * (1.0 - progress * 0.3)
+
+            if alpha > 0:
+                color = colors[i % len(colors)]
+                pygame.draw.circle(surface, (*color, alpha),
+                                 (int(px), int(py)), int(size))
+
+
+class AerosolizeArmsAnimation:
+    """
+    AEROSOLIZE ARMS skill animation for GAS MACHINIST.
+    Disarms target by dissolving their weapon into grey aerosol particles,
+    then forming a LIVING AEROSOL entity.
+
+    Phases:
+    1. Targeting Beam - Yellow beam from caster to target
+    2. Weapon Extraction - Target's weapon dissolves into grey particles
+    3. Aerosol Formation - Particles condense into LIVING AEROSOL vapor
+    4. Disarm Effect - Disarm indicator and aerosol settles
+    """
+
+    # Colors
+    AEROSOL_COLORS = VaporParticleCloud.VAPOR_COLORS['LIVING_AEROSOL']  # Grey
+    BEAM_COLOR = (255, 215, 0)  # Yellow (Gas Machinist signature)
+    DISARM_COLOR = (139, 139, 139)  # Grey
+
+    def __init__(self, caster_unit, target_unit, target_pos, is_crit, is_infused,
+                 particle_emitter, debris_list, screen_shake_callback,
+                 screen_flash_callback, units_list, camera, game=None):
+        """
+        Initialize Aerosolize Arms animation.
+
+        Args:
+            caster_unit: The Gas Machinist casting the skill
+            target_unit: The unit being disarmed
+            target_pos: (grid_y, grid_x) - position being targeted
+            camera: Camera for coordinate conversion
+        """
+        self.caster = caster_unit
+        self.target_unit = target_unit
+        self.target_pos = target_pos
+        self.camera = camera
+        self.particle_emitter = particle_emitter
+        self.screen_shake_callback = screen_shake_callback
+        self.screen_flash_callback = screen_flash_callback
+        self.game = game
+
+        # Convert positions to screen coordinates
+        grid_y, grid_x = target_pos
+        self.target_x, self.target_y = camera.grid_to_screen(grid_x, grid_y, centered=True)
+
+        # Get caster position
+        if hasattr(caster_unit, 'game_unit'):
+            caster_game_unit = caster_unit.game_unit
+        else:
+            caster_game_unit = caster_unit
+        self.caster_x, self.caster_y = camera.grid_to_screen(caster_game_unit.x, caster_game_unit.y, centered=True)
+
+        # Animation state
+        self.phase = "targeting"
+        self.timer = 0
+        self.active = True
+
+        # Phase durations
+        self.targeting_duration = 0.3
+        self.extraction_duration = 0.4
+        self.formation_duration = 0.5
+        self.disarm_duration = 0.3
+
+        # Visual elements
+        self.beam_alpha = 0
+        self.weapon_particles = []
+        self.aerosol_particles = []
+        self.disarm_alpha = 0
+        self.target_glow_intensity = 0
+
+        # Aerosol spawn position (will be found later)
+        self.aerosol_x = self.target_x
+        self.aerosol_y = self.target_y - TILE_SIZE
+        self.aerosol_found = False
+
+    def update(self, delta_time):
+        """Update animation."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Find aerosol spawn position if not found yet
+        if not self.aerosol_found and self.game and self.phase != "targeting":
+            from boneglaive.utils.constants import UnitType
+            for unit in self.game.units:
+                if (unit.type == UnitType.HEINOUS_VAPOR and
+                    hasattr(unit, 'vapor_type') and
+                    unit.vapor_type == "LIVING_AEROSOL" and
+                    hasattr(unit, 'source_unit') and
+                    unit.source_unit == (self.target_unit.game_unit if hasattr(self.target_unit, 'game_unit') else self.target_unit)):
+
+                    aerosol_screen_x, aerosol_screen_y = self.camera.grid_to_screen(unit.x, unit.y, centered=True)
+                    self.aerosol_x = aerosol_screen_x
+                    self.aerosol_y = aerosol_screen_y
+                    self.aerosol_found = True
+                    break
+
+        if self.phase == "targeting":
+            # Beam intensifies
+            progress = min(1.0, self.timer / self.targeting_duration)
+            self.beam_alpha = int(255 * progress)
+            self.target_glow_intensity = progress
+
+            if self.timer >= self.targeting_duration:
+                self._start_extraction()
+
+        elif self.phase == "extraction":
+            # Weapon dissolves into particles
+            progress = self.timer / self.extraction_duration
+
+            # Spawn weapon particles
+            if random.random() < 0.4:
+                angle = random.uniform(0, 2 * math.pi)
+                offset = random.uniform(5, 15)
+                self.weapon_particles.append({
+                    'x': self.target_x + math.cos(angle) * offset,
+                    'y': self.target_y + math.sin(angle) * offset,
+                    'vx': math.cos(angle) * random.uniform(20, 40),
+                    'vy': math.sin(angle) * random.uniform(20, 40) - 30,  # Float upward
+                    'size': random.uniform(2, 5),
+                    'color': random.choice(self.AEROSOL_COLORS),
+                    'lifetime': 1.0,
+                    'max_lifetime': 1.0
+                })
+
+            # Update weapon particles
+            for p in self.weapon_particles[:]:
+                p['x'] += p['vx'] * delta_time
+                p['y'] += p['vy'] * delta_time
+                p['lifetime'] -= delta_time
+                if p['lifetime'] <= 0:
+                    self.weapon_particles.remove(p)
+
+            # Target shake effect
+            if self.target_unit:
+                if not hasattr(self.target_unit, 'original_scale_x'):
+                    self.target_unit.original_scale_x = getattr(self.target_unit, 'pry_stretch_x', 1.0)
+                shake_intensity = 0.05 * math.sin(self.timer * 30)
+                self.target_unit.pry_stretch_x = self.target_unit.original_scale_x + shake_intensity
+
+            if self.timer >= self.extraction_duration:
+                self._start_formation()
+
+        elif self.phase == "formation":
+            # Particles compress into aerosol
+            progress = self.timer / self.formation_duration
+
+            # Pull weapon particles toward aerosol position
+            for p in self.weapon_particles:
+                dx = self.aerosol_x - p['x']
+                dy = self.aerosol_y - p['y']
+                dist = max(1, math.sqrt(dx*dx + dy*dy))
+                p['vx'] = (dx / dist) * 150 * progress
+                p['vy'] = (dy / dist) * 150 * progress
+
+            # Update particles
+            for p in self.weapon_particles[:]:
+                p['x'] += p['vx'] * delta_time
+                p['y'] += p['vy'] * delta_time
+
+            # Spawn aerosol formation particles at target position
+            if progress > 0.5 and random.random() < 0.3:
+                angle = random.uniform(0, 2 * math.pi)
+                radius = random.uniform(5, 20) * (1.0 - progress)
+                self.aerosol_particles.append({
+                    'x': self.aerosol_x + math.cos(angle) * radius,
+                    'y': self.aerosol_y + math.sin(angle) * radius,
+                    'angle': angle,
+                    'radius': radius,
+                    'size': random.uniform(3, 6),
+                    'color': random.choice(self.AEROSOL_COLORS),
+                    'lifetime': 0.5
+                })
+
+            # Update aerosol particles (swirl inward)
+            for p in self.aerosol_particles[:]:
+                p['angle'] += 3 * delta_time
+                p['radius'] *= 0.95
+                p['x'] = self.aerosol_x + math.cos(p['angle']) * p['radius']
+                p['y'] = self.aerosol_y + math.sin(p['angle']) * p['radius']
+                p['lifetime'] -= delta_time
+                if p['lifetime'] <= 0:
+                    self.aerosol_particles.remove(p)
+
+            # Reset target shake
+            if self.target_unit and hasattr(self.target_unit, 'original_scale_x'):
+                self.target_unit.pry_stretch_x = self.target_unit.original_scale_x
+                delattr(self.target_unit, 'original_scale_x')
+
+            if self.timer >= self.formation_duration:
+                self._start_disarm()
+
+        elif self.phase == "disarm":
+            # Final disarm indicator
+            progress = self.timer / self.disarm_duration
+            self.disarm_alpha = int(255 * (1.0 - progress))
+
+            # Clear remaining particles
+            for p in self.weapon_particles[:]:
+                p['lifetime'] -= delta_time * 3
+                if p['lifetime'] <= 0:
+                    self.weapon_particles.remove(p)
+
+            for p in self.aerosol_particles[:]:
+                p['lifetime'] -= delta_time * 3
+                if p['lifetime'] <= 0:
+                    self.aerosol_particles.remove(p)
+
+            if self.timer >= self.disarm_duration:
+                self.active = False
+                return False
+
+        return True
+
+    def _start_extraction(self):
+        """Phase 2: Weapon Extraction."""
+        self.phase = "extraction"
+        self.timer = 0
+        # Light screen shake
+        self.screen_shake_callback(intensity=5, duration=0.4)
+
+    def _start_formation(self):
+        """Phase 3: Aerosol Formation."""
+        self.phase = "formation"
+        self.timer = 0
+
+    def _start_disarm(self):
+        """Phase 4: Disarm Effect."""
+        self.phase = "disarm"
+        self.timer = 0
+        # Quick flash
+        self.screen_flash_callback(color=(100, 100, 100), duration=0.1)
+
+    def draw(self, surface):
+        """Draw animation."""
+        if not self.active:
+            return
+
+        if self.phase == "targeting":
+            # Draw targeting beam
+            if self.beam_alpha > 0:
+                # Draw beam line
+                pygame.draw.line(surface, (*self.BEAM_COLOR, self.beam_alpha),
+                               (int(self.caster_x), int(self.caster_y)),
+                               (int(self.target_x), int(self.target_y)), 3)
+
+                # Draw beam particles
+                beam_segments = 10
+                for i in range(beam_segments):
+                    t = i / beam_segments
+                    px = self.caster_x + (self.target_x - self.caster_x) * t
+                    py = self.caster_y + (self.target_y - self.caster_y) * t
+
+                    pulse = math.sin(self.timer * 10 + i) * 0.5 + 0.5
+                    size = 3 + pulse * 2
+                    alpha = int(self.beam_alpha * pulse)
+
+                    if alpha > 0:
+                        pygame.draw.circle(surface, (*self.BEAM_COLOR, alpha),
+                                         (int(px), int(py)), int(size))
+
+            # Draw target glow
+            if self.target_glow_intensity > 0:
+                radius = int(30 * self.target_glow_intensity)
+                alpha = int(120 * self.target_glow_intensity)
+
+                glow_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+                pygame.draw.circle(glow_surf, (*self.DISARM_COLOR, alpha),
+                                 (radius, radius), radius)
+                surface.blit(glow_surf, (int(self.target_x - radius),
+                                        int(self.target_y - radius)))
+
+        elif self.phase == "extraction":
+            # Draw weapon particles dissolving
+            for p in self.weapon_particles:
+                if p['lifetime'] > 0:
+                    alpha = int(255 * (p['lifetime'] / p['max_lifetime']))
+                    pygame.draw.circle(surface, (*p['color'], alpha),
+                                     (int(p['x']), int(p['y'])), int(p['size']))
+
+            # Draw swirling grey mist around target
+            progress = self.timer / self.extraction_duration
+            for i in range(8):
+                angle = (i / 8) * 2 * math.pi + self.timer * 3
+                radius = 20 + 10 * math.sin(self.timer * 5 + i)
+                px = self.target_x + math.cos(angle) * radius
+                py = self.target_y + math.sin(angle) * radius
+
+                alpha = int(150 * progress)
+                size = 4
+                pygame.draw.circle(surface, (*self.DISARM_COLOR, alpha),
+                                 (int(px), int(py)), int(size))
+
+        elif self.phase == "formation":
+            # Draw weapon particles
+            for p in self.weapon_particles:
+                if p['lifetime'] > 0:
+                    alpha = int(200 * (p['lifetime'] / p['max_lifetime']))
+                    pygame.draw.circle(surface, (*p['color'], alpha),
+                                     (int(p['x']), int(p['y'])), int(p['size']))
+
+            # Draw aerosol formation particles
+            for p in self.aerosol_particles:
+                if p['lifetime'] > 0:
+                    alpha = int(200 * (p['lifetime'] / 0.5))
+                    pygame.draw.circle(surface, (*p['color'], alpha),
+                                     (int(p['x']), int(p['y'])), int(p['size']))
+
+            # Draw condensation glow at aerosol position
+            progress = self.timer / self.formation_duration
+            if progress > 0.3:
+                glow_progress = (progress - 0.3) / 0.7
+                radius = int(25 * glow_progress)
+                alpha = int(150 * glow_progress)
+
+                glow_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+                for color in self.AEROSOL_COLORS:
+                    pygame.draw.circle(glow_surf, (*color, alpha // 3),
+                                     (radius, radius), radius)
+                surface.blit(glow_surf, (int(self.aerosol_x - radius),
+                                        int(self.aerosol_y - radius)))
+
+        elif self.phase == "disarm":
+            # Draw remaining particles
+            for p in self.weapon_particles:
+                if p['lifetime'] > 0:
+                    alpha = int(200 * (p['lifetime'] / p['max_lifetime']))
+                    pygame.draw.circle(surface, (*p['color'], alpha),
+                                     (int(p['x']), int(p['y'])), int(p['size']))
+
+            for p in self.aerosol_particles:
+                if p['lifetime'] > 0:
+                    alpha = int(200 * (p['lifetime'] / 0.5))
+                    pygame.draw.circle(surface, (*p['color'], alpha),
+                                     (int(p['x']), int(p['y'])), int(p['size']))
+
+            # Draw disarm "X" symbol over target
+            if self.disarm_alpha > 0:
+                symbol_size = 15
+                x1 = self.target_x - symbol_size
+                x2 = self.target_x + symbol_size
+                y1 = self.target_y - symbol_size - 20
+                y2 = self.target_y + symbol_size - 20
+
+                pygame.draw.line(surface, (*self.DISARM_COLOR, self.disarm_alpha),
+                               (int(x1), int(y1)), (int(x2), int(y2)), 4)
+                pygame.draw.line(surface, (*self.DISARM_COLOR, self.disarm_alpha),
+                               (int(x2), int(y1)), (int(x1), int(y2)), 4)
+
+
 # ============================================================================
 # VAPOR AOE TICK ANIMATION
 # ============================================================================

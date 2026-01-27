@@ -461,7 +461,7 @@ class GraphicalRenderer:
 
                     # Trigger spawn animation for all vapor types at their actual positions
                     # For COOLANT and CUTTING, this plays after the Diverge split animation
-                    if vapor_type in ['BROACHING', 'SAFETY', 'COOLANT', 'CUTTING']:
+                    if vapor_type in ['BROACHING', 'SAFETY', 'COOLANT', 'CUTTING', 'CALIBRATION', 'LIVING_AEROSOL']:
                         skill_name = f"{vapor_type}_gas"
                         print(f"[Renderer] New HEINOUS VAPOR detected: {vapor_type}, triggering spawn animation at ({game_unit.y}, {game_unit.x})")
 

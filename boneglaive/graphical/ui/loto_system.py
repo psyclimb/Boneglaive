@@ -46,6 +46,10 @@ class LOTOChecker:
             blocked.add('skill')
             blocked.add('attack')
 
+        # Check disarm effect (Aerosolize Arms)
+        if hasattr(unit, 'status_disarmed') and unit.status_disarmed:
+            blocked.add('attack')
+
         # Check all-action-blocking effects
         if hasattr(unit, 'gaussian_dusk_recharge') and unit.gaussian_dusk_recharge:
             blocked.add('all')  # Blocks everything during recharge

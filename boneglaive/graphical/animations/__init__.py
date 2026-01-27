@@ -107,6 +107,8 @@ from .fowl_contrivance import (
 from .gas_machinist import (
     VaporSpawnAnimation,
     DivergeAnimation,
+    DivergeAnimationUpgraded,
+    AerosolizeArmsAnimation,
     VaporAOETickAnimation,
 )
 
@@ -213,6 +215,8 @@ __all__ = [
     # Gas Machinist
     'VaporSpawnAnimation',
     'DivergeAnimation',
+    'DivergeAnimationUpgraded',
+    'AerosolizeArmsAnimation',
     'VaporAOETickAnimation',
     # Pelotari (DLC)
     'MatadorAnimation',

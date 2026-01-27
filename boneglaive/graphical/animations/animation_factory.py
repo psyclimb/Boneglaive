@@ -70,6 +70,8 @@ from boneglaive.graphical.animations.fowl_contrivance import (
 from boneglaive.graphical.animations.gas_machinist import (
     VaporSpawnAnimation,
     DivergeAnimation,
+    DivergeAnimationUpgraded,
+    AerosolizeArmsAnimation,
     VaporAOETickAnimation,
 )
 from boneglaive.graphical.animations.pelotari import (
@@ -147,12 +149,16 @@ class AnimationFactory:
         "SAFT_E_GAS": (VaporSpawnAnimation, {"vapor_type": "SAFETY"}),
         "COOLANT_GAS": (VaporSpawnAnimation, {"vapor_type": "COOLANT"}),
         "CUTTING_GAS": (VaporSpawnAnimation, {"vapor_type": "CUTTING"}),
+        "CALIBRATION_GAS": (VaporSpawnAnimation, {"vapor_type": "CALIBRATION"}),
+        "LIVING_AEROSOL_GAS": (VaporSpawnAnimation, {"vapor_type": "LIVING_AEROSOL"}),
         "DIVERGE": (DivergeAnimation, {}),  # Splits target into Coolant and Cutting vapors
+        "AEROSOLIZE_ARMS": (AerosolizeArmsAnimation, {}),  # Disarms target and creates Living Aerosol
         # Vapor AOE tick effects
         "VAPOR_AOE_BROACHING": (VaporAOETickAnimation, {"vapor_type": "BROACHING"}),
         "VAPOR_AOE_SAFETY": (VaporAOETickAnimation, {"vapor_type": "SAFETY"}),
         "VAPOR_AOE_COOLANT": (VaporAOETickAnimation, {"vapor_type": "COOLANT"}),
         "VAPOR_AOE_CUTTING": (VaporAOETickAnimation, {"vapor_type": "CUTTING"}),
+        "VAPOR_AOE_CALIBRATION": (VaporAOETickAnimation, {"vapor_type": "CALIBRATION"}),
 
         # DELPHIC APPRAISER skills
         "MARKET_FUTURES": (MarketFuturesAnimation, {}),
@@ -1004,12 +1010,27 @@ class AnimationFactory:
                     screen_shake_callback=screen_shake_callback
                 )
             elif anim_class.__name__ == "DivergeAnimation":
-                # Diverge - splits target into two specialized vapors
+                # Diverge - splits target into two or three specialized vapors
+                # Check if Diverge is upgraded (creates 3 vapors)
                 # Requires target_pos (position of unit/vapor being split), game instance
                 if not target_pos:
                     print("[AnimationFactory] DIVERGE requires a target position")
                     return None
-                animation = anim_class(
+
+                # Check if skill is upgraded
+                is_upgraded = False
+                if caster_unit and hasattr(caster_unit, 'game_unit'):
+                    game_unit = caster_unit.game_unit
+                    if hasattr(game_unit, 'upgraded_skills') and 'Diverge' in game_unit.upgraded_skills:
+                        is_upgraded = True
+                elif caster_unit and hasattr(caster_unit, 'upgraded_skills'):
+                    if 'Diverge' in caster_unit.upgraded_skills:
+                        is_upgraded = True
+
+                # Use upgraded animation if skill is upgraded
+                anim_class_to_use = DivergeAnimationUpgraded if is_upgraded else anim_class
+
+                animation = anim_class_to_use(
                     caster_unit=caster_unit,
                     target_unit=target_unit,
                     target_pos=target_pos,
@@ -1031,6 +1052,26 @@ class AnimationFactory:
                     vapor_type=kwargs.get('vapor_type', 'BROACHING'),
                     particle_emitter=particle_emitter,
                     screen_shake_callback=screen_shake_callback
+                )
+            elif anim_class.__name__ == "AerosolizeArmsAnimation":
+                # Aerosolize Arms - disarms target and creates Living Aerosol
+                # Requires: caster_unit, target_unit, target_pos, game, camera, callbacks
+                if not target_pos:
+                    print("[AnimationFactory] AEROSOLIZE_ARMS requires a target position")
+                    return None
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_unit=target_unit,
+                    target_pos=target_pos,
+                    is_crit=is_crit,
+                    is_infused=is_infused,
+                    particle_emitter=particle_emitter,
+                    debris_list=[],
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,
+                    units_list=units_list if units_list else [],
+                    camera=camera,
+                    game=kwargs.get('game')
                 )
             elif anim_class.__name__ == "AuctionCurseTickAnimation":
                 # Auction Curse Tick - periodic DOT damage with furniture inflation
