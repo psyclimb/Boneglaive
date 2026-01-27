@@ -794,9 +794,25 @@ class AnimationFactory:
                     game=kwargs.get('game')
                 )
             elif anim_class.__name__ == "BoneTitheAnimation":
-                # Bone Tithe - AOE life drain from adjacent enemies
-                # Requires: caster unit, units_list (to detect adjacent enemies), standard callbacks
-                animation = anim_class(
+                # Bone Tithe - AOE life drain from enemies
+                # Upgraded: Range increases from 1 (3x3) to 2 (5x5)
+                # Requires: caster unit, units_list (to detect enemies), standard callbacks
+
+                # Check if Bone Tithe is upgraded
+                is_upgraded = False
+                if caster_unit and hasattr(caster_unit, 'game_unit'):
+                    game_unit = caster_unit.game_unit
+                    if hasattr(game_unit, 'upgraded_skills') and 'Bone Tithe' in game_unit.upgraded_skills:
+                        is_upgraded = True
+                elif caster_unit and hasattr(caster_unit, 'upgraded_skills'):
+                    if 'Bone Tithe' in caster_unit.upgraded_skills:
+                        is_upgraded = True
+
+                # Use upgraded animation if skill is upgraded
+                from boneglaive.graphical.animations import BoneTitheAnimationUpgraded
+                anim_class_to_use = BoneTitheAnimationUpgraded if is_upgraded else anim_class
+
+                animation = anim_class_to_use(
                     caster_unit=caster_unit,
                     target_unit=None,  # AOE around caster
                     target_pos=(caster_unit.grid_y, caster_unit.grid_x),  # Caster position

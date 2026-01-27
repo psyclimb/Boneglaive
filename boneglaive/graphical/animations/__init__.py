@@ -81,6 +81,7 @@ from .delphic_appraiser import (
 from .marrow_condenser import (
     OssifyAnimation,
     BoneTitheAnimation,
+    BoneTitheAnimationUpgraded,
     MarrowDikeAnimation,
     MarrowDikeWallDespawnAnimation,
 )
@@ -196,6 +197,7 @@ __all__ = [
     # Marrow Condenser
     'OssifyAnimation',
     'BoneTitheAnimation',
+    'BoneTitheAnimationUpgraded',
     'MarrowDikeAnimation',
     'MarrowDikeWallDespawnAnimation',
     # Derelictionist

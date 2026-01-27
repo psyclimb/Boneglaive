@@ -949,6 +949,237 @@ class BoneTitheAnimation:
             self.absorption_burst.draw(surface)
 
 
+class BoneTitheAnimationUpgraded:
+    """
+    Upgraded Bone Tithe skill animation for MARROW CONDENSER.
+    Extracts bone marrow from enemies in 5x5 area (range 2 instead of range 1).
+
+    Enhanced visuals compared to base version:
+    - Larger extraction radius (range 2 = 5x5 grid)
+    - More intense particle effects
+    - Stronger screen shake and flash effects
+    - Enhanced absorption burst showing greater power
+
+    Phases:
+    1. Extraction (0.5s) - Bone tendrils shoot outward in all directions
+    2. Draining (1.0s) - Marrow particles stream from enemies to caster
+    3. Absorption (1.0s) - Marrow absorbed with powerful empowerment burst
+    """
+
+    def __init__(self, caster_unit, target_unit, target_pos, is_crit, is_infused,
+                 particle_emitter, debris_list, screen_shake_callback,
+                 screen_flash_callback, units_list, camera, game=None):
+        """
+        Initialize upgraded Bone Tithe animation.
+
+        Args:
+            caster_unit: The MARROW CONDENSER casting Bone Tithe
+            units_list: All units (to detect enemies in 5x5 area)
+            camera: Camera for coordinate conversion
+            Other args: Standard from AnimationFactory
+        """
+        # Store references
+        self.caster = caster_unit
+        self.camera = camera
+        self.particle_emitter = particle_emitter
+        self.screen_shake_callback = screen_shake_callback
+        self.screen_flash_callback = screen_flash_callback
+        self.units_list = units_list if units_list else []
+
+        # Convert caster position to screen coords
+        self.center_x, self.center_y = camera.grid_to_screen(caster_unit.grid_x, caster_unit.grid_y, centered=True)
+
+        # Animation state
+        self.phase = "extraction"  # extraction -> draining -> absorption
+        self.timer = 0
+        self.active = True
+
+        # Detect all enemies in 5x5 area (range 2)
+        self.adjacent_enemies = []
+        for dy in range(-2, 3):  # -2 to 2 = 5 tiles
+            for dx in range(-2, 3):  # -2 to 2 = 5 tiles
+                if dy == 0 and dx == 0:
+                    continue  # Skip caster position
+
+                grid_y = caster_unit.grid_y + dy
+                grid_x = caster_unit.grid_x + dx
+
+                # Find enemy at this position
+                for unit in self.units_list:
+                    if (unit.grid_y == grid_y and unit.grid_x == grid_x and
+                        hasattr(unit, 'player') and unit.player != caster_unit.player):
+                        screen_x, screen_y = camera.grid_to_screen(grid_x, grid_y, centered=True)
+                        distance = abs(dx) + abs(dy)  # Manhattan distance for effect intensity
+                        self.adjacent_enemies.append({
+                            'unit': unit,
+                            'screen_x': screen_x,
+                            'screen_y': screen_y,
+                            'angle': math.atan2(dy, dx),
+                            'distance': distance,
+                            'flashed': False
+                        })
+                        break
+
+        # Calculate HP gained (shown in display)
+        self.hp_gained = len(self.adjacent_enemies)
+
+        # Sub-effects
+        self.tendrils = None
+        self.marrow_particles = []
+        self.absorption_burst = None
+        self.extraction_beams = []  # Thin lines connecting enemies to caster during drain
+        self.outer_ring_glow = 0  # Glow effect showing extended range
+
+        # Start Phase 1
+        self._start_extraction()
+
+    def _start_extraction(self):
+        """Phase 1: Extraction - Bone tendrils shoot outward (enhanced)."""
+        self.phase = "extraction"
+        self.timer = 0
+
+        # Create extraction tendrils (reuse base class helper)
+        self.tendrils = ExtractionTendrils(self.center_x, self.center_y)
+
+        # Enhanced dark red pulse particles (more particles for upgraded version)
+        if self.particle_emitter:
+            for _ in range(30):  # More particles than base (30 vs 20)
+                angle = random.uniform(0, 2 * math.pi)
+                distance = random.uniform(5, 25)  # Larger spread (25 vs 15)
+                px = self.center_x + math.cos(angle) * distance
+                py = self.center_y + math.sin(angle) * distance
+                self.particle_emitter.emit_burst(px, py, (139, 0, 0), count=4)  # More per burst
+
+        # Stronger screen shake for extraction force
+        self.screen_shake_callback(5, 0.4)  # Stronger than base (5 vs 3)
+
+    def _start_draining(self):
+        """Phase 2: Draining - Marrow particles stream from enemies (enhanced)."""
+        self.phase = "draining"
+        self.timer = 0
+
+        # Create marrow particles for each enemy
+        for enemy_data in self.adjacent_enemies:
+            enemy_x = enemy_data['screen_x']
+            enemy_y = enemy_data['screen_y']
+            distance = enemy_data['distance']
+
+            # More particles for distant enemies (20-30 particles vs base 15-20)
+            num_particles = random.randint(20, 30)
+            for i in range(num_particles):
+                is_bone = (i % 4 == 0)  # 25% bone fragments, 75% blood
+                particle = MarrowParticle(enemy_x, enemy_y, self.center_x, self.center_y, is_bone_fragment=is_bone)
+                # Stagger particle creation based on distance
+                particle.timer = -random.uniform(0, 0.4) - (distance * 0.05)
+                self.marrow_particles.append(particle)
+
+            # Create extraction beam data
+            self.extraction_beams.append({
+                'start_x': enemy_x,
+                'start_y': enemy_y,
+                'distance': distance,
+                'intensity': 0
+            })
+
+    def _start_absorption(self):
+        """Phase 3: Absorption - Marrow absorbed with enhanced empowerment."""
+        self.phase = "absorption"
+        self.timer = 0
+
+        # Create absorption burst (reuse base class helper)
+        self.absorption_burst = AbsorptionBurst(self.center_x, self.center_y, self.hp_gained)
+
+        # Stronger screen shake for absorption
+        self.screen_shake_callback(8, 0.5)  # Stronger than base (8 vs 6)
+
+        # Brighter red flash during absorption
+        self.screen_flash_callback((255, 0, 0), 0.2)  # Longer flash than base (0.2 vs 0.15)
+
+    def update(self, delta_time):
+        """Update animation state. Returns True if active, False when done."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Phase transitions (slightly longer durations for upgraded version)
+        if self.phase == "extraction" and self.timer >= 0.5:  # 0.5s vs base 0.4s
+            self._start_draining()
+        elif self.phase == "draining" and self.timer >= 1.0:  # 1.0s vs base 0.9s
+            self._start_absorption()
+        elif self.phase == "absorption" and self.timer >= 1.0:  # 1.0s vs base 0.9s
+            self.active = False  # Animation complete
+
+        # Update sub-effects
+        if self.tendrils:
+            self.tendrils.update(delta_time)
+
+        self.marrow_particles = [p for p in self.marrow_particles if p.update(delta_time)]
+
+        if self.absorption_burst:
+            self.absorption_burst.update(delta_time)
+
+        # Update outer ring glow (shows extended range during extraction)
+        if self.phase == "extraction":
+            self.outer_ring_glow = min(1.0, self.timer / 0.3)
+        elif self.phase == "draining":
+            self.outer_ring_glow = max(0, 1.0 - self.timer / 0.5)
+        else:
+            self.outer_ring_glow = 0
+
+        # Flash enemies during draining phase
+        if self.phase == "draining":
+            for enemy_data in self.adjacent_enemies:
+                if not enemy_data['flashed'] and self.timer > 0.2:
+                    enemy_data['flashed'] = True
+
+            # Update extraction beam intensity (pulse effect, varies by distance)
+            for beam in self.extraction_beams:
+                base_intensity = 0.7 - (beam['distance'] * 0.1)  # Dimmer for distant enemies
+                beam['intensity'] = base_intensity + 0.3 * math.sin(self.timer * 8)
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw animation to pygame surface."""
+        if not self.active:
+            return
+
+        # Draw outer ring glow (shows extended 5x5 range)
+        if self.outer_ring_glow > 0:
+            ring_alpha = int(80 * self.outer_ring_glow)
+            if ring_alpha > 0:
+                # Draw expanding ring to show range increase
+                radius = int(TILE_SIZE * 2.5)  # Range 2 visual
+                ring_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+                pygame.draw.circle(ring_surf, (139, 0, 0, ring_alpha),
+                                 (radius, radius), radius, 3)
+                surface.blit(ring_surf, (int(self.center_x - radius),
+                                        int(self.center_y - radius)))
+
+        # Draw extraction tendrils (Phase 1)
+        if self.tendrils:
+            self.tendrils.draw(surface)
+
+        # Draw extraction beams (Phase 2)
+        if self.phase == "draining" and self.extraction_beams:
+            for beam in self.extraction_beams:
+                alpha = int(140 * beam['intensity'])  # Brighter than base (140 vs 120)
+                if alpha > 0:
+                    # Thicker red beam from enemy to caster
+                    start = (int(beam['start_x']), int(beam['start_y']))
+                    end = (int(self.center_x), int(self.center_y))
+                    pygame.draw.line(surface, (255, 0, 0, alpha), start, end, 3)  # Thicker (3 vs 2)
+
+        # Draw marrow particles (Phase 2)
+        for particle in self.marrow_particles:
+            particle.draw(surface)
+
+        # Draw absorption burst (Phase 3)
+        if self.absorption_burst:
+            self.absorption_burst.draw(surface)
+
+
 # ============================================================================
 # MARROW DIKE ANIMATION
 # ============================================================================
