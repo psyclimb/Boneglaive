@@ -4321,7 +4321,19 @@ class Game:
             self._check_scalar_node_traps(ui)
         else:
             logger.debug("No scalar nodes to check or scalar_nodes not present")
-        
+
+        # Process Fragcrest trap arming and duration
+        if hasattr(self, 'fragcrest_traps') and self.fragcrest_traps:
+            self._process_fragcrest_trap_duration()
+
+        # Check for Fragcrest traps before player switching
+        logger.debug(f"Checking for Fragcrest traps. Has attr: {hasattr(self, 'fragcrest_traps')}, traps: {getattr(self, 'fragcrest_traps', {})}")
+        if hasattr(self, 'fragcrest_traps') and self.fragcrest_traps:
+            logger.debug("Calling _check_fragcrest_traps")
+            self._check_fragcrest_traps(ui)
+        else:
+            logger.debug("No fragcrest traps to check or fragcrest_traps not present")
+
         # Before changing players, reset movement penalties for units of the player
         # whose turn is ENDING (not starting). This way penalties last through their entire next turn.
         if not self.winner:
@@ -5419,7 +5431,278 @@ class Game:
                     
                     # Remove the triggered node
                     del self.scalar_nodes[unit_pos]
-    
+
+    def _process_fragcrest_trap_duration(self):
+        """
+        Process Fragcrest trap arming and duration.
+        Called at the end of each turn to arm traps and expire old ones.
+        """
+        from boneglaive.utils.message_log import message_log, MessageType
+
+        traps_to_remove = []
+
+        for trap_pos, trap_info in self.fragcrest_traps.items():
+            # Process arming
+            if not trap_info.get('armed', False):
+                arm_turns = trap_info.get('arm_turns_remaining', 0)
+                if arm_turns > 0:
+                    trap_info['arm_turns_remaining'] = arm_turns - 1
+                    if trap_info['arm_turns_remaining'] <= 0:
+                        # Trap is now armed
+                        trap_info['armed'] = True
+                        trap_info['active'] = True
+                        logger.debug(f"Fragcrest trap at {trap_pos} is now armed")
+                        # Silent arming - no message
+                continue  # Don't process duration until armed
+
+            # Process duration for armed traps
+            if trap_info.get('armed', False):
+                duration = trap_info.get('duration', 0)
+                if duration > 0:
+                    trap_info['duration'] = duration - 1
+                    logger.debug(f"Fragcrest trap at {trap_pos} duration decreased to {trap_info['duration']}")
+                    if trap_info['duration'] <= 0:
+                        # Trap expired
+                        logger.debug(f"Fragcrest trap at {trap_pos} expired")
+                        traps_to_remove.append(trap_pos)
+                        # Silent expiration - no message
+
+        # Remove expired traps
+        for trap_pos in traps_to_remove:
+            if trap_pos in self.fragcrest_traps:
+                del self.fragcrest_traps[trap_pos]
+
+    def _check_fragcrest_traps(self, ui=None):
+        """
+        Check for Fragcrest traps during movement.
+        Triggers when enemy units move into the trap's cone trigger zone.
+        Only armed traps can trigger.
+        """
+        from boneglaive.utils.message_log import message_log, MessageType
+        import time
+        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+        import curses
+        import math
+
+        logger.debug(f"Checking Fragcrest traps. Player {self.current_player} ending turn.")
+        logger.debug(f"Fragcrest traps present: {getattr(self, 'fragcrest_traps', {})}")
+
+        # Get the current player (whose turn is ending)
+        ending_player = self.current_player
+
+        traps_to_remove = []
+
+        # Check all units of the ending player
+        for unit in self.units:
+            if not unit.is_alive() or unit.player != ending_player:
+                continue
+
+            unit_pos = (unit.y, unit.x)
+            logger.debug(f"Checking unit {unit.get_display_name()} at position {unit_pos}")
+
+            # Check all traps to see if unit is in any trap's trigger cone
+            for trap_pos, trap_info in self.fragcrest_traps.items():
+                if not trap_info.get('active', True):
+                    continue
+
+                owner = trap_info['owner']
+                logger.debug(f"Checking trap at {trap_pos} owned by player {owner.player}, unit is player {unit.player}")
+
+                # Only trigger if trap belongs to enemy player
+                if owner.player == unit.player:
+                    continue
+
+                # Check if unit is in the trap's trigger cone
+                # Calculate cone from trap position in the stored direction
+                trap_y, trap_x = trap_pos
+                direction_y = trap_info['direction_y']
+                direction_x = trap_info['direction_x']
+
+                # Use the same cone calculation as base Fragcrest
+                # Calculate if unit is within the cone emanating from trap
+                affected_positions = self._calculate_fragcrest_cone_from_trap(
+                    trap_y, trap_x, direction_y, direction_x
+                )
+
+                # Check if unit is in the trigger cone
+                unit_in_cone = any(pos_y == unit.y and pos_x == unit.x
+                                 for pos_y, pos_x, is_primary in affected_positions)
+
+                if unit_in_cone:
+                    logger.debug(f"FRAGCREST TRAP TRIGGERED! Unit {unit.get_display_name()} triggered trap at {trap_pos}")
+
+                    # Mark trap as triggered (for graphical animation detection)
+                    if not hasattr(self, 'triggered_fragcrest_traps'):
+                        self.triggered_fragcrest_traps = []
+
+                    # Track units that will have shrapnel applied for status effect animation
+                    units_with_shrapnel = []
+
+                    # Trap triggers - execute Fragcrest blast
+                    message_log.add_message(
+                        f"{unit.get_display_name()} triggers {owner.get_display_name()}'s Fragcrest trap!",
+                        MessageType.ABILITY,
+                        player=owner.player
+                    )
+
+                    # Apply Fragcrest damage to all units in the cone
+                    from boneglaive.game.skills.fowl_contrivance import FragcrestSkill
+                    fragcrest = FragcrestSkill()
+
+                    # Track which units have been hit to prevent duplicate damage
+                    damaged_units = {}  # Maps unit -> (damage_amount, is_primary)
+
+                    for pos_y, pos_x, is_primary in affected_positions:
+                        target_unit = self.get_unit_at(pos_y, pos_x)
+
+                        # Only affect enemy units (relative to trap owner)
+                        if target_unit and target_unit.is_alive() and target_unit.player != owner.player:
+                            # If unit already hit, only upgrade to primary if this position is primary
+                            if target_unit in damaged_units:
+                                prev_damage, prev_is_primary = damaged_units[target_unit]
+                                # Upgrade to primary damage if this hit is primary
+                                if is_primary and not prev_is_primary:
+                                    base_damage = fragcrest.primary_damage
+                                    effective_defense = target_unit.get_effective_stats()['defense']
+                                    damage = max(1, base_damage - effective_defense)
+                                    damaged_units[target_unit] = (damage, True)
+                                # Otherwise keep the existing damage (don't stack)
+                                continue
+
+                            # Calculate damage for first hit on this unit
+                            base_damage = fragcrest.primary_damage if is_primary else fragcrest.secondary_damage
+                            effective_defense = target_unit.get_effective_stats()['defense']
+                            damage = max(1, base_damage - effective_defense)
+                            damaged_units[target_unit] = (damage, is_primary)
+
+                    # Apply damage to all hit units (only once per unit)
+                    for target_unit, (damage, is_primary) in damaged_units.items():
+                        # Apply damage
+                        previous_hp = target_unit.hp
+                        target_unit.hp = max(0, target_unit.hp - damage)
+                        actual_damage = previous_hp - target_unit.hp
+
+                        # Log the damage
+                        damage_type = "primary" if is_primary else "cone"
+                        message_log.add_combat_message(
+                            attacker_name=owner.get_display_name(),
+                            target_name=target_unit.get_display_name(),
+                            damage=actual_damage,
+                            ability=f"Fragcrest Trap ({damage_type})",
+                            attacker_player=owner.player,
+                            target_player=target_unit.player
+                        )
+
+                        # Apply shrapnel effect
+                        if not target_unit.is_immune_to_effects():
+                            if not hasattr(target_unit, 'shrapnel_duration'):
+                                target_unit.shrapnel_duration = 0
+                            previous_shrapnel = target_unit.shrapnel_duration
+                            target_unit.shrapnel_duration = max(target_unit.shrapnel_duration, fragcrest.shrapnel_duration)
+
+                            if target_unit.shrapnel_duration > previous_shrapnel:
+                                message_log.add_message(
+                                    f"{target_unit.get_display_name()} is embedded with shrapnel",
+                                    MessageType.ABILITY,
+                                    player=target_unit.player
+                                )
+
+                                # Track this unit for status effect animation
+                                units_with_shrapnel.append(target_unit)
+
+                            # Apply knockback using proper skill method
+                            # Create a temporary unit object at trap position for knockback calculation
+                            class TrapSource:
+                                def __init__(self, y, x):
+                                    self.y = y
+                                    self.x = x
+
+                            trap_source = TrapSource(trap_y, trap_x)
+                            fragcrest._apply_knockback(trap_source, target_unit, self)
+
+                    # Show Fragcrest animation at trap position (ASCII version only)
+                    # Graphical version animation is handled by renderer detection system via triggered_fragcrest_traps
+                    if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+                        # ASCII version - show animation frames
+                        # Get fragmentation animation
+                        frag_animation = ui.asset_manager.get_skill_animation_sequence('fragcrest_burst')
+                        if not frag_animation:
+                            frag_animation = ['.', ':', '*', '+', '#', 'x']
+
+                        # Show trap trigger at trap position
+                        ui.renderer.draw_tile(trap_y, trap_x, 'V', 6)  # V for directional cone
+                        ui.renderer.refresh()
+                        sleep_with_animation_speed(0.1)
+
+                        # Show fragmentation burst spreading through cone
+                        for frame in frag_animation:
+                            for pos_y, pos_x, is_primary in affected_positions:
+                                # Base skill coloring: red for primary, yellow for secondary
+                                color = 1 if is_primary else 3
+                                ui.renderer.draw_tile(pos_y, pos_x, frame, color)
+                            ui.renderer.refresh()
+                            sleep_with_animation_speed(0.05)
+
+                        # Redraw the board after animation
+                        if hasattr(ui, 'draw_board'):
+                            ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+
+                    # Store trap trigger info for graphical mode animation (after all damage/effects applied)
+                    self.triggered_fragcrest_traps.append({
+                        'trap_pos': trap_pos,
+                        'owner': owner,
+                        'triggering_unit': unit,
+                        'affected_positions': affected_positions,
+                        'units_with_shrapnel': units_with_shrapnel  # Units that received shrapnel
+                    })
+
+                    # Mark trap for removal
+                    traps_to_remove.append(trap_pos)
+                    break  # Unit can only trigger one trap per movement
+
+        # Remove triggered traps
+        for trap_pos in traps_to_remove:
+            if trap_pos in self.fragcrest_traps:
+                del self.fragcrest_traps[trap_pos]
+
+    def _calculate_fragcrest_cone_from_trap(self, trap_y, trap_x, direction_y, direction_x):
+        """
+        Calculate cone positions for a Fragcrest trap.
+        Returns list of (y, x, is_primary) tuples.
+        """
+        import math
+
+        affected_positions = []
+
+        # Convert direction to angle
+        angle = math.atan2(direction_y, direction_x)
+
+        # Primary target: 4 tiles in the direction
+        for distance in range(1, 5):  # 1 to 4 tiles
+            target_y = int(round(trap_y + direction_y * distance))
+            target_x = int(round(trap_x + direction_x * distance))
+            if self.is_valid_position(target_y, target_x):
+                affected_positions.append((target_y, target_x, True))
+
+        # Secondary cone: 3 tiles to each side
+        # Left side
+        left_angle = angle + math.pi / 4
+        for distance in range(1, 4):
+            cone_y = int(round(trap_y + math.sin(left_angle) * distance))
+            cone_x = int(round(trap_x + math.cos(left_angle) * distance))
+            if self.is_valid_position(cone_y, cone_x):
+                affected_positions.append((cone_y, cone_x, False))
+
+        # Right side
+        right_angle = angle - math.pi / 4
+        for distance in range(1, 4):
+            cone_y = int(round(trap_y + math.sin(right_angle) * distance))
+            cone_x = int(round(trap_x + math.cos(right_angle) * distance))
+            if self.is_valid_position(cone_y, cone_x):
+                affected_positions.append((cone_y, cone_x, False))
+
+        return affected_positions
+
     def _process_neural_shunt_actions(self):
         """
         Process Neural Shunt random action effects for affected units.

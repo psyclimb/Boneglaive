@@ -223,7 +223,9 @@ class GraphicalRenderer:
 
         # Scalar node trap overlay (revealed INTERFERER traps)
         self.scalar_node_trap: Optional[pygame.Surface] = None
+        self.fragcrest_trap: Optional[pygame.Surface] = None
         self._load_scalar_node_overlay()
+        self._load_fragcrest_trap_overlay()
 
         # Performance: Pre-create reusable surfaces to avoid allocations every frame
         self._main_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -414,6 +416,36 @@ class GraphicalRenderer:
             print(f"Info: cairosvg not available, cannot load scalar node trap overlay: {svg_path}")
         except Exception as e:
             print(f"Warning: Could not load scalar node trap overlay {svg_path}: {e}")
+
+    def _load_fragcrest_trap_overlay(self) -> None:
+        """
+        Load Fragcrest trap overlay graphic.
+        This semi-transparent graphic shows revealed FOWL CONTRIVANCE Fragcrest traps.
+        Design: Hybrid between a claymore mine and a peacock tail.
+        """
+        svg_path = "graphics/terrain/fragcrest_trap.svg"
+
+        if not os.path.exists(svg_path):
+            print(f"Warning: Fragcrest trap overlay not found: {svg_path}")
+            return
+
+        try:
+            import cairosvg
+            from io import BytesIO
+            # Convert SVG to PNG in memory
+            png_data = cairosvg.svg2png(url=svg_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
+            surface = pygame.image.load(BytesIO(png_data))
+
+            # Set alpha for semi-transparent overlay effect
+            surface = surface.convert_alpha()
+
+            # Cache the fragcrest trap surface
+            self.fragcrest_trap = surface
+            print(f"Loaded Fragcrest trap overlay")
+        except ImportError:
+            print(f"Info: cairosvg not available, cannot load Fragcrest trap overlay: {svg_path}")
+        except Exception as e:
+            print(f"Warning: Could not load Fragcrest trap overlay {svg_path}: {e}")
 
     # ASCII renderer compatibility stubs
     def animate_attack_sequence(self, y, x, sequence, color, duration):
@@ -2174,9 +2206,19 @@ class GraphicalRenderer:
             print(f"  [Renderer] Queued skill animation: {event.kwargs.get('skill_name')}")
 
         elif event.event_type == "status_effect":
-            # Status effects are now handled via callback and shown after damage numbers
-            # This event type is no longer used
-            print(f"  [Renderer] WARNING: Received deprecated status_effect event")
+            # Status effect icon animation (used for special cases like trap-applied effects)
+            target_unit = event.target_unit
+            effect_name = event.kwargs.get('effect_name')
+
+            if target_unit and effect_name:
+                visual_unit = self._get_visual_unit(target_unit)
+                if visual_unit:
+                    print(f"  [Renderer] Creating status effect animation for {effect_name} on {target_unit.get_display_name()}")
+                    self._create_status_icon_flash(visual_unit.animated_unit, effect_name)
+                else:
+                    print(f"  [Renderer] WARNING: Could not find visual unit for status effect {effect_name}")
+            else:
+                print(f"  [Renderer] WARNING: Invalid status_effect event (missing target or effect_name)")
 
         elif event.event_type == "partition_dissociation":
             # Partition dissociation is a dramatic emergency animation - show immediately
@@ -2831,6 +2873,16 @@ class GraphicalRenderer:
 
         # Create animation via factory
         print(f"  [Renderer] Creating animation for {skill_name}...")
+
+        # Extract additional kwargs to pass to factory (e.g., is_trap, trap_cone_positions)
+        extra_kwargs = {}
+        if 'is_trap' in event.kwargs:
+            extra_kwargs['is_trap'] = event.kwargs['is_trap']
+            print(f"  [Renderer] Trap mode detected: is_trap={extra_kwargs['is_trap']}")
+        if 'trap_cone_positions' in event.kwargs:
+            extra_kwargs['trap_cone_positions'] = event.kwargs['trap_cone_positions']
+            print(f"  [Renderer] Using pre-calculated trap cone positions")
+
         animation = AnimationFactory.create_animation(
             skill_name,
             caster_unit=caster_animated,
@@ -2845,7 +2897,8 @@ class GraphicalRenderer:
             units_list=self.units,
             camera=self.camera,
             game=self.game_adapter.game,  # Pass game for furniture detection & ricochet physics
-            bounce_count=bounce_count  # Pass bounce count for Matador animation
+            bounce_count=bounce_count,  # Pass bounce count for Matador animation
+            **extra_kwargs  # Pass additional kwargs (is_trap, trap_cone_positions, etc.)
         )
         if animation:
             self.active_animations.append(animation)
@@ -3328,28 +3381,39 @@ class GraphicalRenderer:
                         self._grid_surface.blit(self.rail_universal, (tile_x, tile_y))
 
     def draw_revealed_traps(self, surface: pygame.Surface):
-        """Draw revealed scalar node traps on the map."""
-        # Check if we have scalar nodes in the game
-        if not self.game_adapter.game or not hasattr(self.game_adapter.game, 'scalar_nodes'):
-            return
+        """Draw revealed scalar node traps and Fragcrest traps on the map."""
+        # Draw revealed scalar node traps
+        if self.game_adapter.game and hasattr(self.game_adapter.game, 'scalar_nodes'):
+            # Get revealed nodes from game state adapter
+            revealed_nodes = getattr(self.game_adapter, 'revealed_scalar_nodes', set())
 
-        # Get revealed nodes from game state adapter
-        revealed_nodes = getattr(self.game_adapter, 'revealed_scalar_nodes', set())
+            # If trap overlay loaded, draw each revealed trap
+            if self.scalar_node_trap:
+                for node_pos in revealed_nodes:
+                    y, x = node_pos
 
-        # If no trap overlay loaded, skip rendering
-        if not self.scalar_node_trap:
-            return
+                    # Calculate tile position
+                    tile_x = GRID_OFFSET_X + x * TILE_SIZE
+                    tile_y = GRID_OFFSET_Y + y * TILE_SIZE
 
-        # Draw overlay on each revealed trap position
-        for node_pos in revealed_nodes:
-            y, x = node_pos
+                    # Blit the scalar node trap overlay
+                    surface.blit(self.scalar_node_trap, (tile_x, tile_y))
 
-            # Calculate tile position
-            tile_x = GRID_OFFSET_X + x * TILE_SIZE
-            tile_y = GRID_OFFSET_Y + y * TILE_SIZE
+        # Draw revealed Fragcrest traps
+        if self.game_adapter.game and hasattr(self.game_adapter.game, 'fragcrest_traps'):
+            # If trap overlay loaded, draw each revealed trap
+            if self.fragcrest_trap:
+                for trap_pos, trap_info in self.game_adapter.game.fragcrest_traps.items():
+                    # Only draw if trap is revealed
+                    if trap_info.get('revealed', False):
+                        y, x = trap_pos
 
-            # Blit the scalar node trap overlay
-            surface.blit(self.scalar_node_trap, (tile_x, tile_y))
+                        # Calculate tile position
+                        tile_x = GRID_OFFSET_X + x * TILE_SIZE
+                        tile_y = GRID_OFFSET_Y + y * TILE_SIZE
+
+                        # Blit the Fragcrest trap overlay
+                        surface.blit(self.fragcrest_trap, (tile_x, tile_y))
 
     def draw_range_indicators(self, surface: pygame.Surface):
         """Draw movement range, attack range, and skill range indicators."""

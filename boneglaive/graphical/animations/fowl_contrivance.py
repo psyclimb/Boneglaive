@@ -1838,30 +1838,203 @@ class EmbeddedShrapnel:
                 surface.blit(frag_surf, (int(frag['x']) - center, int(frag['y']) - center))
 
 
+class ClaymoreGroundExplosion:
+    """
+    Ground-level claymore mine detonation effect.
+    Conical peacock tail explosion burst, mimicking the base Fragcrest visual.
+    """
+    def __init__(self, center_x, center_y, direction_x, direction_y):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.timer = 0
+        self.duration = 0.3
+        self.active = True
+
+        # Calculate direction for cone
+        length = math.sqrt(direction_x * direction_x + direction_y * direction_y)
+        if length > 0:
+            self.dir_x = direction_x / length
+            self.dir_y = direction_y / length
+        else:
+            self.dir_x = 1
+            self.dir_y = 0
+
+        self.blast_angle = math.atan2(self.dir_y, self.dir_x)
+
+        # Cone parameters (90 degree spread like base skill)
+        self.cone_half_angle = math.pi / 4  # 45 degrees on each side = 90 total
+
+        # Create radial struts (peacock tail fan pattern)
+        self.struts = []
+        num_struts = 9
+        for i in range(num_struts):
+            # Spread struts across cone angle
+            angle_offset = ((i / (num_struts - 1)) - 0.5) * (2 * self.cone_half_angle)
+            strut_angle = self.blast_angle + angle_offset
+            self.struts.append({
+                'angle': strut_angle,
+                'length_mult': random.uniform(0.85, 1.0)  # Slight variation
+            })
+
+        # Create debris particles (metal fragments)
+        self.debris = []
+        for i in range(15):
+            # Bias debris forward in cone
+            angle_offset = random.uniform(-self.cone_half_angle, self.cone_half_angle)
+            angle = self.blast_angle + angle_offset
+            speed = random.uniform(100, 180)
+            self.debris.append({
+                'vx': math.cos(angle) * speed,
+                'vy': math.sin(angle) * speed,
+                'x': center_x,
+                'y': center_y,
+                'size': random.randint(2, 4),
+                'rotation': random.uniform(0, 2 * math.pi),
+                'rot_speed': random.uniform(-15, 15)
+            })
+
+    def update(self, delta_time):
+        """Update explosion expansion."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Update debris
+        for d in self.debris:
+            d['x'] += d['vx'] * delta_time
+            d['y'] += d['vy'] * delta_time
+            d['rotation'] += d['rot_speed'] * delta_time
+            # Slow down debris
+            d['vx'] *= 0.93
+            d['vy'] *= 0.93
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw ground explosion effect."""
+        if not self.active:
+            return
+
+        progress = min(1.0, self.timer / self.duration)
+
+        # Expanding cone burst (like base skill's ConeBurst)
+        max_cone_length = 70
+        cone_length = int(max_cone_length * progress)
+        alpha = int(200 * (1.0 - progress))
+
+        if alpha > 20 and cone_length > 5:
+            # Draw semi-transparent cone fill
+            cone_surf = pygame.Surface((cone_length * 2 + 20, cone_length * 2 + 20), pygame.SRCALPHA)
+            center = cone_length + 10
+
+            # Calculate cone polygon
+            points = [(center, center)]  # Start at center
+
+            # Left edge
+            angle_left = self.blast_angle - self.cone_half_angle
+            left_x = center + math.cos(angle_left) * cone_length
+            left_y = center + math.sin(angle_left) * cone_length
+            points.append((left_x, left_y))
+
+            # Arc along cone width
+            num_arc_points = 12
+            for i in range(num_arc_points + 1):
+                t = i / num_arc_points
+                angle = angle_left + t * (2 * self.cone_half_angle)
+                arc_x = center + math.cos(angle) * cone_length
+                arc_y = center + math.sin(angle) * cone_length
+                points.append((arc_x, arc_y))
+
+            points.append((center, center))
+
+            # Draw cone (orange/yellow like base skill)
+            pygame.draw.polygon(cone_surf, (255, 102, 0, alpha // 2), points)
+            pygame.draw.lines(cone_surf, (255, 204, 0, alpha), False, points[1:-1], 2)
+
+            surface.blit(cone_surf, (int(self.center_x - center), int(self.center_y - center)))
+
+        # Draw peacock tail struts expanding (like base skill's tail mechanism)
+        strut_alpha = int(220 * (1.0 - progress * 0.8))
+        if strut_alpha > 30:
+            max_strut_length = 50
+            strut_length = max_strut_length * progress
+
+            for strut in self.struts:
+                # Calculate strut end position
+                angle = strut['angle']
+                length = strut_length * strut['length_mult']
+                end_x = self.center_x + math.cos(angle) * length
+                end_y = self.center_y + math.sin(angle) * length
+
+                # Draw strut (grey metal with orange highlight)
+                pygame.draw.line(surface, (120, 120, 120, strut_alpha),
+                               (int(self.center_x), int(self.center_y)),
+                               (int(end_x), int(end_y)), 3)
+
+                # Orange highlight on top
+                pygame.draw.line(surface, (255, 150, 0, strut_alpha),
+                               (int(self.center_x), int(self.center_y)),
+                               (int(end_x), int(end_y)), 1)
+
+                # Cyan accent nodes at ends (peacock eye spots)
+                if progress > 0.4:
+                    node_surf = pygame.Surface((8, 8), pygame.SRCALPHA)
+                    node_alpha = min(strut_alpha, 200)
+                    pygame.draw.circle(node_surf, (0, 204, 255, node_alpha), (4, 4), 3)
+                    surface.blit(node_surf, (int(end_x) - 4, int(end_y) - 4))
+
+        # Draw flying debris (metal fragments)
+        debris_alpha = int(220 * (1.0 - progress * 0.7))
+        if debris_alpha > 30:
+            for d in self.debris:
+                debris_surf = pygame.Surface((d['size'] * 3, d['size'] * 3), pygame.SRCALPHA)
+                center = int(d['size'] * 1.5)
+
+                # Create jagged metal fragment
+                points = []
+                for j in range(5):
+                    angle = d['rotation'] + (j / 5) * 2 * math.pi
+                    radius = d['size'] if j % 2 == 0 else d['size'] * 0.5
+                    px = center + math.cos(angle) * radius
+                    py = center + math.sin(angle) * radius
+                    points.append((px, py))
+
+                # Orange/grey fragments (like base skill shrapnel)
+                pygame.draw.polygon(debris_surf, (255, 102, 0, debris_alpha), points)
+                pygame.draw.polygon(debris_surf, (90, 90, 90, debris_alpha), points, 1)
+
+                surface.blit(debris_surf, (int(d['x']) - center, int(d['y']) - center))
+
+
 class FragcrestAnimation:
     """
     Fragcrest (directional fragmentation cone) skill animation for FOWL CONTRIVANCE.
-    Unfolds mechanical tail and fires explosive shrapnel in a 90-degree cone.
+    Ground-level conical explosion in peacock tail pattern with directional shrapnel.
 
     Phases:
-    1. Tail Unfold - Mechanical tail fans out
-    2. Charge - Orange energy builds up
-    3. Burst - Explosive cone release with shrapnel
-    4. Impact - Fragments hit targets with embedded shrapnel effects
-    5. Aftermath - Tail retracts, embers fade
+    1. Ground Explosion - Claymore-style detonation with conical burst
+    2. Burst - Explosive cone release with shrapnel fragments
+    3. Impact - Fragments hit targets with embedded shrapnel effects
     """
 
     def __init__(self, caster_unit, target_unit, target_pos, is_crit, is_infused,
                  particle_emitter, debris_list, screen_shake_callback,
-                 screen_flash_callback, units_list, camera, game=None):
+                 screen_flash_callback, units_list, camera, game=None, is_trap=False,
+                 trap_cone_positions=None):
         """
         Initialize Fragcrest animation.
 
         Args:
-            target_pos: (grid_y, grid_x) - primary target position
+            target_pos: (grid_y, grid_x) - primary target position (or trap position if is_trap=True)
             target_unit: Primary target unit (for cone direction calculation)
             camera: Camera instance for coordinate conversion
             game: Game instance to calculate cone positions
+            is_trap: If True, animation originates from trap position (target_pos) instead of caster
+            trap_cone_positions: Pre-calculated cone positions for trap mode (list of (y, x, is_primary) tuples)
         """
         # Store references
         self.caster = caster_unit
@@ -1871,23 +2044,29 @@ class FragcrestAnimation:
         self.particle_emitter = particle_emitter
         self.screen_shake_callback = screen_shake_callback
         self.game = game
-
-        # Convert caster position to screen coords
-        self.caster_x, self.caster_y = camera.grid_to_screen(caster_unit.grid_x,
-                                                             caster_unit.grid_y,
-                                                             centered=True)
+        self.is_trap = is_trap
 
         # Convert target grid position to screen coords
         # CRITICAL: target_pos is (grid_y, grid_x), but grid_to_screen takes (grid_x, grid_y)!
         grid_y, grid_x = target_pos
         self.target_x, self.target_y = camera.grid_to_screen(grid_x, grid_y, centered=True)
 
-        # Calculate cone positions using the skill's logic
-        # Need to calculate cone from caster to target
-        cone_positions = self._calculate_cone_positions(
-            caster_unit.grid_y, caster_unit.grid_x,
-            grid_y, grid_x
-        )
+        # Determine origin position for animation and cone positions
+        if is_trap and trap_cone_positions:
+            # Trap mode: Animation originates from trap position (target_pos)
+            # Use pre-calculated cone positions from trap trigger
+            self.caster_x, self.caster_y = self.target_x, self.target_y
+            cone_positions = trap_cone_positions
+        else:
+            # Normal mode: Animation originates from caster position
+            self.caster_x, self.caster_y = camera.grid_to_screen(caster_unit.grid_x,
+                                                                 caster_unit.grid_y,
+                                                                 centered=True)
+            # Calculate cone positions using the skill's logic
+            cone_positions = self._calculate_cone_positions(
+                caster_unit.grid_y, caster_unit.grid_x,
+                grid_y, grid_x
+            )
 
         # Convert all cone positions to screen coords
         self.cone_screen_positions = []
@@ -1899,20 +2078,25 @@ class FragcrestAnimation:
                 'is_primary': is_primary
             })
 
+        # Calculate direction from caster to target for explosion
+        direction_x = self.target_x - self.caster_x
+        direction_y = self.target_y - self.caster_y
+        self.direction_x = direction_x
+        self.direction_y = direction_y
+
         # Animation state
-        self.phase = "tail_unfold"
+        self.phase = "ground_explosion"
         self.timer = 0
         self.active = True
 
         # Sub-effects
-        self.tail_fan = None
-        self.charge_glow = None
+        self.ground_explosion = None
         self.cone_burst = None
         self.shrapnel_fragments = []
         self.embedded_shrapnel = []
 
-        # Start Phase 1: Tail Unfold
-        self._start_tail_unfold()
+        # Start Phase 1: Ground Explosion
+        self._start_ground_explosion()
 
     def _calculate_cone_positions(self, caster_y, caster_x, target_y, target_x):
         """Calculate all positions in the 90-degree cone (from skill logic)."""
@@ -1954,45 +2138,36 @@ class FragcrestAnimation:
 
         return positions
 
-    def _start_tail_unfold(self):
-        """Phase 1: Tail Unfold - Mechanical tail fans out."""
-        self.phase = "tail_unfold"
+    def _start_ground_explosion(self):
+        """Phase 1: Ground Explosion - Claymore-style detonation."""
+        self.phase = "ground_explosion"
         self.timer = 0
 
-        # Create tail fan mechanism
-        self.tail_fan = TailFanMechanism(self.caster_x, self.caster_y)
+        # Create ground explosion effect
+        self.ground_explosion = ClaymoreGroundExplosion(
+            self.caster_x, self.caster_y,
+            self.direction_x, self.direction_y
+        )
 
-        # Light screen shake for mechanical deployment
-        self.screen_shake_callback(2, 0.2)
+        # Medium screen shake for explosion
+        self.screen_shake_callback(4, 0.25)
 
-    def _start_charge(self):
-        """Phase 2: Charge - Energy builds up."""
-        self.phase = "charge"
-        self.timer = 0
-
-        # Create charge glow
-        self.charge_glow = ChargeGlow(self.caster_x, self.caster_y)
-
-        # Emit charging particles
+        # Emit explosion particles
         if self.particle_emitter:
-            self.particle_emitter.emit_burst(self.caster_x, self.caster_y, (255, 150, 0), count=12)
+            self.particle_emitter.emit_burst(self.caster_x, self.caster_y, (255, 102, 0), count=25)
 
     def _start_burst(self):
-        """Phase 3: Burst - Explosive cone release."""
+        """Phase 2: Burst - Explosive cone release."""
         self.phase = "burst"
         self.timer = 0
 
-        # Calculate direction from caster to target
-        direction_x = self.target_x - self.caster_x
-        direction_y = self.target_y - self.caster_y
-
         # Create cone burst effect
-        self.cone_burst = ConeBurst(self.caster_x, self.caster_y, direction_x, direction_y)
+        self.cone_burst = ConeBurst(self.caster_x, self.caster_y, self.direction_x, self.direction_y)
 
         # Create shrapnel fragments for each cone position
         for i, pos in enumerate(self.cone_screen_positions):
-            # Stagger fragment launches slightly
-            delay = 0.05 * i if not pos['is_primary'] else 0
+            # Slight stagger for realism
+            delay = 0.03 * i if not pos['is_primary'] else 0
             fragment = ShrapnelFragment(
                 self.caster_x, self.caster_y,
                 pos['x'], pos['y'],
@@ -2001,37 +2176,27 @@ class FragcrestAnimation:
             )
             self.shrapnel_fragments.append(fragment)
 
-        # Heavy screen shake for burst
-        self.screen_shake_callback(6, 0.3)
+        # Additional shake for shrapnel burst
+        self.screen_shake_callback(3, 0.2)
 
-        # Emit burst particles
+        # Burst particles
         if self.particle_emitter:
-            self.particle_emitter.emit_burst(self.caster_x, self.caster_y, (255, 102, 0), count=40)
+            self.particle_emitter.emit_burst(self.caster_x, self.caster_y, (255, 150, 0), count=30)
 
     def _start_impact(self):
-        """Phase 4: Impact - Fragments hit targets."""
+        """Phase 3: Impact - Fragments hit targets."""
         self.phase = "impact"
         self.timer = 0
 
         # Create embedded shrapnel at each impact position
         for i, pos in enumerate(self.cone_screen_positions):
-            delay = 0.05 * i if not pos['is_primary'] else 0
+            delay = 0.03 * i if not pos['is_primary'] else 0
             embedded = EmbeddedShrapnel(pos['x'], pos['y'], delay=delay)
             self.embedded_shrapnel.append(embedded)
 
-            # Emit impact particles
-            if self.particle_emitter and delay == 0:  # Primary impact immediate
-                self.particle_emitter.emit_burst(pos['x'], pos['y'], (255, 102, 0), count=20)
-
-    def _start_aftermath(self):
-        """Phase 5: Aftermath - Effects fade."""
-        self.phase = "aftermath"
-        self.timer = 0
-
-        # Emit floating embers at impact sites
-        if self.particle_emitter:
-            for pos in self.cone_screen_positions:
-                self.particle_emitter.emit_float(pos['x'], pos['y'], (255, 102, 0), count=5)
+            # Impact particles at primary targets
+            if self.particle_emitter and delay == 0:
+                self.particle_emitter.emit_burst(pos['x'], pos['y'], (255, 102, 0), count=15)
 
     def update(self, delta_time):
         """Update animation state. MUST return True/False."""
@@ -2041,11 +2206,8 @@ class FragcrestAnimation:
         self.timer += delta_time
 
         # Update sub-effects
-        if self.tail_fan:
-            self.tail_fan.update(delta_time)
-
-        if self.charge_glow:
-            self.charge_glow.update(delta_time)
+        if self.ground_explosion:
+            self.ground_explosion.update(delta_time)
 
         if self.cone_burst:
             self.cone_burst.update(delta_time)
@@ -2056,16 +2218,12 @@ class FragcrestAnimation:
         for embedded in self.embedded_shrapnel:
             embedded.update(delta_time)
 
-        # Phase transitions
-        if self.phase == "tail_unfold" and self.timer >= 0.3:
-            self._start_charge()
-        elif self.phase == "charge" and self.timer >= 0.4:
+        # Phase transitions (same timing as trap)
+        if self.phase == "ground_explosion" and self.timer >= 0.2:
             self._start_burst()
-        elif self.phase == "burst" and self.timer >= 0.5:
+        elif self.phase == "burst" and self.timer >= 0.4:
             self._start_impact()
-        elif self.phase == "impact" and self.timer >= 0.6:
-            self._start_aftermath()
-        elif self.phase == "aftermath" and self.timer >= 0.4:
+        elif self.phase == "impact" and self.timer >= 0.5:
             self.active = False  # Animation complete
 
         return self.active
@@ -2076,23 +2234,220 @@ class FragcrestAnimation:
             return
 
         # Draw phase-specific effects
-        if self.phase == "tail_unfold":
-            if self.tail_fan:
-                self.tail_fan.draw(surface)
-
-        elif self.phase == "charge":
-            if self.tail_fan:
-                self.tail_fan.draw(surface)
-            if self.charge_glow:
-                self.charge_glow.draw(surface)
+        if self.phase == "ground_explosion":
+            if self.ground_explosion:
+                self.ground_explosion.draw(surface)
 
         elif self.phase == "burst":
+            # Ground explosion still fading
+            if self.ground_explosion:
+                self.ground_explosion.draw(surface)
+
             if self.cone_burst:
                 self.cone_burst.draw(surface)
             for fragment in self.shrapnel_fragments:
                 fragment.draw(surface)
 
-        elif self.phase in ["impact", "aftermath"]:
+        elif self.phase == "impact":
+            # Draw fragments still traveling
+            for fragment in self.shrapnel_fragments:
+                fragment.draw(surface)
+
+            # Draw embedded shrapnel
+            for embedded in self.embedded_shrapnel:
+                embedded.draw(surface)
+
+
+class FragcrestTrapAnimation:
+    """
+    Fragcrest trap detonation animation for FOWL CONTRIVANCE.
+    Instant claymore mine explosion with directional fragmentation cone.
+
+    Phases:
+    1. Ground Explosion - Claymore detonation at trap position
+    2. Burst - Explosive cone release with shrapnel
+    3. Impact - Fragments hit targets with embedded shrapnel effects
+    """
+
+    def __init__(self, caster_unit, target_unit, target_pos, is_crit, is_infused,
+                 particle_emitter, debris_list, screen_shake_callback,
+                 screen_flash_callback, units_list, camera, game=None, is_trap=False,
+                 trap_cone_positions=None):
+        """
+        Initialize Fragcrest trap animation.
+
+        Args:
+            target_pos: (grid_y, grid_x) - trap position
+            target_unit: Target unit (for direction)
+            trap_cone_positions: Pre-calculated cone positions
+        """
+        # Store references
+        self.caster = caster_unit
+        self.target_unit = target_unit
+        self.target_pos = target_pos
+        self.camera = camera
+        self.particle_emitter = particle_emitter
+        self.screen_shake_callback = screen_shake_callback
+
+        # Trap position is the origin
+        grid_y, grid_x = target_pos
+        self.trap_x, self.trap_y = camera.grid_to_screen(grid_x, grid_y, centered=True)
+
+        # Calculate direction from trap to triggering unit
+        if target_unit:
+            target_screen_x, target_screen_y = camera.grid_to_screen(
+                target_unit.grid_x, target_unit.grid_y, centered=True
+            )
+            direction_x = target_screen_x - self.trap_x
+            direction_y = target_screen_y - self.trap_y
+        else:
+            direction_x = 1
+            direction_y = 0
+
+        self.direction_x = direction_x
+        self.direction_y = direction_y
+
+        # Convert cone positions to screen coords
+        self.cone_screen_positions = []
+        if trap_cone_positions:
+            for pos_grid_y, pos_grid_x, is_primary in trap_cone_positions:
+                pos_x, pos_y = camera.grid_to_screen(pos_grid_x, pos_grid_y, centered=True)
+                self.cone_screen_positions.append({
+                    'x': pos_x,
+                    'y': pos_y,
+                    'is_primary': is_primary
+                })
+
+        # Animation state
+        self.phase = "ground_explosion"
+        self.timer = 0
+        self.active = True
+
+        # Sub-effects
+        self.ground_explosion = None
+        self.cone_burst = None
+        self.shrapnel_fragments = []
+        self.embedded_shrapnel = []
+
+        # Start Phase 1: Ground Explosion
+        self._start_ground_explosion()
+
+    def _start_ground_explosion(self):
+        """Phase 1: Ground Explosion - Claymore detonation."""
+        self.phase = "ground_explosion"
+        self.timer = 0
+
+        # Create ground explosion effect
+        self.ground_explosion = ClaymoreGroundExplosion(
+            self.trap_x, self.trap_y,
+            self.direction_x, self.direction_y
+        )
+
+        # Medium screen shake for trap detonation
+        self.screen_shake_callback(4, 0.25)
+
+        # Emit explosion particles
+        if self.particle_emitter:
+            self.particle_emitter.emit_burst(self.trap_x, self.trap_y, (255, 102, 0), count=25)
+
+    def _start_burst(self):
+        """Phase 2: Burst - Explosive cone release."""
+        self.phase = "burst"
+        self.timer = 0
+
+        # Create cone burst effect
+        self.cone_burst = ConeBurst(
+            self.trap_x, self.trap_y,
+            self.direction_x, self.direction_y
+        )
+
+        # Create shrapnel fragments for each cone position
+        for i, pos in enumerate(self.cone_screen_positions):
+            # Slight stagger for realism
+            delay = 0.03 * i if not pos['is_primary'] else 0
+            fragment = ShrapnelFragment(
+                self.trap_x, self.trap_y,
+                pos['x'], pos['y'],
+                delay=delay,
+                is_primary=pos['is_primary']
+            )
+            self.shrapnel_fragments.append(fragment)
+
+        # Additional shake for shrapnel burst
+        self.screen_shake_callback(3, 0.2)
+
+        # Burst particles
+        if self.particle_emitter:
+            self.particle_emitter.emit_burst(self.trap_x, self.trap_y, (255, 150, 0), count=30)
+
+    def _start_impact(self):
+        """Phase 3: Impact - Fragments hit targets."""
+        self.phase = "impact"
+        self.timer = 0
+
+        # Create embedded shrapnel at each impact position
+        for i, pos in enumerate(self.cone_screen_positions):
+            delay = 0.03 * i if not pos['is_primary'] else 0
+            embedded = EmbeddedShrapnel(pos['x'], pos['y'], delay=delay)
+            self.embedded_shrapnel.append(embedded)
+
+            # Impact particles at primary targets
+            if self.particle_emitter and delay == 0:
+                self.particle_emitter.emit_burst(pos['x'], pos['y'], (255, 102, 0), count=15)
+
+    def update(self, delta_time):
+        """Update animation state. MUST return True/False."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        # Update sub-effects
+        if self.ground_explosion:
+            self.ground_explosion.update(delta_time)
+
+        if self.cone_burst:
+            self.cone_burst.update(delta_time)
+
+        for fragment in self.shrapnel_fragments:
+            fragment.update(delta_time)
+
+        for embedded in self.embedded_shrapnel:
+            embedded.update(delta_time)
+
+        # Phase transitions (faster than original)
+        if self.phase == "ground_explosion" and self.timer >= 0.2:
+            self._start_burst()
+        elif self.phase == "burst" and self.timer >= 0.4:
+            self._start_impact()
+        elif self.phase == "impact" and self.timer >= 0.5:
+            self.active = False  # Animation complete
+
+        return self.active
+
+    def draw(self, surface):
+        """Draw animation to pygame surface."""
+        if not self.active:
+            return
+
+        # Draw phase-specific effects
+        if self.phase == "ground_explosion":
+            if self.ground_explosion:
+                self.ground_explosion.draw(surface)
+
+        elif self.phase == "burst":
+            # Ground explosion still fading
+            if self.ground_explosion:
+                self.ground_explosion.draw(surface)
+
+            # Cone burst and shrapnel
+            if self.cone_burst:
+                self.cone_burst.draw(surface)
+
+            for fragment in self.shrapnel_fragments:
+                fragment.draw(surface)
+
+        elif self.phase == "impact":
             # Draw fragments still traveling
             for fragment in self.shrapnel_fragments:
                 fragment.draw(surface)

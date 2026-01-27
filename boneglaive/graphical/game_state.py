@@ -1033,6 +1033,48 @@ class GameStateAdapter:
                     visual_unit.echo_death_animated = True
                     dead_echo_ids.append(unit_id)
 
+        # Check for triggered Fragcrest traps
+        if hasattr(self.game, 'triggered_fragcrest_traps') and self.game.triggered_fragcrest_traps:
+            for trap_info in self.game.triggered_fragcrest_traps:
+                trap_pos = trap_info['trap_pos']
+                owner = trap_info['owner']
+                triggering_unit = trap_info['triggering_unit']
+                affected_positions = trap_info['affected_positions']
+                units_with_shrapnel = trap_info.get('units_with_shrapnel', [])
+
+                print(f"  [GameState] Detected Fragcrest trap trigger at {trap_pos} by {triggering_unit.get_display_name()}")
+
+                # Create skill animation event for Fragcrest at trap position
+                # Note: skill_name must be "FRAGCREST" (all caps) to match AnimationFactory registration
+                # Note: target_unit is required by FragcrestAnimation, use triggering unit
+                # Note: is_trap=True tells animation to originate from trap_pos instead of caster position
+                # Note: trap_cone_positions provides pre-calculated cone positions for the trap
+                events.append(AnimationEvent(
+                    "skill",
+                    source_unit=owner,
+                    target_unit=triggering_unit,
+                    skill_name="FRAGCREST",
+                    skill_target=trap_pos,  # (y, x) position of trap
+                    is_trap=True,  # Flag to make animation originate from trap position
+                    trap_cone_positions=affected_positions  # Pre-calculated cone positions
+                ))
+
+                # Queue status effect animations for units that received shrapnel
+                for unit_with_shrapnel in units_with_shrapnel:
+                    unit_id = self._get_unit_id(unit_with_shrapnel)
+                    if unit_id in self.visual_units:
+                        # Create status effect event to show shrapnel icon
+                        events.append(AnimationEvent(
+                            "status_effect",
+                            source_unit=owner,  # Trap owner as source
+                            target_unit=unit_with_shrapnel,
+                            effect_name="shrapnel"
+                        ))
+                        print(f"  [GameState] Queued shrapnel status effect for {unit_with_shrapnel.get_display_name()}")
+
+            # Clear triggered traps list
+            self.game.triggered_fragcrest_traps = []
+
         return events
 
     def queue_skill_animation(self, skill_name: str, caster, target=None, **kwargs):
