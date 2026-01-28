@@ -384,6 +384,10 @@ class TacticalEvaluator:
         """
         actions = []
 
+        # Trapped units cannot use skills
+        if hasattr(unit, 'trapped_by') and unit.trapped_by is not None:
+            return actions
+
         # Get available skills
         try:
             available_skills = unit.get_available_skills()

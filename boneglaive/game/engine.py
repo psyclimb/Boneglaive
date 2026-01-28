@@ -16,7 +16,7 @@ if 'logger' not in locals():
 
 class DeadUnit:
     """Represents a dead unit awaiting respawn."""
-    def __init__(self, unit_type, player, death_turn, greek_id):
+    def __init__(self, unit_type, player, death_turn, greek_id, upgraded_skills=None):
         self.unit_type = unit_type
         self.player = player
         self.death_turn = death_turn
@@ -24,6 +24,7 @@ class DeadUnit:
         self.greek_id = greek_id  # Preserve original identifier
         self.ready_for_respawn = False
         self.respawn_preview = None  # Tuple (y, x) showing where unit will respawn
+        self.upgraded_skills = upgraded_skills or set()  # Preserve skill upgrades for respawn
 
 class Game:
     def __init__(self, skip_setup=False, map_name="lime_foyer_arena", player_names=None):
@@ -1222,6 +1223,18 @@ class Game:
         # Add to new position if alive
         if unit.is_alive():
             new_key = (unit.y, unit.x)
+            # SAFETY CHECK: Prevent teleporting onto another unit
+            # This catches bugs where position validation happened before execution
+            # but another unit moved to the target position in between
+            if new_key in self.unit_grid and self.unit_grid[new_key] != unit:
+                existing_unit = self.unit_grid[new_key]
+                logger.error(f"BUG: Unit collision detected! {unit.get_display_name()} trying to move to {new_key} but {existing_unit.get_display_name()} is already there")
+                # Restore unit to old position to prevent corruption
+                if old_y is not None and old_x is not None:
+                    unit._y = old_y
+                    unit._x = old_x
+                    self.unit_grid[(old_y, old_x)] = unit
+                return
             self.unit_grid[new_key] = unit
 
     def _remove_from_unit_grid(self, unit):
@@ -1377,6 +1390,13 @@ class Game:
 
             # Initialize skills
             unit.initialize_skills()
+
+            # Restore upgraded skills from before death
+            if hasattr(dead_unit, 'upgraded_skills') and dead_unit.upgraded_skills:
+                unit.upgraded_skills = set(dead_unit.upgraded_skills)
+                logger.info(f"RESPAWN: Restored {len(unit.upgraded_skills)} skill upgrades for {unit.get_display_name()}: {unit.upgraded_skills}")
+            else:
+                unit.upgraded_skills = set()
 
             # Reset passive skill activation flags (once-per-life)
             if hasattr(unit, 'passive_skill') and unit.passive_skill:
@@ -3242,6 +3262,9 @@ class Game:
                                not self.is_protected_from(target, unit))
                                
                 if valid_attack or wall_target:  # Valid attack on unit or wall
+                    # Mark that this attack was executed (for animation detection in graphical mode)
+                    unit.last_executed_attack = unit.attack_target
+
                     # Handle damage calculation first
                     if wall_target:
                         # Get the wall information
@@ -4048,14 +4071,9 @@ class Game:
                     # Kill the vapor using expire() to bypass invulnerability
                     vapor_unit.expire()
 
-        # Store executed attacks for animation before clearing them
-        # This allows graphical mode to detect which attacks actually happened
-        for unit in self.units:
-            if unit.is_alive() and hasattr(unit, 'attack_target') and unit.attack_target:
-                # Mark that this attack was executed (for animation detection)
-                unit.last_executed_attack = unit.attack_target
-
         # Clear all actions and update skill cooldowns
+        # Note: last_executed_attack is now set during attack execution (line 3246),
+        # not here, to ensure only valid attacks trigger animations
         for unit in self.units:
             if unit.is_alive():
                 # Reset action targets

@@ -8,6 +8,7 @@ from typing import Optional, TYPE_CHECKING
 
 from boneglaive.game.skills.core import PassiveSkill, ActiveSkill, TargetType
 from boneglaive.utils.message_log import message_log, MessageType
+from boneglaive.utils.debug import logger
 
 if TYPE_CHECKING:
     from boneglaive.game.units import Unit
@@ -324,7 +325,15 @@ class DeltaConfigSkill(ActiveSkill):
             ui.renderer.draw_tile(original_pos[0], original_pos[1], terrain_tile, terrain_color)
 
             # INSTANT: Move unit and appear at destination with impact
-            user.y, user.x = target_pos
+            # Use atomic position update to prevent collisions
+            if not user.set_position_atomic(target_pos[0], target_pos[1]):
+                logger.error(f"TELEPORT BLOCKED: {user.get_display_name()}'s Delta Config to {target_pos} blocked by collision")
+                message_log.add_message(
+                    f"{user.get_display_name()}'s Delta Config blocked - position occupied!",
+                    MessageType.WARNING,
+                    player=user.player
+                )
+                return False
 
             if is_upgraded:
                 # Big electromagnetic burst for upgraded version
@@ -381,7 +390,15 @@ class DeltaConfigSkill(ActiveSkill):
                 ui.renderer.flash_tile(user.y, user.x, tile_ids, color_ids, durations)
         else:
             # No UI, just set position without animations
-            user.y, user.x = target_pos
+            # Use atomic position update to prevent collisions
+            if not user.set_position_atomic(target_pos[0], target_pos[1]):
+                logger.error(f"TELEPORT BLOCKED: {user.get_display_name()}'s Delta Config to {target_pos} blocked by collision")
+                message_log.add_message(
+                    f"{user.get_display_name()}'s Delta Config blocked - position occupied!",
+                    MessageType.WARNING,
+                    player=user.player
+                )
+                return False
 
         # MOVE ABDUCTED ENEMIES TO DESTINATION (both with and without UI)
         if is_upgraded and abducted_enemies:
@@ -835,7 +852,7 @@ class GraeExchangeSkill(ActiveSkill):
             key="G",
             description="Create an echo at current position and teleport away. Echo can attack but not move.",
             target_type=TargetType.AREA,
-            cooldown=4,
+            cooldown=5,
             range_=3
         )
 
@@ -1062,7 +1079,15 @@ class GraeExchangeSkill(ActiveSkill):
             )
             
             # Actually move the unit to the target position
-            user.y, user.x = target_pos
+            # Use atomic position update to prevent collisions
+            if not user.set_position_atomic(target_pos[0], target_pos[1]):
+                logger.error(f"TELEPORT BLOCKED: {user.get_display_name()}'s Græ Exchange to {target_pos} blocked by collision")
+                message_log.add_message(
+                    f"{user.get_display_name()}'s Græ Exchange blocked - position occupied!",
+                    MessageType.WARNING,
+                    player=user.player
+                )
+                return False
             
             # Redraw to show the final state
             if hasattr(ui, 'draw_board'):
@@ -1078,10 +1103,19 @@ class GraeExchangeSkill(ActiveSkill):
                 ui.renderer.flash_tile(user.y, user.x, tile_ids, color_ids, durations)
         else:
             # No UI, just set position without animations
-            # Add the echo unit to the game 
+            # Add the echo unit to the game
             game.units.append(echo_unit)
+
             # Move the user to the target position
-            user.y, user.x = target_pos
+            # Use atomic position update to prevent collisions
+            if not user.set_position_atomic(target_pos[0], target_pos[1]):
+                logger.error(f"TELEPORT BLOCKED: {user.get_display_name()}'s Græ Exchange to {target_pos} blocked by collision")
+                message_log.add_message(
+                    f"{user.get_display_name()}'s Græ Exchange blocked - position occupied!",
+                    MessageType.WARNING,
+                    player=user.player
+                )
+                return False
         
         # Log the completion with special message for echoes
         if hasattr(user, 'is_echo') and user.is_echo:

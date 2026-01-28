@@ -458,12 +458,6 @@ class Unit:
         # GRAYMAN with Stasiality passive is immune
         if self.passive_skill and self.passive_skill.name == "Stasiality":
             return True
-        # Check if protected by upgraded Partition shield
-        if hasattr(self, 'partition_shield_active') and self.partition_shield_active:
-            if hasattr(self, 'partition_shield_caster') and self.partition_shield_caster:
-                from boneglaive.game.upgrades import UpgradeManager
-                if UpgradeManager.is_skill_upgraded(self.partition_shield_caster, "Partition"):
-                    return True  # Upgraded Partition blocks new status effects
         return False
 
     def is_immune_to_trap(self) -> bool:
@@ -985,11 +979,14 @@ class Unit:
                         )
 
             # Create DeadUnit entry for respawn
+            # Preserve upgraded_skills for respawn
+            upgraded_skills_copy = set(self.upgraded_skills) if hasattr(self, 'upgraded_skills') else set()
             dead_unit = DeadUnit(
                 unit_type=self.type,
                 player=self.player,
                 death_turn=self._game.turn,
-                greek_id=self.greek_id
+                greek_id=self.greek_id,
+                upgraded_skills=upgraded_skills_copy
             )
             self._game.dead_units.append(dead_unit)
 
@@ -1056,7 +1053,41 @@ class Unit:
     def set_game_reference(self, game):
         """Set reference to the game for trap checks."""
         self._game = game
-            
+
+    def set_position_atomic(self, y: int, x: int) -> bool:
+        """
+        Atomically set unit position to (y, x).
+        This prevents intermediate position collisions that can occur when setting y and x separately.
+
+        Returns:
+            True if position was set successfully, False if blocked by collision
+        """
+        from boneglaive.utils.debug import logger
+
+        if not self._game:
+            # No game reference, just set directly
+            self._y = y
+            self._x = x
+            return True
+
+        # Check if intermediate position (new_y, old_x) would collide
+        if y != self._y:  # Y is changing
+            intermediate_unit = self._game.get_unit_at(y, self._x)
+            if intermediate_unit is not None and intermediate_unit != self:
+                logger.error(f"Cannot move {self.get_display_name()} to ({y}, {x}) - intermediate position ({y}, {self._x}) occupied by {intermediate_unit.get_display_name()}")
+                return False
+
+        # Check if final position would collide
+        final_unit = self._game.get_unit_at(y, x)
+        if final_unit is not None and final_unit != self:
+            logger.error(f"Cannot move {self.get_display_name()} to ({y}, {x}) - position occupied by {final_unit.get_display_name()}")
+            return False
+
+        # Safe to move - use property setters (they handle grid updates)
+        self.y = y
+        self.x = x
+        return True
+
     def reset_movement_penalty(self) -> None:
         """Clear any movement penalties and reset relevant status flags."""
         # First check for first-turn move bonus for player 2
