@@ -1508,19 +1508,12 @@ class Game:
             return False
 
         # Check if position is occupied by another unit
-        # DERELICTIONIST with upgraded Severance (when status is active) can pass through units
         # INTERFERER with upgraded Karrier Rave (when active) can pass through units
         unit_at_pos = self.get_unit_at(y, x)
         if unit_at_pos:
             from boneglaive.game.upgrades import UpgradeManager
             # Check for units that can pass through
             can_pass_through = False
-
-            # DERELICTIONIST with upgraded Severance and active status
-            if (unit.type == UnitType.DERELICTIONIST and
-                UpgradeManager.is_skill_upgraded(unit, "Severance") and
-                hasattr(unit, 'severance_active') and unit.severance_active):
-                can_pass_through = True
 
             # INTERFERER with upgraded Karrier Rave and active status
             if (unit.type == UnitType.INTERFERER and
@@ -1572,19 +1565,12 @@ class Game:
             # Skip the first position (the unit's current position)
             for pos in path[1:-1]:  # Skip start and end positions
                 # Check if there's ANY unit at this position
-                # DERELICTIONIST with upgraded Severance (when status is active) can pass through units
                 # INTERFERER with upgraded Karrier Rave (when active) can pass through units
                 blocking_unit = self.get_unit_at(pos.y, pos.x)
                 if blocking_unit:
                     from boneglaive.game.upgrades import UpgradeManager
                     # Check for units that can pass through
                     can_pass_through = False
-
-                    # DERELICTIONIST with upgraded Severance and active status
-                    if (unit.type == UnitType.DERELICTIONIST and
-                        UpgradeManager.is_skill_upgraded(unit, "Severance") and
-                        hasattr(unit, 'severance_active') and unit.severance_active):
-                        can_pass_through = True
 
                     # INTERFERER with upgraded Karrier Rave and active status
                     if (unit.type == UnitType.INTERFERER and
@@ -1597,8 +1583,22 @@ class Game:
                     # Otherwise allow passage through units
 
                 # Check if terrain along the path is passable
-                if not self.map.is_passable(pos.y, pos.x):
-                    return False
+                # DERELICTIONIST with upgraded Severance can pass through impassable terrain
+                terrain_passable = self.map.is_passable(pos.y, pos.x)
+                if not terrain_passable:
+                    from boneglaive.game.upgrades import UpgradeManager
+                    # Check if unit can pass through terrain
+                    can_pass_through_terrain = False
+
+                    # DERELICTIONIST with upgraded Severance and active status
+                    if (unit.type == UnitType.DERELICTIONIST and
+                        UpgradeManager.is_skill_upgraded(unit, "Severance") and
+                        hasattr(unit, 'severance_active') and unit.severance_active):
+                        can_pass_through_terrain = True
+
+                    if not can_pass_through_terrain:
+                        return False
+                    # Otherwise allow passage through terrain
 
         return True
     

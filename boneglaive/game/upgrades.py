@@ -189,7 +189,7 @@ SKILL_UPGRADES = {
         },
         "Fragcrest": {
             "name": "Fragcrest",
-            "description": "Turns into a 5x5 self-targeted AOE.",
+            "description": "Allows ground targetting placement as a silent trap. Arms after 1 turn. Lasts 6 turns.",
             "type": "sidegrade",
             "cost": 1
         }
@@ -223,7 +223,7 @@ SKILL_UPGRADES = {
     "DERELICTIONIST": {
         "Severance": {
             "name": "Severance",
-            "description": "Allows passage through units.",
+            "description": "Allows passage through furniture and terrain while active.",
             "type": "buff",
             "cost": 1
         },
@@ -241,7 +241,7 @@ SKILL_UPGRADES = {
         },
         "Partition": {
             "name": "Partition",
-            "description": "Blocks all status effects and prevents stripping of existing status effects.",
+            "description": "Allows self cast and reduces the cooldown of the dissociation save from 8 to 6.",
             "type": "buff",
             "cost": 1
         }

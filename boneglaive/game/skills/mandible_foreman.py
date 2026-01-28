@@ -8,6 +8,7 @@ from typing import Optional, TYPE_CHECKING
 
 from boneglaive.game.skills.core import PassiveSkill, ActiveSkill, TargetType
 from boneglaive.utils.message_log import message_log, MessageType
+from boneglaive.utils.debug import logger
 
 if TYPE_CHECKING:
     from boneglaive.game.units import Unit
@@ -266,7 +267,18 @@ class DischargeSkill(ActiveSkill):
             # Move to last position in path (which is the tile just before the enemy)
             # If path_positions is empty, enemy was adjacent, so don't move
             if path_positions:
-                user.y, user.x = path_positions[-1]
+                target_y, target_x = path_positions[-1]
+                # Use atomic positioning to prevent collisions
+                if not user.set_position_atomic(target_y, target_x):
+                    logger.error(f"EXPEDITE BLOCKED: {user.get_display_name()}'s Expedite to {(target_y, target_x)} blocked by collision")
+                    message_log.add_message(
+                        f"{user.get_display_name()}'s Expedite blocked - position occupied!",
+                        MessageType.WARNING,
+                        player=user.player
+                    )
+                    # Clear expediting flag
+                    user.expediting = False
+                    return False
             # else: No valid path positions means enemy is adjacent - stay at starting position
         # Note: With ENEMY targeting, there should always be an enemy_hit since we require targeting an enemy
 
@@ -1016,22 +1028,52 @@ class SiteInspectionSkill(ActiveSkill):
                     MessageType.ABILITY,
                     player=user.player
                 )
-                
-                # Show visual indicators for revealed nodes
+
+        # Check for FOWL CONTRIVANCE Fragcrest traps in the inspection area
+        if hasattr(game, 'fragcrest_traps') and game.fragcrest_traps:
+            revealed_traps = []
+            for dy in [-1, 0, 1]:
+                for dx in [-1, 0, 1]:
+                    check_y = y + dy
+                    check_x = x + dx
+
+                    # Skip out of bounds positions
+                    if not game.is_valid_position(check_y, check_x):
+                        continue
+
+                    trap_pos = (check_y, check_x)
+                    if trap_pos in game.fragcrest_traps:
+                        trap_info = game.fragcrest_traps[trap_pos]
+                        owner = trap_info['owner']
+
+                        # Only reveal enemy Fragcrest traps
+                        if owner.player != user.player:
+                            revealed_traps.append(trap_pos)
+                            # Mark trap as revealed
+                            trap_info['revealed'] = True
+
+            if revealed_traps:
+                message_log.add_message(
+                    f"Site Inspection reveals {len(revealed_traps)} Fragcrest trap{'s' if len(revealed_traps) > 1 else ''}",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
+
+                # Show visual indicators for revealed traps
                 if ui and hasattr(ui, 'renderer'):
-                    for node_pos in revealed_nodes:
-                        node_y, node_x = node_pos
-                        # Flash the revealed node position
+                    for trap_pos in revealed_traps:
+                        trap_y, trap_x = trap_pos
+                        # Flash the revealed trap position
                         for flash in range(3):
-                            ui.renderer.draw_tile(node_y, node_x, '~', 6)  # Wave pattern
+                            ui.renderer.draw_tile(trap_y, trap_x, 'X', 1)  # X for explosive trap
                             ui.renderer.refresh()
                             sleep_with_animation_speed(0.2)
                             
                             # Restore terrain
-                            terrain_type = game.map.get_terrain_at(node_y, node_x)
+                            terrain_type = game.map.get_terrain_at(trap_y, trap_x)
                             terrain_name = terrain_type.name.lower() if hasattr(terrain_type, 'name') else 'empty'
                             terrain_tile = ui.asset_manager.get_terrain_tile(terrain_name)
-                            ui.renderer.draw_tile(node_y, node_x, terrain_tile, 1)
+                            ui.renderer.draw_tile(trap_y, trap_x, terrain_tile, 1)
                             ui.renderer.refresh()
                             sleep_with_animation_speed(0.1)
         

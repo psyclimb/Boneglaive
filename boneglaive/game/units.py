@@ -508,8 +508,13 @@ class Unit:
         if not game:
             return True  # No game context, allow move
 
-        # DERELICTIONIST with upgraded Severance still needs passable terrain
-        # (unit-passing is handled in engine.py)
+        # DERELICTIONIST with upgraded Severance can pass through furniture and terrain
+        if self.type == UnitType.DERELICTIONIST:
+            from boneglaive.game.upgrades import UpgradeManager
+            if (UpgradeManager.is_skill_upgraded(self, "Severance") and
+                hasattr(self, 'severance_active') and self.severance_active):
+                # Can pass through all terrain types (furniture, pillars, walls, etc.)
+                return True
 
         # FOWL_CONTRIVANCE movement restrictions
         if self.type == UnitType.FOWL_CONTRIVANCE:
@@ -721,14 +726,19 @@ class Unit:
                 # Remove partition shield status (but keep prt=999 until end of turn)
                 self.partition_shield_active = False
                 self.partition_shield_duration = 0
-                
-                # Increase PARTITION cooldown to 8 turns as penalty for dissociation
+
+                # Increase PARTITION cooldown as penalty for dissociation
+                # Base: 8 turns, Upgraded: 6 turns
                 if self.partition_shield_caster:
+                    from boneglaive.game.upgrades import UpgradeManager
+                    is_upgraded = UpgradeManager.is_skill_upgraded(self.partition_shield_caster, "Partition")
+                    dissociation_cooldown = 6 if is_upgraded else 8
+
                     for skill in self.partition_shield_caster.active_skills:
                         if hasattr(skill, 'name') and skill.name == "Partition":
-                            skill.current_cooldown = 8
+                            skill.current_cooldown = dissociation_cooldown
                             from boneglaive.utils.debug import logger
-                            logger.info(f"DISSOCIATION PENALTY: {self.partition_shield_caster.get_display_name()}'s Partition cooldown set to 8")
+                            logger.info(f"DISSOCIATION PENALTY: {self.partition_shield_caster.get_display_name()}'s Partition cooldown set to {dissociation_cooldown} ({'upgraded' if is_upgraded else 'base'})")
                             break
                 
                 self.partition_shield_caster = None

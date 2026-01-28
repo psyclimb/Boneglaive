@@ -459,8 +459,17 @@ class MarketFuturesSkill(ActiveSkill):
             
         # Execute teleport
         old_pos = (ally.y, ally.x)
-        ally.y, ally.x = destination
-        
+        # Use atomic positioning to prevent collisions
+        if not ally.set_position_atomic(destination[0], destination[1]):
+            from boneglaive.utils.debug import logger
+            logger.error(f"MARKET FUTURES BLOCKED: {ally.get_display_name()}'s teleport to {destination} blocked by collision")
+            message_log.add_message(
+                f"{ally.get_display_name()}'s Market Futures teleport blocked - position occupied!",
+                MessageType.WARNING,
+                player=ally.player
+            )
+            return False
+
         # Log the teleportation
         message_log.add_message(
             f"{ally.get_display_name()} activates Market Futures teleport",
@@ -1304,12 +1313,21 @@ class DivineDrepreciationSkill(ActiveSkill):
 
                     # Update unit position if it moved
                     if steps_taken > 0:
-                        unit.y, unit.x = new_y, new_x
-                        message_log.add_message(
-                            f"{unit.get_display_name()} is pulled {steps_taken} spaces from ({original_y}, {original_x}) to ({new_y}, {new_x}) by the {furniture_name.lower()}'s reality distortion",
-                            MessageType.ABILITY,
-                            player=user.player
-                        )
+                        # Use atomic positioning to prevent collisions
+                        if not unit.set_position_atomic(new_y, new_x):
+                            from boneglaive.utils.debug import logger
+                            logger.error(f"PARALLAX PULL BLOCKED: {unit.get_display_name()}'s pull to ({new_y}, {new_x}) blocked by collision")
+                            message_log.add_message(
+                                f"{unit.get_display_name()}'s Parallax pull blocked - position occupied!",
+                                MessageType.WARNING,
+                                player=user.player
+                            )
+                        else:
+                            message_log.add_message(
+                                f"{unit.get_display_name()} is pulled {steps_taken} spaces from ({original_y}, {original_x}) to ({new_y}, {new_x}) by the {furniture_name.lower()}'s reality distortion",
+                                MessageType.ABILITY,
+                                player=user.player
+                            )
 
             # Handle unit death properly through centralized system
             if unit.hp <= 0:

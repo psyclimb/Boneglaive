@@ -1129,10 +1129,19 @@ class VaultSkill(ActiveSkill):
             # Restore proper terrain at landing position before placing unit
             ui.renderer.draw_tile(target_pos[0], target_pos[1], 
                                 landing_terrain_tile, landing_terrain_color)
-            
+
             # Move user to target position
-            user.y, user.x = target_pos
-            
+            # Use atomic positioning to prevent collisions
+            if not user.set_position_atomic(target_pos[0], target_pos[1]):
+                from boneglaive.utils.debug import logger
+                logger.error(f"GLAIVE VAULT BLOCKED: {user.get_display_name()}'s vault to {target_pos} blocked by collision")
+                message_log.add_message(
+                    f"{user.get_display_name()}'s Glaive Vault blocked - position occupied!",
+                    MessageType.WARNING,
+                    player=user.player
+                )
+                return False
+
             # Redraw board after animations
             if hasattr(ui, 'draw_board'):
                 ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
@@ -1166,8 +1175,17 @@ class VaultSkill(ActiveSkill):
                 ui.renderer.flash_tile(user.y, user.x, tile_ids, color_ids, durations)
         else:
             # No UI, just set position without animations
-            user.y, user.x = target_pos
-        
+            # Use atomic positioning to prevent collisions
+            if not user.set_position_atomic(target_pos[0], target_pos[1]):
+                from boneglaive.utils.debug import logger
+                logger.error(f"GLAIVE VAULT BLOCKED: {user.get_display_name()}'s vault to {target_pos} blocked by collision")
+                message_log.add_message(
+                    f"{user.get_display_name()}'s Glaive Vault blocked - position occupied!",
+                    MessageType.WARNING,
+                    player=user.player
+                )
+                return False
+
         # Log the completion of vault
         message_log.add_message(
             f"{user.get_display_name()} vaults from ({original_pos[0]}, {original_pos[1]}) to ({target_pos[0]}, {target_pos[1]})",
