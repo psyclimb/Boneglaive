@@ -1055,37 +1055,36 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'GAUSSIAN DUSK (Active) [Key: G]',
-                        'description': 'The FOWL CONTRIVANCE fires its rail cannon in a cardinal direction, unleashing a hypersonic projectile that pierces through all units and destructible terrain in a straight line across the entire map. The beam deals 9 defense-piercing damage to every unit hit and obliterates all destructible terrain in its path. After firing, the rail cannon enters a recharge state for 1 turn, during which the FOWL CONTRIVANCE cannot move, attack, or use any skills.',
+                        'description': 'The FOWL CONTRIVANCE fires its rail cannon in a cardinal direction, unleashing a hypersonic projectile that pierces through all units and destructible terrain in a straight line across the entire map. The beam deals 9 defense-piercing damage to every unit hit and obliterates all destructible terrain in its path.',
                         'details': [
                             'Type: Active',
                             'Range: Unlimited (entire map in cardinal direction)',
                             'Damage: 9 (pierces defense)',
-                            'Effect: Recharging (=)',
-                            'Cooldown: 5 turns',
+                            'Cooldown: 4 turns',
                             'Special: Destroys all destructible terrain in path; must fire in cardinal direction only'
                         ]
                     },
                     {
                         'name': 'PARABOL (Active) [Key: P]',
-                        'description': 'The FOWL CONTRIVANCE launches explosive mortar shells in a high arc to bombard a 3x3 area at range. The indirect fire ignores line of sight and cannot target adjacent tiles (minimum range 2). The center tile takes 8 damage while the surrounding 8 tiles each take 5 damage. Cannot be used while rail cannon is recharging.',
+                        'description': 'The FOWL CONTRIVANCE launches explosive mortar shells in a high arc to bombard a 3x3 area at range. The indirect fire ignores line of sight and cannot target adjacent tiles (minimum range 2). The center tile takes 8 damage while the surrounding 8 tiles each take 5 damage.',
                         'details': [
                             'Type: Active',
                             'Range: 6 (minimum range 2)',
                             'Damage: 8 (center tile), 5 (surrounding 8 tiles)',
                             'Cooldown: 4 turns',
-                            'Special: Ignores line of sight; cannot target adjacent tiles; disabled while recharging'
+                            'Special: Ignores line of sight; cannot target adjacent tiles'
                         ]
                     },
                     {
                         'name': 'FRAGCREST (Active) [Key: F]',
-                        'description': 'The FOWL CONTRIVANCE unfolds its mechanical tail feathers and fires a directional fragmentation burst in a 90-degree cone. The primary target takes 4 damage and is knocked back 2 tiles. All other enemies in the cone take 2 damage and are also knocked back. All hit enemies become embedded with Shrapnel, suffering 1 damage per turn for 3 turns. Requires line of sight to the primary target. Cannot be used while rail cannon is recharging.',
+                        'description': 'The FOWL CONTRIVANCE unfolds its mechanical tail feathers and fires a directional fragmentation burst in a 90-degree cone. The primary target takes 4 damage and is knocked back 2 tiles. All other enemies in the cone take 2 damage and are also knocked back. All hit enemies become embedded with Shrapnel, suffering 1 damage per turn for 3 turns. Requires line of sight to the primary target.',
                         'details': [
                             'Type: Active',
                             'Range: 4',
                             'Damage: 4 (primary target), 2 (cone targets); pushes enemies 2 tiles',
                             'Effect: Shrapnel (x) (1 damage/turn for 3 turns)',
                             'Cooldown: 3 turns',
-                            'Special: 90-degree cone; requires line of sight to primary target; disabled while recharging'
+                            'Special: 90-degree cone; requires line of sight to primary target'
                         ]
                     }
                 ],
@@ -6226,8 +6225,8 @@ class ActionMenuComponent(UIComponent):
                                 distance = game.chess_distance(from_y, from_x, y, x)
 
                                 # Get effective skill range (supports upgrades via get_range method)
-                            effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
-                            if distance <= effective_range:
+                                effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
+                                if distance <= effective_range:
                                     # Check if skill can be used on this target
                                     if skill.can_use(cursor_manager.selected_unit, (y, x), game):
                                         # Check if target is protected by Saft-E-Gas (same behavior as attacks)
@@ -6316,8 +6315,22 @@ class ActionMenuComponent(UIComponent):
                                     targets.append((y, x))
             
             elif skill.target_type == TargetType.AREA:
+                # Special case for Gaussian Dusk - only highlight cardinal direction lines
+                if skill.name == "Gaussian Dusk":
+                    # Show four cardinal direction lines from unit position
+                    directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]  # East, West, South, North
+                    for dy, dx in directions:
+                        y, x = from_y, from_x
+                        # Trace line in this direction across the map
+                        while True:
+                            y += dy
+                            x += dx
+                            # Stop if we go off the map
+                            if not (0 <= y < HEIGHT and 0 <= x < WIDTH):
+                                break
+                            targets.append((y, x))
                 # Special case for DELPHIC APPRAISER furniture-targeting skills
-                if skill.name in ["Market Futures", "Divine Depreciation"]:
+                elif skill.name in ["Market Futures", "Divine Depreciation"]:
                     # Check if Valuation Oracle is upgraded (allows targeting enemies)
                     from boneglaive.game.upgrades import UpgradeManager
                     valuation_upgraded = UpgradeManager.is_skill_upgraded(cursor_manager.selected_unit, "Valuation Oracle")

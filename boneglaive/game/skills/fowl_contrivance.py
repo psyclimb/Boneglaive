@@ -214,21 +214,20 @@ class GaussianDuskSkill(ActiveSkill):
     Active skill for FOWL_CONTRIVANCE.
     Fires a devastating rail gun shot that pierces everything in its path.
     Can only fire in cardinal directions (N, S, E, W).
-    After firing, the unit enters a recharge state for 1 turn and cannot take any actions.
     """
 
     def __init__(self):
         super().__init__(
             name="Gaussian Dusk",
             key="G",
-            description="Fires a devastating rail gun shot in a cardinal direction. After firing, the unit must recharge for 1 turn and cannot take any actions.",
+            description="Fires a devastating rail gun shot in a cardinal direction.",
             target_type=TargetType.AREA,
             cooldown=4,
             range_=999,  # Entire map range
             area=0
         )
         self.damage = 9
-        self.recharge_duration = 1  # Number of turns unit is locked after firing
+        self.recharge_duration = 0  # No recharge period
         
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         # Cannot use while recharging
@@ -356,15 +355,15 @@ class GaussianDuskSkill(ActiveSkill):
 
                 # Gaussian damage curve: peaks at 50% HP
                 if hp_percent >= 0.875:  # 87.5-100%
-                    damage = 4
+                    damage = 5
                 elif hp_percent >= 0.625:  # 62.5-87.5%
-                    damage = 6
+                    damage = 7
                 elif hp_percent >= 0.375:  # 37.5-62.5%
-                    damage = 8  # Peak damage at ~50% HP
+                    damage = 9  # Peak damage at ~50% HP
                 elif hp_percent >= 0.25:  # 25-37.5%
-                    damage = 6
+                    damage = 7
                 else:  # 0-25%
-                    damage = 4
+                    damage = 5
 
                 # UPGRADE: Execute at low HP, defense shred at high HP
                 if is_upgraded:
@@ -497,13 +496,6 @@ class GaussianDuskSkill(ActiveSkill):
 
         # Apply recharge state - unit cannot take any actions for 1 turn
         user.gaussian_dusk_recharge = self.recharge_duration
-
-        # Log recharge state
-        message_log.add_message(
-            f"{user.get_display_name()}'s rail cannon must recharge - it cannot take any actions next turn",
-            MessageType.ABILITY,
-            player=user.player
-        )
 
         return True
 
@@ -1031,23 +1023,15 @@ class FragcrestSkill(ActiveSkill):
         is_upgraded = UpgradeManager.is_skill_upgraded(user, "Fragcrest")
 
         # Dynamically change targeting based on upgrade status
+        # Upgraded: allows BOTH ground and enemy targeting
         if is_upgraded:
-            self.target_type = TargetType.SELF
-            self.range = 0
+            self.target_type = TargetType.AREA  # Allows both ground and unit targeting
+            self.range = 4
         else:
-            self.target_type = TargetType.ENEMY
+            self.target_type = TargetType.ENEMY  # Only enemy units
             self.range = 4
 
         # Basic validation
-        if not super().can_use(user, target_pos, game):
-            return False
-
-        # Upgraded version: self-targeted AOE (no target position needed)
-        if is_upgraded:
-            return True
-
-        # Base version: directional cone targeting enemy
-        # Make sure there's a valid target position
         if not target_pos or not game or not game.is_valid_position(target_pos[0], target_pos[1]):
             return False
 
@@ -1064,13 +1048,40 @@ class FragcrestSkill(ActiveSkill):
         if max(y_dist, x_dist) > self.range:
             return False
 
-        # Check if there's a unit at the target position
+        # Check what's at the target position
         target_unit = game.get_unit_at(target_pos[0], target_pos[1])
+
+        # Upgraded version: allows both trap placement AND direct fire
+        if is_upgraded:
+            # If targeting an enemy unit, use base skill logic
+            if target_unit and target_unit.is_alive() and target_unit != user:
+                # Check if enemy
+                if target_unit.player != user.player:
+                    # Requires line of sight for direct fire
+                    if not game.has_line_of_sight(source_y, source_x, target_pos[0], target_pos[1]):
+                        return False
+                    return True
+                else:
+                    return False  # Cannot target allies
+
+            # Otherwise, targeting ground for trap placement
+            # Must target empty, passable terrain
+            if not game.map.is_passable(target_pos[0], target_pos[1]):
+                return False
+            if target_unit is not None:  # Already checked for enemy above
+                return False
+            return True
+
+        # Base version (not upgraded): directional cone targeting enemy only
         if not target_unit or not target_unit.is_alive():
             return False
 
         # Cannot target self
         if target_unit == user:
+            return False
+
+        # Must be enemy
+        if target_unit.player == user.player:
             return False
 
         # Requires line of sight to primary target
@@ -1088,25 +1099,24 @@ class FragcrestSkill(ActiveSkill):
         from boneglaive.game.upgrades import UpgradeManager
         is_upgraded = UpgradeManager.is_skill_upgraded(user, "Fragcrest")
 
-        # For upgraded version, target self
-        if is_upgraded:
-            target_pos = (user.y, user.x)
-
         user.skill_target = target_pos
         user.selected_skill = self
 
-        # Set visual indicator for the cone or AOE
+        # Set visual indicator for the cone or trap
         user.fragcrest_indicator = target_pos
 
         # Log that the skill has been queued
-        if is_upgraded:
-            message_log.add_message(
-                f"{user.get_display_name()} unfolds its tail in all directions",
-                MessageType.ABILITY,
-                player=user.player
-            )
+        target_unit = game.get_unit_at(target_pos[0], target_pos[1])
+        is_targeting_enemy = (target_unit is not None and
+                             target_unit.is_alive() and
+                             target_unit.player != user.player)
+
+        # Silent for trap placement, message for direct fire
+        if is_upgraded and not is_targeting_enemy:
+            # Silent trap deployment - no message log entry (like Scalar Node)
+            pass
         else:
-            target_unit = game.get_unit_at(target_pos[0], target_pos[1])
+            # Direct fire at enemy (base skill or upgraded direct fire)
             message_log.add_message(
                 f"{user.get_display_name()} unfolds its tail and aims a fragmentation burst at {target_unit.get_display_name()}",
                 MessageType.ABILITY,
@@ -1125,10 +1135,53 @@ class FragcrestSkill(ActiveSkill):
         from boneglaive.game.upgrades import UpgradeManager
         is_upgraded = UpgradeManager.is_skill_upgraded(user, "Fragcrest")
 
-        # Calculate affected positions based on upgrade status
-        if is_upgraded:
-            # 5x5 AOE centered on user
-            affected_positions = self._calculate_aoe_positions(user.y, user.x, game)
+        # Check if targeting an enemy unit (direct fire)
+        target_unit = game.get_unit_at(target_pos[0], target_pos[1])
+        is_targeting_enemy = (target_unit is not None and
+                             target_unit.is_alive() and
+                             target_unit.player != user.player)
+
+        # Upgraded version: check if trap placement or direct fire
+        if is_upgraded and not is_targeting_enemy:
+            # Calculate trap direction based on FOWL CONTRIVANCE position relative to trap
+            trap_y, trap_x = target_pos
+            user_y, user_x = user.y, user.x
+
+            # Determine direction vector
+            dy = trap_y - user_y
+            dx = trap_x - user_x
+
+            # Normalize to get direction (for cone calculations later)
+            # Store the direction as a unit vector
+            import math
+            distance = math.sqrt(dy * dy + dx * dx)
+            if distance > 0:
+                direction_y = dy / distance
+                direction_x = dx / distance
+            else:
+                direction_y = 1  # Default forward
+                direction_x = 0
+
+            # Create fragcrest trap tracking in game
+            if not hasattr(game, 'fragcrest_traps'):
+                game.fragcrest_traps = {}
+
+            # Place the trap with direction information
+            game.fragcrest_traps[target_pos] = {
+                'owner': user,
+                'direction_y': direction_y,
+                'direction_x': direction_x,
+                'active': False,  # Not active yet, needs to arm
+                'armed': False,  # Becomes armed after 1 turn
+                'arm_turns_remaining': 1,  # Arms after 1 turn
+                'duration': 6,  # Lasts 6 turns after arming
+                'caster_pos': (user_y, user_x)  # Store for cone calculation
+            }
+
+            # Silent deployment - no message log or animation
+            return True
+
+        # Base version: immediate directional cone attack
         else:
             # Get primary target for base version
             primary_target = game.get_unit_at(target_pos[0], target_pos[1])

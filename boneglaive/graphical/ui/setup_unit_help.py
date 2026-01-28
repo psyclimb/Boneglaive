@@ -245,7 +245,7 @@ class SetupUnitHelp:
                 'skills': [
                     {
                         'name': 'GAUSSIAN DUSK',
-                        'desc': 'Fires a defense-piercing rail cannon across the map in a cardinal direction. Damage follows a bell curve based on target HP% (87.5-100%: 4dmg, 62.5-87.5%: 6dmg, 37.5-62.5%: 8dmg, 25-37.5%: 6dmg, 0-25%: 4dmg). Destroys terrain only at beam midpoint. Cannot move or act for one turn after firing.'
+                        'desc': 'Fires a defense-piercing rail cannon across the map in a cardinal direction. Damage follows a bell curve based on target current HP%. Destroys terrain at beam midpoint.'
                     },
                     {
                         'name': 'PARABOL',

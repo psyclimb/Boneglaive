@@ -1197,26 +1197,42 @@ class GameStateAdapter:
         if game_unit.move_target:
             from_y, from_x = game_unit.move_target
 
-        # Get skill range (check for dynamic range method first)
-        if hasattr(skill, 'get_skill_range') and callable(skill.get_skill_range):
-            skill_range = skill.get_skill_range(game_unit, self.game)
-        elif hasattr(skill, 'get_range') and callable(skill.get_range):
-            skill_range = skill.get_range(game_unit)
-        else:
-            skill_range = skill.range
-
-        # Check all positions within range
-        for y in range(max(0, from_y - skill_range), min(self.game.map.height, from_y + skill_range + 1)):
-            for x in range(max(0, from_x - skill_range), min(self.game.map.width, from_x + skill_range + 1)):
-                # Calculate distance
-                distance = self.game.chess_distance(from_y, from_x, y, x)
-                if distance > skill_range:
-                    continue
-
-                # Check if skill can be used on this position
-                if skill.can_use(game_unit, (y, x), self.game):
-                    # Convert to renderer coords
+        # Special case for Gaussian Dusk - only show cardinal direction lines
+        if skill.name == "Gaussian Dusk":
+            # Show four cardinal direction lines from unit position
+            directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]  # East, West, South, North
+            for dy, dx in directions:
+                y, x = from_y, from_x
+                # Trace line in this direction across the map
+                while True:
+                    y += dy
+                    x += dx
+                    # Stop if we go off the map
+                    if not (0 <= y < self.game.map.height and 0 <= x < self.game.map.width):
+                        break
+                    # Convert to renderer coords and add
                     skill_range_positions.append((x, y))
+        else:
+            # Get skill range (check for dynamic range method first)
+            if hasattr(skill, 'get_skill_range') and callable(skill.get_skill_range):
+                skill_range = skill.get_skill_range(game_unit, self.game)
+            elif hasattr(skill, 'get_range') and callable(skill.get_range):
+                skill_range = skill.get_range(game_unit)
+            else:
+                skill_range = skill.range
+
+            # Check all positions within range
+            for y in range(max(0, from_y - skill_range), min(self.game.map.height, from_y + skill_range + 1)):
+                for x in range(max(0, from_x - skill_range), min(self.game.map.width, from_x + skill_range + 1)):
+                    # Calculate distance
+                    distance = self.game.chess_distance(from_y, from_x, y, x)
+                    if distance > skill_range:
+                        continue
+
+                    # Check if skill can be used on this position
+                    if skill.can_use(game_unit, (y, x), self.game):
+                        # Convert to renderer coords
+                        skill_range_positions.append((x, y))
 
         return skill_range_positions
 

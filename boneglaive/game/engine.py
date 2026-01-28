@@ -1228,12 +1228,25 @@ class Game:
             # but another unit moved to the target position in between
             if new_key in self.unit_grid and self.unit_grid[new_key] != unit:
                 existing_unit = self.unit_grid[new_key]
-                logger.error(f"BUG: Unit collision detected! {unit.get_display_name()} trying to move to {new_key} but {existing_unit.get_display_name()} is already there")
+                logger.error(f"BUG: Unit collision blocked! {unit.get_display_name()} attempting to move to {new_key} but {existing_unit.get_display_name()} is already there")
+
                 # Restore unit to old position to prevent corruption
                 if old_y is not None and old_x is not None:
+                    logger.warning(f"  Restoring {unit.get_display_name()} to original position {(old_y, old_x)}")
                     unit._y = old_y
                     unit._x = old_x
                     self.unit_grid[(old_y, old_x)] = unit
+                else:
+                    # No old position to restore to - this is a critical error
+                    logger.critical(f"  CRITICAL: {unit.get_display_name()} has no valid position! Attempting emergency placement...")
+                    alternate_pos = self._find_nearest_valid_position(new_key[0], new_key[1], unit.player)
+                    if alternate_pos:
+                        logger.info(f"  Emergency placement: {unit.get_display_name()} moved to {alternate_pos}")
+                        unit._y = alternate_pos[0]
+                        unit._x = alternate_pos[1]
+                        self.unit_grid[alternate_pos] = unit
+                    else:
+                        logger.critical(f"  FATAL: No valid position found for {unit.get_display_name()}")
                 return
             self.unit_grid[new_key] = unit
 
@@ -1383,6 +1396,20 @@ class Game:
             return
 
         for dead_unit, position in respawns:
+            # COLLISION CHECK: Verify respawn position is not occupied
+            collision_unit = self.get_unit_at(position[0], position[1])
+            if collision_unit is not None:
+                logger.warning(f"RESPAWN COLLISION: {dead_unit.greek_id} cannot respawn at {position} - occupied by {collision_unit.get_display_name()}")
+                # Find nearest valid position
+                alternate_position = self._find_nearest_valid_position(position[0], position[1], dead_unit.player)
+                if alternate_position:
+                    logger.info(f"RESPAWN: Moving {dead_unit.greek_id} from {position} to nearest valid position {alternate_position}")
+                    position = alternate_position
+                else:
+                    logger.error(f"RESPAWN FAILED: No valid position found near {position} for {dead_unit.greek_id}")
+                    # Skip this respawn - unit stays dead
+                    continue
+
             # Create new Unit instance
             unit = Unit(dead_unit.unit_type, dead_unit.player, position[0], position[1])
             unit.greek_id = dead_unit.greek_id  # Restore identifier
@@ -1443,6 +1470,71 @@ class Game:
 
         # Clear respawn queue
         self.pending_respawns[self.current_player] = []
+
+    def _find_nearest_valid_position(self, y: int, x: int, player: int, max_distance: int = 5):
+        """
+        Find the nearest valid (unoccupied, passable) position to (y, x).
+        Searches in expanding rings up to max_distance away.
+
+        Args:
+            y, x: Target position
+            player: Player number (for spawn zone preference)
+            max_distance: Maximum search radius
+
+        Returns:
+            Tuple (y, x) of nearest valid position, or None if none found
+        """
+        # Try the original position first
+        if (self.is_valid_position(y, x) and
+            self.map.is_passable(y, x) and
+            self.get_unit_at(y, x) is None):
+            return (y, x)
+
+        # Search in expanding rings
+        for distance in range(1, max_distance + 1):
+            candidates = []
+
+            # Check all positions at this distance (chess distance)
+            for dy in range(-distance, distance + 1):
+                for dx in range(-distance, distance + 1):
+                    # Only check positions at exactly this distance
+                    if max(abs(dy), abs(dx)) != distance:
+                        continue
+
+                    check_y = y + dy
+                    check_x = x + dx
+
+                    # Check if position is valid and available
+                    if (self.is_valid_position(check_y, check_x) and
+                        self.map.is_passable(check_y, check_x) and
+                        self.get_unit_at(check_y, check_x) is None):
+                        candidates.append((check_y, check_x))
+
+            # If we found any valid positions at this distance, return the closest one
+            # Prefer positions in player's spawn zone if possible
+            if candidates:
+                # Try to find a position in the player's spawn zone first
+                spawn_zone_candidates = []
+                for pos in candidates:
+                    if self._is_in_spawn_zone(pos[0], pos[1], player):
+                        spawn_zone_candidates.append(pos)
+
+                if spawn_zone_candidates:
+                    return spawn_zone_candidates[0]
+                else:
+                    return candidates[0]
+
+        # No valid position found within max_distance
+        return None
+
+    def _is_in_spawn_zone(self, y: int, x: int, player: int) -> bool:
+        """Check if position is in the player's spawn zone."""
+        # Player 1 spawns on left side, Player 2 on right side
+        map_width = self.map.width
+        if player == 1:
+            return x < map_width // 3
+        else:
+            return x >= (2 * map_width) // 3
 
     def has_line_of_sight(self, from_y, from_x, to_y, to_x):
         """
@@ -4575,7 +4667,64 @@ class Game:
 
                 # Initialize the new player's turn
                 self.initialize_next_player_turn()
-            
+
+        # COLLISION SWEEP: Final safety check for unit collisions
+        # This catches any edge cases where units ended up stacked on each other
+        self._resolve_collision_conflicts()
+
+    def _resolve_collision_conflicts(self):
+        """
+        Post-turn collision sweep to detect and resolve any units occupying the same position.
+        This is a safety net to catch edge cases and maintain grid integrity.
+        """
+        # Build a map of positions to units
+        position_map = {}
+        for unit in self.units:
+            if not unit.is_alive():
+                continue
+
+            pos = (unit.y, unit.x)
+            if pos not in position_map:
+                position_map[pos] = []
+            position_map[pos].append(unit)
+
+        # Check for collisions
+        collisions_found = False
+        for pos, units_at_pos in position_map.items():
+            if len(units_at_pos) > 1:
+                collisions_found = True
+                logger.error(f"COLLISION DETECTED at {pos}: {len(units_at_pos)} units stacked - {[u.get_display_name() for u in units_at_pos]}")
+
+                # Keep the first unit, move the rest to nearest valid positions
+                for i, unit in enumerate(units_at_pos):
+                    if i == 0:
+                        # First unit stays
+                        logger.info(f"  - {unit.get_display_name()} stays at {pos}")
+                        continue
+
+                    # Find alternate position for this unit
+                    alternate_pos = self._find_nearest_valid_position(pos[0], pos[1], unit.player)
+                    if alternate_pos:
+                        logger.info(f"  - Moving {unit.get_display_name()} from {pos} to {alternate_pos}")
+                        # Use set_position_atomic if available, otherwise direct assignment
+                        if hasattr(unit, 'set_position_atomic'):
+                            unit.set_position_atomic(alternate_pos[0], alternate_pos[1])
+                        else:
+                            unit._y = alternate_pos[0]
+                            unit._x = alternate_pos[1]
+                            if hasattr(self, 'unit_grid'):
+                                self.unit_grid[alternate_pos] = unit
+                    else:
+                        logger.error(f"  - CRITICAL: No valid position found for {unit.get_display_name()}, leaving at {pos}")
+
+        if collisions_found:
+            # Rebuild unit_grid from scratch to ensure consistency
+            logger.info("Rebuilding unit_grid after collision resolution")
+            self.unit_grid = {}
+            for unit in self.units:
+                if unit.is_alive():
+                    self.unit_grid[(unit.y, unit.x)] = unit
+
     def _handle_partition_emergency_cleanup(self, protected_unit):
         """Handle the cleanup when a partition shield blocks fatal damage."""
         if not hasattr(protected_unit, 'partition_shield_caster'):
