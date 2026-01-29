@@ -466,6 +466,9 @@ class VaultAnimationController:
 
         print(f"  [VAULT] Starting vault from ({caster_unit.grid_x}, {caster_unit.grid_y}) to {target_pos}")
 
+        # Launch sound - leap off ground
+        play_sound("vault_launch")
+
         # Launch particles
         for _ in range(20):
             angle = random.uniform(0, 2 * math.pi)
@@ -509,6 +512,9 @@ class VaultAnimationController:
                 self.caster.x = self.caster.vault_target_x
                 self.caster.y = self.caster.vault_target_y
                 self.caster.wind_up_rotation = 0  # Reset rotation
+
+                # Landing sound
+                play_sound("vault_land")
 
                 # Landing effects
                 self.particle_emitter.emit_burst(self.caster.x, self.caster.y, (100, 200, 255), 30)
@@ -801,6 +807,9 @@ class GlaiveSweepAnimation:
         self.phase = "windup"
         self.timer = 0
 
+        # Windup sound
+        play_sound("glaive_sweep_windup")
+
         # Slight screen shake
         self.screen_shake_callback(4, 0.15)
 
@@ -814,6 +823,9 @@ class GlaiveSweepAnimation:
         self.timer = 0
         self.sweep_angle = 0
 
+        # Sweep sound - whooshing blade
+        play_sound("glaive_sweep_swing")
+
         # Medium screen shake during sweep
         self.screen_shake_callback(6, 0.4)
 
@@ -821,6 +833,9 @@ class GlaiveSweepAnimation:
         """Phase 3: Impact on all hit tiles."""
         self.phase = "impact"
         self.timer = 0
+
+        # Impact sound
+        play_sound("glaive_sweep_impact")
 
         # Impact effects on each hit unit
         for unit in self.hit_units:

@@ -151,6 +151,15 @@ MULTI_EVENT_SOUNDS = {
     "autoclave_ignition": "sounds/skills/autoclave_ignition.wav",  # Fire burst at center
     "autoclave_steam": "sounds/skills/autoclave_steam.wav",        # Steam jets expanding
     "autoclave_impact": "sounds/skills/autoclave_impact.wav",      # Glaives hitting targets
+
+    # GLAIVEMAN - Vault (2 events)
+    "vault_launch": "sounds/skills/vault_launch.wav",  # Leap off ground
+    "vault_land": "sounds/skills/vault_land.wav",      # Landing impact
+
+    # GLAIVEMAN - Glaive Sweep (3 events)
+    "glaive_sweep_windup": "sounds/skills/glaive_sweep_windup.wav",  # Pulling back
+    "glaive_sweep_swing": "sounds/skills/glaive_sweep_swing.wav",    # Circular arc
+    "glaive_sweep_impact": "sounds/skills/glaive_sweep_impact.wav",  # Hits connecting
 }
 
 
