@@ -44,6 +44,11 @@ class ActionButton:
         self.has_upgrade_points = False  # Special flag for upgrade button glow
         self.has_respawns_available = False  # Special flag for respawn button icon + glow
         self.skeletal_hand_icon = None  # Cached skeletal hand icon
+        self.lightning_bolt_icon = None  # Cached lightning bolt icon
+        self.gears_icon = None  # Cached gears icon
+        self.glaive_icon = None  # Cached glaive icon
+        self.help_scream_icon = None  # Cached help scream icon
+        self.white_flag_icon = None  # Cached white flag icon
 
     def draw(self, surface: pygame.Surface, x: int, y: int, font, small_font, loto_renderer: Optional[LOTORenderer] = None) -> Optional[dict]:
         """Draw the action button. Returns particle data if upgrade button has points available."""
@@ -76,9 +81,9 @@ class ActionButton:
         border_width = 3 if (self.hovered or self.active) else 2
         pygame.draw.rect(surface, border_color, self.rect, border_width)
 
-        # Draw respawn available effect (white pulsating glow on skeletal hand) - ICON + GLOW
+        # Draw skeletal hand icon on respawn button - ALWAYS visible, glows when respawns available
         respawn_glow_data = None
-        if self.action == "respawn" and self.has_respawns_available:
+        if self.action == "respawn":
             import math
             import time
             import os
@@ -97,39 +102,61 @@ class ActionButton:
                     except:
                         pass  # Failed to load icon
 
-            # Pulsating glow effect for the hand
-            time_val = time.time()
-            pulse = (math.sin(time_val * 2.5) + 1) / 2  # 0 to 1 pulsating (slightly slower)
-
             # Draw skeletal hand icon on the right side of button
             if self.skeletal_hand_icon:
                 icon_x = x + BUTTON_WIDTH - 35  # Position on right side
                 icon_y = y + (BUTTON_HEIGHT - 28) // 2  # Center vertically
 
-                # Draw white glow halo around the hand (subtle)
-                white_color = (255, 255, 255)
-                glow_alpha = int(40 + pulse * 60)  # 40 to 100 alpha
+                # Create a colored version of the icon (grey or white based on availability)
+                colored_icon = self.skeletal_hand_icon.copy()
+                if self.has_respawns_available:
+                    # Keep original white color when respawns available
+                    pass
+                else:
+                    # Tint grey when no respawns
+                    grey_tint = (100, 100, 100, 255)  # Grey tint
+                    colored_icon.fill(grey_tint, special_flags=pygame.BLEND_RGBA_MULT)
 
-                # Create glow surface
-                glow_size = 36  # Slightly larger than icon for halo effect
-                glow_surface = pygame.Surface((glow_size, glow_size), pygame.SRCALPHA)
+                # Only draw glow if respawns are available
+                if self.has_respawns_available:
+                    # Pulsating glow effect for the hand
+                    time_val = time.time()
+                    pulse = (math.sin(time_val * 2.5) + 1) / 2  # 0 to 1 pulsating (slightly slower)
 
-                # Draw multiple expanding halos for soft glow
-                for i in range(3):
-                    radius = 14 + i * 3 + int(pulse * 2)  # Pulsing radius
-                    alpha = glow_alpha // (i + 1)
-                    pygame.draw.circle(glow_surface, (*white_color, alpha),
-                                     (glow_size // 2, glow_size // 2), radius)
+                    # Draw white glow halo around the hand (subtle)
+                    white_color = (255, 255, 255)
+                    glow_alpha = int(40 + pulse * 60)  # 40 to 100 alpha
 
-                # Blit glow
-                glow_x = icon_x + 14 - glow_size // 2
-                glow_y = icon_y + 14 - glow_size // 2
-                surface.blit(glow_surface, (glow_x, glow_y), special_flags=pygame.BLEND_RGBA_ADD)
+                    # Create glow surface
+                    glow_size = 36  # Slightly larger than icon for halo effect
+                    glow_surface = pygame.Surface((glow_size, glow_size), pygame.SRCALPHA)
+
+                    # Draw multiple expanding halos for soft glow
+                    for i in range(3):
+                        radius = 14 + i * 3 + int(pulse * 2)  # Pulsing radius
+                        alpha = glow_alpha // (i + 1)
+                        pygame.draw.circle(glow_surface, (*white_color, alpha),
+                                         (glow_size // 2, glow_size // 2), radius)
+
+                    # Blit glow
+                    glow_x = icon_x + 14 - glow_size // 2
+                    glow_y = icon_y + 14 - glow_size // 2
+                    surface.blit(glow_surface, (glow_x, glow_y), special_flags=pygame.BLEND_RGBA_ADD)
+
+                    # Store data for particle effects (keeping pattern consistent)
+                    respawn_glow_data = {
+                        'time_val': time_val,
+                        'pulse': pulse,
+                        'white_color': white_color,
+                        'x': icon_x + 14,  # Center of icon
+                        'y': icon_y + 14,
+                        'type': 'respawn'
+                    }
 
                 # Draw dark shadow/outline behind the skeletal hand icon for contrast
                 # Create a darkened version by drawing the icon multiple times with slight offsets
                 shadow_color = (0, 0, 0, 180)  # Dark shadow
-                shadow_icon = self.skeletal_hand_icon.copy()
+                shadow_icon = colored_icon.copy()
                 # Tint the icon darker for shadow
                 shadow_icon.fill(shadow_color, special_flags=pygame.BLEND_RGBA_MULT)
 
@@ -138,56 +165,237 @@ class ActionButton:
                     surface.blit(shadow_icon, (icon_x + offset_x, icon_y + offset_y))
 
                 # Draw the skeletal hand icon on top
-                surface.blit(self.skeletal_hand_icon, (icon_x, icon_y))
+                surface.blit(colored_icon, (icon_x, icon_y))
 
-                # Store data for potential particle effects (keeping pattern consistent)
-                respawn_glow_data = {
-                    'time_val': time_val,
-                    'pulse': pulse,
-                    'white_color': white_color,
-                    'x': icon_x + 14,  # Center of icon
-                    'y': icon_y + 14,
-                    'type': 'respawn'
-                }
-
-        # Draw upgrade points glow effect (gold pulsating) - GLOW ONLY, particles come later
+        # Draw lightning bolt icon on upgrade button - ALWAYS visible, glows when upgrade points available
         upgrade_glow_data = None
-        if self.action == "upgrade" and self.has_upgrade_points:
+        if self.action == "upgrade":
             import math
             import time
-            import random
+            import os
 
-            # Pulsating glow effect
-            time_val = time.time()
-            pulse = (math.sin(time_val * 3) + 1) / 2  # 0 to 1 pulsating
+            # Load lightning bolt icon if not cached
+            if self.lightning_bolt_icon is None:
+                icon_path = "graphics/ui/lightning_bolt.svg"
+                if os.path.exists(icon_path):
+                    try:
+                        import cairosvg
+                        from io import BytesIO
+                        # Load at 28x28 to fit nicely on button
+                        png_data = cairosvg.svg2png(url=icon_path, output_width=28, output_height=28)
+                        self.lightning_bolt_icon = pygame.image.load(BytesIO(png_data))
+                        self.lightning_bolt_icon = self.lightning_bolt_icon.convert_alpha()
+                    except:
+                        pass  # Failed to load icon
 
-            # Darker gold color with lower alpha for subtler effect
-            gold_color = (180, 140, 40)  # Darker, more bronze-gold
-            glow_alpha = int(40 + pulse * 40)  # 40 to 80 alpha (much subtler)
+            # Draw lightning bolt icon on the right side of button
+            if self.lightning_bolt_icon:
+                icon_x = x + BUTTON_WIDTH - 35  # Position on right side
+                icon_y = y + (BUTTON_HEIGHT - 28) // 2  # Center vertically
 
-            # Create glow surface with per-pixel alpha
-            glow_surface = pygame.Surface((BUTTON_WIDTH + 20, BUTTON_HEIGHT + 20), pygame.SRCALPHA)
+                # Create a colored version of the icon (grey or gold based on availability)
+                colored_icon = self.lightning_bolt_icon.copy()
+                if self.has_upgrade_points:
+                    # Keep original gold color when upgrade points available
+                    pass
+                else:
+                    # Tint grey when no upgrade points
+                    grey_tint = (100, 100, 100, 255)  # Grey tint
+                    colored_icon.fill(grey_tint, special_flags=pygame.BLEND_RGBA_MULT)
 
-            # Draw multiple expanding glows for layered effect
-            for i in range(3):
-                offset = 10 - i * 3
-                alpha = glow_alpha // (i + 1)
-                glow_rect = pygame.Rect(offset, offset,
-                                       BUTTON_WIDTH + (i * 2),
-                                       BUTTON_HEIGHT + (i * 2))
-                pygame.draw.rect(glow_surface, (*gold_color, alpha), glow_rect, border_radius=4)
+                # Only draw glow if upgrade points are available
+                if self.has_upgrade_points:
+                    # Pulsating glow effect for the lightning bolt
+                    time_val = time.time()
+                    pulse = (math.sin(time_val * 2.5) + 1) / 2  # 0 to 1 pulsating (same as respawn)
 
-            # Blit glow surface
-            surface.blit(glow_surface, (x - 10, y - 10), special_flags=pygame.BLEND_RGBA_ADD)
+                    # Draw gold glow halo around the lightning bolt (subtle)
+                    gold_color = (180, 140, 40)  # Darker, more bronze-gold
+                    glow_alpha = int(40 + pulse * 60)  # 40 to 100 alpha (same as respawn)
 
-            # Store data for particle drawing later (after text)
-            upgrade_glow_data = {
-                'time_val': time_val,
-                'pulse': pulse,
-                'gold_color': gold_color,
-                'x': x,
-                'y': y
-            }
+                    # Create glow surface
+                    glow_size = 36  # Slightly larger than icon for halo effect
+                    glow_surface = pygame.Surface((glow_size, glow_size), pygame.SRCALPHA)
+
+                    # Draw multiple expanding halos for soft glow
+                    for i in range(3):
+                        radius = 14 + i * 3 + int(pulse * 2)  # Pulsing radius
+                        alpha = glow_alpha // (i + 1)
+                        pygame.draw.circle(glow_surface, (*gold_color, alpha),
+                                         (glow_size // 2, glow_size // 2), radius)
+
+                    # Blit glow
+                    glow_x = icon_x + 14 - glow_size // 2
+                    glow_y = icon_y + 14 - glow_size // 2
+                    surface.blit(glow_surface, (glow_x, glow_y), special_flags=pygame.BLEND_RGBA_ADD)
+
+                    # Store data for particle effects (keeping pattern consistent)
+                    upgrade_glow_data = {
+                        'time_val': time_val,
+                        'pulse': pulse,
+                        'gold_color': gold_color,
+                        'x': icon_x + 14,  # Center of icon
+                        'y': icon_y + 14,
+                        'type': 'upgrade'
+                    }
+
+                # Draw dark shadow/outline behind the lightning bolt icon for contrast
+                # Create a darkened version by drawing the icon multiple times with slight offsets
+                shadow_color = (0, 0, 0, 180)  # Dark shadow
+                shadow_icon = colored_icon.copy()
+                # Tint the icon darker for shadow
+                shadow_icon.fill(shadow_color, special_flags=pygame.BLEND_RGBA_MULT)
+
+                # Draw shadow in multiple directions for outline effect
+                for offset_x, offset_y in [(-1, -1), (-1, 1), (1, -1), (1, 1), (-1, 0), (1, 0), (0, -1), (0, 1)]:
+                    surface.blit(shadow_icon, (icon_x + offset_x, icon_y + offset_y))
+
+                # Draw the lightning bolt icon on top
+                surface.blit(colored_icon, (icon_x, icon_y))
+
+        # Draw gears icon on execute button - ALWAYS visible, grey color
+        if self.action == "execute":
+            import os
+
+            # Load gears icon if not cached
+            if self.gears_icon is None:
+                icon_path = "graphics/ui/gears.svg"
+                if os.path.exists(icon_path):
+                    try:
+                        import cairosvg
+                        from io import BytesIO
+                        # Load at 28x28 to fit nicely on button
+                        png_data = cairosvg.svg2png(url=icon_path, output_width=28, output_height=28)
+                        self.gears_icon = pygame.image.load(BytesIO(png_data))
+                        self.gears_icon = self.gears_icon.convert_alpha()
+                    except:
+                        pass  # Failed to load icon
+
+            # Draw gears icon on the right side of button
+            if self.gears_icon:
+                icon_x = x + BUTTON_WIDTH - 35  # Position on right side
+                icon_y = y + (BUTTON_HEIGHT - 28) // 2  # Center vertically
+
+                # Draw dark shadow/outline behind the gears icon for contrast
+                shadow_color = (0, 0, 0, 180)  # Dark shadow
+                shadow_icon = self.gears_icon.copy()
+                # Tint the icon darker for shadow
+                shadow_icon.fill(shadow_color, special_flags=pygame.BLEND_RGBA_MULT)
+
+                # Draw shadow in multiple directions for outline effect
+                for offset_x, offset_y in [(-1, -1), (-1, 1), (1, -1), (1, 1), (-1, 0), (1, 0), (0, -1), (0, 1)]:
+                    surface.blit(shadow_icon, (icon_x + offset_x, icon_y + offset_y))
+
+                # Draw the gears icon on top
+                surface.blit(self.gears_icon, (icon_x, icon_y))
+
+        # Draw glaive icon on attack button - ALWAYS visible, grey color
+        if self.action == "attack":
+            import os
+
+            # Load glaive icon if not cached
+            if self.glaive_icon is None:
+                icon_path = "graphics/ui/glaive.svg"
+                if os.path.exists(icon_path):
+                    try:
+                        import cairosvg
+                        from io import BytesIO
+                        # Load at 28x28 to fit nicely on button
+                        png_data = cairosvg.svg2png(url=icon_path, output_width=28, output_height=28)
+                        self.glaive_icon = pygame.image.load(BytesIO(png_data))
+                        self.glaive_icon = self.glaive_icon.convert_alpha()
+                    except:
+                        pass  # Failed to load icon
+
+            # Draw glaive icon on the right side of button
+            if self.glaive_icon:
+                icon_x = x + BUTTON_WIDTH - 35  # Position on right side
+                icon_y = y + (BUTTON_HEIGHT - 28) // 2  # Center vertically
+
+                # Draw dark shadow/outline behind the glaive icon for contrast
+                shadow_color = (0, 0, 0, 180)  # Dark shadow
+                shadow_icon = self.glaive_icon.copy()
+                # Tint the icon darker for shadow
+                shadow_icon.fill(shadow_color, special_flags=pygame.BLEND_RGBA_MULT)
+
+                # Draw shadow in multiple directions for outline effect
+                for offset_x, offset_y in [(-1, -1), (-1, 1), (1, -1), (1, 1), (-1, 0), (1, 0), (0, -1), (0, 1)]:
+                    surface.blit(shadow_icon, (icon_x + offset_x, icon_y + offset_y))
+
+                # Draw the glaive icon on top
+                surface.blit(self.glaive_icon, (icon_x, icon_y))
+
+        # Draw help scream icon on help button - ALWAYS visible
+        if self.action == "help":
+            import os
+
+            # Load help scream icon if not cached
+            if self.help_scream_icon is None:
+                icon_path = "graphics/ui/help_scream.svg"
+                if os.path.exists(icon_path):
+                    try:
+                        import cairosvg
+                        from io import BytesIO
+                        # Load at 28x28 to fit nicely on button
+                        png_data = cairosvg.svg2png(url=icon_path, output_width=28, output_height=28)
+                        self.help_scream_icon = pygame.image.load(BytesIO(png_data))
+                        self.help_scream_icon = self.help_scream_icon.convert_alpha()
+                    except:
+                        pass  # Failed to load icon
+
+            # Draw help scream icon on the right side of button
+            if self.help_scream_icon:
+                icon_x = x + BUTTON_WIDTH - 35  # Position on right side
+                icon_y = y + (BUTTON_HEIGHT - 28) // 2  # Center vertically
+
+                # Draw dark shadow/outline behind the help icon for contrast
+                shadow_color = (0, 0, 0, 180)  # Dark shadow
+                shadow_icon = self.help_scream_icon.copy()
+                # Tint the icon darker for shadow
+                shadow_icon.fill(shadow_color, special_flags=pygame.BLEND_RGBA_MULT)
+
+                # Draw shadow in multiple directions for outline effect
+                for offset_x, offset_y in [(-1, -1), (-1, 1), (1, -1), (1, 1), (-1, 0), (1, 0), (0, -1), (0, 1)]:
+                    surface.blit(shadow_icon, (icon_x + offset_x, icon_y + offset_y))
+
+                # Draw the help scream icon on top
+                surface.blit(self.help_scream_icon, (icon_x, icon_y))
+
+        # Draw white flag icon on concede button - ALWAYS visible
+        if self.action == "concede":
+            import os
+
+            # Load white flag icon if not cached
+            if self.white_flag_icon is None:
+                icon_path = "graphics/ui/white_flag.svg"
+                if os.path.exists(icon_path):
+                    try:
+                        import cairosvg
+                        from io import BytesIO
+                        # Load at 28x28 to fit nicely on button
+                        png_data = cairosvg.svg2png(url=icon_path, output_width=28, output_height=28)
+                        self.white_flag_icon = pygame.image.load(BytesIO(png_data))
+                        self.white_flag_icon = self.white_flag_icon.convert_alpha()
+                    except:
+                        pass  # Failed to load icon
+
+            # Draw white flag icon on the right side of button
+            if self.white_flag_icon:
+                icon_x = x + BUTTON_WIDTH - 35  # Position on right side
+                icon_y = y + (BUTTON_HEIGHT - 28) // 2  # Center vertically
+
+                # Draw dark shadow/outline behind the flag icon for contrast
+                shadow_color = (0, 0, 0, 180)  # Dark shadow
+                shadow_icon = self.white_flag_icon.copy()
+                # Tint the icon darker for shadow
+                shadow_icon.fill(shadow_color, special_flags=pygame.BLEND_RGBA_MULT)
+
+                # Draw shadow in multiple directions for outline effect
+                for offset_x, offset_y in [(-1, -1), (-1, 1), (1, -1), (1, 1), (-1, 0), (1, 0), (0, -1), (0, 1)]:
+                    surface.blit(shadow_icon, (icon_x + offset_x, icon_y + offset_y))
+
+                # Draw the white flag icon on top
+                surface.blit(self.white_flag_icon, (icon_x, icon_y))
 
         # Draw hotkey in top-left corner
         text_color = COLOR_TEXT_DISABLED if not self.enabled else COLOR_HOTKEY
@@ -353,29 +561,22 @@ class ActionMenu:
             # Handle both upgrade (gold_color) and respawn (white_color) data
             if 'gold_color' in particle_data:
                 particle_color = particle_data['gold_color']
-                px = particle_data['x']
-                py = particle_data['y']
-                # Draw particles around button center
-                center_x = px + BUTTON_WIDTH // 2
-                center_y = py + BUTTON_HEIGHT // 2
+                center_x = particle_data['x']
+                center_y = particle_data['y']
             elif 'white_color' in particle_data:
                 # Respawn uses white color and is already centered on icon
                 particle_color = particle_data['white_color']
                 center_x = particle_data['x']
                 center_y = particle_data['y']
-                px = particle_data['x']
-                py = particle_data['y']
             else:
                 continue  # Unknown particle data format
 
             # Draw particles
-            # Use button position as seed for consistent but pseudo-random particle positions
-            random.seed(int(time_val * 10) + int(px) + int(py))
             num_particles = 8
             for i in range(num_particles):
                 # Calculate particle position around center
-                angle = (time_val + i * (3.14159 * 2 / num_particles)) % (3.14159 * 2)
-                distance = 30 + pulse * 10
+                angle = (time_val + i * (2 * math.pi / num_particles)) % (2 * math.pi)
+                distance = 30 + pulse * 10  # Pulsing distance
                 particle_x = center_x + int(math.cos(angle) * distance)
                 particle_y = center_y + int(math.sin(angle) * distance)
 
@@ -383,15 +584,17 @@ class ActionMenu:
                 particle_size = int(2 + pulse * 2)
                 particle_alpha = int(60 + pulse * 50)  # 60 to 110 alpha (subtler particles)
 
-                # Draw particle
+                # Draw particle - use brighter gold for upgrade particles
+                if 'gold_color' in particle_data:
+                    draw_color = (220, 180, 80)  # Brighter gold
+                else:
+                    draw_color = particle_color
+
                 particle_surf = pygame.Surface((particle_size * 2, particle_size * 2), pygame.SRCALPHA)
-                pygame.draw.circle(particle_surf, (*particle_color, particle_alpha),
+                pygame.draw.circle(particle_surf, (*draw_color, particle_alpha),
                                  (particle_size, particle_size), particle_size)
                 surface.blit(particle_surf, (particle_x - particle_size, particle_y - particle_size),
                            special_flags=pygame.BLEND_RGBA_ADD)
-
-            # Reset random seed to not affect other random calls
-            random.seed()
 
     def handle_mouse_motion(self, mouse_pos: Tuple[int, int]):
         """Update hovered button based on mouse position."""
