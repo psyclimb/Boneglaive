@@ -3153,10 +3153,16 @@ class GlaivemanPolearmAttack:
 
     def _trigger_windup(self):
         """Phase 1: Pull back polearm."""
+        # Windup sound - pulling back weapon
+        play_sound("glaiveman_attack_windup")
+
         self.attacker.shake_intensity = 5
 
     def _trigger_sweep(self):
         """Phase 2: Wide sweeping arc - silver blade trail."""
+        # Sweep sound - blade whoosh
+        play_sound("glaiveman_attack_sweep")
+
         # Calculate perpendicular vector for arc
         perp_x = -self.dy
         perp_y = self.dx
@@ -3200,6 +3206,9 @@ class GlaivemanPolearmAttack:
 
     def _trigger_impact(self):
         """Phase 3: Metal impact sparks at target."""
+        # Impact sound - metal hitting
+        play_sound("glaiveman_attack_impact")
+
         # Impact sparks - white/silver only (metal on metal)
         for _ in range(20):
             angle = random.uniform(0, 2 * math.pi)

@@ -160,6 +160,11 @@ MULTI_EVENT_SOUNDS = {
     "glaive_sweep_windup": "sounds/skills/glaive_sweep_windup.wav",  # Pulling back
     "glaive_sweep_swing": "sounds/skills/glaive_sweep_swing.wav",    # Circular arc
     "glaive_sweep_impact": "sounds/skills/glaive_sweep_impact.wav",  # Hits connecting
+
+    # GLAIVEMAN - Basic Attack (3 events)
+    "glaiveman_attack_windup": "sounds/skills/glaiveman_attack_windup.wav",  # Pull back polearm
+    "glaiveman_attack_sweep": "sounds/skills/glaiveman_attack_sweep.wav",    # Blade whoosh
+    "glaiveman_attack_impact": "sounds/skills/glaiveman_attack_impact.wav",  # Metal impact
 }
 
 
