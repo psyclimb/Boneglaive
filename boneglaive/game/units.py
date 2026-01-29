@@ -1003,6 +1003,8 @@ class Unit:
             # Remove from active units list
             if self in self._game.units:
                 self._game.units.remove(self)
+                # CRITICAL: Remove from spatial grid
+                self._game._remove_from_unit_grid(self)
 
             logger.info(f"GP SYSTEM: {self.get_display_name()} died, {winner_name} awarded 1 GP ({gp_total}/{self._game.gp_win_threshold})")
         else:

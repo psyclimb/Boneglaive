@@ -328,12 +328,29 @@ class UnitInfoPanel:
         # Import status effects definitions
         from .status_effects import STATUS_EFFECTS
 
-        # Collect active status effects
+        # Collect active status effects with type info and duration
         active_effects = []
         for effect_key, effect_data in STATUS_EFFECTS.items():
             try:
                 if effect_data["check"](self.game_unit):
-                    active_effects.append(effect_data["name"])
+                    effect_info = {
+                        "name": effect_data["name"],
+                        "type": effect_data["type"],
+                        "duration": None
+                    }
+
+                    # Get duration if applicable
+                    if "duration_key" in effect_data and effect_data["duration_key"]:
+                        duration = getattr(self.game_unit, effect_data["duration_key"], None)
+                        if duration is not None and duration > 0:
+                            effect_info["duration"] = duration
+
+                    # Special case: radiation stacks
+                    if effect_key == "radiation_stacks":
+                        if hasattr(self.game_unit, 'radiation_stacks'):
+                            effect_info["duration"] = len(self.game_unit.radiation_stacks)
+
+                    active_effects.append(effect_info)
             except AttributeError:
                 # Unit doesn't have this property
                 continue
@@ -355,13 +372,26 @@ class UnitInfoPanel:
             surface.blit(label_text, (x, y))
             y += 18
 
-            # Draw each effect name
-            for effect_name in active_effects:
+            # Draw each effect name with color based on type
+            for effect in active_effects:
+                # Choose color based on effect type
+                if effect["type"] == "buff":
+                    effect_color = COLOR_HP_BAR_FULL  # Green
+                elif effect["type"] == "debuff":
+                    effect_color = COLOR_HP_BAR_LOW  # Red
+                else:
+                    effect_color = COLOR_TEXT_DIM  # Gray for neutral
+
+                # Format effect name with duration if available
+                effect_name = effect['name']
+                if effect['duration'] is not None:
+                    effect_name = f"{effect_name} ({effect['duration']})"
+
                 effect_text = render_fitted_text(
                     f"  • {effect_name}",
                     max_width=PANEL_WIDTH - PANEL_PADDING * 2,
                     max_height=16,
-                    color=COLOR_TEXT_DIM,
+                    color=effect_color,
                     base_font_size=16,
                     min_font_size=12,
                     max_font_size=18

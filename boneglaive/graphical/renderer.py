@@ -38,6 +38,7 @@ from .ui.respawn_window import RespawnWindow
 from .ui.upgrade_window import UpgradeWindow
 from .ui.setup_window import SetupWindow
 from .ui.setup_unit_help import SetupUnitHelp
+from .ui.game_over_window import GameOverWindow
 from .ui_adapter import GraphicalUIAdapter
 
 # Import TerrainType for terrain/furniture rendering
@@ -190,9 +191,13 @@ class GraphicalRenderer:
         self.upgrade_window = UpgradeWindow(self.font, self.small_font)
         self.setup_window = SetupWindow(self.font, self.small_font)
         self.setup_unit_help = SetupUnitHelp(self.font, self.small_font)
+        self.game_over_window = GameOverWindow(self.font, self.small_font, self.large_font)
 
         # Track current action mode for top bar display
         self.current_action_mode = "SELECT"
+
+        # Game over state
+        self.return_to_menu = False
 
         # Respawn state
         self.respawn_mode = False
@@ -690,6 +695,16 @@ class GraphicalRenderer:
                     self.respawn_window.handle_mouse_up()
 
             elif event.type == pygame.KEYDOWN:
+                # Check if game over window is open first
+                if self.game_over_window.visible:
+                    action = self.game_over_window.handle_key(event.key)
+                    if action == "menu":
+                        self.return_to_main_menu()
+                    elif action == "exit":
+                        self.running = False
+                    # Ignore all other keys when game over window is open
+                    continue
+
                 # Check if message log window is open first
                 if self.message_log_window.visible:
                     if event.key == pygame.K_ESCAPE:
@@ -826,8 +841,11 @@ class GraphicalRenderer:
                         print("Select a unit first to use skills")
 
             elif event.type == pygame.MOUSEMOTION:
+                # Handle game over window mouse motion
+                if self.game_over_window.visible:
+                    self.game_over_window.handle_mouse_motion(event.pos)
                 # Handle help page scrollbar dragging
-                if self.help_page.visible:
+                elif self.help_page.visible:
                     self.help_page.handle_mouse_motion(event.pos)
                 # Handle upgrade window mouse motion
                 elif self.upgrade_window.visible:
@@ -896,6 +914,15 @@ class GraphicalRenderer:
                         # Add scroll support for respawn window too
                         pass
                 elif event.button == 1:  # Left click
+                    # Handle game over window clicks
+                    if self.game_over_window.visible:
+                        action = self.game_over_window.handle_mouse_click(event.pos)
+                        if action == "menu":
+                            self.return_to_main_menu()
+                        elif action == "exit":
+                            self.running = False
+                        continue
+
                     # Handle help page scrollbar clicks
                     if self.help_page.visible:
                         if self.help_page.handle_mouse_down(event.pos):
@@ -2002,6 +2029,10 @@ class GraphicalRenderer:
         # Sync combat log with game's message log
         if self.game_adapter.game:
             self.combat_log.add_messages_from_game_log(message_log, count=20)
+
+        # Check for game over condition
+        if self.game_adapter.game and self.game_adapter.game.winner and not self.game_over_window.visible:
+            self.show_game_over_window()
 
         # Update debris with collision detection (for PRY splash damage)
         if len(self.debris_particles) > 0 and not hasattr(self, '_debris_logged'):
@@ -3162,6 +3193,10 @@ class GraphicalRenderer:
             help_panel_height = SCREEN_HEIGHT - 100
             self.setup_help_panel_rect = self.setup_unit_help.draw(self.screen, help_panel_x, help_panel_y, help_panel_width, help_panel_height)
 
+        # Draw game over window (on top of everything - highest z-order)
+        if self.game_over_window.visible:
+            self.game_over_window.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
+
         # Draw FPS counter (for troubleshooting)
         if self.show_fps:
             fps_text = f"FPS: {self.fps_display:.1f}"
@@ -4221,6 +4256,40 @@ class GraphicalRenderer:
 
         print("[Respawn] Exited respawn mode")
 
+    def show_game_over_window(self):
+        """Show the game over window when a player wins."""
+        if not self.game_adapter.game or not self.game_adapter.game.winner:
+            return
+
+        game = self.game_adapter.game
+        winner = game.winner
+        loser = 2 if winner == 1 else 1
+
+        winner_name = game.get_player_name(winner)
+        loser_name = game.get_player_name(loser)
+        winner_gp = game.player1_gp if winner == 1 else game.player2_gp
+        loser_gp = game.player2_gp if winner == 1 else game.player1_gp
+
+        # Determine if local player won (in single player, player 1 is local)
+        # In multiplayer, this would need adjustment based on network mode
+        is_victory = (winner == 1)
+
+        self.game_over_window.show(is_victory, winner_name, winner_gp, loser_name, loser_gp)
+        print(f"[Game Over] {winner_name} wins with {winner_gp} GP!")
+
+    def return_to_main_menu(self):
+        """Return to the main menu."""
+        print("[Game Over] Returning to main menu...")
+
+        # Close the game over window
+        self.game_over_window.hide()
+
+        # Set flag to return to menu
+        self.return_to_menu = True
+
+        # Stop the renderer loop
+        self.running = False
+
     def start_setup_mode(self):
         """Start setup mode - show unit selection window."""
         if not self.game_adapter.game:
@@ -4452,7 +4521,9 @@ class GraphicalRenderer:
             self.update(delta_time)
             self.draw()
 
-        pygame.quit()
+        # Only quit pygame if NOT returning to menu
+        if not self.return_to_menu:
+            pygame.quit()
 
 
 def main():

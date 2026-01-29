@@ -994,6 +994,8 @@ class Game:
             if unit.player == self.setup_player:
                 # Remove this unit
                 self.units.remove(unit)
+                # CRITICAL: Remove from spatial grid
+                self._remove_from_unit_grid(unit)
                 # Increment remaining units counter
                 self.setup_units_remaining[self.setup_player] += 1
                 return True
@@ -1438,6 +1440,9 @@ class Game:
 
             # Add to game
             self.units.append(unit)
+
+            # CRITICAL: Update spatial grid so unit is visible/targetable
+            self._update_unit_grid(unit)
 
             # Remove from dead units
             if dead_unit in self.dead_units:
@@ -6048,6 +6053,9 @@ class Game:
                 banished.is_banished = False
 
             self.units.append(banished)
+
+            # CRITICAL: Update spatial grid so unit is visible/targetable
+            self._update_unit_grid(banished)
 
             logger.info(f"Banished unit {banished.get_display_name()} returns from banishment at ({banished.y}, {banished.x})")
 

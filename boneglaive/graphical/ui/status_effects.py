@@ -83,7 +83,7 @@ STATUS_EFFECTS = {
         "check": lambda u: u.derelicted
     },
     "demilune_debuffed": {
-        "name": "Demilune",
+        "name": "Lunacy",
         "type": "debuff",
         "icon": "DM",
         "description": "Attack reduced" + (" / Defense halved" if hasattr(lambda u: u, "demilune_defense_halved") else ""),
@@ -91,7 +91,7 @@ STATUS_EFFECTS = {
         "check": lambda u: u.demilune_debuffed
     },
     "taunted_by": {
-        "name": "Taunted",
+        "name": "Geas",
         "type": "debuff",
         "icon": "!",
         "description": "Must attack or skill POTPOURRIST",
@@ -99,7 +99,7 @@ STATUS_EFFECTS = {
         "check": lambda u: u.taunted_by is not None
     },
     "radiation_stacks": {
-        "name": "Radiation",
+        "name": "Radiation Burn",
         "type": "debuff",
         "icon": "R",
         "description": "Taking periodic radiation damage",
@@ -237,15 +237,15 @@ STATUS_EFFECTS = {
     },
     "is_echo": {
         "name": "Echo",
-        "type": "neutral",
+        "type": "buff",
         "icon": "EC",
         "description": "Temporary echo created by Grae Exchange",
         "duration_key": "echo_duration",
         "check": lambda u: u.is_echo
     },
     "potpourri_held": {
-        "name": "Potpourri",
-        "type": "neutral",
+        "name": "Infused",
+        "type": "buff",
         "icon": "PO",
         "description": "POTPOURRIST holding potpourri",
         "check": lambda u: u.potpourri_held

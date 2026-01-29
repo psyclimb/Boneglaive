@@ -90,7 +90,14 @@ def run_game():
     renderer.run()
 
     print("Game ended.")
-    return "main_menu"  # Could return to menu
+
+    # Check if we should return to menu
+    if hasattr(renderer, 'return_to_menu') and renderer.return_to_menu:
+        print("Returning to main menu...")
+        return "main_menu"
+    else:
+        # User closed window or quit
+        return None
 
 
 def main():
