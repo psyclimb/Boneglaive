@@ -13,6 +13,7 @@ from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 from boneglaive.utils.asset_manager import AssetManager
 from boneglaive.utils.config import ConfigManager
 from boneglaive.utils.constants import UnitType
+from boneglaive.graphical.sound_manager import init_sound_manager, get_sound_manager
 
 class PygameRenderer(RenderInterface):
     """Renderer implementation using pygame for graphical display."""
@@ -24,6 +25,9 @@ class PygameRenderer(RenderInterface):
         self.clock = None
         self.font = None
         self.ui_reference = ui_reference  # Reference to UI for animation redraws
+
+        # Initialize sound manager (will be fully initialized after pygame.init())
+        self.sound_manager = None
         
         # Graphical grid system
         self.char_width = 12   # Width of each character cell in pixels
@@ -69,13 +73,17 @@ class PygameRenderer(RenderInterface):
     def initialize(self) -> None:
         """Initialize the pygame renderer."""
         pygame.init()
-        
+
         # Create the display
         self.screen = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption("Boneglaive Beta")
-        
+
         # Create clock for FPS control
         self.clock = pygame.time.Clock()
+
+        # Initialize sound system
+        self.sound_manager = init_sound_manager(enabled=True)
+        logger.info("Sound system initialized")
         
         # Initialize monospace font with fallbacks
         self.font = self._load_best_monospace_font()
