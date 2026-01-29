@@ -7,6 +7,7 @@ import pygame
 import random
 import math
 from .core import TILE_SIZE, Particle, DebrisParticle
+from boneglaive.graphical.sound_helper import play_sound
 
 class LightningBolt:
     """A lightning bolt effect that strikes from above."""
@@ -1770,6 +1771,9 @@ class PryAnimation:
         self.phase = "prying_up"
         self.timer = 0
 
+        # Lever prying sound - metallic scraping/leveraging
+        play_sound("pry_lever")
+
         # Create lever effect from caster to target
         self.lever = PryLeverEffect(self.caster_x, self.caster_y, self.target_x, self.target_y)
 
@@ -1787,6 +1791,9 @@ class PryAnimation:
         """Phase 2: Ceiling Impact - Target hits ceiling, debris spawns aimed at affected tiles."""
         self.phase = "ceiling_impact"
         self.timer = 0
+
+        # Ceiling crash sound - heavy impact
+        play_sound("pry_ceiling")
 
         # Create ceiling impact flash
         self.ceiling_impact = PryCeilingImpact(self.target_x, self.target_y)
@@ -1865,6 +1872,9 @@ class PryAnimation:
         """Phase 4: Ground Impact - Debris impacts create effects as they land."""
         self.phase = "ground_impact"
         self.timer = 0
+
+        # Ground explosion sound - heavy impact with debris
+        play_sound("pry_impact")
 
         # **DAMAGE TRIGGER: This is when damage happens (delayed execution like Parabol)**
         # Game logic will apply damage at this moment (1.7s into animation)
@@ -2366,6 +2376,9 @@ class JudgementAnimation:
         self.phase = "wind_up"
         self.timer = 0
 
+        # Wind-up sound (optional - for dramatic effect)
+        play_sound("judgement_windup")
+
         # Light screen shake for wind-up
         self.screen_shake_callback(3, 0.2)
 
@@ -2378,6 +2391,9 @@ class JudgementAnimation:
         self.phase = "flight"
         self.timer = 0
 
+        # Throw sound - glaive leaving hand
+        play_sound("judgement_throw")
+
         # Create projectile
         self.projectile = JudgementGlaiveProjectile(self.caster_x, self.caster_y,
                                                     self.target_x, self.target_y)
@@ -2389,6 +2405,12 @@ class JudgementAnimation:
 
         # **DAMAGE TRIGGER: This is when damage happens (delayed execution like Parabol)**
         self.damage_triggered = True
+
+        # Impact sound - different for critical vs normal
+        if self.is_crit:
+            play_sound("judgement_critical")
+        else:
+            play_sound("judgement_impact")
 
         # Create impact flash
         self.impact_flash = JudgementImpactFlash(self.target_x, self.target_y)
@@ -2943,6 +2965,9 @@ class AutoclaveAnimationV2:
         self.phase = "ignition"
         self.timer = 0
 
+        # Ignition sound - initial fire burst
+        play_sound("autoclave_ignition")
+
         # Create fire burst at GLAIVEMAN
         self.fire_burst = AutoclaveFireBurst(self.caster_x, self.caster_y)
 
@@ -2957,6 +2982,9 @@ class AutoclaveAnimationV2:
         """Phase 2: Cross Expansion - Steam and glaives expand outward."""
         self.phase = "cross_expansion"
         self.timer = 0
+
+        # Steam expansion sound - hissing steam jets
+        play_sound("autoclave_steam")
 
         # Create steam jets in 4 directions
         for direction in range(4):
@@ -2977,6 +3005,9 @@ class AutoclaveAnimationV2:
 
         # **DAMAGE TRIGGER: This is when damage happens (delayed execution like Parabol)**
         self.damage_triggered = True
+
+        # Impact sound - glaives hitting targets
+        play_sound("autoclave_impact")
 
         # Removed: Impact flashes at each tile (no longer creating fireball explosions)
 

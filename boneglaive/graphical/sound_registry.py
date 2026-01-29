@@ -9,7 +9,7 @@ Maps skill names, actions, and events to sound files.
 # The SoundManager will look for these in sounds/<category>/<sound_key>.wav
 
 SKILL_SOUNDS = {
-    # GLAIVEMAN skills
+    # GLAIVEMAN skills (primary skill sound - played by AnimationFactory)
     "JUDGEMENT": "judgement",
     "PRY": "pry",
     "VAULT": "vault",
@@ -131,6 +131,26 @@ MUSIC_TRACKS = {
     "BATTLE": "battle_theme",
     "VICTORY": "victory_theme",
     "DEFEAT": "defeat_theme",
+}
+
+# Multi-event skill sounds (played within animations at specific moments)
+# These are called directly by animations using play_sound() helper
+MULTI_EVENT_SOUNDS = {
+    # GLAIVEMAN - Judgement (3 events)
+    "judgement_windup": "sounds/skills/judgement_windup.wav",   # Wind-up phase (optional)
+    "judgement_throw": "sounds/skills/judgement_throw.wav",     # Glaive leaving hand
+    "judgement_impact": "sounds/skills/judgement_impact.wav",   # Normal impact
+    "judgement_critical": "sounds/skills/judgement_critical.wav", # Critical hit with lightning
+
+    # GLAIVEMAN - Pry (3 events)
+    "pry_lever": "sounds/skills/pry_lever.wav",       # Lever prying up
+    "pry_ceiling": "sounds/skills/pry_ceiling.wav",   # Ceiling crash
+    "pry_impact": "sounds/skills/pry_impact.wav",     # Ground explosion
+
+    # GLAIVEMAN - Autoclave (3 events)
+    "autoclave_ignition": "sounds/skills/autoclave_ignition.wav",  # Fire burst at center
+    "autoclave_steam": "sounds/skills/autoclave_steam.wav",        # Steam jets expanding
+    "autoclave_impact": "sounds/skills/autoclave_impact.wav",      # Glaives hitting targets
 }
 
 
