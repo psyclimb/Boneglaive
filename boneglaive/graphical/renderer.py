@@ -44,6 +44,9 @@ from .ui_adapter import GraphicalUIAdapter
 # Import TerrainType for terrain/furniture rendering
 from boneglaive.game.map import TerrainType
 
+# Import UnitType for Rail Genesis junction checking
+from boneglaive.utils.constants import UnitType
+
 # Import global message log for combat log sync
 from boneglaive.utils.message_log import message_log
 
@@ -231,6 +234,11 @@ class GraphicalRenderer:
         self.fragcrest_trap: Optional[pygame.Surface] = None
         self._load_scalar_node_overlay()
         self._load_fragcrest_trap_overlay()
+
+        # Rail Genesis junction overlay (for upgraded FOWL_CONTRIVANCE)
+        self.rail_junction_overlay: Optional[pygame.Surface] = None
+        self.junction_pulse_time = 0
+        self._load_rail_junction_overlay()
 
         # Performance: Pre-create reusable surfaces to avoid allocations every frame
         self._main_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -451,6 +459,35 @@ class GraphicalRenderer:
             print(f"Info: cairosvg not available, cannot load Fragcrest trap overlay: {svg_path}")
         except Exception as e:
             print(f"Warning: Could not load Fragcrest trap overlay {svg_path}: {e}")
+
+    def _load_rail_junction_overlay(self) -> None:
+        """
+        Load Rail Genesis junction overlay graphic.
+        This subtle graphic shows junction power-up locations for upgraded FOWL_CONTRIVANCE.
+        """
+        svg_path = "graphics/ui/rail_junction_overlay.svg"
+
+        if not os.path.exists(svg_path):
+            print(f"Warning: Rail junction overlay not found: {svg_path}")
+            return
+
+        try:
+            import cairosvg
+            from io import BytesIO
+            # Convert SVG to PNG in memory
+            png_data = cairosvg.svg2png(url=svg_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
+            surface = pygame.image.load(BytesIO(png_data))
+
+            # Set alpha for semi-transparent overlay effect
+            surface = surface.convert_alpha()
+
+            # Cache the rail junction overlay surface
+            self.rail_junction_overlay = surface
+            print(f"Loaded Rail Genesis junction overlay")
+        except ImportError:
+            print(f"Info: cairosvg not available, cannot load Rail Genesis junction overlay: {svg_path}")
+        except Exception as e:
+            print(f"Warning: Could not load Rail Genesis junction overlay {svg_path}: {e}")
 
     # ASCII renderer compatibility stubs
     def animate_attack_sequence(self, y, x, sequence, color, duration):
@@ -1969,6 +2006,9 @@ class GraphicalRenderer:
         # Update astral value pulse animation
         self.astral_value_pulse_time += delta_time
 
+        # Update Rail Genesis junction pulse animation
+        self.junction_pulse_time += delta_time
+
         # Update imbued furniture sparkles
         updated_sparkles = []
         for sparkle in self.imbued_sparkles:
@@ -3091,6 +3131,9 @@ class GraphicalRenderer:
         # Draw revealed scalar node traps (after grid, before range indicators)
         self.draw_revealed_traps(main_surface)
 
+        # Draw Rail Genesis junction indicators (after grid, before range indicators)
+        self.draw_rail_junctions(main_surface)
+
         # Draw movement/target range indicators
         self.draw_range_indicators(main_surface)
 
@@ -3449,6 +3492,61 @@ class GraphicalRenderer:
 
                         # Blit the Fragcrest trap overlay
                         surface.blit(self.fragcrest_trap, (tile_x, tile_y))
+
+    def draw_rail_junctions(self, surface: pygame.Surface):
+        """Draw Rail Genesis junction indicators for upgraded FOWL_CONTRIVANCE."""
+        if not self.game_adapter.game or not self.rail_junction_overlay:
+            return
+
+        # Only show for current player's upgraded FOWL_CONTRIVANCE
+        current_player = self.game_adapter.game.current_player
+        has_rail_genesis = False
+
+        for unit in self.game_adapter.game.units:
+            if (unit.is_alive() and
+                unit.type == UnitType.FOWL_CONTRIVANCE and
+                unit.player == current_player):
+                from boneglaive.game.upgrades import UpgradeManager
+                if UpgradeManager.is_skill_upgraded(unit, "Rail Genesis"):
+                    has_rail_genesis = True
+                    break
+
+        if not has_rail_genesis:
+            return
+
+        # Calculate junction positions (same logic as engine.py:2403-2421)
+        center_y = self.game_adapter.game.map.height // 2
+        center_x = self.game_adapter.game.map.width // 2
+
+        top_horizontal = 1
+        middle_horizontal = center_y - 2
+        bottom_horizontal = self.game_adapter.game.map.height - 2
+
+        vertical_line_1 = center_x - 2
+        vertical_line_2 = center_x + 2
+
+        junction_coords = [
+            (top_horizontal, vertical_line_1),
+            (top_horizontal, vertical_line_2),
+            (middle_horizontal, vertical_line_1),
+            (middle_horizontal, vertical_line_2),
+            (bottom_horizontal, vertical_line_1),
+            (bottom_horizontal, vertical_line_2)
+        ]
+
+        # Pulsing effect (subtle, 2-second cycle)
+        import math
+        pulse = (math.sin(self.junction_pulse_time * math.pi) + 1) * 0.5
+        alpha = int(100 + pulse * 80)  # Range: 100-180
+
+        overlay = self.rail_junction_overlay.copy()
+        overlay.set_alpha(alpha)
+
+        # Draw overlay at each junction
+        for y, x in junction_coords:
+            tile_x = GRID_OFFSET_X + x * TILE_SIZE
+            tile_y = GRID_OFFSET_Y + y * TILE_SIZE
+            surface.blit(overlay, (tile_x, tile_y))
 
     def draw_range_indicators(self, surface: pygame.Surface):
         """Draw movement range, attack range, and skill range indicators."""
@@ -4478,6 +4576,36 @@ class GraphicalRenderer:
 
         # Hide setup window
         self.setup_window.hide()
+
+        # Force sync all animated unit positions with game units
+        # This is critical for FOWL_CONTRIVANCE which gets snapped to rails after setup
+        if self.game_adapter.game:
+            from boneglaive.graphical.animations.core import TILE_SIZE
+            for animated_unit in self.units:
+                # Find corresponding game unit
+                game_unit = None
+                for gu in self.game_adapter.game.units:
+                    if (gu.type.name == animated_unit.name and
+                        gu.player == animated_unit.player):
+                        # Match found - sync positions
+                        game_unit = gu
+                        break
+
+                if game_unit:
+                    # Update grid coordinates
+                    animated_unit.grid_x = game_unit.x
+                    animated_unit.grid_y = game_unit.y
+
+                    # Calculate and set screen coordinates
+                    new_x = game_unit.x * TILE_SIZE + TILE_SIZE // 2 + GRID_OFFSET_X
+                    new_y = game_unit.y * TILE_SIZE + TILE_SIZE // 2 + GRID_OFFSET_Y
+
+                    # Set both current and target position (no animation)
+                    animated_unit.x = new_x
+                    animated_unit.y = new_y
+                    animated_unit.target_x = new_x
+                    animated_unit.target_y = new_y
+                    animated_unit.is_moving = False
 
         print("[Setup] Exited setup mode")
 
