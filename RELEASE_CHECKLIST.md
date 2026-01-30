@@ -9,14 +9,14 @@
 ## Pre-Release Testing
 
 ### [ ] Graphical Version - Full Playthrough Testing
-- [ ] Test vs AI mode - complete game from start to win condition
+- [x] Test vs AI mode - complete game from start to win condition
 - [ ] Test local multiplayer mode - complete game with 2 players
 - [ ] Test all units and their skills work correctly
-- [ ] Test GP scoring system (10 GP to win)
-- [ ] Test respawn system (3-turn timer, spawn selection)
+- [x] Test GP scoring system (7 GP to win)
+- [x] Test respawn system (3-turn timer, spawn selection)
 - [ ] Test game-over/victory screens
 - [ ] Test main menu navigation
-- [ ] Test map selection
+- [x] Test map selection
 - [ ] Test settings persistence (config.json)
 - [ ] Test all animations play correctly
 - [ ] Test combat log scrolling and messages
@@ -57,10 +57,10 @@
 - [ ] Consider first-time player experience walkthrough
 
 ### [ ] Victory/Defeat Screens
-- [ ] Implement victory screen showing winner
+- [x] Implement victory screen showing winner
 - [ ] Display final GP score
 - [ ] Show game statistics (turns played, kills, etc.)
-- [ ] Add "Return to Menu" button
+- [x] Add "Return to Menu" button
 - [ ] Add "Play Again" button
 - [ ] Add transition animations
 
