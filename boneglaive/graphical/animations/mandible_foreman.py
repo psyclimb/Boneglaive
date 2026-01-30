@@ -2259,6 +2259,35 @@ class JawlineNetworkUpgraded:
         self.caster_grid_x = caster_grid_x
         self.caster_grid_y = caster_grid_y
 
+        # Adjacent trap positions (8 tiles around caster)
+        self.adjacent_traps = []
+        for dy in [-1, 0, 1]:
+            for dx in [-1, 0, 1]:
+                if dy == 0 and dx == 0:  # Skip center (caster position)
+                    continue
+
+                adj_grid_x = caster_grid_x + dx
+                adj_grid_y = caster_grid_y + dy
+
+                # Convert to screen coordinates
+                if camera:
+                    from boneglaive.graphical.renderer import GRID_OFFSET_X, GRID_OFFSET_Y
+                    adj_x = GRID_OFFSET_X + adj_grid_x * self.tile_size + self.tile_size // 2
+                    adj_y = GRID_OFFSET_Y + adj_grid_y * self.tile_size + self.tile_size // 2
+                else:
+                    adj_x = adj_grid_x * self.tile_size + self.tile_size // 2
+                    adj_y = adj_grid_y * self.tile_size + self.tile_size // 2
+
+                self.adjacent_traps.append({
+                    'x': adj_x,
+                    'y': adj_y,
+                    'grid_x': adj_grid_x,
+                    'grid_y': adj_grid_y,
+                    'jaw_angle': 45,  # Start open
+                    'deploy_time': 0,
+                    'snapped': False
+                })
+
         # Three rolling cable spools (center, left, right) - positioned on grid
         self.spools = []
         for offset in [-1, 0, 1]:  # Left, center, right
@@ -2302,10 +2331,19 @@ class JawlineNetworkUpgraded:
         self.timer += delta_time
 
         if self.phase == "launch":
-            # Brief launch preparation (0.2s)
-            if self.timer >= 0.2:
+            # Deploy adjacent traps first (0.3s)
+            if self.timer >= 0.3:
+                # Snap adjacent traps closed
+                for trap in self.adjacent_traps:
+                    trap['snapped'] = True
+                    trap['jaw_angle'] = 0
                 self.phase = "rolling"
                 self.timer = 0
+            else:
+                # Animate adjacent traps opening
+                progress = self.timer / 0.3
+                for trap in self.adjacent_traps:
+                    trap['jaw_angle'] = 45 * progress
 
         elif self.phase == "rolling":
             # Spools roll forward tile-by-tile, deploying cable and traps
@@ -2459,6 +2497,10 @@ class JawlineNetworkUpgraded:
         else:
             alpha = 255
 
+        # Draw adjacent traps (8 tiles around caster)
+        for trap in self.adjacent_traps:
+            self.draw_bear_trap(surface, trap['x'], trap['y'], trap['jaw_angle'], alpha)
+
         # Orange cable color
         cable_color = (255, 102, 0, alpha)
 
@@ -2470,7 +2512,7 @@ class JawlineNetworkUpgraded:
                                (int(spool['start_x']), int(spool['start_y'])),
                                (int(spool['x']), int(spool['y'])), 3)
 
-        # Draw deployed traps
+        # Draw deployed traps along directional line
         for trap in self.all_traps:
             self.draw_bear_trap(surface, trap['x'], trap['y'], trap['jaw_angle'], alpha)
 

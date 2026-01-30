@@ -179,12 +179,12 @@ class NeuralShuntSkill(ActiveSkill):
         super().__init__(
             name="Neural Shunt",
             key="N",
-            description="Neural disruption attack (range 1). Deals 8 damage and causes target to perform random actions for 1 turn.",
+            description="Neural disruption attack (range 1). Deals 6 damage and causes target to perform random actions for 1 turn.",
             target_type=TargetType.ENEMY,
             cooldown=4,
             range_=1
         )
-        self.damage = 7
+        self.damage = 6
         self.effect_duration = 1
 
     def get_range(self, user: 'Unit') -> int:
@@ -335,8 +335,11 @@ class NeuralShuntSkill(ActiveSkill):
             ui.renderer.draw_tile(target.y, target.x, original_unit_tile, 3 if target.player == 1 else 4)
             ui.renderer.refresh()
         
-        # Apply damage
-        damage = max(1, self.damage - target.defense)
+        # Apply damage (increased by 2 if upgraded)
+        from boneglaive.game.upgrades import UpgradeManager
+        is_upgraded = UpgradeManager.is_skill_upgraded(user, "Neural Shunt")
+        base_damage = self.damage + 2 if is_upgraded else self.damage
+        damage = max(1, base_damage - target.defense)
         previous_hp = target.hp
         target.hp = max(0, target.hp - damage)
         
@@ -496,7 +499,14 @@ class ScalarNodeSkill(ActiveSkill):
             range_=3
         )
         self.damage = 8
-    
+
+    def get_range(self, user: 'Unit') -> int:
+        """Get effective range based on upgrade status."""
+        from boneglaive.game.upgrades import UpgradeManager
+        if UpgradeManager.is_skill_upgraded(user, "Scalar Node"):
+            return 4  # Upgraded: range 4
+        return self.range  # Base: range 3
+
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         if not super().can_use(user, target_pos, game):
             return False

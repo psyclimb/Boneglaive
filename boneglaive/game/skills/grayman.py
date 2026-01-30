@@ -29,7 +29,7 @@ class Stasiality(PassiveSkill):
         """
         Apply Stasiality passive effects.
         Base: Immunity to status effects (handled in Unit.is_immune_to_effects())
-        Upgraded: Reduce move to 0, reduce Delta Config cooldown to 8, reduce Græ Exchange cooldown to 3, +1 PRT
+        Upgraded: Reduce move to 0, reduce Delta Config cooldown by 6, reduce Græ Exchange cooldown by 1, +1 PRT
         """
         from boneglaive.game.upgrades import UpgradeManager
 
@@ -44,11 +44,11 @@ class Stasiality(PassiveSkill):
             # Reduce skill cooldowns
             for skill in user.active_skills:
                 if skill.name == "Delta Config":
-                    # Reduce from 12 to 8
-                    skill.cooldown = 8
+                    # Reduce from 12 to 6 (reduced by 6)
+                    skill.cooldown = 6
                 elif skill.name == "Græ Exchange":
-                    # Reduce from 4 to 3
-                    skill.cooldown = 3
+                    # Reduce from 5 to 4 (reduced by 1)
+                    skill.cooldown = 4
 
 
 class DeltaConfigSkill(ActiveSkill):

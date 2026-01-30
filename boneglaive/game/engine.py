@@ -2425,6 +2425,7 @@ class Game:
 
                 if is_upgraded and on_junction and not had_junction_bonus:
                     # Apply junction bonuses
+                    unit.attack_bonus += 1
                     unit.attack_range_bonus += 2
                     unit.defense_bonus += 1
                     unit.junction_bonus_active = True
@@ -2436,6 +2437,7 @@ class Game:
                     )
                 elif (not on_junction or not is_upgraded) and had_junction_bonus:
                     # Remove junction bonuses
+                    unit.attack_bonus -= 1
                     unit.attack_range_bonus -= 2
                     unit.defense_bonus -= 1
                     unit.junction_bonus_active = False
@@ -5208,11 +5210,14 @@ class Game:
                     )
                     time.sleep(0.2)
                 
-                # Incremental trap damage - starts at 3 and increases by 1 each turn
-                # First turn trapped: trap_duration = 0, damage base = 3
-                # Second turn trapped: trap_duration = 1, damage base = 4
-                # Third turn trapped: trap_duration = 2, damage base = 5, etc.
-                base_trap_damage = 3 + unit.trap_duration
+                # Incremental trap damage - starts at 3 (or 4 with upgrade) and increases by 1 each turn
+                # First turn trapped: trap_duration = 0, damage base = 3 (or 4 with upgrade)
+                # Second turn trapped: trap_duration = 1, damage base = 4 (or 5 with upgrade)
+                # Third turn trapped: trap_duration = 2, damage base = 5 (or 6 with upgrade), etc.
+                from boneglaive.game.upgrades import UpgradeManager
+                is_upgraded = UpgradeManager.is_skill_upgraded(foreman, "Viseroy")
+                initial_damage = 4 if is_upgraded else 3
+                base_trap_damage = initial_damage + unit.trap_duration
                 effective_defense = unit.get_effective_stats()['defense']
                 damage = max(1, base_trap_damage - effective_defense)
                 

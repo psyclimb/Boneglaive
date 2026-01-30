@@ -41,7 +41,7 @@ SKILL_UPGRADES = {
     "MANDIBLE_FOREMAN": {
         "Viseroy": {
             "name": "Viseroy",
-            "description": "Adds a 1 turn disarm when trap is applied. Disarm has a 3 turn cooldown.",
+            "description": "Increases initial trap damage by 1. Adds a 1 turn disarm when trap is applied. Disarm has a 3 turn cooldown.",
             "type": "buff",
             "cost": 1
         },
@@ -67,7 +67,7 @@ SKILL_UPGRADES = {
     "GRAYMAN": {
         "Stasiality": {
             "name": "Stasiality",
-            "description": "GRAYMAN becomes completely inert. Move range reduced to 0. Delta Config cooldown reduced to 8. Græ Exchange cooldown reduced to 3. +1 PRT.",
+            "description": "GRAYMAN becomes completely inert. Move range reduced to 0. Delta Config cooldown reduced by 6. Græ Exchange cooldown reduced by 1. +1 PRT.",
             "type": "sidegrade",
             "cost": 1
         },
@@ -151,7 +151,7 @@ SKILL_UPGRADES = {
         },
         "Neural Shunt": {
             "name": "Neural Shunt",
-            "description": "Range increased from 1 to 3. No longer flashes.",
+            "description": "Increases range by 2. Damage increased by 2. No longer flashes.",
             "type": "buff",
             "cost": 1
         },
@@ -163,7 +163,7 @@ SKILL_UPGRADES = {
         },
         "Scalar Node": {
             "name": "Scalar Node",
-            "description": "Trap damage pierces defense.",
+            "description": "Trap damage pierces defense. Increase range by 1.",
             "type": "buff",
             "cost": 1
         }
@@ -171,7 +171,7 @@ SKILL_UPGRADES = {
     "FOWL_CONTRIVANCE": {
         "Rail Genesis": {
             "name": "Rail Genesis",
-            "description": "Rail junctions grant bonuses: Parabol max range +1, attack range +2, defense +1.",
+            "description": "Rail junctions grant bonuses: Parabol max range +1, attack +1, attack range +2, defense +1.",
             "type": "buff",
             "cost": 1
         },
@@ -203,13 +203,13 @@ SKILL_UPGRADES = {
         },
         "Broaching Gas": {
             "name": "Broaching Gas",
-            "description": "Damage increased to 3 and ignores defense.",
+            "description": "Increases damage by 3.",
             "type": "buff",
             "cost": 1
         },
         "Saft-E-Gas": {
             "name": "Saft-E-Gas",
-            "description": "Grants +1 PRT instead of +1 DEF.",
+            "description": "Grants +1 PRT instead of +1 DEF. Increase heal tick by 1.",
             "type": "buff",
             "cost": 1
         },

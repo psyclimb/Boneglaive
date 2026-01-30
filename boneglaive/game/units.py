@@ -1245,9 +1245,9 @@ class Unit:
                 
         # Process effects based on vapor type
         if self.vapor_type == "BROACHING":
-            # Broaching Gas: Damages enemies (2 damage base, 3 if upgraded and ignores defense) and cleanses allies of status effects
+            # Broaching Gas: Damages enemies (2 damage base, +3 if upgraded) and cleanses allies of status effects
 
-            # Check if Broaching Gas is upgraded (increased damage + ignores defense)
+            # Check if Broaching Gas is upgraded (increased damage by +3)
             from boneglaive.game.upgrades import UpgradeManager
             is_upgraded = False
             if hasattr(self, 'vapor_creator') and self.vapor_creator:
@@ -1257,19 +1257,14 @@ class Unit:
                 if unit.player != self.player:
                     # Enemy unit - apply damage
                     if is_upgraded:
-                        damage = 3  # Upgraded: 3 damage that ignores defense
+                        damage = 5  # Upgraded: 2 + 3 = 5 damage (reduced by defense)
                     else:
-                        damage = 2  # Base: 2 damage (reduced by defense in HP setter)
+                        damage = 2  # Base: 2 damage (reduced by defense)
 
                     previous_hp = unit.hp
 
-                    # For upgraded broaching gas, damage bypasses defense (like GRAYMAN)
-                    if is_upgraded:
-                        # Directly reduce HP without defense calculation
-                        unit.hp = max(0, unit.hp - damage)
-                    else:
-                        # Normal damage (defense applies via HP setter)
-                        unit.hp = max(0, unit.hp - damage)
+                    # Normal damage (defense applies via HP setter)
+                    unit.hp = max(0, unit.hp - damage)
                     
                     # Log damage
                     message_log.add_combat_message(
@@ -1443,7 +1438,8 @@ class Unit:
             for unit in affected_units:
                 if unit.player == self.player and unit != self and unit.hp < unit.max_hp:
                     # Heal ally unit using universal heal method
-                    healing = 1
+                    # Upgraded: 2 HP per tick, Base: 1 HP per tick
+                    healing = 2 if is_upgraded else 1
                     actual_heal = unit.heal(healing, "HEINOUS VAPOR healing")
 
                     # Log healing only if it actually occurred

@@ -449,9 +449,9 @@ class ActionMenu:
         # Create action buttons
         self.buttons = [
             ActionButton("attack", "A", "ATTACK"),
+            ActionButton("upgrade", "U", "UPGRADE"),
             ActionButton("respawn", "R", "RESPAWN"),
             ActionButton("execute", "E", "EXECUTE TURN"),
-            ActionButton("upgrade", "U", "UPGRADE"),
             ActionButton("help", "H", "HELP"),
             ActionButton("concede", "C", "CONCEDE"),
         ]

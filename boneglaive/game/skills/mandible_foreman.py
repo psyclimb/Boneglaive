@@ -1231,7 +1231,22 @@ class JawlineSkill(ActiveSkill):
         area_positions = []
 
         if is_upgraded:
-            # Upgraded: 3x9 directional line
+            # Upgraded: 8 adjacent tiles + 3x9 directional line
+            # First, add all 8 adjacent tiles (like base effect)
+            for dy in [-1, 0, 1]:
+                for dx in [-1, 0, 1]:
+                    # Skip the center (user's position)
+                    if dy == 0 and dx == 0:
+                        continue
+
+                    y = user.y + dy
+                    x = user.x + dx
+
+                    # Check if position is valid
+                    if game.is_valid_position(y, x):
+                        area_positions.append((y, x))
+
+            # Then, add the 3x9 directional line extending from the user
             # Calculate direction vector from user to target
             delta_y = target_pos[0] - user.y
             delta_x = target_pos[1] - user.x
@@ -1293,9 +1308,9 @@ class JawlineSkill(ActiveSkill):
                             blocked_offsets.add(offset)
                             continue
 
-                    # Position is valid and not blocked - add it
-                    # Note: Enemy units do NOT block - the line passes through them
-                    area_positions.append((y, x))
+                    # Position is valid and not blocked - add it if not already in area_positions
+                    if (y, x) not in area_positions:
+                        area_positions.append((y, x))
 
                 # If all 3 offsets are blocked, stop extending entirely
                 if len(blocked_offsets) >= 3:

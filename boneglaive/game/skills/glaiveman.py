@@ -875,7 +875,7 @@ class VaultSkill(ActiveSkill):
             cooldown=4,
             range_=2
         )
-        self.landing_damage = 3  # Damage to adjacent enemies on landing (when upgraded)
+        self.landing_damage = 4  # Damage to adjacent enemies on landing (when upgraded)
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Check if Vault can be used on the target position."""
