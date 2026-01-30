@@ -325,8 +325,8 @@ class SpinningGlaiveProjectile:
         center = self.size // 2
 
         # Golden/white color scheme
-        gold = (255, 215, 0)
-        light_gold = (255, 235, 100)
+        bright_yellow = (255, 255, 204)  # #ffffcc
+        white = (255, 255, 255)
         white = (255, 255, 255)
 
         # Draw six pointed blades radiating from center
@@ -346,18 +346,18 @@ class SpinningGlaiveProjectile:
             side2_y = center + math.sin(angle + angle_offset) * (blade_length * 0.7)
 
             # Draw blade triangle
-            pygame.draw.polygon(self.base_surface, gold,
+            pygame.draw.polygon(self.base_surface, bright_yellow,
                               [(center, center), (tip_x, tip_y), (side1_x, side1_y)])
-            pygame.draw.polygon(self.base_surface, gold,
+            pygame.draw.polygon(self.base_surface, bright_yellow,
                               [(center, center), (tip_x, tip_y), (side2_x, side2_y)])
 
             # Highlight edge
-            pygame.draw.line(self.base_surface, light_gold,
+            pygame.draw.line(self.base_surface, white,
                            (center, center), (tip_x, tip_y), 2)
 
         # Center hub
         pygame.draw.circle(self.base_surface, white, (center, center), 6)
-        pygame.draw.circle(self.base_surface, gold, (center, center), 6, 2)
+        pygame.draw.circle(self.base_surface, bright_yellow, (center, center), 6, 2)
         pygame.draw.circle(self.base_surface, (200, 180, 0), (center, center), 3)
 
     def update(self, delta_time):
@@ -414,7 +414,7 @@ class SpinningGlaiveProjectile:
         # Add glow effect
         glow_surf = pygame.Surface((self.size + 20, self.size + 20), pygame.SRCALPHA)
         glow_radius = self.size // 2 + 10
-        pygame.draw.circle(glow_surf, (255, 215, 0, 50),
+        pygame.draw.circle(glow_surf, (255, 255, 204, 50),
                           (glow_radius, glow_radius), glow_radius)
         glow_rect = glow_surf.get_rect(center=(int(self.x), int(self.y)))
         surface.blit(glow_surf, glow_rect)
@@ -1171,11 +1171,11 @@ class PryLeverEffect:
             start_local = (10, 10)
             end_local = (int(self.target_x - self.caster_x + 10), int(self.target_y - self.caster_y + 10))
 
-            # Outer orange glow (#ff6600 from GLAIVEMAN cross emblem)
-            pygame.draw.line(lever_surf, (255, 102, 0, alpha // 2),
+            # Outer bright yellow glow (#ffffcc from GLAIVEMAN cross emblem)
+            pygame.draw.line(lever_surf, (255, 255, 204, alpha // 2),
                            start_local, end_local, 10)
             # Inner bright orange (#ff9944 glow)
-            pygame.draw.line(lever_surf, (255, 153, 68, alpha),
+            pygame.draw.line(lever_surf, (255, 255, 255, alpha),
                            start_local, end_local, 6)
             # Core white line
             pygame.draw.line(lever_surf, (255, 255, 255, alpha),
@@ -1252,7 +1252,7 @@ class PryLaunchTrail:
 class PryCeilingImpact:
     """
     Impact flash at ceiling when target hits.
-    White/orange flash matching GLAIVEMAN colors.
+    White/bright yellow flash matching GLAIVEMAN colors.
     """
     def __init__(self, center_x, center_y):
         self.center_x = center_x
@@ -1293,8 +1293,8 @@ class PryCeilingImpact:
             flash_surf = pygame.Surface((radius * 2 + 20, radius * 2 + 20), pygame.SRCALPHA)
             center = radius + 10
 
-            # Outer orange glow (#ff6600)
-            pygame.draw.circle(flash_surf, (255, 102, 0, alpha // 3), (center, center), radius + 8)
+            # Outer bright yellow glow (#ffffcc)
+            pygame.draw.circle(flash_surf, (255, 255, 204, alpha // 3), (center, center), radius + 8)
             # Inner white flash
             pygame.draw.circle(flash_surf, (255, 255, 255, alpha), (center, center), radius)
             # Bright core
@@ -1607,10 +1607,10 @@ class PryGroundExplosion:
             explosion_surf = pygame.Surface((radius * 2 + 20, radius * 2 + 20), pygame.SRCALPHA)
             center = radius + 10
 
-            # Outer orange glow (#ff6600 from GLAIVEMAN cross)
-            pygame.draw.circle(explosion_surf, (255, 102, 0, alpha // 3), (center, center), radius + 8)
-            # Main orange fireball (#ff9944 glow)
-            pygame.draw.circle(explosion_surf, (255, 153, 68, alpha), (center, center), radius)
+            # Outer bright yellow glow (#ffffcc from GLAIVEMAN cross)
+            pygame.draw.circle(explosion_surf, (255, 255, 204, alpha // 3), (center, center), radius + 8)
+            # Main bright yellow glow (#ffffff glow)
+            pygame.draw.circle(explosion_surf, (255, 255, 255, alpha), (center, center), radius)
             # Inner bright core
             if progress < 0.4:
                 inner_radius = int(radius * 0.5)
@@ -1657,8 +1657,8 @@ class PryShockwave:
         if alpha > 20 and radius > 5:
             ring_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
 
-            # Orange shockwave ring (#ff6600)
-            pygame.draw.circle(ring_surf, (255, 102, 0, alpha), (radius, radius), radius, 4)
+            # Bright yellow shockwave ring (#ffffcc)
+            pygame.draw.circle(ring_surf, (255, 255, 204, alpha), (radius, radius), radius, 4)
             # Inner darker ring (brown #8b4513 from shaft)
             if alpha > 60:
                 pygame.draw.circle(ring_surf, (139, 69, 19, alpha // 2), (radius, radius), radius - 2, 2)
@@ -1674,7 +1674,7 @@ class PryAnimation:
     the ceiling or skybox, breaking loose debris that crashes down with them."
 
     Uses GLAIVEMAN color scheme from SVG sprite:
-    - Orange (#ff6600, #ff9944) for impacts and lever
+    - Bright yellow (#ffffcc) for impacts and lever
     - Gray/silver (#6a6a6a, #c0c0c0, #8a8a8a) for debris and trails
     - Brown (#8b4513) for shockwave accents
 
@@ -2049,9 +2049,9 @@ class JudgementGlaiveProjectile:
         self.base_surface = pygame.Surface((self.size, self.size), pygame.SRCALPHA)
         center = self.size // 2
 
-        # Golden/white color scheme (#ffd700, #ffeb64, #ffffff)
-        gold = (255, 215, 0)
-        light_gold = (255, 235, 100)
+        # Bright yellow/white color scheme (#ffffcc, #ffffff)
+        bright_yellow = (255, 255, 204)  # #ffffcc
+        white = (255, 255, 255)
         white = (255, 255, 255)
 
         # Draw six pointed blades
@@ -2068,16 +2068,16 @@ class JudgementGlaiveProjectile:
             side2_x = center + math.cos(angle + angle_offset) * (blade_length * 0.7)
             side2_y = center + math.sin(angle + angle_offset) * (blade_length * 0.7)
 
-            pygame.draw.polygon(self.base_surface, gold,
+            pygame.draw.polygon(self.base_surface, bright_yellow,
                               [(center, center), (tip_x, tip_y), (side1_x, side1_y)])
-            pygame.draw.polygon(self.base_surface, gold,
+            pygame.draw.polygon(self.base_surface, bright_yellow,
                               [(center, center), (tip_x, tip_y), (side2_x, side2_y)])
-            pygame.draw.line(self.base_surface, light_gold,
+            pygame.draw.line(self.base_surface, white,
                            (center, center), (tip_x, tip_y), 2)
 
         # Center hub
         pygame.draw.circle(self.base_surface, white, (center, center), 6)
-        pygame.draw.circle(self.base_surface, gold, (center, center), 6, 2)
+        pygame.draw.circle(self.base_surface, bright_yellow, (center, center), 6, 2)
         pygame.draw.circle(self.base_surface, (200, 180, 0), (center, center), 3)
 
     def update(self, delta_time):
@@ -2127,7 +2127,7 @@ class JudgementGlaiveProjectile:
         # Add golden glow
         glow_surf = pygame.Surface((self.size + 20, self.size + 20), pygame.SRCALPHA)
         glow_radius = self.size // 2 + 10
-        pygame.draw.circle(glow_surf, (255, 215, 0, 50), (glow_radius, glow_radius), glow_radius)
+        pygame.draw.circle(glow_surf, (255, 255, 204, 50), (glow_radius, glow_radius), glow_radius)
         glow_rect = glow_surf.get_rect(center=(int(self.x), int(self.y)))
         surface.blit(glow_surf, glow_rect)
 
@@ -2176,10 +2176,10 @@ class JudgementImpactFlash:
             flash_surf = pygame.Surface((radius * 2 + 20, radius * 2 + 20), pygame.SRCALPHA)
             center = radius + 10
 
-            # Outer orange glow (#ff6600)
-            pygame.draw.circle(flash_surf, (255, 102, 0, alpha // 3), (center, center), radius + 8)
-            # Main golden flash (#ffd700)
-            pygame.draw.circle(flash_surf, (255, 215, 0, alpha), (center, center), radius)
+            # Outer bright yellow glow (#ffffcc)
+            pygame.draw.circle(flash_surf, (255, 255, 204, alpha // 3), (center, center), radius + 8)
+            # Main bright yellow flash (#ffffcc)
+            pygame.draw.circle(flash_surf, (255, 255, 204, alpha), (center, center), radius)
             # Inner white core
             if progress < 0.4:
                 inner_radius = int(radius * 0.6)
@@ -2226,12 +2226,12 @@ class JudgementShockwave:
         if alpha > 20 and radius > 5:
             ring_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
 
-            # Orange shockwave ring (#ff6600)
+            # Bright yellow shockwave ring (#ffffcc)
             thickness = 5 if self.is_crit else 3
-            pygame.draw.circle(ring_surf, (255, 102, 0, alpha), (radius, radius), radius, thickness)
-            # Inner gold accent (#ffd700)
+            pygame.draw.circle(ring_surf, (255, 255, 204, alpha), (radius, radius), radius, thickness)
+            # Inner bright yellow accent (#ffffcc)
             if alpha > 60:
-                pygame.draw.circle(ring_surf, (255, 215, 0, alpha // 2), (radius, radius), radius - 2, 2)
+                pygame.draw.circle(ring_surf, (255, 255, 204, alpha // 2), (radius, radius), radius - 2, 2)
 
             surface.blit(ring_surf, (int(self.center_x - radius), int(self.center_y - radius)))
 
@@ -2288,8 +2288,8 @@ class JudgementAnimation:
     Against targets at critical health, deals double damage."
 
     Uses GLAIVEMAN color scheme:
-    - Gold (#ffd700, #ffeb64) for glaive
-    - Orange (#ff6600) for impact flash and shockwave
+    - Bright yellow (#ffffcc) for glaive
+    - Bright yellow (#ffffcc) for impact flash and shockwave
     - White/Yellow lightning for critical hits
 
     Phases:
@@ -2371,7 +2371,7 @@ class JudgementAnimation:
 
         # Glow particles at caster
         if self.particle_emitter:
-            self.particle_emitter.emit_burst(self.caster_x, self.caster_y, (255, 215, 0), count=10)
+            self.particle_emitter.emit_burst(self.caster_x, self.caster_y, (255, 255, 204), count=10)
 
     def _start_flight(self):
         """Phase 2: Flight - Glaive flies toward target."""
@@ -2408,7 +2408,7 @@ class JudgementAnimation:
         # Impact particles
         if self.particle_emitter:
             # Golden burst
-            self.particle_emitter.emit_burst(self.target_x, self.target_y, (255, 215, 0), count=25)
+            self.particle_emitter.emit_burst(self.target_x, self.target_y, (255, 255, 204), count=25)
             if self.is_crit:
                 # Extra white particles for critical
                 self.particle_emitter.emit_burst(self.target_x, self.target_y, (255, 255, 255), count=15)
@@ -2520,7 +2520,7 @@ class AutoclaveFireBurst:
             # Outer red glow (#ff0000)
             pygame.draw.circle(fire_surf, (255, 0, 0, alpha // 3), (center, center), radius + 10)
             # Main orange fireball (#ff6600)
-            pygame.draw.circle(fire_surf, (255, 102, 0, alpha), (center, center), radius)
+            pygame.draw.circle(fire_surf, (255, 255, 204, alpha), (center, center), radius)
             # Inner bright core (white)
             if progress < 0.5:
                 inner_radius = int(radius * 0.6)
@@ -2785,7 +2785,7 @@ class AutoclaveHealingEffect:
 class AutoclaveImpactFlash:
     """
     Flash at hit tile positions.
-    White/orange flash.
+    White/bright yellow flash.
     """
     def __init__(self, tile_x, tile_y, delay=0):
         self.tile_x = tile_x
@@ -2808,7 +2808,7 @@ class AutoclaveImpactFlash:
         return True
 
     def draw(self, surface):
-        """Draw white/orange flash."""
+        """Draw white/bright yellow flash."""
         if not self.active or self.timer < 0:
             return
 
@@ -2818,8 +2818,8 @@ class AutoclaveImpactFlash:
 
         if alpha > 20 and radius > 0:
             flash_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
-            # Orange flash (#ff6600)
-            pygame.draw.circle(flash_surf, (255, 102, 0, alpha), (radius, radius), radius)
+            # Bright yellow flash (#ffffcc)
+            pygame.draw.circle(flash_surf, (255, 255, 204, alpha), (radius, radius), radius)
             # White core
             pygame.draw.circle(flash_surf, (255, 255, 255, alpha), (radius, radius), radius // 2)
             surface.blit(flash_surf, (int(self.tile_x - radius), int(self.tile_y - radius)))
@@ -2951,7 +2951,7 @@ class AutoclaveAnimationV2:
 
         # Fire particles at center
         if self.particle_emitter:
-            self.particle_emitter.emit_burst(self.caster_x, self.caster_y, (255, 102, 0), count=30)
+            self.particle_emitter.emit_burst(self.caster_x, self.caster_y, (255, 255, 204), count=30)
 
     def _start_cross_expansion(self):
         """Phase 2: Cross Expansion - Steam and glaives expand outward."""

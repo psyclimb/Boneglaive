@@ -4582,14 +4582,9 @@ class GraphicalRenderer:
         if self.game_adapter.game:
             from boneglaive.graphical.animations.core import TILE_SIZE
             for animated_unit in self.units:
-                # Find corresponding game unit
-                game_unit = None
-                for gu in self.game_adapter.game.units:
-                    if (gu.type.name == animated_unit.name and
-                        gu.player == animated_unit.player):
-                        # Match found - sync positions
-                        game_unit = gu
-                        break
+                # Use the direct game_unit reference stored in AnimatedUnit
+                # This avoids the bug where multiple units of the same type would all match the first one
+                game_unit = animated_unit.game_unit
 
                 if game_unit:
                     # Update grid coordinates
