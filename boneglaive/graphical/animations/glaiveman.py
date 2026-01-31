@@ -2877,12 +2877,12 @@ class AutoclaveAnimationV2:
     - Delayed damage execution
 
     Phases:
-    1. Ignition (0.4s) - Fire burst at center, cross emblem flash, steam starts
-    2. Cross Expansion (0.8s) - Steam expands, glaive appears on each tile
-    3. Impact & Healing (0.8s) - Impacts flash, DAMAGE TRIGGERS, healing glow
+    1. Ignition (0.32s) - Fire burst at center, cross emblem flash, steam starts
+    2. Cross Expansion (0.64s) - Steam expands, glaive appears on each tile
+    3. Impact & Healing (0.64s) - Impacts flash, DAMAGE TRIGGERS, healing glow
 
-    Total duration: 2.0 seconds
-    Damage timing: 1.2s (start of Phase 3, delayed execution like Parabol)
+    Total duration: 1.6 seconds (20% faster)
+    Damage timing: 0.96s (start of Phase 3, delayed execution like Parabol)
     """
 
     def __init__(self, caster_unit, target_unit, target_pos, is_crit, is_infused,
@@ -3021,9 +3021,7 @@ class AutoclaveAnimationV2:
         # **DAMAGE TRIGGER: This is when damage happens (delayed execution like Parabol)**
         self.damage_triggered = True
 
-        # Impact sound - glaives hitting targets
-        play_sound("autoclave_impact")
-
+        # Removed: Impact sound (no autoclave_impact.wav)
         # Removed: Impact flashes at each tile (no longer creating fireball explosions)
 
         # Healing effect will be created when heal_amount is set by game
@@ -3063,12 +3061,12 @@ class AutoclaveAnimationV2:
         if self.healing_effect:
             self.healing_effect.update(delta_time)
 
-        # Phase transitions
-        if self.phase == "ignition" and self.timer >= 0.4:
+        # Phase transitions (20% faster: 0.4→0.32, 0.8→0.64)
+        if self.phase == "ignition" and self.timer >= 0.32:
             self._start_cross_expansion()
-        elif self.phase == "cross_expansion" and self.timer >= 0.8:
+        elif self.phase == "cross_expansion" and self.timer >= 0.64:
             self._start_impact_healing()
-        elif self.phase == "impact_healing" and self.timer >= 0.8:
+        elif self.phase == "impact_healing" and self.timer >= 0.64:
             self.active = False  # Animation complete
 
         return self.active

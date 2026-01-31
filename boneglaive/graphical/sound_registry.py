@@ -147,10 +147,9 @@ MULTI_EVENT_SOUNDS = {
     "pry_ceiling": "sounds/skills/pry_ceiling.wav",   # Ceiling crash
     "pry_impact": "sounds/skills/pry_impact.wav",     # Ground explosion
 
-    # GLAIVEMAN - Autoclave (3 events)
+    # GLAIVEMAN - Autoclave (2 events)
     "autoclave_ignition": "sounds/skills/autoclave_ignition.wav",  # Fire burst at center
     "autoclave_steam": "sounds/skills/autoclave_steam.wav",        # Steam jets expanding
-    "autoclave_impact": "sounds/skills/autoclave_impact.wav",      # Glaives hitting targets
 
     # GLAIVEMAN - Vault (2 events)
     "vault_launch": "sounds/skills/vault_launch.wav",  # Leap off ground
