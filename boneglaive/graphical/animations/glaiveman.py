@@ -590,6 +590,9 @@ class VaultAnimationControllerUpgraded:
 
         print(f"  [VAULT_UPGRADED] Starting extended vault from ({caster_unit.grid_x}, {caster_unit.grid_y}) to {target_pos}")
 
+        # Launch sound (upgraded version)
+        play_sound("vault_launch_upgraded")
+
         # Enhanced launch particles (more particles, brighter colors)
         for _ in range(35):  # Was 20
             angle = random.uniform(0, 2 * math.pi)
@@ -649,6 +652,9 @@ class VaultAnimationControllerUpgraded:
                 self.caster.x = self.caster.vault_target_x
                 self.caster.y = self.caster.vault_target_y
                 self.caster.wind_up_rotation = 0  # Reset rotation
+
+                # Landing sound (upgraded version - stronger impact)
+                play_sound("vault_impact")
 
                 # ENHANCED landing effects (stronger impact)
                 self.particle_emitter.emit_burst(self.caster.x, self.caster.y, (100, 200, 255), 50)  # More particles (was 30)
