@@ -7,6 +7,7 @@ import pygame
 import random
 import math
 from .core import TILE_SIZE, Particle, DebrisParticle
+from boneglaive.graphical.sound_helper import play_sound
 
 
 class DeltaConfigAnimation:
@@ -190,6 +191,8 @@ class DeltaConfigAnimation:
         if self.phase == "energize":
             # Charging up at origin
             if not self.energize_particles_spawned:
+                play_sound("delta_config_energize")
+
                 # Spawn energizing particles
                 for _ in range(20):
                     angle = random.uniform(0, 2 * math.pi)
@@ -207,6 +210,7 @@ class DeltaConfigAnimation:
             if self.timer >= self.energize_duration:
                 self.phase = "pull"
                 self.timer = 0
+                play_sound("delta_config_pull")
 
         elif self.phase == "pull":
             # Pull destination toward origin
@@ -231,6 +235,7 @@ class DeltaConfigAnimation:
             if self.timer >= self.hold_duration:
                 self.phase = "snap"
                 self.timer = 0
+                play_sound("delta_config_snap")
 
         elif self.phase == "snap":
             # Instant snapback - unit disappears from origin
@@ -252,6 +257,8 @@ class DeltaConfigAnimation:
         elif self.phase == "appear":
             # Appear at destination
             if not self.snap_particles_spawned:
+                play_sound("delta_config_appear")
+
                 # Move caster to target position
                 self.caster_unit.grid_x = self.target_grid_x
                 self.caster_unit.grid_y = self.target_grid_y
@@ -689,6 +696,8 @@ class GraeExchangeAnimation:
         if self.phase == "ritual":
             # Ritual phase - building energy
             if not self.ritual_particles_spawned:
+                play_sound("grae_exchange_ritual")
+
                 # Spawn ritual particles swirling around
                 for i in range(16):
                     angle = (i / 16) * 2 * math.pi
@@ -706,6 +715,7 @@ class GraeExchangeAnimation:
             if self.timer >= self.ritual_duration:
                 self.phase = "split"
                 self.timer = 0
+                play_sound("grae_exchange_split")
 
         elif self.phase == "split":
             # Split phase - unit appears to duplicate/phase
@@ -727,6 +737,7 @@ class GraeExchangeAnimation:
             if self.timer >= self.split_duration:
                 self.phase = "teleport_out"
                 self.timer = 0
+                play_sound("grae_exchange_teleport")
 
         elif self.phase == "teleport_out":
             # Teleport out - one copy vanishes (the real unit leaves)
@@ -932,9 +943,13 @@ class EstrangeBeam:
 
         if self.phase == "charge":
             # Charging phase - building up energy
+            if self.timer == 0 or self.timer < delta_time:
+                play_sound("estrange_charge")
+
             if self.timer >= self.charge_duration:
                 self.phase = "beam"
                 self.timer = 0
+                play_sound("estrange_beam")
 
                 # Spawn charging particles at source
                 for _ in range(15):
@@ -977,6 +992,7 @@ class EstrangeBeam:
             if self.timer >= self.beam_duration:
                 self.phase = "impact"
                 self.timer = 0
+                play_sound("estrange_impact")
 
         elif self.phase == "impact":
             # Impact phase - hit target
@@ -1396,6 +1412,7 @@ class GraymanEchoDeathExplosionAnimation:
         """Phase 1: Charge - Brief buildup."""
         self.phase = "charge"
         self.timer = 0
+        play_sound("echo_death_charge")
 
         # Light screen shake
         self.screen_shake_callback(3, 0.3)
@@ -1404,6 +1421,7 @@ class GraymanEchoDeathExplosionAnimation:
         """Phase 2: Explosion - Main burst."""
         self.phase = "explosion"
         self.timer = 0
+        play_sound("echo_death_explosion")
 
         # Create expanding wave from center
         self.psychic_wave = PsychicWave(self.center_x, self.center_y)
@@ -1428,6 +1446,7 @@ class GraymanEchoDeathExplosionAnimation:
         """Phase 3: Dissipate - Fade out."""
         self.phase = "dissipate"
         self.timer = 0
+        play_sound("echo_death_dissipate")
 
     def update(self, delta_time):
         """Update animation state. MUST return True/False."""
@@ -1555,6 +1574,8 @@ class GraymanPsychicAttack:
 
     def _trigger_charge(self):
         """Phase 1: Charge psychic energy."""
+        play_sound("grayman_attack_charge")
+
         # Spawn charging particles at attacker
         for _ in range(12):
             angle = random.uniform(0, 2 * math.pi)
@@ -1570,6 +1591,8 @@ class GraymanPsychicAttack:
 
     def _trigger_project(self):
         """Phase 2: Project psychic wave toward target."""
+        play_sound("grayman_attack_project")
+
         # Create trailing particles along the wave
         for i in range(15):
             progress = i / 15
@@ -1594,6 +1617,8 @@ class GraymanPsychicAttack:
 
     def _trigger_impact(self):
         """Phase 3: Psychic impact at target."""
+        play_sound("grayman_attack_impact")
+
         # Impact burst - purple/violet explosion
         for _ in range(25):
             angle = random.uniform(0, 2 * math.pi)

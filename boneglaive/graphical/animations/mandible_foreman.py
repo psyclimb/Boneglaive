@@ -348,7 +348,7 @@ class ViseroyTrap:
                 self.timer = 0
                 self.jaw_gap = 0
                 self.mandible_gap = 0
-                play_sound("viseroy_clamp")
+                # No sound for final clamp - grind sound covers the action
 
         elif self.phase == "clamped":
             # Hold clamped shut (0.3s) then fade
@@ -767,7 +767,7 @@ class ViseroyRelease:
         self.max_gap = 70  # Open wider than initial snap
         self.active = True
 
-        play_sound("discharge_spring")
+        # No sound for release - visual only
 
     def update(self, delta_time):
         """Update release animation - jaws spring open."""
@@ -1746,7 +1746,7 @@ class ExpediteRush:
                 self.foreman_original_x = self.foreman.x
                 self.foreman_original_y = self.foreman.y
                 print(f"[ExpediteRush CHARGING->RUSHING] Starting rush from ({self.current_x}, {self.current_y})")
-                play_sound("expedite_rush")
+                # No sound for rush - charge sound covers the action
 
         elif self.phase == "rushing":
             # Rush forward at high speed
