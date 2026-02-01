@@ -1257,6 +1257,21 @@ class JawlineSkill(ActiveSkill):
                 perp_y, perp_x = -dir_x, dir_y
 
             # Build the 3x9 line, blocked by terrain, furniture, and enemy units
+            # First add the 8 surrounding tiles (like base version)
+            for dy in [-1, 0, 1]:
+                for dx in [-1, 0, 1]:
+                    # Skip the center (user's position)
+                    if dy == 0 and dx == 0:
+                        continue
+
+                    y = user.y + dy
+                    x = user.x + dx
+
+                    # Check if position is valid
+                    if game.is_valid_position(y, x):
+                        area_positions.append((y, x))
+
+            # Then build the directional line extending forward
             # Track which offsets have been blocked at each distance
             blocked_offsets = set()
 

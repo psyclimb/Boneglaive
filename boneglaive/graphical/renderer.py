@@ -91,7 +91,9 @@ PRE_EXECUTION_BLOCKING_SKILLS = [
     "Autoclave", "AUTOCLAVE",
     "Matador", "MATADOR",
     "Poach", "POACH",
-    "Vault_Upgraded", "VAULT_UPGRADED"  # Upgraded Vault with AOE landing impact
+    "Vault_Upgraded", "VAULT_UPGRADED",  # Upgraded Vault with AOE landing impact
+    "Jawline", "JAWLINE",
+    "Jawline_Upgraded", "JAWLINE_UPGRADED"
 ]
 
 
