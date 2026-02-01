@@ -1336,6 +1336,7 @@ class SiteInspectionScanUpgraded:
                 self.laser_alpha = 255
                 for node in self.grid_nodes:
                     node['activation'] = 1.0
+                play_sound("site_inspection_scan")
 
         elif self.phase == "first_scan":
             # First rapid scan pass - horizontal and vertical sweeps simultaneously (0.6s)
