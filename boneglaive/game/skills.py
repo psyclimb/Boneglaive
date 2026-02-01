@@ -1125,10 +1125,11 @@ class DischargeSkill(ActiveSkill):
             key="E",
             description="Rush toward an enemy in a straight line. Traps and damages the target.",
             target_type=TargetType.ENEMY,
-            cooldown=3,
+            cooldown=4,
             range_=4
         )
-        self.trap_damage = 6
+        self.trap_damage = 5
+        self.base_cooldown = 4  # Store base cooldown for upgrade
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """
@@ -1236,9 +1237,12 @@ class DischargeSkill(ActiveSkill):
             
         # Set the path indicator
         user.expedite_path_indicator = path
-        
-        # Set cooldown
-        self.current_cooldown = self.cooldown
+
+        # Set cooldown (check for upgrade: -1 cooldown)
+        cooldown_value = self.base_cooldown
+        if hasattr(user, 'upgraded_skills') and 'Expedite' in user.upgraded_skills:
+            cooldown_value -= 1
+        self.current_cooldown = cooldown_value
         return True
         
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
@@ -1346,9 +1350,14 @@ class DischargeSkill(ActiveSkill):
         # Check if we hit an enemy
         if enemy_pos:
             enemy = game.get_unit_at(enemy_pos[0], enemy_pos[1])
-            
+
+            # Check for upgrade: +2 damage
+            damage_value = self.trap_damage
+            if hasattr(user, 'upgraded_skills') and 'Expedite' in user.upgraded_skills:
+                damage_value += 2
+
             # Apply damage to the enemy
-            damage = max(1, self.trap_damage - enemy.defense)
+            damage = max(1, damage_value - enemy.defense)
             enemy.hp = max(0, enemy.hp - damage)
             
             # Log the damage

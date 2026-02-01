@@ -47,7 +47,7 @@ SKILL_UPGRADES = {
         },
         "Expedite": {
             "name": "Expedite",
-            "description": "Range increased from 4 to 5. Grants +2 defense for 1 turn after use.",
+            "description": "Increase damage by 2. Decrease cooldown by 1.",
             "type": "buff",
             "cost": 1
         },

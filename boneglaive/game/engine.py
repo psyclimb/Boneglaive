@@ -3762,12 +3762,12 @@ class Game:
                     skill.execute(unit, target_pos, self, ui)
                     self.current_attacker = None
 
-                    # Put the skill on cooldown after execution
-                    skill.current_cooldown = skill.cooldown
+                    # Note: Cooldown is set in skill.use() to allow for upgrade modifications
+                    # Don't override it here
 
                     # If unit is under Neural Shunt effects, the cooldown was already set
                     if (hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected):
-                        logger.debug(f"Neural Shunt: {unit.get_display_name()}'s {skill.name} placed on cooldown ({skill.cooldown} turns)")
+                        logger.debug(f"Neural Shunt: {unit.get_display_name()}'s {skill.name} placed on cooldown ({skill.current_cooldown} turns)")
                 else:
                     logger.warning(f"Skill {skill.name} has no execute method")
 
