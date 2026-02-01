@@ -346,6 +346,8 @@ class Autoclave(PassiveSkill):
         import curses
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
+        user.last_executed_glaive_sweep = True
+
         logger.debug(f"EXECUTING GLAIVE SWEEP for {user.get_display_name()}")
 
         message_log.add_message(

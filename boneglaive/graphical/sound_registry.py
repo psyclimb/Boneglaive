@@ -166,6 +166,43 @@ MULTI_EVENT_SOUNDS = {
     "glaiveman_attack_windup": "sounds/skills/glaiveman_attack_windup.wav",  # Pull back polearm
     "glaiveman_attack_sweep": "sounds/skills/glaiveman_attack_sweep.wav",    # Blade whoosh
     "glaiveman_attack_impact": "sounds/skills/glaiveman_attack_impact.wav",  # Metal impact
+
+    # MANDIBLE FOREMAN - Basic Attack (3 events)
+    "mandible_attack_open": "sounds/skills/mandible_attack_open.wav",      # Jaws opening from 4 directions
+    "mandible_attack_crush": "sounds/skills/mandible_attack_crush.wav",    # Jaws slamming shut
+    "mandible_attack_release": "sounds/skills/mandible_attack_release.wav",  # Jaws releasing
+
+    # MANDIBLE FOREMAN - Viseroy (4 events)
+    "viseroy_snap": "sounds/skills/viseroy_snap.wav",          # Jaws snapping shut on victim
+    "viseroy_grind": "sounds/skills/viseroy_grind.wav",        # Grinding/chewing motion
+    "viseroy_clamp": "sounds/skills/viseroy_clamp.wav",        # Final hold/squeeze
+    "viseroy_tick_squeeze": "sounds/skills/viseroy_tick_squeeze.wav",  # Periodic damage squeeze
+
+    # MANDIBLE FOREMAN - Discharge (1 event)
+    "discharge_spring": "sounds/skills/discharge_spring.wav",  # Jaws springing open to release
+
+    # MANDIBLE FOREMAN - Site Inspection (2 events)
+    "site_inspection_deploy": "sounds/skills/site_inspection_deploy.wav",  # Laser levels deploying
+    "site_inspection_scan": "sounds/skills/site_inspection_scan.wav",      # Scanning sweep
+
+    # MANDIBLE FOREMAN - Site Inspection Upgraded (2 events)
+    "site_inspection_hologram": "sounds/skills/site_inspection_hologram.wav",  # Holographic projection
+    "site_inspection_overlay": "sounds/skills/site_inspection_overlay.wav",    # Tactical overlay
+
+    # MANDIBLE FOREMAN - Expedite (3 events)
+    "expedite_charge": "sounds/skills/expedite_charge.wav",    # Steam pressure building
+    "expedite_rush": "sounds/skills/expedite_rush.wav",        # High-speed charge
+    "expedite_impact": "sounds/skills/expedite_impact.wav",    # Impact/stopping
+
+    # MANDIBLE FOREMAN - Jawline (2 events)
+    "jawline_deploy": "sounds/skills/jawline_deploy.wav",      # Bear traps sliding out on cables
+    "jawline_snap": "sounds/skills/jawline_snap.wav",          # All 8 traps snapping shut
+
+    # MANDIBLE FOREMAN - Jawline Upgraded (4 events)
+    "jawline_upgraded_launch": "sounds/skills/jawline_upgraded_launch.wav",  # Ball of traps launching
+    "jawline_upgraded_roll": "sounds/skills/jawline_upgraded_roll.wav",      # Rolling/rumbling
+    "jawline_upgraded_deploy": "sounds/skills/jawline_upgraded_deploy.wav",  # Traps bursting outward
+    "jawline_upgraded_snap": "sounds/skills/jawline_upgraded_snap.wav",      # Multiple traps snapping
 }
 
 

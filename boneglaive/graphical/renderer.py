@@ -1886,6 +1886,10 @@ class GraphicalRenderer:
             # Create skill animation from queued event
             self._create_skill_animation(event)
 
+        elif event.event_type == "glaive_sweep":
+            # Create Glaive Sweep counter-attack animation
+            self._create_glaive_sweep_animation(event)
+
     def _update_animations_only(self, delta_time: float):
         """
         Update only animations and visual effects (no game state sync).
@@ -2235,6 +2239,12 @@ class GraphicalRenderer:
             # so we need to queue skills and let them flush after movement completes
             self.pending_animation_events.append(event)
             print(f"  [Renderer] Queued skill animation: {event.kwargs.get('skill_name')}")
+
+        elif event.event_type == "glaive_sweep":
+            # ALWAYS queue glaive sweep animations during turn execution
+            # This is the upgraded Autoclave counter-attack
+            self.pending_animation_events.append(event)
+            print(f"  [Renderer] Queued Glaive Sweep counter-attack animation")
 
         elif event.event_type == "status_effect":
             # Status effect icon animation (used for special cases like trap-applied effects)
@@ -2786,44 +2796,6 @@ class GraphicalRenderer:
                 else:
                     print(f"  [Animation] WARNING: Could not find animated unit for Riposte target")
 
-            # Check if TARGET has Glaive Sweep queued (GLAIVEMAN upgraded Autoclave counterattack)
-            # Use captured flag from BEFORE attack execution triggered it
-            target_has_glaive_sweep = event.kwargs.get("target_has_glaive_sweep", False)
-
-            if target_has_glaive_sweep and event.target_unit:
-                print(f"  [Renderer] *** GLAIVE SWEEP COUNTERATTACK DETECTED on {event.target_unit.get_display_name()} ***")
-
-                from boneglaive.graphical.animations.glaiveman import GlaiveSweepAnimation
-
-                # Get animated unit for target (GLAIVEMAN)
-                target_animated = self._find_animated_unit_by_game_unit(event.target_unit)
-
-                if target_animated:
-                    # Create Glaive Sweep animation
-                    # The animation will detect adjacent enemies within its own code
-                    glaive_sweep_animation = GlaiveSweepAnimation(
-                        caster_unit=target_animated,
-                        target_unit=None,  # AOE around caster
-                        target_pos=(event.target_unit.y, event.target_unit.x),  # Caster position
-                        is_crit=False,
-                        is_infused=False,
-                        particle_emitter=self.particle_emitter,
-                        debris_list=[],
-                        screen_shake_callback=self.trigger_screen_shake,
-                        screen_flash_callback=self.trigger_screen_flash,
-                        units_list=self.units,
-                        camera=self.camera,
-                        game=self.game_adapter.game
-                    )
-
-                    if glaive_sweep_animation:
-                        self.active_animations.append(glaive_sweep_animation)
-                        print(f"  [Animation] Successfully triggered Glaive Sweep counterattack")
-                    else:
-                        print(f"  [Animation] WARNING: Failed to create Glaive Sweep animation")
-                else:
-                    print(f"  [Animation] WARNING: Could not find animated unit for Glaive Sweep target")
-
             if attacker.type not in [UnitType.INTERFERER, UnitType.MANDIBLE_FOREMAN, UnitType.GLAIVEMAN,
                                       UnitType.GRAYMAN, UnitType.MARROW_CONDENSER, UnitType.FOWL_CONTRIVANCE,
                                       UnitType.DELPHIC_APPRAISER, UnitType.GAS_MACHINIST, UnitType.DERELICTIONIST,
@@ -2936,6 +2908,41 @@ class GraphicalRenderer:
             print(f"  [Animation] Successfully triggered {skill_name} animation" + (" (CRITICAL!)" if is_crit else ""))
         else:
             print(f"  [Animation] WARNING: Animation factory returned None for {skill_name}")
+
+    def _create_glaive_sweep_animation(self, event):
+        """
+        Create Glaive Sweep counter-attack animation.
+
+        Args:
+            event: AnimationEvent with type "glaive_sweep"
+        """
+        from boneglaive.graphical.animations.glaiveman import GlaiveSweepAnimation
+
+        caster = event.source_unit
+
+        caster_animated = self._get_visual_unit(caster)
+        if caster_animated:
+            caster_animated = caster_animated.animated_unit
+        else:
+            return
+
+        glaive_sweep_animation = GlaiveSweepAnimation(
+            caster_unit=caster_animated,
+            target_unit=None,
+            target_pos=(caster.y, caster.x),
+            is_crit=False,
+            is_infused=False,
+            particle_emitter=self.particle_emitter,
+            debris_list=[],
+            screen_shake_callback=self.trigger_screen_shake,
+            screen_flash_callback=self.trigger_screen_flash,
+            units_list=self.units,
+            camera=self.camera,
+            game=self.game_adapter.game
+        )
+
+        if glaive_sweep_animation:
+            self.active_animations.append(glaive_sweep_animation)
 
     def _get_visual_unit(self, game_unit):
         """

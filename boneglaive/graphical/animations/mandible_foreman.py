@@ -7,6 +7,7 @@ import pygame
 import random
 import math
 from .core import TILE_SIZE, COLOR_DAMAGE, Particle
+from boneglaive.graphical.sound_helper import play_sound
 
 class JawClamp:
     """Animated mechanical jaws AND mandibles that clamp down on a target from all 4 directions."""
@@ -19,6 +20,8 @@ class JawClamp:
         self.mandible_gap = 0  # Distance for horizontal mandibles (left/right)
         self.max_gap = 60  # Maximum opening
         self.active = True
+
+        play_sound("mandible_attack_open")
 
     def update(self, delta_time):
         """Update jaw and mandible animation."""
@@ -33,6 +36,7 @@ class JawClamp:
             else:
                 self.phase = "crushing"
                 self.timer = 0
+                play_sound("mandible_attack_crush")
 
         elif self.phase == "crushing":
             # Jaws and mandibles slam shut (0.1s)
@@ -51,6 +55,7 @@ class JawClamp:
             if self.timer >= 0.15:
                 self.phase = "releasing"
                 self.timer = 0
+                play_sound("mandible_attack_release")
 
         elif self.phase == "releasing":
             # Open and fade (0.15s)
@@ -299,6 +304,8 @@ class ViseroyTrap:
         self.active = True
         self.damage_applied = False
 
+        play_sound("viseroy_snap")
+
     def update(self, delta_time):
         """Update Viseroy trap animation with grinding motion."""
         self.timer += delta_time
@@ -314,6 +321,7 @@ class ViseroyTrap:
                 self.timer = 0
                 self.jaw_gap = 0
                 self.mandible_gap = 0
+                play_sound("viseroy_grind")
 
         elif self.phase == "grinding":
             # Grinding chewing motion - open and close repeatedly (1.2s total)
@@ -340,6 +348,7 @@ class ViseroyTrap:
                 self.timer = 0
                 self.jaw_gap = 0
                 self.mandible_gap = 0
+                play_sound("viseroy_clamp")
 
         elif self.phase == "clamped":
             # Hold clamped shut (0.3s) then fade
@@ -524,6 +533,8 @@ class JawTighten:
         self.jaw_gap = 8  # Start with small resting gap
         self.mandible_gap = 8
         self.active = True
+
+        play_sound("viseroy_tick_squeeze")
 
     def update(self, delta_time):
         """Update jaw tightening animation."""
@@ -755,6 +766,8 @@ class ViseroyRelease:
         self.mandible_gap = 0
         self.max_gap = 70  # Open wider than initial snap
         self.active = True
+
+        play_sound("discharge_spring")
 
     def update(self, delta_time):
         """Update release animation - jaws spring open."""
@@ -1128,6 +1141,8 @@ class SiteInspectionScan:
         self.laser_alpha = 0
         self.camera = camera
 
+        play_sound("site_inspection_deploy")
+
     def update(self, delta_time):
         """Update site inspection animation."""
         self.timer += delta_time
@@ -1140,6 +1155,7 @@ class SiteInspectionScan:
                 self.phase = "scanning"
                 self.timer = 0
                 self.laser_alpha = 255
+                play_sound("site_inspection_scan")
 
         elif self.phase == "scanning":
             # Scan across the grid (1.0s)
@@ -1293,6 +1309,8 @@ class SiteInspectionScanUpgraded:
         # Tactical markers that appear during overlay phase
         self.tactical_markers = []
 
+        play_sound("site_inspection_deploy")
+
     def update(self, delta_time):
         """Update upgraded site inspection animation."""
         self.timer += delta_time
@@ -1342,6 +1360,7 @@ class SiteInspectionScanUpgraded:
             else:
                 self.phase = "hologram_projection"
                 self.timer = 0
+                play_sound("site_inspection_hologram")
 
         elif self.phase == "hologram_projection":
             # Project holographic terrain map (0.4s)
@@ -1393,6 +1412,7 @@ class SiteInspectionScanUpgraded:
             else:
                 self.phase = "tactical_overlay"
                 self.timer = 0
+                play_sound("site_inspection_overlay")
 
                 # Create tactical markers at each node
                 for node in self.grid_nodes:
@@ -1677,6 +1697,8 @@ class ExpediteRush:
         # Steam particles
         self.steam_particles = []
 
+        play_sound("expedite_charge")
+
     def update(self, delta_time):
         """Update expedite rush animation."""
         self.timer += delta_time
@@ -1706,6 +1728,7 @@ class ExpediteRush:
                 self.foreman_original_x = self.foreman.x
                 self.foreman_original_y = self.foreman.y
                 print(f"[ExpediteRush CHARGING->RUSHING] Starting rush from ({self.current_x}, {self.current_y})")
+                play_sound("expedite_rush")
 
         elif self.phase == "rushing":
             # Rush forward at high speed
@@ -1786,6 +1809,7 @@ class ExpediteRush:
                 self.foreman.y = self.target_y
 
                 print(f"[ExpediteRush RUSHING->IMPACT] Reached target screen ({self.target_x}, {self.target_y}), grid ({self.foreman.grid_x}, {self.foreman.grid_y})")
+                play_sound("expedite_impact")
 
         elif self.phase == "impact":
             # Brief impact pause (0.2s)
@@ -1965,6 +1989,8 @@ class JawlineNetwork:
                 })
                 trap_index += 1
 
+        play_sound("jawline_deploy")
+
     def update(self, delta_time):
         """Update jawline network animation."""
         self.timer += delta_time
@@ -1990,6 +2016,7 @@ class JawlineNetwork:
             if all_deployed:
                 self.phase = "snapping"
                 self.timer = 0
+                play_sound("jawline_snap")
 
         elif self.phase == "snapping":
             # All traps snap shut simultaneously (0.12s fast snap)
@@ -2297,6 +2324,8 @@ class JawlineNetworkUpgraded:
         # Maximum roll distance (9 tiles)
         self.max_tiles = 9
 
+        play_sound("jawline_upgraded_launch")
+
     def update(self, delta_time):
         """Update upgraded jawline animation."""
         self.timer += delta_time
@@ -2306,6 +2335,7 @@ class JawlineNetworkUpgraded:
             if self.timer >= 0.2:
                 self.phase = "rolling"
                 self.timer = 0
+                play_sound("jawline_upgraded_roll")
 
         elif self.phase == "rolling":
             # Spools roll forward tile-by-tile, deploying cable and traps
@@ -2413,12 +2443,14 @@ class JawlineNetworkUpgraded:
             if all(spool['blocked'] for spool in self.spools):
                 self.phase = "deploying_traps"
                 self.timer = 0
+                play_sound("jawline_upgraded_deploy")
 
         elif self.phase == "deploying_traps":
             # Brief pause to show all traps deployed (0.15s)
             if self.timer >= 0.15:
                 self.phase = "snapping"
                 self.timer = 0
+                play_sound("jawline_upgraded_snap")
 
         elif self.phase == "snapping":
             # All traps snap shut simultaneously (0.12s)
