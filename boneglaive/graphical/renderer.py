@@ -1534,11 +1534,43 @@ class GraphicalRenderer:
 
         return False
 
-    def flush_pending_events(self):
-        """Show all pending damage/heal numbers after animations complete."""
-        for event in self.pending_animation_events:
-            self._show_event_immediately(event)
-        self.pending_animation_events = []
+    def flush_pending_events(self, only_blocking=False):
+        """
+        Show all pending damage/heal numbers after animations complete.
+
+        Args:
+            only_blocking: If True, only process blocking skill animations and keep
+                          non-blocking skills queued for post-execution
+        """
+        if only_blocking:
+            # Filter: process only blocking skills, keep others
+            events_to_process = []
+            events_to_keep = []
+
+            for event in self.pending_animation_events:
+                if event.event_type == "skill":
+                    skill_name = event.kwargs.get('skill_name')
+                    if skill_name in PRE_EXECUTION_BLOCKING_SKILLS:
+                        events_to_process.append(event)
+                        print(f"  [Renderer] Processing blocking skill: {skill_name}")
+                    else:
+                        # Keep non-blocking skills for post-execution
+                        events_to_keep.append(event)
+                        print(f"  [Renderer] Deferring non-blocking skill for post-execution: {skill_name}")
+                else:
+                    # Process non-skill events (damage, heal, etc.)
+                    events_to_process.append(event)
+
+            for event in events_to_process:
+                self._show_event_immediately(event)
+
+            # Keep non-blocking skills in queue
+            self.pending_animation_events = events_to_keep
+        else:
+            # Process all events (normal behavior)
+            for event in self.pending_animation_events:
+                self._show_event_immediately(event)
+            self.pending_animation_events = []
 
         # After flushing damage/skill events, check all units for active status effects
         # and show icons for any that are currently active
@@ -3755,8 +3787,9 @@ class GraphicalRenderer:
 
         if has_blocking_animations:
             print("[Renderer] *** Blocking pre-execution animations detected - playing before turn execution ***")
-            # Flush pending events immediately
-            self.flush_pending_events()
+            # Flush ONLY blocking skills and damage events
+            # Keep non-blocking skills (like Expedite) for post-execution when positions are correct
+            self.flush_pending_events(only_blocking=True)
 
             # Wait for animations to complete
             frames_waited = 0

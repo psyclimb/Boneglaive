@@ -1636,7 +1636,7 @@ class SiteInspectionScanUpgraded:
 
 class ExpediteRush:
     """EXPEDITE - MANDIBLE FOREMAN rushes forward in a line, stopping at first enemy."""
-    def __init__(self, start_x, start_y, target_x, target_y, foreman_unit, target_grid_pos=None, camera=None):
+    def __init__(self, start_x, start_y, target_x, target_y, foreman_unit, target_grid_pos=None, camera=None, target_unit=None):
         self.start_x = start_x
         self.start_y = start_y
         self.current_x = start_x
@@ -1690,12 +1690,29 @@ class ExpediteRush:
         # Trail positions for motion blur
         self.trail_positions = []
 
-        # Target unit (enemy hit)
-        self.target_unit = None
+        # Target unit (enemy hit) - for impact effects
+        self.target_unit = target_unit
         self.damage_applied = False
+
+        # Calculate enemy target screen position for impact effects
+        self.enemy_screen_x = None
+        self.enemy_screen_y = None
+        if target_unit:
+            # Use target's current position
+            if camera:
+                self.enemy_screen_x, self.enemy_screen_y = camera.grid_to_screen(target_unit.grid_x, target_unit.grid_y)
+            else:
+                # Fallback without camera
+                from boneglaive.graphical.renderer import GRID_OFFSET_X, GRID_OFFSET_Y
+                self.enemy_screen_x = GRID_OFFSET_X + target_unit.grid_x * self.tile_size + self.tile_size // 2
+                self.enemy_screen_y = GRID_OFFSET_Y + target_unit.grid_y * self.tile_size + self.tile_size // 2
+            print(f"[ExpediteRush INIT] Enemy target at screen ({self.enemy_screen_x}, {self.enemy_screen_y})")
 
         # Steam particles
         self.steam_particles = []
+
+        # Impact debris particles (created on impact)
+        self.impact_debris = []
 
         play_sound("expedite_charge")
 
@@ -1804,12 +1821,64 @@ class ExpediteRush:
                 self.current_x = self.target_x
                 self.current_y = self.target_y
 
-                # Ensure foreman sprite is at exact target position
-                self.foreman.x = self.target_x
-                self.foreman.y = self.target_y
+                # CRITICAL: Sync foreman's visual position to ACTUAL game logic position
+                # This handles cases where the animation was created pre-execution
+                # (e.g., when Pry is blocking) and the target was set before execute_turn ran
+                if hasattr(self.foreman, 'game_unit') and self.foreman.game_unit:
+                    game_unit = self.foreman.game_unit
+                    if self.camera:
+                        correct_x, correct_y = self.camera.grid_to_screen(game_unit.x, game_unit.y)
+                    else:
+                        from boneglaive.graphical.renderer import GRID_OFFSET_X, GRID_OFFSET_Y
+                        correct_x = GRID_OFFSET_X + game_unit.x * self.tile_size + self.tile_size // 2
+                        correct_y = GRID_OFFSET_Y + game_unit.y * self.tile_size + self.tile_size // 2
 
-                print(f"[ExpediteRush RUSHING->IMPACT] Reached target screen ({self.target_x}, {self.target_y}), grid ({self.foreman.grid_x}, {self.foreman.grid_y})")
+                    self.foreman.x = correct_x
+                    self.foreman.y = correct_y
+                    # Also update grid coordinates
+                    self.foreman.grid_x = game_unit.x
+                    self.foreman.grid_y = game_unit.y
+
+                    print(f"[ExpediteRush RUSHING->IMPACT] Synced to game position: grid ({game_unit.x}, {game_unit.y}) -> screen ({correct_x}, {correct_y})")
+                else:
+                    # Fallback to animation target if game_unit not available
+                    self.foreman.x = self.target_x
+                    self.foreman.y = self.target_y
+                    print(f"[ExpediteRush RUSHING->IMPACT] Using animation target: screen ({self.target_x}, {self.target_y})")
+
                 play_sound("expedite_impact")
+
+                # Create impact debris particles at enemy target position
+                if self.enemy_screen_x is not None and self.enemy_screen_y is not None:
+                    # Spawn debris particles radiating outward from enemy
+                    for _ in range(18):
+                        # Random angle in all directions
+                        angle = random.uniform(0, 2 * math.pi)
+                        # Random speed
+                        speed = random.uniform(100, 300)
+                        # Create metallic debris particle using Viseroy jaw colors
+                        color = random.choice([
+                            (100, 100, 110),  # Viseroy metal dark
+                            (160, 160, 170),  # Viseroy metal light
+                            (200, 200, 210),  # Viseroy metal highlight
+                            (90, 90, 100),    # Viseroy mandible dark
+                            (150, 150, 160),  # Viseroy mandible light
+                        ])
+                        size = random.uniform(3, 6)
+                        lifetime = random.uniform(0.3, 0.5)
+
+                        particle = Particle(
+                            self.enemy_screen_x,
+                            self.enemy_screen_y,
+                            math.cos(angle) * speed,
+                            math.sin(angle) * speed,
+                            color,
+                            size,
+                            lifetime
+                        )
+                        # Add gravity for falling effect
+                        particle.gravity = random.uniform(150, 250)
+                        self.impact_debris.append(particle)
 
         elif self.phase == "impact":
             # Brief impact pause (0.2s)
@@ -1838,6 +1907,9 @@ class ExpediteRush:
         # Update steam particles
         self.steam_particles = [p for p in self.steam_particles if p.update(delta_time)]
 
+        # Update impact debris particles
+        self.impact_debris = [p for p in self.impact_debris if p.update(delta_time)]
+
         return True
 
     def draw(self, surface):
@@ -1847,6 +1919,10 @@ class ExpediteRush:
 
         # Draw steam particles
         for particle in self.steam_particles:
+            particle.draw(surface)
+
+        # Draw impact debris particles
+        for particle in self.impact_debris:
             particle.draw(surface)
 
         if self.phase == "charging":
@@ -1933,7 +2009,7 @@ class ExpediteRush:
                                (int(line_end_x), int(line_end_y)), 3)
 
         elif self.phase == "impact":
-            # Draw impact burst
+            # Draw impact burst at FOREMAN position
             impact_progress = self.timer / 0.2
             burst_size = int(40 + impact_progress * 60)
             burst_alpha = int(255 * (1 - impact_progress))
@@ -1945,10 +2021,28 @@ class ExpediteRush:
             burst_rect = burst_surf.get_rect(center=(int(self.current_x), int(self.current_y)))
             surface.blit(burst_surf, burst_rect)
 
-            # Shockwave ring
+            # Shockwave ring at FOREMAN position
             ring_radius = int(burst_size * 0.7)
             pygame.draw.circle(surface, (220, 220, 240, burst_alpha),
                              (int(self.current_x), int(self.current_y)), ring_radius, 4)
+
+            # Draw impact burst at ENEMY target position
+            if self.enemy_screen_x is not None and self.enemy_screen_y is not None:
+                # Smaller burst at enemy position (slightly delayed effect)
+                enemy_burst_size = int(30 + impact_progress * 50)
+                enemy_burst_alpha = int(255 * (1 - impact_progress))
+
+                # Metallic impact flash (steel color)
+                enemy_burst_surf = pygame.Surface((enemy_burst_size * 2, enemy_burst_size * 2), pygame.SRCALPHA)
+                pygame.draw.circle(enemy_burst_surf, (200, 200, 210, enemy_burst_alpha),
+                                 (enemy_burst_size, enemy_burst_size), enemy_burst_size)
+                enemy_burst_rect = enemy_burst_surf.get_rect(center=(int(self.enemy_screen_x), int(self.enemy_screen_y)))
+                surface.blit(enemy_burst_surf, enemy_burst_rect)
+
+                # Impact ring at enemy position (darker metallic)
+                enemy_ring_radius = int(enemy_burst_size * 0.8)
+                pygame.draw.circle(surface, (180, 180, 190, enemy_burst_alpha),
+                                 (int(self.enemy_screen_x), int(self.enemy_screen_y)), enemy_ring_radius, 3)
 
 
 class JawlineNetwork:

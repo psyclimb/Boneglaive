@@ -773,6 +773,12 @@ class GameStateAdapter:
                         if skill_name in ["Demilune", "Granite Geas"] and hasattr(game_unit, 'potpourri_held'):
                             is_infused = game_unit.potpourri_held
 
+                        # Capture MANDIBLE FOREMAN's expedite_planned_start BEFORE skill execution clears it
+                        # This is needed for move+Expedite combos where the foreman starts from a planned move position
+                        expedite_planned_start = None
+                        if skill_name == "Expedite" and hasattr(game_unit, 'expedite_planned_start'):
+                            expedite_planned_start = game_unit.expedite_planned_start
+
                         # Capture target unit BEFORE skill execution (units may move during execution)
                         target_game_unit = None
                         if skill_target:
@@ -820,7 +826,8 @@ class GameStateAdapter:
                             skill_name=skill_name,
                             skill_target=skill_target,
                             is_infused=is_infused,
-                            bounce_count=bounce_count
+                            bounce_count=bounce_count,
+                            expedite_planned_start=expedite_planned_start
                         ))
 
                         # Special handling for Site Inspection: mark revealed scalar nodes

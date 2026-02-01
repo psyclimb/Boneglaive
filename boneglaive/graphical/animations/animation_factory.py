@@ -675,13 +675,20 @@ class AnimationFactory:
 
                 # IMPORTANT: Check if the foreman had a planned move that was cleared
                 # If expedite_planned_start exists, use that as the starting position
-                if caster_unit and hasattr(caster_unit, 'game_unit') and caster_unit.game_unit:
-                    game_unit = caster_unit.game_unit
-                    if hasattr(game_unit, 'expedite_planned_start') and game_unit.expedite_planned_start:
-                        # Use the planned position as start
-                        planned_y, planned_x = game_unit.expedite_planned_start
-                        caster_screen_x, caster_screen_y = grid_to_screen(planned_x, planned_y)
-                        print(f"[AnimationFactory] Expedite using planned start position: grid ({planned_y}, {planned_x}) -> screen ({caster_screen_x}, {caster_screen_y})")
+                # First check kwargs (captured during pre-execution sync), then fall back to game_unit
+                expedite_planned_start = kwargs.get('expedite_planned_start')
+                if not expedite_planned_start:
+                    # Fall back to checking game_unit directly (for backward compatibility)
+                    if caster_unit and hasattr(caster_unit, 'game_unit') and caster_unit.game_unit:
+                        game_unit = caster_unit.game_unit
+                        if hasattr(game_unit, 'expedite_planned_start'):
+                            expedite_planned_start = game_unit.expedite_planned_start
+
+                if expedite_planned_start:
+                    # Use the planned position as start
+                    planned_y, planned_x = expedite_planned_start
+                    caster_screen_x, caster_screen_y = grid_to_screen(planned_x, planned_y)
+                    print(f"[AnimationFactory] Expedite using planned start position: grid ({planned_y}, {planned_x}) -> screen ({caster_screen_x}, {caster_screen_y})")
 
                 # Convert grid to screen: target_pos[1] is grid_x, target_pos[0] is grid_y
                 target_x, target_y = grid_to_screen(target_pos[1], target_pos[0])
@@ -692,7 +699,8 @@ class AnimationFactory:
                     target_y=target_y,
                     foreman_unit=caster_unit,
                     target_grid_pos=target_pos,  # Pass grid position for final update
-                    camera=camera
+                    camera=camera,
+                    target_unit=target_unit  # Pass target unit for impact effects
                 )
             elif anim_class.__name__ in ["ViseroyTrap", "ViseroyRelease"]:
                 # Viseroy animations - target coordinates
