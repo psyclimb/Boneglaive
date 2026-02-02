@@ -9,6 +9,8 @@ Tactical turn-based combat game in Python with two fully functional versions:
 
 *IMPORTANT*: Work with current codebase state only. Do not reference git history, past commits, or previous code versions unless explicitly requested by the user.
 
+*DOCUMENTATION*: Developer-focused guides, implementation plans, design docs, and release checklists are located in the =devdocs/= directory. The root directory contains only essential user/contributor documentation.
+
 * CURRENT FOCUS: Release Preparation for itch.io
 
 ** Current Status: PREPARING FOR RELEASE
