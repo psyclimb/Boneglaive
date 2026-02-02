@@ -1297,18 +1297,14 @@ class GraphicalRenderer:
                     from boneglaive.utils.constants import UnitType
                     if game_unit.type == UnitType.DELPHIC_APPRAISER:
                         self.show_astral_values = True
-                        print(f"Selected DELPHIC APPRAISER - showing astral values")
                     else:
                         self.show_astral_values = False
-
-                    print(f"Selected: {unit.name} - {len(self.valid_positions)} moves, {len(self.attack_positions)} attacks available")
                 else:
                     self.valid_positions = []
                     self.attack_positions = []
                     self.skill_bar.update(None, None)
                     self.status_effects_panel.update(None)
                     self.unit_info_panel.update(None, None)
-                    print(f"Selected: {unit.name} - WARNING: No game unit found")
             else:
                 # Clicked enemy - attack only if in ATTACK mode
                 if self.selected_unit and self.current_action_mode == "ATTACK":
@@ -1347,7 +1343,6 @@ class GraphicalRenderer:
                     if game_unit:
                         self.status_effects_panel.update(game_unit)
                         self.unit_info_panel.update(unit, game_unit)
-                        print(f"Enemy unit: {unit.name} - Click Attack (A) to attack")
                 else:
                     # Clicked enemy with no unit selected - just show info
                     game_unit = self._get_game_unit(unit)
@@ -1355,11 +1350,9 @@ class GraphicalRenderer:
                         # Update status effects panel and unit info to show enemy info
                         self.status_effects_panel.update(game_unit)
                         self.unit_info_panel.update(unit, game_unit)
-                        print(f"Enemy unit: {unit.name} (Player {unit.player})")
                     else:
                         self.status_effects_panel.update(None)
                         self.unit_info_panel.update(None, None)
-                        print(f"Enemy unit: {unit.name} (Player {unit.player}) - WARNING: No game unit found")
         else:
             # Clicked tile with no unit
             # Check if it's furniture
@@ -3834,8 +3827,6 @@ class GraphicalRenderer:
             print("ERROR: No game instance")
             return
 
-        print(f"\n=== Executing Turn {self.game_adapter.game.turn} ===")
-
         # Start motor animation
         self.motor_animation.start()
 
@@ -3859,34 +3850,22 @@ class GraphicalRenderer:
 
         # Execute turn in game logic (headless - no blocking UI callbacks)
         # Skill animations will be triggered by detecting skill usage in sync_state
-        print("[Renderer] Setting executing_turn = True")
         self.game_adapter.executing_turn = True
         self.game_adapter.post_execution_sync = False  # Flag to skip attack animations in pre-sync
 
         # Sync state BEFORE turn execution to catch planned skills
-        print("[Renderer] Pre-execution sync...")
         pre_events = self.game_adapter.sync_state()
         for event in pre_events:
             self.handle_animation_event(event)
 
         # Check if any pre-execution events are blocking (must complete before game logic)
-        print(f"[Renderer] Checking for blocking animations in {len(pre_events)} pre-events...")
-        for event in pre_events:
-            if event.event_type == "skill":
-                skill_name = event.kwargs.get("skill_name")
-                is_blocking = skill_name in PRE_EXECUTION_BLOCKING_SKILLS
-                print(f"[Renderer]   Skill event: {skill_name} - Blocking: {is_blocking}")
-
         has_blocking_animations = any(
             event.event_type == "skill" and
             event.kwargs.get("skill_name") in PRE_EXECUTION_BLOCKING_SKILLS
             for event in pre_events
         )
 
-        print(f"[Renderer] Has blocking animations: {has_blocking_animations}")
-
         if has_blocking_animations:
-            print("[Renderer] *** Blocking pre-execution animations detected - playing before turn execution ***")
             # Flush ONLY blocking skills and damage events
             # Keep non-blocking skills (like Expedite) for post-execution when positions are correct
             self.flush_pending_events(only_blocking=True)
@@ -3904,17 +3883,13 @@ class GraphicalRenderer:
                 self.draw()
                 pygame.display.flip()
 
-            print(f"[Renderer] *** Pre-execution animations complete ({frames_waited} frames) - proceeding with turn execution ***")
-
         # Capture status effects snapshot BEFORE turn execution
         # This allows us to detect status effects that are applied and then cleared during execute_turn
-        print("[Renderer] Capturing status effects snapshot...")
         self.game_adapter.snapshot_status_effects()
 
         self.game_adapter.game.execute_turn(ui=None)
 
         # Sync state AFTER turn execution
-        print("[Renderer] Post-execution sync...")
         self.game_adapter.post_execution_sync = True  # Now detect attack animations
         post_events = self.game_adapter.sync_state()
 
@@ -3929,7 +3904,6 @@ class GraphicalRenderer:
             self.handle_animation_event(event)
 
         self.game_adapter.executing_turn = False
-        print("[Renderer] Setting executing_turn = False")
 
         # Mark grid dirty (terrain may have changed from skills like Marrow Dike)
         self._grid_dirty = True
@@ -3958,7 +3932,6 @@ class GraphicalRenderer:
             self.game_adapter.game.initialize_next_player_turn()
 
             # Log player switch
-            print(f"[Local Multiplayer] Switched from Player {old_player} to Player {self.game_adapter.game.current_player}")
             self.combat_log.add_message(f"Player {self.game_adapter.game.current_player}'s turn", "system")
 
         # Process AI turn if it's player 2's turn and AI is enabled
@@ -3983,8 +3956,6 @@ class GraphicalRenderer:
 
             # Execute the AI's planned actions immediately
             self.execute_turn()
-
-        print(f"Turn {self.game_adapter.game.turn} - Current player: {self.game_adapter.game.current_player}\n")
 
     def draw_selection_highlight(self, surface: pygame.Surface, unit: AnimatedUnit):
         """Draw highlight around selected unit."""
