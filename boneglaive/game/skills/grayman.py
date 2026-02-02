@@ -1095,13 +1095,14 @@ class GraeExchangeSkill(ActiveSkill):
             if not user.set_position_atomic(target_pos[0], target_pos[1]):
                 logger.error(f"TELEPORT BLOCKED: {user.get_display_name()}'s Græ Exchange to {target_pos} blocked by collision")
 
-                # CRITICAL: Teleport failed! Restore GRAYMAN and remove echo
-                user.y, user.x = temp_y, temp_x  # Restore position
-                game._update_unit_grid(user)  # Add back to grid
-
+                # CRITICAL: Teleport failed! Remove echo first, then restore GRAYMAN
                 # Remove the echo since the skill failed
                 game.units.remove(echo_unit)
                 game._remove_from_unit_grid(echo_unit)
+
+                # Now restore GRAYMAN to original position
+                user._y, user._x = temp_y, temp_x  # Direct assignment to bypass setters
+                game._update_unit_grid(user)  # Add back to grid
 
                 message_log.add_message(
                     f"{user.get_display_name()}'s Græ Exchange blocked - position occupied!",
@@ -1140,13 +1141,14 @@ class GraeExchangeSkill(ActiveSkill):
             if not user.set_position_atomic(target_pos[0], target_pos[1]):
                 logger.error(f"TELEPORT BLOCKED: {user.get_display_name()}'s Græ Exchange to {target_pos} blocked by collision")
 
-                # CRITICAL: Teleport failed! Restore GRAYMAN and remove echo
-                user.y, user.x = original_pos[0], original_pos[1]  # Restore to original position
-                game._update_unit_grid(user)  # Add back to grid
-
+                # CRITICAL: Teleport failed! Remove echo first, then restore GRAYMAN
                 # Remove the echo since the skill failed
                 game.units.remove(echo_unit)
                 game._remove_from_unit_grid(echo_unit)
+
+                # Now restore GRAYMAN to original position
+                user._y, user._x = original_pos[0], original_pos[1]  # Direct assignment to bypass setters
+                game._update_unit_grid(user)  # Add back to grid
 
                 message_log.add_message(
                     f"{user.get_display_name()}'s Græ Exchange blocked - position occupied!",
