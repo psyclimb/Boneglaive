@@ -7,6 +7,7 @@ import pygame
 import random
 import math
 from .core import TILE_SIZE, COLOR_DAMAGE, Particle
+from boneglaive.graphical.sound_helper import play_sound
 
 class JawClamp:
     """Animated mechanical jaws AND mandibles that clamp down on a target from all 4 directions."""
@@ -19,6 +20,8 @@ class JawClamp:
         self.mandible_gap = 0  # Distance for horizontal mandibles (left/right)
         self.max_gap = 60  # Maximum opening
         self.active = True
+
+        play_sound("mandible_attack_open")
 
     def update(self, delta_time):
         """Update jaw and mandible animation."""
@@ -33,6 +36,7 @@ class JawClamp:
             else:
                 self.phase = "crushing"
                 self.timer = 0
+                play_sound("mandible_attack_crush")
 
         elif self.phase == "crushing":
             # Jaws and mandibles slam shut (0.1s)
@@ -51,6 +55,7 @@ class JawClamp:
             if self.timer >= 0.15:
                 self.phase = "releasing"
                 self.timer = 0
+                play_sound("mandible_attack_release")
 
         elif self.phase == "releasing":
             # Open and fade (0.15s)
@@ -299,6 +304,8 @@ class ViseroyTrap:
         self.active = True
         self.damage_applied = False
 
+        play_sound("viseroy_snap")
+
     def update(self, delta_time):
         """Update Viseroy trap animation with grinding motion."""
         self.timer += delta_time
@@ -314,6 +321,7 @@ class ViseroyTrap:
                 self.timer = 0
                 self.jaw_gap = 0
                 self.mandible_gap = 0
+                play_sound("viseroy_grind")
 
         elif self.phase == "grinding":
             # Grinding chewing motion - open and close repeatedly (1.2s total)
@@ -340,6 +348,7 @@ class ViseroyTrap:
                 self.timer = 0
                 self.jaw_gap = 0
                 self.mandible_gap = 0
+                # No sound for final clamp - grind sound covers the action
 
         elif self.phase == "clamped":
             # Hold clamped shut (0.3s) then fade
@@ -524,6 +533,8 @@ class JawTighten:
         self.jaw_gap = 8  # Start with small resting gap
         self.mandible_gap = 8
         self.active = True
+
+        play_sound("viseroy_tick_squeeze")
 
     def update(self, delta_time):
         """Update jaw tightening animation."""
@@ -755,6 +766,8 @@ class ViseroyRelease:
         self.mandible_gap = 0
         self.max_gap = 70  # Open wider than initial snap
         self.active = True
+
+        # No sound for release - visual only
 
     def update(self, delta_time):
         """Update release animation - jaws spring open."""
@@ -1128,6 +1141,8 @@ class SiteInspectionScan:
         self.laser_alpha = 0
         self.camera = camera
 
+        play_sound("site_inspection_deploy")
+
     def update(self, delta_time):
         """Update site inspection animation."""
         self.timer += delta_time
@@ -1140,6 +1155,7 @@ class SiteInspectionScan:
                 self.phase = "scanning"
                 self.timer = 0
                 self.laser_alpha = 255
+                play_sound("site_inspection_scan")
 
         elif self.phase == "scanning":
             # Scan across the grid (1.0s)
@@ -1293,6 +1309,8 @@ class SiteInspectionScanUpgraded:
         # Tactical markers that appear during overlay phase
         self.tactical_markers = []
 
+        play_sound("site_inspection_deploy")
+
     def update(self, delta_time):
         """Update upgraded site inspection animation."""
         self.timer += delta_time
@@ -1318,6 +1336,7 @@ class SiteInspectionScanUpgraded:
                 self.laser_alpha = 255
                 for node in self.grid_nodes:
                     node['activation'] = 1.0
+                play_sound("site_inspection_scan")
 
         elif self.phase == "first_scan":
             # First rapid scan pass - horizontal and vertical sweeps simultaneously (0.6s)
@@ -1342,6 +1361,7 @@ class SiteInspectionScanUpgraded:
             else:
                 self.phase = "hologram_projection"
                 self.timer = 0
+                play_sound("site_inspection_hologram")
 
         elif self.phase == "hologram_projection":
             # Project holographic terrain map (0.4s)
@@ -1393,6 +1413,7 @@ class SiteInspectionScanUpgraded:
             else:
                 self.phase = "tactical_overlay"
                 self.timer = 0
+                play_sound("site_inspection_overlay")
 
                 # Create tactical markers at each node
                 for node in self.grid_nodes:
@@ -1616,7 +1637,7 @@ class SiteInspectionScanUpgraded:
 
 class ExpediteRush:
     """EXPEDITE - MANDIBLE FOREMAN rushes forward in a line, stopping at first enemy."""
-    def __init__(self, start_x, start_y, target_x, target_y, foreman_unit, target_grid_pos=None, camera=None):
+    def __init__(self, start_x, start_y, target_x, target_y, foreman_unit, target_grid_pos=None, camera=None, target_unit=None):
         self.start_x = start_x
         self.start_y = start_y
         self.current_x = start_x
@@ -1670,12 +1691,31 @@ class ExpediteRush:
         # Trail positions for motion blur
         self.trail_positions = []
 
-        # Target unit (enemy hit)
-        self.target_unit = None
+        # Target unit (enemy hit) - for impact effects
+        self.target_unit = target_unit
         self.damage_applied = False
+
+        # Calculate enemy target screen position for impact effects
+        self.enemy_screen_x = None
+        self.enemy_screen_y = None
+        if target_unit:
+            # Use target's current position
+            if camera:
+                self.enemy_screen_x, self.enemy_screen_y = camera.grid_to_screen(target_unit.grid_x, target_unit.grid_y)
+            else:
+                # Fallback without camera
+                from boneglaive.graphical.renderer import GRID_OFFSET_X, GRID_OFFSET_Y
+                self.enemy_screen_x = GRID_OFFSET_X + target_unit.grid_x * self.tile_size + self.tile_size // 2
+                self.enemy_screen_y = GRID_OFFSET_Y + target_unit.grid_y * self.tile_size + self.tile_size // 2
+            print(f"[ExpediteRush INIT] Enemy target at screen ({self.enemy_screen_x}, {self.enemy_screen_y})")
 
         # Steam particles
         self.steam_particles = []
+
+        # Impact debris particles (created on impact)
+        self.impact_debris = []
+
+        play_sound("expedite_charge")
 
     def update(self, delta_time):
         """Update expedite rush animation."""
@@ -1706,6 +1746,7 @@ class ExpediteRush:
                 self.foreman_original_x = self.foreman.x
                 self.foreman_original_y = self.foreman.y
                 print(f"[ExpediteRush CHARGING->RUSHING] Starting rush from ({self.current_x}, {self.current_y})")
+                # No sound for rush - charge sound covers the action
 
         elif self.phase == "rushing":
             # Rush forward at high speed
@@ -1781,11 +1822,64 @@ class ExpediteRush:
                 self.current_x = self.target_x
                 self.current_y = self.target_y
 
-                # Ensure foreman sprite is at exact target position
-                self.foreman.x = self.target_x
-                self.foreman.y = self.target_y
+                # CRITICAL: Sync foreman's visual position to ACTUAL game logic position
+                # This handles cases where the animation was created pre-execution
+                # (e.g., when Pry is blocking) and the target was set before execute_turn ran
+                if hasattr(self.foreman, 'game_unit') and self.foreman.game_unit:
+                    game_unit = self.foreman.game_unit
+                    if self.camera:
+                        correct_x, correct_y = self.camera.grid_to_screen(game_unit.x, game_unit.y)
+                    else:
+                        from boneglaive.graphical.renderer import GRID_OFFSET_X, GRID_OFFSET_Y
+                        correct_x = GRID_OFFSET_X + game_unit.x * self.tile_size + self.tile_size // 2
+                        correct_y = GRID_OFFSET_Y + game_unit.y * self.tile_size + self.tile_size // 2
 
-                print(f"[ExpediteRush RUSHING->IMPACT] Reached target screen ({self.target_x}, {self.target_y}), grid ({self.foreman.grid_x}, {self.foreman.grid_y})")
+                    self.foreman.x = correct_x
+                    self.foreman.y = correct_y
+                    # Also update grid coordinates
+                    self.foreman.grid_x = game_unit.x
+                    self.foreman.grid_y = game_unit.y
+
+                    print(f"[ExpediteRush RUSHING->IMPACT] Synced to game position: grid ({game_unit.x}, {game_unit.y}) -> screen ({correct_x}, {correct_y})")
+                else:
+                    # Fallback to animation target if game_unit not available
+                    self.foreman.x = self.target_x
+                    self.foreman.y = self.target_y
+                    print(f"[ExpediteRush RUSHING->IMPACT] Using animation target: screen ({self.target_x}, {self.target_y})")
+
+                play_sound("expedite_impact")
+
+                # Create impact debris particles at enemy target position
+                if self.enemy_screen_x is not None and self.enemy_screen_y is not None:
+                    # Spawn debris particles radiating outward from enemy
+                    for _ in range(18):
+                        # Random angle in all directions
+                        angle = random.uniform(0, 2 * math.pi)
+                        # Random speed
+                        speed = random.uniform(100, 300)
+                        # Create metallic debris particle using Viseroy jaw colors
+                        color = random.choice([
+                            (100, 100, 110),  # Viseroy metal dark
+                            (160, 160, 170),  # Viseroy metal light
+                            (200, 200, 210),  # Viseroy metal highlight
+                            (90, 90, 100),    # Viseroy mandible dark
+                            (150, 150, 160),  # Viseroy mandible light
+                        ])
+                        size = random.uniform(3, 6)
+                        lifetime = random.uniform(0.3, 0.5)
+
+                        particle = Particle(
+                            self.enemy_screen_x,
+                            self.enemy_screen_y,
+                            math.cos(angle) * speed,
+                            math.sin(angle) * speed,
+                            color,
+                            size,
+                            lifetime
+                        )
+                        # Add gravity for falling effect
+                        particle.gravity = random.uniform(150, 250)
+                        self.impact_debris.append(particle)
 
         elif self.phase == "impact":
             # Brief impact pause (0.2s)
@@ -1814,6 +1908,9 @@ class ExpediteRush:
         # Update steam particles
         self.steam_particles = [p for p in self.steam_particles if p.update(delta_time)]
 
+        # Update impact debris particles
+        self.impact_debris = [p for p in self.impact_debris if p.update(delta_time)]
+
         return True
 
     def draw(self, surface):
@@ -1823,6 +1920,10 @@ class ExpediteRush:
 
         # Draw steam particles
         for particle in self.steam_particles:
+            particle.draw(surface)
+
+        # Draw impact debris particles
+        for particle in self.impact_debris:
             particle.draw(surface)
 
         if self.phase == "charging":
@@ -1909,7 +2010,7 @@ class ExpediteRush:
                                (int(line_end_x), int(line_end_y)), 3)
 
         elif self.phase == "impact":
-            # Draw impact burst
+            # Draw impact burst at FOREMAN position
             impact_progress = self.timer / 0.2
             burst_size = int(40 + impact_progress * 60)
             burst_alpha = int(255 * (1 - impact_progress))
@@ -1921,10 +2022,28 @@ class ExpediteRush:
             burst_rect = burst_surf.get_rect(center=(int(self.current_x), int(self.current_y)))
             surface.blit(burst_surf, burst_rect)
 
-            # Shockwave ring
+            # Shockwave ring at FOREMAN position
             ring_radius = int(burst_size * 0.7)
             pygame.draw.circle(surface, (220, 220, 240, burst_alpha),
                              (int(self.current_x), int(self.current_y)), ring_radius, 4)
+
+            # Draw impact burst at ENEMY target position
+            if self.enemy_screen_x is not None and self.enemy_screen_y is not None:
+                # Smaller burst at enemy position (slightly delayed effect)
+                enemy_burst_size = int(30 + impact_progress * 50)
+                enemy_burst_alpha = int(255 * (1 - impact_progress))
+
+                # Metallic impact flash (steel color)
+                enemy_burst_surf = pygame.Surface((enemy_burst_size * 2, enemy_burst_size * 2), pygame.SRCALPHA)
+                pygame.draw.circle(enemy_burst_surf, (200, 200, 210, enemy_burst_alpha),
+                                 (enemy_burst_size, enemy_burst_size), enemy_burst_size)
+                enemy_burst_rect = enemy_burst_surf.get_rect(center=(int(self.enemy_screen_x), int(self.enemy_screen_y)))
+                surface.blit(enemy_burst_surf, enemy_burst_rect)
+
+                # Impact ring at enemy position (darker metallic)
+                enemy_ring_radius = int(enemy_burst_size * 0.8)
+                pygame.draw.circle(surface, (180, 180, 190, enemy_burst_alpha),
+                                 (int(self.enemy_screen_x), int(self.enemy_screen_y)), enemy_ring_radius, 3)
 
 
 class JawlineNetwork:
@@ -1965,6 +2084,11 @@ class JawlineNetwork:
                 })
                 trap_index += 1
 
+        # Impact particles for trap snap visual feedback
+        self.impact_particles = []
+
+        play_sound("jawline_deploy")
+
     def update(self, delta_time):
         """Update jawline network animation."""
         self.timer += delta_time
@@ -1990,6 +2114,7 @@ class JawlineNetwork:
             if all_deployed:
                 self.phase = "snapping"
                 self.timer = 0
+                play_sound("jawline_snap")
 
         elif self.phase == "snapping":
             # All traps snap shut simultaneously (0.12s fast snap)
@@ -2007,6 +2132,32 @@ class JawlineNetwork:
                 # Damage applied when jaws snap shut
                 self.damage_applied = True
 
+                # Generate impact particles at each trap position
+                for trap in self.trap_positions:
+                    trap_x = self.center_x + (trap['x'] - self.center_x)
+                    trap_y = self.center_y + (trap['y'] - self.center_y)
+
+                    # Spawn metallic debris particles (12 per trap)
+                    for _ in range(12):
+                        angle = random.uniform(0, 2 * math.pi)
+                        speed = random.uniform(80, 200)
+                        color = random.choice([
+                            (100, 100, 110),  # Metal dark
+                            (160, 160, 170),  # Metal light
+                            (200, 200, 210),  # Metal highlight
+                        ])
+                        size = random.uniform(2, 5)
+                        lifetime = random.uniform(0.3, 0.6)
+
+                        particle = Particle(
+                            trap_x, trap_y,
+                            math.cos(angle) * speed,
+                            math.sin(angle) * speed,
+                            color, size, lifetime
+                        )
+                        particle.gravity = random.uniform(150, 250)
+                        self.impact_particles.append(particle)
+
         elif self.phase == "active":
             # Hold active state with pulsing glow (1.5s)
             if self.timer >= 1.5:
@@ -2018,6 +2169,9 @@ class JawlineNetwork:
             if self.timer >= 0.3:
                 self.active = False
                 return False
+
+        # Update impact particles
+        self.impact_particles = [p for p in self.impact_particles if p.update(delta_time)]
 
         return True
 
@@ -2090,6 +2244,10 @@ class JawlineNetwork:
                 current_y = self.center_y + (trap['y'] - self.center_y) * trap['deploy_progress']
                 trap_alpha = int(alpha * pulse_intensity)
                 self.draw_bear_trap(surface, current_x, current_y, trap['jaw_angle'], trap_alpha)
+
+        # Draw impact particles
+        for particle in self.impact_particles:
+            particle.draw(surface)
 
         # Draw central hub (cable spool on FOREMAN's position)
         hub_radius = 10
@@ -2205,7 +2363,7 @@ class JawlineNetworkUpgraded:
         self.center_y = center_y
         self.target_x = target_x
         self.target_y = target_y
-        self.phase = "launch"  # launch, rolling, deploying_traps, snapping, active, fading
+        self.phase = "launch"  # launch, deploying_surrounding, rolling, deploying_traps, snapping, active, fading
         self.timer = 0
         self.active = True
         self.camera = camera
@@ -2259,34 +2417,26 @@ class JawlineNetworkUpgraded:
         self.caster_grid_x = caster_grid_x
         self.caster_grid_y = caster_grid_y
 
-        # Adjacent trap positions (8 tiles around caster)
-        self.adjacent_traps = []
+        # 8 surrounding trap positions (3x3 around FOREMAN, like base version)
+        self.surrounding_traps = []
+        trap_index = 0
         for dy in [-1, 0, 1]:
             for dx in [-1, 0, 1]:
-                if dy == 0 and dx == 0:  # Skip center (caster position)
-                    continue
-
-                adj_grid_x = caster_grid_x + dx
-                adj_grid_y = caster_grid_y + dy
-
-                # Convert to screen coordinates
-                if camera:
-                    from boneglaive.graphical.renderer import GRID_OFFSET_X, GRID_OFFSET_Y
-                    adj_x = GRID_OFFSET_X + adj_grid_x * self.tile_size + self.tile_size // 2
-                    adj_y = GRID_OFFSET_Y + adj_grid_y * self.tile_size + self.tile_size // 2
-                else:
-                    adj_x = adj_grid_x * self.tile_size + self.tile_size // 2
-                    adj_y = adj_grid_y * self.tile_size + self.tile_size // 2
-
-                self.adjacent_traps.append({
-                    'x': adj_x,
-                    'y': adj_y,
-                    'grid_x': adj_grid_x,
-                    'grid_y': adj_grid_y,
-                    'jaw_angle': 45,  # Start open
-                    'deploy_time': 0,
-                    'snapped': False
+                if dy == 0 and dx == 0:
+                    continue  # Skip center
+                trap_x = center_x + dx * self.tile_size
+                trap_y = center_y + dy * self.tile_size
+                self.surrounding_traps.append({
+                    'x': trap_x,
+                    'y': trap_y,
+                    'dx': dx,
+                    'dy': dy,
+                    'deploy_progress': 0,
+                    'jaw_angle': 45,  # Bear trap jaw opening angle (degrees)
+                    'cable_slack': 0,
+                    'deploy_delay': trap_index * 0.06  # Stagger deployment
                 })
+                trap_index += 1
 
         # Three rolling cable spools (center, left, right) - positioned on grid
         self.spools = []
@@ -2320,30 +2470,49 @@ class JawlineNetworkUpgraded:
         # Track deployed traps across all spools
         self.all_traps = []
 
+        # Impact particles for trap snap visual feedback
+        self.impact_particles = []
+
         # Rolling speed (tiles per second)
-        self.roll_speed = 6  # 6 tiles per second
+        self.roll_speed = 9  # 9 tiles per second
 
         # Maximum roll distance (9 tiles)
         self.max_tiles = 9
+
+        play_sound("jawline_deploy")
 
     def update(self, delta_time):
         """Update upgraded jawline animation."""
         self.timer += delta_time
 
         if self.phase == "launch":
-            # Deploy adjacent traps first (0.3s)
-            if self.timer >= 0.3:
-                # Snap adjacent traps closed
-                for trap in self.adjacent_traps:
-                    trap['snapped'] = True
-                    trap['jaw_angle'] = 0
+            # Brief launch preparation (0.2s)
+            if self.timer >= 0.2:
+                self.phase = "deploying_surrounding"
+                self.timer = 0
+
+        elif self.phase == "deploying_surrounding":
+            # Deploy 8 surrounding traps first (like base version)
+            all_deployed = True
+            for trap in self.surrounding_traps:
+                if self.timer >= trap['deploy_delay']:
+                    deploy_time = self.timer - trap['deploy_delay']
+                    if deploy_time < 0.35:
+                        trap['deploy_progress'] = deploy_time / 0.35
+                        # Cable slack diminishes as trap deploys
+                        trap['cable_slack'] = (1.0 - trap['deploy_progress']) * 0.25
+                        all_deployed = False
+                    else:
+                        trap['deploy_progress'] = 1.0
+                        trap['cable_slack'] = 0
+                else:
+                    all_deployed = False
+
+            # Only transition when ALL surrounding traps have fully deployed
+            if all_deployed:
                 self.phase = "rolling"
                 self.timer = 0
-            else:
-                # Animate adjacent traps opening
-                progress = self.timer / 0.3
-                for trap in self.adjacent_traps:
-                    trap['jaw_angle'] = 45 * progress
+                play_sound("jawline_roll")
 
         elif self.phase == "rolling":
             # Spools roll forward tile-by-tile, deploying cable and traps
@@ -2451,26 +2620,82 @@ class JawlineNetworkUpgraded:
             if all(spool['blocked'] for spool in self.spools):
                 self.phase = "deploying_traps"
                 self.timer = 0
+                # No sound for deploying_traps phase
 
         elif self.phase == "deploying_traps":
             # Brief pause to show all traps deployed (0.15s)
             if self.timer >= 0.15:
                 self.phase = "snapping"
                 self.timer = 0
+                play_sound("jawline_snap")
 
         elif self.phase == "snapping":
             # All traps snap shut simultaneously (0.12s)
             if self.timer < 0.12:
                 snap_progress = self.timer / 0.12
+                # Snap surrounding traps
+                for trap in self.surrounding_traps:
+                    ease = snap_progress * snap_progress
+                    trap['jaw_angle'] = 45 * (1.0 - ease)
+                # Snap rolling traps
                 for trap in self.all_traps:
-                    # Jaws close from 45° to 0° with ease-in
                     ease = snap_progress * snap_progress
                     trap['jaw_angle'] = 45 * (1.0 - ease)
             else:
+                # Close all traps completely
+                for trap in self.surrounding_traps:
+                    trap['jaw_angle'] = 0
                 for trap in self.all_traps:
                     trap['jaw_angle'] = 0
                 self.phase = "active"
                 self.timer = 0
+
+                # Generate impact particles at surrounding trap positions
+                for trap in self.surrounding_traps:
+                    trap_x = self.center_x + (trap['x'] - self.center_x)
+                    trap_y = self.center_y + (trap['y'] - self.center_y)
+                    for _ in range(12):
+                        angle = random.uniform(0, 2 * math.pi)
+                        speed = random.uniform(80, 200)
+                        color = random.choice([
+                            (100, 100, 110),  # Metal dark
+                            (160, 160, 170),  # Metal light
+                            (200, 200, 210),  # Metal highlight
+                        ])
+                        size = random.uniform(2, 5)
+                        lifetime = random.uniform(0.3, 0.6)
+
+                        particle = Particle(
+                            trap_x, trap_y,
+                            math.cos(angle) * speed,
+                            math.sin(angle) * speed,
+                            color, size, lifetime
+                        )
+                        particle.gravity = random.uniform(150, 250)
+                        self.impact_particles.append(particle)
+
+                # Generate impact particles at rolling trap positions
+                for trap in self.all_traps:
+                    # Spawn metallic debris particles (12 per trap)
+                    for _ in range(12):
+                        angle = random.uniform(0, 2 * math.pi)
+                        speed = random.uniform(80, 200)
+                        color = random.choice([
+                            (100, 100, 110),  # Metal dark
+                            (160, 160, 170),  # Metal light
+                            (200, 200, 210),  # Metal highlight
+                        ])
+                        size = random.uniform(2, 5)
+                        lifetime = random.uniform(0.3, 0.6)
+
+                        particle = Particle(
+                            trap['x'], trap['y'],
+                            math.cos(angle) * speed,
+                            math.sin(angle) * speed,
+                            color, size, lifetime
+                        )
+                        particle.gravity = random.uniform(150, 250)
+                        self.impact_particles.append(particle)
 
         elif self.phase == "active":
             # Hold active state (0.8s)
@@ -2483,6 +2708,9 @@ class JawlineNetworkUpgraded:
             if self.timer >= 0.3:
                 self.active = False
                 return False
+
+        # Update impact particles
+        self.impact_particles = [p for p in self.impact_particles if p.update(delta_time)]
 
         return True
 
@@ -2497,12 +2725,48 @@ class JawlineNetworkUpgraded:
         else:
             alpha = 255
 
-        # Draw adjacent traps (8 tiles around caster)
-        for trap in self.adjacent_traps:
-            self.draw_bear_trap(surface, trap['x'], trap['y'], trap['jaw_angle'], alpha)
-
         # Orange cable color
         cable_color = (255, 102, 0, alpha)
+
+        # Draw cables connecting surrounding traps to center
+        for trap in self.surrounding_traps:
+            if trap['deploy_progress'] > 0:
+                # Calculate current trap position (lerp from center to final position)
+                current_x = self.center_x + (trap['x'] - self.center_x) * trap['deploy_progress']
+                current_y = self.center_y + (trap['y'] - self.center_y) * trap['deploy_progress']
+
+                # Draw cable with curve for slack (like base version)
+                if trap['cable_slack'] > 0:
+                    # Quadratic Bezier curve for cable slack
+                    mid_x = (self.center_x + current_x) / 2
+                    mid_y = (self.center_y + current_y) / 2
+                    # Perpendicular offset for slack
+                    dx = current_x - self.center_x
+                    dy = current_y - self.center_y
+                    dist = math.sqrt(dx*dx + dy*dy)
+                    if dist > 0:
+                        perp_x = -dy / dist * trap['cable_slack'] * self.tile_size * 0.5
+                        perp_y = dx / dist * trap['cable_slack'] * self.tile_size * 0.5
+                    else:
+                        perp_x = perp_y = 0
+                    control_x = mid_x + perp_x
+                    control_y = mid_y + perp_y
+
+                    # Draw curve as line segments
+                    points = []
+                    for t_step in range(11):
+                        t = t_step / 10
+                        bx = (1-t)**2 * self.center_x + 2*(1-t)*t * control_x + t**2 * current_x
+                        by = (1-t)**2 * self.center_y + 2*(1-t)*t * control_y + t**2 * current_y
+                        points.append((int(bx), int(by)))
+
+                    if len(points) > 1:
+                        pygame.draw.lines(surface, cable_color, False, points, 3)
+                else:
+                    # Straight taut cable
+                    pygame.draw.line(surface, cable_color,
+                                   (int(self.center_x), int(self.center_y)),
+                                   (int(current_x), int(current_y)), 3)
 
         # Draw cables from FOREMAN to each spool
         for spool in self.spools:
@@ -2512,9 +2776,20 @@ class JawlineNetworkUpgraded:
                                (int(spool['start_x']), int(spool['start_y'])),
                                (int(spool['x']), int(spool['y'])), 3)
 
-        # Draw deployed traps along directional line
+        # Draw surrounding traps
+        for trap in self.surrounding_traps:
+            if trap['deploy_progress'] > 0:
+                current_x = self.center_x + (trap['x'] - self.center_x) * trap['deploy_progress']
+                current_y = self.center_y + (trap['y'] - self.center_y) * trap['deploy_progress']
+                self.draw_bear_trap(surface, current_x, current_y, trap['jaw_angle'], alpha)
+
+        # Draw deployed traps from rolling spools
         for trap in self.all_traps:
             self.draw_bear_trap(surface, trap['x'], trap['y'], trap['jaw_angle'], alpha)
+
+        # Draw impact particles
+        for particle in self.impact_particles:
+            particle.draw(surface)
 
         # Draw rolling cable spools
         for spool in self.spools:

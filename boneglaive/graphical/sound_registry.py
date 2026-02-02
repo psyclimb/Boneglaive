@@ -1,0 +1,260 @@
+#!/usr/bin/env python3
+"""
+Sound Registry for Boneglaive
+Maps skill names, actions, and events to sound files.
+"""
+
+# Sound registry: maps event/skill names to sound keys
+# Sound keys are filenames (without .wav extension)
+# The SoundManager will look for these in sounds/<category>/<sound_key>.wav
+
+SKILL_SOUNDS = {
+    # GLAIVEMAN skills (primary skill sound - played by AnimationFactory)
+    "JUDGEMENT": "judgement",
+    "PRY": "pry",
+    "VAULT": "vault",
+    "VAULT_UPGRADED": "vault_enhanced",
+    "AUTOCLAVE": "autoclave",
+    "GLAIVE_SWEEP": "glaive_sweep",
+
+    # MANDIBLE FOREMAN skills
+    "EXPEDITE": "expedite",
+    "DISCHARGE": "viseroy_release",
+    "SITE_INSPECTION": "site_inspection",
+    "SITE_INSPECTION_UPGRADED": "site_inspection_enhanced",
+    "JAWLINE": "jawline",
+    "JAWLINE_UPGRADED": "jawline_enhanced",
+    "VISEROY": "viseroy_trap",
+    "VISEROY_TICK": "jaw_tighten",
+
+    # POTPOURRIST skills
+    "PEDESTAL_STRIKE": "pedestal_strike",
+    "INFUSE": "infuse",
+    "DEMILUNE": "demilune",
+    "DEMILUNE_INFUSED": "demilune_infused",
+    "SELENIC_BACKDRAFT": "selenic_backdraft",
+    "GRANITE_GEAS": "granite_geas",
+    "MELANGE_EMINENCE_HEAL": "melange_heal",
+    "MELANGE_EMINENCE_INFUSED_HEAL": "melange_heal_infused",
+
+    # GRAYMAN skills
+    "DELTA_CONFIG": "delta_config",
+    "ESTRANGE": "estrange",
+    "GRAE_EXCHANGE": "grae_exchange",
+    "GRÆ_EXCHANGE": "grae_exchange",
+    "GRAYMAN_ECHO_DEATH": "grayman_echo_death",
+
+    # MARROW CONDENSER skills
+    "OSSIFY": "ossify",
+    "MARROW_DIKE": "marrow_dike",
+    "BONE_TITHE": "bone_tithe",
+    "MARROW_DIKE_WALL_DESPAWN": "marrow_dike_despawn",
+
+    # FOWL CONTRIVANCE skills
+    "GAUSSIAN_DUSK": "gaussian_dusk",
+    "BIG_ARC": "parabol",
+    "PARABOL": "parabol",
+    "FRAGCREST": "fragcrest",
+    "RAIL_GENESIS_DEATH_EXPLOSION": "rail_genesis_death",
+
+    # GAS MACHINIST skills
+    "BROACHING_GAS": "vapor_spawn",
+    "SAFT_E_GAS": "vapor_spawn",
+    "COOLANT_GAS": "vapor_spawn",
+    "CUTTING_GAS": "vapor_spawn",
+    "CALIBRATION_GAS": "vapor_spawn",
+    "LIVING_AEROSOL_GAS": "vapor_spawn",
+    "DIVERGE": "diverge",
+    "AEROSOLIZE_ARMS": "aerosolize_arms",
+    "VAPOR_AOE_BROACHING": "vapor_tick",
+    "VAPOR_AOE_SAFETY": "vapor_tick",
+    "VAPOR_AOE_COOLANT": "vapor_tick",
+    "VAPOR_AOE_CUTTING": "vapor_tick",
+    "VAPOR_AOE_CALIBRATION": "vapor_tick",
+
+    # DELPHIC APPRAISER skills
+    "MARKET_FUTURES": "market_futures",
+    "AUCTION_CURSE": "auction_curse",
+    "AUCTION_CURSE_TICK": "auction_curse_tick",
+    "DIVINE_DEPRECIATION": "divine_depreciation",
+    "DEFT(?) REROLL": "deft_reroll",
+    "DEFT(?)_REROLL": "deft_reroll",
+    "DEFT_REROLL": "deft_reroll",
+    "PARALLAX": "parallax",
+
+    # INTERFERER skills
+    "NEUTRON_ILLUMINANT_CARDINAL": "neutron_illuminant",
+    "NEUTRON_ILLUMINANT_DIAGONAL": "neutron_illuminant",
+    "NEURAL_SHUNT": "neural_shunt",
+    "KARRIER_RAVE": "karrier_rave",
+    "KARRIER_RAVE_STRIKE": "karrier_rave_strike",
+    "SCALAR_NODE": None,  # Silent trap placement
+
+    # DERELICTIONIST skills
+    "VAGAL_RUN": "vagal_run",
+    "VAGAL_RUN_ABREACTION": "vagal_run_delayed",
+    "PARTITION": "partition",
+    "DERELICT_BUILDING_FORMATION": "building_formation",
+    "DERELICT_BUILDING_TILES": None,  # Persistent tiles (silent)
+
+    # PELOTARI skills (DLC)
+    "MATADOR": "matador",
+    "POACH": "poach",
+    "BACKHAND": "backhand",
+    "BACKHAND_REFLECTION": "backhand_reflection",
+}
+
+# Impact sounds (hit effects, explosions, etc.)
+IMPACT_SOUNDS = {
+    "HIT_NORMAL": "hit_normal",
+    "HIT_CRITICAL": "hit_critical",
+    "EXPLOSION": "explosion",
+    "DEFLECT": "deflect",
+    "MISS": "miss",
+}
+
+# UI sounds (menu interactions, button clicks, etc.)
+UI_SOUNDS = {
+    "BUTTON_CLICK": "button_click",
+    "BUTTON_HOVER": "button_hover",
+    "MENU_OPEN": "menu_open",
+    "MENU_CLOSE": "menu_close",
+    "UNIT_SELECT": "unit_select",
+    "INVALID_ACTION": "invalid_action",
+    "TURN_START": "turn_start",
+    "TURN_END": "turn_end",
+}
+
+# Music tracks
+MUSIC_TRACKS = {
+    "MAIN_MENU": "main_menu_theme",
+    "BATTLE": "battle_theme",
+    "VICTORY": "victory_theme",
+    "DEFEAT": "defeat_theme",
+}
+
+# Multi-event skill sounds (played within animations at specific moments)
+# These are called directly by animations using play_sound() helper
+MULTI_EVENT_SOUNDS = {
+    # GLAIVEMAN - Judgement (3 events)
+    "judgement_windup": "sounds/skills/judgement_windup.wav",   # Wind-up phase (optional)
+    "judgement_throw": "sounds/skills/judgement_throw.wav",     # Glaive leaving hand
+    "judgement_impact": "sounds/skills/judgement_impact.wav",   # Normal impact
+    "judgement_critical": "sounds/skills/judgement_critical.wav", # Critical hit with lightning
+
+    # GLAIVEMAN - Pry (3 events)
+    "pry_lever": "sounds/skills/pry_lever.wav",       # Lever prying up
+    "pry_ceiling": "sounds/skills/pry_ceiling.wav",   # Ceiling crash
+    "pry_impact": "sounds/skills/pry_impact.wav",     # Ground explosion
+
+    # GLAIVEMAN - Autoclave (2 events)
+    "autoclave_ignition": "sounds/skills/autoclave_ignition.wav",  # Fire burst at center
+    "autoclave_steam": "sounds/skills/autoclave_steam.wav",        # Steam jets expanding
+
+    # GLAIVEMAN - Vault (4 events: base + upgraded variants)
+    "vault_launch": "sounds/skills/vault_launch.wav",              # Leap off ground (base)
+    "vault_launch_upgraded": "sounds/skills/vault_launch_upgraded.wav",  # Leap off ground (upgraded - double flip)
+    "vault_land": "sounds/skills/vault_land.wav",                  # Landing impact (base)
+    "vault_impact": "sounds/skills/vault_impact.wav",              # Landing impact (upgraded - AOE shockwave)
+
+    # GLAIVEMAN - Glaive Sweep (3 events)
+    "glaive_sweep_windup": "sounds/skills/glaive_sweep_windup.wav",  # Pulling back
+    "glaive_sweep_swing": "sounds/skills/glaive_sweep_swing.wav",    # Circular arc
+    "glaive_sweep_impact": "sounds/skills/glaive_sweep_impact.wav",  # Hits connecting
+
+    # GLAIVEMAN - Basic Attack (3 events)
+    "glaiveman_attack_windup": "sounds/skills/glaiveman_attack_windup.wav",  # Pull back polearm
+    "glaiveman_attack_sweep": "sounds/skills/glaiveman_attack_sweep.wav",    # Blade whoosh
+    "glaiveman_attack_impact": "sounds/skills/glaiveman_attack_impact.wav",  # Metal impact
+
+    # MANDIBLE FOREMAN - Basic Attack (3 events)
+    "mandible_attack_open": "sounds/skills/mandible_attack_open.wav",      # Jaws opening from 4 directions
+    "mandible_attack_crush": "sounds/skills/mandible_attack_crush.wav",    # Jaws slamming shut
+    "mandible_attack_release": "sounds/skills/mandible_attack_release.wav",  # Jaws releasing
+
+    # MANDIBLE FOREMAN - Viseroy (4 events)
+    "viseroy_snap": "sounds/skills/viseroy_snap.wav",          # Jaws snapping shut on victim
+    "viseroy_grind": "sounds/skills/viseroy_grind.wav",        # Grinding/chewing motion
+    "viseroy_clamp": "sounds/skills/viseroy_clamp.wav",        # Final hold/squeeze
+    "viseroy_tick_squeeze": "sounds/skills/viseroy_tick_squeeze.wav",  # Periodic damage squeeze
+
+    # MANDIBLE FOREMAN - Discharge (1 event)
+    "discharge_spring": "sounds/skills/discharge_spring.wav",  # Jaws springing open to release
+
+    # MANDIBLE FOREMAN - Site Inspection (2 events)
+    "site_inspection_deploy": "sounds/skills/site_inspection_deploy.wav",  # Laser levels deploying
+    "site_inspection_scan": "sounds/skills/site_inspection_scan.wav",      # Scanning sweep
+
+    # MANDIBLE FOREMAN - Site Inspection Upgraded (2 events)
+    "site_inspection_hologram": "sounds/skills/site_inspection_hologram.wav",  # Holographic projection
+    "site_inspection_overlay": "sounds/skills/site_inspection_overlay.wav",    # Tactical overlay
+
+    # MANDIBLE FOREMAN - Expedite (3 events)
+    "expedite_charge": "sounds/skills/expedite_charge.wav",    # Steam pressure building
+    "expedite_rush": "sounds/skills/expedite_rush.wav",        # High-speed charge
+    "expedite_impact": "sounds/skills/expedite_impact.wav",    # Impact/stopping
+
+    # MANDIBLE FOREMAN - Jawline (2 events)
+    "jawline_deploy": "sounds/skills/jawline_deploy.wav",      # Bear traps sliding out on cables
+    "jawline_snap": "sounds/skills/jawline_snap.wav",          # All 8 traps snapping shut
+
+    # MANDIBLE FOREMAN - Jawline Upgraded (4 events)
+    "jawline_upgraded_launch": "sounds/skills/jawline_upgraded_launch.wav",  # Ball of traps launching
+    "jawline_upgraded_roll": "sounds/skills/jawline_upgraded_roll.wav",      # Rolling/rumbling
+    "jawline_upgraded_deploy": "sounds/skills/jawline_upgraded_deploy.wav",  # Traps bursting outward
+    "jawline_upgraded_snap": "sounds/skills/jawline_upgraded_snap.wav",      # Multiple traps snapping
+}
+
+
+def get_sound_for_skill(skill_name: str) -> str:
+    """
+    Get the sound key for a skill name.
+
+    Args:
+        skill_name: Skill name (e.g., "Estrange", "JUDGEMENT")
+
+    Returns:
+        Sound key (filename without extension), or None if no sound defined
+    """
+    # Normalize skill name (uppercase, replace spaces/hyphens with underscores)
+    skill_key = skill_name.upper().replace(" ", "_").replace("-", "_")
+    return SKILL_SOUNDS.get(skill_key)
+
+
+def get_impact_sound(impact_type: str) -> str:
+    """
+    Get the sound key for an impact type.
+
+    Args:
+        impact_type: Impact type (e.g., "HIT_CRITICAL", "EXPLOSION")
+
+    Returns:
+        Sound key (filename without extension), or None if not found
+    """
+    return IMPACT_SOUNDS.get(impact_type.upper())
+
+
+def get_ui_sound(ui_event: str) -> str:
+    """
+    Get the sound key for a UI event.
+
+    Args:
+        ui_event: UI event type (e.g., "BUTTON_CLICK", "UNIT_SELECT")
+
+    Returns:
+        Sound key (filename without extension), or None if not found
+    """
+    return UI_SOUNDS.get(ui_event.upper())
+
+
+def get_music_track(track_name: str) -> str:
+    """
+    Get the sound key for a music track.
+
+    Args:
+        track_name: Track name (e.g., "MAIN_MENU", "BATTLE")
+
+    Returns:
+        Sound key (filename without extension), or None if not found
+    """
+    return MUSIC_TRACKS.get(track_name.upper())

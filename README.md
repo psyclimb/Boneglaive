@@ -26,7 +26,7 @@ python -m boneglaive.main
 ## Features
 
 - **Two Game Versions**: Modern graphical UI or classic terminal interface
-- **GP Scoring System**: Race to 10 GP - units respawn after death
+- **GP Scoring System**: Race to 7 GP - units respawn after death
 - **Tactical Combat**: Grid-based movement, ranged attacks, area effects
 - **10+ Unique Units**: Each with 4 active skills and 1 passive ability
 - **Multiple Game Modes**:

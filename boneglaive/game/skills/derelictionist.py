@@ -282,15 +282,6 @@ class VagalRunSkill(ActiveSkill):
         """Clear all status effects from a unit and return list of cleared effects."""
         cleared_effects = []
 
-        # Check if target is protected by upgraded Partition (prevents status stripping)
-        if hasattr(target, 'partition_shield_active') and target.partition_shield_active:
-            if hasattr(target, 'partition_shield_caster'):
-                caster = target.partition_shield_caster
-                from boneglaive.game.upgrades import UpgradeManager
-                if UpgradeManager.is_skill_upgraded(caster, "Partition"):
-                    # Upgraded Partition prevents status effect stripping
-                    return []  # Return empty list - no effects cleared
-
         # DON'T clear vagal_run_active - that would remove itself!
         
         # Clear negative status effects (based on UI renderer attribute names)
@@ -883,33 +874,41 @@ class PartitionSkill(ActiveSkill):
         """Check if the skill can be used."""
         if not super().can_use(user, target_pos, game):
             return False
-            
+
         if not target_pos or not game:
             return False
-            
+
+        # Check if Partition is upgraded (allows self-cast)
+        from boneglaive.game.upgrades import UpgradeManager
+        is_upgraded = UpgradeManager.is_skill_upgraded(user, "Partition")
+
         # Check range first (use move_target if DERELICTIONIST moved first due to Severance)
         source_y, source_x = (user.move_target[0], user.move_target[1]) if user.move_target else (user.y, user.x)
         distance = game.chess_distance(source_y, source_x, target_pos[0], target_pos[1])
         if distance > self.range:
             return False
-            
+
         # Check line of sight
         if not game.has_line_of_sight(source_y, source_x, target_pos[0], target_pos[1]):
             return False
-            
+
         # Find target unit at position
         target = game.get_unit_at(target_pos[0], target_pos[1])
         if not target:
             return False
-            
-        # Can only target allies
+
+        # Can only target allies (or self if upgraded)
         if target.player != user.player:
             return False
-        
+
+        # If not upgraded, cannot target self
+        if not is_upgraded and target == user:
+            return False
+
         # Check if target already has partition shield
         if hasattr(target, 'partition_shield_active') and target.partition_shield_active:
             return False
-            
+
         return True
     
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:

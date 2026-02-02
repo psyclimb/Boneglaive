@@ -65,6 +65,7 @@ from boneglaive.graphical.animations.fowl_contrivance import (
     ParabolAnimation,
     ParabolAnimationUpgraded,
     FragcrestAnimation,
+    FragcrestTrapAnimation,
     GaussianDuskFireAnimation,
     RailGenesisDeathExplosionAnimation,
 )
@@ -82,6 +83,10 @@ from boneglaive.graphical.animations.pelotari import (
     BackhandAnimation,
     BackhandReflectionAnimation,
 )
+
+# Import sound system
+from boneglaive.graphical.sound_registry import get_sound_for_skill
+from boneglaive.graphical.sound_manager import get_sound_manager
 
 if TYPE_CHECKING:
     from boneglaive.game.units import Unit
@@ -211,7 +216,8 @@ class AnimationFactory:
                         trajectory = None,
                         reflected_skill_name: str = None,
                         zone_tiles = None,
-                        building_tiles = None):
+                        building_tiles = None,
+                        **kwargs):
         """
         Create an animation for a skill.
 
@@ -249,8 +255,13 @@ class AnimationFactory:
         # "Gaussian Dusk Fire" -> GAUSSIAN_DUSK_FIRE
         # No state checking needed here anymore
 
-        # Get animation class and kwargs
-        anim_data = cls.SKILL_ANIMATIONS.get(skill_key)
+        # Check for Fragcrest trap mode (override class before lookup)
+        if skill_key == "FRAGCREST" and kwargs.get('is_trap', False):
+            print("[AnimationFactory] FRAGCREST trap mode detected - using FragcrestTrapAnimation")
+            anim_data = (FragcrestTrapAnimation, {})
+        else:
+            # Get animation class and kwargs from registry
+            anim_data = cls.SKILL_ANIMATIONS.get(skill_key)
 
         # DEBUG: Log lookup result
         if "GAUSSIAN" in skill_key or "DUSK" in skill_key:
@@ -268,6 +279,16 @@ class AnimationFactory:
         if anim_class is None:
             print(f"[AnimationFactory] Animation not implemented yet: {skill_name} (key: {skill_key})")
             return None
+
+        # Play skill sound effect
+        sound_key = get_sound_for_skill(skill_name)
+        if sound_key:
+            try:
+                sound_manager = get_sound_manager()
+                sound_manager.play(sound_key, category="skills")
+            except Exception as e:
+                # Don't crash if sound fails - just log it
+                print(f"[AnimationFactory] Failed to play sound for {skill_name}: {e}")
 
         # Prepare animation kwargs
         kwargs = base_kwargs.copy()
@@ -654,13 +675,20 @@ class AnimationFactory:
 
                 # IMPORTANT: Check if the foreman had a planned move that was cleared
                 # If expedite_planned_start exists, use that as the starting position
-                if caster_unit and hasattr(caster_unit, 'game_unit') and caster_unit.game_unit:
-                    game_unit = caster_unit.game_unit
-                    if hasattr(game_unit, 'expedite_planned_start') and game_unit.expedite_planned_start:
-                        # Use the planned position as start
-                        planned_y, planned_x = game_unit.expedite_planned_start
-                        caster_screen_x, caster_screen_y = grid_to_screen(planned_x, planned_y)
-                        print(f"[AnimationFactory] Expedite using planned start position: grid ({planned_y}, {planned_x}) -> screen ({caster_screen_x}, {caster_screen_y})")
+                # First check kwargs (captured during pre-execution sync), then fall back to game_unit
+                expedite_planned_start = kwargs.get('expedite_planned_start')
+                if not expedite_planned_start:
+                    # Fall back to checking game_unit directly (for backward compatibility)
+                    if caster_unit and hasattr(caster_unit, 'game_unit') and caster_unit.game_unit:
+                        game_unit = caster_unit.game_unit
+                        if hasattr(game_unit, 'expedite_planned_start'):
+                            expedite_planned_start = game_unit.expedite_planned_start
+
+                if expedite_planned_start:
+                    # Use the planned position as start
+                    planned_y, planned_x = expedite_planned_start
+                    caster_screen_x, caster_screen_y = grid_to_screen(planned_x, planned_y)
+                    print(f"[AnimationFactory] Expedite using planned start position: grid ({planned_y}, {planned_x}) -> screen ({caster_screen_x}, {caster_screen_y})")
 
                 # Convert grid to screen: target_pos[1] is grid_x, target_pos[0] is grid_y
                 target_x, target_y = grid_to_screen(target_pos[1], target_pos[0])
@@ -671,7 +699,8 @@ class AnimationFactory:
                     target_y=target_y,
                     foreman_unit=caster_unit,
                     target_grid_pos=target_pos,  # Pass grid position for final update
-                    camera=camera
+                    camera=camera,
+                    target_unit=target_unit  # Pass target unit for impact effects
                 )
             elif anim_class.__name__ in ["ViseroyTrap", "ViseroyRelease"]:
                 # Viseroy animations - target coordinates
@@ -972,19 +1001,22 @@ class AnimationFactory:
                         camera=camera,
                         game=game
                     )
-            elif anim_class.__name__ == "FragcrestAnimation":
+            elif anim_class.__name__ in ["FragcrestAnimation", "FragcrestTrapAnimation"]:
                 # Fragcrest - directional fragmentation cone with knockback
                 # Requires: target_pos (primary target), target_unit, camera, callbacks, game
+                # FragcrestAnimation = normal cast, FragcrestTrapAnimation = trap detonation
                 if not target_pos:
                     print("[AnimationFactory] FRAGCREST requires a target position")
                     return None
                 if not target_unit:
                     print("[AnimationFactory] FRAGCREST requires a target unit")
                     return None
+
+                # Both animation classes use the same constructor
                 animation = anim_class(
                     caster_unit=caster_unit,
-                    target_unit=target_unit,  # Primary target for cone direction
-                    target_pos=target_pos,  # Primary target position (grid_y, grid_x)
+                    target_unit=target_unit,
+                    target_pos=target_pos,
                     is_crit=is_crit,
                     is_infused=is_infused,
                     particle_emitter=particle_emitter,
@@ -993,7 +1025,9 @@ class AnimationFactory:
                     screen_flash_callback=screen_flash_callback,
                     units_list=units_list if units_list else [],
                     camera=camera,
-                    game=kwargs.get('game')  # Required for cone calculation
+                    game=game,
+                    is_trap=kwargs.get('is_trap', False),
+                    trap_cone_positions=kwargs.get('trap_cone_positions', None)
                 )
             elif anim_class.__name__ == "GaussianDuskFireAnimation":
                 # Gaussian Dusk Fire - rail gun beam firing across map

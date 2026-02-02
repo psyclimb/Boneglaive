@@ -117,8 +117,8 @@ class DeltaConfigSkill(ActiveSkill):
         user.skill_target = target_pos
         user.selected_skill = self
 
-        # Clear the move target - Delta Config IS the movement, don't walk first
-        user.move_target = None
+        # Don't clear move_target - allow move+skill combos
+        # If user moves first, they can reposition before teleporting
 
         # Set teleport target indicator for UI
         user.teleport_target_indicator = target_pos
@@ -649,6 +649,9 @@ class EstrangeSkill(ActiveSkill):
             # Add echo to game
             game.units.append(echo_unit)
 
+            # CRITICAL: Add echo to spatial grid so get_unit_at() can find it
+            game._update_unit_grid(echo_unit)
+
             logger.info(f"ECHO SPAWNED from banishment: {echo_unit.type.name} at position ({banished_pos[0]}, {banished_pos[1]})")
 
             # Log echo spawn
@@ -927,8 +930,8 @@ class GraeExchangeSkill(ActiveSkill):
         user.skill_target = target_pos
         user.selected_skill = self
 
-        # Clear the move target - Grae Exchange IS the movement, don't walk first
-        user.move_target = None
+        # Don't clear move_target - allow move+skill combos
+        # If user moves first, echo will spawn at the moved position
 
         # Set teleport target indicator for UI
         user.teleport_target_indicator = target_pos
@@ -951,6 +954,11 @@ class GraeExchangeSkill(ActiveSkill):
         import time
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
+        # CRITICAL: Capture original position FIRST, before any checks or logic
+        # This ensures we get the true starting position before animations or other code modifies it
+        original_pos = (user.y, user.x)
+        logger.info(f"[GRÆ EXCHANGE DEBUG] Captured original_pos: {original_pos} for {user.get_display_name()}")
+
         # SAFETY CHECK: Verify target position is still valid and empty
         # (Another unit might have moved there between planning and execution)
         if game.get_unit_at(target_pos[0], target_pos[1]) is not None:
@@ -965,9 +973,6 @@ class GraeExchangeSkill(ActiveSkill):
 
         # Clear the teleport target indicator after execution
         user.teleport_target_indicator = None
-
-        # Store original position for creating the echo
-        original_pos = (user.y, user.x)
 
         # Log the skill activation with special message for echoes
         if hasattr(user, 'is_echo') and user.is_echo:
@@ -1011,6 +1016,7 @@ class GraeExchangeSkill(ActiveSkill):
         echo_unit = Unit(user.type, user.player, original_pos[0], original_pos[1])
         echo_unit.initialize_skills()
         echo_unit.set_game_reference(game)
+        logger.info(f"[GRÆ EXCHANGE DEBUG] Created echo at position ({echo_unit.y}, {echo_unit.x})")
         
         # Set echo properties
         echo_unit.is_echo = True
@@ -1055,13 +1061,18 @@ class GraeExchangeSkill(ActiveSkill):
             if not teleport_in:
                 teleport_in = [' ', '=', ':', '.', 'P']  # Fallback
             
-            # Temporarily hide the real unit
+            # Temporarily remove GRAYMAN from grid to make space for echo
             temp_y, temp_x = user.y, user.x
-            user.y, user.x = -999, -999  # Move off-screen
-            
-            # Add the echo unit to the game AFTER hiding the original unit
+            game._remove_from_unit_grid(user)  # Remove from grid FIRST
+            user.y, user.x = -999, -999  # Move off-screen (doesn't update grid since we removed it)
+
+            # Add the echo unit to the game at the position GRAYMAN just left
             game.units.append(echo_unit)
-            
+
+            # CRITICAL: Add echo to spatial grid so get_unit_at() can find it
+            game._update_unit_grid(echo_unit)
+            logger.info(f"[GRÆ EXCHANGE DEBUG] Echo added to grid at ({echo_unit.y}, {echo_unit.x})")
+
             # Redraw to show the echo in the original position and the real unit gone
             if hasattr(ui, 'draw_board'):
                 ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
@@ -1080,8 +1091,19 @@ class GraeExchangeSkill(ActiveSkill):
             
             # Actually move the unit to the target position
             # Use atomic position update to prevent collisions
+            logger.info(f"[GRÆ EXCHANGE DEBUG] Before teleport - User at ({temp_y}, {temp_x}), Echo at ({echo_unit.y}, {echo_unit.x}), Target: {target_pos}")
             if not user.set_position_atomic(target_pos[0], target_pos[1]):
                 logger.error(f"TELEPORT BLOCKED: {user.get_display_name()}'s Græ Exchange to {target_pos} blocked by collision")
+
+                # CRITICAL: Teleport failed! Remove echo first, then restore GRAYMAN
+                # Remove the echo since the skill failed
+                game.units.remove(echo_unit)
+                game._remove_from_unit_grid(echo_unit)
+
+                # Now restore GRAYMAN to original position
+                user._y, user._x = temp_y, temp_x  # Direct assignment to bypass setters
+                game._update_unit_grid(user)  # Add back to grid
+
                 message_log.add_message(
                     f"{user.get_display_name()}'s Græ Exchange blocked - position occupied!",
                     MessageType.WARNING,
@@ -1090,6 +1112,7 @@ class GraeExchangeSkill(ActiveSkill):
                 return False
             
             # Redraw to show the final state
+            logger.info(f"[GRÆ EXCHANGE DEBUG] After teleport - User at ({user.y}, {user.x}), Echo at ({echo_unit.y}, {echo_unit.x})")
             if hasattr(ui, 'draw_board'):
                 ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
                 ui.renderer.refresh()
@@ -1103,13 +1126,30 @@ class GraeExchangeSkill(ActiveSkill):
                 ui.renderer.flash_tile(user.y, user.x, tile_ids, color_ids, durations)
         else:
             # No UI, just set position without animations
+            # Remove GRAYMAN from grid temporarily to make space for echo
+            game._remove_from_unit_grid(user)
+
             # Add the echo unit to the game
             game.units.append(echo_unit)
+
+            # CRITICAL: Add echo to spatial grid so get_unit_at() can find it
+            game._update_unit_grid(echo_unit)
+            logger.info(f"[GRÆ EXCHANGE DEBUG] (No UI) Echo added to grid at ({echo_unit.y}, {echo_unit.x})")
 
             # Move the user to the target position
             # Use atomic position update to prevent collisions
             if not user.set_position_atomic(target_pos[0], target_pos[1]):
                 logger.error(f"TELEPORT BLOCKED: {user.get_display_name()}'s Græ Exchange to {target_pos} blocked by collision")
+
+                # CRITICAL: Teleport failed! Remove echo first, then restore GRAYMAN
+                # Remove the echo since the skill failed
+                game.units.remove(echo_unit)
+                game._remove_from_unit_grid(echo_unit)
+
+                # Now restore GRAYMAN to original position
+                user._y, user._x = original_pos[0], original_pos[1]  # Direct assignment to bypass setters
+                game._update_unit_grid(user)  # Add back to grid
+
                 message_log.add_message(
                     f"{user.get_display_name()}'s Græ Exchange blocked - position occupied!",
                     MessageType.WARNING,

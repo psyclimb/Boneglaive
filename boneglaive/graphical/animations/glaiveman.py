@@ -7,6 +7,7 @@ import pygame
 import random
 import math
 from .core import TILE_SIZE, Particle, DebrisParticle
+from boneglaive.graphical.sound_helper import play_sound
 
 class LightningBolt:
     """A lightning bolt effect that strikes from above."""
@@ -465,6 +466,9 @@ class VaultAnimationController:
 
         print(f"  [VAULT] Starting vault from ({caster_unit.grid_x}, {caster_unit.grid_y}) to {target_pos}")
 
+        # Launch sound - leap off ground
+        play_sound("vault_launch")
+
         # Launch particles
         for _ in range(20):
             angle = random.uniform(0, 2 * math.pi)
@@ -508,6 +512,9 @@ class VaultAnimationController:
                 self.caster.x = self.caster.vault_target_x
                 self.caster.y = self.caster.vault_target_y
                 self.caster.wind_up_rotation = 0  # Reset rotation
+
+                # Landing sound
+                play_sound("vault_land")
 
                 # Landing effects
                 self.particle_emitter.emit_burst(self.caster.x, self.caster.y, (100, 200, 255), 30)
@@ -583,6 +590,9 @@ class VaultAnimationControllerUpgraded:
 
         print(f"  [VAULT_UPGRADED] Starting extended vault from ({caster_unit.grid_x}, {caster_unit.grid_y}) to {target_pos}")
 
+        # Launch sound (upgraded version)
+        play_sound("vault_launch_upgraded")
+
         # Enhanced launch particles (more particles, brighter colors)
         for _ in range(35):  # Was 20
             angle = random.uniform(0, 2 * math.pi)
@@ -642,6 +652,9 @@ class VaultAnimationControllerUpgraded:
                 self.caster.x = self.caster.vault_target_x
                 self.caster.y = self.caster.vault_target_y
                 self.caster.wind_up_rotation = 0  # Reset rotation
+
+                # Landing sound (upgraded version - stronger impact)
+                play_sound("vault_impact")
 
                 # ENHANCED landing effects (stronger impact)
                 self.particle_emitter.emit_burst(self.caster.x, self.caster.y, (100, 200, 255), 50)  # More particles (was 30)
@@ -800,6 +813,9 @@ class GlaiveSweepAnimation:
         self.phase = "windup"
         self.timer = 0
 
+        # Windup sound
+        play_sound("glaive_sweep_windup")
+
         # Slight screen shake
         self.screen_shake_callback(4, 0.15)
 
@@ -813,6 +829,9 @@ class GlaiveSweepAnimation:
         self.timer = 0
         self.sweep_angle = 0
 
+        # Sweep sound - whooshing blade
+        play_sound("glaive_sweep_swing")
+
         # Medium screen shake during sweep
         self.screen_shake_callback(6, 0.4)
 
@@ -820,6 +839,9 @@ class GlaiveSweepAnimation:
         """Phase 3: Impact on all hit tiles."""
         self.phase = "impact"
         self.timer = 0
+
+        # Impact sound
+        play_sound("glaive_sweep_impact")
 
         # Impact effects on each hit unit
         for unit in self.hit_units:
@@ -1770,6 +1792,9 @@ class PryAnimation:
         self.phase = "prying_up"
         self.timer = 0
 
+        # Lever prying sound - metallic scraping/leveraging
+        play_sound("pry_lever")
+
         # Create lever effect from caster to target
         self.lever = PryLeverEffect(self.caster_x, self.caster_y, self.target_x, self.target_y)
 
@@ -1787,6 +1812,9 @@ class PryAnimation:
         """Phase 2: Ceiling Impact - Target hits ceiling, debris spawns aimed at affected tiles."""
         self.phase = "ceiling_impact"
         self.timer = 0
+
+        # Ceiling crash sound - heavy impact
+        play_sound("pry_ceiling")
 
         # Create ceiling impact flash
         self.ceiling_impact = PryCeilingImpact(self.target_x, self.target_y)
@@ -1865,6 +1893,9 @@ class PryAnimation:
         """Phase 4: Ground Impact - Debris impacts create effects as they land."""
         self.phase = "ground_impact"
         self.timer = 0
+
+        # Ground explosion sound - heavy impact with debris
+        play_sound("pry_impact")
 
         # **DAMAGE TRIGGER: This is when damage happens (delayed execution like Parabol)**
         # Game logic will apply damage at this moment (1.7s into animation)
@@ -2366,6 +2397,9 @@ class JudgementAnimation:
         self.phase = "wind_up"
         self.timer = 0
 
+        # Wind-up sound (optional - for dramatic effect)
+        play_sound("judgement_windup")
+
         # Light screen shake for wind-up
         self.screen_shake_callback(3, 0.2)
 
@@ -2378,6 +2412,9 @@ class JudgementAnimation:
         self.phase = "flight"
         self.timer = 0
 
+        # Throw sound - glaive leaving hand
+        play_sound("judgement_throw")
+
         # Create projectile
         self.projectile = JudgementGlaiveProjectile(self.caster_x, self.caster_y,
                                                     self.target_x, self.target_y)
@@ -2389,6 +2426,12 @@ class JudgementAnimation:
 
         # **DAMAGE TRIGGER: This is when damage happens (delayed execution like Parabol)**
         self.damage_triggered = True
+
+        # Impact sound - different for critical vs normal
+        if self.is_crit:
+            play_sound("judgement_critical")
+        else:
+            play_sound("judgement_impact")
 
         # Create impact flash
         self.impact_flash = JudgementImpactFlash(self.target_x, self.target_y)
@@ -2840,12 +2883,12 @@ class AutoclaveAnimationV2:
     - Delayed damage execution
 
     Phases:
-    1. Ignition (0.4s) - Fire burst at center, cross emblem flash, steam starts
-    2. Cross Expansion (0.8s) - Steam expands, glaive appears on each tile
-    3. Impact & Healing (0.8s) - Impacts flash, DAMAGE TRIGGERS, healing glow
+    1. Ignition (0.32s) - Fire burst at center, cross emblem flash, steam starts
+    2. Cross Expansion (0.64s) - Steam expands, glaive appears on each tile
+    3. Impact & Healing (0.64s) - Impacts flash, DAMAGE TRIGGERS, healing glow
 
-    Total duration: 2.0 seconds
-    Damage timing: 1.2s (start of Phase 3, delayed execution like Parabol)
+    Total duration: 1.6 seconds (20% faster)
+    Damage timing: 0.96s (start of Phase 3, delayed execution like Parabol)
     """
 
     def __init__(self, caster_unit, target_unit, target_pos, is_crit, is_infused,
@@ -2943,6 +2986,9 @@ class AutoclaveAnimationV2:
         self.phase = "ignition"
         self.timer = 0
 
+        # Ignition sound - initial fire burst
+        play_sound("autoclave_ignition")
+
         # Create fire burst at GLAIVEMAN
         self.fire_burst = AutoclaveFireBurst(self.caster_x, self.caster_y)
 
@@ -2957,6 +3003,9 @@ class AutoclaveAnimationV2:
         """Phase 2: Cross Expansion - Steam and glaives expand outward."""
         self.phase = "cross_expansion"
         self.timer = 0
+
+        # Steam expansion sound - hissing steam jets
+        play_sound("autoclave_steam")
 
         # Create steam jets in 4 directions
         for direction in range(4):
@@ -2978,6 +3027,7 @@ class AutoclaveAnimationV2:
         # **DAMAGE TRIGGER: This is when damage happens (delayed execution like Parabol)**
         self.damage_triggered = True
 
+        # Removed: Impact sound (no autoclave_impact.wav)
         # Removed: Impact flashes at each tile (no longer creating fireball explosions)
 
         # Healing effect will be created when heal_amount is set by game
@@ -3017,12 +3067,12 @@ class AutoclaveAnimationV2:
         if self.healing_effect:
             self.healing_effect.update(delta_time)
 
-        # Phase transitions
-        if self.phase == "ignition" and self.timer >= 0.4:
+        # Phase transitions (20% faster: 0.4→0.32, 0.8→0.64)
+        if self.phase == "ignition" and self.timer >= 0.32:
             self._start_cross_expansion()
-        elif self.phase == "cross_expansion" and self.timer >= 0.8:
+        elif self.phase == "cross_expansion" and self.timer >= 0.64:
             self._start_impact_healing()
-        elif self.phase == "impact_healing" and self.timer >= 0.8:
+        elif self.phase == "impact_healing" and self.timer >= 0.64:
             self.active = False  # Animation complete
 
         return self.active
@@ -3107,10 +3157,16 @@ class GlaivemanPolearmAttack:
 
     def _trigger_windup(self):
         """Phase 1: Pull back polearm."""
+        # Windup sound - pulling back weapon
+        play_sound("glaiveman_attack_windup")
+
         self.attacker.shake_intensity = 5
 
     def _trigger_sweep(self):
         """Phase 2: Wide sweeping arc - silver blade trail."""
+        # Sweep sound - blade whoosh
+        play_sound("glaiveman_attack_sweep")
+
         # Calculate perpendicular vector for arc
         perp_x = -self.dy
         perp_y = self.dx
@@ -3154,6 +3210,9 @@ class GlaivemanPolearmAttack:
 
     def _trigger_impact(self):
         """Phase 3: Metal impact sparks at target."""
+        # Impact sound - metal hitting
+        play_sound("glaiveman_attack_impact")
+
         # Impact sparks - white/silver only (metal on metal)
         for _ in range(20):
             angle = random.uniform(0, 2 * math.pi)

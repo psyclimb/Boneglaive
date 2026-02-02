@@ -685,7 +685,20 @@ class UIRenderer:
                             # Override all ground tiles with red ~ to show viscous plasma
                             tile = "~"  # Blood plasma appearance
                             color_id = 20  # Red color for blood
-                
+
+                # Check if there's a revealed Fragcrest trap at this position
+                if hasattr(self.game_ui.game, 'fragcrest_traps') and pos_tuple in self.game_ui.game.fragcrest_traps:
+                    trap_info = self.game_ui.game.fragcrest_traps[pos_tuple]
+                    # Only show revealed traps to the enemy player
+                    if trap_info.get('revealed', False):
+                        trap_owner = trap_info['owner']
+                        current_player = self.game_ui.game.current_player
+                        # Show revealed trap to the player who doesn't own it
+                        if trap_owner.player != current_player:
+                            tile = "X"  # Trap marker
+                            color_id = 1  # Red color for revealed trap
+                            tile_attr = curses.A_BOLD  # Make it bold
+
                 # Check if there's a unit at this position
                 unit = self.game_ui.game.get_unit_at(y, x)
                 

@@ -42,16 +42,14 @@ class DischargeSkill(ActiveSkill):
             key="E",
             description="Rush toward an enemy in a straight line. Traps and damages the target.",
             target_type=TargetType.ENEMY,
-            cooldown=3,
+            cooldown=4,
             range_=4  # Base range, upgraded to 5
         )
-        self.trap_damage = 4
+        self.trap_damage = 5
+        self.base_cooldown = 4  # Store base cooldown for upgrade
 
     def get_range(self, user: 'Unit') -> int:
-        """Get the effective range for this skill, accounting for upgrades."""
-        from boneglaive.game.upgrades import UpgradeManager
-        if UpgradeManager.is_skill_upgraded(user, "Expedite"):
-            return 5  # Upgraded range
+        """Get the effective range for this skill."""
         return self.range
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
@@ -186,8 +184,13 @@ class DischargeSkill(ActiveSkill):
             MessageType.ABILITY,
             player=user.player
         )
-        
-        self.current_cooldown = self.cooldown
+
+        # Set cooldown (check for upgrade: -1 cooldown)
+        from boneglaive.game.upgrades import UpgradeManager
+        cooldown_value = self.base_cooldown
+        if UpgradeManager.is_skill_upgraded(user, "Expedite"):
+            cooldown_value -= 1
+        self.current_cooldown = cooldown_value
         return True
         
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
@@ -289,8 +292,14 @@ class DischargeSkill(ActiveSkill):
             user.expedite_enemy_hit = enemy_hit
             user.expedite_enemy_pos = enemy_pos
 
+            # Check for upgrade: +2 damage
+            from boneglaive.game.upgrades import UpgradeManager
+            damage_value = self.trap_damage
+            if UpgradeManager.is_skill_upgraded(user, "Expedite"):
+                damage_value += 2
+
             # Apply damage to the enemy
-            damage = self.trap_damage - enemy_hit.defense
+            damage = damage_value - enemy_hit.defense
             damage = max(1, damage)  # Minimum damage of 1
             previous_hp = enemy_hit.hp
             enemy_hit.hp = max(0, enemy_hit.hp - damage)
@@ -541,41 +550,6 @@ class DischargeSkill(ActiveSkill):
         # Clear expediting flag now that trap has been applied
         user.expediting = False
 
-        # Check for Expedite upgrade - apply defense buff
-        from boneglaive.game.upgrades import UpgradeManager
-        if UpgradeManager.is_skill_upgraded(user, "Expedite"):
-            # Apply +2 defense buff for 1 turn as a proper status effect
-            user.status_tactical_momentum = True
-            user.status_tactical_momentum_duration = 1
-            user.defense_bonus += 2
-
-            message_log.add_message(
-                f"{user.get_display_name()} gains +2 defense from tactical momentum",
-                MessageType.ABILITY,
-                player=user.player
-            )
-
-            # Show enhanced tactical momentum animation (ASCII mode only)
-            if ui and hasattr(ui, 'renderer') and not is_graphical:
-                user_pos = (user.y, user.x)
-
-                # Phase 1: Momentum pulse - show speed and defense indicators
-                momentum_frames = ['>', '=', '#', '=', '>']
-                ui.renderer.animate_attack_sequence(
-                    user_pos[0], user_pos[1],
-                    momentum_frames,
-                    2,  # Green to show positive buff
-                    0.06
-                )
-
-                # Phase 2: Shield consolidates - flash the FOREMAN with green shield effect
-                if hasattr(ui, 'asset_manager'):
-                    tile_ids = [ui.asset_manager.get_unit_tile(user.type)] * 4
-                    color_ids = [2, 3 if user.player == 1 else 4, 2, 3 if user.player == 1 else 4]  # Alternate green and player color
-                    durations = [0.12] * 4
-
-                    ui.renderer.flash_tile(user_pos[0], user_pos[1], tile_ids, color_ids, durations)
-
         return True
 
 
@@ -591,7 +565,7 @@ class SiteInspectionSkill(ActiveSkill):
             key="S",
             description="Survey a 3x3 area for tactical analysis. No terrain: +1 attack & movement. 1 terrain: +1 movement only. 2+ terrain: no effect.",
             target_type=TargetType.AREA,
-            cooldown=3,
+            cooldown=4,
             range_=3,
             area=1
         )
@@ -1272,6 +1246,21 @@ class JawlineSkill(ActiveSkill):
                 perp_y, perp_x = -dir_x, dir_y
 
             # Build the 3x9 line, blocked by terrain, furniture, and enemy units
+            # First add the 8 surrounding tiles (like base version)
+            for dy in [-1, 0, 1]:
+                for dx in [-1, 0, 1]:
+                    # Skip the center (user's position)
+                    if dy == 0 and dx == 0:
+                        continue
+
+                    y = user.y + dy
+                    x = user.x + dx
+
+                    # Check if position is valid
+                    if game.is_valid_position(y, x):
+                        area_positions.append((y, x))
+
+            # Then build the directional line extending forward
             # Track which offsets have been blocked at each distance
             blocked_offsets = set()
 

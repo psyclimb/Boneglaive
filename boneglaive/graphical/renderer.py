@@ -94,7 +94,9 @@ PRE_EXECUTION_BLOCKING_SKILLS = [
     "Autoclave", "AUTOCLAVE",
     "Matador", "MATADOR",
     "Poach", "POACH",
-    "Vault_Upgraded", "VAULT_UPGRADED"  # Upgraded Vault with AOE landing impact
+    "Vault_Upgraded", "VAULT_UPGRADED",  # Upgraded Vault with AOE landing impact
+    "Jawline", "JAWLINE",
+    "Jawline_Upgraded", "JAWLINE_UPGRADED"
 ]
 
 
@@ -1571,11 +1573,43 @@ class GraphicalRenderer:
 
         return False
 
-    def flush_pending_events(self):
-        """Show all pending damage/heal numbers after animations complete."""
-        for event in self.pending_animation_events:
-            self._show_event_immediately(event)
-        self.pending_animation_events = []
+    def flush_pending_events(self, only_blocking=False):
+        """
+        Show all pending damage/heal numbers after animations complete.
+
+        Args:
+            only_blocking: If True, only process blocking skill animations and keep
+                          non-blocking skills queued for post-execution
+        """
+        if only_blocking:
+            # Filter: process only blocking skills, keep others
+            events_to_process = []
+            events_to_keep = []
+
+            for event in self.pending_animation_events:
+                if event.event_type == "skill":
+                    skill_name = event.kwargs.get('skill_name')
+                    if skill_name in PRE_EXECUTION_BLOCKING_SKILLS:
+                        events_to_process.append(event)
+                        print(f"  [Renderer] Processing blocking skill: {skill_name}")
+                    else:
+                        # Keep non-blocking skills for post-execution
+                        events_to_keep.append(event)
+                        print(f"  [Renderer] Deferring non-blocking skill for post-execution: {skill_name}")
+                else:
+                    # Process non-skill events (damage, heal, etc.)
+                    events_to_process.append(event)
+
+            for event in events_to_process:
+                self._show_event_immediately(event)
+
+            # Keep non-blocking skills in queue
+            self.pending_animation_events = events_to_keep
+        else:
+            # Process all events (normal behavior)
+            for event in self.pending_animation_events:
+                self._show_event_immediately(event)
+            self.pending_animation_events = []
 
         # After flushing damage/skill events, check all units for active status effects
         # and show icons for any that are currently active
@@ -1922,6 +1956,10 @@ class GraphicalRenderer:
         elif event.event_type == "skill":
             # Create skill animation from queued event
             self._create_skill_animation(event)
+
+        elif event.event_type == "glaive_sweep":
+            # Create Glaive Sweep counter-attack animation
+            self._create_glaive_sweep_animation(event)
 
     def _update_animations_only(self, delta_time: float):
         """
@@ -2275,6 +2313,12 @@ class GraphicalRenderer:
             # so we need to queue skills and let them flush after movement completes
             self.pending_animation_events.append(event)
             print(f"  [Renderer] Queued skill animation: {event.kwargs.get('skill_name')}")
+
+        elif event.event_type == "glaive_sweep":
+            # ALWAYS queue glaive sweep animations during turn execution
+            # This is the upgraded Autoclave counter-attack
+            self.pending_animation_events.append(event)
+            print(f"  [Renderer] Queued Glaive Sweep counter-attack animation")
 
         elif event.event_type == "status_effect":
             # Status effect icon animation (used for special cases like trap-applied effects)
@@ -2826,44 +2870,6 @@ class GraphicalRenderer:
                 else:
                     print(f"  [Animation] WARNING: Could not find animated unit for Riposte target")
 
-            # Check if TARGET has Glaive Sweep queued (GLAIVEMAN upgraded Autoclave counterattack)
-            # Use captured flag from BEFORE attack execution triggered it
-            target_has_glaive_sweep = event.kwargs.get("target_has_glaive_sweep", False)
-
-            if target_has_glaive_sweep and event.target_unit:
-                print(f"  [Renderer] *** GLAIVE SWEEP COUNTERATTACK DETECTED on {event.target_unit.get_display_name()} ***")
-
-                from boneglaive.graphical.animations.glaiveman import GlaiveSweepAnimation
-
-                # Get animated unit for target (GLAIVEMAN)
-                target_animated = self._find_animated_unit_by_game_unit(event.target_unit)
-
-                if target_animated:
-                    # Create Glaive Sweep animation
-                    # The animation will detect adjacent enemies within its own code
-                    glaive_sweep_animation = GlaiveSweepAnimation(
-                        caster_unit=target_animated,
-                        target_unit=None,  # AOE around caster
-                        target_pos=(event.target_unit.y, event.target_unit.x),  # Caster position
-                        is_crit=False,
-                        is_infused=False,
-                        particle_emitter=self.particle_emitter,
-                        debris_list=[],
-                        screen_shake_callback=self.trigger_screen_shake,
-                        screen_flash_callback=self.trigger_screen_flash,
-                        units_list=self.units,
-                        camera=self.camera,
-                        game=self.game_adapter.game
-                    )
-
-                    if glaive_sweep_animation:
-                        self.active_animations.append(glaive_sweep_animation)
-                        print(f"  [Animation] Successfully triggered Glaive Sweep counterattack")
-                    else:
-                        print(f"  [Animation] WARNING: Failed to create Glaive Sweep animation")
-                else:
-                    print(f"  [Animation] WARNING: Could not find animated unit for Glaive Sweep target")
-
             if attacker.type not in [UnitType.INTERFERER, UnitType.MANDIBLE_FOREMAN, UnitType.GLAIVEMAN,
                                       UnitType.GRAYMAN, UnitType.MARROW_CONDENSER, UnitType.FOWL_CONTRIVANCE,
                                       UnitType.DELPHIC_APPRAISER, UnitType.GAS_MACHINIST, UnitType.DERELICTIONIST,
@@ -2976,6 +2982,41 @@ class GraphicalRenderer:
             print(f"  [Animation] Successfully triggered {skill_name} animation" + (" (CRITICAL!)" if is_crit else ""))
         else:
             print(f"  [Animation] WARNING: Animation factory returned None for {skill_name}")
+
+    def _create_glaive_sweep_animation(self, event):
+        """
+        Create Glaive Sweep counter-attack animation.
+
+        Args:
+            event: AnimationEvent with type "glaive_sweep"
+        """
+        from boneglaive.graphical.animations.glaiveman import GlaiveSweepAnimation
+
+        caster = event.source_unit
+
+        caster_animated = self._get_visual_unit(caster)
+        if caster_animated:
+            caster_animated = caster_animated.animated_unit
+        else:
+            return
+
+        glaive_sweep_animation = GlaiveSweepAnimation(
+            caster_unit=caster_animated,
+            target_unit=None,
+            target_pos=(caster.y, caster.x),
+            is_crit=False,
+            is_infused=False,
+            particle_emitter=self.particle_emitter,
+            debris_list=[],
+            screen_shake_callback=self.trigger_screen_shake,
+            screen_flash_callback=self.trigger_screen_flash,
+            units_list=self.units,
+            camera=self.camera,
+            game=self.game_adapter.game
+        )
+
+        if glaive_sweep_animation:
+            self.active_animations.append(glaive_sweep_animation)
 
     def _get_visual_unit(self, game_unit):
         """
@@ -3846,8 +3887,9 @@ class GraphicalRenderer:
 
         if has_blocking_animations:
             print("[Renderer] *** Blocking pre-execution animations detected - playing before turn execution ***")
-            # Flush pending events immediately
-            self.flush_pending_events()
+            # Flush ONLY blocking skills and damage events
+            # Keep non-blocking skills (like Expedite) for post-execution when positions are correct
+            self.flush_pending_events(only_blocking=True)
 
             # Wait for animations to complete
             frames_waited = 0
