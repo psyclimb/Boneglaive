@@ -16,7 +16,7 @@ Both ASCII and graphical versions are feature-complete and playable. Focus is on
 
 ** Game Features (COMPLETE)
 1. ✅ GP (Game Points) scoring system
-   - First player to reach 10 GP wins
+   - First player to reach 7 GP wins
    - 1 GP awarded per kill (main units only, no summons)
    - Dead units respawn after 3-turn timer
    - Respawn selection system (press 'r' in ASCII mode)
