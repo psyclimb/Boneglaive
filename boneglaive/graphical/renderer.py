@@ -3788,14 +3788,14 @@ class GraphicalRenderer:
             self.action_menu.update(game, selected_game_unit, self.current_action_mode, has_actions)
 
         # Draw top bar (full width)
-        self.top_bar.draw(surface, SCREEN_WIDTH)
+        self.top_bar.draw(surface, self.screen_width)
 
         # Calculate available height for side panels
-        panel_height = SCREEN_HEIGHT - TOP_BAR_HEIGHT - BOTTOM_BAR_HEIGHT
+        panel_height = self.screen_height - self.layout.top_bar_height - self.layout.bottom_bar_height
 
         # === LEFT PANEL (Dedicated Space) ===
         left_panel_x = 0  # Starts at left edge
-        left_panel_y = TOP_BAR_HEIGHT
+        left_panel_y = self.layout.top_bar_height
 
         # Draw solid background (performance: reuse cached surface)
         self._left_panel_surface.fill((30, 34, 42))  # Solid dark background
@@ -3803,8 +3803,8 @@ class GraphicalRenderer:
 
         # Draw border on right side
         pygame.draw.line(surface, (60, 64, 72),
-                        (LEFT_PANEL_WIDTH - 1, TOP_BAR_HEIGHT),
-                        (LEFT_PANEL_WIDTH - 1, SCREEN_HEIGHT - BOTTOM_BAR_HEIGHT), 2)
+                        (self.layout.left_panel_width - 1, self.layout.top_bar_height),
+                        (self.layout.left_panel_width - 1, self.screen_height - self.layout.bottom_bar_height), 2)
 
         # Draw turn counter (top of left panel, above motor)
         turn_y = left_panel_y + 10
@@ -3819,8 +3819,8 @@ class GraphicalRenderer:
         self.action_menu.draw(surface, left_panel_x + 5, action_menu_y)
 
         # === RIGHT PANEL (Dedicated Space) ===
-        right_panel_x = SCREEN_WIDTH - RIGHT_PANEL_WIDTH  # Starts at right edge - panel width
-        right_panel_y = TOP_BAR_HEIGHT
+        right_panel_x = self.screen_width - self.layout.right_panel_width  # Starts at right edge - panel width
+        right_panel_y = self.layout.top_bar_height
 
         # Draw solid background (performance: reuse cached surface)
         self._right_panel_surface.fill((30, 34, 42))  # Solid dark background
@@ -3828,8 +3828,8 @@ class GraphicalRenderer:
 
         # Draw border on left side
         pygame.draw.line(surface, (60, 64, 72),
-                        (right_panel_x, TOP_BAR_HEIGHT),
-                        (right_panel_x, SCREEN_HEIGHT - BOTTOM_BAR_HEIGHT), 2)
+                        (right_panel_x, self.layout.top_bar_height),
+                        (right_panel_x, self.screen_height - self.layout.bottom_bar_height), 2)
 
         # Draw player indicator (top of right panel, above unit status bar)
         player_y = right_panel_y + 5
@@ -3855,14 +3855,14 @@ class GraphicalRenderer:
         # Draw "TURN X" centered in left panel
         turn_text = render_fitted_text(
             f"TURN {game.turn}",
-            max_width=LEFT_PANEL_WIDTH - 20,
+            max_width=self.layout.left_panel_width - 20,
             max_height=25,
             color=(255, 255, 255),
             base_font_size=20,
             min_font_size=16,
             max_font_size=24
         )
-        text_rect = turn_text.get_rect(center=(x + LEFT_PANEL_WIDTH // 2, y + 15))
+        text_rect = turn_text.get_rect(center=(x + self.layout.left_panel_width // 2, y + 15))
         surface.blit(turn_text, text_rect)
 
     def _draw_player_indicator(self, surface: pygame.Surface, x: int, y: int):
@@ -3880,14 +3880,14 @@ class GraphicalRenderer:
         # Draw player name centered in right panel
         player_text = render_fitted_text(
             player_name.upper(),
-            max_width=RIGHT_PANEL_WIDTH - 20,
+            max_width=self.layout.right_panel_width - 20,
             max_height=25,
             color=player_color,
             base_font_size=20,
             min_font_size=16,
             max_font_size=24
         )
-        text_rect = player_text.get_rect(center=(x + RIGHT_PANEL_WIDTH // 2, y + 12))
+        text_rect = player_text.get_rect(center=(x + self.layout.right_panel_width // 2, y + 12))
         surface.blit(player_text, text_rect)
 
     def execute_turn(self):
