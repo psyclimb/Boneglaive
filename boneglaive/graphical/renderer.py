@@ -661,6 +661,7 @@ class GraphicalRenderer:
     def screen_to_grid(self, screen_x: int, screen_y: int) -> Optional[Tuple[int, int]]:
         """
         Convert screen coordinates to grid coordinates.
+        Delegates to camera system for consistent coordinate handling.
 
         Args:
             screen_x, screen_y: Screen pixel coordinates
@@ -668,8 +669,7 @@ class GraphicalRenderer:
         Returns:
             (grid_x, grid_y) or None if outside grid
         """
-        grid_x = (screen_x - GRID_OFFSET_X) // TILE_SIZE
-        grid_y = (screen_y - GRID_OFFSET_Y) // TILE_SIZE
+        grid_x, grid_y = self.camera.screen_to_grid(screen_x, screen_y)
 
         if 0 <= grid_x < GRID_WIDTH and 0 <= grid_y < GRID_HEIGHT:
             return (grid_x, grid_y)
@@ -678,6 +678,7 @@ class GraphicalRenderer:
     def grid_to_screen(self, grid_x: int, grid_y: int) -> Tuple[int, int]:
         """
         Convert grid coordinates to screen pixel coordinates (center of tile).
+        Delegates to camera system for consistent coordinate handling.
 
         Args:
             grid_x, grid_y: Grid coordinates
@@ -685,9 +686,7 @@ class GraphicalRenderer:
         Returns:
             (screen_x, screen_y) pixel coordinates
         """
-        screen_x = GRID_OFFSET_X + grid_x * TILE_SIZE + TILE_SIZE // 2
-        screen_y = GRID_OFFSET_Y + grid_y * TILE_SIZE + TILE_SIZE // 2
-        return (screen_x, screen_y)
+        return self.camera.grid_to_screen(grid_x, grid_y, centered=True)
 
     def get_unit_at_grid(self, grid_x: int, grid_y: int) -> Optional[AnimatedUnit]:
         """Get unit at grid position."""
