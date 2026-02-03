@@ -109,6 +109,189 @@ class Button:
         surface.blit(text_surface, text_rect)
 
 
+class Slider:
+    """
+    A horizontal slider with draggable handle for value selection.
+    """
+
+    def __init__(
+        self,
+        x: int,
+        y: int,
+        width: int,
+        height: int,
+        min_value: float = 0.0,
+        max_value: float = 1.0,
+        initial_value: float = 0.5,
+        on_change: Optional[Callable[[float], None]] = None,
+        label: str = "",
+        font: Optional[pygame.font.Font] = None
+    ):
+        self.rect = pygame.Rect(x, y, width, height)
+        self.min_value = min_value
+        self.max_value = max_value
+        self.value = initial_value
+        self.on_change = on_change
+        self.label = label
+        self.font = font
+
+        # Handle dimensions
+        self.handle_radius = height // 2 + 2
+        self.track_height = height // 3
+
+        # State
+        self.dragging = False
+        self.hovered = False
+
+    def _value_to_position(self) -> int:
+        """Convert current value to handle x position."""
+        normalized = (self.value - self.min_value) / (self.max_value - self.min_value)
+        return int(self.rect.x + normalized * self.rect.width)
+
+    def _position_to_value(self, x: int) -> float:
+        """Convert x position to value."""
+        normalized = (x - self.rect.x) / self.rect.width
+        normalized = max(0.0, min(1.0, normalized))
+        return self.min_value + normalized * (self.max_value - self.min_value)
+
+    def update(self, mouse_pos: Tuple[int, int], mouse_pressed: bool):
+        """Update slider state based on mouse."""
+        handle_x = self._value_to_position()
+        handle_rect = pygame.Rect(
+            handle_x - self.handle_radius,
+            self.rect.centery - self.handle_radius,
+            self.handle_radius * 2,
+            self.handle_radius * 2
+        )
+
+        # Check if mouse is over handle
+        self.hovered = handle_rect.collidepoint(mouse_pos) or self.rect.collidepoint(mouse_pos)
+
+        # Handle dragging
+        if mouse_pressed:
+            if self.hovered or self.dragging:
+                self.dragging = True
+                # Update value based on mouse position
+                new_value = self._position_to_value(mouse_pos[0])
+                if abs(new_value - self.value) > 0.001:  # Threshold to avoid spam
+                    self.value = new_value
+                    if self.on_change:
+                        self.on_change(self.value)
+        else:
+            self.dragging = False
+
+    def draw(self, surface: pygame.Surface):
+        """Draw the slider."""
+        # Draw label if provided
+        if self.label and self.font:
+            label_surface = self.font.render(self.label, True, COLOR_TEXT)
+            label_rect = label_surface.get_rect(midleft=(self.rect.x, self.rect.y - 20))
+            surface.blit(label_surface, label_rect)
+
+        # Draw track background
+        track_rect = pygame.Rect(
+            self.rect.x,
+            self.rect.centery - self.track_height // 2,
+            self.rect.width,
+            self.track_height
+        )
+        pygame.draw.rect(surface, COLOR_BG_HOVER, track_rect)
+        pygame.draw.rect(surface, COLOR_BORDER, track_rect, 1)
+
+        # Draw filled portion
+        handle_x = self._value_to_position()
+        filled_width = handle_x - self.rect.x
+        if filled_width > 0:
+            filled_rect = pygame.Rect(
+                self.rect.x,
+                self.rect.centery - self.track_height // 2,
+                filled_width,
+                self.track_height
+            )
+            pygame.draw.rect(surface, (100, 150, 200), filled_rect)
+
+        # Draw handle
+        handle_color = COLOR_BORDER_HOVER if (self.hovered or self.dragging) else COLOR_BORDER
+        pygame.draw.circle(surface, COLOR_BG, (handle_x, self.rect.centery), self.handle_radius)
+        pygame.draw.circle(surface, handle_color, (handle_x, self.rect.centery), self.handle_radius, 2)
+
+        # Draw value percentage
+        if self.font:
+            percentage = int(self.value * 100)
+            value_text = f"{percentage}%"
+            value_surface = self.font.render(value_text, True, COLOR_TEXT)
+            value_rect = value_surface.get_rect(midleft=(self.rect.right + 10, self.rect.centery))
+            surface.blit(value_surface, value_rect)
+
+
+class Checkbox:
+    """
+    A clickable checkbox with checked/unchecked states.
+    """
+
+    def __init__(
+        self,
+        x: int,
+        y: int,
+        size: int,
+        label: str,
+        font: pygame.font.Font,
+        initial_checked: bool = False,
+        on_change: Optional[Callable[[bool], None]] = None
+    ):
+        self.rect = pygame.Rect(x, y, size, size)
+        self.label = label
+        self.font = font
+        self.checked = initial_checked
+        self.on_change = on_change
+
+        # State
+        self.hovered = False
+
+    def update(self, mouse_pos: Tuple[int, int], mouse_pressed: bool):
+        """Update checkbox state based on mouse."""
+        self.hovered = self.rect.collidepoint(mouse_pos)
+
+    def handle_click(self, mouse_pos: Tuple[int, int]) -> bool:
+        """Handle a mouse click. Returns True if checkbox was clicked."""
+        if self.rect.collidepoint(mouse_pos):
+            self.checked = not self.checked
+            if self.on_change:
+                self.on_change(self.checked)
+            return True
+        return False
+
+    def draw(self, surface: pygame.Surface):
+        """Draw the checkbox."""
+        # Draw box
+        bg_color = COLOR_BG_HOVER if self.hovered else COLOR_BG
+        border_color = COLOR_BORDER_HOVER if self.hovered else COLOR_BORDER
+        pygame.draw.rect(surface, bg_color, self.rect)
+        pygame.draw.rect(surface, border_color, self.rect, 2)
+
+        # Draw checkmark if checked
+        if self.checked:
+            # Draw an X checkmark
+            padding = 4
+            pygame.draw.line(
+                surface, COLOR_TEXT,
+                (self.rect.left + padding, self.rect.top + padding),
+                (self.rect.right - padding, self.rect.bottom - padding),
+                3
+            )
+            pygame.draw.line(
+                surface, COLOR_TEXT,
+                (self.rect.right - padding, self.rect.top + padding),
+                (self.rect.left + padding, self.rect.bottom - padding),
+                3
+            )
+
+        # Draw label
+        label_surface = self.font.render(self.label, True, COLOR_TEXT)
+        label_rect = label_surface.get_rect(midleft=(self.rect.right + 10, self.rect.centery))
+        surface.blit(label_surface, label_rect)
+
+
 class MenuScreen:
     """
     Base class for menu screens.

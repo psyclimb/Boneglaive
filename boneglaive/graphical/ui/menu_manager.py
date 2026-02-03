@@ -9,7 +9,7 @@ from .menu_components import TextInputDialog
 from .main_menu import MainMenuScreen
 from .play_menu import PlaySubmenu, MapSelectionMenu
 from .profile_menu import ProfileSubmenu, ProfileListScreen, ProfileStatsScreen
-from .settings_menu import SettingsSubmenu, DisplaySettingsScreen
+from .settings_menu import SettingsSubmenu, DisplaySettingsScreen, SoundSettingsScreen
 from .about_screen import AboutScreen
 from boneglaive.game.player_profile import profile_manager
 from boneglaive.utils.config import ConfigManager
@@ -166,6 +166,10 @@ class MenuManager:
         elif action == "display_settings":
             display_settings = DisplaySettingsScreen(self.font, self.large_font, self.screen_width, self.screen_height)
             self._push_screen(display_settings)
+
+        elif action == "sound_settings":
+            sound_settings = SoundSettingsScreen(self.font, self.large_font, self.screen_width, self.screen_height)
+            self._push_screen(sound_settings)
 
         elif action == "about":
             about_screen = AboutScreen(self.font, self.large_font, self.screen_width, self.screen_height)

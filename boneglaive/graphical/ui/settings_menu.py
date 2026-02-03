@@ -5,8 +5,9 @@ Screens for game settings configuration.
 """
 import pygame
 from typing import Optional
-from .menu_components import MenuScreen, Button, COLOR_TEXT
+from .menu_components import MenuScreen, Button, Slider, Checkbox, COLOR_TEXT
 from boneglaive.utils.config import ConfigManager
+from boneglaive.graphical.sound_manager import get_sound_manager
 
 
 class SettingsSubmenu(MenuScreen):
@@ -37,6 +38,13 @@ class SettingsSubmenu(MenuScreen):
             ),
             Button(
                 start_x, start_y + (button_height + button_spacing),
+                button_width, button_height,
+                "Sound Settings",
+                font,
+                lambda: self._set_action("sound_settings")
+            ),
+            Button(
+                start_x, start_y + (button_height + button_spacing) * 2,
                 button_width, button_height,
                 "Back",
                 font,
@@ -155,3 +163,139 @@ class DisplaySettingsScreen(MenuScreen):
             return action
 
         return None
+
+class SoundSettingsScreen(MenuScreen):
+    """Screen for sound-related settings."""
+
+    def __init__(self, font: pygame.font.Font, large_font: pygame.font.Font, screen_width: int, screen_height: int):
+        super().__init__("Sound Settings", font, large_font)
+        self.screen_width = screen_width
+        self.screen_height = screen_height
+        self.config = ConfigManager()
+        self.sound_manager = get_sound_manager()
+
+        # Get current sound settings
+        current_volume = self.config.get('sfx_volume', 1.0)
+        audio_enabled = self.config.get('audio_enabled', True)
+
+        # Component dimensions
+        slider_width = 300
+        slider_height = 30
+        checkbox_size = 30
+        spacing = 60
+
+        # Calculate positions
+        center_x = screen_width // 2
+        start_y = 250
+
+        # Create volume slider
+        self.volume_slider = Slider(
+            center_x - slider_width // 2,
+            start_y,
+            slider_width,
+            slider_height,
+            min_value=0.0,
+            max_value=1.0,
+            initial_value=current_volume,
+            on_change=self._on_volume_change,
+            label="Master Volume",
+            font=font
+        )
+
+        # Create mute checkbox
+        self.mute_checkbox = Checkbox(
+            center_x - 100,
+            start_y + spacing,
+            checkbox_size,
+            "Mute All Sounds",
+            font,
+            initial_checked=not audio_enabled,
+            on_change=self._on_mute_change
+        )
+
+        # Create back button
+        button_width = 300
+        button_height = 60
+        self.back_button = Button(
+            (screen_width - button_width) // 2,
+            start_y + spacing * 3,
+            button_width,
+            button_height,
+            "Back",
+            font,
+            lambda: self._set_action("back")
+        )
+
+        # Build button list for base class (exclude slider and checkbox as they have custom handling)
+        self.buttons = [self.back_button]
+        self._action_result = None
+
+    def _on_volume_change(self, value: float):
+        """Handle volume slider change."""
+        # Update config
+        self.config.set('sfx_volume', value)
+        self.config.save_config()
+
+        # Update sound manager
+        self.sound_manager.set_volume("master", value)
+
+    def _on_mute_change(self, muted: bool):
+        """Handle mute checkbox change."""
+        audio_enabled = not muted
+
+        # Update config
+        self.config.set('audio_enabled', audio_enabled)
+        self.config.save_config()
+
+        # Update sound manager
+        if audio_enabled:
+            self.sound_manager.enable()
+        else:
+            self.sound_manager.disable()
+
+    def _set_action(self, action: str):
+        """Set the action result."""
+        self._action_result = action
+
+    def handle_event(self, event: pygame.event.Event) -> Optional[str]:
+        """Handle events and return action if triggered."""
+        # Handle checkbox clicks
+        if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+            self.mute_checkbox.handle_click(event.pos)
+
+        # Handle base class events (buttons, ESC)
+        result = super().handle_event(event)
+        if result:
+            return result
+
+        # Check if action was set by button
+        if self._action_result:
+            action = self._action_result
+            self._action_result = None
+            return action
+
+        return None
+
+    def update(self, delta_time: float, mouse_pos: tuple, mouse_pressed: bool):
+        """Update screen state."""
+        # Update slider
+        self.volume_slider.update(mouse_pos, mouse_pressed)
+
+        # Update checkbox
+        self.mute_checkbox.update(mouse_pos, mouse_pressed)
+
+        # Update buttons
+        super().update(delta_time, mouse_pos, mouse_pressed)
+
+    def draw(self, surface: pygame.Surface):
+        """Draw the screen."""
+        # Call parent to draw background and title
+        super().draw(surface)
+
+        # Draw slider
+        self.volume_slider.draw(surface)
+
+        # Draw checkbox
+        self.mute_checkbox.draw(surface)
+
+        # Buttons are drawn by parent class
