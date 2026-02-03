@@ -1035,8 +1035,8 @@ class GraphicalRenderer:
 
                     # Check if clicking on combat log to open expanded view (only when not in setup mode)
                     if not self.setup_mode:
-                        combat_log_x = LEFT_PANEL_WIDTH + 10
-                        combat_log_y = GRID_OFFSET_Y + GAME_BOARD_HEIGHT + 10
+                        combat_log_x = self.layout.left_panel_width + 10
+                        combat_log_y = self.layout.grid_offset_y + self.layout.game_board_height + 10
                         combat_log_rect = pygame.Rect(combat_log_x, combat_log_y, 900, 90)
                         if combat_log_rect.collidepoint(event.pos):
                             # Open expanded message log
@@ -1788,8 +1788,8 @@ class GraphicalRenderer:
                 target_animated = target_visual.animated_unit
 
                 # Convert trap position to screen coordinates
-                trap_screen_x = GRID_OFFSET_X + trap_pos[1] * TILE_SIZE + TILE_SIZE // 2
-                trap_screen_y = GRID_OFFSET_Y + trap_pos[0] * TILE_SIZE + TILE_SIZE // 2
+                trap_screen_x = self.layout.grid_offset_x + trap_pos[1] * self.layout.tile_size + self.layout.tile_size // 2
+                trap_screen_y = self.layout.grid_offset_y + trap_pos[0] * self.layout.tile_size + self.layout.tile_size // 2
 
                 print(f"[ScalarTrap] Creating animation at screen coords ({trap_screen_x}, {trap_screen_y})")
 
@@ -3454,8 +3454,8 @@ class GraphicalRenderer:
         if self._grid_fully_dirty or self._static_grid_surface is None:
             # Create cached surface if needed
             if self._static_grid_surface is None:
-                grid_width = GRID_WIDTH * TILE_SIZE
-                grid_height = GRID_HEIGHT * TILE_SIZE
+                grid_width = GRID_WIDTH * self.layout.tile_size
+                grid_height = GRID_HEIGHT * self.layout.tile_size
                 self._static_grid_surface = pygame.Surface((grid_width, grid_height))
 
             # Render all tiles to cache
@@ -3474,7 +3474,7 @@ class GraphicalRenderer:
             self._dirty_tiles.clear()
 
         # Blit cached grid to main surface
-        surface.blit(self._static_grid_surface, (GRID_OFFSET_X, GRID_OFFSET_Y))
+        surface.blit(self._static_grid_surface, (self.layout.grid_offset_x, self.layout.grid_offset_y))
 
     def draw_grid_old(self, surface: pygame.Surface):
         """
@@ -3488,9 +3488,9 @@ class GraphicalRenderer:
         for y in range(GRID_HEIGHT):
             for x in range(GRID_WIDTH):
                 # Calculate tile position (relative to grid surface, not screen)
-                tile_x = x * TILE_SIZE
-                tile_y = y * TILE_SIZE
-                rect = pygame.Rect(tile_x, tile_y, TILE_SIZE, TILE_SIZE)
+                tile_x = x * self.layout.tile_size
+                tile_y = y * self.layout.tile_size
+                rect = pygame.Rect(tile_x, tile_y, self.layout.tile_size, self.layout.tile_size)
 
                 # Get terrain type at this position
                 terrain_type = TerrainType.EMPTY
@@ -3574,8 +3574,8 @@ class GraphicalRenderer:
                     y, x = node_pos
 
                     # Calculate tile position
-                    tile_x = GRID_OFFSET_X + x * TILE_SIZE
-                    tile_y = GRID_OFFSET_Y + y * TILE_SIZE
+                    tile_x = self.layout.grid_offset_x + x * self.layout.tile_size
+                    tile_y = self.layout.grid_offset_y + y * self.layout.tile_size
 
                     # Blit the scalar node trap overlay
                     surface.blit(self.scalar_node_trap, (tile_x, tile_y))
@@ -3590,8 +3590,8 @@ class GraphicalRenderer:
                         y, x = trap_pos
 
                         # Calculate tile position
-                        tile_x = GRID_OFFSET_X + x * TILE_SIZE
-                        tile_y = GRID_OFFSET_Y + y * TILE_SIZE
+                        tile_x = self.layout.grid_offset_x + x * self.layout.tile_size
+                        tile_y = self.layout.grid_offset_y + y * self.layout.tile_size
 
                         # Blit the Fragcrest trap overlay
                         surface.blit(self.fragcrest_trap, (tile_x, tile_y))
@@ -3647,8 +3647,8 @@ class GraphicalRenderer:
 
         # Draw overlay at each junction
         for y, x in junction_coords:
-            tile_x = GRID_OFFSET_X + x * TILE_SIZE
-            tile_y = GRID_OFFSET_Y + y * TILE_SIZE
+            tile_x = self.layout.grid_offset_x + x * self.layout.tile_size
+            tile_y = self.layout.grid_offset_y + y * self.layout.tile_size
             surface.blit(overlay, (tile_x, tile_y))
 
     def draw_range_indicators(self, surface: pygame.Surface):
@@ -3665,7 +3665,7 @@ class GraphicalRenderer:
                 pygame.draw.rect(indicator_surf, (*COLOR_MOVEMENT, 150), indicator_rect, 2)
                 surface.blit(
                     indicator_surf,
-                    (GRID_OFFSET_X + grid_x * TILE_SIZE, GRID_OFFSET_Y + grid_y * TILE_SIZE)
+                    (self.layout.grid_offset_x + grid_x * self.layout.tile_size, self.layout.grid_offset_y + grid_y * self.layout.tile_size)
                 )
 
         # Draw attack range (red)
@@ -3676,7 +3676,7 @@ class GraphicalRenderer:
                 pygame.draw.rect(indicator_surf, (*COLOR_TARGET, 150), indicator_rect, 2)
                 surface.blit(
                     indicator_surf,
-                    (GRID_OFFSET_X + grid_x * TILE_SIZE, GRID_OFFSET_Y + grid_y * TILE_SIZE)
+                    (self.layout.grid_offset_x + grid_x * self.layout.tile_size, self.layout.grid_offset_y + grid_y * self.layout.tile_size)
                 )
 
         # Draw skill range (purple/yellow)
@@ -3688,7 +3688,7 @@ class GraphicalRenderer:
                 pygame.draw.rect(indicator_surf, (*skill_color, 150), indicator_rect, 2)
                 surface.blit(
                     indicator_surf,
-                    (GRID_OFFSET_X + grid_x * TILE_SIZE, GRID_OFFSET_Y + grid_y * TILE_SIZE)
+                    (self.layout.grid_offset_x + grid_x * self.layout.tile_size, self.layout.grid_offset_y + grid_y * self.layout.tile_size)
                 )
 
         # Draw respawn valid tiles (cyan/green)
@@ -3700,14 +3700,14 @@ class GraphicalRenderer:
                 pygame.draw.rect(indicator_surf, (*respawn_color, 180), indicator_rect, 3)
                 surface.blit(
                     indicator_surf,
-                    (GRID_OFFSET_X + x * TILE_SIZE, GRID_OFFSET_Y + y * TILE_SIZE)
+                    (self.layout.grid_offset_x + x * self.layout.tile_size, self.layout.grid_offset_y + y * self.layout.tile_size)
                 )
 
         # Draw respawn ghost preview
         if self.respawn_selecting_location and self.respawn_ghost_pos and self.selected_dead_unit:
             ghost_x, ghost_y = self.respawn_ghost_pos
             # Draw semi-transparent unit preview
-            ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+            ghost_surf = pygame.Surface((self.layout.tile_size, self.layout.tile_size), pygame.SRCALPHA)
             ghost_surf.fill((100, 255, 150, 60))  # Green tint
             # Draw unit type name
             if hasattr(self.selected_dead_unit, 'unit_type'):
@@ -3717,11 +3717,11 @@ class GraphicalRenderer:
                     unit_type_name[:3],  # First 3 letters
                     True, (255, 255, 255)
                 )
-                text_rect = text.get_rect(center=(TILE_SIZE // 2, TILE_SIZE // 2))
+                text_rect = text.get_rect(center=(self.layout.tile_size // 2, self.layout.tile_size // 2))
                 ghost_surf.blit(text, text_rect)
             surface.blit(
                 ghost_surf,
-                (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE)
+                (self.layout.grid_offset_x + ghost_x * self.layout.tile_size, self.layout.grid_offset_y + ghost_y * self.layout.tile_size)
             )
 
         # Draw setup valid tiles (blue/cyan)
@@ -3733,14 +3733,14 @@ class GraphicalRenderer:
                 pygame.draw.rect(indicator_surf, (*setup_color, 200), indicator_rect, 3)
                 surface.blit(
                     indicator_surf,
-                    (GRID_OFFSET_X + x * TILE_SIZE, GRID_OFFSET_Y + y * TILE_SIZE)
+                    (self.layout.grid_offset_x + x * self.layout.tile_size, self.layout.grid_offset_y + y * self.layout.tile_size)
                 )
 
         # Draw setup ghost preview
         if self.setup_placing_unit and self.setup_ghost_pos and self.selected_unit_type:
             ghost_x, ghost_y = self.setup_ghost_pos  # screen_to_grid returns (grid_x, grid_y)
             # Draw semi-transparent unit preview
-            ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+            ghost_surf = pygame.Surface((self.layout.tile_size, self.layout.tile_size), pygame.SRCALPHA)
 
             # Check if position is valid (game logic uses (y, x) format)
             pos_valid = (ghost_y, ghost_x) in self.setup_valid_tiles
@@ -3756,11 +3756,11 @@ class GraphicalRenderer:
                 unit_display_name[:3],  # First 3 letters
                 True, (255, 255, 255)
             )
-            text_rect = text.get_rect(center=(TILE_SIZE // 2, TILE_SIZE // 2))
+            text_rect = text.get_rect(center=(self.layout.tile_size // 2, self.layout.tile_size // 2))
             ghost_surf.blit(text, text_rect)
             surface.blit(
                 ghost_surf,
-                (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE)
+                (self.layout.grid_offset_x + ghost_x * self.layout.tile_size, self.layout.grid_offset_y + ghost_y * self.layout.tile_size)
             )
 
     def draw_ui(self, surface: pygame.Surface):
@@ -4050,7 +4050,7 @@ class GraphicalRenderer:
 
         # Create or reuse cached highlight surface (performance optimization)
         if self._selection_highlight_cache is None or self._last_selection_alpha != alpha:
-            self._selection_highlight_cache = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+            self._selection_highlight_cache = pygame.Surface((self.layout.tile_size, self.layout.tile_size), pygame.SRCALPHA)
             self._selection_highlight_cache.fill((0, 0, 0, 0))  # Clear
             pygame.draw.rect(self._selection_highlight_cache, (*COLOR_SELECTION, alpha),
                            self._selection_highlight_cache.get_rect())
@@ -4063,16 +4063,16 @@ class GraphicalRenderer:
         highlight_surf = self._selection_highlight_cache
 
         # Position on grid (current position)
-        tile_x = GRID_OFFSET_X + grid_x * TILE_SIZE
-        tile_y = GRID_OFFSET_Y + grid_y * TILE_SIZE
+        tile_x = self.layout.grid_offset_x + grid_x * self.layout.tile_size
+        tile_y = self.layout.grid_offset_y + grid_y * self.layout.tile_size
         surface.blit(highlight_surf, (tile_x, tile_y))
 
         # If unit has a pending move, also highlight the ghost position
         game_unit = self._get_game_unit(unit)
         if game_unit and hasattr(game_unit, 'move_target') and game_unit.move_target:
             ghost_y, ghost_x = game_unit.move_target
-            ghost_tile_x = GRID_OFFSET_X + ghost_x * TILE_SIZE
-            ghost_tile_y = GRID_OFFSET_Y + ghost_y * TILE_SIZE
+            ghost_tile_x = self.layout.grid_offset_x + ghost_x * self.layout.tile_size
+            ghost_tile_y = self.layout.grid_offset_y + ghost_y * self.layout.tile_size
             surface.blit(highlight_surf, (ghost_tile_x, ghost_tile_y))
 
     def draw_astral_values(self, surface: pygame.Surface):
@@ -4098,8 +4098,8 @@ class GraphicalRenderer:
 
                     if astral_value is not None:
                         # Calculate screen position (center of tile)
-                        tile_x = GRID_OFFSET_X + x * TILE_SIZE + TILE_SIZE // 2
-                        tile_y = GRID_OFFSET_Y + y * TILE_SIZE + TILE_SIZE // 2
+                        tile_x = self.layout.grid_offset_x + x * self.layout.tile_size + self.layout.tile_size // 2
+                        tile_y = self.layout.grid_offset_y + y * self.layout.tile_size + self.layout.tile_size // 2
 
                         # Render number with gold color and transparency
                         font_size = int(48 * scale)  # Large number, scales with pulse
@@ -4207,8 +4207,8 @@ class GraphicalRenderer:
                 grid_y, grid_x = pos
 
                 # Convert grid position to screen coordinates (center of tile)
-                shadow_x = GRID_OFFSET_X + grid_x * TILE_SIZE + TILE_SIZE // 2
-                shadow_y = GRID_OFFSET_Y + grid_y * TILE_SIZE + TILE_SIZE // 2
+                shadow_x = self.layout.grid_offset_x + grid_x * self.layout.tile_size + self.layout.tile_size // 2
+                shadow_y = self.layout.grid_offset_y + grid_y * self.layout.tile_size + self.layout.tile_size // 2
 
                 # Create shadow surface
                 if unit.sprite:
@@ -4267,8 +4267,8 @@ class GraphicalRenderer:
             grid_y, grid_x = anchor_pos
 
             # Calculate screen position (center of tile)
-            tile_x = GRID_OFFSET_X + grid_x * TILE_SIZE + TILE_SIZE // 2
-            tile_y = GRID_OFFSET_Y + grid_y * TILE_SIZE + TILE_SIZE // 2
+            tile_x = self.layout.grid_offset_x + grid_x * self.layout.tile_size + self.layout.tile_size // 2
+            tile_y = self.layout.grid_offset_y + grid_y * self.layout.tile_size + self.layout.tile_size // 2
 
             # Draw waving currency symbol (¤) - 200% larger = 120pt (was 40pt)
             font_size = 120
@@ -4300,8 +4300,8 @@ class GraphicalRenderer:
                 spawn_count = 0
             for _ in range(spawn_count):
                 # Random position within tile bounds
-                spawn_x = tile_x + random.uniform(-TILE_SIZE // 3, TILE_SIZE // 3)
-                spawn_y = tile_y + random.uniform(-TILE_SIZE // 3, TILE_SIZE // 3)
+                spawn_x = tile_x + random.uniform(-self.layout.tile_size // 3, self.layout.tile_size // 3)
+                spawn_y = tile_y + random.uniform(-self.layout.tile_size // 3, self.layout.tile_size // 3)
 
                 # Random velocity (upward with slight horizontal drift)
                 vx = random.uniform(-10, 10)  # Horizontal drift
@@ -4684,8 +4684,8 @@ class GraphicalRenderer:
                     animated_unit.grid_y = game_unit.y
 
                     # Calculate and set screen coordinates
-                    new_x = game_unit.x * TILE_SIZE + TILE_SIZE // 2 + GRID_OFFSET_X
-                    new_y = game_unit.y * TILE_SIZE + TILE_SIZE // 2 + GRID_OFFSET_Y
+                    new_x = game_unit.x * self.layout.tile_size + self.layout.tile_size // 2 + self.layout.grid_offset_x
+                    new_y = game_unit.y * self.layout.tile_size + self.layout.tile_size // 2 + self.layout.grid_offset_y
 
                     # Set both current and target position (no animation)
                     animated_unit.x = new_x
