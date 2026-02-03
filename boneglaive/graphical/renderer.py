@@ -2028,6 +2028,30 @@ class GraphicalRenderer:
         if self.paused:
             return
 
+        # Skip game state updates if game is over (but continue visual updates)
+        if self.game_over_window.visible:
+            # Still update visual effects for polish
+            self.screen_shake_duration = max(0, self.screen_shake_duration - delta_time)
+            if self.screen_shake_duration <= 0:
+                self.screen_shake_intensity = 0
+
+            self.flash_duration = max(0, self.flash_duration - delta_time)
+            self.flash_alpha = int(255 * max(0, self.flash_duration / 0.2))
+
+            # Update animations so they finish playing
+            for unit in self.units:
+                unit.update(delta_time)
+            self.particle_emitter.update(delta_time)
+            self.floating_texts = [t for t in self.floating_texts if t.update(delta_time)]
+
+            updated_animations = []
+            for anim in self.active_animations:
+                if anim.update(delta_time):
+                    updated_animations.append(anim)
+            self.active_animations = updated_animations
+
+            return
+
         # Check if we need to enter setup mode
         if (self.game_adapter.game and
             self.game_adapter.game.setup_phase and
@@ -2101,8 +2125,12 @@ class GraphicalRenderer:
         if self.game_adapter.game:
             self.combat_log.add_messages_from_game_log(message_log, count=20)
 
-        # Check for game over condition
-        if self.game_adapter.game and self.game_adapter.game.winner and not self.game_over_window.visible:
+        # Check for game over condition - but wait for all animations to finish first
+        if (self.game_adapter.game and
+            self.game_adapter.game.winner and
+            not self.game_over_window.visible and
+            not self.has_active_animations() and
+            not self.pending_animation_events):
             self.show_game_over_window()
 
         # Update debris with collision detection (for PRY splash damage)
@@ -3887,6 +3915,10 @@ class GraphicalRenderer:
         # This allows us to detect status effects that are applied and then cleared during execute_turn
         self.game_adapter.snapshot_status_effects()
 
+        # Capture unit positions BEFORE turn execution
+        # This allows us to detect if movement skills (Vault, Delta Config, etc.) succeeded
+        self.game_adapter.snapshot_unit_positions()
+
         self.game_adapter.game.execute_turn(ui=None)
 
         # Sync state AFTER turn execution
@@ -3935,7 +3967,8 @@ class GraphicalRenderer:
             self.combat_log.add_message(f"Player {self.game_adapter.game.current_player}'s turn", "system")
 
         # Process AI turn if it's player 2's turn and AI is enabled
-        if self.game_adapter.ai_interface and self.game_adapter.game.current_player == 2:
+        # BUT skip if game is already over
+        if self.game_adapter.ai_interface and self.game_adapter.game.current_player == 2 and not self.game_adapter.game.winner:
             print(f"[AI] Waiting 3 seconds before AI turn...")
             self.combat_log.add_message("AI is thinking...", "system")
 
@@ -3956,6 +3989,11 @@ class GraphicalRenderer:
 
             # Execute the AI's planned actions immediately
             self.execute_turn()
+
+            # Check if AI won - stop processing if game is over
+            if self.game_adapter.game.winner:
+                print(f"[AI] Game over detected - AI won!")
+                return
 
     def draw_selection_highlight(self, surface: pygame.Surface, unit: AnimatedUnit):
         """Draw highlight around selected unit."""
@@ -4385,7 +4423,7 @@ class GraphicalRenderer:
         # In multiplayer, this would need adjustment based on network mode
         is_victory = (winner == 1)
 
-        self.game_over_window.show(is_victory, winner_name, winner_gp, loser_name, loser_gp)
+        self.game_over_window.show(is_victory, winner_name, winner_gp, loser_name, loser_gp, winner_player=winner)
         print(f"[Game Over] {winner_name} wins with {winner_gp} GP!")
 
     def return_to_main_menu(self):

@@ -15,6 +15,8 @@ COLOR_TEXT = (255, 255, 255)
 COLOR_TEXT_DIM = (180, 180, 180)
 COLOR_VICTORY = (100, 200, 100)  # Green for victory
 COLOR_DEFEAT = (200, 100, 100)   # Red for defeat
+COLOR_PLAYER1 = (100, 255, 100)  # Green for player 1 (UI text color)
+COLOR_PLAYER2 = (100, 150, 255)  # Blue for player 2 (UI text color)
 COLOR_BUTTON_BG = (50, 54, 62)
 COLOR_BUTTON_HOVER = (70, 74, 82)
 COLOR_BUTTON_BORDER = (120, 120, 120)
@@ -41,6 +43,7 @@ class GameOverWindow:
         self.winner_gp = 0
         self.loser_name = ""
         self.loser_gp = 0
+        self.winner_player = 1  # Track which player won (1 or 2)
 
         # Button state
         self.hovered_button = None  # "menu" or "exit"
@@ -54,7 +57,7 @@ class GameOverWindow:
         self.on_exit_game: Optional[Callable] = None
 
     def show(self, is_victory: bool, winner_name: str, winner_gp: int,
-             loser_name: str, loser_gp: int):
+             loser_name: str, loser_gp: int, winner_player: int = 1):
         """
         Show the game over window.
 
@@ -64,6 +67,7 @@ class GameOverWindow:
             winner_gp: GP score of winner
             loser_name: Name of losing player
             loser_gp: GP score of loser
+            winner_player: Which player won (1 or 2)
         """
         self.visible = True
         self.is_victory = is_victory
@@ -71,6 +75,7 @@ class GameOverWindow:
         self.winner_gp = winner_gp
         self.loser_name = loser_name
         self.loser_gp = loser_gp
+        self.winner_player = winner_player
         self.hovered_button = None
 
     def hide(self):
@@ -166,9 +171,10 @@ class GameOverWindow:
         # Draw game results
         content_y = window_y + 80
 
-        # Winner info
+        # Winner info - use player-specific color
+        winner_color = COLOR_PLAYER1 if self.winner_player == 1 else COLOR_PLAYER2
         winner_text = f"{self.winner_name} wins with {self.winner_gp} GP!"
-        winner_surface = self.font.render(winner_text, True, COLOR_VICTORY)
+        winner_surface = self.font.render(winner_text, True, winner_color)
         winner_x = window_x + (WINDOW_WIDTH - winner_surface.get_width()) // 2
         screen.blit(winner_surface, (winner_x, content_y))
 
