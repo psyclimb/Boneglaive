@@ -707,21 +707,8 @@ class GameStateAdapter:
                     # Sync visual position
                     # Game uses (y, x), visual uses (grid_x, grid_y)
                     # grid_x = x (column), grid_y = y (row)
-                    # Note: move_to_grid doesn't account for GRID_OFFSET, so we need to adjust
+                    # move_to_grid now uses camera for proper coordinate conversion
                     animated_unit.move_to_grid(game_unit.x, game_unit.y)
-
-                    # FIXME: move_to_grid calculates target position without offset
-                    # We need to add GRID_OFFSET manually
-                    # Calculate grid offsets from layout (imported from resolution module)
-                    from boneglaive.utils.resolution import create_layout
-                    from boneglaive.utils.config import ConfigManager
-                    config = ConfigManager()
-                    layout = create_layout(
-                        config.get('window_width', 1480),
-                        config.get('window_height', 800)
-                    )
-                    animated_unit.target_x += layout.grid_offset_x
-                    animated_unit.target_y += layout.grid_offset_y
                 else:
                     # Teleport skill - update last_position and sync grid position but don't animate walking
                     # The skill animation will handle the visual teleportation effect

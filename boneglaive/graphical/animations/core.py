@@ -16,7 +16,17 @@ import os
 
 
 # Constants (shared across all modules)
-TILE_SIZE = 46  # Scaled down to fit dedicated UI panels (920px / 20 tiles)
+# TILE_SIZE: Dynamic value set by renderer at initialization based on resolution
+# Default value for backwards compatibility, but should be set via set_tile_size()
+TILE_SIZE = 46  # Default, will be updated by renderer
+
+def set_tile_size(tile_size: int):
+    """
+    Set the global TILE_SIZE for all animations.
+    Called by renderer during initialization to sync with camera's tile size.
+    """
+    global TILE_SIZE
+    TILE_SIZE = tile_size
 
 # Attack animation colors
 COLOR_MELEE_SLASH = (255, 200, 100)  # Orange-yellow for melee slash
@@ -350,17 +360,23 @@ class VaporParticleCloud:
 
 class AnimatedUnit:
     """Unit with smooth animation support."""
-    def __init__(self, name, player, grid_x, grid_y, color, sprite_path=None, game_unit=None):
+    def __init__(self, name, player, grid_x, grid_y, color, sprite_path=None, game_unit=None, camera=None):
         self.name = name
         self.player = player
         self.grid_x = grid_x
         self.grid_y = grid_y
         self.color = color
         self.game_unit = game_unit  # Reference to game logic unit
+        self.camera = camera  # Camera for coordinate conversion
 
-        # Position
-        self.x = grid_x * TILE_SIZE + TILE_SIZE // 2
-        self.y = grid_y * TILE_SIZE + TILE_SIZE // 2
+        # Position (use camera if available, otherwise default calculation)
+        if self.camera:
+            self.x, self.y = self.camera.grid_to_screen(grid_x, grid_y, centered=True)
+        else:
+            # Fallback for backwards compatibility (shouldn't happen in practice)
+            tile_size = 46
+            self.x = grid_x * tile_size + tile_size // 2
+            self.y = grid_y * tile_size + tile_size // 2
 
         # Animation
         self.target_x = self.x
@@ -399,25 +415,28 @@ class AnimatedUnit:
         # Load sprite if path provided
         if sprite_path and os.path.exists(sprite_path):
             try:
+                # Get tile size from camera or use default
+                tile_size = self.camera.get_tile_size() if self.camera else 46
+
                 # Try to load SVG using cairosvg if available
                 if sprite_path.endswith('.svg'):
                     try:
                         import cairosvg
                         from io import BytesIO
                         # Convert SVG to PNG in memory
-                        png_data = cairosvg.svg2png(url=sprite_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
+                        png_data = cairosvg.svg2png(url=sprite_path, output_width=tile_size, output_height=tile_size)
                         self.sprite = pygame.image.load(BytesIO(png_data))
                     except ImportError:
                         print(f"Info: cairosvg not available, rendering SVG with basic rasterization for {sprite_path}")
                         # Fallback: create a colored square placeholder
-                        self.sprite = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                        self.sprite = pygame.Surface((tile_size, tile_size), pygame.SRCALPHA)
                         # Draw a simple representation
-                        pygame.draw.circle(self.sprite, self.color, (TILE_SIZE//2, TILE_SIZE//2), TILE_SIZE//3)
-                        pygame.draw.circle(self.sprite, (255, 255, 255), (TILE_SIZE//2, TILE_SIZE//2), TILE_SIZE//3, 2)
+                        pygame.draw.circle(self.sprite, self.color, (tile_size//2, tile_size//2), tile_size//3)
+                        pygame.draw.circle(self.sprite, (255, 255, 255), (tile_size//2, tile_size//2), tile_size//3, 2)
                 else:
                     self.sprite = pygame.image.load(sprite_path)
                     # Scale to fit tile size
-                    self.sprite = pygame.transform.smoothscale(self.sprite, (TILE_SIZE, TILE_SIZE))
+                    self.sprite = pygame.transform.smoothscale(self.sprite, (tile_size, tile_size))
 
                 self.sprite_rect = self.sprite.get_rect()
             except Exception as e:
@@ -444,8 +463,13 @@ class AnimatedUnit:
         """Start smooth movement to grid position."""
         self.grid_x = grid_x
         self.grid_y = grid_y
-        self.target_x = grid_x * TILE_SIZE + TILE_SIZE // 2
-        self.target_y = grid_y * TILE_SIZE + TILE_SIZE // 2
+        if self.camera:
+            self.target_x, self.target_y = self.camera.grid_to_screen(grid_x, grid_y, centered=True)
+        else:
+            # Fallback
+            tile_size = 46
+            self.target_x = grid_x * tile_size + tile_size // 2
+            self.target_y = grid_y * tile_size + tile_size // 2
         self.is_moving = True
         self.hop_phase = math.pi
 

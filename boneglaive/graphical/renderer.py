@@ -150,6 +150,10 @@ class GraphicalRenderer:
             tile_size=self.layout.tile_size
         )
 
+        # Set global TILE_SIZE for animations to match camera's tile size
+        from .animations.core import set_tile_size
+        set_tile_size(self.layout.tile_size)
+
         # Game state adapter
         self.game_adapter = game_adapter or GameStateAdapter()
 
@@ -302,7 +306,8 @@ class GraphicalRenderer:
         player_unit = AnimatedUnit(
             "GLAIVEMAN", player=0,
             grid_x=2, grid_y=4,
-            color=COLOR_PLAYER1
+            color=COLOR_PLAYER1,
+            camera=self.camera
         )
         player_unit.max_hp = 20
         player_unit.hp = 20
@@ -310,7 +315,8 @@ class GraphicalRenderer:
         enemy_unit = AnimatedUnit(
             "ENEMY", player=1,
             grid_x=9, grid_y=4,
-            color=COLOR_PLAYER2
+            color=COLOR_PLAYER2,
+            camera=self.camera
         )
         enemy_unit.max_hp = 15
         enemy_unit.hp = 15
@@ -684,19 +690,15 @@ class GraphicalRenderer:
             grid_y=game_unit.y,  # y is row
             color=color,
             sprite_path=sprite_path,
-            game_unit=game_unit  # Pass game unit for vapor type detection
+            game_unit=game_unit,  # Pass game unit for vapor type detection
+            camera=self.camera  # Pass camera for dynamic resolution support
         )
 
         # Set stats
         animated.max_hp = game_unit.max_hp
         animated.hp = game_unit.hp
 
-        # Fix position to account for grid offset
-        # AnimatedUnit calculates position using camera/layout system
-        animated.x += self.layout.grid_offset_x
-        animated.y += self.layout.grid_offset_y
-        animated.target_x = animated.x
-        animated.target_y = animated.y
+        # Camera handles grid offset automatically now, no manual adjustment needed
 
         return animated
 
@@ -4683,9 +4685,8 @@ class GraphicalRenderer:
                     animated_unit.grid_x = game_unit.x
                     animated_unit.grid_y = game_unit.y
 
-                    # Calculate and set screen coordinates
-                    new_x = game_unit.x * self.layout.tile_size + self.layout.tile_size // 2 + self.layout.grid_offset_x
-                    new_y = game_unit.y * self.layout.tile_size + self.layout.tile_size // 2 + self.layout.grid_offset_y
+                    # Calculate screen coordinates using camera
+                    new_x, new_y = self.camera.grid_to_screen(game_unit.x, game_unit.y, centered=True)
 
                     # Set both current and target position (no animation)
                     animated_unit.x = new_x

@@ -1,7 +1,7 @@
 {
   "display_mode": "text",
-  "window_width": 1480,
-  "window_height": 800,
+  "window_width": 800,
+  "window_height": 600,
   "fullscreen": false,
   "animation_speed": 1.4,
   "show_grid": true,
