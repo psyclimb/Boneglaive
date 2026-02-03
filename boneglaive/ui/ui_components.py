@@ -4552,7 +4552,7 @@ class GameModeManager(UIComponent):
 
         # Check specific error cases based on return value
         if result == "max_unit_type_limit":
-            self.game_ui.message = f"Cannot place more than 2 {unit_type_name} units"
+            self.game_ui.message = "Cannot place duplicate units"
         elif result == "position_occupied":
             self.game_ui.message = "Cannot place unit here - position occupied"
         elif result is True:

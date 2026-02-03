@@ -78,7 +78,7 @@ class Game:
         self.setup_player = 1    # Which player is placing units
         self.setup_confirmed = {1: False, 2: False}  # Whether players have confirmed setup
         self.setup_units_remaining = {1: 3, 2: 3}    # How many units each player can still place (3 total)
-        # During setup, players are limited to a maximum of 2 units of the same type
+        # During setup, players are limited to a maximum of 1 unit of the same type (no duplicates)
         
         # If skipping setup, add default units
         if skip_setup:
@@ -325,15 +325,15 @@ class Game:
                     UnitType.DERELICTIONIST
                 ]
 
-                # Track unit counts to enforce max 2 of each type
+                # Track unit counts to enforce max 1 of each type (no duplicates)
                 unit_counts = {}
 
                 import random
 
                 # Add units with random selection
                 for i, (y, x) in enumerate(valid_positions[:3]):
-                    # Filter available types to those with count < 2
-                    valid_types = [t for t in available_types if unit_counts.get(t, 0) < 2]
+                    # Filter available types to those with count < 1 (no duplicates)
+                    valid_types = [t for t in available_types if unit_counts.get(t, 0) < 1]
 
                     # Special AI composition rules: Only allow 1 DERELICTIONIST per team
                     if unit_counts.get(UnitType.DERELICTIONIST, 0) >= 1:
@@ -674,14 +674,14 @@ class Game:
                     UnitType.DERELICTIONIST
                 ]
                 
-                # Track unit counts to enforce max 2 of each type
+                # Track unit counts to enforce max 1 of each type (no duplicates)
                 unit_counts = {}
-                
+
                 import random
-                
+
                 for i, (player, y, x) in enumerate(p2_positions[:3]):
-                    # Filter available types to those with count < 2
-                    valid_types = [t for t in available_types if unit_counts.get(t, 0) < 2]
+                    # Filter available types to those with count < 1 (no duplicates)
+                    valid_types = [t for t in available_types if unit_counts.get(t, 0) < 1]
                     
                     if valid_types:
                         # Random selection from valid types
@@ -699,9 +699,9 @@ class Game:
                 # Now add player 1 units with variety
                 for player, y, x in valid_positions:
                     if player == 1:
-                        # Get valid unit types that don't exceed the 2-unit limit
-                        valid_types = [t for t in player1_unit_types 
-                                    if player_unit_counts.get(player, {}).get(t, 0) < 2]
+                        # Get valid unit types that don't exceed the 1-unit limit (no duplicates)
+                        valid_types = [t for t in player1_unit_types
+                                    if player_unit_counts.get(player, {}).get(t, 0) < 1]
                         
                         # Default to GLAIVEMAN if no valid types
                         if not valid_types:
@@ -726,9 +726,9 @@ class Game:
             # Add units at valid positions with appropriate types
             for player, y, x in valid_positions:
                 if player == 1:
-                    # For player 1, respect the 2-unit type limit
-                    valid_types = [t for t in player1_unit_types 
-                                if player_unit_counts.get(player, {}).get(t, 0) < 2]
+                    # For player 1, respect the 1-unit type limit (no duplicates)
+                    valid_types = [t for t in player1_unit_types
+                                if player_unit_counts.get(player, {}).get(t, 0) < 1]
                     
                     # Default to GLAIVEMAN if no valid types
                     if not valid_types:
@@ -750,9 +750,9 @@ class Game:
                         UnitType.DERELICTIONIST
                     ]
 
-                    # Filter to types with count < 2
+                    # Filter to types with count < 1 (no duplicates)
                     valid_types = [t for t in available_types
-                                if player_unit_counts.get(player, {}).get(t, 0) < 2]
+                                if player_unit_counts.get(player, {}).get(t, 0) < 1]
 
                     # Default to GLAIVEMAN if no valid types
                     if not valid_types:
@@ -845,8 +845,8 @@ class Game:
                     
                     # Filter by existing types if needed
                     if player_unit_counts.get(player, {}):
-                        valid_types = [t for t in valid_types 
-                                      if player_unit_counts.get(player, {}).get(t, 0) < 2]
+                        valid_types = [t for t in valid_types
+                                      if player_unit_counts.get(player, {}).get(t, 0) < 1]
                     
                     # Default to GLAIVEMAN if no valid types
                     if not valid_types:
@@ -865,10 +865,10 @@ class Game:
             # Now handle missing player 1 units with variety
             for i in range(p1_missing):
                 player, y, x = emergency_p1_positions[i]
-                
-                # For player 1, respect the 2-unit type limit
+
+                # For player 1, respect the 1-unit type limit (no duplicates)
                 valid_types = [t for t in player1_unit_types
-                            if player_unit_counts.get(player, {}).get(t, 0) < 2]
+                            if player_unit_counts.get(player, {}).get(t, 0) < 1]
                 
                 # Default to GLAIVEMAN if no valid types
                 if not valid_types:
@@ -943,9 +943,9 @@ class Game:
         if self.setup_units_remaining[self.setup_player] <= 0:
             return False
 
-        # Check if player already has 2 units of this type
+        # Check if player already has 1 unit of this type (no duplicates)
         unit_count = self.count_player_units_by_type(self.setup_player, unit_type)
-        if unit_count >= 2:
+        if unit_count >= 1:
             # Return a specific error message for unit type limit
             return "max_unit_type_limit"
 

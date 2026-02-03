@@ -167,10 +167,10 @@ class SetupWindow:
         return None
 
     def is_unit_type_maxed(self, unit_type) -> bool:
-        """Check if a unit type has reached the max limit (2)."""
+        """Check if a unit type has reached the max limit (1)."""
         # All valid unit types (base and DLC) are now integers
-        # Check if placed count >= 2
-        return self.unit_counts.get(unit_type, 0) >= 2
+        # Check if placed count >= 1
+        return self.unit_counts.get(unit_type, 0) >= 1
 
     def _load_unit_sprite(self, unit_type):
         """
@@ -516,9 +516,9 @@ class SetupWindow:
                 name_rect = name_text.get_rect(midleft=(item_rect.left + 60, item_rect.centery - 10))
                 screen.blit(name_text, name_rect)
 
-                # Draw count (x/2)
+                # Draw count (x/1) - only 1 of each unit allowed
                 count_color = (255, 100, 100) if is_maxed else COLOR_INFO
-                count_text = self.small_font.render(f"({unit_count}/2)", True, count_color)
+                count_text = self.small_font.render(f"({unit_count}/1)", True, count_color)
                 count_rect = count_text.get_rect(midright=(item_rect.right - 10, item_rect.centery - 10))
                 screen.blit(count_text, count_rect)
 
