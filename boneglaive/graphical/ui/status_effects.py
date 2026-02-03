@@ -299,7 +299,8 @@ class StatusEffectIcon:
 class StatusEffectsPanel:
     """UI panel showing status effects for selected unit."""
 
-    def __init__(self, font, small_font):
+    def __init__(self, font, small_font, layout=None):
+        self.layout = layout
         self.font = font
         self.small_font = small_font
         self.effects: List[StatusEffectIcon] = []

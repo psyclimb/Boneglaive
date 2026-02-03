@@ -36,7 +36,8 @@ HEAL_PATTERN = re.compile(r'#HEAL_(\d+)#')
 class CombatLog:
     """Combat log UI component showing recent game events."""
 
-    def __init__(self, font):
+    def __init__(self, font, layout=None):
+        self.layout = layout
         self.font = font
         self.messages: List[Dict] = []
         self.max_messages = 200  # Expanded log capacity

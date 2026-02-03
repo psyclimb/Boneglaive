@@ -24,7 +24,8 @@ MOTOR_HEIGHT = 180
 class MotorAnimation:
     """Industrial motor with belt drive animation."""
 
-    def __init__(self):
+    def __init__(self, layout=None):
+        self.layout = layout
         self.is_running = False
         self.rotation_angle = 0.0  # Current rotation angle in degrees
         self.rotation_speed = 2.0  # Degrees per frame when running

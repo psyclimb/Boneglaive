@@ -29,7 +29,8 @@ SCROLL_SPEED = 3
 class RespawnWindow:
     """Modal window showing dead units available for respawn."""
 
-    def __init__(self, font, small_font):
+    def __init__(self, font, small_font, layout=None):
+        self.layout = layout
         self.font = font
         self.small_font = small_font
         self.visible = False

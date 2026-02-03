@@ -215,9 +215,10 @@ class SkillSlot:
 class SkillBar:
     """Skill bar UI component showing available skills."""
 
-    def __init__(self, font, small_font):
+    def __init__(self, font, small_font, layout=None):
         self.font = font
         self.small_font = small_font
+        self.layout = layout
         self.selected_unit = None
         self.skill_slots: List[SkillSlot] = []
         self.hovered_slot: Optional[SkillSlot] = None

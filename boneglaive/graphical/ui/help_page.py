@@ -31,7 +31,8 @@ SECTION_SPACING = 20
 class HelpPage:
     """Help page component showing unit information with icons."""
 
-    def __init__(self, font, small_font):
+    def __init__(self, font, small_font, layout=None):
+        self.layout = layout
         self.font = font
         self.small_font = small_font
         self.visible = False

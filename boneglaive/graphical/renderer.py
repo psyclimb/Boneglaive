@@ -204,22 +204,22 @@ class GraphicalRenderer:
         # Imbued furniture sparkles (for Market Futures)
         self.imbued_sparkles = []
 
-        # UI Components
-        self.top_bar = TopBar(self.font, self.small_font, self.large_font)
-        self.unit_status_bar = UnitStatusBar(self.font, self.small_font)
-        self.skill_bar = SkillBar(self.font, self.small_font)
-        self.combat_log = CombatLog(self.small_font)
-        self.message_log_window = MessageLogWindow(self.font, self.small_font)
-        self.status_effects_panel = StatusEffectsPanel(self.font, self.small_font)
-        self.unit_info_panel = UnitInfoPanel(self.font, self.small_font, self.large_font)
-        self.action_menu = ActionMenu(self.font, self.small_font)
-        self.motor_animation = MotorAnimation()
-        self.help_page = HelpPage(self.font, self.small_font)
-        self.respawn_window = RespawnWindow(self.font, self.small_font)
-        self.upgrade_window = UpgradeWindow(self.font, self.small_font)
-        self.setup_window = SetupWindow(self.font, self.small_font)
-        self.setup_unit_help = SetupUnitHelp(self.font, self.small_font)
-        self.game_over_window = GameOverWindow(self.font, self.small_font, self.large_font)
+        # UI Components - pass layout for dynamic sizing
+        self.top_bar = TopBar(self.font, self.small_font, self.large_font, self.layout)
+        self.unit_status_bar = UnitStatusBar(self.font, self.small_font, self.layout)
+        self.skill_bar = SkillBar(self.font, self.small_font, self.layout)
+        self.combat_log = CombatLog(self.small_font, self.layout)
+        self.message_log_window = MessageLogWindow(self.font, self.small_font, self.layout)
+        self.status_effects_panel = StatusEffectsPanel(self.font, self.small_font, self.layout)
+        self.unit_info_panel = UnitInfoPanel(self.font, self.small_font, self.large_font, self.layout)
+        self.action_menu = ActionMenu(self.font, self.small_font, self.layout)
+        self.motor_animation = MotorAnimation(self.layout)
+        self.help_page = HelpPage(self.font, self.small_font, self.layout)
+        self.respawn_window = RespawnWindow(self.font, self.small_font, self.layout)
+        self.upgrade_window = UpgradeWindow(self.font, self.small_font, self.layout)
+        self.setup_window = SetupWindow(self.font, self.small_font, self.layout)
+        self.setup_unit_help = SetupUnitHelp(self.font, self.small_font, self.layout)
+        self.game_over_window = GameOverWindow(self.font, self.small_font, self.large_font, self.layout)
 
         # Track current action mode for top bar display
         self.current_action_mode = "SELECT"

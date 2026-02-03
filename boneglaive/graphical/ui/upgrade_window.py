@@ -30,7 +30,8 @@ ITEM_PADDING = 15
 class UpgradeWindow:
     """Modal window for selecting skill upgrades for a unit."""
 
-    def __init__(self, font, small_font):
+    def __init__(self, font, small_font, layout=None):
+        self.layout = layout
         self.font = font
         self.small_font = small_font
         self.visible = False

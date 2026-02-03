@@ -42,7 +42,8 @@ SCROLL_SPEED = 3
 class SetupWindow:
     """Modal window for selecting unit types during setup phase."""
 
-    def __init__(self, font, small_font):
+    def __init__(self, font, small_font, layout=None):
+        self.layout = layout
         self.font = font
         self.small_font = small_font
         self.visible = False

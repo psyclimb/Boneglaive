@@ -29,7 +29,8 @@ HP_BAR_HEIGHT = 20
 class UnitInfoPanel:
     """UI panel showing detailed information about selected unit or furniture."""
 
-    def __init__(self, font, small_font, large_font):
+    def __init__(self, font, small_font, large_font, layout=None):
+        self.layout = layout
         self.font = font
         self.small_font = small_font
         self.large_font = large_font

@@ -38,7 +38,8 @@ HEAL_PATTERN = re.compile(r'#HEAL_(\d+)#')
 class MessageLogWindow:
     """Expanded message log window with full message history."""
 
-    def __init__(self, font, small_font):
+    def __init__(self, font, small_font, layout=None):
+        self.layout = layout
         self.font = font
         self.small_font = small_font
         self.visible = False

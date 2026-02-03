@@ -16,18 +16,14 @@ COLOR_TEXT = (255, 255, 255)
 COLOR_TEXT_DIM = (180, 180, 180)
 COLOR_ACCENT = (255, 200, 100)
 
-TOP_BAR_HEIGHT = 60
-SECTION_PADDING = 20
-TEXT_PADDING = 15
-
-
 class TopBar:
     """Top bar UI component showing game state information."""
 
-    def __init__(self, font, small_font, large_font):
+    def __init__(self, font, small_font, large_font, layout=None):
         self.font = font
         self.small_font = small_font
         self.large_font = large_font
+        self.layout = layout  # For dynamic sizing
 
         # Game state
         self.current_player = 1
@@ -89,19 +85,24 @@ class TopBar:
             surface: Surface to draw on
             screen_width: Width of screen
         """
+        # Get dynamic dimensions
+        bar_height = self.layout.top_bar_height if self.layout else 60
+        section_padding = int(bar_height / 3)  # Scale padding proportionally
+        text_padding = int(bar_height / 4)
+
         # Draw background
-        bg_rect = pygame.Rect(0, 0, screen_width, TOP_BAR_HEIGHT)
-        bg_surface = pygame.Surface((screen_width, TOP_BAR_HEIGHT), pygame.SRCALPHA)
+        bg_rect = pygame.Rect(0, 0, screen_width, bar_height)
+        bg_surface = pygame.Surface((screen_width, bar_height), pygame.SRCALPHA)
         bg_surface.fill((*COLOR_BG, 240))
         surface.blit(bg_surface, (0, 0))
 
         # Draw gradient border at bottom
         player_color = COLOR_PLAYER1 if self.current_player == 1 else COLOR_PLAYER2
-        pygame.draw.line(surface, player_color, (0, TOP_BAR_HEIGHT - 1),
-                        (screen_width, TOP_BAR_HEIGHT - 1), 2)
+        pygame.draw.line(surface, player_color, (0, bar_height - 1),
+                        (screen_width, bar_height - 1), 2)
 
         # Calculate section positions
-        left_section_start = SECTION_PADDING
+        left_section_start = section_padding
         # Center GP with the game board (280px left panel + 920px game board / 2)
         # Game board center = 280 + (920 / 2) = 280 + 460 = 740
         game_board_center = 280 + (920 // 2)
@@ -119,7 +120,7 @@ class TopBar:
 
     def _draw_player_info(self, surface: pygame.Surface, x: int):
         """Draw current player indicator."""
-        y = TEXT_PADDING
+        y = text_padding
 
         # Get player color and name
         player_color = COLOR_PLAYER1 if self.current_player == 1 else COLOR_PLAYER2
@@ -139,7 +140,7 @@ class TopBar:
 
     def _draw_turn_info(self, surface: pygame.Surface, x: int):
         """Draw turn counter."""
-        y = TEXT_PADDING + 5
+        y = text_padding + 5
 
         # Check for pulse animation
         pulse_alpha = 0
@@ -173,7 +174,7 @@ class TopBar:
 
     def _draw_gp_score(self, surface: pygame.Surface, center_x: int):
         """Draw GP score display centered at given x position."""
-        y = TEXT_PADDING + 5
+        y = text_padding + 5
 
         # Check for pulse animation
         pulse_alpha = 0
@@ -263,7 +264,7 @@ class TopBar:
 
     def _draw_mode_indicator(self, surface: pygame.Surface, x: int):
         """Draw current action mode."""
-        y = TEXT_PADDING + 5
+        y = text_padding + 5
 
         # Mode display text
         mode_text = render_fitted_text(
@@ -282,7 +283,7 @@ class TopBar:
 
     def _draw_network_status(self, surface: pygame.Surface, x: int):
         """Draw network multiplayer status."""
-        y = TEXT_PADDING + 5
+        y = text_padding + 5
 
         if self.is_your_turn:
             # Draw "YOUR TURN" with pulse

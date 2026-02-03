@@ -442,7 +442,8 @@ class ActionButton:
 class ActionMenu:
     """Action menu component with quick action buttons."""
 
-    def __init__(self, font, small_font):
+    def __init__(self, font, small_font, layout=None):
+        self.layout = layout
         self.font = font
         self.small_font = small_font
 
