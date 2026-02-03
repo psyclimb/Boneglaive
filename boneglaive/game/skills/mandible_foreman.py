@@ -271,9 +271,12 @@ class DischargeSkill(ActiveSkill):
             # If path_positions is empty, enemy was adjacent, so don't move
             if path_positions:
                 target_y, target_x = path_positions[-1]
-                # Use atomic positioning to prevent collisions
-                if not user.set_position_atomic(target_y, target_x):
-                    logger.error(f"EXPEDITE BLOCKED: {user.get_display_name()}'s Expedite to {(target_y, target_x)} blocked by collision")
+                # Teleport atomically: remove from old position, update coordinates, add to new position
+                # This avoids intermediate position checks that would block the rush
+                final_unit = game.get_unit_at(target_y, target_x)
+                if final_unit is not None and final_unit != user:
+                    # Target occupied (should have been caught by can_use, but check anyway)
+                    logger.error(f"EXPEDITE BLOCKED: {user.get_display_name()}'s Expedite to {(target_y, target_x)} blocked - position occupied by {final_unit.get_display_name()}")
                     message_log.add_message(
                         f"{user.get_display_name()}'s Expedite blocked - position occupied!",
                         MessageType.WARNING,
@@ -282,6 +285,21 @@ class DischargeSkill(ActiveSkill):
                     # Clear expediting flag
                     user.expediting = False
                     return False
+
+                # Teleport atomically: remove from old position, update coordinates, add to new position
+                old_y, old_x = user.y, user.x
+                if (old_y, old_x) in game.unit_grid:
+                    del game.unit_grid[(old_y, old_x)]
+
+                # Set private attributes directly (bypass property setters)
+                user._y = target_y
+                user._x = target_x
+
+                # Add to new position in grid
+                game.unit_grid[(target_y, target_x)] = user
+
+                # Note: We DON'T call trap checks here because user.expediting = True
+                # This prevents trap release during Expedite movement
             # else: No valid path positions means enemy is adjacent - stay at starting position
         # Note: With ENEMY targeting, there should always be an enemy_hit since we require targeting an enemy
 

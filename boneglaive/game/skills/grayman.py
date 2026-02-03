@@ -9,6 +9,7 @@ from typing import Optional, TYPE_CHECKING
 from boneglaive.game.skills.core import PassiveSkill, ActiveSkill, TargetType
 from boneglaive.utils.message_log import message_log, MessageType
 from boneglaive.utils.debug import logger
+from boneglaive.utils.constants import UnitType
 
 if TYPE_CHECKING:
     from boneglaive.game.units import Unit
@@ -325,15 +326,36 @@ class DeltaConfigSkill(ActiveSkill):
             ui.renderer.draw_tile(original_pos[0], original_pos[1], terrain_tile, terrain_color)
 
             # INSTANT: Move unit and appear at destination with impact
-            # Use atomic position update to prevent collisions
-            if not user.set_position_atomic(target_pos[0], target_pos[1]):
-                logger.error(f"TELEPORT BLOCKED: {user.get_display_name()}'s Delta Config to {target_pos} blocked by collision")
+            # Teleport atomically: remove from old position, update coordinates, add to new position
+            # This avoids intermediate position checks that would block the teleport
+            final_unit = game.get_unit_at(target_pos[0], target_pos[1])
+            if final_unit is not None and final_unit != user:
+                # Target occupied (should have been caught by can_use, but check anyway)
+                logger.error(f"TELEPORT BLOCKED: {user.get_display_name()}'s Delta Config to {target_pos} blocked - position occupied by {final_unit.get_display_name()}")
                 message_log.add_message(
                     f"{user.get_display_name()}'s Delta Config blocked - position occupied!",
                     MessageType.WARNING,
                     player=user.player
                 )
                 return False
+
+            # Teleport atomically: remove from old position, update coordinates, add to new position
+            old_y, old_x = user.y, user.x
+            if (old_y, old_x) in game.unit_grid:
+                del game.unit_grid[(old_y, old_x)]
+
+            # Set private attributes directly (bypass property setters)
+            user._y = target_pos[0]
+            user._x = target_pos[1]
+
+            # Add to new position in grid
+            game.unit_grid[(target_pos[0], target_pos[1])] = user
+
+            # Trigger trap checks if unit was trapped or is a foreman
+            if hasattr(user, 'trapped_by') and user.trapped_by is not None:
+                game._check_position_change_trap_release(user, old_y, old_x)
+            if user.type == UnitType.MANDIBLE_FOREMAN:
+                game._check_position_change_trap_release(user, old_y, old_x)
 
             if is_upgraded:
                 # Big electromagnetic burst for upgraded version
@@ -390,15 +412,36 @@ class DeltaConfigSkill(ActiveSkill):
                 ui.renderer.flash_tile(user.y, user.x, tile_ids, color_ids, durations)
         else:
             # No UI, just set position without animations
-            # Use atomic position update to prevent collisions
-            if not user.set_position_atomic(target_pos[0], target_pos[1]):
-                logger.error(f"TELEPORT BLOCKED: {user.get_display_name()}'s Delta Config to {target_pos} blocked by collision")
+            # Teleport atomically: remove from old position, update coordinates, add to new position
+            # This avoids intermediate position checks that would block the teleport
+            final_unit = game.get_unit_at(target_pos[0], target_pos[1])
+            if final_unit is not None and final_unit != user:
+                # Target occupied (should have been caught by can_use, but check anyway)
+                logger.error(f"TELEPORT BLOCKED: {user.get_display_name()}'s Delta Config to {target_pos} blocked - position occupied by {final_unit.get_display_name()}")
                 message_log.add_message(
                     f"{user.get_display_name()}'s Delta Config blocked - position occupied!",
                     MessageType.WARNING,
                     player=user.player
                 )
                 return False
+
+            # Teleport atomically: remove from old position, update coordinates, add to new position
+            old_y, old_x = user.y, user.x
+            if (old_y, old_x) in game.unit_grid:
+                del game.unit_grid[(old_y, old_x)]
+
+            # Set private attributes directly (bypass property setters)
+            user._y = target_pos[0]
+            user._x = target_pos[1]
+
+            # Add to new position in grid
+            game.unit_grid[(target_pos[0], target_pos[1])] = user
+
+            # Trigger trap checks if unit was trapped or is a foreman
+            if hasattr(user, 'trapped_by') and user.trapped_by is not None:
+                game._check_position_change_trap_release(user, old_y, old_x)
+            if user.type == UnitType.MANDIBLE_FOREMAN:
+                game._check_position_change_trap_release(user, old_y, old_x)
 
         # MOVE ABDUCTED ENEMIES TO DESTINATION (both with and without UI)
         if is_upgraded and abducted_enemies:
@@ -1090,10 +1133,14 @@ class GraeExchangeSkill(ActiveSkill):
             )
             
             # Actually move the unit to the target position
-            # Use atomic position update to prevent collisions
+            # Teleport atomically: remove from old position, update coordinates, add to new position
             logger.info(f"[GRÆ EXCHANGE DEBUG] Before teleport - User at ({temp_y}, {temp_x}), Echo at ({echo_unit.y}, {echo_unit.x}), Target: {target_pos}")
-            if not user.set_position_atomic(target_pos[0], target_pos[1]):
-                logger.error(f"TELEPORT BLOCKED: {user.get_display_name()}'s Græ Exchange to {target_pos} blocked by collision")
+
+            # Check target position is still empty
+            final_unit = game.get_unit_at(target_pos[0], target_pos[1])
+            if final_unit is not None and final_unit != user:
+                # Target occupied (should have been caught by can_use, but check anyway)
+                logger.error(f"TELEPORT BLOCKED: {user.get_display_name()}'s Græ Exchange to {target_pos} blocked - position occupied by {final_unit.get_display_name()}")
 
                 # CRITICAL: Teleport failed! Remove echo first, then restore GRAYMAN
                 # Remove the echo since the skill failed
@@ -1110,6 +1157,20 @@ class GraeExchangeSkill(ActiveSkill):
                     player=user.player
                 )
                 return False
+
+            # Teleport atomically (user already removed from grid at line 1109)
+            # Set private attributes directly (bypass property setters)
+            user._y = target_pos[0]
+            user._x = target_pos[1]
+
+            # Add to new position in grid
+            game.unit_grid[(target_pos[0], target_pos[1])] = user
+
+            # Trigger trap checks if unit was trapped or is a foreman
+            if hasattr(user, 'trapped_by') and user.trapped_by is not None:
+                game._check_position_change_trap_release(user, temp_y, temp_x)
+            if user.type == UnitType.MANDIBLE_FOREMAN:
+                game._check_position_change_trap_release(user, temp_y, temp_x)
             
             # Redraw to show the final state
             logger.info(f"[GRÆ EXCHANGE DEBUG] After teleport - User at ({user.y}, {user.x}), Echo at ({echo_unit.y}, {echo_unit.x})")
@@ -1137,9 +1198,12 @@ class GraeExchangeSkill(ActiveSkill):
             logger.info(f"[GRÆ EXCHANGE DEBUG] (No UI) Echo added to grid at ({echo_unit.y}, {echo_unit.x})")
 
             # Move the user to the target position
-            # Use atomic position update to prevent collisions
-            if not user.set_position_atomic(target_pos[0], target_pos[1]):
-                logger.error(f"TELEPORT BLOCKED: {user.get_display_name()}'s Græ Exchange to {target_pos} blocked by collision")
+            # Teleport atomically: remove from old position, update coordinates, add to new position
+            # Check target position is still empty
+            final_unit = game.get_unit_at(target_pos[0], target_pos[1])
+            if final_unit is not None and final_unit != user:
+                # Target occupied (should have been caught by can_use, but check anyway)
+                logger.error(f"TELEPORT BLOCKED: {user.get_display_name()}'s Græ Exchange to {target_pos} blocked - position occupied by {final_unit.get_display_name()}")
 
                 # CRITICAL: Teleport failed! Remove echo first, then restore GRAYMAN
                 # Remove the echo since the skill failed
@@ -1156,6 +1220,20 @@ class GraeExchangeSkill(ActiveSkill):
                     player=user.player
                 )
                 return False
+
+            # Teleport atomically (user already removed from grid at line 1191)
+            # Set private attributes directly (bypass property setters)
+            user._y = target_pos[0]
+            user._x = target_pos[1]
+
+            # Add to new position in grid
+            game.unit_grid[(target_pos[0], target_pos[1])] = user
+
+            # Trigger trap checks if unit was trapped or is a foreman
+            if hasattr(user, 'trapped_by') and user.trapped_by is not None:
+                game._check_position_change_trap_release(user, original_pos[0], original_pos[1])
+            if user.type == UnitType.MANDIBLE_FOREMAN:
+                game._check_position_change_trap_release(user, original_pos[0], original_pos[1])
         
         # Log the completion with special message for echoes
         if hasattr(user, 'is_echo') and user.is_echo:

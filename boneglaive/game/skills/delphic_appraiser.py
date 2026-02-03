@@ -459,16 +459,38 @@ class MarketFuturesSkill(ActiveSkill):
             
         # Execute teleport
         old_pos = (ally.y, ally.x)
-        # Use atomic positioning to prevent collisions
-        if not ally.set_position_atomic(destination[0], destination[1]):
+        # Teleport atomically: remove from old position, update coordinates, add to new position
+        # This avoids intermediate position checks that would block the teleport
+        final_unit = game.get_unit_at(destination[0], destination[1])
+        if final_unit is not None and final_unit != ally:
+            # Target occupied (should have been caught by validation, but check anyway)
             from boneglaive.utils.debug import logger
-            logger.error(f"MARKET FUTURES BLOCKED: {ally.get_display_name()}'s teleport to {destination} blocked by collision")
+            logger.error(f"MARKET FUTURES BLOCKED: {ally.get_display_name()}'s teleport to {destination} blocked - position occupied by {final_unit.get_display_name()}")
             message_log.add_message(
                 f"{ally.get_display_name()}'s Market Futures teleport blocked - position occupied!",
                 MessageType.WARNING,
                 player=ally.player
             )
             return False
+
+        # Teleport atomically: remove from old position, update coordinates, add to new position
+        old_y, old_x = ally.y, ally.x
+        if (old_y, old_x) in game.unit_grid:
+            del game.unit_grid[(old_y, old_x)]
+
+        # Set private attributes directly (bypass property setters)
+        ally._y = destination[0]
+        ally._x = destination[1]
+
+        # Add to new position in grid
+        game.unit_grid[(destination[0], destination[1])] = ally
+
+        # Trigger trap checks if unit was trapped or is a foreman
+        from boneglaive.utils.constants import UnitType
+        if hasattr(ally, 'trapped_by') and ally.trapped_by is not None:
+            game._check_position_change_trap_release(ally, old_y, old_x)
+        if ally.type == UnitType.MANDIBLE_FOREMAN:
+            game._check_position_change_trap_release(ally, old_y, old_x)
 
         # Log the teleportation
         message_log.add_message(
