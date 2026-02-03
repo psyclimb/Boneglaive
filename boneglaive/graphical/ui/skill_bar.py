@@ -21,11 +21,12 @@ COLOR_TEXT_DISABLED = (120, 120, 120)
 COLOR_HOTKEY = (255, 200, 100)
 COLOR_COOLDOWN = (255, 100, 100)
 
-SKILL_SLOT_WIDTH = 220
-SKILL_SLOT_HEIGHT = 70
-SKILL_SLOT_PADDING = 10
-SKILL_BAR_PADDING = 20
-SKILL_ICON_SIZE = 50  # Size of skill icons
+# Base dimensions (will be scaled dynamically in draw methods)
+SKILL_SLOT_WIDTH_BASE = 220
+SKILL_SLOT_HEIGHT_BASE = 70
+SKILL_SLOT_PADDING_BASE = 10
+SKILL_BAR_PADDING_BASE = 20
+SKILL_ICON_SIZE_BASE = 50
 
 
 class SkillSlot:
@@ -88,10 +89,15 @@ class SkillSlot:
         """Check if skill can be used (not on cooldown)."""
         return self.skill.current_cooldown <= 0 and not self.blocked_actions
 
-    def draw(self, surface: pygame.Surface, x: int, y: int, font, small_font, loto_renderer: Optional[LOTORenderer] = None):
+    def draw(self, surface: pygame.Surface, x: int, y: int, font, small_font, loto_renderer: Optional[LOTORenderer] = None, slot_width=None, slot_height=None, icon_size=None):
         """Draw the skill slot."""
+        # Use provided scaled dimensions or fallback to base
+        slot_width = slot_width or SKILL_SLOT_WIDTH_BASE
+        slot_height = slot_height or SKILL_SLOT_HEIGHT_BASE
+        icon_size = icon_size or SKILL_ICON_SIZE_BASE
+
         # Create rect
-        self.rect = pygame.Rect(x, y, SKILL_SLOT_WIDTH, SKILL_SLOT_HEIGHT)
+        self.rect = pygame.Rect(x, y, slot_width, slot_height)
 
         # Check if this skill has been upgraded
         is_upgraded = False
@@ -173,7 +179,7 @@ class SkillSlot:
         # Draw skill name to the right of the icon
         text_color = COLOR_TEXT_DISABLED if not self.is_available() else COLOR_TEXT
         # Available width: slot width - icon area - padding
-        available_width = SKILL_SLOT_WIDTH - (SKILL_ICON_SIZE + 30)
+        available_width = dims['slot_width'] - (SKILL_ICON_SIZE + 30)
         name_text = render_fitted_text(
             self.skill.name,
             max_width=available_width,
@@ -264,22 +270,38 @@ class SkillBar:
                     slot.blocked_actions = blocked_actions
                 self.skill_slots.append(slot)
 
+
+    def _get_scaled_dimensions(self):
+        """Get scaled dimensions based on layout."""
+        scale = self.layout.get_font_scale() if self.layout else 1.0
+        return {
+            'slot_width': int(72 * scale),
+            'slot_height': int(72 * scale),
+            'slot_spacing': int(8 * scale),
+            'icon_size': int(56 * scale),
+            'padding': int(8 * scale),
+            'bar_height': int(90 * scale),
+        }
+
     def draw(self, surface: pygame.Surface, screen_width: int, screen_height: int, top_bar_height: int):
         """Draw skill bar above the map (below top bar)."""
         if not self.skill_slots:
             return
 
+        # Get scaled dimensions
+        dims = self._get_scaled_dimensions()
+
         # Calculate total width needed
-        total_width = (len(self.skill_slots) * (SKILL_SLOT_WIDTH + SKILL_SLOT_PADDING)
-                      - SKILL_SLOT_PADDING + 2 * SKILL_BAR_PADDING)
+        total_width = (len(self.skill_slots) * (dims['slot_width'] + dims['slot_spacing'])
+                      - dims['slot_spacing'] + 2 * dims['padding'])
 
         # Center horizontally in middle section (between left and right panels)
-        start_x = (screen_width - total_width) // 2 + SKILL_BAR_PADDING
+        start_x = (screen_width - total_width) // 2 + dims['padding']
         y = top_bar_height + 15  # Below top bar with more spacing
 
         # Draw background panel
         panel_rect = pygame.Rect(
-            start_x - SKILL_BAR_PADDING,
+            start_x - dims['padding'],
             y - 10,
             total_width,
             SKILL_SLOT_HEIGHT + 20
@@ -292,7 +314,7 @@ class SkillBar:
         x = start_x
         for slot in self.skill_slots:
             slot.draw(surface, x, y, self.font, self.small_font, self.loto_renderer)
-            x += SKILL_SLOT_WIDTH + SKILL_SLOT_PADDING
+            x += dims['slot_width'] + dims['slot_spacing']
 
     def handle_mouse_motion(self, mouse_pos: Tuple[int, int]):
         """Update hovered slot based on mouse position."""

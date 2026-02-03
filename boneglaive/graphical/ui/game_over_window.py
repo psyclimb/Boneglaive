@@ -21,12 +21,6 @@ COLOR_BUTTON_BG = (50, 54, 62)
 COLOR_BUTTON_HOVER = (70, 74, 82)
 COLOR_BUTTON_BORDER = (120, 120, 120)
 
-WINDOW_WIDTH = 600
-WINDOW_HEIGHT = 400
-BUTTON_WIDTH = 250
-BUTTON_HEIGHT = 60
-BUTTON_SPACING = 20
-
 
 class GameOverWindow:
     """Modal window shown when game ends with victory or defeat."""
@@ -148,16 +142,24 @@ class GameOverWindow:
         screen.blit(self._overlay_cache, (0, 0))
 
         # Calculate window position (centered)
-        window_x = (screen_width - WINDOW_WIDTH) // 2
-        window_y = (screen_height - WINDOW_HEIGHT) // 2
-        window_rect = pygame.Rect(window_x, window_y, WINDOW_WIDTH, WINDOW_HEIGHT)
+        # Calculate scaled dimensions
+        scale = self.layout.get_font_scale() if self.layout else 1.0
+        window_width = int(600 * scale)
+        window_height = int(400 * scale)
+        button_width = int(250 * scale)
+        button_height = int(60 * scale)
+        button_spacing = int(20 * scale)
+        
+        window_x = (screen_width - window_width) // 2
+        window_y = (screen_height - window_height) // 2
+        window_rect = pygame.Rect(window_x, window_y, window_width, window_height)
 
         # Draw window background
         pygame.draw.rect(screen, COLOR_WINDOW_BG, window_rect)
         pygame.draw.rect(screen, COLOR_WINDOW_BORDER, window_rect, 2)
 
         # Draw title bar
-        title_rect = pygame.Rect(window_x, window_y, WINDOW_WIDTH, 60)
+        title_rect = pygame.Rect(window_x, window_y, window_width, 60)
         title_color = COLOR_VICTORY if self.is_victory else COLOR_DEFEAT
         pygame.draw.rect(screen, COLOR_TITLE_BG, title_rect)
         pygame.draw.rect(screen, title_color, title_rect, 3)
@@ -165,7 +167,7 @@ class GameOverWindow:
         # Draw title text
         title_text = "VICTORY!" if self.is_victory else "DEFEAT"
         title_surface = self.large_font.render(title_text, True, title_color)
-        title_x = window_x + (WINDOW_WIDTH - title_surface.get_width()) // 2
+        title_x = window_x + (window_width - title_surface.get_width()) // 2
         title_y = window_y + (60 - title_surface.get_height()) // 2
         screen.blit(title_surface, (title_x, title_y))
 
@@ -176,14 +178,14 @@ class GameOverWindow:
         winner_color = COLOR_PLAYER1 if self.winner_player == 1 else COLOR_PLAYER2
         winner_text = f"{self.winner_name} wins with {self.winner_gp} GP!"
         winner_surface = self.font.render(winner_text, True, winner_color)
-        winner_x = window_x + (WINDOW_WIDTH - winner_surface.get_width()) // 2
+        winner_x = window_x + (window_width - winner_surface.get_width()) // 2
         screen.blit(winner_surface, (winner_x, content_y))
 
         # Loser info
         content_y += 40
         loser_text = f"{self.loser_name}: {self.loser_gp} GP"
         loser_surface = self.small_font.render(loser_text, True, COLOR_TEXT_DIM)
-        loser_x = window_x + (WINDOW_WIDTH - loser_surface.get_width()) // 2
+        loser_x = window_x + (window_width - loser_surface.get_width()) // 2
         screen.blit(loser_surface, (loser_x, content_y))
 
         # Flavor text
@@ -193,16 +195,16 @@ class GameOverWindow:
         else:
             flavor = "Defeat, but not dishonor. Study your opponent's tactics."
         flavor_surface = self.small_font.render(flavor, True, COLOR_TEXT_DIM)
-        flavor_x = window_x + (WINDOW_WIDTH - flavor_surface.get_width()) // 2
+        flavor_x = window_x + (window_width - flavor_surface.get_width()) // 2
         screen.blit(flavor_surface, (flavor_x, content_y))
 
         # Draw buttons
-        button_y = window_y + WINDOW_HEIGHT - 100
-        button_x_offset = (WINDOW_WIDTH - (BUTTON_WIDTH * 2 + BUTTON_SPACING)) // 2
+        button_y = window_y + window_height - 100
+        button_x_offset = (window_width - (button_width * 2 + button_spacing)) // 2
 
         # Return to Menu button
         menu_button_x = window_x + button_x_offset
-        menu_button_rect = pygame.Rect(menu_button_x, button_y, BUTTON_WIDTH, BUTTON_HEIGHT)
+        menu_button_rect = pygame.Rect(menu_button_x, button_y, button_width, button_height)
         self.buttons["menu"] = menu_button_rect
 
         menu_bg_color = COLOR_BUTTON_HOVER if self.hovered_button == "menu" else COLOR_BUTTON_BG
@@ -211,13 +213,13 @@ class GameOverWindow:
 
         menu_text = "Return to Menu (M)"
         menu_surface = self.font.render(menu_text, True, COLOR_TEXT)
-        menu_text_x = menu_button_x + (BUTTON_WIDTH - menu_surface.get_width()) // 2
-        menu_text_y = button_y + (BUTTON_HEIGHT - menu_surface.get_height()) // 2
+        menu_text_x = menu_button_x + (button_width - menu_surface.get_width()) // 2
+        menu_text_y = button_y + (button_height - menu_surface.get_height()) // 2
         screen.blit(menu_surface, (menu_text_x, menu_text_y))
 
         # Exit Game button
-        exit_button_x = menu_button_x + BUTTON_WIDTH + BUTTON_SPACING
-        exit_button_rect = pygame.Rect(exit_button_x, button_y, BUTTON_WIDTH, BUTTON_HEIGHT)
+        exit_button_x = menu_button_x + button_width + button_spacing
+        exit_button_rect = pygame.Rect(exit_button_x, button_y, button_width, button_height)
         self.buttons["exit"] = exit_button_rect
 
         exit_bg_color = COLOR_BUTTON_HOVER if self.hovered_button == "exit" else COLOR_BUTTON_BG
@@ -226,6 +228,6 @@ class GameOverWindow:
 
         exit_text = "Exit Game (Q)"
         exit_surface = self.font.render(exit_text, True, COLOR_TEXT)
-        exit_text_x = exit_button_x + (BUTTON_WIDTH - exit_surface.get_width()) // 2
-        exit_text_y = button_y + (BUTTON_HEIGHT - exit_surface.get_height()) // 2
+        exit_text_x = exit_button_x + (button_width - exit_surface.get_width()) // 2
+        exit_text_y = button_y + (button_height - exit_surface.get_height()) // 2
         screen.blit(exit_surface, (exit_text_x, exit_text_y))
