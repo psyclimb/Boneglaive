@@ -50,29 +50,24 @@ from boneglaive.utils.constants import UnitType
 # Import global message log for combat log sync
 from boneglaive.utils.message_log import message_log
 
+# Import resolution and layout management
+from boneglaive.utils.resolution import LayoutConfig, create_layout
+from boneglaive.utils.config import ConfigManager
 
-# Screen constants (must match menu system)
-SCREEN_WIDTH = 1480
-SCREEN_HEIGHT = 800
+
+# DEFAULT resolution constants (for backwards compatibility and fallback)
+DEFAULT_SCREEN_WIDTH = 1480
+DEFAULT_SCREEN_HEIGHT = 800
 SCREEN_TITLE = "Boneglaive"
 
-# Layout constants - Dedicated panel design (no overlays)
-TOP_BAR_HEIGHT = 50
-BOTTOM_BAR_HEIGHT = 80
-LEFT_PANEL_WIDTH = 280  # Dedicated left panel
-RIGHT_PANEL_WIDTH = 280  # Dedicated right panel
-GAME_BOARD_WIDTH = SCREEN_WIDTH - LEFT_PANEL_WIDTH - RIGHT_PANEL_WIDTH  # 920px
-
 # Grid constants - Match game map size (20 cols x 10 rows)
+# These are FIXED by game logic and should not change
 GRID_WIDTH = 20
 GRID_HEIGHT = 10
-# Tiles scaled to fit in dedicated game board area
-TILE_SIZE = GAME_BOARD_WIDTH // GRID_WIDTH  # 920 / 20 = 46px per tile
-GAME_BOARD_HEIGHT = GRID_HEIGHT * TILE_SIZE  # 10 * 46 = 460px
 
-# Grid positioned in center area (after left panel)
-GRID_OFFSET_X = LEFT_PANEL_WIDTH  # 280px - right after left panel
-GRID_OFFSET_Y = TOP_BAR_HEIGHT + ((SCREEN_HEIGHT - TOP_BAR_HEIGHT - BOTTOM_BAR_HEIGHT - GAME_BOARD_HEIGHT) // 2)  # Centered vertically
+# NOTE: All other layout constants (panel widths, bar heights, tile size, offsets)
+# are now calculated dynamically in LayoutConfig based on screen resolution.
+# See boneglaive/utils/resolution.py for the dynamic layout system.
 
 # Colors
 COLOR_BG = (40, 44, 52)
@@ -104,31 +99,55 @@ class GraphicalRenderer:
     """
     Main renderer for graphical Boneglaive.
     Manages pygame window, rendering, and coordination with game state.
+    Supports dynamic resolution scaling.
     """
 
-    def __init__(self, game_adapter: GameStateAdapter = None):
+    def __init__(self, game_adapter: GameStateAdapter = None,
+                 screen_width: int = None, screen_height: int = None,
+                 fullscreen: bool = False):
+        """
+        Initialize the graphical renderer.
+
+        Args:
+            game_adapter: Game state adapter (optional)
+            screen_width: Screen width in pixels (None = use config/default)
+            screen_height: Screen height in pixels (None = use config/default)
+            fullscreen: Whether to start in fullscreen mode
+        """
+        # Load configuration
+        config = ConfigManager()
+
+        # Determine screen dimensions (priority: param > config > default)
+        if screen_width is None:
+            screen_width = config.get('window_width', DEFAULT_SCREEN_WIDTH)
+        if screen_height is None:
+            screen_height = config.get('window_height', DEFAULT_SCREEN_HEIGHT)
+        if fullscreen is None:
+            fullscreen = config.get('fullscreen', False)
+
+        # Store dimensions
+        self.screen_width = screen_width
+        self.screen_height = screen_height
+        self.fullscreen = fullscreen
+
+        # Create layout configuration for this resolution
+        self.layout = create_layout(screen_width, screen_height)
+
         # Initialize pygame
         pygame.init()
-        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+        display_flags = pygame.FULLSCREEN if fullscreen else 0
+        self.screen = pygame.display.set_mode((screen_width, screen_height), display_flags)
         pygame.display.set_caption(SCREEN_TITLE)
         self.clock = pygame.time.Clock()
 
-        # Fonts - use Arial (most widely available across all platforms)
-        try:
-            self.font = pygame.font.SysFont('arial', 22)
-            self.small_font = pygame.font.SysFont('arial', 16)
-            self.large_font = pygame.font.SysFont('arial', 32)
-        except:
-            # Fallback to default if Arial not available
-            self.font = pygame.font.Font(None, 22)
-            self.small_font = pygame.font.Font(None, 16)
-            self.large_font = pygame.font.Font(None, 32)
+        # Fonts - scale based on resolution
+        self._init_fonts()
 
         # Camera system (centralizes coordinate conversion)
         self.camera = Camera(
-            grid_offset_x=GRID_OFFSET_X,
-            grid_offset_y=GRID_OFFSET_Y,
-            tile_size=TILE_SIZE
+            grid_offset_x=self.layout.grid_offset_x,
+            grid_offset_y=self.layout.grid_offset_y,
+            tile_size=self.layout.tile_size
         )
 
         # Game state adapter
@@ -243,14 +262,16 @@ class GraphicalRenderer:
         self._load_rail_junction_overlay()
 
         # Performance: Pre-create reusable surfaces to avoid allocations every frame
-        self._main_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-        self._indicator_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
-        self._left_panel_surface = pygame.Surface((LEFT_PANEL_WIDTH, SCREEN_HEIGHT - TOP_BAR_HEIGHT - BOTTOM_BAR_HEIGHT))
-        self._right_panel_surface = pygame.Surface((RIGHT_PANEL_WIDTH, SCREEN_HEIGHT - TOP_BAR_HEIGHT - BOTTOM_BAR_HEIGHT))
-        self._flash_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        self._main_surface = pygame.Surface((self.screen_width, self.screen_height))
+        self._indicator_surf = pygame.Surface((self.layout.tile_size, self.layout.tile_size), pygame.SRCALPHA)
+
+        panel_height = self.screen_height - self.layout.top_bar_height - self.layout.bottom_bar_height
+        self._left_panel_surface = pygame.Surface((self.layout.left_panel_width, panel_height))
+        self._right_panel_surface = pygame.Surface((self.layout.right_panel_width, panel_height))
+        self._flash_surface = pygame.Surface((self.screen_width, self.screen_height))
 
         # Cached grid surface (to avoid redrawing 200 tiles every frame)
-        self._grid_surface = pygame.Surface((GAME_BOARD_WIDTH, GAME_BOARD_HEIGHT))
+        self._grid_surface = pygame.Surface((self.layout.game_board_width, self.layout.game_board_height))
 
         # Cache for sparkle surfaces (different sizes)
         self._sparkle_surf_cache: Dict[int, pygame.Surface] = {}
@@ -295,6 +316,28 @@ class GraphicalRenderer:
         enemy_unit.hp = 15
 
         self.units = [player_unit, enemy_unit]
+
+    def _init_fonts(self):
+        """Initialize fonts with scaling based on resolution."""
+        # Base font sizes (at default 1480x800 resolution)
+        base_font_size = 22
+        base_small_size = 16
+        base_large_size = 32
+
+        # Scale fonts based on resolution
+        font_size = self.layout.scale_font_size(base_font_size)
+        small_size = self.layout.scale_font_size(base_small_size)
+        large_size = self.layout.scale_font_size(base_large_size)
+
+        # Try to load Arial, fallback to default
+        try:
+            self.font = pygame.font.SysFont('arial', font_size)
+            self.small_font = pygame.font.SysFont('arial', small_size)
+            self.large_font = pygame.font.SysFont('arial', large_size)
+        except:
+            self.font = pygame.font.Font(None, font_size)
+            self.small_font = pygame.font.Font(None, small_size)
+            self.large_font = pygame.font.Font(None, large_size)
 
     def _init_terrain_furniture_mapping(self):
         """Initialize the mapping from TerrainType to SVG file paths."""
@@ -361,7 +404,7 @@ class GraphicalRenderer:
                 import cairosvg
                 from io import BytesIO
                 # Convert SVG to PNG in memory
-                png_data = cairosvg.svg2png(url=svg_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
+                png_data = cairosvg.svg2png(url=svg_path, output_width=self.layout.tile_size, output_height=self.layout.tile_size)
                 surface = pygame.image.load(BytesIO(png_data))
 
                 # Cache the surface
@@ -389,7 +432,7 @@ class GraphicalRenderer:
             import cairosvg
             from io import BytesIO
             # Convert SVG to PNG in memory
-            png_data = cairosvg.svg2png(url=svg_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
+            png_data = cairosvg.svg2png(url=svg_path, output_width=self.layout.tile_size, output_height=self.layout.tile_size)
             surface = pygame.image.load(BytesIO(png_data))
 
             # Set alpha for semi-transparent overlay effect
@@ -418,7 +461,7 @@ class GraphicalRenderer:
             import cairosvg
             from io import BytesIO
             # Convert SVG to PNG in memory
-            png_data = cairosvg.svg2png(url=svg_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
+            png_data = cairosvg.svg2png(url=svg_path, output_width=self.layout.tile_size, output_height=self.layout.tile_size)
             surface = pygame.image.load(BytesIO(png_data))
 
             # Set alpha for semi-transparent overlay effect
@@ -448,7 +491,7 @@ class GraphicalRenderer:
             import cairosvg
             from io import BytesIO
             # Convert SVG to PNG in memory
-            png_data = cairosvg.svg2png(url=svg_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
+            png_data = cairosvg.svg2png(url=svg_path, output_width=self.layout.tile_size, output_height=self.layout.tile_size)
             surface = pygame.image.load(BytesIO(png_data))
 
             # Set alpha for semi-transparent overlay effect
@@ -477,7 +520,7 @@ class GraphicalRenderer:
             import cairosvg
             from io import BytesIO
             # Convert SVG to PNG in memory
-            png_data = cairosvg.svg2png(url=svg_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
+            png_data = cairosvg.svg2png(url=svg_path, output_width=self.layout.tile_size, output_height=self.layout.tile_size)
             surface = pygame.image.load(BytesIO(png_data))
 
             # Set alpha for semi-transparent overlay effect
@@ -649,10 +692,9 @@ class GraphicalRenderer:
         animated.hp = game_unit.hp
 
         # Fix position to account for grid offset
-        # AnimatedUnit calculates position as grid * TILE_SIZE + TILE_SIZE//2
-        # but doesn't know about GRID_OFFSET, so we need to add it
-        animated.x += GRID_OFFSET_X
-        animated.y += GRID_OFFSET_Y
+        # AnimatedUnit calculates position using camera/layout system
+        animated.x += self.layout.grid_offset_x
+        animated.y += self.layout.grid_offset_y
         animated.target_x = animated.x
         animated.target_y = animated.y
 
@@ -3252,11 +3294,11 @@ class GraphicalRenderer:
             debris.draw(main_surface)
 
         # Draw skill bar (above map, below top bar)
-        self.skill_bar.draw(main_surface, SCREEN_WIDTH, SCREEN_HEIGHT, TOP_BAR_HEIGHT)
+        self.skill_bar.draw(main_surface, self.screen_width, self.screen_height, self.layout.top_bar_height)
 
         # Draw combat log (below map, horizontal bar - maximized to fit space)
-        combat_log_x = LEFT_PANEL_WIDTH + 10  # 290
-        combat_log_y = GRID_OFFSET_Y + GAME_BOARD_HEIGHT + 10  # Below map with spacing
+        combat_log_x = self.layout.left_panel_width + 10
+        combat_log_y = self.layout.grid_offset_y + self.layout.game_board_height + 10  # Below map with spacing
         self.combat_log.draw(main_surface, combat_log_x, combat_log_y, height=90, width=900)
 
         # Draw UI (includes all panels and components)
@@ -3273,10 +3315,10 @@ class GraphicalRenderer:
             self.screen.blit(self._flash_surface, (0, 0))
 
         # Draw help page overlay (must be drawn last, on top of everything)
-        self.help_page.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
+        self.help_page.draw(self.screen, self.screen_width, self.screen_height)
 
         # Draw message log window (on top of help page)
-        self.message_log_window.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
+        self.message_log_window.draw(self.screen, self.screen_width, self.screen_height)
 
         # Draw upgrade window (on top of everything except help/message log)
         if self.upgrade_window.visible:
@@ -3284,29 +3326,29 @@ class GraphicalRenderer:
 
         # Draw respawn window (on top of everything except help page and message log)
         if self.respawn_mode and self.respawn_selecting_unit:
-            self.respawn_window.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
+            self.respawn_window.draw(self.screen, self.screen_width, self.screen_height)
 
         # Draw setup window (on top of everything except help page)
         if self.setup_mode and self.setup_selecting_unit:
-            self.setup_window.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
+            self.setup_window.draw(self.screen, self.screen_width, self.screen_height)
             # Draw unit help panel - large horizontal panel to the right of setup window
             # Setup window: x=100, width=500, so ends at x=600
             help_panel_x = 620  # Start 20px after setup window
             help_panel_y = 50
-            help_panel_width = SCREEN_WIDTH - help_panel_x - 20  # Fill remaining width
-            help_panel_height = SCREEN_HEIGHT - 100
+            help_panel_width = self.screen_width - help_panel_x - 20  # Fill remaining width
+            help_panel_height = self.screen_height - 100
             self.setup_help_panel_rect = self.setup_unit_help.draw(self.screen, help_panel_x, help_panel_y, help_panel_width, help_panel_height)
 
         # Draw game over window (on top of everything - highest z-order)
         if self.game_over_window.visible:
-            self.game_over_window.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
+            self.game_over_window.draw(self.screen, self.screen_width, self.screen_height)
 
         # Draw FPS counter (for troubleshooting)
         if self.show_fps:
             fps_text = f"FPS: {self.fps_display:.1f}"
             fps_surface = self.small_font.render(fps_text, True, (100, 255, 100))
             # Position in top-right corner with small padding
-            fps_x = SCREEN_WIDTH - fps_surface.get_width() - 10
+            fps_x = self.screen_width - fps_surface.get_width() - 10
             fps_y = 5
             # Draw semi-transparent background
             bg_rect = pygame.Rect(fps_x - 5, fps_y - 2, fps_surface.get_width() + 10, fps_surface.get_height() + 4)
@@ -3343,9 +3385,9 @@ class GraphicalRenderer:
     def _render_single_tile(self, surface: pygame.Surface, x: int, y: int, game_map):
         """Render a single tile (used for dirty rectangle updates)."""
         # Calculate tile position (relative to grid surface, not screen)
-        tile_x = x * TILE_SIZE
-        tile_y = y * TILE_SIZE
-        rect = pygame.Rect(tile_x, tile_y, TILE_SIZE, TILE_SIZE)
+        tile_x = x * self.layout.tile_size
+        tile_y = y * self.layout.tile_size
+        rect = pygame.Rect(tile_x, tile_y, self.layout.tile_size, self.layout.tile_size)
 
         # Get terrain type at this position
         terrain_type = TerrainType.EMPTY

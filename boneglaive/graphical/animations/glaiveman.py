@@ -465,6 +465,15 @@ class VaultAnimationController:
         self.caster.vault_target_grid_y = target_grid_y
 
         print(f"  [VAULT] Starting vault from ({caster_unit.grid_x}, {caster_unit.grid_y}) to {target_pos}")
+        print(f"  [VAULT] Start screen pos: ({self.caster.vault_start_x}, {self.caster.vault_start_y})")
+        print(f"  [VAULT] Target grid: ({target_grid_x}, {target_grid_y})")
+        print(f"  [VAULT] Target screen: ({self.caster.vault_target_x}, {self.caster.vault_target_y})")
+        print(f"  [VAULT] Current unit.x/y: ({caster_unit.x}, {caster_unit.y})")
+        print(f"  [VAULT] Camera present: {self.camera is not None}")
+
+        # Validate caster position consistency
+        if (caster_unit.grid_x != self.caster.grid_x or caster_unit.grid_y != self.caster.grid_y):
+            print(f"  [VAULT] WARNING: Position mismatch! AnimatedUnit at ({self.caster.grid_x}, {self.caster.grid_y}) but caster_unit at ({caster_unit.grid_x}, {caster_unit.grid_y})")
 
         # Launch sound - leap off ground
         play_sound("vault_launch")
@@ -476,7 +485,7 @@ class VaultAnimationController:
             self.particle_emitter.particles.append(
                 Particle(caster_unit.x, caster_unit.y,
                         math.cos(angle) * speed, math.sin(angle) * speed,
-                        (100, 200, 255), random.uniform(2, 5), 0.4)
+                        (255, 255, 200), random.uniform(2, 5), 0.4)
             )
 
         self.active = True
@@ -502,8 +511,16 @@ class VaultAnimationController:
             # FLIP ROTATION - Complete 360 degree rotation during vault
             self.caster.wind_up_rotation = progress * 360  # Full rotation
 
+            # Debug log every 0.1s of progress
+            if int(progress * 10) != int((progress - delta_time / self.caster.vault_duration) * 10):
+                print(f"  [VAULT] Progress: {progress:.2f}, pos: ({self.caster.x:.1f}, {self.caster.y:.1f}), grid: ({self.caster.grid_x}, {self.caster.grid_y})")
+
             # Landing phase
             if progress >= 1.0:
+                print(f"  [VAULT] Landing triggered at progress {progress:.3f}")
+                print(f"  [VAULT] Pre-landing grid: ({self.caster.grid_x}, {self.caster.grid_y})")
+                print(f"  [VAULT] Pre-landing screen: ({self.caster.x}, {self.caster.y})")
+
                 self.caster.vault_phase = "landing"
                 self.caster.vault_timer = 0
                 # Snap to target grid position
@@ -513,11 +530,14 @@ class VaultAnimationController:
                 self.caster.y = self.caster.vault_target_y
                 self.caster.wind_up_rotation = 0  # Reset rotation
 
+                print(f"  [VAULT] Post-landing grid: ({self.caster.grid_x}, {self.caster.grid_y})")
+                print(f"  [VAULT] Post-landing screen: ({self.caster.x}, {self.caster.y})")
+
                 # Landing sound
                 play_sound("vault_land")
 
                 # Landing effects
-                self.particle_emitter.emit_burst(self.caster.x, self.caster.y, (100, 200, 255), 30)
+                self.particle_emitter.emit_burst(self.caster.x, self.caster.y, (255, 255, 255), 30)
                 self.screen_shake(5, 0.2)
 
                 # Dust cloud on landing
@@ -526,7 +546,7 @@ class VaultAnimationController:
                     speed = random.uniform(30, 80)
                     particle = Particle(self.caster.x, self.caster.y + 20,
                                        math.cos(angle) * speed, math.sin(angle) * speed - 10,
-                                       (180, 180, 200), random.uniform(4, 8), 0.6)
+                                       (255, 255, 200), random.uniform(4, 8), 0.6)
                     particle.gravity = 100
                     self.particle_emitter.particles.append(particle)
 
@@ -536,6 +556,7 @@ class VaultAnimationController:
             if self.caster.vault_timer >= 0.1:
                 self.caster.vault_phase = None
                 self.active = False
+                print(f"  [VAULT] Animation complete. Final grid: ({self.caster.grid_x}, {self.caster.grid_y}), screen: ({self.caster.x}, {self.caster.y})")
 
         return self.active
 
@@ -589,6 +610,15 @@ class VaultAnimationControllerUpgraded:
         self.caster.vault_target_grid_y = target_grid_y
 
         print(f"  [VAULT_UPGRADED] Starting extended vault from ({caster_unit.grid_x}, {caster_unit.grid_y}) to {target_pos}")
+        print(f"  [VAULT_UPGRADED] Start screen pos: ({self.caster.vault_start_x}, {self.caster.vault_start_y})")
+        print(f"  [VAULT_UPGRADED] Target grid: ({target_grid_x}, {target_grid_y})")
+        print(f"  [VAULT_UPGRADED] Target screen: ({self.caster.vault_target_x}, {self.caster.vault_target_y})")
+        print(f"  [VAULT_UPGRADED] Current unit.x/y: ({caster_unit.x}, {caster_unit.y})")
+        print(f"  [VAULT_UPGRADED] Camera present: {self.camera is not None}")
+
+        # Validate caster position consistency
+        if (caster_unit.grid_x != self.caster.grid_x or caster_unit.grid_y != self.caster.grid_y):
+            print(f"  [VAULT_UPGRADED] WARNING: Position mismatch! AnimatedUnit at ({self.caster.grid_x}, {self.caster.grid_y}) but caster_unit at ({caster_unit.grid_x}, {caster_unit.grid_y})")
 
         # Launch sound (upgraded version)
         play_sound("vault_launch_upgraded")
@@ -600,7 +630,7 @@ class VaultAnimationControllerUpgraded:
             self.particle_emitter.particles.append(
                 Particle(caster_unit.x, caster_unit.y,
                         math.cos(angle) * speed, math.sin(angle) * speed,
-                        (150, 220, 255), random.uniform(3, 7), 0.5)  # Brighter blue, larger
+                        (255, 255, 150), random.uniform(3, 7), 0.5)  # Bright yellow, larger
             )
 
         # Launch screen shake (stronger than regular vault)
@@ -639,11 +669,19 @@ class VaultAnimationControllerUpgraded:
                     self.particle_emitter.particles.append(
                         Particle(self.caster.x, self.caster.y,
                                 random.uniform(-20, 20), random.uniform(-20, 20),
-                                (100, 200, 255), random.uniform(4, 6), 0.3)
+                                (255, 255, 200), random.uniform(4, 6), 0.3)
                     )
+
+            # Debug log every 0.1s of progress
+            if int(progress * 10) != int((progress - delta_time / self.caster.vault_duration) * 10):
+                print(f"  [VAULT_UPGRADED] Progress: {progress:.2f}, pos: ({self.caster.x:.1f}, {self.caster.y:.1f}), grid: ({self.caster.grid_x}, {self.caster.grid_y})")
 
             # Landing phase
             if progress >= 1.0:
+                print(f"  [VAULT_UPGRADED] Landing triggered at progress {progress:.3f}")
+                print(f"  [VAULT_UPGRADED] Pre-landing grid: ({self.caster.grid_x}, {self.caster.grid_y})")
+                print(f"  [VAULT_UPGRADED] Pre-landing screen: ({self.caster.x}, {self.caster.y})")
+
                 self.caster.vault_phase = "landing"
                 self.caster.vault_timer = 0
                 # Snap to target grid position
@@ -653,11 +691,14 @@ class VaultAnimationControllerUpgraded:
                 self.caster.y = self.caster.vault_target_y
                 self.caster.wind_up_rotation = 0  # Reset rotation
 
+                print(f"  [VAULT_UPGRADED] Post-landing grid: ({self.caster.grid_x}, {self.caster.grid_y})")
+                print(f"  [VAULT_UPGRADED] Post-landing screen: ({self.caster.x}, {self.caster.y})")
+
                 # Landing sound (upgraded version - stronger impact)
                 play_sound("vault_impact")
 
                 # ENHANCED landing effects (stronger impact)
-                self.particle_emitter.emit_burst(self.caster.x, self.caster.y, (100, 200, 255), 50)  # More particles (was 30)
+                self.particle_emitter.emit_burst(self.caster.x, self.caster.y, (255, 255, 255), 50)  # More particles (was 30)
                 self.screen_shake(8, 0.3)  # Stronger shake (was 5, 0.2)
 
                 # Larger dust cloud on landing
@@ -666,7 +707,7 @@ class VaultAnimationControllerUpgraded:
                     speed = random.uniform(50, 120)  # Faster spread
                     particle = Particle(self.caster.x, self.caster.y + 20,
                                        math.cos(angle) * speed, math.sin(angle) * speed - 10,
-                                       (180, 180, 200), random.uniform(5, 10), 0.7)  # Larger particles
+                                       (255, 255, 200), random.uniform(5, 10), 0.7)  # Larger particles
                     particle.gravity = 100
                     self.particle_emitter.particles.append(particle)
 
@@ -677,7 +718,7 @@ class VaultAnimationControllerUpgraded:
                     vx = math.cos(angle) * speed
                     vy = math.sin(angle) * speed
                     particle = Particle(self.caster.x, self.caster.y, vx, vy,
-                                      (150, 220, 255), 4, 0.4)
+                                      (255, 255, 150), 4, 0.4)
                     self.particle_emitter.particles.append(particle)
 
                 # AOE impact effects on all 8 adjacent tiles
@@ -695,7 +736,7 @@ class VaultAnimationControllerUpgraded:
                         adj_x, adj_y = self.camera.grid_to_screen(adj_grid_x, adj_grid_y, centered=True)
 
                         # Impact burst on each adjacent tile
-                        self.particle_emitter.emit_burst(adj_x, adj_y, (120, 200, 255), 15)
+                        self.particle_emitter.emit_burst(adj_x, adj_y, (255, 255, 200), 15)
 
                         # Ground crack particles radiating from center tile to adjacent
                         for _ in range(5):
@@ -706,7 +747,7 @@ class VaultAnimationControllerUpgraded:
                             vx = (adj_x - self.caster.x) * 0.3
                             vy = (adj_y - self.caster.y) * 0.3
                             particle = Particle(start_x, start_y, vx, vy,
-                                              (160, 160, 180), random.uniform(3, 6), 0.5)
+                                              (255, 255, 150), random.uniform(3, 6), 0.5)
                             particle.gravity = 50
                             self.particle_emitter.particles.append(particle)
 
@@ -716,6 +757,7 @@ class VaultAnimationControllerUpgraded:
             if self.caster.vault_timer >= 0.15:
                 self.caster.vault_phase = None
                 self.active = False
+                print(f"  [VAULT_UPGRADED] Animation complete. Final grid: ({self.caster.grid_x}, {self.caster.grid_y}), screen: ({self.caster.x}, {self.caster.y})")
 
         return self.active
 

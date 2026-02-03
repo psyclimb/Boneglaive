@@ -201,6 +201,10 @@ class GameStateAdapter:
         # Set of (y, x) positions that have been revealed by Site Inspection
         self.revealed_scalar_nodes: set = set()
 
+        # Unit position tracking for detecting skill success/failure
+        # Maps unit_id -> (y, x) position before turn execution
+        self.pre_execution_positions: Dict[str, Tuple[int, int]] = {}
+
     def initialize_game(self, game_instance=None, skip_setup=False, map_name="hard_pressed", network_mode="single", ui_adapter=None):
         """
         Initialize or attach to a game instance.
@@ -292,6 +296,23 @@ class GameStateAdapter:
             if unit_id in self.visual_units:
                 effects = self.visual_units[unit_id]._get_status_effects(unit)
                 self.status_effects_snapshot[unit_id] = effects.copy()
+
+    def snapshot_unit_positions(self):
+        """
+        Capture a snapshot of all unit positions before turn execution.
+        Used to detect if movement skills (Vault, Delta Config, etc.) actually succeeded.
+        """
+        if not self.game:
+            return
+
+        self.pre_execution_positions.clear()
+
+        for unit in self.game.units:
+            if not unit.is_alive():
+                continue
+
+            unit_id = self._get_unit_id(unit)
+            self.pre_execution_positions[unit_id] = (unit.y, unit.x)
 
 
     def _detect_status_effects_callback(self):
@@ -819,16 +840,37 @@ class GameStateAdapter:
                             if UpgradeManager.is_skill_upgraded(game_unit, "Jawline"):
                                 skill_name = "Jawline_Upgraded"  # Use upgraded animation variant
 
-                        events.append(AnimationEvent(
-                            "skill",
-                            source_unit=game_unit,
-                            target_unit=target_game_unit,  # Pass actual unit, not None
-                            skill_name=skill_name,
-                            skill_target=skill_target,
-                            is_infused=is_infused,
-                            bounce_count=bounce_count,
-                            expedite_planned_start=expedite_planned_start
-                        ))
+                        # SKILL SUCCESS VALIDATION: Check if movement skills actually succeeded
+                        # For teleport/movement skills in POST-execution sync, verify position changed
+                        skill_succeeded = True
+                        original_skill_name = skill_name.replace("_Upgraded", "")  # Strip upgrade suffix for comparison
+                        if self.post_execution_sync and original_skill_name in teleport_skills:
+                            unit_id = self._get_unit_id(game_unit)
+                            if unit_id in self.pre_execution_positions:
+                                pre_pos = self.pre_execution_positions[unit_id]
+                                current_pos = (game_unit.y, game_unit.x)
+                                if pre_pos == current_pos:
+                                    # Position didn't change - skill failed!
+                                    skill_succeeded = False
+                                    print(f"  [GameState] {original_skill_name} skill FAILED - unit {game_unit.get_display_name()} did not move from {pre_pos}")
+                                else:
+                                    print(f"  [GameState] {original_skill_name} skill SUCCEEDED - unit moved from {pre_pos} to {current_pos}")
+
+                        # Only create animation event if skill succeeded
+                        if skill_succeeded:
+                            events.append(AnimationEvent(
+                                "skill",
+                                source_unit=game_unit,
+                                target_unit=target_game_unit,  # Pass actual unit, not None
+                                skill_name=skill_name,
+                                skill_target=skill_target,
+                                is_infused=is_infused,
+                                bounce_count=bounce_count,
+                                expedite_planned_start=expedite_planned_start
+                            ))
+                        else:
+                            # Skill failed - mark it as processed to prevent re-detection
+                            visual_unit.last_skill = game_unit.selected_skill
 
                         # Special handling for Site Inspection: mark revealed scalar nodes
                         if skill_name == "Site Inspection" and skill_target and hasattr(self.game, 'scalar_nodes'):
