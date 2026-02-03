@@ -53,8 +53,8 @@ class Skill:
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """
         Check if the skill can be used.
-        
-        For skills that target enemy units, use game.can_target_unit(user, target) 
+
+        For skills that target enemy units, use game.can_target_unit(user, target)
         to check universal targeting restrictions (Karrier Rave, untargetable status, etc.)
         """
         # Check cooldown
@@ -92,10 +92,10 @@ class Skill:
         """Use the skill. Return True if successful."""
         if not self.can_use(user, target_pos, game):
             return False
-            
+
         # Set cooldown
         self.current_cooldown = self.cooldown
-        
+
         # Skill effect implemented in subclasses
         return True
         

@@ -496,7 +496,7 @@ class Unit:
         # Tick skill cooldowns
         for skill in self.active_skills:
             skill.tick_cooldown()
-        
+
         # Movement penalties are now handled in reset_movement_penalty method
     
     def can_move_to(self, y: int, x: int, game=None) -> bool:

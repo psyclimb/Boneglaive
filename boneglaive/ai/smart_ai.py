@@ -220,13 +220,16 @@ class SmartAI:
 
         elif action.type == "skill":
             skill, target = action.target
-            unit.selected_skill = skill
 
-            # Target could be a unit or position
+            # Convert target to position tuple
             if hasattr(target, 'y'):  # It's a unit
-                unit.skill_target = (target.y, target.x)
+                target_pos = (target.y, target.x)
             else:  # It's a position
-                unit.skill_target = target
+                target_pos = target
+
+            # IMPORTANT: Call skill.use() to properly queue the skill AND set cooldown
+            # Previously this just set unit.selected_skill directly, bypassing cooldown logic
+            skill.use(unit, target_pos, self.game)
 
         elif action.type == "move_attack":
             move_pos, attack_target = action.target

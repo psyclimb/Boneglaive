@@ -1532,6 +1532,9 @@ class ParallaxSkill(ActiveSkill):
         if not self.can_use(user, target_pos, game):
             return False
 
+        # Set cooldown BEFORE execution (since this executes immediately, not queued)
+        self.current_cooldown = self.cooldown
+
         # Parallax executes immediately, not during turn execution
         # This matches the ASCII game behavior where teleport happens instantly
         success = self.execute(user, target_pos, game, ui=None)
