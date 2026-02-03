@@ -905,6 +905,20 @@ class VaultSkill(ActiveSkill):
         if game.get_unit_at(target_pos[0], target_pos[1]) is not None:
             return False
 
+        # Calculate vault starting position (current or planned move destination)
+        # This is used for range validation
+        from_y = user.y
+        from_x = user.x
+
+        # If unit has a planned move, vault from that position instead
+        # NOTE: This is just for validation - the actual execute() will clear move_target
+        if user.move_target:
+            from_y, from_x = user.move_target
+
+        # NOTE: Vault is an acrobatic leap that ignores pathing restrictions.
+        # It does NOT check intermediate positions - that's the whole point!
+        # The unit jumps OVER obstacles and other units.
+
         # Check if any other unit is already planning to teleport to this position
         # (via Vault, Delta Config, Grae Exchange, or any other teleport skill)
         for other_unit in game.units:
@@ -921,15 +935,7 @@ class VaultSkill(ActiveSkill):
                     # Position is already targeted by another unit's teleport
                     return False
 
-        # Check if target is within range from the correct position
-        # (either current position or planned move position)
-        from_y = user.y
-        from_x = user.x
-
-        # If unit has a planned move, use that position instead
-        if user.move_target:
-            from_y, from_x = user.move_target
-
+        # Check if target is within range (from_y, from_x already calculated above)
         distance = game.chess_distance(from_y, from_x, target_pos[0], target_pos[1])
         if distance > self.range:
             return False
@@ -1133,16 +1139,38 @@ class VaultSkill(ActiveSkill):
                                 landing_terrain_tile, landing_terrain_color)
 
             # Move user to target position
-            # Use atomic positioning to prevent collisions
-            if not user.set_position_atomic(target_pos[0], target_pos[1]):
+            # Vault is a TELEPORT that ignores pathing - must bypass property setters
+            # to avoid intermediate position checks in _update_unit_grid()
+            final_unit = game.get_unit_at(target_pos[0], target_pos[1])
+            if final_unit is not None and final_unit != user:
+                # Target occupied (should have been caught by can_use, but check anyway)
                 from boneglaive.utils.debug import logger
-                logger.error(f"GLAIVE VAULT BLOCKED: {user.get_display_name()}'s vault to {target_pos} blocked by collision")
+                logger.error(f"GLAIVE VAULT BLOCKED: {user.get_display_name()}'s vault to {target_pos} blocked - position occupied by {final_unit.get_display_name()}")
                 message_log.add_message(
                     f"{user.get_display_name()}'s Glaive Vault blocked - position occupied!",
                     MessageType.WARNING,
                     player=user.player
                 )
                 return False
+
+            # Teleport atomically: remove from old position, update coordinates, add to new position
+            # This avoids intermediate position checks that would block the vault
+            old_y, old_x = user.y, user.x
+            if (old_y, old_x) in game.unit_grid:
+                del game.unit_grid[(old_y, old_x)]
+
+            # Set private attributes directly (bypass property setters)
+            user._y = target_pos[0]
+            user._x = target_pos[1]
+
+            # Add to new position in grid
+            game.unit_grid[(target_pos[0], target_pos[1])] = user
+
+            # Trigger trap checks if unit was trapped or is a foreman
+            if hasattr(user, 'trapped_by') and user.trapped_by is not None:
+                game._check_position_change_trap_release(user, old_y, old_x)
+            if user.type == UnitType.MANDIBLE_FOREMAN:
+                game._check_position_change_trap_release(user, old_y, old_x)
 
             # Redraw board after animations
             if hasattr(ui, 'draw_board'):
@@ -1177,16 +1205,38 @@ class VaultSkill(ActiveSkill):
                 ui.renderer.flash_tile(user.y, user.x, tile_ids, color_ids, durations)
         else:
             # No UI, just set position without animations
-            # Use atomic positioning to prevent collisions
-            if not user.set_position_atomic(target_pos[0], target_pos[1]):
+            # Vault is a TELEPORT that ignores pathing - must bypass property setters
+            # to avoid intermediate position checks in _update_unit_grid()
+            final_unit = game.get_unit_at(target_pos[0], target_pos[1])
+            if final_unit is not None and final_unit != user:
+                # Target occupied (should have been caught by can_use, but check anyway)
                 from boneglaive.utils.debug import logger
-                logger.error(f"GLAIVE VAULT BLOCKED: {user.get_display_name()}'s vault to {target_pos} blocked by collision")
+                logger.error(f"GLAIVE VAULT BLOCKED: {user.get_display_name()}'s vault to {target_pos} blocked - position occupied by {final_unit.get_display_name()}")
                 message_log.add_message(
                     f"{user.get_display_name()}'s Glaive Vault blocked - position occupied!",
                     MessageType.WARNING,
                     player=user.player
                 )
                 return False
+
+            # Teleport atomically: remove from old position, update coordinates, add to new position
+            # This avoids intermediate position checks that would block the vault
+            old_y, old_x = user.y, user.x
+            if (old_y, old_x) in game.unit_grid:
+                del game.unit_grid[(old_y, old_x)]
+
+            # Set private attributes directly (bypass property setters)
+            user._y = target_pos[0]
+            user._x = target_pos[1]
+
+            # Add to new position in grid
+            game.unit_grid[(target_pos[0], target_pos[1])] = user
+
+            # Trigger trap checks if unit was trapped or is a foreman
+            if hasattr(user, 'trapped_by') and user.trapped_by is not None:
+                game._check_position_change_trap_release(user, old_y, old_x)
+            if user.type == UnitType.MANDIBLE_FOREMAN:
+                game._check_position_change_trap_release(user, old_y, old_x)
 
         # Log the completion of vault
         message_log.add_message(
