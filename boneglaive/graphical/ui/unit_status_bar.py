@@ -127,7 +127,7 @@ class UnitCard:
         return not self.game_unit.is_done_acting()
 
     def draw(self, surface: pygame.Surface, x: int, y: int, font, small_font,
-             is_selected: bool, player_color: tuple):
+             is_selected: bool, player_color: tuple, card_width: int = None, card_height: int = None):
         """
         Draw the unit card.
 
@@ -138,12 +138,17 @@ class UnitCard:
             small_font: Font for small text
             is_selected: Whether this unit is selected
             player_color: Color for this player's units
+            card_width: Override card width
+            card_height: Override card height
         """
-        # Calculate dynamic dimensions
-        card_width = int(UNIT_CARD_WIDTH_BASE * self.layout.get_font_scale()) if self.layout else UNIT_CARD_WIDTH_BASE
-        card_height = int(UNIT_CARD_HEIGHT_BASE * self.layout.get_font_scale()) if self.layout else UNIT_CARD_HEIGHT_BASE
-        sprite_size = int(SPRITE_SIZE_BASE * self.layout.get_font_scale()) if self.layout else SPRITE_SIZE_BASE
-        hp_bar_height = int(HP_BAR_HEIGHT_BASE * self.layout.get_font_scale()) if self.layout else HP_BAR_HEIGHT_BASE
+        # Use provided dimensions or calculate from layout
+        if card_width is None:
+            card_width = int(UNIT_CARD_WIDTH_BASE * self.layout.get_font_scale()) if self.layout else UNIT_CARD_WIDTH_BASE
+        if card_height is None:
+            card_height = int(UNIT_CARD_HEIGHT_BASE * self.layout.get_font_scale()) if self.layout else UNIT_CARD_HEIGHT_BASE
+
+        sprite_size = int(card_width * 0.38)  # Sprite is ~38% of card width
+        hp_bar_height = max(3, int(card_height * 0.06))  # HP bar is ~6% of card height
 
         self.rect = pygame.Rect(x, y, card_width, card_height)
 
@@ -171,15 +176,17 @@ class UnitCard:
         pygame.draw.rect(surface, border_color, self.rect, border_width)
 
         # Draw unit sprite at top (if available)
-        sprite_y_offset = int(5 * self.layout.get_font_scale()) if self.layout else 5
+        sprite_y_offset = int(card_height * 0.07)  # 7% from top
         if self.sprite_surface:
+            # Scale sprite to fit the calculated sprite_size
+            scaled_sprite = pygame.transform.scale(self.sprite_surface, (sprite_size, sprite_size))
             sprite_x = x + (card_width - sprite_size) // 2
             sprite_y = y + sprite_y_offset
 
             # Apply gray tint for dead units
             if self.is_dead:
                 # Create grayscale version
-                gray_sprite = self.sprite_surface.copy()
+                gray_sprite = scaled_sprite.copy()
                 arr = pygame.surfarray.pixels3d(gray_sprite)
                 gray = (arr[:,:,0] * 0.3 + arr[:,:,1] * 0.59 + arr[:,:,2] * 0.11).astype('uint8')
                 arr[:,:,0] = gray
@@ -188,7 +195,7 @@ class UnitCard:
                 del arr
                 surface.blit(gray_sprite, (sprite_x, sprite_y))
             else:
-                surface.blit(self.sprite_surface, (sprite_x, sprite_y))
+                surface.blit(scaled_sprite, (sprite_x, sprite_y))
 
         # Draw unit symbol and Greek ID below sprite
         symbol = self.get_unit_symbol()
@@ -206,51 +213,51 @@ class UnitCard:
             text_color = player_color
 
         # Position text below sprite with more spacing
-        text_y = y + sprite_y_offset + sprite_size + int(10 * self.layout.get_font_scale() if self.layout else 10)
+        text_y = y + sprite_y_offset + sprite_size + int(card_height * 0.14)
         text_surface = render_fitted_text(
             display_text,
-            max_width=card_width - int(6 * self.layout.get_font_scale() if self.layout else 6),
-            max_height=int(18 * self.layout.get_font_scale() if self.layout else 18),
+            max_width=card_width - 6,
+            max_height=int(card_height * 0.26),
             color=text_color,
-            base_font_size=int(16 * self.layout.get_font_scale() if self.layout else 16),
-            min_font_size=int(12 * self.layout.get_font_scale() if self.layout else 12),
-            max_font_size=int(18 * self.layout.get_font_scale() if self.layout else 18)
+            base_font_size=int(card_height * 0.23),
+            min_font_size=int(card_height * 0.17),
+            max_font_size=int(card_height * 0.26)
         )
         text_rect = text_surface.get_rect(center=(x + card_width // 2, text_y))
         surface.blit(text_surface, text_rect)
 
         # Draw HP bar for alive units
         if not self.is_dead:
-            self._draw_hp_bar(surface, x, y + card_height - hp_bar_height - int(3 * self.layout.get_font_scale() if self.layout else 3), card_width, hp_bar_height)
+            self._draw_hp_bar(surface, x, y + card_height - hp_bar_height - int(card_height * 0.04), card_width, hp_bar_height)
         else:
             # Draw respawn timer for dead units
             if self.respawn_timer > 0:
                 timer_text = render_fitted_text(
                     str(self.respawn_timer),
-                    max_width=int(30 * self.layout.get_font_scale() if self.layout else 30),
-                    max_height=int(18 * self.layout.get_font_scale() if self.layout else 18),
+                    max_width=int(card_width * 0.36),
+                    max_height=int(card_height * 0.26),
                     color=COLOR_TEXT_DIM,
-                    base_font_size=int(16 * self.layout.get_font_scale() if self.layout else 16),
-                    min_font_size=int(12 * self.layout.get_font_scale() if self.layout else 12),
-                    max_font_size=int(20 * self.layout.get_font_scale() if self.layout else 20)
+                    base_font_size=int(card_height * 0.23),
+                    min_font_size=int(card_height * 0.17),
+                    max_font_size=int(card_height * 0.29)
                 )
                 timer_rect = timer_text.get_rect(
-                    center=(x + card_width // 2, y + card_height - int(12 * self.layout.get_font_scale() if self.layout else 12))
+                    center=(x + card_width // 2, y + card_height - int(card_height * 0.17))
                 )
                 surface.blit(timer_text, timer_rect)
             else:
                 # Ready to respawn
                 ready_text = render_fitted_text(
                     "READY",
-                    max_width=card_width - int(10 * self.layout.get_font_scale() if self.layout else 10),
-                    max_height=int(18 * self.layout.get_font_scale() if self.layout else 18),
+                    max_width=card_width - int(card_width * 0.12),
+                    max_height=int(card_height * 0.26),
                     color=COLOR_HP_BAR_FULL,
-                    base_font_size=int(16 * self.layout.get_font_scale() if self.layout else 16),
-                    min_font_size=int(12 * self.layout.get_font_scale() if self.layout else 12),
-                    max_font_size=int(18 * self.layout.get_font_scale() if self.layout else 18)
+                    base_font_size=int(card_height * 0.23),
+                    min_font_size=int(card_height * 0.17),
+                    max_font_size=int(card_height * 0.26)
                 )
                 ready_rect = ready_text.get_rect(
-                    center=(x + card_width // 2, y + card_height - int(12 * self.layout.get_font_scale() if self.layout else 12))
+                    center=(x + card_width // 2, y + card_height - int(card_height * 0.17))
                 )
                 surface.blit(ready_text, ready_rect)
 
@@ -264,7 +271,7 @@ class UnitCard:
         hp_percent = current_hp / max_hp if max_hp > 0 else 0
 
         # Bar dimensions (full card width minus padding)
-        padding = int(10 * self.layout.get_font_scale() if self.layout else 10)
+        padding = int(card_width * 0.12)  # 12% padding
         bar_width = card_width - padding
         bar_x = x + padding // 2
 
@@ -406,12 +413,24 @@ class UnitStatusBar:
         if not self.unit_cards:
             return
 
-        # Calculate dynamic dimensions
-        panel_width = int(PANEL_WIDTH_BASE * self.layout.get_font_scale()) if self.layout else PANEL_WIDTH_BASE
-        title_height = int(TITLE_HEIGHT_BASE * self.layout.get_font_scale()) if self.layout else TITLE_HEIGHT_BASE
-        card_width = int(UNIT_CARD_WIDTH_BASE * self.layout.get_font_scale()) if self.layout else UNIT_CARD_WIDTH_BASE
-        card_height = int(UNIT_CARD_HEIGHT_BASE * self.layout.get_font_scale()) if self.layout else UNIT_CARD_HEIGHT_BASE
-        card_padding = int(CARD_PADDING_BASE * self.layout.get_font_scale()) if self.layout else CARD_PADDING_BASE
+        # Calculate dynamic dimensions based on right panel width
+        if self.layout:
+            # Scale to fit right panel width
+            panel_width = self.layout.right_panel_width
+            # Calculate card width to fit 3 cards per row with padding
+            # Formula: panel_width = (3 * card_width) + (4 * padding)
+            # Solve for card_width: card_width = (panel_width - 4*padding) / 3
+            card_padding = max(4, int(CARD_PADDING_BASE * self.layout.get_font_scale()))
+            card_width = (panel_width - 4 * card_padding) // CARDS_PER_ROW
+            # Maintain aspect ratio for card height
+            card_height = int(card_width * (UNIT_CARD_HEIGHT_BASE / UNIT_CARD_WIDTH_BASE))
+            title_height = int(TITLE_HEIGHT_BASE * self.layout.get_font_scale())
+        else:
+            panel_width = PANEL_WIDTH_BASE
+            title_height = TITLE_HEIGHT_BASE
+            card_width = UNIT_CARD_WIDTH_BASE
+            card_height = UNIT_CARD_HEIGHT_BASE
+            card_padding = CARD_PADDING_BASE
 
         # Draw title
         player_color = COLOR_PLAYER1 if self.current_player == 1 else COLOR_PLAYER2
@@ -443,7 +462,7 @@ class UnitStatusBar:
                           card.game_unit == self.selected_unit)
 
             card.draw(surface, card_x, card_y, self.font, self.small_font,
-                     is_selected, player_color)
+                     is_selected, player_color, card_width, card_height)
 
     def handle_mouse_motion(self, mouse_pos: Tuple[int, int]):
         """Update hovered card based on mouse position."""

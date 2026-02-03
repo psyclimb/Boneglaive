@@ -22,10 +22,11 @@ COLOR_HOTKEY = (255, 200, 100)
 COLOR_EXECUTE = (100, 255, 100)
 COLOR_DANGER = (255, 100, 100)
 
-BUTTON_WIDTH = 264  # Fits in 280px panel
-BUTTON_HEIGHT = 40  # Slightly smaller
-BUTTON_SPACING = 6  # Tighter spacing
-MENU_PADDING = 8
+# Base dimensions (will be scaled dynamically)
+BUTTON_WIDTH_BASE = 250  # Fits in 280px panel with margin
+BUTTON_HEIGHT_BASE = 38  # Slightly smaller
+BUTTON_SPACING_BASE = 5  # Tighter spacing
+MENU_PADDING_BASE = 6
 
 
 class ActionButton:
@@ -50,9 +51,11 @@ class ActionButton:
         self.help_scream_icon = None  # Cached help scream icon
         self.white_flag_icon = None  # Cached white flag icon
 
-    def draw(self, surface: pygame.Surface, x: int, y: int, font, small_font, loto_renderer: Optional[LOTORenderer] = None) -> Optional[dict]:
+    def draw(self, surface: pygame.Surface, x: int, y: int, font, small_font, loto_renderer: Optional[LOTORenderer] = None, button_width=None, button_height=None) -> Optional[dict]:
         """Draw the action button. Returns particle data if upgrade button has points available."""
-        self.rect = pygame.Rect(x, y, BUTTON_WIDTH, BUTTON_HEIGHT)
+        button_width = button_width or BUTTON_WIDTH_BASE
+        button_height = button_height or BUTTON_HEIGHT_BASE
+        self.rect = pygame.Rect(x, y, button_width, button_height)
 
         # Determine background color
         if not self.enabled:
@@ -104,8 +107,8 @@ class ActionButton:
 
             # Draw skeletal hand icon on the right side of button
             if self.skeletal_hand_icon:
-                icon_x = x + BUTTON_WIDTH - 35  # Position on right side
-                icon_y = y + (BUTTON_HEIGHT - 28) // 2  # Center vertically
+                icon_x = x + button_width - 35  # Position on right side
+                icon_y = y + (button_height - 28) // 2  # Center vertically
 
                 # Create a colored version of the icon (grey or white based on availability)
                 colored_icon = self.skeletal_hand_icon.copy()
@@ -190,8 +193,8 @@ class ActionButton:
 
             # Draw lightning bolt icon on the right side of button
             if self.lightning_bolt_icon:
-                icon_x = x + BUTTON_WIDTH - 35  # Position on right side
-                icon_y = y + (BUTTON_HEIGHT - 28) // 2  # Center vertically
+                icon_x = x + button_width - 35  # Position on right side
+                icon_y = y + (button_height - 28) // 2  # Center vertically
 
                 # Create a colored version of the icon (grey or gold based on availability)
                 colored_icon = self.lightning_bolt_icon.copy()
@@ -273,8 +276,8 @@ class ActionButton:
 
             # Draw gears icon on the right side of button
             if self.gears_icon:
-                icon_x = x + BUTTON_WIDTH - 35  # Position on right side
-                icon_y = y + (BUTTON_HEIGHT - 28) // 2  # Center vertically
+                icon_x = x + button_width - 35  # Position on right side
+                icon_y = y + (button_height - 28) // 2  # Center vertically
 
                 # Draw dark shadow/outline behind the gears icon for contrast
                 shadow_color = (0, 0, 0, 180)  # Dark shadow
@@ -309,8 +312,8 @@ class ActionButton:
 
             # Draw glaive icon on the right side of button
             if self.glaive_icon:
-                icon_x = x + BUTTON_WIDTH - 35  # Position on right side
-                icon_y = y + (BUTTON_HEIGHT - 28) // 2  # Center vertically
+                icon_x = x + button_width - 35  # Position on right side
+                icon_y = y + (button_height - 28) // 2  # Center vertically
 
                 # Draw dark shadow/outline behind the glaive icon for contrast
                 shadow_color = (0, 0, 0, 180)  # Dark shadow
@@ -345,8 +348,8 @@ class ActionButton:
 
             # Draw help scream icon on the right side of button
             if self.help_scream_icon:
-                icon_x = x + BUTTON_WIDTH - 35  # Position on right side
-                icon_y = y + (BUTTON_HEIGHT - 28) // 2  # Center vertically
+                icon_x = x + button_width - 35  # Position on right side
+                icon_y = y + (button_height - 28) // 2  # Center vertically
 
                 # Draw dark shadow/outline behind the help icon for contrast
                 shadow_color = (0, 0, 0, 180)  # Dark shadow
@@ -381,8 +384,8 @@ class ActionButton:
 
             # Draw white flag icon on the right side of button
             if self.white_flag_icon:
-                icon_x = x + BUTTON_WIDTH - 35  # Position on right side
-                icon_y = y + (BUTTON_HEIGHT - 28) // 2  # Center vertically
+                icon_x = x + button_width - 35  # Position on right side
+                icon_y = y + (button_height - 28) // 2  # Center vertically
 
                 # Draw dark shadow/outline behind the flag icon for contrast
                 shadow_color = (0, 0, 0, 180)  # Dark shadow
@@ -414,14 +417,14 @@ class ActionButton:
         text_color = COLOR_TEXT_DISABLED if not self.enabled else COLOR_TEXT
         label_text = render_fitted_text(
             self.label,
-            max_width=BUTTON_WIDTH - 20,
-            max_height=BUTTON_HEIGHT - 10,
+            max_width=button_width - 20,
+            max_height=button_height - 10,
             color=text_color,
             base_font_size=20,
             min_font_size=14,
             max_font_size=22
         )
-        label_rect = label_text.get_rect(center=(x + BUTTON_WIDTH // 2, y + BUTTON_HEIGHT // 2))
+        label_rect = label_text.get_rect(center=(x + button_width // 2, y + button_height // 2))
         surface.blit(label_text, label_rect)
 
         # Draw LOTO overlay if action is blocked
@@ -534,6 +537,30 @@ class ActionMenu:
                 button.active = False
                 button.blocked_actions = set()
 
+    def _get_scaled_dimensions(self):
+        """Get scaled dimensions based on layout."""
+        if self.layout:
+            # Scale button width to fit left panel (which scales with screen width)
+            # Base: 250px button in 280px panel = 89% of panel width
+            button_width = int(self.layout.left_panel_width * 0.89)
+            # Scale height based on font scale for consistency
+            scale = self.layout.get_font_scale()
+            button_height = int(BUTTON_HEIGHT_BASE * scale)
+            button_spacing = int(BUTTON_SPACING_BASE * scale)
+            padding = int(MENU_PADDING_BASE * scale)
+        else:
+            button_width = BUTTON_WIDTH_BASE
+            button_height = BUTTON_HEIGHT_BASE
+            button_spacing = BUTTON_SPACING_BASE
+            padding = MENU_PADDING_BASE
+
+        return {
+            'button_width': button_width,
+            'button_height': button_height,
+            'button_spacing': button_spacing,
+            'padding': padding,
+        }
+
     def draw(self, surface: pygame.Surface, x: int, y: int):
         """
         Draw the action menu.
@@ -542,15 +569,17 @@ class ActionMenu:
             surface: Surface to draw on
             x, y: Position (top-left)
         """
-        current_y = y + MENU_PADDING
+        dims = self._get_scaled_dimensions()
+        current_y = y + dims['padding']
 
         # Draw each button and collect particle data
         particle_data_list = []
         for button in self.buttons:
-            particle_data = button.draw(surface, x + MENU_PADDING, current_y, self.font, self.small_font, self.loto_renderer)
+            particle_data = button.draw(surface, x + dims['padding'], current_y, self.font, self.small_font, self.loto_renderer,
+                                       button_width=dims['button_width'], button_height=dims['button_height'])
             if particle_data:
                 particle_data_list.append(particle_data)
-            current_y += BUTTON_HEIGHT + BUTTON_SPACING
+            current_y += dims['button_height'] + dims['button_spacing']
 
         # Draw all particles AFTER all buttons (so they appear on top)
         for particle_data in particle_data_list:

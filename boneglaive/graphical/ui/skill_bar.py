@@ -61,7 +61,7 @@ class SkillSlot:
             # Try to load SVG using cairosvg
             import cairosvg
             from io import BytesIO
-            png_data = cairosvg.svg2png(url=icon_path, output_width=SKILL_ICON_SIZE, output_height=SKILL_ICON_SIZE)
+            png_data = cairosvg.svg2png(url=icon_path, output_width=SKILL_ICON_SIZE_BASE, output_height=SKILL_ICON_SIZE_BASE)
             icon_surface = pygame.image.load(BytesIO(png_data))
             icon_surface = icon_surface.convert_alpha()
             self.icon_cache[skill_name] = icon_surface
@@ -76,7 +76,7 @@ class SkillSlot:
         if os.path.exists(png_path):
             try:
                 icon_surface = pygame.image.load(png_path)
-                icon_surface = pygame.transform.scale(icon_surface, (SKILL_ICON_SIZE, SKILL_ICON_SIZE))
+                icon_surface = pygame.transform.scale(icon_surface, (SKILL_ICON_SIZE_BASE, SKILL_ICON_SIZE_BASE))
                 icon_surface = icon_surface.convert_alpha()
                 self.icon_cache[skill_name] = icon_surface
                 return icon_surface
@@ -139,7 +139,7 @@ class SkillSlot:
 
         # Draw skill icon on the left side
         icon_x = x + 10
-        icon_y = y + (SKILL_SLOT_HEIGHT - SKILL_ICON_SIZE) // 2
+        icon_y = y + (slot_height - icon_size) // 2
 
         if self.icon_surface:
             # Apply grayscale if on cooldown
@@ -162,7 +162,7 @@ class SkillSlot:
             if is_upgraded:
                 # Small star/diamond indicator in top-right corner of icon
                 indicator_size = 12
-                indicator_x = icon_x + SKILL_ICON_SIZE - indicator_size - 2
+                indicator_x = icon_x + icon_size - indicator_size - 2
                 indicator_y = icon_y + 2
 
                 # Draw small circle with "UP" text
@@ -179,19 +179,19 @@ class SkillSlot:
         # Draw skill name to the right of the icon
         text_color = COLOR_TEXT_DISABLED if not self.is_available() else COLOR_TEXT
         # Available width: slot width - icon area - padding
-        available_width = dims['slot_width'] - (SKILL_ICON_SIZE + 30)
+        available_width = slot_width - (icon_size + 30)
         name_text = render_fitted_text(
             self.skill.name,
             max_width=available_width,
-            max_height=SKILL_SLOT_HEIGHT - 10,
+            max_height=slot_height - 10,
             color=text_color,
             base_font_size=20,
             min_font_size=14,
             max_font_size=22
         )
         # Position to the right of icon
-        name_x = icon_x + SKILL_ICON_SIZE + 10
-        name_y = y + (SKILL_SLOT_HEIGHT - name_text.get_height()) // 2
+        name_x = icon_x + icon_size + 10
+        name_y = y + (slot_height - name_text.get_height()) // 2
         surface.blit(name_text, (name_x, name_y))
 
         # Draw cooldown if active
@@ -205,7 +205,7 @@ class SkillSlot:
                 min_font_size=12,
                 max_font_size=16
             )
-            surface.blit(cooldown_text, (x + 5, y + SKILL_SLOT_HEIGHT - 20))
+            surface.blit(cooldown_text, (x + 5, y + slot_height - 20))
 
         # Draw LOTO overlay if skill is blocked
         if loto_renderer and self.blocked_actions:
@@ -275,11 +275,11 @@ class SkillBar:
         """Get scaled dimensions based on layout."""
         scale = self.layout.get_font_scale() if self.layout else 1.0
         return {
-            'slot_width': int(72 * scale),
-            'slot_height': int(72 * scale),
-            'slot_spacing': int(8 * scale),
-            'icon_size': int(56 * scale),
-            'padding': int(8 * scale),
+            'slot_width': int(SKILL_SLOT_WIDTH_BASE * scale),
+            'slot_height': int(SKILL_SLOT_HEIGHT_BASE * scale),
+            'slot_spacing': int(SKILL_SLOT_PADDING_BASE * scale),
+            'icon_size': int(SKILL_ICON_SIZE_BASE * scale),
+            'padding': int(SKILL_BAR_PADDING_BASE * scale),
             'bar_height': int(90 * scale),
         }
 
@@ -304,7 +304,7 @@ class SkillBar:
             start_x - dims['padding'],
             y - 10,
             total_width,
-            SKILL_SLOT_HEIGHT + 20
+            dims['slot_height'] + 20
         )
         panel_surface = pygame.Surface((panel_rect.width, panel_rect.height), pygame.SRCALPHA)
         panel_surface.fill((*COLOR_BG, 200))
@@ -313,7 +313,8 @@ class SkillBar:
         # Draw each skill slot
         x = start_x
         for slot in self.skill_slots:
-            slot.draw(surface, x, y, self.font, self.small_font, self.loto_renderer)
+            slot.draw(surface, x, y, self.font, self.small_font, self.loto_renderer,
+                     slot_width=dims['slot_width'], slot_height=dims['slot_height'], icon_size=dims['icon_size'])
             x += dims['slot_width'] + dims['slot_spacing']
 
     def handle_mouse_motion(self, mouse_pos: Tuple[int, int]):

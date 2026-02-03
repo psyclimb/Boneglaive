@@ -112,13 +112,13 @@ class TopBar:
         # No longer drawing anything in the top bar left section
 
         # Draw center section (GP score - centered with game board)
-        self._draw_gp_score(surface, game_board_center)
+        self._draw_gp_score(surface, game_board_center, text_padding)
 
         # Draw right section (Network status / System icons)
         if self.is_network_game:
-            self._draw_network_status(surface, right_section_start)
+            self._draw_network_status(surface, right_section_start, text_padding)
 
-    def _draw_player_info(self, surface: pygame.Surface, x: int):
+    def _draw_player_info(self, surface: pygame.Surface, x: int, text_padding: int):
         """Draw current player indicator."""
         y = text_padding
 
@@ -138,7 +138,7 @@ class TopBar:
         )
         surface.blit(text, (x, y))
 
-    def _draw_turn_info(self, surface: pygame.Surface, x: int):
+    def _draw_turn_info(self, surface: pygame.Surface, x: int, text_padding: int):
         """Draw turn counter."""
         y = text_padding + 5
 
@@ -172,7 +172,7 @@ class TopBar:
 
         surface.blit(turn_text, (x, y))
 
-    def _draw_gp_score(self, surface: pygame.Surface, center_x: int):
+    def _draw_gp_score(self, surface: pygame.Surface, center_x: int, text_padding: int):
         """Draw GP score display centered at given x position."""
         y = text_padding + 5
 
@@ -281,7 +281,7 @@ class TopBar:
         text_rect = mode_text.get_rect(center=(x + 100, y + mode_text.get_height() // 2))
         surface.blit(mode_text, text_rect)
 
-    def _draw_network_status(self, surface: pygame.Surface, x: int):
+    def _draw_network_status(self, surface: pygame.Surface, x: int, text_padding: int):
         """Draw network multiplayer status."""
         y = text_padding + 5
 

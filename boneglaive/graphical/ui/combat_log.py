@@ -22,10 +22,10 @@ COLOR_TEXT_HEAL = (255, 255, 255)  # White - healing numbers
 COLOR_TEXT_PLAYER1 = (100, 255, 100)  # Green - Player 1 messages
 COLOR_TEXT_PLAYER2 = (100, 150, 255)  # Blue - Player 2 messages
 
-LOG_WIDTH = 900  # Horizontal bar spanning game board width
-LOG_HEIGHT = 90  # Maximum height fitting below map
-LOG_PADDING = 8
-LINE_HEIGHT = 16  # Tighter line spacing
+LOG_WIDTH_BASE = 920  # Horizontal bar spanning game board width
+LOG_HEIGHT_BASE = 90  # Maximum height fitting below map
+LOG_PADDING_BASE = 8
+LINE_HEIGHT_BASE = 16  # Tighter line spacing
 
 # Pre-compile regex patterns for performance (don't recompile every frame!)
 import re
@@ -49,6 +49,28 @@ class CombatLog:
         self._cached_panel = None
         self._cached_panel_size = None
 
+    def _get_scaled_dimensions(self):
+        """Get scaled dimensions based on layout."""
+        if self.layout:
+            # Combat log scales with game board width
+            log_width = self.layout.game_board_width
+            scale = self.layout.get_font_scale()
+            log_height = int(LOG_HEIGHT_BASE * scale)
+            padding = int(LOG_PADDING_BASE * scale)
+            line_height = int(LINE_HEIGHT_BASE * scale)
+        else:
+            log_width = LOG_WIDTH_BASE
+            log_height = LOG_HEIGHT_BASE
+            padding = LOG_PADDING_BASE
+            line_height = LINE_HEIGHT_BASE
+
+        return {
+            'log_width': log_width,
+            'log_height': log_height,
+            'padding': padding,
+            'line_height': line_height,
+        }
+
     def add_message(self, text: str, msg_type: str = "system", player: Optional[int] = None):
         """
         Add a message to the log.
@@ -59,7 +81,8 @@ class CombatLog:
             player: Player number associated with message
         """
         # PERFORMANCE FIX: Wrap text once when adding message, not every frame
-        wrapped_lines = self._wrap_text(text, LOG_WIDTH - LOG_PADDING * 2 - 5)
+        dims = self._get_scaled_dimensions()
+        wrapped_lines = self._wrap_text(text, dims['log_width'] - dims['padding'] * 2 - 5)
 
         message = {
             'text': text,
@@ -191,15 +214,20 @@ class CombatLog:
         Args:
             surface: Surface to draw on
             x, y: Position to draw at (top-left)
-            height: Optional custom height (uses LOG_HEIGHT if None)
-            width: Optional custom width (uses LOG_WIDTH if None)
+            height: Optional custom height (uses scaled LOG_HEIGHT if None)
+            width: Optional custom width (uses scaled LOG_WIDTH if None)
         """
         if not self.messages:
             return
 
-        # Use custom dimensions if provided, otherwise use defaults
-        log_height = height if height is not None else LOG_HEIGHT
-        log_width = width if width is not None else LOG_WIDTH
+        # Get scaled dimensions
+        dims = self._get_scaled_dimensions()
+
+        # Use custom dimensions if provided, otherwise use scaled defaults
+        log_height = height if height is not None else dims['log_height']
+        log_width = width if width is not None else dims['log_width']
+        log_padding = dims['padding']
+        line_height = dims['line_height']
 
         # Draw background panel using cached surface
         panel_rect = pygame.Rect(x, y, log_width, log_height)
@@ -216,13 +244,13 @@ class CombatLog:
         pygame.draw.rect(surface, (100, 100, 100), panel_rect, 2)
 
         # Horizontal layout: show recent messages (fit as many as possible)
-        max_lines = (log_height - LOG_PADDING * 2) // LINE_HEIGHT  # Calculate based on height
+        max_lines = (log_height - log_padding * 2) // line_height  # Calculate based on height
 
         # Get most recent messages (truncate text to fit width)
         recent_messages = self.messages[-10:]  # Last 10 messages
 
         # Draw messages bottom to top (most recent at bottom)
-        text_y = y + log_height - LOG_PADDING - LINE_HEIGHT
+        text_y = y + log_height - log_padding - line_height
         messages_drawn = 0
 
         for message in reversed(recent_messages):
@@ -234,7 +262,7 @@ class CombatLog:
 
             # Get text and check for special number placeholders
             text = message['text']
-            max_width = log_width - (LOG_PADDING * 2)
+            max_width = log_width - (log_padding * 2)
 
             # Check for damage or heal number placeholders (using pre-compiled patterns)
             damage_match = DAMAGE_PATTERN.search(text)
@@ -246,7 +274,7 @@ class CombatLog:
                 parts = text.split(f'#DAMAGE_{damage_num}#')
 
                 # Render parts with different colors
-                pos_x = x + LOG_PADDING
+                pos_x = x + log_padding
 
                 # First part (before damage)
                 if parts[0]:
@@ -270,7 +298,7 @@ class CombatLog:
                 parts = text.split(f'#HEAL_{heal_num}#')
 
                 # Render parts with different colors
-                pos_x = x + LOG_PADDING
+                pos_x = x + log_padding
 
                 # First part (before heal)
                 if parts[0]:
@@ -300,9 +328,9 @@ class CombatLog:
                     text_surface = self.font.render(text, True, color)
 
                 # Draw message
-                surface.blit(text_surface, (x + LOG_PADDING, text_y))
+                surface.blit(text_surface, (x + log_padding, text_y))
 
-            text_y -= LINE_HEIGHT
+            text_y -= line_height
             messages_drawn += 1
 
     def _get_message_color(self, message: Dict) -> tuple:
