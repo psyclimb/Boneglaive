@@ -1082,18 +1082,9 @@ class GameStateAdapter:
                     trap_cone_positions=affected_positions  # Pre-calculated cone positions
                 ))
 
-                # Queue status effect animations for units that received shrapnel
-                for unit_with_shrapnel in units_with_shrapnel:
-                    unit_id = self._get_unit_id(unit_with_shrapnel)
-                    if unit_id in self.visual_units:
-                        # Create status effect event to show shrapnel icon
-                        events.append(AnimationEvent(
-                            "status_effect",
-                            source_unit=owner,  # Trap owner as source
-                            target_unit=unit_with_shrapnel,
-                            effect_name="shrapnel"
-                        ))
-                        print(f"  [GameState] Queued shrapnel status effect for {unit_with_shrapnel.get_display_name()}")
+                # NOTE: Shrapnel status effect icons are now handled via detection system
+                # (_detect_status_effects_callback) to prevent duplicate flashes.
+                # The shrapnel effect will be detected and shown ONCE after damage completes.
 
             # Clear triggered traps list
             self.game.triggered_fragcrest_traps = []

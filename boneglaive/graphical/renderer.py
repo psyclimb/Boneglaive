@@ -2298,8 +2298,7 @@ class GraphicalRenderer:
             # No pending damage events, but we have status icons to show
             print(f"[Renderer] No pending events, but showing {len(self.game_adapter._effects_to_show_after_damage)} status effect icons")
             self._show_active_status_effects()
-            # Clear the list after showing to prevent repeated displays
-            self.game_adapter._effects_to_show_after_damage.clear()
+            # Note: List is cleared inside _show_active_status_effects() to prevent duplicates
 
         # Stop motor if it's running and turn execution is complete (no more animations)
         if self.motor_animation.is_running and not self.has_active_animations() and not self.game_adapter.executing_turn:
@@ -2357,19 +2356,11 @@ class GraphicalRenderer:
             print(f"  [Renderer] Queued Glaive Sweep counter-attack animation")
 
         elif event.event_type == "status_effect":
-            # Status effect icon animation (used for special cases like trap-applied effects)
-            target_unit = event.target_unit
-            effect_name = event.kwargs.get('effect_name')
-
-            if target_unit and effect_name:
-                visual_unit = self._get_visual_unit(target_unit)
-                if visual_unit:
-                    print(f"  [Renderer] Creating status effect animation for {effect_name} on {target_unit.get_display_name()}")
-                    self._create_status_icon_flash(visual_unit.animated_unit, effect_name)
-                else:
-                    print(f"  [Renderer] WARNING: Could not find visual unit for status effect {effect_name}")
-            else:
-                print(f"  [Renderer] WARNING: Invalid status_effect event (missing target or effect_name)")
+            # NOTE: Status effect events are NO LONGER handled here to prevent duplicate flashes.
+            # All status effects (including trap-applied ones like shrapnel) are now detected
+            # via _detect_status_effects_callback() and shown via _show_active_status_effects().
+            # This ensures each effect flashes exactly ONCE after damage numbers complete.
+            print(f"  [Renderer] Ignoring status_effect event (will be detected via callback system)")
 
         elif event.event_type == "partition_dissociation":
             # Partition dissociation is a dramatic emergency animation - show immediately
@@ -2540,6 +2531,7 @@ class GraphicalRenderer:
         """
         Show status effect icons for effects that were detected during turn execution.
         Called after damage numbers are flushed.
+        IMPORTANT: Clears the effects list after showing to prevent duplicate flashes.
         """
         if not self.game_adapter.game:
             return
@@ -2565,6 +2557,10 @@ class GraphicalRenderer:
                 self._create_status_icon_flash(animated_unit, effect_name)
             else:
                 print(f"[Renderer] WARNING: Unit {unit_id} not found in visual_units")
+
+        # Clear the list immediately after showing to prevent duplicate flashes
+        self.game_adapter._effects_to_show_after_damage.clear()
+        print(f"[Renderer] Cleared effects list to prevent duplicates")
 
     def _create_attack_animation(self, event):
         """
