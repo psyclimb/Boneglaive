@@ -62,7 +62,7 @@ class TopBar:
         self.turn_number = game.turn
         self.player1_gp = game.player1_gp
         self.player2_gp = game.player2_gp
-        self.current_mode = current_mode.upper()
+        self.current_mode = current_mode.upper() if current_mode else ""
 
         # Get player names
         self.player1_name = game.get_player_name(1)

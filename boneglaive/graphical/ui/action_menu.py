@@ -43,6 +43,7 @@ class ActionButton:
         self.blocked_actions = set()  # LOTO: Set of blocked action types
         self.has_upgrade_points = False  # Special flag for upgrade button glow
         self.has_respawns_available = False  # Special flag for respawn button icon + glow
+        self.tank_treads_icon = None  # Cached tank treads icon
         self.skeletal_hand_icon = None  # Cached skeletal hand icon
         self.lightning_bolt_icon = None  # Cached lightning bolt icon
         self.gears_icon = None  # Cached gears icon
@@ -80,6 +81,38 @@ class ActionButton:
 
         border_width = 3 if (self.hovered or self.active) else 2
         pygame.draw.rect(surface, border_color, self.rect, border_width)
+
+        # Draw tank treads icon on move button - ALWAYS visible
+        if self.action == "move":
+            import os
+
+            # Load tank treads icon if not cached
+            if self.tank_treads_icon is None:
+                icon_path = "graphics/ui/tank_treads.svg"
+                if os.path.exists(icon_path):
+                    try:
+                        import cairosvg
+                        from io import BytesIO
+                        # Load at 28x28 to fit nicely on button
+                        png_data = cairosvg.svg2png(url=icon_path, output_width=28, output_height=28)
+                        self.tank_treads_icon = pygame.image.load(BytesIO(png_data))
+                        self.tank_treads_icon = self.tank_treads_icon.convert_alpha()
+                    except:
+                        pass  # Failed to load icon
+
+            # Draw tank treads icon on the right side of button
+            if self.tank_treads_icon:
+                icon_x = x + BUTTON_WIDTH - 35  # Position on right side
+                icon_y = y + (BUTTON_HEIGHT - 28) // 2  # Center vertically
+
+                # Create a colored version of the icon (grey or white based on enabled state)
+                colored_icon = self.tank_treads_icon.copy()
+                if not self.enabled:
+                    # Tint grey when disabled
+                    grey_tint = (100, 100, 100, 255)
+                    colored_icon.fill(grey_tint, special_flags=pygame.BLEND_RGBA_MULT)
+
+                surface.blit(colored_icon, (icon_x, icon_y))
 
         # Draw skeletal hand icon on respawn button - ALWAYS visible, glows when respawns available
         respawn_glow_data = None
@@ -448,6 +481,7 @@ class ActionMenu:
 
         # Create action buttons
         self.buttons = [
+            ActionButton("move", "M", "MOVE"),
             ActionButton("attack", "A", "ATTACK"),
             ActionButton("upgrade", "U", "UPGRADE"),
             ActionButton("respawn", "R", "RESPAWN"),
@@ -494,7 +528,17 @@ class ActionMenu:
 
         # Update button states
         for button in self.buttons:
-            if button.action == "attack":
+            if button.action == "move":
+                # Move button enabled when unit selected and hasn't moved yet
+                button.enabled = selected_unit is not None and not (hasattr(selected_unit, 'move_target') and selected_unit.move_target)
+                button.active = (self.current_mode == "move")
+                # Check if movement is blocked (e.g., immobilized by Jawline)
+                if selected_unit and LOTOChecker.is_action_blocked(selected_unit, 'move'):
+                    button.blocked_actions = blocked_actions
+                    button.enabled = False
+                else:
+                    button.blocked_actions = set()
+            elif button.action == "attack":
                 button.enabled = selected_unit is not None
                 button.active = (self.current_mode == "attack")
                 # Check if attack is blocked (e.g., during gaussian recharge)

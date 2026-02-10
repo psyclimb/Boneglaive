@@ -293,6 +293,24 @@ class GameStateAdapter:
                 effects = self.visual_units[unit_id]._get_status_effects(unit)
                 self.status_effects_snapshot[unit_id] = effects.copy()
 
+    def snapshot_unit_positions(self):
+        """
+        Capture a snapshot of all current unit positions.
+        This should be called BEFORE execute_turn() so we can detect
+        movement skills that succeeded or failed based on position changes.
+        """
+        if not self.game:
+            return
+
+        for unit in self.game.units:
+            if not unit.is_alive():
+                continue
+
+            unit_id = self._get_unit_id(unit)
+
+            # Store position in visual unit for comparison after turn execution
+            if unit_id in self.visual_units:
+                self.visual_units[unit_id].last_position = (unit.x, unit.y)
 
     def _detect_status_effects_callback(self):
         """

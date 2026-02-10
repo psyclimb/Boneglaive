@@ -95,8 +95,7 @@ PRE_EXECUTION_BLOCKING_SKILLS = [
     "Matador", "MATADOR",
     "Poach", "POACH",
     "Vault_Upgraded", "VAULT_UPGRADED",  # Upgraded Vault with AOE landing impact
-    "Jawline", "JAWLINE",
-    "Jawline_Upgraded", "JAWLINE_UPGRADED"
+    # NOTE: Jawline removed - it doesn't displace units, so it should play AFTER moves execute
 ]
 
 
@@ -1268,23 +1267,22 @@ class GraphicalRenderer:
         if unit:
             # Check if this is a friendly unit (current player's unit)
             if unit.player == current_player:
-                # Select friendly unit and immediately show movement range
+                # Select friendly unit WITHOUT showing movement range (player must click Move button)
                 self.selected_unit = unit
-                self.show_movement_range = True
+                self.show_movement_range = False
                 self.show_target_range = False
-                self.current_action_mode = "MOVE"
+                self.current_action_mode = None
 
-                # Query movement range and attack range from game logic
+                # Query movement range and attack range from game logic (but don't display yet)
                 game_unit = self._get_game_unit(unit)
                 if game_unit:
-                    # If unit has a pending move, don't show movement range (only attack range from ghost position)
+                    # If unit has a pending move, clear valid positions
                     if game_unit.move_target:
                         self.valid_positions = []  # No movement range - already moved
                         # Calculate attack range from ghost position by passing from_pos
                         self.attack_positions = self.game_adapter.get_attack_range(game_unit, from_pos=game_unit.move_target)
-                        self.show_movement_range = False  # Don't show movement highlights
                     else:
-                        # Normal range calculation from current position
+                        # Calculate ranges but don't show them yet
                         self.valid_positions = self.game_adapter.get_movement_range(game_unit)
                         self.attack_positions = self.game_adapter.get_attack_range(game_unit)
 
@@ -1448,9 +1446,26 @@ class GraphicalRenderer:
         Handle action menu button clicks.
 
         Args:
-            action: Action string (attack, respawn, execute, concede, help)
+            action: Action string (move, attack, respawn, execute, concede, help)
         """
-        if action == "attack":
+        if action == "move":
+            if self.selected_unit:
+                print("Move mode activated")
+                self.current_action_mode = "MOVE"
+                # Show movement range
+                game_unit = self._get_game_unit(self.selected_unit)
+                if game_unit:
+                    # Only show movement if unit hasn't moved yet
+                    if not game_unit.move_target:
+                        self.valid_positions = self.game_adapter.get_movement_range(game_unit)
+                        self.show_movement_range = True
+                    else:
+                        self.valid_positions = []
+                        self.show_movement_range = False
+                    self.show_target_range = False
+                    self.show_skill_range = False
+
+        elif action == "attack":
             if self.selected_unit:
                 print("Attack mode activated")
                 self.current_action_mode = "ATTACK"
