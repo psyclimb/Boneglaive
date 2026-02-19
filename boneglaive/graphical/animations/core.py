@@ -374,6 +374,8 @@ class AnimatedUnit:
         self.shake_intensity = 0
         self.hop_offset = 0
         self.hop_phase = 0
+        self.glaive_rotation = 0  # For spinning attack glaive effect
+        self.tool_orbit_angle = 0  # For orbiting skill tools effect
 
         # Potpourri aura (for POTPOURRIST)
         self.potpourri_aura_active = False
@@ -440,6 +442,91 @@ class AnimatedUnit:
         except Exception as e:
             print(f"[VaporCloud] Error detecting vapor type: {e}")
 
+    def _create_red_glaive_sprite(self):
+        """Create a red six-pointed glaive sprite for attack indication."""
+        size = 50  # Increased from 40 for longer blades
+        surface = pygame.Surface((size, size), pygame.SRCALPHA)
+        center = size // 2
+
+        # Red color scheme
+        blade_color = (255, 80, 80)  # Crimson red
+        blade_highlight = (255, 120, 120)  # Bright red
+        hub_color = (180, 40, 40)  # Dark red/maroon
+
+        # Draw six pointed blades radiating from center
+        blade_length = size // 2 - 2  # Longer blades due to larger size
+        for i in range(6):
+            angle = (i * 60) * math.pi / 180
+
+            # Blade tip
+            tip_x = center + math.cos(angle) * blade_length
+            tip_y = center + math.sin(angle) * blade_length
+
+            # Blade sides (slightly offset for width)
+            angle_offset = 15 * math.pi / 180
+            side1_x = center + math.cos(angle - angle_offset) * (blade_length * 0.7)
+            side1_y = center + math.sin(angle - angle_offset) * (blade_length * 0.7)
+            side2_x = center + math.cos(angle + angle_offset) * (blade_length * 0.7)
+            side2_y = center + math.sin(angle + angle_offset) * (blade_length * 0.7)
+
+            # Draw blade triangle
+            pygame.draw.polygon(surface, blade_color,
+                              [(center, center), (tip_x, tip_y), (side1_x, side1_y)])
+            pygame.draw.polygon(surface, blade_color,
+                              [(center, center), (tip_x, tip_y), (side2_x, side2_y)])
+
+            # Highlight edge
+            pygame.draw.line(surface, blade_highlight,
+                           (center, center), (tip_x, tip_y), 2)
+
+        # Center hub
+        pygame.draw.circle(surface, blade_highlight, (center, center), 6)
+        pygame.draw.circle(surface, blade_color, (center, center), 6, 2)
+        pygame.draw.circle(surface, hub_color, (center, center), 3)
+
+        return surface
+
+    def _create_purple_tool_sprites(self):
+        """Create purple tool sprites (wrench, hammer, screwdriver) for skill indication."""
+        tools = []
+        size = 24
+
+        # Purple color scheme
+        tool_color = (200, 140, 255)  # Purple
+        tool_dark = (160, 100, 220)  # Dark purple
+        tool_highlight = (230, 180, 255)  # Light purple
+
+        # Tool 1: Wrench
+        wrench = pygame.Surface((size, size), pygame.SRCALPHA)
+        center = size // 2
+        # Wrench handle (diagonal)
+        pygame.draw.line(wrench, tool_color, (6, 18), (14, 10), 4)
+        # Wrench head (open end)
+        pygame.draw.circle(wrench, tool_dark, (17, 7), 5, 2)
+        pygame.draw.rect(wrench, tool_dark, (17, 4, 3, 6))
+        tools.append(wrench)
+
+        # Tool 2: Hammer
+        hammer = pygame.Surface((size, size), pygame.SRCALPHA)
+        # Hammer handle
+        pygame.draw.line(hammer, tool_color, (12, 18), (12, 8), 3)
+        # Hammer head
+        pygame.draw.rect(hammer, tool_dark, (7, 6, 10, 5))
+        pygame.draw.rect(hammer, tool_highlight, (7, 6, 10, 2))
+        tools.append(hammer)
+
+        # Tool 3: Screwdriver
+        screwdriver = pygame.Surface((size, size), pygame.SRCALPHA)
+        # Screwdriver handle (fat)
+        pygame.draw.line(screwdriver, tool_color, (12, 16), (12, 10), 5)
+        # Screwdriver shaft
+        pygame.draw.line(screwdriver, tool_dark, (12, 10), (12, 5), 2)
+        # Screwdriver tip
+        pygame.draw.line(screwdriver, tool_highlight, (10, 5), (14, 5), 2)
+        tools.append(screwdriver)
+
+        return tools
+
     def move_to_grid(self, grid_x, grid_y):
         """Start smooth movement to grid position."""
         self.grid_x = grid_x
@@ -490,6 +577,16 @@ class AnimatedUnit:
                 self.shake_intensity = 0
                 self.shake_x = 0
                 self.shake_y = 0
+
+        # Glaive rotation for attack effect
+        self.glaive_rotation += 360 * delta_time  # 1 full rotation per second
+        if self.glaive_rotation >= 360:
+            self.glaive_rotation -= 360
+
+        # Tool orbit for skill effect
+        self.tool_orbit_angle += 180 * delta_time  # Slower orbit - half rotation per second
+        if self.tool_orbit_angle >= 360:
+            self.tool_orbit_angle -= 360
 
         # Potpourri aura effect
         if self.potpourri_aura_active:
@@ -588,38 +685,65 @@ class AnimatedUnit:
         import time
         import math
 
-        # Attack glow: Sharp, aggressive pulses (red/orange tint)
+        # Attack glow: Spinning red glaive rotating around unit's center
         if has_attack:
-            pulse = (math.sin(time.time() * 4) + 1) / 2  # Faster, aggressive pulse
-            glow_alpha = int(120 + pulse * 135)  # 120 to 255 alpha
-            # Red/orange aggressive color
-            glow_color = (255, 100, 100)
+            # Create/cache red glaive sprite
+            if not hasattr(self, '_red_glaive_sprite'):
+                self._red_glaive_sprite = self._create_red_glaive_sprite()
 
-            # Draw sharp circular glow layers
-            for i in range(3):
-                glow_radius = self.radius + 4 + i * 5 + int(pulse * 8)
-                glow_alpha_layer = glow_alpha // (i + 1)
-                glow_surf = pygame.Surface((glow_radius * 2 + 4, glow_radius * 2 + 4), pygame.SRCALPHA)
-                pygame.draw.circle(glow_surf, (*glow_color, glow_alpha_layer),
-                                 (glow_radius + 2, glow_radius + 2), glow_radius, 3)
-                surface.blit(glow_surf, (final_x - glow_radius - 2, final_y - glow_radius - 2))
+            # Use the accumulated rotation from update() method
+            # This ensures smooth continuous rotation
+            rotated_glaive = pygame.transform.rotate(self._red_glaive_sprite, -self.glaive_rotation)
+            rotated_glaive.set_alpha(200)  # Visible opacity
 
-        # Skill glow: Mystical, magical shimmer (purple/cyan tint)
+            # Draw glaive centered on unit
+            glaive_rect = rotated_glaive.get_rect(center=(final_x, final_y))
+            surface.blit(rotated_glaive, glaive_rect)
+
+            # Add subtle red glow aura around the spinning glaive
+            glow_size = 70
+            glow_surf = pygame.Surface((glow_size, glow_size), pygame.SRCALPHA)
+            pygame.draw.circle(glow_surf, (255, 100, 100, 40),
+                             (glow_size // 2, glow_size // 2), glow_size // 2)
+            glow_rect = glow_surf.get_rect(center=(final_x, final_y))
+            surface.blit(glow_surf, glow_rect)
+
+        # Skill glow: Purple tools orbiting around unit
         elif has_skill:
-            pulse = (math.sin(time.time() * 2.5) + 1) / 2  # Slower, mystical pulse
-            glow_alpha = int(140 + pulse * 115)  # 140 to 255 alpha (brighter)
-            # Brighter purple/cyan mystical color
-            glow_color = (200, 140, 255)
+            # Create/cache purple tool sprites
+            if not hasattr(self, '_purple_tool_sprites'):
+                self._purple_tool_sprites = self._create_purple_tool_sprites()
 
-            # Draw softer, more layered glow with shimmer effect
-            shimmer_offset = math.sin(time.time() * 5) * 3  # Shimmer variation
-            for i in range(5):
-                glow_radius = self.radius + 5 + i * 3 + int(pulse * 5) + int(shimmer_offset * (i % 2))
-                glow_alpha_layer = glow_alpha // (i + 1)  # Less alpha reduction per layer
-                glow_surf = pygame.Surface((glow_radius * 2 + 4, glow_radius * 2 + 4), pygame.SRCALPHA)
-                pygame.draw.circle(glow_surf, (*glow_color, glow_alpha_layer),
-                                 (glow_radius + 2, glow_radius + 2), glow_radius, 3)  # Thicker rings
-                surface.blit(glow_surf, (final_x - glow_radius - 2, final_y - glow_radius - 2))
+            # Draw 3 tools orbiting around the unit at different positions
+            orbit_radius = self.radius + 15  # Smaller orbit
+            num_tools = 3
+
+            for i, tool_sprite in enumerate(self._purple_tool_sprites):
+                # Each tool is offset by 120 degrees (360/3)
+                angle_offset = (360 / num_tools) * i
+                tool_angle = self.tool_orbit_angle + angle_offset
+
+                # Calculate position on orbit
+                angle_rad = math.radians(tool_angle)
+                tool_x = final_x + math.cos(angle_rad) * orbit_radius
+                tool_y = final_y + math.sin(angle_rad) * orbit_radius
+
+                # Each tool also spins on its own axis
+                tool_rotation = self.tool_orbit_angle * 2  # Spin faster than orbit
+                rotated_tool = pygame.transform.rotate(tool_sprite, -tool_rotation)
+                rotated_tool.set_alpha(200)
+
+                # Draw tool
+                tool_rect = rotated_tool.get_rect(center=(int(tool_x), int(tool_y)))
+                surface.blit(rotated_tool, tool_rect)
+
+            # Add subtle purple glow in center
+            glow_size = 60
+            glow_surf = pygame.Surface((glow_size, glow_size), pygame.SRCALPHA)
+            pygame.draw.circle(glow_surf, (200, 140, 255, 30),
+                             (glow_size // 2, glow_size // 2), glow_size // 2)
+            glow_rect = glow_surf.get_rect(center=(final_x, final_y))
+            surface.blit(glow_surf, glow_rect)
 
         # Draw vapor cloud (for HEINOUS VAPOR) - takes priority over sprite/circle
         if self.vapor_cloud:
