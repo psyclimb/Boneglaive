@@ -41,8 +41,9 @@ class LOTOChecker:
         if unit.is_echo:
             blocked.add('move')
 
-        # Check skill and attack blocking effects
+        # Check skill and attack blocking effects (Neural Shunt blocks ALL manual actions)
         if hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected:
+            blocked.add('move')
             blocked.add('skill')
             blocked.add('attack')
 

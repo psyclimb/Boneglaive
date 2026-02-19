@@ -603,7 +603,13 @@ class ActionMenu:
                 # Skills button enabled when unit selected and hasn't used a skill yet
                 button.enabled = selected_unit is not None and not (hasattr(selected_unit, 'skill_target') and selected_unit.skill_target)
                 button.active = (self.current_mode == "skills")
-                button.blocked_actions = set()
+
+                # Check if skills are blocked (e.g., Neural Shunt)
+                if selected_unit and LOTOChecker.is_action_blocked(selected_unit, 'skill'):
+                    button.blocked_actions = blocked_actions
+                    button.enabled = False
+                else:
+                    button.blocked_actions = set()
             elif button.action == "respawn":
                 button.enabled = self.has_respawns_available
                 button.has_respawns_available = self.has_respawns_available
