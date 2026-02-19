@@ -3251,6 +3251,9 @@ class GraphicalRenderer:
 
             unit.draw(main_surface, self.small_font)
 
+        # Draw target indicator pips on all tiles
+        self.draw_target_pips(main_surface)
+
         # Draw background animations FIRST (zones, environmental effects - render below other animations)
         for animation in self.background_animations:
             animation.draw(main_surface)
@@ -3656,13 +3659,13 @@ class GraphicalRenderer:
                     (GRID_OFFSET_X + grid_x * TILE_SIZE, GRID_OFFSET_Y + grid_y * TILE_SIZE)
                 )
 
-        # Draw skill range (purple/yellow)
+        # Draw skill range (purple)
         if self.show_skill_range and self.skill_positions:
-            skill_color = (200, 150, 255)  # Purple for skills
+            skill_color = (140, 80, 200)  # Darker purple for skills (matches pip color)
             for grid_x, grid_y in self.skill_positions:
                 indicator_surf.fill((0, 0, 0, 0))
-                pygame.draw.rect(indicator_surf, (*skill_color, 80), indicator_rect)
-                pygame.draw.rect(indicator_surf, (*skill_color, 150), indicator_rect, 2)
+                pygame.draw.rect(indicator_surf, (*skill_color, 120), indicator_rect)  # Less transparent
+                pygame.draw.rect(indicator_surf, (*skill_color, 200), indicator_rect, 2)  # Less transparent border
                 surface.blit(
                     indicator_surf,
                     (GRID_OFFSET_X + grid_x * TILE_SIZE, GRID_OFFSET_Y + grid_y * TILE_SIZE)
@@ -4056,6 +4059,73 @@ class GraphicalRenderer:
             if self.game_adapter.game.winner:
                 print(f"[AI] Game over detected - AI won!")
                 return
+
+    def draw_target_pips(self, surface: pygame.Surface):
+        """Draw target indicator pips on all tiles that are being targeted."""
+        if not self.game_adapter.game:
+            return
+
+        game = self.game_adapter.game
+
+        # Count targets for each position
+        target_counts = {}  # {(y, x): {'attacks': count, 'skills': count}}
+
+        # Check all units for their targets
+        for unit in game.units:
+            if unit.hp <= 0:
+                continue
+
+            # Check attack targets
+            if hasattr(unit, 'attack_target') and unit.attack_target:
+                pos = unit.attack_target
+                if pos not in target_counts:
+                    target_counts[pos] = {'attacks': 0, 'skills': 0}
+                target_counts[pos]['attacks'] += 1
+
+            # Check skill targets
+            if hasattr(unit, 'skill_target') and unit.skill_target:
+                pos = unit.skill_target
+                if pos not in target_counts:
+                    target_counts[pos] = {'attacks': 0, 'skills': 0}
+                target_counts[pos]['skills'] += 1
+
+        # Draw pips for each targeted position
+        for (grid_y, grid_x), counts in target_counts.items():
+            attack_count = counts['attacks']
+            skill_count = counts['skills']
+
+            if attack_count == 0 and skill_count == 0:
+                continue
+
+            # Calculate tile position
+            tile_x = GRID_OFFSET_X + grid_x * TILE_SIZE
+            tile_y = GRID_OFFSET_Y + grid_y * TILE_SIZE
+
+            # Pip settings
+            pip_radius = 4
+            pip_spacing = 3
+            pip_start_x = tile_x + TILE_SIZE - 8
+            pip_start_y = tile_y + 8
+
+            # Draw red attack pips
+            for i in range(attack_count):
+                pip_x = pip_start_x - i * (pip_radius * 2 + pip_spacing)
+                pip_y = pip_start_y
+
+                # Main pip - fully opaque
+                pygame.draw.circle(surface, (255, 80, 80), (pip_x, pip_y), pip_radius)
+                # Highlight - fully opaque
+                pygame.draw.circle(surface, (255, 150, 150), (pip_x - 1, pip_y - 1), pip_radius - 2)
+
+            # Draw purple skill pips (below attack pips if any attacks exist)
+            for i in range(skill_count):
+                pip_x = pip_start_x - i * (pip_radius * 2 + pip_spacing)
+                pip_y = pip_start_y + (pip_radius * 2 + pip_spacing) if attack_count > 0 else pip_start_y
+
+                # Main pip - darker purple, fully opaque
+                pygame.draw.circle(surface, (140, 80, 200), (pip_x, pip_y), pip_radius)
+                # Highlight - fully opaque
+                pygame.draw.circle(surface, (180, 120, 230), (pip_x - 1, pip_y - 1), pip_radius - 2)
 
     def draw_selection_highlight(self, surface: pygame.Surface, unit: AnimatedUnit):
         """Draw highlight around selected unit."""

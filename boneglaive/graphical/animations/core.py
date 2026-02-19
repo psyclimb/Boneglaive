@@ -639,38 +639,6 @@ class AnimatedUnit:
         if self.vapor_cloud:
             self.vapor_cloud.update(delta_time)
 
-    def _count_incoming_targets(self):
-        """
-        Count how many units are targeting this unit with attacks or skills.
-
-        Returns:
-            tuple: (attack_count, skill_count)
-        """
-        if not self.game_unit or not hasattr(self.game_unit, '_game') or not self.game_unit._game:
-            return (0, 0)
-
-        game = self.game_unit._game
-        my_pos = (self.game_unit.y, self.game_unit.x)
-
-        attack_count = 0
-        skill_count = 0
-
-        # Check all units in the game
-        for unit in game.units:
-            # Skip dead units
-            if unit.hp <= 0:
-                continue
-
-            # Check if this unit is targeting us with an attack
-            if hasattr(unit, 'attack_target') and unit.attack_target == my_pos:
-                attack_count += 1
-
-            # Check if this unit is targeting us with a skill
-            if hasattr(unit, 'skill_target') and unit.skill_target == my_pos:
-                skill_count += 1
-
-        return (attack_count, skill_count)
-
     def draw(self, surface, font):
         # Calculate final position
         final_x = int(self.x + self.shake_x)
@@ -839,34 +807,6 @@ class AnimatedUnit:
         tile_y = self.y - TILE_SIZE // 2
         tile_rect = pygame.Rect(tile_x, tile_y, TILE_SIZE, TILE_SIZE)
         pygame.draw.rect(surface, outline_color, tile_rect, 2)
-
-        # Draw target indicator pips (red for attacks, purple for skills)
-        attack_count, skill_count = self._count_incoming_targets()
-        if attack_count > 0 or skill_count > 0:
-            pip_radius = 4  # Small pip size
-            pip_spacing = 3  # Spacing between pips
-            pip_start_x = tile_x + TILE_SIZE - 8  # Top-right corner with margin
-            pip_start_y = tile_y + 8
-
-            # Draw red attack pips
-            for i in range(attack_count):
-                pip_x = pip_start_x - i * (pip_radius * 2 + pip_spacing)
-                pip_y = pip_start_y
-
-                # Main pip - fully opaque
-                pygame.draw.circle(surface, (255, 80, 80), (pip_x, pip_y), pip_radius)
-                # Highlight - fully opaque
-                pygame.draw.circle(surface, (255, 150, 150), (pip_x - 1, pip_y - 1), pip_radius - 2)
-
-            # Draw purple skill pips (below attack pips if any attacks exist)
-            for i in range(skill_count):
-                pip_x = pip_start_x - i * (pip_radius * 2 + pip_spacing)
-                pip_y = pip_start_y + (pip_radius * 2 + pip_spacing) if attack_count > 0 else pip_start_y
-
-                # Main pip - darker purple, fully opaque
-                pygame.draw.circle(surface, (140, 80, 200), (pip_x, pip_y), pip_radius)
-                # Highlight - fully opaque
-                pygame.draw.circle(surface, (180, 120, 230), (pip_x - 1, pip_y - 1), pip_radius - 2)
 
         # HP bar and name hidden for cleaner demo
         # bar_width = 50
