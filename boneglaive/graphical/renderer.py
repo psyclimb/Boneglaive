@@ -1245,25 +1245,16 @@ class GraphicalRenderer:
                     else:
                         print(f"Failed to use skill: {self.selected_skill.name}")
 
-                    # Clear skill targeting mode
+                    # Clear skill targeting mode and hide all ranges
                     self.selected_skill = None
                     self.show_skill_range = False
                     self.skill_positions = []
-
-                    # Restore normal range display
-                    if game_unit:
-                        # Check if unit has pending move - if so, calculate from ghost position
-                        if game_unit.move_target:
-                            self.valid_positions = []
-                            self.attack_positions = self.game_adapter.get_attack_range(game_unit, from_pos=game_unit.move_target)
-                            self.show_movement_range = False
-                        else:
-                            self.valid_positions = self.game_adapter.get_movement_range(game_unit)
-                            self.attack_positions = self.game_adapter.get_attack_range(game_unit)
-                            self.show_movement_range = True
-                        self.show_target_range = True
-                    else:
-                        print(f"Failed to use skill")
+                    self.show_movement_range = False
+                    self.show_target_range = False
+                    self.valid_positions = []
+                    self.attack_positions = []
+                    self.show_skills = False  # Hide skill bar after using a skill
+                    self.current_action_mode = "SELECT"
             else:
                 print(f"Target out of skill range")
             return  # Don't process normal click logic when in skill mode
@@ -3725,29 +3716,72 @@ class GraphicalRenderer:
         # Draw setup ghost preview
         if self.setup_placing_unit and self.setup_ghost_pos and self.selected_unit_type:
             ghost_x, ghost_y = self.setup_ghost_pos  # screen_to_grid returns (grid_x, grid_y)
-            # Draw semi-transparent unit preview
-            ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
 
             # Check if position is valid (game logic uses (y, x) format)
             pos_valid = (ghost_y, ghost_x) in self.setup_valid_tiles
-            if pos_valid:
-                ghost_surf.fill((100, 200, 255, 80))  # Blue tint for valid
-            else:
-                ghost_surf.fill((255, 100, 100, 80))  # Red tint for invalid
 
-            # Draw unit type name
-            # Get display name (handles both enums and integers)
-            unit_display_name = self.setup_window.unit_names.get(self.selected_unit_type, str(self.selected_unit_type))
-            text = self.small_font.render(
-                unit_display_name[:3],  # First 3 letters
-                True, (255, 255, 255)
-            )
-            text_rect = text.get_rect(center=(TILE_SIZE // 2, TILE_SIZE // 2))
-            ghost_surf.blit(text, text_rect)
-            surface.blit(
-                ghost_surf,
-                (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE)
-            )
+            # Get sprite path for the selected unit type
+            sprite_path = self._get_sprite_path(self.selected_unit_type)
+
+            # Try to load and display the sprite
+            if sprite_path and os.path.exists(sprite_path):
+                try:
+                    # Load sprite
+                    if sprite_path.endswith('.svg'):
+                        import cairosvg
+                        from io import BytesIO
+                        png_data = cairosvg.svg2png(url=sprite_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
+                        sprite = pygame.image.load(BytesIO(png_data))
+                    else:
+                        sprite = pygame.image.load(sprite_path)
+                        sprite = pygame.transform.smoothscale(sprite, (TILE_SIZE, TILE_SIZE))
+
+                    # Create ghost surface with semi-transparent sprite
+                    ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+
+                    # Draw sprite with transparency
+                    sprite_copy = sprite.copy()
+                    sprite_copy.set_alpha(120)  # Semi-transparent
+                    ghost_surf.blit(sprite_copy, (0, 0))
+
+                    # Add colored tint overlay
+                    tint_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                    if pos_valid:
+                        tint_surf.fill((100, 200, 255, 60))  # Blue tint for valid
+                    else:
+                        tint_surf.fill((255, 100, 100, 60))  # Red tint for invalid
+                    ghost_surf.blit(tint_surf, (0, 0))
+
+                    # Draw the ghost preview
+                    surface.blit(
+                        ghost_surf,
+                        (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE)
+                    )
+                except Exception as e:
+                    # Fallback to text if sprite loading fails
+                    print(f"Could not load sprite for ghost preview: {e}")
+                    ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                    if pos_valid:
+                        ghost_surf.fill((100, 200, 255, 80))
+                    else:
+                        ghost_surf.fill((255, 100, 100, 80))
+                    unit_display_name = self.setup_window.unit_names.get(self.selected_unit_type, str(self.selected_unit_type))
+                    text = self.small_font.render(unit_display_name[:3], True, (255, 255, 255))
+                    text_rect = text.get_rect(center=(TILE_SIZE // 2, TILE_SIZE // 2))
+                    ghost_surf.blit(text, text_rect)
+                    surface.blit(ghost_surf, (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE))
+            else:
+                # Fallback to text if sprite path not found
+                ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                if pos_valid:
+                    ghost_surf.fill((100, 200, 255, 80))
+                else:
+                    ghost_surf.fill((255, 100, 100, 80))
+                unit_display_name = self.setup_window.unit_names.get(self.selected_unit_type, str(self.selected_unit_type))
+                text = self.small_font.render(unit_display_name[:3], True, (255, 255, 255))
+                text_rect = text.get_rect(center=(TILE_SIZE // 2, TILE_SIZE // 2))
+                ghost_surf.blit(text, text_rect)
+                surface.blit(ghost_surf, (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE))
 
     def draw_ui(self, surface: pygame.Surface):
         """Draw UI elements using new three-zone layout."""

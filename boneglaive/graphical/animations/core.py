@@ -577,6 +577,50 @@ class AnimatedUnit:
 
                         surface.blit(particle_surf, (int(particle['x'] - center), int(particle['y'] - center)))
 
+        # Check if unit has queued attack or skill
+        has_attack = False
+        has_skill = False
+        if self.game_unit:
+            has_attack = hasattr(self.game_unit, 'attack_target') and self.game_unit.attack_target
+            has_skill = hasattr(self.game_unit, 'skill_target') and self.game_unit.skill_target
+
+        # Draw different glow effects for attack vs skill
+        import time
+        import math
+
+        # Attack glow: Sharp, aggressive pulses (red/orange tint)
+        if has_attack:
+            pulse = (math.sin(time.time() * 4) + 1) / 2  # Faster, aggressive pulse
+            glow_alpha = int(120 + pulse * 135)  # 120 to 255 alpha
+            # Red/orange aggressive color
+            glow_color = (255, 100, 100)
+
+            # Draw sharp circular glow layers
+            for i in range(3):
+                glow_radius = self.radius + 4 + i * 5 + int(pulse * 8)
+                glow_alpha_layer = glow_alpha // (i + 1)
+                glow_surf = pygame.Surface((glow_radius * 2 + 4, glow_radius * 2 + 4), pygame.SRCALPHA)
+                pygame.draw.circle(glow_surf, (*glow_color, glow_alpha_layer),
+                                 (glow_radius + 2, glow_radius + 2), glow_radius, 3)
+                surface.blit(glow_surf, (final_x - glow_radius - 2, final_y - glow_radius - 2))
+
+        # Skill glow: Mystical, magical shimmer (purple/cyan tint)
+        elif has_skill:
+            pulse = (math.sin(time.time() * 2.5) + 1) / 2  # Slower, mystical pulse
+            glow_alpha = int(140 + pulse * 115)  # 140 to 255 alpha (brighter)
+            # Brighter purple/cyan mystical color
+            glow_color = (200, 140, 255)
+
+            # Draw softer, more layered glow with shimmer effect
+            shimmer_offset = math.sin(time.time() * 5) * 3  # Shimmer variation
+            for i in range(5):
+                glow_radius = self.radius + 5 + i * 3 + int(pulse * 5) + int(shimmer_offset * (i % 2))
+                glow_alpha_layer = glow_alpha // (i + 1)  # Less alpha reduction per layer
+                glow_surf = pygame.Surface((glow_radius * 2 + 4, glow_radius * 2 + 4), pygame.SRCALPHA)
+                pygame.draw.circle(glow_surf, (*glow_color, glow_alpha_layer),
+                                 (glow_radius + 2, glow_radius + 2), glow_radius, 3)  # Thicker rings
+                surface.blit(glow_surf, (final_x - glow_radius - 2, final_y - glow_radius - 2))
+
         # Draw vapor cloud (for HEINOUS VAPOR) - takes priority over sprite/circle
         if self.vapor_cloud:
             self.vapor_cloud.draw(surface, final_x, final_y)

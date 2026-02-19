@@ -570,6 +570,15 @@ class ActionMenu:
                 # Move button enabled when unit selected and hasn't moved yet
                 button.enabled = selected_unit is not None and not (hasattr(selected_unit, 'move_target') and selected_unit.move_target)
                 button.active = (self.current_mode == "move")
+
+                # Disable move if unit has used a skill (except DERELICTIONIST)
+                if selected_unit and hasattr(selected_unit, 'skill_target') and selected_unit.skill_target:
+                    # Import UnitType to check for DERELICTIONIST
+                    from boneglaive.utils.constants import UnitType
+                    # DERELICTIONIST can move after using a skill (passive ability)
+                    if selected_unit.type != UnitType.DERELICTIONIST:
+                        button.enabled = False
+
                 # Check if movement is blocked (e.g., immobilized by Jawline)
                 if selected_unit and LOTOChecker.is_action_blocked(selected_unit, 'move'):
                     button.blocked_actions = blocked_actions
@@ -579,6 +588,11 @@ class ActionMenu:
             elif button.action == "attack":
                 button.enabled = selected_unit is not None
                 button.active = (self.current_mode == "attack")
+
+                # Disable attack if unit has used a skill
+                if selected_unit and hasattr(selected_unit, 'skill_target') and selected_unit.skill_target:
+                    button.enabled = False
+
                 # Check if attack is blocked (e.g., during gaussian recharge)
                 if selected_unit and LOTOChecker.is_action_blocked(selected_unit, 'attack'):
                     button.blocked_actions = blocked_actions
@@ -586,8 +600,8 @@ class ActionMenu:
                 else:
                     button.blocked_actions = set()
             elif button.action == "skills":
-                # Skills button enabled when unit selected
-                button.enabled = selected_unit is not None
+                # Skills button enabled when unit selected and hasn't used a skill yet
+                button.enabled = selected_unit is not None and not (hasattr(selected_unit, 'skill_target') and selected_unit.skill_target)
                 button.active = (self.current_mode == "skills")
                 button.blocked_actions = set()
             elif button.action == "respawn":

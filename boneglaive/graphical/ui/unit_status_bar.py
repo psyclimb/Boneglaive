@@ -122,6 +122,15 @@ class UnitCard:
             return False
         return not self.game_unit.is_done_acting()
 
+    def has_queued_actions(self) -> bool:
+        """Check if unit has queued attack or skill (not just move)."""
+        if self.is_dead:
+            return False
+        return (
+            (hasattr(self.game_unit, 'attack_target') and self.game_unit.attack_target) or
+            (hasattr(self.game_unit, 'skill_target') and self.game_unit.skill_target)
+        )
+
     def draw(self, surface: pygame.Surface, x: int, y: int, font, small_font,
              is_selected: bool, player_color: tuple):
         """
@@ -208,6 +217,23 @@ class UnitCard:
         )
         text_rect = text_surface.get_rect(center=(x + UNIT_CARD_WIDTH // 2, text_y))
         surface.blit(text_surface, text_rect)
+
+        # Draw READY badge for units with queued actions
+        if not self.is_dead and self.has_queued_actions():
+            ready_badge_y = y + UNIT_CARD_HEIGHT - HP_BAR_HEIGHT - 16
+            ready_text = render_fitted_text(
+                "READY",
+                max_width=UNIT_CARD_WIDTH - 10,
+                max_height=12,
+                color=(150, 255, 150) if self.game_unit.player == 1 else (150, 200, 255),
+                base_font_size=12,
+                min_font_size=10,
+                max_font_size=14
+            )
+            ready_rect = ready_text.get_rect(
+                center=(x + UNIT_CARD_WIDTH // 2, ready_badge_y)
+            )
+            surface.blit(ready_text, ready_rect)
 
         # Draw HP bar for alive units
         if not self.is_dead:
