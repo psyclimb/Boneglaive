@@ -48,6 +48,7 @@ class ActionButton:
         self.lightning_bolt_icon = None  # Cached lightning bolt icon
         self.gears_icon = None  # Cached gears icon
         self.glaive_icon = None  # Cached glaive icon
+        self.toolbox_icon = None  # Cached toolbox icon
         self.help_scream_icon = None  # Cached help scream icon
         self.white_flag_icon = None  # Cached white flag icon
 
@@ -358,6 +359,42 @@ class ActionButton:
                 # Draw the glaive icon on top
                 surface.blit(self.glaive_icon, (icon_x, icon_y))
 
+        # Draw toolbox icon on skills button - ALWAYS visible, grey color
+        if self.action == "skills":
+            import os
+
+            # Load toolbox icon if not cached
+            if self.toolbox_icon is None:
+                icon_path = "graphics/ui/toolbox.svg"
+                if os.path.exists(icon_path):
+                    try:
+                        import cairosvg
+                        from io import BytesIO
+                        # Load at 28x28 to fit nicely on button
+                        png_data = cairosvg.svg2png(url=icon_path, output_width=28, output_height=28)
+                        self.toolbox_icon = pygame.image.load(BytesIO(png_data))
+                        self.toolbox_icon = self.toolbox_icon.convert_alpha()
+                    except:
+                        pass  # Failed to load icon
+
+            # Draw toolbox icon on the right side of button
+            if self.toolbox_icon:
+                icon_x = x + BUTTON_WIDTH - 35  # Position on right side
+                icon_y = y + (BUTTON_HEIGHT - 28) // 2  # Center vertically
+
+                # Draw dark shadow/outline behind the toolbox icon for contrast
+                shadow_color = (0, 0, 0, 180)  # Dark shadow
+                shadow_icon = self.toolbox_icon.copy()
+                # Tint the icon darker for shadow
+                shadow_icon.fill(shadow_color, special_flags=pygame.BLEND_RGBA_MULT)
+
+                # Draw shadow in multiple directions for outline effect
+                for offset_x, offset_y in [(-1, -1), (-1, 1), (1, -1), (1, 1), (-1, 0), (1, 0), (0, -1), (0, 1)]:
+                    surface.blit(shadow_icon, (icon_x + offset_x, icon_y + offset_y))
+
+                # Draw the toolbox icon on top
+                surface.blit(self.toolbox_icon, (icon_x, icon_y))
+
         # Draw help scream icon on help button - ALWAYS visible
         if self.action == "help":
             import os
@@ -483,6 +520,7 @@ class ActionMenu:
         self.buttons = [
             ActionButton("move", "M", "MOVE"),
             ActionButton("attack", "A", "ATTACK"),
+            ActionButton("skills", "S", "SKILLS"),
             ActionButton("upgrade", "U", "UPGRADE"),
             ActionButton("respawn", "R", "RESPAWN"),
             ActionButton("execute", "E", "EXECUTE TURN"),
@@ -547,6 +585,11 @@ class ActionMenu:
                     button.enabled = False
                 else:
                     button.blocked_actions = set()
+            elif button.action == "skills":
+                # Skills button enabled when unit selected
+                button.enabled = selected_unit is not None
+                button.active = (self.current_mode == "skills")
+                button.blocked_actions = set()
             elif button.action == "respawn":
                 button.enabled = self.has_respawns_available
                 button.has_respawns_available = self.has_respawns_available
@@ -675,6 +718,7 @@ class ActionMenu:
         key_map = {
             pygame.K_m: 'M',
             pygame.K_a: 'A',
+            pygame.K_s: 'S',
             pygame.K_r: 'R',
             pygame.K_h: 'H',
             pygame.K_e: 'E',

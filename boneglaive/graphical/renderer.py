@@ -165,6 +165,7 @@ class GraphicalRenderer:
         self.show_movement_range = False
         self.show_target_range = False
         self.show_skill_range = False
+        self.show_skills = False  # Whether skill bar should be visible
         self.valid_positions: List[Tuple[int, int]] = []
         self.attack_positions: List[Tuple[int, int]] = []
         self.skill_positions: List[Tuple[int, int]] = []
@@ -841,42 +842,43 @@ class GraphicalRenderer:
                             print(f"[DEV] Player 2 upgrade points: {game.player2_upgrade_points}")
 
                 # Check action menu hotkeys first
-                elif event.key in [pygame.K_m, pygame.K_a, pygame.K_r, pygame.K_e, pygame.K_c, pygame.K_h]:
+                elif event.key in [pygame.K_m, pygame.K_a, pygame.K_s, pygame.K_r, pygame.K_e, pygame.K_c, pygame.K_h]:
                     action = self.action_menu.handle_hotkey(event.key)
                     if action:
                         self._handle_action_menu_click(action)
 
-                # Then check skill hotkeys
+                # Then check skill hotkeys (only if skills are visible)
                 elif event.key in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4,
                                   pygame.K_q, pygame.K_w]:
-                    # Handle skill hotkeys (removed E and R to avoid conflicts)
-                    skill = self.skill_bar.handle_hotkey(event.key)
-                    if skill and self.selected_unit:
-                        print(f"Skill selected: {skill.name}")
-                        self.selected_skill = skill
-                        self.current_action_mode = "SKILL"
+                    # Handle skill hotkeys only if skill bar is visible
+                    if self.show_skills:
+                        skill = self.skill_bar.handle_hotkey(event.key)
+                        if skill and self.selected_unit:
+                            print(f"Skill selected: {skill.name}")
+                            self.selected_skill = skill
+                            self.current_action_mode = "SKILL"
 
-                        # Query skill range
-                        game_unit = self._get_game_unit(self.selected_unit)
-                        if game_unit:
-                            # If unit has pending move, calculate skill range from ghost position
-                            if game_unit.move_target:
-                                original_y, original_x = game_unit.y, game_unit.x
-                                game_unit.y, game_unit.x = game_unit.move_target
-                                self.skill_positions = self.game_adapter.get_skill_range(game_unit, skill)
-                                game_unit.y, game_unit.x = original_y, original_x
+                            # Query skill range
+                            game_unit = self._get_game_unit(self.selected_unit)
+                            if game_unit:
+                                # If unit has pending move, calculate skill range from ghost position
+                                if game_unit.move_target:
+                                    original_y, original_x = game_unit.y, game_unit.x
+                                    game_unit.y, game_unit.x = game_unit.move_target
+                                    self.skill_positions = self.game_adapter.get_skill_range(game_unit, skill)
+                                    game_unit.y, game_unit.x = original_y, original_x
+                                else:
+                                    self.skill_positions = self.game_adapter.get_skill_range(game_unit, skill)
+                                print(f"Skill has {len(self.skill_positions)} valid targets")
+
+                                # Hide movement/attack range, show skill range
+                                self.show_movement_range = False
+                                self.show_target_range = False
+                                self.show_skill_range = True
                             else:
-                                self.skill_positions = self.game_adapter.get_skill_range(game_unit, skill)
-                            print(f"Skill has {len(self.skill_positions)} valid targets")
-
-                            # Hide movement/attack range, show skill range
-                            self.show_movement_range = False
-                            self.show_target_range = False
-                            self.show_skill_range = True
-                        else:
-                            self.skill_positions = []
-                    elif skill and not self.selected_unit:
-                        print("Select a unit first to use skills")
+                                self.skill_positions = []
+                        elif skill and not self.selected_unit:
+                            print("Select a unit first to use skills")
 
             elif event.type == pygame.MOUSEMOTION:
                 # Handle game over window mouse motion
@@ -914,7 +916,8 @@ class GraphicalRenderer:
                 self.hovered_grid_pos = self.screen_to_grid(event.pos[0], event.pos[1])
 
                 # Update UI component hovers
-                self.skill_bar.handle_mouse_motion(event.pos)
+                if self.show_skills:
+                    self.skill_bar.handle_mouse_motion(event.pos)
                 self.status_effects_panel.handle_mouse_motion(event.pos)
                 self.unit_status_bar.handle_mouse_motion(event.pos)
                 self.action_menu.handle_mouse_motion(event.pos)
@@ -1056,26 +1059,27 @@ class GraphicalRenderer:
                     # Check if clicking on UI components first
                     clicked_handled = False
 
-                    # Check skill bar click
-                    skill = self.skill_bar.handle_click(event.pos)
-                    if skill and self.selected_unit:
-                        print(f"Skill selected via click: {skill.name}")
-                        self.selected_skill = skill
-                        game_unit = self._get_game_unit(self.selected_unit)
-                        if game_unit:
-                            # Calculate skill range from ghost position if unit has pending move
-                            if game_unit.move_target:
-                                original_y, original_x = game_unit.y, game_unit.x
-                                game_unit.y, game_unit.x = game_unit.move_target
-                                self.skill_positions = self.game_adapter.get_skill_range(game_unit, skill)
-                                game_unit.y, game_unit.x = original_y, original_x
-                            else:
-                                self.skill_positions = self.game_adapter.get_skill_range(game_unit, skill)
-                            self.show_movement_range = False
-                            self.show_target_range = False
-                            self.show_skill_range = True
-                            self.current_action_mode = "SKILL"
-                        clicked_handled = True
+                    # Check skill bar click (only if skills are visible)
+                    if self.show_skills:
+                        skill = self.skill_bar.handle_click(event.pos)
+                        if skill and self.selected_unit:
+                            print(f"Skill selected via click: {skill.name}")
+                            self.selected_skill = skill
+                            game_unit = self._get_game_unit(self.selected_unit)
+                            if game_unit:
+                                # Calculate skill range from ghost position if unit has pending move
+                                if game_unit.move_target:
+                                    original_y, original_x = game_unit.y, game_unit.x
+                                    game_unit.y, game_unit.x = game_unit.move_target
+                                    self.skill_positions = self.game_adapter.get_skill_range(game_unit, skill)
+                                    game_unit.y, game_unit.x = original_y, original_x
+                                else:
+                                    self.skill_positions = self.game_adapter.get_skill_range(game_unit, skill)
+                                self.show_movement_range = False
+                                self.show_target_range = False
+                                self.show_skill_range = True
+                                self.current_action_mode = "SKILL"
+                            clicked_handled = True
 
                     # Check unit status bar click
                     if not clicked_handled:
@@ -1118,6 +1122,7 @@ class GraphicalRenderer:
                     self.show_movement_range = False
                     self.show_target_range = False
                     self.show_skill_range = False
+                    self.show_skills = False  # Hide skill bar
                     self.show_astral_values = False  # Hide astral values
                     self.valid_positions = []
                     self.attack_positions = []
@@ -1326,6 +1331,7 @@ class GraphicalRenderer:
                             self.selected_unit = None
                             self.show_movement_range = False
                             self.show_target_range = False
+                            self.show_skills = False  # Hide skill bar
                             self.show_astral_values = False  # Hide astral values
                             self.valid_positions = []
                             self.attack_positions = []
@@ -1452,6 +1458,7 @@ class GraphicalRenderer:
             if self.selected_unit:
                 print("Move mode activated")
                 self.current_action_mode = "MOVE"
+                self.show_skills = False  # Hide skills when switching to move mode
                 # Show movement range
                 game_unit = self._get_game_unit(self.selected_unit)
                 if game_unit:
@@ -1469,6 +1476,7 @@ class GraphicalRenderer:
             if self.selected_unit:
                 print("Attack mode activated")
                 self.current_action_mode = "ATTACK"
+                self.show_skills = False  # Hide skills when switching to attack mode
                 # Show attack range
                 game_unit = self._get_game_unit(self.selected_unit)
                 if game_unit:
@@ -1480,6 +1488,13 @@ class GraphicalRenderer:
                     self.show_target_range = True
                     self.show_movement_range = False
                     self.show_skill_range = False
+
+        elif action == "skills":
+            if self.selected_unit:
+                print("Skills button clicked - toggling skill bar visibility")
+                # Toggle skill bar visibility
+                self.show_skills = not self.show_skills
+                self.current_action_mode = "SKILLS" if self.show_skills else "SELECT"
 
         elif action == "respawn":
             print("Respawn mode activated")
@@ -3263,8 +3278,9 @@ class GraphicalRenderer:
         for debris in self.debris_particles:
             debris.draw(main_surface)
 
-        # Draw skill bar (above map, below top bar)
-        self.skill_bar.draw(main_surface, SCREEN_WIDTH, SCREEN_HEIGHT, TOP_BAR_HEIGHT)
+        # Draw skill bar (above map, below top bar) - only if show_skills is True
+        if self.show_skills:
+            self.skill_bar.draw(main_surface, SCREEN_WIDTH, SCREEN_HEIGHT, TOP_BAR_HEIGHT)
 
         # Draw combat log (below map, horizontal bar - maximized to fit space)
         combat_log_x = LEFT_PANEL_WIDTH + 10  # 290
@@ -3881,6 +3897,7 @@ class GraphicalRenderer:
         self.show_movement_range = False
         self.show_target_range = False
         self.show_skill_range = False
+        self.show_skills = False  # Hide skill bar
         self.show_astral_values = False  # Hide astral values on turn execution
         self.valid_positions = []
         self.attack_positions = []
