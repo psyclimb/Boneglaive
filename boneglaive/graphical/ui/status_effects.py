@@ -32,8 +32,17 @@ STATUS_EFFECTS = {
         "name": "Pried",
         "type": "debuff",
         "icon": "P",
-        "description": "Defense reduced by Pry skill",
-        "check": lambda u: u.was_pried
+        "description": "Movement reduced by Pry skill",
+        "duration_key": "pry_duration",
+        "check": lambda u: hasattr(u, 'was_pried') and u.was_pried
+    },
+    "was_pried_upgraded": {
+        "name": "Pried",
+        "type": "debuff",
+        "icon": "P",
+        "description": "Movement reduced by upgraded Pry skill",
+        "duration_key": "pry_upgraded_duration",
+        "check": lambda u: hasattr(u, 'was_pried_upgraded') and u.was_pried_upgraded
     },
     "trapped_by": {
         "name": "Trapped",

@@ -4241,21 +4241,13 @@ class Game:
             self.pre_status_clear_callback()
 
         # Continue with status clearing for current player's units
+        # NOTE: Pry status clearing is now handled by duration-based system in units.py
+        # (was_pried flag is cleared when pry_duration reaches 0)
         for unit in self.units:
             if unit.is_alive():
-                # Handle units that were affected by Pry during the turn that just ended
-                # They need to keep their was_pried status until after THEIR next turn
-                if unit.was_pried and unit.player == self.current_player:
-                    # This unit was just pried this turn - next turn it will feel the effects
-                    # Keep was_pried flag until after their turn is done
-                    pass
-                elif unit.was_pried and unit.player != self.current_player:
-                    # This unit was pried on their previous turn and just finished a turn with the penalty
-                    # Time to clear the was_pried flag
-                    unit.was_pried = False  # Keep the move_range_bonus until end of turn
-                
                 # Passive skills are now applied at the start of each player's turn
                 # instead of at the end of the previous player's turn
+                pass
         
         # Process MarrowDike wall durations
         if hasattr(self, 'marrow_dike_tiles'):
@@ -4457,9 +4449,8 @@ class Game:
             # Reset penalties for current player's units BEFORE switching players
             for unit in self.units:
                 if unit.is_alive() and unit.player == self.current_player:
-                    # If this unit was pried during THIS turn, don't reset (penalty should last next turn)
-                    if not unit.was_pried:
-                        unit.reset_movement_penalty()
+                    # Always call reset_movement_penalty() - it handles Pry duration internally
+                    unit.reset_movement_penalty()
                         
             # Process Partition Shield emergency cleanup for ALL units (regardless of player)
             for unit in self.units:

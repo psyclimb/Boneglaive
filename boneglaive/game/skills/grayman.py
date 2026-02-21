@@ -449,9 +449,6 @@ class DeltaConfigSkill(ActiveSkill):
 
             # Move each abducted enemy to their new position around the destination
             for enemy, rel_dy, rel_dx in abducted_enemies:
-                # Mark enemy as being abducted (graphical system will use this to prevent walk cycle)
-                enemy.abducted_by_delta_config = True
-
                 # Try to maintain relative position
                 dest_y = target_pos[0] + rel_dy
                 dest_x = target_pos[1] + rel_dx
@@ -460,8 +457,23 @@ class DeltaConfigSkill(ActiveSkill):
                 if (game.is_valid_position(dest_y, dest_x) and
                     game.map.is_passable(dest_y, dest_x) and
                     game.get_unit_at(dest_y, dest_x) is None):
-                    enemy.y = dest_y
-                    enemy.x = dest_x
+                    # Atomically move enemy: remove from old grid position, update coords, add to new grid position
+                    old_enemy_y, old_enemy_x = enemy.y, enemy.x
+                    if (old_enemy_y, old_enemy_x) in game.unit_grid:
+                        del game.unit_grid[(old_enemy_y, old_enemy_x)]
+
+                    # Set private attributes directly (bypass property setters to avoid double grid updates)
+                    enemy._y = dest_y
+                    enemy._x = dest_x
+
+                    # Add to new position in grid
+                    game.unit_grid[(dest_y, dest_x)] = enemy
+
+                    # Trigger trap checks if enemy was trapped or is a foreman
+                    if hasattr(enemy, 'trapped_by') and enemy.trapped_by is not None:
+                        game._check_position_change_trap_release(enemy, old_enemy_y, old_enemy_x)
+                    if enemy.type == UnitType.MANDIBLE_FOREMAN:
+                        game._check_position_change_trap_release(enemy, old_enemy_y, old_enemy_x)
                 else:
                     # Fallback: find any valid adjacent position around destination
                     placed = False
@@ -471,16 +483,29 @@ class DeltaConfigSkill(ActiveSkill):
                         if (game.is_valid_position(alt_y, alt_x) and
                             game.map.is_passable(alt_y, alt_x) and
                             game.get_unit_at(alt_y, alt_x) is None):
-                            enemy.y = alt_y
-                            enemy.x = alt_x
+                            # Atomically move enemy to fallback position
+                            old_enemy_y, old_enemy_x = enemy.y, enemy.x
+                            if (old_enemy_y, old_enemy_x) in game.unit_grid:
+                                del game.unit_grid[(old_enemy_y, old_enemy_x)]
+
+                            # Set private attributes directly (bypass property setters)
+                            enemy._y = alt_y
+                            enemy._x = alt_x
+
+                            # Add to new position in grid
+                            game.unit_grid[(alt_y, alt_x)] = enemy
+
+                            # Trigger trap checks if enemy was trapped or is a foreman
+                            if hasattr(enemy, 'trapped_by') and enemy.trapped_by is not None:
+                                game._check_position_change_trap_release(enemy, old_enemy_y, old_enemy_x)
+                            if enemy.type == UnitType.MANDIBLE_FOREMAN:
+                                game._check_position_change_trap_release(enemy, old_enemy_y, old_enemy_x)
+
                             placed = True
                             break
 
                     # If no position found, enemy stays at original position (well failed to capture fully)
-                    if not placed:
-                        # Reset to original position (where they were before abduction attempt)
-                        enemy.y = original_pos[0] + rel_dy
-                        enemy.x = original_pos[1] + rel_dx
+                    # No need to do anything - enemy is already at their original position in the grid
 
         # Log the completion of teleportation
         if is_upgraded and abducted_enemies:

@@ -86,7 +86,8 @@ class Unit:
         self.upgraded_skills = set()  # Set of skill names that have been upgraded
 
         # Status effects
-        self.was_pried = False  # Track if this unit was affected by Pry skill
+        self.was_pried = False  # Track if this unit was affected by Pry skill (base version, -1 move)
+        self.was_pried_upgraded = False  # Track if this unit was affected by upgraded Pry skill (-2 move)
         self.trapped_by = None  # Reference to MANDIBLE_FOREMAN that trapped this unit, None if not trapped
         self.trap_duration = 0  # Number of turns this unit has been trapped, for incremental damage
         self.took_action = False  # Track if this unit took an action this turn (used by MANDIBLE_FOREMAN)
@@ -306,18 +307,9 @@ class Unit:
         # Seasonal bonuses are now applied as permanent bonuses when the game starts
         # (see _apply_seasonal_bonuses in engine.py)
         
-        # Special handling for move_range - allow it to be 0 for Jawline effect, charging status, and derelicted status
-        # This ensures full immobilization when affected by these status effects
-        if (hasattr(self, 'derelicted') and self.derelicted):
-            # Derelicted units are completely immobilized (movement = 0)
-            stats['move_range'] = 0
-        elif ((hasattr(self, 'jawline_affected') and self.jawline_affected) or 
-              (hasattr(self, 'charging_status') and self.charging_status)):
-            # When Jawline or charging is active, movement can be reduced to 0
-            stats['move_range'] = max(0, base_movement)
-        else:
-            # Normal minimum of 1 for all other cases
-            stats['move_range'] = max(1, base_movement)
+        # Allow movement to be reduced to 0 or below by debuffs
+        # Movement cannot go below 0 (cannot have negative movement)
+        stats['move_range'] = max(0, base_movement)
         
         
         # If unit is an echo (from Græ Exchange), set its attack to at least 2
@@ -1114,35 +1106,67 @@ class Unit:
                 from boneglaive.utils.debug import logger
                 logger.info(f"Removing first turn move bonus for {self.get_display_name()}")
 
-        # Do not reset move_range_bonus if affected by Jawline
-        if not self.jawline_affected and self.move_range_bonus < 0:
-            self.move_range_bonus = 0
-
         # NOTE: Jawline duration is now decremented in Game.execute_turn
         # to ensure it only happens on the player's own turn
 
-        # Reset the Pry status effect - with debug logging
+        # Handle base Pry status effect duration - BEFORE resetting move_range_bonus
         if hasattr(self, 'pry_duration') and self.pry_duration > 0:
-            # Log the current state
-            from boneglaive.utils.debug import logger
-            logger.info(f"Pry status for {self.get_display_name()}: duration={self.pry_duration}, active={getattr(self, 'pry_active', False)}, was_pried={self.was_pried}")
-
             # Decrement the duration
             self.pry_duration -= 1
 
-            # If duration expired, clear the effect
+            # If duration expired, clear the effect and reset move penalty
             if self.pry_duration <= 0:
-                logger.info(f"Clearing Pry effect for {self.get_display_name()}")
                 self.was_pried = False
                 self.pry_active = False
                 if hasattr(self, 'pry_duration'):
                     delattr(self, 'pry_duration')
+                if hasattr(self, 'pry_penalty_amount'):
+                    delattr(self, 'pry_penalty_amount')
+                # Now clear the movement penalty since Pry has expired
+                if self.move_range_bonus == -1:
+                    self.move_range_bonus = 0
+            else:
+                # Duration still active - ensure penalty is maintained
+                if hasattr(self, 'pry_penalty_amount'):
+                    self.move_range_bonus = self.pry_penalty_amount
+        # Handle upgraded Pry status effect duration
+        elif hasattr(self, 'pry_upgraded_duration') and self.pry_upgraded_duration > 0:
+            # Decrement the duration
+            self.pry_upgraded_duration -= 1
 
+            # If duration expired, clear the effect and reset move penalty
+            if self.pry_upgraded_duration <= 0:
+                self.was_pried_upgraded = False
+                self.pry_active = False
+                if hasattr(self, 'pry_upgraded_duration'):
+                    delattr(self, 'pry_upgraded_duration')
+                if hasattr(self, 'pry_upgraded_penalty_amount'):
+                    delattr(self, 'pry_upgraded_penalty_amount')
+                # Now clear the movement penalty since upgraded Pry has expired
+                if self.move_range_bonus == -2:
+                    self.move_range_bonus = 0
+            else:
+                # Duration still active - ensure penalty is maintained
+                if hasattr(self, 'pry_upgraded_penalty_amount'):
+                    self.move_range_bonus = self.pry_upgraded_penalty_amount
         # For backward compatibility - reset was_pried if no duration
         elif self.was_pried:
             self.was_pried = False
             if hasattr(self, 'pry_active'):
                 self.pry_active = False
+            # Clear movement penalty for legacy Pry effects
+            if self.move_range_bonus < 0:
+                self.move_range_bonus = 0
+        elif self.was_pried_upgraded:
+            self.was_pried_upgraded = False
+            if hasattr(self, 'pry_active'):
+                self.pry_active = False
+            # Clear movement penalty for legacy upgraded Pry effects
+            if self.move_range_bonus < 0:
+                self.move_range_bonus = 0
+        # Do not reset move_range_bonus if affected by Jawline or Pry
+        elif not self.jawline_affected and not self.was_pried and not self.was_pried_upgraded and self.move_range_bonus < 0:
+            self.move_range_bonus = 0
                 
     def apply_vapor_effects(self, game: 'Game', ui=None) -> None:
         """

@@ -823,13 +823,26 @@ class PrySkill(ActiveSkill):
             move_penalty = -2 if is_upgraded else -1
 
             target.move_range_bonus = move_penalty
-            target.was_pried = True  # Mark the unit as affected by Pry
 
-            # Add a duration property for UI status display
-            target.pry_duration = 2  # Duration is always 2 turns
-
-            # Add a debug message
-            logger.info(f"Applied Pry effect to {target.get_display_name()} with duration {target.pry_duration}")
+            # Mark the unit with the appropriate Pry status
+            if is_upgraded:
+                target.was_pried_upgraded = True
+                target.pry_upgraded_duration = 2
+                target.pry_upgraded_penalty_amount = -2
+                message_log.add_message(
+                    f"{target.get_display_name()}'s movement is SEVERELY reduced (upgraded Pry: -2)",
+                    MessageType.WARNING,
+                    player=user.player
+                )
+            else:
+                target.was_pried = True
+                target.pry_duration = 2
+                target.pry_penalty_amount = -1
+                message_log.add_message(
+                    f"{target.get_display_name()}'s movement is reduced (base Pry: -1)",
+                    MessageType.WARNING,
+                    player=user.player
+                )
 
             # Ensure the unit has a boolean flag that's easier to check in the UI
             target.pry_active = True
