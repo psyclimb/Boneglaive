@@ -361,7 +361,7 @@ class Autoclave(PassiveSkill):
 
         # Hit all 8 adjacent tiles
         adjacent_offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
-        melee_damage = 4  # Melee counter attack damage
+        melee_damage = 5  # Melee counter attack damage
 
         # Note: Graphical mode animation is handled by renderer detection system in renderer.py
         # The renderer detects the glaive_sweep_queued flag via game_state.py state capture

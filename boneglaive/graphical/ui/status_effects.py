@@ -164,6 +164,14 @@ STATUS_EFFECTS = {
         "duration_key": "severance_duration",
         "check": lambda u: u.severance_active
     },
+    "first_turn_move_bonus": {
+        "name": "First Turn Bonus",
+        "type": "buff",
+        "icon": "1st",
+        "description": "+1 movement range (Player 2's first turn compensation for going second)",
+        "duration_key": "first_turn_move_bonus_duration",
+        "check": lambda u: hasattr(u, 'first_turn_move_bonus') and u.first_turn_move_bonus
+    },
     "pumped_up_active": {
         "name": "Pumped Up",
         "type": "buff",

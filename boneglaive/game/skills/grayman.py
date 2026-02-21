@@ -61,7 +61,7 @@ class DeltaConfigSkill(ActiveSkill):
             key="D",
             description="Teleport to any unoccupied tile on the map.",
             target_type=TargetType.AREA,
-            cooldown=12,
+            cooldown=8,
             range_=99
         )
     
@@ -469,6 +469,9 @@ class DeltaConfigSkill(ActiveSkill):
                     # Add to new position in grid
                     game.unit_grid[(dest_y, dest_x)] = enemy
 
+                    # Mark enemy as abducted for graphical teleport animation
+                    enemy.abducted_by_delta_config = True
+
                     # Trigger trap checks if enemy was trapped or is a foreman
                     if hasattr(enemy, 'trapped_by') and enemy.trapped_by is not None:
                         game._check_position_change_trap_release(enemy, old_enemy_y, old_enemy_x)
@@ -494,6 +497,9 @@ class DeltaConfigSkill(ActiveSkill):
 
                             # Add to new position in grid
                             game.unit_grid[(alt_y, alt_x)] = enemy
+
+                            # Mark enemy as abducted for graphical teleport animation
+                            enemy.abducted_by_delta_config = True
 
                             # Trigger trap checks if enemy was trapped or is a foreman
                             if hasattr(enemy, 'trapped_by') and enemy.trapped_by is not None:
@@ -923,7 +929,7 @@ class GraeExchangeSkill(ActiveSkill):
             key="G",
             description="Create an echo at current position and teleport away. Echo can attack but not move.",
             target_type=TargetType.AREA,
-            cooldown=5,
+            cooldown=3,
             range_=3
         )
 

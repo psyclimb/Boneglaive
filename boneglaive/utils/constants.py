@@ -39,19 +39,19 @@ class UnitType(Enum):
 
 # Unit stats: (hp, attack, defense, move_range, attack_range)
 UNIT_STATS = {
-    UnitType.GLAIVEMAN: (22, 5, 1, 2, 2),
-    UnitType.ARCHER: (15, 6, 2, 2, 3),
-    UnitType.MAGE: (12, 7, 1, 1, 2),
-    UnitType.MANDIBLE_FOREMAN: (22, 4, 1, 2, 1),
-    UnitType.GRAYMAN: (18, 4, 0, 3, 5),
-    UnitType.MARROW_CONDENSER: (20, 4, 2, 2, 1),
-    UnitType.FOWL_CONTRIVANCE: (18, 4, 0, 2, 2),
-    UnitType.GAS_MACHINIST: (20, 4, 1, 2, 2),
-    UnitType.HEINOUS_VAPOR: (1, 0, 0, 3, 1),
-    UnitType.DELPHIC_APPRAISER: (20, 5, 0, 3, 1),
-    UnitType.INTERFERER: (18, 4, 0, 3, 1),
-    UnitType.DERELICTIONIST: (18, 6, 0, 3, 1),
-    UnitType.POTPOURRIST: (24, 5, 0, 2, 1)
+    UnitType.GLAIVEMAN: (22, 5, 1, 3, 2),
+    UnitType.ARCHER: (15, 6, 2, 3, 3),
+    UnitType.MAGE: (12, 7, 1, 2, 2),
+    UnitType.MANDIBLE_FOREMAN: (22, 4, 1, 3, 1),
+    UnitType.GRAYMAN: (18, 4, 0, 4, 5),
+    UnitType.MARROW_CONDENSER: (20, 4, 2, 3, 1),
+    UnitType.FOWL_CONTRIVANCE: (18, 4, 0, 3, 2),
+    UnitType.GAS_MACHINIST: (20, 4, 1, 3, 2),
+    UnitType.HEINOUS_VAPOR: (1, 0, 0, 4, 1),
+    UnitType.DELPHIC_APPRAISER: (20, 5, 0, 4, 1),
+    UnitType.INTERFERER: (18, 4, 0, 4, 1),
+    UnitType.DERELICTIONIST: (18, 6, 0, 4, 1),
+    UnitType.POTPOURRIST: (24, 5, 0, 3, 1)
 }
 
 UNIT_SYMBOLS = {

@@ -4002,6 +4002,46 @@ class GraphicalRenderer:
         text_rect = player_text.get_rect(center=(x + RIGHT_PANEL_WIDTH // 2, y + 12))
         surface.blit(player_text, text_rect)
 
+    def _apply_player2_first_turn_buff(self):
+        """Apply +1 move range buff to all player 2 units on their first turn."""
+        from boneglaive.utils.message_log import message_log, MessageType
+
+        # Find all player 2 units and apply the buff
+        player2_units = [unit for unit in self.game_adapter.game.units if unit.player == 2 and unit.is_alive()]
+
+        if player2_units:
+            # Apply the buff to each unit
+            for unit in player2_units:
+                # Check if unit is immune to status effects (GRAYMAN with Stasiality)
+                if unit.is_immune_to_effects():
+                    print(f"[FirstTurnBuff] {unit.get_display_name()} is immune to first turn bonus due to Stasiality")
+                    continue
+
+                # Add the move bonus (+1)
+                unit.move_range_bonus += 1
+                # Add a flag to show the status effect icon
+                unit.first_turn_move_bonus = True
+                # Set duration to 1 turn (consistent with other status effects)
+                unit.first_turn_move_bonus_duration = 1
+
+            # Show status effect icon flash for each buffed unit
+            for unit in player2_units:
+                if hasattr(unit, 'first_turn_move_bonus') and unit.first_turn_move_bonus:
+                    # Find the animated unit for the visual flash using proper unit ID
+                    unit_id = self.game_adapter._get_unit_id(unit)
+                    if unit_id in self.game_adapter.visual_units:
+                        visual_unit = self.game_adapter.visual_units[unit_id]
+                        animated_unit = visual_unit.animated_unit
+                        self._create_status_icon_flash(animated_unit, "first_turn_move_bonus")
+                        print(f"[FirstTurnBuff] Created status icon flash for {unit.get_display_name()}")
+                    else:
+                        print(f"[FirstTurnBuff] WARNING: Could not find visual unit for {unit.get_display_name()}, unit_id={unit_id}")
+
+            # Log the buff application
+            message_log.add_system_message("Player 2 units receive +1 move range for going second!")
+            self.combat_log.add_message("Player 2 units receive +1 move range for going second!", "system")
+            print(f"[FirstTurnBuff] Applied +1 move range to {len(player2_units)} player 2 units")
+
     def execute_turn(self):
         """Execute the current turn (process all planned actions)."""
         if not self.game_adapter.game:
@@ -4117,12 +4157,23 @@ class GraphicalRenderer:
             # Initialize the new player's turn
             self.game_adapter.game.initialize_next_player_turn()
 
+            # Apply player 2 first turn buff (if applicable)
+            if self.game_adapter.game.current_player == 2:
+                if hasattr(self.game_adapter.game, 'is_player2_first_turn') and self.game_adapter.game.is_player2_first_turn:
+                    self._apply_player2_first_turn_buff()
+                    self.game_adapter.game.is_player2_first_turn = False
+
             # Log player switch
             self.combat_log.add_message(f"Player {self.game_adapter.game.current_player}'s turn", "system")
 
         # Process AI turn if it's player 2's turn and AI is enabled
         # BUT skip if game is already over
         if self.game_adapter.ai_interface and self.game_adapter.game.current_player == 2 and not self.game_adapter.game.winner:
+            # Apply player 2 first turn buff (if applicable)
+            if hasattr(self.game_adapter.game, 'is_player2_first_turn') and self.game_adapter.game.is_player2_first_turn:
+                self._apply_player2_first_turn_buff()
+                self.game_adapter.game.is_player2_first_turn = False
+
             print(f"[AI] Waiting 3 seconds before AI turn...")
             self.combat_log.add_message("AI is thinking...", "system")
 
