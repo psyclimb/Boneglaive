@@ -28,7 +28,8 @@ from .glaiveman import (
     PryAnimation,
     JudgementAnimation,
     AutoclaveAnimationV2,
-    GlaiveSweepAnimation
+    GlaiveSweepAnimation,
+    AutoclaveFailureAnimation
 )
 
 from .mandible_foreman import (
@@ -159,6 +160,7 @@ __all__ = [
     'JudgementAnimation',
     'AutoclaveAnimationV2',
     'GlaiveSweepAnimation',
+    'AutoclaveFailureAnimation',
     # Mandible Foreman
     'JawClamp',
     'JawRelease',

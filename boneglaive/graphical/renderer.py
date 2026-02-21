@@ -1925,6 +1925,42 @@ class GraphicalRenderer:
             else:
                 print(f"[Retch] ERROR: Could not find visual unit for retching unit")
 
+        elif event.event_type == "autoclave_failure":
+            # Autoclave failure - GLAIVEMAN charges but fizzles (no targets available)
+            target = event.target_unit  # GLAIVEMAN who failed to trigger Autoclave
+            visual_unit = self._get_visual_unit(target)
+
+            if visual_unit:
+                animated_unit = visual_unit.animated_unit
+
+                print(f"[AutoclaveFailure] {target.get_display_name()}'s Autoclave fails - no targets in range")
+
+                # Create AutoclaveFailureAnimation
+                from boneglaive.graphical.animations import AnimationFactory
+
+                failure_animation = AnimationFactory.create_animation(
+                    skill_name="AUTOCLAVE_FAILURE",
+                    caster_unit=animated_unit,
+                    target_unit=animated_unit,
+                    target_pos=(target.y, target.x),
+                    is_crit=False,
+                    is_infused=False,
+                    particle_emitter=self.particle_emitter,
+                    screen_shake_callback=self.trigger_screen_shake,
+                    screen_flash_callback=self.trigger_screen_flash,
+                    units_list=self.units,
+                    camera=self.camera,
+                    game=self.game_adapter.game
+                )
+
+                if failure_animation:
+                    self.active_animations.append(failure_animation)
+                    print(f"[AutoclaveFailure] Animation created successfully!")
+                else:
+                    print(f"[AutoclaveFailure] ERROR: Failed to create animation")
+            else:
+                print(f"[AutoclaveFailure] ERROR: Could not find visual unit for GLAIVEMAN")
+
         elif event.event_type == "partition_dissociation":
             # Play partition dissociation animation (emergency trigger)
             print(f"[RENDERER DEBUG] *** RECEIVED partition_dissociation EVENT ***")
@@ -2371,7 +2407,7 @@ class GraphicalRenderer:
         Args:
             event: Animation event from game state
         """
-        if event.event_type == "damage" or event.event_type == "heal" or event.event_type == "geas_heal" or event.event_type == "melange_heal" or event.event_type == "scalar_trap" or event.event_type == "trap_release" or event.event_type == "viseroy_tick" or event.event_type == "retch":
+        if event.event_type == "damage" or event.event_type == "heal" or event.event_type == "geas_heal" or event.event_type == "melange_heal" or event.event_type == "scalar_trap" or event.event_type == "trap_release" or event.event_type == "viseroy_tick" or event.event_type == "retch" or event.event_type == "autoclave_failure":
             # If animations are active, queue the event for later
             if self.has_active_animations():
                 self.pending_animation_events.append(event)

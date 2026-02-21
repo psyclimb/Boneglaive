@@ -14,7 +14,7 @@ from boneglaive.graphical.animations.core import AnimatedUnit, TILE_SIZE
 from boneglaive.graphical.animations.glaiveman import (
     LightningBolt, CrossBeam, AutoclaveAnimation, AutoclaveAnimationV2, SpinningGlaiveProjectile,
     PryImpactAnimation, VaultAnimationController, VaultAnimationControllerUpgraded,
-    PryAnimation, JudgementAnimation, GlaiveSweepAnimation
+    PryAnimation, JudgementAnimation, GlaiveSweepAnimation, AutoclaveFailureAnimation
 )
 from boneglaive.graphical.animations.mandible_foreman import (
     JawClamp, ViseroyTrap, ViseroyRelease, JawTighten, SiteInspectionBuff,
@@ -111,6 +111,7 @@ class AnimationFactory:
         "VAULT": (VaultAnimationController, {}),  # Acrobatic leap with flip
         "VAULT_UPGRADED": (VaultAnimationControllerUpgraded, {}),  # Extended vault with double flip, higher arc, enhanced effects
         "AUTOCLAVE": (AutoclaveAnimationV2, {}),  # Enhanced: fire burst, steam cross, spinning glaives on every tile, healing
+        "AUTOCLAVE_FAILURE": (AutoclaveFailureAnimation, {}),  # Failed Autoclave (no targets): shake, glow, steam, !?!?! symbols, fizzle
         "GLAIVE_SWEEP": (GlaiveSweepAnimation, {}),  # Circular sweep attack hitting all 8 adjacent tiles (upgraded Autoclave 2nd activation)
 
         # MANDIBLE FOREMAN skills
@@ -1309,6 +1310,26 @@ class AnimationFactory:
                     units_list=units_list if units_list else [],
                     camera=camera,
                     game=kwargs.get('game')
+                )
+            elif anim_class.__name__ == "AutoclaveFailureAnimation":
+                # Autoclave Failure - GLAIVEMAN charges energy but fizzles (no targets)
+                # Requires: caster_unit (GLAIVEMAN), target_pos, camera, particle_emitter, callbacks
+                if not target_pos:
+                    print("[AnimationFactory] AUTOCLAVE_FAILURE requires a target position")
+                    return None
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_unit=caster_unit,  # Same as caster for failure animation
+                    target_pos=target_pos,
+                    is_crit=is_crit,
+                    is_infused=is_infused,
+                    particle_emitter=particle_emitter,
+                    debris_list=[],
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,
+                    units_list=units_list if units_list else [],
+                    camera=camera,
+                    game=game
                 )
             else:
                 # Most animations expect just target coordinates

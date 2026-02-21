@@ -43,6 +43,7 @@ class ActionButton:
         self.blocked_actions = set()  # LOTO: Set of blocked action types
         self.has_upgrade_points = False  # Special flag for upgrade button glow
         self.has_respawns_available = False  # Special flag for respawn button icon + glow
+        self.has_actions_queued = False  # Special flag for execute button to show green when actions queued
         self.tank_treads_icon = None  # Cached tank treads icon
         self.skeletal_hand_icon = None  # Cached skeletal hand icon
         self.lightning_bolt_icon = None  # Cached lightning bolt icon
@@ -67,7 +68,7 @@ class ActionButton:
             bg_color = COLOR_BG
 
         # Special coloring for execute and concede buttons
-        if self.action == "execute" and self.enabled and not self.active:
+        if self.action == "execute" and self.enabled and not self.active and self.has_actions_queued:
             bg_color = (*COLOR_EXECUTE, 80) if self.hovered else (*COLOR_EXECUTE, 40)
         elif self.action == "concede":
             bg_color = (*COLOR_DANGER, 60) if self.hovered else (*COLOR_DANGER, 30)
@@ -632,9 +633,10 @@ class ActionMenu:
                 button.active = False
                 button.blocked_actions = set()
             elif button.action == "execute":
-                button.enabled = self.has_actions_queued
+                button.enabled = True
                 button.active = False
                 button.blocked_actions = set()
+                button.has_actions_queued = self.has_actions_queued
             elif button.action == "concede":
                 button.enabled = True
                 button.active = False

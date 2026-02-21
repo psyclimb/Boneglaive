@@ -3112,6 +3112,222 @@ class AutoclaveAnimationV2:
                 self.healing_effect.draw(surface)
 
 
+class AutoclaveFailureAnimation:
+    """
+    Failed Autoclave activation animation - GLAIVEMAN charges energy but it fizzles.
+    Shows when Autoclave would trigger but has no eligible targets.
+
+    Phases:
+    1. Charge (0.4s) - Shake builds, glow appears, steam rises
+    2. Warning (0.3s) - Intense shake, alternating !?!?! symbols
+    3. Fizzle (0.3s) - Effects fade, energy dissipates
+
+    Total duration: 1.0s
+    """
+
+    def __init__(self, caster_unit, target_unit, target_pos, is_crit, is_infused,
+                 particle_emitter, debris_list, screen_shake_callback,
+                 screen_flash_callback, units_list, camera, game=None):
+        """Initialize failed Autoclave animation."""
+        self.caster = caster_unit
+        self.camera = camera
+        self.particle_emitter = particle_emitter
+
+        # Convert caster position to screen coords
+        self.caster_x, self.caster_y = camera.grid_to_screen(caster_unit.grid_x,
+                                                             caster_unit.grid_y,
+                                                             centered=True)
+
+        # Animation state
+        self.phase = "charge"
+        self.timer = 0
+        self.phase_timer = 0
+        self.active = True
+
+        # Visual effects
+        self.glow_radius = 0
+        self.glow_alpha = 0
+        self.shake_intensity = 0
+        self.symbol_index = 0  # For alternating ! and ?
+        self.symbol_alpha = 0
+
+        # Steam particles
+        self.steam_particles = []
+        self.last_steam_spawn = 0
+
+        # Phase durations
+        self.charge_duration = 0.4
+        self.warning_duration = 0.3
+        self.fizzle_duration = 0.3
+
+    def update(self, delta_time):
+        """Update animation state."""
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+        self.phase_timer += delta_time
+
+        # Update phase
+        if self.phase == "charge":
+            if self.phase_timer >= self.charge_duration:
+                self._start_warning()
+        elif self.phase == "warning":
+            if self.phase_timer >= self.warning_duration:
+                self._start_fizzle()
+        elif self.phase == "fizzle":
+            if self.phase_timer >= self.fizzle_duration:
+                self.active = False
+                # Clear shake on caster
+                if self.caster:
+                    self.caster.shake_intensity = 0
+                    self.caster.shake_x = 0
+                    self.caster.shake_y = 0
+                return False
+
+        # Update visual effects based on phase
+        self._update_effects(delta_time)
+
+        # Update steam particles
+        self.steam_particles = [p for p in self.steam_particles if p.update(delta_time)]
+
+        return self.active
+
+    def _start_warning(self):
+        """Phase 2: Warning symbols appear."""
+        self.phase = "warning"
+        self.phase_timer = 0
+
+    def _start_fizzle(self):
+        """Phase 3: Energy fizzles out."""
+        self.phase = "fizzle"
+        self.phase_timer = 0
+
+    def _update_effects(self, delta_time):
+        """Update visual effects for current phase."""
+        progress = self.phase_timer / self._get_phase_duration()
+
+        if self.phase == "charge":
+            # Build up glow and shake (smaller fireball)
+            self.glow_radius = int(25 * progress)
+            self.glow_alpha = int(180 * progress)
+            self.shake_intensity = 3 * progress
+
+            # Spawn rising steam particles
+            self.last_steam_spawn += delta_time
+            if self.last_steam_spawn > 0.05:
+                self.last_steam_spawn = 0
+                # White/blue steam particles rising upward
+                for _ in range(2):
+                    angle = random.uniform(-0.3, 0.3)
+                    vx = math.cos(angle) * 30
+                    vy = -random.uniform(60, 100)  # Rising upward
+                    size = random.uniform(3, 6)
+                    lifetime = random.uniform(0.5, 0.8)
+                    color = (200, 220, 255)  # Light blue-white
+                    particle = Particle(self.caster_x, self.caster_y, vx, vy, color, size, lifetime)
+                    self.steam_particles.append(particle)
+
+        elif self.phase == "warning":
+            # Peak intensity (smaller fireball)
+            self.glow_radius = 30
+            self.glow_alpha = int(200 * (1.0 - progress * 0.3))  # Slight fade
+            self.shake_intensity = 6
+
+            # Alternating symbols fade in/out
+            symbol_cycle_speed = 8  # symbols per second
+            self.symbol_index = int(self.phase_timer * symbol_cycle_speed) % 2
+            flash_progress = (self.phase_timer * symbol_cycle_speed) % 1.0
+            self.symbol_alpha = int(255 * (1.0 - abs(flash_progress - 0.5) * 2))
+
+            # More steam
+            self.last_steam_spawn += delta_time
+            if self.last_steam_spawn > 0.03:
+                self.last_steam_spawn = 0
+                for _ in range(3):
+                    angle = random.uniform(-0.5, 0.5)
+                    vx = math.cos(angle) * 40
+                    vy = -random.uniform(80, 120)
+                    size = random.uniform(4, 7)
+                    lifetime = random.uniform(0.4, 0.6)
+                    color = (200, 220, 255)
+                    particle = Particle(self.caster_x, self.caster_y, vx, vy, color, size, lifetime)
+                    self.steam_particles.append(particle)
+
+        elif self.phase == "fizzle":
+            # Fade out (smaller fireball)
+            fade = 1.0 - progress
+            self.glow_radius = int(30 * fade)
+            self.glow_alpha = int(200 * fade)
+            self.shake_intensity = 6 * fade
+            self.symbol_alpha = int(255 * fade)
+
+        # Apply shake to caster unit
+        if self.caster and self.shake_intensity > 0:
+            self.caster.shake_intensity = self.shake_intensity
+            self.caster.shake_x = random.uniform(-self.shake_intensity, self.shake_intensity)
+            self.caster.shake_y = random.uniform(-self.shake_intensity, self.shake_intensity)
+
+    def _get_phase_duration(self):
+        """Get duration of current phase."""
+        if self.phase == "charge":
+            return self.charge_duration
+        elif self.phase == "warning":
+            return self.warning_duration
+        else:
+            return self.fizzle_duration
+
+    def draw(self, surface):
+        """Draw failed Autoclave effects."""
+        if not self.active:
+            return
+
+        # Draw steam particles first (behind unit)
+        for particle in self.steam_particles:
+            particle.draw(surface)
+
+        # Draw fire/orange glow around GLAIVEMAN
+        if self.glow_alpha > 20 and self.glow_radius > 0:
+            glow_surf = pygame.Surface((self.glow_radius * 2 + 20, self.glow_radius * 2 + 20), pygame.SRCALPHA)
+            center = self.glow_radius + 10
+
+            # Outer red glow (matching Autoclave colors)
+            pygame.draw.circle(glow_surf, (255, 0, 0, self.glow_alpha // 3), (center, center), self.glow_radius + 10)
+            # Main orange glow
+            pygame.draw.circle(glow_surf, (255, 255, 204, self.glow_alpha), (center, center), self.glow_radius)
+
+            surface.blit(glow_surf, (int(self.caster_x - center), int(self.caster_y - center)))
+
+        # Draw warning symbols (! and ?) above unit during warning and fizzle phases
+        if self.phase in ["warning", "fizzle"] and self.symbol_alpha > 20:
+            # Create larger, bolder font for symbols
+            font_size = 48  # Increased from 32
+            try:
+                symbol_font = pygame.font.Font(None, font_size)
+            except:
+                symbol_font = pygame.font.SysFont('Arial', font_size, bold=True)
+
+            # Alternate between ! and ?
+            symbol = "!" if self.symbol_index == 0 else "?"
+
+            # Brighter red color for warning
+            text_surf = symbol_font.render(symbol, True, (255, 20, 20))
+            text_surf.set_alpha(self.symbol_alpha)
+
+            # Position above unit (oscillate more prominently)
+            offset_y = -50 + math.sin(self.timer * 10) * 5  # Higher position, more movement
+            text_rect = text_surf.get_rect(center=(int(self.caster_x), int(self.caster_y + offset_y)))
+
+            # Draw subtle outline/shadow for visibility
+            outline_surf = symbol_font.render(symbol, True, (100, 0, 0))
+            outline_surf.set_alpha(self.symbol_alpha // 2)
+            for dx, dy in [(-2, -2), (2, -2), (-2, 2), (2, 2)]:
+                outline_rect = outline_surf.get_rect(center=(int(self.caster_x + dx), int(self.caster_y + offset_y + dy)))
+                surface.blit(outline_surf, outline_rect)
+
+            surface.blit(text_surf, text_rect)
+
+
 class GlaivemanPolearmAttack:
     """
     GLAIVEMAN basic attack animation - simple, impactful polearm sweep.

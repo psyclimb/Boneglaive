@@ -33,7 +33,7 @@ SKILL_UPGRADES = {
         },
         "Judgement": {
             "name": "Judgement",
-            "description": "If Judgement kills a target, cooldown reduced by 2.",
+            "description": "If Judgement kills a target, the cooldown is refreshed.",
             "type": "buff",
             "cost": 1
         }

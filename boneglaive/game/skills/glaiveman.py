@@ -1691,11 +1691,11 @@ class JudgementSkill(ActiveSkill):
             # Use centralized death handling to ensure all systems (like DOMINION) are notified
             game.handle_unit_death(target, user, cause="judgement", ui=ui)
 
-            # Check for Judgement upgrade - reduce cooldown by 2 on kill
+            # Check for Judgement upgrade - refresh cooldown on kill
             from boneglaive.game.upgrades import UpgradeManager
             is_upgraded = UpgradeManager.is_skill_upgraded(user, "Judgement")
-            if is_upgraded and self.current_cooldown >= 2:
-                self.current_cooldown -= 2
+            if is_upgraded:
+                self.current_cooldown = 0
 
                 # Dramatic message about the glaive returning
                 message_log.add_message(

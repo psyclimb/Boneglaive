@@ -50,6 +50,8 @@ class VisualUnit:
         self.last_demilune_zone_duration = getattr(game_unit, 'demilune_zone_duration', 0)
         # Track derelicted duration to detect when upgraded Derelict creates buildings
         self.last_derelicted_duration = getattr(game_unit, 'derelicted_duration', 0)
+        # Track autoclave_failure_shown to detect failed Autoclave activation
+        self.last_autoclave_failure_shown = getattr(game_unit, 'autoclave_failure_shown', False)
 
     def _get_passive_activation_state(self, game_unit):
         """Get current activation state of passive skill."""
@@ -904,6 +906,22 @@ class GameStateAdapter:
                     ))
 
                     visual_unit.last_passive_activated = True
+
+            # Detect Autoclave failure (no targets)
+            current_autoclave_failure = getattr(game_unit, 'autoclave_failure_shown', False)
+            if current_autoclave_failure and not visual_unit.last_autoclave_failure_shown:
+                # Autoclave just failed to activate due to no targets!
+                events.append(AnimationEvent(
+                    "autoclave_failure",
+                    source_unit=game_unit,
+                    target_unit=game_unit
+                ))
+                visual_unit.last_autoclave_failure_shown = True
+
+            # Update autoclave failure tracking
+            if not current_autoclave_failure and visual_unit.last_autoclave_failure_shown:
+                # Reset flag when unit clears it
+                visual_unit.last_autoclave_failure_shown = False
 
             # Detect trap releases (Viseroy trap)
             current_trapped_by = getattr(game_unit, 'trapped_by', None)
