@@ -934,6 +934,7 @@ class VaultSkill(ActiveSkill):
 
         # Check if any other unit is already planning to teleport to this position
         # (via Vault, Delta Config, Grae Exchange, or any other teleport skill)
+        # NOTE: We don't block on move_target - vault will displace if needed
         for other_unit in game.units:
             if (other_unit.is_alive() and other_unit != user):
                 # Check for vault targets
@@ -979,10 +980,69 @@ class VaultSkill(ActiveSkill):
             MessageType.ABILITY,
             player=user.player
         )
-        
+
         self.current_cooldown = self.cooldown
         return True
-        
+
+    def _find_displacement_position(self, game: 'Game', target_pos: tuple) -> tuple:
+        """
+        Find nearest adjacent empty tile for displacement.
+
+        Args:
+            game: Game instance
+            target_pos: Original target position (y, x)
+
+        Returns:
+            Tuple (y, x) of displacement position, or None if no valid tiles (vault fizzles)
+        """
+        from boneglaive.utils.coordinates import get_adjacent_positions
+
+        # Get all 8 adjacent positions
+        adjacent_positions = get_adjacent_positions(target_pos[0], target_pos[1])
+
+        # Filter for valid displacement positions
+        for adj_y, adj_x in adjacent_positions:
+            # Must be valid position
+            if not game.is_valid_position(adj_y, adj_x):
+                continue
+
+            # Must be passable terrain
+            if not game.map.is_passable(adj_y, adj_x):
+                continue
+
+            # Must be empty (no unit currently there)
+            if game.get_unit_at(adj_y, adj_x) is not None:
+                continue
+
+            # Must not have another unit moving/vaulting there
+            position_blocked = False
+            for other_unit in game.units:
+                if other_unit.is_alive():
+                    # Check for regular move targets
+                    if (hasattr(other_unit, 'move_target') and
+                        other_unit.move_target == (adj_y, adj_x)):
+                        position_blocked = True
+                        break
+
+                    # Check for vault targets
+                    if (hasattr(other_unit, 'vault_target_indicator') and
+                        other_unit.vault_target_indicator == (adj_y, adj_x)):
+                        position_blocked = True
+                        break
+
+                    # Check for teleport targets
+                    if (hasattr(other_unit, 'teleport_target_indicator') and
+                        other_unit.teleport_target_indicator == (adj_y, adj_x)):
+                        position_blocked = True
+                        break
+
+            if not position_blocked:
+                # Found valid displacement position
+                return (adj_y, adj_x)
+
+        # No valid displacement positions found
+        return None
+
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Vault skill to leap over obstacles to a target position."""
         from boneglaive.utils.message_log import message_log, MessageType
@@ -991,15 +1051,32 @@ class VaultSkill(ActiveSkill):
 
         # SAFETY CHECK: Verify target position is still valid and empty
         # (Another unit might have moved there between planning and execution)
+        # If occupied, try to displace to adjacent tile
         if game.get_unit_at(target_pos[0], target_pos[1]) is not None:
-            message_log.add_message(
-                f"{user.get_display_name()}'s Vault failed - target position occupied",
-                MessageType.WARNING,
-                player=user.player
-            )
-            # Clear indicators and return failure
-            user.vault_target_indicator = None
-            return False
+            # Try to find displacement position
+            displaced_pos = self._find_displacement_position(game, target_pos)
+
+            if displaced_pos is None:
+                # No valid adjacent tiles - vault fizzles
+                message_log.add_message(
+                    f"{user.get_display_name()}'s Vault fizzles - no room to land!",
+                    MessageType.WARNING,
+                    player=user.player
+                )
+                # Clear indicators and return failure
+                user.vault_target_indicator = None
+                return False
+            else:
+                # Displacement found - update target position
+                target_pos = displaced_pos
+                # Set flag for visual system to use displaced position
+                user.vault_displaced_to = displaced_pos
+                # Log displacement message
+                message_log.add_message(
+                    f"{user.get_display_name()} twists mid-flight, landing at ({displaced_pos[0]}, {displaced_pos[1]})",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
 
         # Clear the vault target indicator after execution
         user.vault_target_indicator = None
@@ -1154,17 +1231,33 @@ class VaultSkill(ActiveSkill):
             # Move user to target position
             # Vault is a TELEPORT that ignores pathing - must bypass property setters
             # to avoid intermediate position checks in _update_unit_grid()
+            # SECOND SAFETY CHECK: Position may have become occupied during animation
             final_unit = game.get_unit_at(target_pos[0], target_pos[1])
             if final_unit is not None and final_unit != user:
-                # Target occupied (should have been caught by can_use, but check anyway)
-                from boneglaive.utils.debug import logger
-                logger.error(f"GLAIVE VAULT BLOCKED: {user.get_display_name()}'s vault to {target_pos} blocked - position occupied by {final_unit.get_display_name()}")
-                message_log.add_message(
-                    f"{user.get_display_name()}'s Glaive Vault blocked - position occupied!",
-                    MessageType.WARNING,
-                    player=user.player
-                )
-                return False
+                # Try to find displacement position
+                displaced_pos = self._find_displacement_position(game, target_pos)
+
+                if displaced_pos is None:
+                    # No valid adjacent tiles - vault fizzles
+                    from boneglaive.utils.debug import logger
+                    logger.error(f"GLAIVE VAULT FIZZLED: {user.get_display_name()}'s vault to {target_pos} fizzled - no room to land")
+                    message_log.add_message(
+                        f"{user.get_display_name()}'s Vault fizzles - no room to land!",
+                        MessageType.WARNING,
+                        player=user.player
+                    )
+                    return False
+                else:
+                    # Displacement found - update target position
+                    target_pos = displaced_pos
+                    # Set flag for visual system to use displaced position
+                    user.vault_displaced_to = displaced_pos
+                    # Log displacement message
+                    message_log.add_message(
+                        f"{user.get_display_name()} twists mid-flight, landing at ({displaced_pos[0]}, {displaced_pos[1]})",
+                        MessageType.ABILITY,
+                        player=user.player
+                    )
 
             # Teleport atomically: remove from old position, update coordinates, add to new position
             # This avoids intermediate position checks that would block the vault

@@ -1227,6 +1227,12 @@ class GameStateAdapter:
                     # Convert to renderer coords and add
                     skill_range_positions.append((x, y))
         else:
+            # Special handling for Vault - check for upgrade before calculating range
+            if skill.name == "Vault":
+                from boneglaive.game.upgrades import UpgradeManager
+                is_upgraded = UpgradeManager.is_skill_upgraded(game_unit, "Vault")
+                skill.range = 3 if is_upgraded else 2
+
             # Get skill range (check for dynamic range method first)
             if hasattr(skill, 'get_skill_range') and callable(skill.get_skill_range):
                 skill_range = skill.get_skill_range(game_unit, self.game)

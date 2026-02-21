@@ -453,9 +453,18 @@ class AnimationFactory:
                 if not target_pos:
                     print("[AnimationFactory] VAULT requires a target position")
                     return None
+
+                # Check if vault was displaced (collision with ally move)
+                actual_target_pos = target_pos
+                if caster_unit and hasattr(caster_unit, 'game_unit') and hasattr(caster_unit.game_unit, 'vault_displaced_to'):
+                    actual_target_pos = caster_unit.game_unit.vault_displaced_to
+                    print(f"[AnimationFactory] VAULT displaced from {target_pos} to {actual_target_pos}")
+                    # Clear the flag
+                    del caster_unit.game_unit.vault_displaced_to
+
                 animation = anim_class(
                     caster_unit=caster_unit,
-                    target_pos=target_pos,
+                    target_pos=actual_target_pos,
                     particle_emitter=particle_emitter,
                     screen_shake_callback=screen_shake_callback,
                     camera=camera
@@ -465,9 +474,18 @@ class AnimationFactory:
                 if not target_pos:
                     print("[AnimationFactory] VAULT_UPGRADED requires a target position")
                     return None
+
+                # Check if vault was displaced (collision with ally move)
+                actual_target_pos = target_pos
+                if caster_unit and hasattr(caster_unit, 'game_unit') and hasattr(caster_unit.game_unit, 'vault_displaced_to'):
+                    actual_target_pos = caster_unit.game_unit.vault_displaced_to
+                    print(f"[AnimationFactory] VAULT_UPGRADED displaced from {target_pos} to {actual_target_pos}")
+                    # Clear the flag
+                    del caster_unit.game_unit.vault_displaced_to
+
                 animation = anim_class(
                     caster_unit=caster_unit,
-                    target_pos=target_pos,
+                    target_pos=actual_target_pos,
                     particle_emitter=particle_emitter,
                     screen_shake_callback=screen_shake_callback,
                     camera=camera
