@@ -39,6 +39,7 @@ from .ui.upgrade_window import UpgradeWindow
 from .ui.setup_window import SetupWindow
 from .ui.setup_unit_help import SetupUnitHelp
 from .ui.game_over_window import GameOverWindow
+from .ui.concede_dialog import ConcedeDialog
 from .ui_adapter import GraphicalUIAdapter
 
 # Import TerrainType for terrain/furniture rendering
@@ -197,6 +198,7 @@ class GraphicalRenderer:
         self.setup_window = SetupWindow(self.font, self.small_font)
         self.setup_unit_help = SetupUnitHelp(self.font, self.small_font)
         self.game_over_window = GameOverWindow(self.font, self.small_font, self.large_font)
+        self.concede_dialog = ConcedeDialog(self.font, self.small_font)
 
         # Track current action mode for top bar display
         self.current_action_mode = "SELECT"
@@ -530,8 +532,40 @@ class GraphicalRenderer:
                 # Register in adapter
                 self.game_adapter.create_visual_unit(game_unit, animated_unit)
 
-                # If this is a HEINOUS VAPOR, trigger spawn animation
+                # Check if this is a respawning unit (not a brand new unit or vapor)
                 from boneglaive.utils.constants import UnitType
+                is_vapor = hasattr(game_unit, 'type') and game_unit.type == UnitType.HEINOUS_VAPOR
+                is_echo = hasattr(game_unit, 'is_echo') and game_unit.is_echo
+
+                # Trigger respawn animation for regular units (not vapors or echoes)
+                # Vapors and echoes have their own spawn animations
+                if not is_vapor and not is_echo:
+                    print(f"[Renderer] New unit detected: {game_unit.type}, triggering respawn animation at ({game_unit.y}, {game_unit.x})")
+
+                    # Create respawn animation IMMEDIATELY (not queued)
+                    from boneglaive.graphical.animations import AnimationFactory
+                    respawn_animation = AnimationFactory.create_animation(
+                        "RESPAWN",
+                        caster_unit=animated_unit,
+                        target_unit=animated_unit,
+                        target_pos=(game_unit.y, game_unit.x),
+                        is_crit=False,
+                        is_infused=False,
+                        particle_emitter=self.particle_emitter,
+                        debris_list=self.debris_particles,
+                        screen_shake_callback=self.trigger_screen_shake,
+                        screen_flash_callback=self.trigger_screen_flash,
+                        units_list=self.units,
+                        camera=self.camera,
+                        game=self.game_adapter.game
+                    )
+                    if respawn_animation:
+                        self.active_animations.append(respawn_animation)
+                        print(f"  [Animation] Successfully triggered respawn animation for {game_unit.get_display_name()}")
+                    else:
+                        print(f"  [Animation] WARNING: Failed to create respawn animation")
+
+                # If this is a HEINOUS VAPOR, trigger spawn animation
                 if hasattr(game_unit, 'type') and game_unit.type == UnitType.HEINOUS_VAPOR:
                     vapor_type = getattr(game_unit, 'vapor_type', 'BROACHING')
 
@@ -734,7 +768,17 @@ class GraphicalRenderer:
                     self.respawn_window.handle_mouse_up()
 
             elif event.type == pygame.KEYDOWN:
-                # Check if game over window is open first
+                # Check if concede dialog is open first (highest priority)
+                if self.concede_dialog.visible:
+                    action = self.concede_dialog.handle_key(event.key)
+                    if action == "cancel":
+                        self.concede_dialog.hide()
+                    elif action == "concede":
+                        self.confirm_concede()
+                    # Ignore all other keys when concede dialog is open
+                    continue
+
+                # Check if game over window is open
                 if self.game_over_window.visible:
                     action = self.game_over_window.handle_key(event.key)
                     if action == "menu":
@@ -744,7 +788,7 @@ class GraphicalRenderer:
                     # Ignore all other keys when game over window is open
                     continue
 
-                # Check if message log window is open first
+                # Check if message log window is open
                 if self.message_log_window.visible:
                     if event.key == pygame.K_ESCAPE:
                         self.message_log_window.hide()
@@ -822,9 +866,6 @@ class GraphicalRenderer:
                     self.running = False
                 elif event.key == pygame.K_SPACE:
                     self.paused = not self.paused
-                elif event.key == pygame.K_t:
-                    # End turn (T key for backwards compatibility)
-                    self.execute_turn()
                 elif event.key == pygame.K_TAB:
                     # Cycle through player's units (SHIFT+TAB for backwards)
                     shift_pressed = pygame.key.get_mods() & pygame.KMOD_SHIFT
@@ -842,7 +883,7 @@ class GraphicalRenderer:
                             print(f"[DEV] Player 2 upgrade points: {game.player2_upgrade_points}")
 
                 # Check action menu hotkeys first
-                elif event.key in [pygame.K_m, pygame.K_a, pygame.K_s, pygame.K_r, pygame.K_e, pygame.K_c, pygame.K_h]:
+                elif event.key in [pygame.K_m, pygame.K_a, pygame.K_s, pygame.K_u, pygame.K_r, pygame.K_e, pygame.K_c, pygame.K_h]:
                     action = self.action_menu.handle_hotkey(event.key)
                     if action:
                         self._handle_action_menu_click(action)
@@ -881,8 +922,11 @@ class GraphicalRenderer:
                             print("Select a unit first to use skills")
 
             elif event.type == pygame.MOUSEMOTION:
+                # Handle concede dialog mouse motion
+                if self.concede_dialog.visible:
+                    self.concede_dialog.handle_mouse_motion(event.pos)
                 # Handle game over window mouse motion
-                if self.game_over_window.visible:
+                elif self.game_over_window.visible:
                     self.game_over_window.handle_mouse_motion(event.pos)
                 # Handle help page scrollbar dragging
                 elif self.help_page.visible:
@@ -955,8 +999,15 @@ class GraphicalRenderer:
                         # Add scroll support for respawn window too
                         pass
                 elif event.button == 1:  # Left click
+                    # Handle concede dialog clicks
+                    if self.concede_dialog.visible:
+                        action = self.concede_dialog.handle_mouse_click(event.pos)
+                        if action == "cancel":
+                            self.concede_dialog.hide()
+                        elif action == "concede":
+                            self.confirm_concede()
                     # Handle game over window clicks
-                    if self.game_over_window.visible:
+                    elif self.game_over_window.visible:
                         action = self.game_over_window.handle_mouse_click(event.pos)
                         if action == "menu":
                             self.return_to_main_menu()
@@ -1516,10 +1567,8 @@ class GraphicalRenderer:
             self.execute_turn()
 
         elif action == "concede":
-            print("Concede requested")
-            # TODO: Add confirmation dialog
-            # For now, just log it
-            self.combat_log.add_message("Concede not yet implemented", "system")
+            print("Concede requested - showing confirmation dialog")
+            self.concede_dialog.show()
 
     def _get_furniture_name(self, terrain_type) -> str:
         """Convert TerrainType to readable furniture name."""
@@ -3323,6 +3372,10 @@ class GraphicalRenderer:
         if self.game_over_window.visible:
             self.game_over_window.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
 
+        # Draw concede dialog (on top of game over window if both visible)
+        if self.concede_dialog.visible:
+            self.concede_dialog.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
+
         # Draw FPS counter (for troubleshooting)
         if self.show_fps:
             fps_text = f"FPS: {self.fps_display:.1f}"
@@ -4570,6 +4623,28 @@ class GraphicalRenderer:
 
         # Stop the renderer loop
         self.running = False
+
+    def confirm_concede(self):
+        """Handle confirmed concession - opponent wins."""
+        if not self.game_adapter.game:
+            return
+
+        print("[Concede] Player conceding...")
+
+        # Hide the concede dialog
+        self.concede_dialog.hide()
+
+        # Get current player
+        current_player = self.game_adapter.game.current_player
+
+        # Concede the game (opponent wins)
+        self.game_adapter.game.concede(current_player)
+
+        # Add combat log message
+        self.combat_log.add_message(f"Player {current_player} has conceded.", "system")
+
+        # Show game over window
+        self.show_game_over_window()
 
     def start_setup_mode(self):
         """Start setup mode - show unit selection window."""

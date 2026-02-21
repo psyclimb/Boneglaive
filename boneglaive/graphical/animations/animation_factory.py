@@ -83,6 +83,9 @@ from boneglaive.graphical.animations.pelotari import (
     BackhandAnimation,
     BackhandReflectionAnimation,
 )
+from boneglaive.graphical.animations.core_animations import (
+    RespawnAnimation,
+)
 
 # Import sound system
 from boneglaive.graphical.sound_registry import get_sound_for_skill
@@ -196,6 +199,9 @@ class AnimationFactory:
         "POACH": (PoachAnimation, {}),
         "BACKHAND": (BackhandAnimation, {}),
         "BACKHAND_REFLECTION": (BackhandReflectionAnimation, {}),
+
+        # Core game events
+        "RESPAWN": (RespawnAnimation, {}),
     }
 
     @classmethod
@@ -1265,6 +1271,26 @@ class AnimationFactory:
                     building_tiles=building_tiles,
                     camera=camera,
                     game=game
+                )
+            elif anim_class.__name__ == "RespawnAnimation":
+                # Respawn - Unit rises from ground with bone particles
+                # Requires: caster_unit (respawning unit), target_pos, camera, particle_emitter, callbacks
+                if not target_pos:
+                    print("[AnimationFactory] RESPAWN requires a target position")
+                    return None
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_unit=caster_unit,  # Same as caster for respawn
+                    target_pos=target_pos,
+                    is_crit=is_crit,
+                    is_infused=is_infused,
+                    particle_emitter=particle_emitter,
+                    debris_list=[],
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,
+                    units_list=units_list if units_list else [],
+                    camera=camera,
+                    game=kwargs.get('game')
                 )
             else:
                 # Most animations expect just target coordinates

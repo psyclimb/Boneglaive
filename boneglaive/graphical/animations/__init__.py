@@ -13,6 +13,10 @@ from .core import (
     StatusIconFlash
 )
 
+from .core_animations import (
+    RespawnAnimation,
+)
+
 from .glaiveman import (
     SpinningGlaiveProjectile,
     LightningBolt,
@@ -141,6 +145,8 @@ __all__ = [
     'DebrisParticle',
     'BasicMeleeAttackAnimation',
     'StatusIconFlash',
+    # Core Animations
+    'RespawnAnimation',
     # Glaiveman
     'SpinningGlaiveProjectile',
     'LightningBolt',

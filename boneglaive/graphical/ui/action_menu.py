@@ -739,6 +739,7 @@ class ActionMenu:
             pygame.K_m: 'M',
             pygame.K_a: 'A',
             pygame.K_s: 'S',
+            pygame.K_u: 'U',
             pygame.K_r: 'R',
             pygame.K_h: 'H',
             pygame.K_e: 'E',

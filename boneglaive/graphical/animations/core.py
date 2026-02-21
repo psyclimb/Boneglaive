@@ -644,6 +644,10 @@ class AnimatedUnit:
         final_x = int(self.x + self.shake_x)
         final_y = int(self.y + self.shake_y - self.hop_offset)
 
+        # Apply respawn animation offset (if active)
+        if hasattr(self, 'respawn_y_offset') and self.respawn_y_offset > 0:
+            final_y += int(self.respawn_y_offset)
+
         # Draw potpourri aura particles (behind unit)
         if self.potpourri_aura_active:
             for particle in self.potpourri_aura_particles:
@@ -755,8 +759,15 @@ class AnimatedUnit:
                        self.game_unit.is_echo)
 
             # Determine which sprite to use and its position
+            # Combine wind_up_rotation and respawn_rotation if both are active
+            total_rotation = 0
             if hasattr(self, 'wind_up_rotation') and self.wind_up_rotation != 0:
-                sprite_to_use = pygame.transform.rotate(self.sprite, -self.wind_up_rotation)
+                total_rotation += self.wind_up_rotation
+            if hasattr(self, 'respawn_rotation') and self.respawn_rotation != 0:
+                total_rotation += self.respawn_rotation
+
+            if total_rotation != 0:
+                sprite_to_use = pygame.transform.rotate(self.sprite, -total_rotation)
                 sprite_rect = sprite_to_use.get_rect(center=(final_x, final_y))
             else:
                 sprite_to_use = self.sprite

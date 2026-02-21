@@ -5147,6 +5147,24 @@ class Game:
             message_log.add_system_message(
                 f"{winner_name} wins with {self.player2_gp} GP!"
             )
+
+    def concede(self, conceding_player: int):
+        """
+        Concede the game - opponent wins by forfeit.
+
+        Args:
+            conceding_player: Player number (1 or 2) who is conceding
+        """
+        # Opponent wins
+        opponent = 2 if conceding_player == 1 else 1
+        self.winner = opponent
+
+        # Log concession
+        conceder_name = self.get_player_name(conceding_player)
+        winner_name = self.get_player_name(opponent)
+        message_log.add_system_message(
+            f"{conceder_name} has conceded. {winner_name} wins!"
+        )
     
     def _apply_trap_damage(self):
         """Apply damage to units trapped by MANDIBLE_FOREMENs."""
