@@ -524,7 +524,7 @@ class ActionMenu:
             ActionButton("skills", "S", "SKILLS"),
             ActionButton("upgrade", "U", "UPGRADE"),
             ActionButton("respawn", "R", "RESPAWN"),
-            ActionButton("execute", "E", "EXECUTE TURN"),
+            ActionButton("execute", "T", "EXECUTE TURN"),
             ActionButton("help", "H", "HELP"),
             ActionButton("concede", "C", "CONCEDE"),
         ]
@@ -625,9 +625,16 @@ class ActionMenu:
                         button.has_upgrade_points = game.player2_upgrade_points > 0
                 else:
                     button.has_upgrade_points = False
-                button.enabled = True
+
+                # Check if upgrade is blocked (e.g., for echoes)
+                if selected_unit and LOTOChecker.is_action_blocked(selected_unit, 'upgrade'):
+                    button.blocked_actions = blocked_actions
+                    button.enabled = False
+                else:
+                    button.enabled = True
+                    button.blocked_actions = set()
+
                 button.active = False
-                button.blocked_actions = set()
             elif button.action == "help":
                 button.enabled = True
                 button.active = False
@@ -744,7 +751,7 @@ class ActionMenu:
             pygame.K_u: 'U',
             pygame.K_r: 'R',
             pygame.K_h: 'H',
-            pygame.K_e: 'E',
+            pygame.K_t: 'T',
             pygame.K_c: 'C',
         }
 

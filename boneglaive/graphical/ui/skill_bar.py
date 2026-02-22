@@ -258,8 +258,11 @@ class SkillBar:
         for i, skill in enumerate(active_skills):
             if i < len(self.hotkeys):
                 slot = SkillSlot(skill, self.hotkeys[i], i, self.icon_cache, game_unit)
-                # Check if skills are blocked
+                # Check if all skills are blocked
                 if LOTOChecker.is_action_blocked(game_unit, 'skill'):
+                    slot.blocked_actions = blocked_actions
+                # Check if this specific skill is blocked (e.g., Delta Config/Estrange for echoes)
+                elif LOTOChecker.is_skill_blocked(game_unit, skill.name):
                     slot.blocked_actions = blocked_actions
                 self.skill_slots.append(slot)
 

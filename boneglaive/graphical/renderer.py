@@ -366,6 +366,9 @@ class GraphicalRenderer:
                 png_data = cairosvg.svg2png(url=svg_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
                 surface = pygame.image.load(BytesIO(png_data))
 
+                # Convert to alpha format to preserve transparency
+                surface = surface.convert_alpha()
+
                 # Cache the surface
                 self.terrain_tiles[terrain_type] = surface
                 return surface
@@ -883,7 +886,7 @@ class GraphicalRenderer:
                             print(f"[DEV] Player 2 upgrade points: {game.player2_upgrade_points}")
 
                 # Check action menu hotkeys first
-                elif event.key in [pygame.K_m, pygame.K_a, pygame.K_s, pygame.K_u, pygame.K_r, pygame.K_e, pygame.K_c, pygame.K_h]:
+                elif event.key in [pygame.K_m, pygame.K_a, pygame.K_s, pygame.K_u, pygame.K_r, pygame.K_t, pygame.K_c, pygame.K_h]:
                     action = self.action_menu.handle_hotkey(event.key)
                     if action:
                         self._handle_action_menu_click(action)
@@ -3451,6 +3454,36 @@ class GraphicalRenderer:
             self.mark_all_tiles_dirty()
         # If setting to False, we ignore it since the new system auto-clears dirty flags
 
+    def _is_furniture(self, terrain_type: TerrainType) -> bool:
+        """Check if a terrain type is furniture (should render on top of base terrain)."""
+        furniture_types = [
+            TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK, TerrainType.OTTOMAN,
+            TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF, TerrainType.TIFFANY_LAMP,
+            TerrainType.EASEL, TerrainType.SCULPTURE, TerrainType.BENCH,
+            TerrainType.PODIUM, TerrainType.VASE, TerrainType.WORKBENCH,
+            TerrainType.COUCH, TerrainType.TOOLBOX, TerrainType.COT,
+            TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN, TerrainType.POTPOURRI_BOWL
+        ]
+        return terrain_type in furniture_types
+
+    def _get_base_terrain_for_map(self, game_map) -> TerrainType:
+        """Get the base terrain type for the current map (to render under furniture)."""
+        if not game_map or not hasattr(game_map, 'name'):
+            return TerrainType.EMPTY
+
+        map_name = game_map.name.lower()
+
+        # Map name to base terrain mapping
+        if 'hard' in map_name or 'pressed' in map_name:
+            return TerrainType.CONCRETE_FLOOR
+        elif 'stained' in map_name or 'stone' in map_name:
+            return TerrainType.CANYON_FLOOR
+        elif 'lime' in map_name or 'foyer' in map_name:
+            return TerrainType.DUST
+        else:
+            # Default to empty for unknown maps
+            return TerrainType.EMPTY
+
     def _render_single_tile(self, surface: pygame.Surface, x: int, y: int, game_map):
         """Render a single tile (used for dirty rectangle updates)."""
         # Calculate tile position (relative to grid surface, not screen)
@@ -3476,6 +3509,17 @@ class GraphicalRenderer:
 
         # Draw base tile
         pygame.draw.rect(surface, base_color, rect)
+
+        # Check if this is furniture - if so, render base terrain first
+        is_furniture = self._is_furniture(terrain_type)
+        if is_furniture and game_map:
+            # Get the base terrain for this map
+            base_terrain = self._get_base_terrain_for_map(game_map)
+            if base_terrain != TerrainType.EMPTY:
+                # Render base terrain texture underneath furniture
+                base_surface = self._load_terrain_tile(base_terrain)
+                if base_surface:
+                    surface.blit(base_surface, (tile_x, tile_y))
 
         # Try to load and draw terrain/furniture SVG
         if terrain_type != TerrainType.EMPTY:

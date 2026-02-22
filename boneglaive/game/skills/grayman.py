@@ -1105,6 +1105,11 @@ class GraeExchangeSkill(ActiveSkill):
             # Normal GRAYMAN creating echo
             echo_unit.original_unit = user
 
+        # Copy upgraded_skills from the original unit to the echo
+        # This is needed so the echo knows which skills were upgraded (for LOTO system)
+        if hasattr(user, 'upgraded_skills'):
+            echo_unit.upgraded_skills = set(user.upgraded_skills)
+
         echo_unit.hp = 5  # Echo has 5 HP and cannot be healed
         echo_unit.max_hp = 5  # Echo max HP is also 5
 
