@@ -1438,6 +1438,9 @@ class Game:
             # Restore HP to max
             unit.hp = unit.max_hp
 
+            # Mark this unit as just respawned (for animation purposes)
+            unit._just_respawned = True
+
             # Add to game
             self.units.append(unit)
 

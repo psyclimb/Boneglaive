@@ -539,11 +539,12 @@ class GraphicalRenderer:
                 from boneglaive.utils.constants import UnitType
                 is_vapor = hasattr(game_unit, 'type') and game_unit.type == UnitType.HEINOUS_VAPOR
                 is_echo = hasattr(game_unit, 'is_echo') and game_unit.is_echo
+                is_respawn = hasattr(game_unit, '_just_respawned') and game_unit._just_respawned
 
-                # Trigger respawn animation for regular units (not vapors or echoes)
+                # Trigger respawn animation ONLY for actual respawns (not vapors, echoes, or initial spawns)
                 # Vapors and echoes have their own spawn animations
-                if not is_vapor and not is_echo:
-                    print(f"[Renderer] New unit detected: {game_unit.type}, triggering respawn animation at ({game_unit.y}, {game_unit.x})")
+                if is_respawn and not is_vapor and not is_echo:
+                    print(f"[Renderer] Respawned unit detected: {game_unit.type}, triggering respawn animation at ({game_unit.y}, {game_unit.x})")
 
                     # Create respawn animation IMMEDIATELY (not queued)
                     from boneglaive.graphical.animations import AnimationFactory
@@ -567,6 +568,9 @@ class GraphicalRenderer:
                         print(f"  [Animation] Successfully triggered respawn animation for {game_unit.get_display_name()}")
                     else:
                         print(f"  [Animation] WARNING: Failed to create respawn animation")
+
+                    # Clear the respawn flag after triggering animation
+                    game_unit._just_respawned = False
 
                 # If this is a HEINOUS VAPOR, trigger spawn animation
                 if hasattr(game_unit, 'type') and game_unit.type == UnitType.HEINOUS_VAPOR:
@@ -3819,23 +3823,131 @@ class GraphicalRenderer:
         # Draw respawn ghost preview
         if self.respawn_selecting_location and self.respawn_ghost_pos and self.selected_dead_unit:
             ghost_x, ghost_y = self.respawn_ghost_pos
-            # Draw semi-transparent unit preview
-            ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
-            ghost_surf.fill((100, 255, 150, 60))  # Green tint
-            # Draw unit type name
-            if hasattr(self.selected_dead_unit, 'unit_type'):
-                # Handle both UnitType enum and int (for DLC units)
-                unit_type_name = self.selected_dead_unit.unit_type.name if hasattr(self.selected_dead_unit.unit_type, 'name') else str(self.selected_dead_unit.unit_type)
-                text = self.small_font.render(
-                    unit_type_name[:3],  # First 3 letters
-                    True, (255, 255, 255)
-                )
-                text_rect = text.get_rect(center=(TILE_SIZE // 2, TILE_SIZE // 2))
-                ghost_surf.blit(text, text_rect)
-            surface.blit(
-                ghost_surf,
-                (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE)
-            )
+
+            # Check if position is valid (game logic uses (y, x) format)
+            pos_valid = (ghost_y, ghost_x) in self.respawn_valid_tiles if hasattr(self, 'respawn_valid_tiles') else True
+
+            # Get sprite path for the selected unit type
+            sprite_path = self._get_sprite_path(self.selected_dead_unit.unit_type)
+
+            # Try to load and display the sprite
+            if sprite_path and os.path.exists(sprite_path):
+                try:
+                    # Load sprite
+                    if sprite_path.endswith('.svg'):
+                        import cairosvg
+                        from io import BytesIO
+                        png_data = cairosvg.svg2png(url=sprite_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
+                        sprite = pygame.image.load(BytesIO(png_data))
+                    else:
+                        sprite = pygame.image.load(sprite_path)
+                        sprite = pygame.transform.smoothscale(sprite, (TILE_SIZE, TILE_SIZE))
+
+                    # Create ghost surface with semi-transparent sprite
+                    ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+
+                    # Draw sprite with transparency
+                    sprite_copy = sprite.copy()
+                    sprite_copy.set_alpha(120)  # Semi-transparent
+                    ghost_surf.blit(sprite_copy, (0, 0))
+
+                    # Add colored tint overlay (green for respawn)
+                    tint_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                    if pos_valid:
+                        tint_surf.fill((100, 255, 150, 60))  # Green tint for valid respawn
+                    else:
+                        tint_surf.fill((255, 100, 100, 60))  # Red tint for invalid
+                    ghost_surf.blit(tint_surf, (0, 0))
+
+                    # Draw the ghost preview
+                    surface.blit(
+                        ghost_surf,
+                        (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE)
+                    )
+                except Exception as e:
+                    # Fallback to text if sprite loading fails
+                    print(f"Could not load sprite for respawn ghost preview: {e}")
+                    ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                    ghost_surf.fill((100, 255, 150, 60))  # Green tint
+                    if hasattr(self.selected_dead_unit, 'unit_type'):
+                        unit_type_name = self.selected_dead_unit.unit_type.name if hasattr(self.selected_dead_unit.unit_type, 'name') else str(self.selected_dead_unit.unit_type)
+                        text = self.small_font.render(unit_type_name[:3], True, (255, 255, 255))
+                        text_rect = text.get_rect(center=(TILE_SIZE // 2, TILE_SIZE // 2))
+                        ghost_surf.blit(text, text_rect)
+                    surface.blit(ghost_surf, (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE))
+            else:
+                # Fallback to text if no sprite path found
+                ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                ghost_surf.fill((100, 255, 150, 60))  # Green tint
+                if hasattr(self.selected_dead_unit, 'unit_type'):
+                    unit_type_name = self.selected_dead_unit.unit_type.name if hasattr(self.selected_dead_unit.unit_type, 'name') else str(self.selected_dead_unit.unit_type)
+                    text = self.small_font.render(unit_type_name[:3], True, (255, 255, 255))
+                    text_rect = text.get_rect(center=(TILE_SIZE // 2, TILE_SIZE // 2))
+                    ghost_surf.blit(text, text_rect)
+                surface.blit(ghost_surf, (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE))
+
+        # Draw queued respawn ghosts (after confirmation, before execution)
+        if self.game_adapter.game:
+            for dead_unit in self.game_adapter.game.dead_units:
+                if hasattr(dead_unit, 'respawn_preview') and dead_unit.respawn_preview:
+                    # respawn_preview is in (y, x) format, convert to (grid_x, grid_y) for drawing
+                    ghost_y, ghost_x = dead_unit.respawn_preview
+
+                    # Get sprite path for the unit type
+                    sprite_path = self._get_sprite_path(dead_unit.unit_type)
+
+                    # Try to load and display the sprite
+                    if sprite_path and os.path.exists(sprite_path):
+                        try:
+                            # Load sprite
+                            if sprite_path.endswith('.svg'):
+                                import cairosvg
+                                from io import BytesIO
+                                png_data = cairosvg.svg2png(url=sprite_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
+                                sprite = pygame.image.load(BytesIO(png_data))
+                            else:
+                                sprite = pygame.image.load(sprite_path)
+                                sprite = pygame.transform.smoothscale(sprite, (TILE_SIZE, TILE_SIZE))
+
+                            # Create ghost surface with semi-transparent sprite
+                            ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+
+                            # Draw sprite with transparency
+                            sprite_copy = sprite.copy()
+                            sprite_copy.set_alpha(120)  # Semi-transparent
+                            ghost_surf.blit(sprite_copy, (0, 0))
+
+                            # Add colored tint overlay (green for queued respawn)
+                            tint_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                            tint_surf.fill((100, 255, 150, 60))  # Green tint
+                            ghost_surf.blit(tint_surf, (0, 0))
+
+                            # Draw the ghost preview
+                            surface.blit(
+                                ghost_surf,
+                                (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE)
+                            )
+                        except Exception as e:
+                            # Fallback to text if sprite loading fails
+                            print(f"Could not load sprite for queued respawn ghost: {e}")
+                            ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                            ghost_surf.fill((100, 255, 150, 60))  # Green tint
+                            if hasattr(dead_unit, 'unit_type'):
+                                unit_type_name = dead_unit.unit_type.name if hasattr(dead_unit.unit_type, 'name') else str(dead_unit.unit_type)
+                                text = self.small_font.render(unit_type_name[:3], True, (255, 255, 255))
+                                text_rect = text.get_rect(center=(TILE_SIZE // 2, TILE_SIZE // 2))
+                                ghost_surf.blit(text, text_rect)
+                            surface.blit(ghost_surf, (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE))
+                    else:
+                        # Fallback to text if no sprite path found
+                        ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                        ghost_surf.fill((100, 255, 150, 60))  # Green tint
+                        if hasattr(dead_unit, 'unit_type'):
+                            unit_type_name = dead_unit.unit_type.name if hasattr(dead_unit.unit_type, 'name') else str(dead_unit.unit_type)
+                            text = self.small_font.render(unit_type_name[:3], True, (255, 255, 255))
+                            text_rect = text.get_rect(center=(TILE_SIZE // 2, TILE_SIZE // 2))
+                            ghost_surf.blit(text, text_rect)
+                        surface.blit(ghost_surf, (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE))
 
         # Draw setup valid tiles (blue/cyan)
         if self.setup_placing_unit and self.setup_valid_tiles:
