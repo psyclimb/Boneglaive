@@ -766,6 +766,45 @@ class ActionMenu:
 
         return None
 
+    def handle_numpad_hotkey(self, key: int) -> Optional[str]:
+        """
+        Handle numpad hotkey press (alternative keybinds).
+
+        Numpad Layout:
+        [7] Help      [8] ↑       [9] Skills
+        [4] Move      [5] Select  [6] Attack
+        [1] Respawn   [2] ↓       [3] Upgrade
+        [0] Execute Turn    [.] Concede
+
+        Args:
+            key: pygame key constant (numpad key)
+
+        Returns:
+            Action string if hotkey matches enabled button, None otherwise
+        """
+        # Map numpad keys to actions
+        numpad_map = {
+            pygame.K_KP7: 'help',      # Help
+            pygame.K_KP9: 'skills',    # Skills
+            pygame.K_KP4: 'move',      # Move
+            pygame.K_KP6: 'attack',    # Attack
+            pygame.K_KP1: 'respawn',   # Respawn
+            pygame.K_KP3: 'upgrade',   # Upgrade
+            pygame.K_KP0: 'execute',   # Execute Turn
+            pygame.K_KP_PERIOD: 'concede',  # Concede
+        }
+
+        action_str = numpad_map.get(key)
+        if not action_str:
+            return None
+
+        # Find button with matching action
+        for button in self.buttons:
+            if button.action == action_str and button.enabled:
+                return button.action
+
+        return None
+
     def get_height(self) -> int:
         """Calculate total height needed for this component."""
         num_buttons = len(self.buttons)

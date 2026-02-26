@@ -353,6 +353,53 @@ class SkillBar:
 
         return None
 
+    def handle_numpad_hotkey(self, key: int) -> Optional[object]:
+        """
+        Handle numpad hotkey press for skills (alternative keybinds).
+
+        Numpad skill keys:
+        [/] Skill 1
+        [*] Skill 2
+        [-] Skill 3
+        [+] Skill 4 (first press) / Skill 5 (second press) / Skill 6 (third press)
+
+        Args:
+            key: pygame key constant (numpad key)
+
+        Returns:
+            Skill object if hotkey matches available skill, None otherwise
+        """
+        # Map numpad keys to skill indices
+        if key == pygame.K_KP_DIVIDE:
+            skill_index = 0  # Skill 1
+        elif key == pygame.K_KP_MULTIPLY:
+            skill_index = 1  # Skill 2
+        elif key == pygame.K_KP_MINUS:
+            skill_index = 2  # Skill 3
+        elif key == pygame.K_KP_PLUS:
+            # Cycle through skills 4, 5, 6 on repeated presses
+            # Track which skill + was last used for (simple cycling)
+            if not hasattr(self, '_plus_skill_index'):
+                self._plus_skill_index = 3  # Start with skill 4
+            else:
+                # Cycle: 3 -> 4 -> 5 -> 3 (indices 3, 4, 5)
+                self._plus_skill_index = 3 + ((self._plus_skill_index - 3 + 1) % 3)
+            skill_index = self._plus_skill_index
+        else:
+            return None
+
+        # Get skill at index if it exists
+        if skill_index < len(self.skill_slots):
+            slot = self.skill_slots[skill_index]
+            if slot.is_available():
+                self.selected_skill = slot.skill
+                return slot.skill
+            else:
+                # Skill on cooldown or not available
+                return None
+
+        return None
+
     def get_tooltip(self, mouse_pos: Tuple[int, int]) -> Optional[str]:
         """
         Get tooltip text for hovered skill.

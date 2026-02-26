@@ -898,12 +898,51 @@ class GraphicalRenderer:
                     if action:
                         self._handle_action_menu_click(action)
 
+                # NUMPAD: Action menu hotkeys (alternative keybinds)
+                elif event.key in [pygame.K_KP7, pygame.K_KP9, pygame.K_KP4, pygame.K_KP6,
+                                  pygame.K_KP1, pygame.K_KP3, pygame.K_KP0, pygame.K_KP_PERIOD]:
+                    action = self.action_menu.handle_numpad_hotkey(event.key)
+                    if action:
+                        self._handle_action_menu_click(action)
+
                 # Then check skill hotkeys (only if skills are visible)
                 elif event.key in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4,
                                   pygame.K_q, pygame.K_w]:
                     # Handle skill hotkeys only if skill bar is visible
                     if self.show_skills:
                         skill = self.skill_bar.handle_hotkey(event.key)
+                        if skill and self.selected_unit:
+                            print(f"Skill selected: {skill.name}")
+                            self.selected_skill = skill
+                            self.current_action_mode = "SKILL"
+
+                            # Query skill range
+                            game_unit = self._get_game_unit(self.selected_unit)
+                            if game_unit:
+                                # If unit has pending move, calculate skill range from ghost position
+                                if game_unit.move_target:
+                                    original_y, original_x = game_unit.y, game_unit.x
+                                    game_unit.y, game_unit.x = game_unit.move_target
+                                    self.skill_positions = self.game_adapter.get_skill_range(game_unit, skill)
+                                    game_unit.y, game_unit.x = original_y, original_x
+                                else:
+                                    self.skill_positions = self.game_adapter.get_skill_range(game_unit, skill)
+                                print(f"Skill has {len(self.skill_positions)} valid targets")
+
+                                # Hide movement/attack range, show skill range
+                                self.show_movement_range = False
+                                self.show_target_range = False
+                                self.show_skill_range = True
+                            else:
+                                self.skill_positions = []
+                        elif skill and not self.selected_unit:
+                            print("Select a unit first to use skills")
+
+                # NUMPAD: Skill hotkeys (alternative keybinds)
+                elif event.key in [pygame.K_KP_DIVIDE, pygame.K_KP_MULTIPLY, pygame.K_KP_MINUS, pygame.K_KP_PLUS]:
+                    # Handle skill hotkeys only if skill bar is visible
+                    if self.show_skills:
+                        skill = self.skill_bar.handle_numpad_hotkey(event.key)
                         if skill and self.selected_unit:
                             print(f"Skill selected: {skill.name}")
                             self.selected_skill = skill
