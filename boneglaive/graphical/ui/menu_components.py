@@ -44,12 +44,14 @@ class Button:
         # State
         self.hovered = False
         self.pressed = False
+        self.clicked_this_frame = False  # Prevent double-triggering
 
     def update(self, mouse_pos: Tuple[int, int], mouse_pressed: bool):
         """Update button state based on mouse."""
         if not self.enabled:
             self.hovered = False
             self.pressed = False
+            self.clicked_this_frame = False
             return
 
         # Check hover
@@ -61,17 +63,19 @@ class Button:
                 self.pressed = True
         else:
             # Button was released
-            if self.pressed and self.hovered:
-                # Trigger action on release
+            if self.pressed and self.hovered and not self.clicked_this_frame:
+                # Trigger action on release (only if not already clicked via handle_click)
                 if self.action:
                     self.action()
             self.pressed = False
+            self.clicked_this_frame = False  # Reset for next frame
 
     def handle_click(self, mouse_pos: Tuple[int, int]) -> bool:
         """
         Handle a mouse click. Returns True if button was clicked.
         """
         if self.enabled and self.rect.collidepoint(mouse_pos):
+            self.clicked_this_frame = True  # Mark as clicked to prevent double-trigger in update()
             if self.action:
                 self.action()
             return True
@@ -318,7 +322,7 @@ class MenuScreen:
         Returns action string if an action should be taken, None otherwise.
         """
         if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-            # Left click release - prevents click-through to next screen
+            # Left click release - handle immediately for responsive UI
             for button in self.buttons:
                 if button.handle_click(event.pos):
                     break
