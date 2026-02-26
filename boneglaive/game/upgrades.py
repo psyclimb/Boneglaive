@@ -255,7 +255,7 @@ SKILL_UPGRADES = {
         },
         "Ossify": {
             "name": "Ossify",
-            "description": "Duration increased from 2 to 3 turns.",
+            "description": "Reflects 1 damage back to attackers.",
             "type": "buff",
             "cost": 1
         },

@@ -1450,7 +1450,45 @@ class GraphicalRenderer:
 
                     return  # Don't process as movement
 
-            # Not furniture - handle as movement (only in MOVE mode)
+                # Check if it's a Marrow Dike wall tile (attackable obstacle)
+                if (self.selected_unit and self.current_action_mode == "ATTACK" and
+                    hasattr(self.game_adapter.game, 'marrow_dike_tiles') and
+                    (grid_y, grid_x) in self.game_adapter.game.marrow_dike_tiles):
+
+                    # Check if wall is in attack range
+                    if (grid_x, grid_y) in self.attack_positions:
+                        game_unit = self._get_game_unit(self.selected_unit)
+
+                        if game_unit:
+                            # Set attack target on wall (game coords: y, x)
+                            game_unit.attack_target = (grid_y, grid_x)
+                            game_unit.took_no_actions = False
+
+                            # Track action order
+                            game_unit.action_timestamp = self.game_adapter.game.action_counter
+                            self.game_adapter.game.action_counter += 1
+
+                            wall_info = self.game_adapter.game.marrow_dike_tiles[(grid_y, grid_x)]
+                            print(f"Attack planned: {self.selected_unit.name} -> Marrow Dike wall at ({grid_x}, {grid_y})")
+
+                            # Clear selection
+                            self.selected_unit = None
+                            self.show_movement_range = False
+                            self.show_target_range = False
+                            self.show_skills = False
+                            self.show_astral_values = False
+                            self.valid_positions = []
+                            self.attack_positions = []
+                            self.skill_bar.update(None, None)
+                            self.status_effects_panel.update(None)
+                            self.unit_info_panel.update(None, None)
+                            self.current_action_mode = "SELECT"
+                    else:
+                        print(f"Marrow Dike wall at ({grid_x}, {grid_y}) out of attack range")
+
+                    return  # Don't process as movement
+
+            # Not furniture or wall - handle as movement (only in MOVE mode)
             if self.selected_unit and self.current_action_mode == "MOVE":
                 # Check if clicked position is in movement range
                 if (grid_x, grid_y) in self.valid_positions:

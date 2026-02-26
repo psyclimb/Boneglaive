@@ -2608,14 +2608,28 @@ class Game:
                         unit.ossify_active = False
                         # Remove the defense bonus and movement penalty
                         if unit.type == UnitType.MARROW_CONDENSER:
-                            # Get the defense bonus value from the skill
-                            for skill in unit.active_skills:
-                                if skill.name == "Ossify":
-                                    unit.defense_bonus -= skill.defense_bonus
-                                    break
-                            
-                            # Reset movement penalty
-                            unit.move_range_bonus = 0
+                            # Remove the actual defense bonus that was applied (tracked at application time)
+                            if hasattr(unit, 'ossify_defense_bonus'):
+                                unit.defense_bonus -= unit.ossify_defense_bonus
+                                delattr(unit, 'ossify_defense_bonus')
+                            else:
+                                # Fallback for units that were ossified before tracking was added
+                                # Check if Ossify was Dominion-upgraded when it was cast
+                                defense_to_remove = 2  # Default base bonus
+                                if hasattr(unit, 'passive_skill') and hasattr(unit.passive_skill, 'ossify_upgraded'):
+                                    if unit.passive_skill.ossify_upgraded:
+                                        defense_to_remove = 3  # Dominion-upgraded bonus
+                                unit.defense_bonus -= defense_to_remove
+                                logger.warning(f"Ossify expired without tracking data - removed {defense_to_remove} defense (fallback)")
+
+                            # Remove movement penalty (use tracked value if available, otherwise assume -1)
+                            if hasattr(unit, 'ossify_move_penalty'):
+                                unit.move_range_bonus -= unit.ossify_move_penalty  # Subtracting -1 = adding 1
+                                delattr(unit, 'ossify_move_penalty')
+                            else:
+                                # Fallback: assume -1 penalty was applied
+                                unit.move_range_bonus += 1
+                                logger.warning(f"Ossify expired without move tracking data - added 1 movement (fallback)")
                         
                         # Log the expiration
                         message_log.add_message(
@@ -3511,6 +3525,35 @@ class Game:
                         if ui:
                             ui.show_attack_animation(unit, target, actual_damage)
 
+                        # Check for upgraded Ossify reflect damage (MARROW_CONDENSER)
+                        if (target.type == UnitType.MARROW_CONDENSER and
+                            hasattr(target, 'ossify_active') and target.ossify_active and
+                            target.hp > 0 and actual_damage > 0):
+                            # Check if Ossify is manually upgraded
+                            from boneglaive.game.upgrades import UpgradeManager
+                            if UpgradeManager.is_skill_upgraded(target, "Ossify"):
+                                # Reflect 1 damage back to attacker (and reduce damage taken by 1)
+                                target.hp = min(target.max_hp, target.hp + 1)  # Heal 1 HP back (capped at max)
+
+                                # Update actual_damage to reflect the reduced damage (for combat log)
+                                actual_damage = max(0, actual_damage - 1)
+
+                                # Deal 1 reflect damage to attacker
+                                attacker_previous_hp = unit.hp
+                                unit.hp = max(0, unit.hp - 1)
+
+                                # Log the reflect
+                                message_log.add_message(
+                                    f"{target.get_display_name()}'s hardened bones splinter back at {unit.get_display_name()} for 1 damage",
+                                    MessageType.ABILITY,
+                                    player=target.player,
+                                    target_name=unit.get_display_name()
+                                )
+
+                                # Check if attacker died from reflect damage
+                                if unit.hp <= 0 and attacker_previous_hp > 0:
+                                    self.handle_unit_death(unit, target, cause="ossify_reflect", ui=ui)
+
                         # Check for PELOTARI Riposte trigger (after taking damage)
                         if (hasattr(target, 'passive_skill') and target.passive_skill and
                             target.passive_skill.name == "Riposte" and target.hp > 0):
@@ -4205,38 +4248,9 @@ class Game:
                             MessageType.ABILITY,
                             target_name=unit.get_display_name()
                         )
-                    
-                    # Handle Ossify duration (non-upgraded version only)
-                    if hasattr(unit, 'ossify_duration') and unit.ossify_duration > 0:
-                        # Check if this is a permanently upgraded MARROW_CONDENSER
-                        is_permanent_ossify = False
-                        if unit.type == UnitType.MARROW_CONDENSER and hasattr(unit, 'passive_skill'):
-                            # Check if Ossify is permanently upgraded through Dominion
-                            if hasattr(unit.passive_skill, 'ossify_upgraded') and unit.passive_skill.ossify_upgraded:
-                                is_permanent_ossify = True
-                        
-                        # If not permanent, decrement duration (applies to all unit types)
-                        if not is_permanent_ossify:
-                            unit.ossify_duration -= 1
-                            
-                            # If duration expires, restore movement and remove defense bonus
-                            if unit.ossify_duration <= 0:
-                                # Only restore movement if not affected by other penalties
-                                if not hasattr(unit, 'was_pried') or not unit.was_pried:
-                                    if not hasattr(unit, 'jawline_affected') or not unit.jawline_affected:
-                                        if not hasattr(unit, 'trapped_by') or unit.trapped_by is None:
-                                            unit.move_range_bonus += 1  # Restore the movement penalty
-                                
-                                # Remove defense bonus as well
-                                unit.defense_bonus -= self.get_ossify_defense_bonus(unit)
-                                
-                                # Log the effect expiration
-                                message_log.add_message(
-                                    f"{unit.get_display_name()}'s ossified bone structure returns to normal",
-                                    MessageType.ABILITY,
-                                    player=unit.player,
-                                    target_name=unit.get_display_name()
-                                )
+
+                    # NOTE: Ossify duration is now handled in process_buff_durations() at line 2597-2639
+                    # The old duplicate code that was here has been removed to prevent double-removal bugs
 
         # Call graphical callback before clearing status effects
         # This allows the graphical system to detect status effects before they're removed

@@ -1164,8 +1164,12 @@ class Unit:
             # Clear movement penalty for legacy upgraded Pry effects
             if self.move_range_bonus < 0:
                 self.move_range_bonus = 0
-        # Do not reset move_range_bonus if affected by Jawline or Pry
-        elif not self.jawline_affected and not self.was_pried and not self.was_pried_upgraded and self.move_range_bonus < 0:
+        # Do not reset move_range_bonus if affected by Jawline, Pry, or Ossify
+        elif (not self.jawline_affected and
+              not self.was_pried and
+              not self.was_pried_upgraded and
+              not (hasattr(self, 'ossify_active') and self.ossify_active) and
+              self.move_range_bonus < 0):
             self.move_range_bonus = 0
                 
     def apply_vapor_effects(self, game: 'Game', ui=None) -> None:
