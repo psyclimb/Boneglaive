@@ -16,7 +16,7 @@ if 'logger' not in locals():
 
 class DeadUnit:
     """Represents a dead unit awaiting respawn."""
-    def __init__(self, unit_type, player, death_turn, greek_id, upgraded_skills=None):
+    def __init__(self, unit_type, player, death_turn, greek_id, upgraded_skills=None, dominion_permanent_attack=0):
         self.unit_type = unit_type
         self.player = player
         self.death_turn = death_turn
@@ -25,6 +25,7 @@ class DeadUnit:
         self.ready_for_respawn = False
         self.respawn_preview = None  # Tuple (y, x) showing where unit will respawn
         self.upgraded_skills = upgraded_skills or set()  # Preserve skill upgrades for respawn
+        self.dominion_permanent_attack = dominion_permanent_attack  # Preserve Dominion manual upgrade attack bonuses
 
 class Game:
     def __init__(self, skip_setup=False, map_name="lime_foyer_arena", player_names=None):
@@ -1427,6 +1428,12 @@ class Game:
             else:
                 unit.upgraded_skills = set()
 
+            # Restore Dominion manual upgrade attack bonuses for MARROW_CONDENSER
+            if hasattr(dead_unit, 'dominion_permanent_attack') and dead_unit.dominion_permanent_attack > 0:
+                unit.dominion_permanent_attack = dead_unit.dominion_permanent_attack
+                unit.attack_bonus += dead_unit.dominion_permanent_attack
+                logger.info(f"RESPAWN: Restored {dead_unit.dominion_permanent_attack} Dominion attack bonuses for {unit.get_display_name()}")
+
             # Reset passive skill activation flags (once-per-life)
             if hasattr(unit, 'passive_skill') and unit.passive_skill:
                 unit.passive_skill.activated = False
@@ -2219,6 +2226,10 @@ class Game:
                     if UpgradeManager.is_skill_upgraded(dike_owner, "Dominion"):
                         # Manual upgrade: +1 attack per kill in Marrow Dike
                         dike_owner.attack_bonus += 1
+                        # Track permanent attack bonuses from Dominion manual upgrade (survives death)
+                        if not hasattr(dike_owner, 'dominion_permanent_attack'):
+                            dike_owner.dominion_permanent_attack = 0
+                        dike_owner.dominion_permanent_attack += 1
 
                 # Apply the stat bonus based on upgrade tier
                 # Instead of granting all bonuses at once, apply them progressively based on upgrade level

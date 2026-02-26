@@ -15,5 +15,6 @@
   "audio_enabled": true,
   "music_volume": 0.7,
   "sfx_volume": 1.0,
+  "ui_layout": "default",
   "custom_keybindings": {}
 }

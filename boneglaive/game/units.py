@@ -983,12 +983,15 @@ class Unit:
             # Create DeadUnit entry for respawn
             # Preserve upgraded_skills for respawn
             upgraded_skills_copy = set(self.upgraded_skills) if hasattr(self, 'upgraded_skills') else set()
+            # Preserve Dominion manual upgrade attack bonuses for MARROW_CONDENSER
+            dominion_attack = getattr(self, 'dominion_permanent_attack', 0)
             dead_unit = DeadUnit(
                 unit_type=self.type,
                 player=self.player,
                 death_turn=self._game.turn,
                 greek_id=self.greek_id,
-                upgraded_skills=upgraded_skills_copy
+                upgraded_skills=upgraded_skills_copy,
+                dominion_permanent_attack=dominion_attack
             )
             self._game.dead_units.append(dead_unit)
 
