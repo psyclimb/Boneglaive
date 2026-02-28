@@ -325,25 +325,35 @@ class TacticalEvaluator:
             if not threat or threat.threat_level < unit.hp * 0.3:
                 score += 20
 
-        # Aggressive strategy: approach enemies (prefer positions with line of sight)
-        if plan.strategy.value in ["aggressive_push", "desperate_rush"]:
-            # Find closest enemy
-            if analysis.enemy_units:
-                min_distance = min(self.game.chess_distance(y, x, e.y, e.x)
-                                 for e in analysis.enemy_units)
+        # Enemy approach: ALL strategies should move toward enemies (with varying aggression)
+        if analysis.enemy_units:
+            min_distance = min(self.game.chess_distance(y, x, e.y, e.x)
+                             for e in analysis.enemy_units)
+
+            # Aggressive strategies: strong bonus for closing distance
+            if plan.strategy.value in ["aggressive_push", "desperate_rush"]:
                 # Closer = better (inverse distance bonus)
                 score += max(15 - min_distance, 0)
+            # All other strategies: moderate bonus for closing distance
+            else:
+                # Even defensive/trading strategies should advance when safe
+                # This prevents AI from standing still forever
+                score += max(8 - min_distance * 0.5, 0)
 
-                # BIG bonus if this position lets us see/attack an enemy
-                stats = unit.get_effective_stats()
-                attack_range = stats['attack_range']
-                for enemy in analysis.enemy_units:
-                    dist_to_enemy = self.game.chess_distance(y, x, enemy.y, enemy.x)
-                    if dist_to_enemy <= attack_range:
-                        # Check if we have line of sight from new position
-                        if self.game.has_line_of_sight(y, x, enemy.y, enemy.x):
-                            score += 30  # Major bonus for positions that enable attacks
-                            break
+            # Bonus if this position enables attack (all strategies benefit)
+            stats = unit.get_effective_stats()
+            attack_range = stats['attack_range']
+            for enemy in analysis.enemy_units:
+                dist_to_enemy = self.game.chess_distance(y, x, enemy.y, enemy.x)
+                if dist_to_enemy <= attack_range:
+                    # Check if we have line of sight from new position
+                    if self.game.has_line_of_sight(y, x, enemy.y, enemy.x):
+                        # Aggressive strategies get bigger bonus
+                        if plan.strategy.value in ["aggressive_push", "desperate_rush"]:
+                            score += 30
+                        else:
+                            score += 15  # Still significant for other strategies
+                        break
 
         # Positioning strategy: move toward center
         if plan.strategy.value == "secure_position":
