@@ -1133,14 +1133,14 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'BROACHING GAS (Active) [Key: B]',
-                        'description': 'The GAS MACHINIST expels a HEINOUS VAPOR (symbol: 1) to an empty tile, creating a caustic gas cloud in a 3x3 area centered on the vapor. Each turn, the vapor automatically corrodes enemies within the cloud for 2 damage while simultaneously dissolving negative status effects from allies. The vapor persists for a duration equal to consumed Effluvium charges and is completely invulnerable to all damage.',
+                        'description': 'The GAS MACHINIST expels a HEINOUS VAPOR (symbol: 1) to an empty tile, creating a caustic gas cloud in a 3x3 area centered on the vapor. Each turn, the vapor automatically corrodes enemies within the cloud for 1 damage while simultaneously dissolving negative status effects from allies. The vapor persists for a duration equal to consumed Effluvium charges and is completely invulnerable to all damage.',
                         'details': [
                             'Type: Active',
                             'Range: 4',
                             'Target: Empty tile',
                             'Area: 3x3 (centered on vapor)',
-                            'Damage: 2 per turn to enemies',
-                            'Cooldown: 2 turns',
+                            'Damage: 1 per turn to enemies',
+                            'Cooldown: 3 turns',
                             'Special: Cleanses ally status effects; invulnerable; duration = charges'
                         ]
                     },

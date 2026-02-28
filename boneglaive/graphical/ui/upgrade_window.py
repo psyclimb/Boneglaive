@@ -110,7 +110,7 @@ class UpgradeWindow:
             return self.icon_cache[skill_name]
 
         # Convert skill name to filename (e.g., "Marrow Dike" -> "marrow_dike")
-        filename = skill_name.lower().replace(' ', '_').replace('-', '_')
+        filename = skill_name.lower().replace(' ', '_')
         icon_path = f"graphics/skill_icons/{filename}.svg"
 
         try:

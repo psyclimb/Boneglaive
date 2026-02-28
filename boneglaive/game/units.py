@@ -1279,7 +1279,7 @@ class Unit:
                 
         # Process effects based on vapor type
         if self.vapor_type == "BROACHING":
-            # Broaching Gas: Damages enemies (2 damage base, +3 if upgraded) and cleanses allies of status effects
+            # Broaching Gas: Damages enemies (1 damage base, +3 if upgraded) and cleanses allies of status effects
 
             # Check if Broaching Gas is upgraded (increased damage by +3)
             from boneglaive.game.upgrades import UpgradeManager
@@ -1291,9 +1291,9 @@ class Unit:
                 if unit.player != self.player:
                     # Enemy unit - apply damage
                     if is_upgraded:
-                        damage = 5  # Upgraded: 2 + 3 = 5 damage (reduced by defense)
+                        damage = 4  # Upgraded: 1 + 3 = 4 damage (reduced by defense)
                     else:
-                        damage = 2  # Base: 2 damage (reduced by defense)
+                        damage = 1  # Base: 1 damage (reduced by defense)
 
                     previous_hp = unit.hp
 
