@@ -1592,8 +1592,11 @@ class Game:
             # Check if there's a unit at this position that might block line of sight
             blocking_unit = self.get_unit_at(pos.y, pos.x)
             if blocking_unit:
-                logger.debug(f"Line of sight blocked by unit {blocking_unit.get_display_name()} at position ({pos.y}, {pos.x})")
-                return False
+                # HEINOUS_VAPOR units don't block LOS (they're gas clouds - semi-transparent)
+                from boneglaive.utils.constants import UnitType
+                if blocking_unit.type != UnitType.HEINOUS_VAPOR:
+                    logger.debug(f"Line of sight blocked by unit {blocking_unit.get_display_name()} at position ({pos.y}, {pos.x})")
+                    return False
         
         return True
     
@@ -4191,11 +4194,15 @@ class Game:
                         # If no other vapors from this user, the user reforms
                         if not other_vapors:
                             gas_machinist = vapor_unit.diverged_user
-                            
+
+                            # CRITICAL: Remove vapor from grid BEFORE moving GAS_MACHINIST to that position
+                            # This prevents collision detection from blocking the placement
+                            self._remove_from_unit_grid(vapor_unit)
+
                             # Return the Gas Machinist to the vapor's position
                             gas_machinist.y = vapor_unit.y
                             gas_machinist.x = vapor_unit.x
-                            
+
                             # Reset the diverge flags
                             gas_machinist.diverge_return_position = False
                             

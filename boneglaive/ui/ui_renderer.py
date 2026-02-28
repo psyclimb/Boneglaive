@@ -754,8 +754,12 @@ class UIRenderer:
                                 color_id = 17 if current_player == 1 else 18  # Player-specific skill highlights
                         
                         # Check if this is a HEINOUS_VAPOR and use its specific symbol if available
-                        if unit.type == UnitType.HEINOUS_VAPOR and hasattr(unit, 'vapor_symbol') and unit.vapor_symbol:
-                            tile = unit.vapor_symbol
+                        if unit.type == UnitType.HEINOUS_VAPOR:
+                            if hasattr(unit, 'vapor_symbol') and unit.vapor_symbol:
+                                tile = unit.vapor_symbol
+                            else:
+                                # Fallback to default 'V' symbol if vapor_symbol not set
+                                tile = 'V'
                         
                         # No special symbol for GRAYMAN skills
                         # (Previously showed | for Græ Exchange, but this was removed)

@@ -675,8 +675,9 @@ class DivergeSkill(ActiveSkill):
 
         # If targeting a vapor, remove it
         elif target_unit:
-            # Remove the target vapor
+            # Remove the target vapor from both units list and spatial grid
             game.units.remove(target_unit)
+            game._remove_from_unit_grid(target_unit)
 
         # Create the gases
         from boneglaive.game.units import Unit

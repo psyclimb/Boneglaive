@@ -696,6 +696,7 @@ class EstrangeSkill(ActiveSkill):
             # Store the banished unit so we can return them later
             if target in game.units:
                 game.units.remove(target)
+                game._remove_from_unit_grid(target)
 
             # Spawn GRAYMAN echo at the banished target's location
             from boneglaive.game.units import Unit

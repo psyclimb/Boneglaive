@@ -1058,8 +1058,11 @@ class Unit:
                 self._game._check_position_change_trap_release(self, self._y, old_x)
     
     def set_game_reference(self, game):
-        """Set reference to the game for trap checks."""
+        """Set reference to the game for trap checks and register in spatial grid."""
         self._game = game
+        # Add unit to spatial grid now that we have game reference
+        if game and self.is_alive():
+            game._update_unit_grid(self)
 
     def set_position_atomic(self, y: int, x: int) -> bool:
         """
