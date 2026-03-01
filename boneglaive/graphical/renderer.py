@@ -3159,6 +3159,9 @@ class GraphicalRenderer:
                 target_unit = self._find_animated_unit_by_game_unit(target_game_unit)
                 if target_unit:
                     print(f"  [Renderer] Found target visual unit via captured game unit: {target_unit.name}")
+                    # CRITICAL: Use target's CURRENT position after movement, not queued position
+                    # This fixes animations appearing at old positions when unit moves before skill executes
+                    target_pos = (target_game_unit.y, target_game_unit.x)
                 else:
                     print(f"  [Renderer] WARNING: Could not find AnimatedUnit for captured game unit")
             else:
