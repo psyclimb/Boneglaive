@@ -839,6 +839,32 @@ class GameStateAdapter:
                             if UpgradeManager.is_skill_upgraded(game_unit, "Jawline"):
                                 skill_name = "Jawline_Upgraded"  # Use upgraded animation variant
 
+                        # MOVE+SKILL POSITION FIX: Use move_target position if unit is moving
+                        # When move+skill are queued, game_unit.x/y is still at OLD position during pre-sync
+                        # but move_target contains the NEW position where skill will execute from
+                        position_dependent_skills = ["Gaussian Dusk", "Parabol", "Big Arc", "Fragcrest", "Pry"]
+                        if skill_name in position_dependent_skills and hasattr(game_unit, 'move_target') and game_unit.move_target:
+                            # Unit is moving this turn - use move_target as the firing position
+                            target_y, target_x = game_unit.move_target
+
+                            # Update AnimatedUnit to fire from the move_target position
+                            animated_unit.grid_x = target_x
+                            animated_unit.grid_y = target_y
+
+                            # Also update screen position to prevent visual glitches
+                            from boneglaive.graphical.animations.core import TILE_SIZE
+                            from boneglaive.graphical.renderer import GRID_OFFSET_X, GRID_OFFSET_Y
+
+                            new_x = target_x * TILE_SIZE + TILE_SIZE // 2 + GRID_OFFSET_X
+                            new_y = target_y * TILE_SIZE + TILE_SIZE // 2 + GRID_OFFSET_Y
+
+                            # Snap to new position (movement animation will play before skill animation)
+                            animated_unit.x = new_x
+                            animated_unit.y = new_y
+                            animated_unit.target_x = new_x
+                            animated_unit.target_y = new_y
+                            animated_unit.is_moving = False
+
                         events.append(AnimationEvent(
                             "skill",
                             source_unit=game_unit,
