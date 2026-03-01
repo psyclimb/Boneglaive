@@ -719,10 +719,10 @@ class GraniteGeasSkill(ActiveSkill):
         from boneglaive.game.upgrades import UpgradeManager
         infuse_upgraded = UpgradeManager.is_skill_upgraded(user, "Infuse")
 
-        # Base damage is 4, +1 if enhanced and Infuse is upgraded
-        damage = 4
+        # Base damage is 5, +1 if enhanced and Infuse is upgraded
+        damage = 5
         if enhanced and infuse_upgraded:
-            damage = 5
+            damage = 6
 
         game.current_attacker = user
         old_hp = target.hp

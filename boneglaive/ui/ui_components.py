@@ -1476,7 +1476,7 @@ class UnitHelpComponent(UIComponent):
                             'Type: Active',
                             'Range: 1',
                             'Target: Single enemy',
-                            'Damage: 4',
+                            'Damage: 5',
                             'Effect: Geas (:) (1-2 turns); heals 4 HP per turn if ignored',
                             'Cooldown: 3 turns'
                         ]
