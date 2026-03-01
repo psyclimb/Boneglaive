@@ -1340,76 +1340,170 @@ class Unit:
                         )
                         
                 elif unit.player == self.player and unit != self:
-                    # Ally unit - cleanse status effects
-                    effects_cleansed = []
-                    
-                    # Check for status effects to cleanse
+                    # Ally unit - cleanse ONE random negative status effect
+                    import random
+
+                    # Build list of available effects to cleanse (name, clear_function pairs)
+                    available_effects = []
+
+                    # Derelicted
                     if hasattr(unit, 'derelicted') and unit.derelicted:
-                        unit.derelicted = False
-                        if hasattr(unit, 'derelicted_duration'):
-                            unit.derelicted_duration = 0
-                        effects_cleansed.append("Derelicted")
+                        def clear_derelicted():
+                            unit.derelicted = False
+                            if hasattr(unit, 'derelicted_duration'):
+                                unit.derelicted_duration = 0
+                        available_effects.append(("Derelicted", clear_derelicted))
 
-                    if unit.estranged:
-                        unit.estranged = False
-                        effects_cleansed.append("Estrangement")
+                    # Estrangement
+                    if hasattr(unit, 'estranged') and unit.estranged:
+                        def clear_estranged():
+                            unit.estranged = False
+                        available_effects.append(("Estrangement", clear_estranged))
 
-                    if unit.was_pried or (hasattr(unit, 'pry_active') and unit.pry_active):
-                        unit.was_pried = False
-                        if hasattr(unit, 'pry_active'):
-                            unit.pry_active = False
-                        if unit.move_range_bonus < 0:
-                            unit.move_range_bonus = 0
-                        effects_cleansed.append("Pry movement penalty")
-                        
-                    if unit.jawline_affected:
-                        unit.jawline_affected = False
-                        unit.jawline_duration = 0
-                        if unit.move_range_bonus < 0:
-                            unit.move_range_bonus = 0
-                        effects_cleansed.append("Jawline immobilization")
+                    # Pry movement penalty (base or upgraded)
+                    if hasattr(unit, 'was_pried') and unit.was_pried:
+                        def clear_pry():
+                            unit.was_pried = False
+                            if hasattr(unit, 'pry_active'):
+                                unit.pry_active = False
+                            # Restore movement by removing the stored penalty (same as Vagal Run fix)
+                            if hasattr(unit, 'pry_penalty_amount'):
+                                unit.move_range_bonus -= unit.pry_penalty_amount  # pry_penalty_amount is negative
+                                delattr(unit, 'pry_penalty_amount')
+                            if hasattr(unit, 'pry_duration'):
+                                unit.pry_duration = 0
+                        available_effects.append(("Pry movement penalty", clear_pry))
+                    elif hasattr(unit, 'was_pried_upgraded') and unit.was_pried_upgraded:
+                        def clear_pry_upgraded():
+                            unit.was_pried_upgraded = False
+                            if hasattr(unit, 'pry_active'):
+                                unit.pry_active = False
+                            # Restore movement by removing the stored upgraded penalty
+                            if hasattr(unit, 'pry_upgraded_penalty_amount'):
+                                unit.move_range_bonus -= unit.pry_upgraded_penalty_amount
+                                delattr(unit, 'pry_upgraded_penalty_amount')
+                            if hasattr(unit, 'pry_upgraded_duration'):
+                                unit.pry_upgraded_duration = 0
+                        available_effects.append(("Pry movement penalty (upgraded)", clear_pry_upgraded))
 
+                    # Jawline immobilization
+                    if hasattr(unit, 'jawline_affected') and unit.jawline_affected:
+                        def clear_jawline():
+                            unit.jawline_affected = False
+                            if hasattr(unit, 'jawline_duration'):
+                                unit.jawline_duration = 0
+                            # Jawline applies -2 movement penalty - restore it
+                            unit.move_range_bonus += 2
+                        available_effects.append(("Jawline immobilization", clear_jawline))
+
+                    # Recharging
                     if hasattr(unit, 'gaussian_dusk_recharge') and unit.gaussian_dusk_recharge > 0:
-                        unit.gaussian_dusk_recharge = 0
-                        effects_cleansed.append("Recharging")
+                        def clear_recharging():
+                            unit.gaussian_dusk_recharge = 0
+                        available_effects.append(("Recharging", clear_recharging))
 
+                    # Imbued
                     if hasattr(unit, 'status_imbued') and unit.status_imbued:
-                        unit.status_imbued = False
-                        if hasattr(unit, 'status_imbued_duration'):
-                            unit.status_imbued_duration = 0
-                        if hasattr(unit, 'status_imbued_player'):
-                            unit.status_imbued_player = None
-                        if hasattr(unit, 'status_imbued_cosmic_value'):
-                            unit.status_imbued_cosmic_value = None
-                        effects_cleansed.append("Imbued")
+                        def clear_imbued():
+                            unit.status_imbued = False
+                            if hasattr(unit, 'status_imbued_duration'):
+                                unit.status_imbued_duration = 0
+                            if hasattr(unit, 'status_imbued_player'):
+                                unit.status_imbued_player = None
+                            if hasattr(unit, 'status_imbued_cosmic_value'):
+                                unit.status_imbued_cosmic_value = None
+                        available_effects.append(("Imbued", clear_imbued))
 
-                    # Log cleansed effects
-                    if effects_cleansed:
+                    # Trapped
+                    if hasattr(unit, 'trapped_by') and unit.trapped_by:
+                        def clear_trapped():
+                            unit.trapped_by = None
+                            if hasattr(unit, 'trap_duration'):
+                                unit.trap_duration = 0
+                        available_effects.append(("Trapped", clear_trapped))
+
+                    # Mired
+                    if hasattr(unit, 'mired') and unit.mired:
+                        def clear_mired():
+                            unit.mired = False
+                            if hasattr(unit, 'mired_duration'):
+                                unit.mired_duration = 0
+                            # Restore the movement penalty that was applied by mired (-1 move)
+                            unit.move_range_bonus += 1
+                        available_effects.append(("Mired", clear_mired))
+
+                    # Neural Shunt
+                    if hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected:
+                        def clear_neural_shunt():
+                            unit.neural_shunt_affected = False
+                            if hasattr(unit, 'neural_shunt_duration'):
+                                unit.neural_shunt_duration = 0
+                        available_effects.append(("Neural Shunt", clear_neural_shunt))
+
+                    # Auction Curse
+                    if hasattr(unit, 'auction_curse_dot') and unit.auction_curse_dot:
+                        def clear_auction_curse():
+                            unit.auction_curse_dot = False
+                        available_effects.append(("Auction Curse", clear_auction_curse))
+
+                    # Radiation Burn
+                    if hasattr(unit, 'radiation_stacks') and unit.radiation_stacks:
+                        if isinstance(unit.radiation_stacks, list):
+                            if len(unit.radiation_stacks) > 0:
+                                def clear_radiation():
+                                    unit.radiation_stacks = []
+                                available_effects.append(("Radiation Burn", clear_radiation))
+                        else:
+                            if unit.radiation_stacks > 0:
+                                def clear_radiation():
+                                    unit.radiation_stacks = 0
+                                available_effects.append(("Radiation Burn", clear_radiation))
+
+                    # Shrapnel
+                    if hasattr(unit, 'shrapnel_duration') and unit.shrapnel_duration > 0:
+                        def clear_shrapnel():
+                            unit.shrapnel_duration = 0
+                        available_effects.append(("Shrapnel", clear_shrapnel))
+
+                    # Disarmed
+                    if hasattr(unit, 'status_disarmed') and unit.status_disarmed:
+                        def clear_disarmed():
+                            unit.status_disarmed = False
+                            if hasattr(unit, 'status_disarmed_duration'):
+                                unit.status_disarmed_duration = 0
+                        available_effects.append(("Disarmed", clear_disarmed))
+
+                    # If any effects are available, randomly pick ONE to cleanse
+                    if available_effects:
+                        effect_name, clear_function = random.choice(available_effects)
+                        clear_function()
+
+                        # Log the single cleansed effect
                         message_log.add_message(
-                            f"{unit.get_display_name()} is cleansed of {', '.join(effects_cleansed)}!",
+                            f"{unit.get_display_name()} is cleansed of {effect_name}!",
                             MessageType.ABILITY,
                             player=self.player
                         )
-                        
+
                         # Show cleansing effect if UI is available
                         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
                             cleanse_animation = ui.asset_manager.get_skill_animation_sequence('cleanse')
                             if not cleanse_animation:
                                 cleanse_animation = ['*', '+', 'o', '.']
-                                
+
                             ui.renderer.animate_attack_sequence(
                                 unit.y, unit.x,
                                 cleanse_animation,
                                 6,  # Cyan/blue
                                 0.1
                             )
-                            
+
                             # Flash the unit to show cleansing
                             if hasattr(ui, 'asset_manager'):
                                 tile_ids = [ui.asset_manager.get_unit_tile(unit.type)] * 4
                                 color_ids = [6, 3 if unit.player == 1 else 4] * 2  # Alternate cyan with player color
                                 durations = [0.1] * 4
-                                
+
                                 ui.renderer.flash_tile(unit.y, unit.x, tile_ids, color_ids, durations)
                     
         elif self.vapor_type == "SAFETY":
