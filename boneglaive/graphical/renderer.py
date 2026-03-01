@@ -110,8 +110,23 @@ class GraphicalRenderer:
     """
 
     def __init__(self, game_adapter: GameStateAdapter = None):
+        # Set SDL2 hints BEFORE pygame.init() for better icon support
+        import os
+        icon_path = Path(__file__).parent.parent.parent / 'graphics' / 'boneglaive_icon.png'
+        os.environ['SDL_VIDEO_WINDOW_ICON'] = str(icon_path)
+
         # Initialize pygame
         pygame.init()
+
+        # Set custom window icon BEFORE creating the window (MANDIBLE FOREMAN head)
+        try:
+            # Use path relative to project root
+            icon = pygame.image.load(str(icon_path))
+            pygame.display.set_icon(icon)
+        except Exception as e:
+            # Fallback to default pygame icon
+            pass
+
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         pygame.display.set_caption(SCREEN_TITLE)
         self.clock = pygame.time.Clock()
