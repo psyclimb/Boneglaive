@@ -3693,7 +3693,6 @@ class GraphicalRenderer:
         if game_map:
             terrain_type = game_map.get_terrain_at(y, x)
 
-        # For rail tiles, render the underlying terrain instead
         if terrain_type == TerrainType.RAIL and game_map:
             terrain_type = game_map.get_rail_original_terrain(y, x)
 
@@ -3935,19 +3934,49 @@ class GraphicalRenderer:
             (8, 4), (8, 8), (8, 12), (8, 16)
         ]
 
-        # Pulsing effect (subtle, 2-second cycle)
+        # Rotating electrical firework effect
         import math
-        pulse = (math.sin(self.junction_pulse_time * math.pi) + 1) * 0.5
-        alpha = int(100 + pulse * 80)  # Range: 100-180
 
-        overlay = self.rail_junction_overlay.copy()
-        overlay.set_alpha(alpha)
+        # Rotation angle (1.5 second per full rotation)
+        rotation_angle = self.junction_pulse_time * 4.19  # ~1.5 seconds per rotation
 
-        # Draw overlay at each junction
+        # Colors: orange and cyan for FOWL CONTRIVANCE theme
+        orange = (255, 140, 0)
+        cyan = (0, 255, 255)
+
+        # Draw electrical pinwheel at each junction
         for y, x in junction_coords:
+            # Only draw animation if there's actually a rail at this position
+            if self.game_adapter.game.map.get_terrain_at(y, x) != TerrainType.RAIL:
+                continue
+
             tile_x = GRID_OFFSET_X + x * TILE_SIZE
             tile_y = GRID_OFFSET_Y + y * TILE_SIZE
-            surface.blit(overlay, (tile_x, tile_y))
+            center_x = tile_x + TILE_SIZE // 2
+            center_y = tile_y + TILE_SIZE // 2
+
+            # 8 sparks in a pinwheel pattern
+            num_sparks = 8
+            radius = TILE_SIZE // 3  # Distance from center
+
+            for i in range(num_sparks):
+                # Calculate spark position
+                angle = rotation_angle + (i * 2 * math.pi / num_sparks)
+                spark_x = int(center_x + math.cos(angle) * radius)
+                spark_y = int(center_y + math.sin(angle) * radius)
+
+                # Alternate colors (orange for even, cyan for odd)
+                color = orange if i % 2 == 0 else cyan
+
+                # Draw glowing spark
+                # Outer glow (larger, semi-transparent)
+                glow_surf = pygame.Surface((12, 12), pygame.SRCALPHA)
+                pygame.draw.circle(glow_surf, (*color, 80), (6, 6), 6)
+                surface.blit(glow_surf, (spark_x - 6, spark_y - 6))
+
+                # Inner bright core
+                pygame.draw.circle(surface, color, (spark_x, spark_y), 3)
+                pygame.draw.circle(surface, (255, 255, 255), (spark_x, spark_y), 1)  # Bright center
 
     def draw_range_indicators(self, surface: pygame.Surface):
         """Draw movement range, attack range, and skill range indicators."""

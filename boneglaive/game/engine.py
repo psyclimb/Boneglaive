@@ -1399,6 +1399,29 @@ class Game:
             return
 
         for dead_unit, position in respawns:
+            # FOWL_CONTRIVANCE special handling: Generate rails BEFORE finding position
+            # This ensures rails exist when snapping to nearest rail
+            if dead_unit.unit_type == UnitType.FOWL_CONTRIVANCE:
+                if not self.map.has_rails():
+                    self.map.generate_rail_network()
+
+            # FOWL_CONTRIVANCE special handling: Snap to nearest rail position
+            if dead_unit.unit_type == UnitType.FOWL_CONTRIVANCE:
+                rail_positions = self.map.get_rail_positions()
+                if rail_positions:
+                    # Find nearest rail position to desired spawn point
+                    min_distance = float('inf')
+                    nearest_rail = position
+                    for rail_y, rail_x in rail_positions:
+                        # Check if rail position is unoccupied
+                        if self.get_unit_at(rail_y, rail_x) is None:
+                            distance = abs(rail_y - position[0]) + abs(rail_x - position[1])
+                            if distance < min_distance:
+                                min_distance = distance
+                                nearest_rail = (rail_y, rail_x)
+                    position = nearest_rail
+                    logger.info(f"RESPAWN: Snapped {dead_unit.greek_id} to nearest rail at {position}")
+
             # COLLISION CHECK: Verify respawn position is not occupied
             collision_unit = self.get_unit_at(position[0], position[1])
             if collision_unit is not None:
@@ -1453,6 +1476,14 @@ class Game:
 
             # CRITICAL: Update spatial grid so unit is visible/targetable
             self._update_unit_grid(unit)
+
+            # FOWL_CONTRIVANCE special handling: Add message about rail re-establishment
+            if unit.type == UnitType.FOWL_CONTRIVANCE and self.map.has_rails():
+                message_log.add_message(
+                    f"{unit.get_display_name()} re-establishes the rail network",
+                    MessageType.ABILITY,
+                    player=unit.player
+                )
 
             # Remove from dead units
             if dead_unit in self.dead_units:

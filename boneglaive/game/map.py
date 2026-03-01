@@ -280,9 +280,11 @@ class GameMap:
         for rail_y in horizontal_rails:
             for x in range(self.width):
                 if self._can_place_rail(rail_y, x):
-                    # Store original terrain before placing rail
-                    original_terrain = self.get_terrain_at(rail_y, x)
-                    self.rail_original_terrain[(rail_y, x)] = original_terrain
+                    # Store original terrain before placing rail (only if not already stored)
+                    # This prevents overwriting at junctions where rails cross
+                    if (rail_y, x) not in self.rail_original_terrain:
+                        original_terrain = self.get_terrain_at(rail_y, x)
+                        self.rail_original_terrain[(rail_y, x)] = original_terrain
                     self.set_terrain_at(rail_y, x, TerrainType.RAIL)
 
         # Create 4 evenly-spaced vertical rails across the map
@@ -292,9 +294,11 @@ class GameMap:
         for rail_x in vertical_rails:
             for y in range(self.height):
                 if self._can_place_rail(y, rail_x):
-                    # Store original terrain before placing rail
-                    original_terrain = self.get_terrain_at(y, rail_x)
-                    self.rail_original_terrain[(y, rail_x)] = original_terrain
+                    # Store original terrain before placing rail (only if not already stored)
+                    # This prevents overwriting at junctions where rails cross
+                    if (y, rail_x) not in self.rail_original_terrain:
+                        original_terrain = self.get_terrain_at(y, rail_x)
+                        self.rail_original_terrain[(y, rail_x)] = original_terrain
                     self.set_terrain_at(y, rail_x, TerrainType.RAIL)
 
         # Add strategic corner positions for tactical positioning
@@ -308,9 +312,11 @@ class GameMap:
         # Add strategic positioning rails
         for y, x in strategic_positions:
             if self._can_place_rail(y, x):
-                # Store original terrain before placing rail
-                original_terrain = self.get_terrain_at(y, x)
-                self.rail_original_terrain[(y, x)] = original_terrain
+                # Store original terrain before placing rail (only if not already stored)
+                # This prevents overwriting at junctions where rails cross
+                if (y, x) not in self.rail_original_terrain:
+                    original_terrain = self.get_terrain_at(y, x)
+                    self.rail_original_terrain[(y, x)] = original_terrain
                 self.set_terrain_at(y, x, TerrainType.RAIL)
 
     def _can_place_rail(self, y: int, x: int) -> bool:
