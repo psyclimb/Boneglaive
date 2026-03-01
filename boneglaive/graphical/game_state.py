@@ -994,6 +994,20 @@ class GameStateAdapter:
             # Update derelicted duration tracking
             visual_unit.last_derelicted_duration = current_derelicted_duration
 
+        # Check for Derelict push trails
+        if hasattr(self.game, 'derelict_push_trails') and self.game.derelict_push_trails:
+            print(f"  [GameState] Detected {len(self.game.derelict_push_trails)} Derelict push trail(s)")
+            for push_trail in self.game.derelict_push_trails:
+                print(f"  [GameState] Creating push_trail event: {push_trail['start_pos']} -> {push_trail['end_pos']}")
+                events.append(AnimationEvent(
+                    "push_trail",
+                    source_unit=None,  # Visual effect only, no specific source
+                    start_pos=push_trail['start_pos'],
+                    end_pos=push_trail['end_pos']
+                ))
+            # Clear processed trails
+            self.game.derelict_push_trails = []
+
         # Status effects are shown after damage numbers via _show_active_status_effects()
         # in the renderer, using _effects_to_show_after_damage populated by the callback
 

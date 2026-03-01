@@ -2612,10 +2612,33 @@ class GraphicalRenderer:
                 caster_animated = self._find_animated_unit_by_game_unit(event.source_unit)
 
                 if caster_animated:
-                    # Create building tiles persistent effect (no formation animation - just pop into existence)
+                    # Create building formation animation (dust cloud) and persistent tiles
                     from boneglaive.graphical.animations import AnimationFactory
 
-                    # Building tiles persistent effect (background, non-blocking)
+                    # 1. Dust cloud formation animation (one-time effect)
+                    formation_animation = AnimationFactory.create_animation(
+                        skill_name="DERELICT_BUILDING_FORMATION",
+                        caster_unit=caster_animated,
+                        target_unit=None,
+                        target_pos=None,
+                        is_crit=False,
+                        is_infused=False,
+                        particle_emitter=self.particle_emitter,
+                        screen_shake_callback=self.trigger_screen_shake,
+                        screen_flash_callback=self.trigger_screen_flash,
+                        units_list=self.units,
+                        camera=self.camera,
+                        game=self.game_adapter.game,
+                        building_tiles=building_tiles
+                    )
+
+                    if formation_animation:
+                        self.active_animations.append(formation_animation)
+                        print(f"  [Animation] Successfully created dust cloud formation animation")
+                    else:
+                        print(f"  [Animation] WARNING: Failed to create dust cloud formation animation")
+
+                    # 2. Building tiles persistent effect (background, non-blocking)
                     tiles_animation = AnimationFactory.create_animation(
                         skill_name="DERELICT_BUILDING_TILES",
                         caster_unit=caster_animated,
@@ -2642,6 +2665,36 @@ class GraphicalRenderer:
                     print(f"  [Renderer] WARNING: Could not find animated unit for building caster")
 
             # Building formation is blocking, but tiles are background effect
+
+        elif event.event_type == "push_trail":
+            # Derelict push trail animation - blue particle trail during ally push
+            start_pos = event.kwargs.get('start_pos')
+            end_pos = event.kwargs.get('end_pos')
+
+            if start_pos and end_pos:
+                print(f"  [Renderer] Creating Derelict push trail from {start_pos} to {end_pos}")
+
+                from boneglaive.graphical.animations import AnimationFactory
+
+                push_trail = AnimationFactory.create_animation(
+                    skill_name="DERELICT_PUSH_TRAIL",
+                    caster_unit=None,
+                    target_unit=None,
+                    target_pos=None,
+                    is_crit=False,
+                    is_infused=False,
+                    start_pos=start_pos,
+                    end_pos=end_pos,
+                    camera=self.camera
+                )
+
+                if push_trail:
+                    self.active_animations.append(push_trail)
+                    print(f"  [Animation] Successfully created push trail animation")
+                else:
+                    print(f"  [Animation] WARNING: Failed to create push trail animation")
+
+            # Push trail is non-blocking visual effect
 
         elif event.event_type == "movement":
             # Animate unit movement - already handled in sync_state()

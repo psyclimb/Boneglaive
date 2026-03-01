@@ -606,17 +606,6 @@ class DerelictSkill(ActiveSkill):
             
             logger.warning(f"No stored push direction, using fallback: ({dy},{dx})")
         
-        # Show conveyance animation if UI available
-        if ui and hasattr(ui, 'renderer'):
-            # Conveyance animation - abstract transportation/displacement
-            conveyance_animation = ['o', 'o', 'O', '~', '~', '~', '*', '+', '=', '0']  # Being conveyed away
-            ui.renderer.animate_attack_sequence(
-                target_pos[0], target_pos[1],
-                conveyance_animation,
-                3,  # Red color for therapeutic displacement
-                0.4  # Same timing as other animations
-            )
-        
         # Try to push 4 tiles in that direction
         push_distance = 0
         original_y, original_x = target.y, target.x  # Store original position
@@ -659,11 +648,22 @@ class DerelictSkill(ActiveSkill):
                     player=target.player
                 )
         
+        # Store push trail info for graphical renderer (event-based pattern)
+        if push_distance > 0:
+            if not hasattr(game, 'derelict_push_trails'):
+                game.derelict_push_trails = []
+            push_data = {
+                'start_pos': (original_y, original_x),
+                'end_pos': (final_y, final_x)
+            }
+            game.derelict_push_trails.append(push_data)
+            print(f"[Derelict] Stored push trail: {push_data['start_pos']} -> {push_data['end_pos']}")
+
         # Calculate healing based on final distance from DERELICTIONIST's effective position
         # (Use move_target if the DERELICTIONIST moved first due to Severance)
         source_y, source_x = (user.move_target[0], user.move_target[1]) if user.move_target else (user.y, user.x)
         distance_to_derelictionist = game.chess_distance(final_y, final_x, source_y, source_x)
-            
+
         heal_amount = distance_to_derelictionist
         
         # Apply healing if needed

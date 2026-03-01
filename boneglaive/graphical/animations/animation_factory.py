@@ -58,6 +58,7 @@ from boneglaive.graphical.animations.derelictionist import (
     PartitionHitAnimation,
     VagalRunAnimation,
     VagalRunAbreactionAnimation,
+    DerelictPushTrail,
     DerelictBuildingFormation,
     DerelictBuildingTiles,
 )
@@ -192,7 +193,8 @@ class AnimationFactory:
         "VAGAL_RUN": (VagalRunAnimation, {}),
         "VAGAL_RUN_ABREACTION": (VagalRunAbreactionAnimation, {}),  # Delayed effect (no connection arc)
         "PARTITION": (PartitionAnimation, {}),
-        "DERELICT_BUILDING_FORMATION": (DerelictBuildingFormation, {}),  # Building rising animation
+        "DERELICT_PUSH_TRAIL": (DerelictPushTrail, {}),  # Push trail for base Derelict skill
+        "DERELICT_BUILDING_FORMATION": (DerelictBuildingFormation, {}),  # Dust cloud animation
         "DERELICT_BUILDING_TILES": (DerelictBuildingTiles, {}),  # Persistent building tiles
 
         # PELOTARI skills (DLC)
@@ -298,9 +300,12 @@ class AnimationFactory:
                 print(f"[AnimationFactory] Failed to play sound for {skill_name}: {e}")
 
         # Prepare animation kwargs
-        kwargs = base_kwargs.copy()
-        kwargs['game'] = game  # Add game instance to kwargs
-        kwargs['bounce_count'] = bounce_count  # Add bounce count for Matador animation
+        # Merge base_kwargs with passed-in kwargs (preserving custom parameters like start_pos, end_pos)
+        merged_kwargs = base_kwargs.copy()
+        merged_kwargs.update(kwargs)  # Add any custom kwargs passed in
+        merged_kwargs['game'] = game  # Add game instance to kwargs
+        merged_kwargs['bounce_count'] = bounce_count  # Add bounce count for Matador animation
+        kwargs = merged_kwargs
 
         # Use camera for coordinate conversion (if provided)
         # Falls back to default offsets for backwards compatibility
@@ -979,6 +984,49 @@ class AnimationFactory:
                     units_list=units_list if units_list else [],
                     camera=camera,
                     game=kwargs.get('game')
+                )
+            elif anim_class.__name__ == "DerelictPushTrail":
+                # Derelict push trail - Blue particle trail showing ally push displacement
+                # Requires: start_pos, end_pos (grid coordinates), camera
+                start_pos = kwargs.get('start_pos')
+                end_pos = kwargs.get('end_pos')
+
+                if not start_pos or not end_pos:
+                    print("[AnimationFactory] DERELICT_PUSH_TRAIL requires start_pos and end_pos")
+                    return None
+
+                animation = anim_class(
+                    start_pos=start_pos,
+                    end_pos=end_pos,
+                    camera=camera
+                )
+            elif anim_class.__name__ == "DerelictBuildingFormation":
+                # Derelict building formation - Dust cloud when buildings form
+                # Requires: building_tiles (list of grid positions), camera, game
+                building_tiles = kwargs.get('building_tiles')
+
+                if not building_tiles:
+                    print("[AnimationFactory] DERELICT_BUILDING_FORMATION requires building_tiles")
+                    return None
+
+                animation = anim_class(
+                    building_tiles=building_tiles,
+                    camera=camera,
+                    game=game
+                )
+            elif anim_class.__name__ == "DerelictBuildingTiles":
+                # Derelict building tiles - Persistent weathered wall effect
+                # Requires: building_tiles (list of grid positions), camera, game
+                building_tiles = kwargs.get('building_tiles')
+
+                if not building_tiles:
+                    print("[AnimationFactory] DERELICT_BUILDING_TILES requires building_tiles")
+                    return None
+
+                animation = anim_class(
+                    building_tiles=building_tiles,
+                    camera=camera,
+                    game=game
                 )
             elif anim_class.__name__ == "ParabolAnimation":
                 # Parabol - 3x3 mortar barrage with indirect fire
