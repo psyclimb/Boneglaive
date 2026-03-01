@@ -749,6 +749,10 @@ class AnimatedUnit:
             glow_rect = glow_surf.get_rect(center=(final_x, final_y))
             surface.blit(glow_surf, glow_rect)
 
+        # Check if unit is under Karrier Rave effect (phased out of reality)
+        is_karrier_rave = (hasattr(self.game_unit, 'carrier_rave_active') and
+                          self.game_unit.carrier_rave_active)
+
         # Draw vapor cloud (for HEINOUS VAPOR) - takes priority over sprite/circle
         if self.vapor_cloud:
             self.vapor_cloud.draw(surface, final_x, final_y)
@@ -775,8 +779,45 @@ class AnimatedUnit:
                 self.sprite_rect.center = (final_x, final_y)
                 sprite_rect = self.sprite_rect
 
+            # Apply Karrier Rave effect (phased out of reality)
+            if is_karrier_rave:
+                # Create semi-transparent cyan-tinted sprite with scan lines
+                karrier_sprite = sprite_to_use.copy()
+
+                # Apply cyan tint overlay (brighter)
+                cyan_overlay = pygame.Surface(karrier_sprite.get_size(), pygame.SRCALPHA)
+                cyan_color = (120, 220, 255)  # Brighter electric cyan
+                cyan_overlay.fill((*cyan_color, 140))  # ~55% cyan tint
+                karrier_sprite.blit(cyan_overlay, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+
+                # Set to 70% opacity for better visibility (was 50%)
+                karrier_sprite.set_alpha(180)
+
+                # Draw the translucent sprite
+                surface.blit(karrier_sprite, sprite_rect)
+
+                # Draw horizontal scan lines (carrier wave effect) - brighter
+                scan_line_surface = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                current_time = time.time()
+                scan_offset = int((current_time * 30) % 4)  # Moving scan lines
+
+                for i in range(0, TILE_SIZE, 4):
+                    line_y = (i + scan_offset) % TILE_SIZE
+                    # Alternating opacity for scan lines (brighter)
+                    alpha = 140 if (i // 4) % 2 == 0 else 80
+                    pygame.draw.line(scan_line_surface, (180, 240, 255, alpha),
+                                   (0, line_y), (TILE_SIZE, line_y), 2)  # Thicker lines
+
+                scan_rect = scan_line_surface.get_rect(center=(final_x, final_y))
+                surface.blit(scan_line_surface, scan_rect)
+
+                # Occasional static glitch effect (10% chance per frame)
+                if random.random() < 0.1:
+                    glitch_alpha = random.randint(140, 200)  # Brighter glitch range
+                    karrier_sprite.set_alpha(glitch_alpha)
+
             # Apply echo effect if needed
-            if is_echo:
+            elif is_echo:
                 # Performance: Cache echo sprite instead of recreating every frame
                 if not hasattr(self, '_echo_sprite_cache'):
                     # Create ethereal purple semi-transparent version
@@ -806,8 +847,18 @@ class AnimatedUnit:
                 surface.blit(sprite_to_use, sprite_rect)
         else:
             # Draw unit circle (fallback)
-            pygame.draw.circle(surface, self.color, (final_x, final_y), self.radius)
-            pygame.draw.circle(surface, (255, 255, 255), (final_x, final_y), self.radius, 2)
+            if is_karrier_rave:
+                # Draw semi-transparent cyan circle for Karrier Rave (brighter)
+                circle_surface = pygame.Surface((self.radius * 4, self.radius * 4), pygame.SRCALPHA)
+                center = self.radius * 2
+                pygame.draw.circle(circle_surface, (*self.color, 180), (center, center), self.radius)
+                pygame.draw.circle(circle_surface, (120, 220, 255, 200), (center, center), self.radius, 3)
+                circle_rect = circle_surface.get_rect(center=(final_x, final_y))
+                surface.blit(circle_surface, circle_rect)
+            else:
+                # Draw normal unit circle
+                pygame.draw.circle(surface, self.color, (final_x, final_y), self.radius)
+                pygame.draw.circle(surface, (255, 255, 255), (final_x, final_y), self.radius, 2)
 
         # Draw player-colored tile-sized box around unit
         # Green for Player 1, Blue for Player 2
