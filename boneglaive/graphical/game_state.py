@@ -996,9 +996,7 @@ class GameStateAdapter:
 
         # Check for Derelict push trails
         if hasattr(self.game, 'derelict_push_trails') and self.game.derelict_push_trails:
-            print(f"  [GameState] Detected {len(self.game.derelict_push_trails)} Derelict push trail(s)")
             for push_trail in self.game.derelict_push_trails:
-                print(f"  [GameState] Creating push_trail event: {push_trail['start_pos']} -> {push_trail['end_pos']}")
                 events.append(AnimationEvent(
                     "push_trail",
                     source_unit=None,  # Visual effect only, no specific source

@@ -652,12 +652,10 @@ class DerelictSkill(ActiveSkill):
         if push_distance > 0:
             if not hasattr(game, 'derelict_push_trails'):
                 game.derelict_push_trails = []
-            push_data = {
+            game.derelict_push_trails.append({
                 'start_pos': (original_y, original_x),
                 'end_pos': (final_y, final_x)
-            }
-            game.derelict_push_trails.append(push_data)
-            print(f"[Derelict] Stored push trail: {push_data['start_pos']} -> {push_data['end_pos']}")
+            })
 
         # Calculate healing based on final distance from DERELICTIONIST's effective position
         # (Use move_target if the DERELICTIONIST moved first due to Severance)
