@@ -323,7 +323,17 @@ class VagalRunSkill(ActiveSkill):
         if hasattr(target, 'auction_curse_dot') and target.auction_curse_dot:
             target.auction_curse_dot = False
             cleared_effects.append("Auction Curse")
-            
+
+        if hasattr(target, 'status_imbued') and target.status_imbued:
+            target.status_imbued = False
+            if hasattr(target, 'status_imbued_duration'):
+                target.status_imbued_duration = 0
+            if hasattr(target, 'status_imbued_player'):
+                target.status_imbued_player = None
+            if hasattr(target, 'status_imbued_cosmic_value'):
+                target.status_imbued_cosmic_value = None
+            cleared_effects.append("Imbued")
+
         if hasattr(target, 'radiation_stacks') and target.radiation_stacks:
             if isinstance(target.radiation_stacks, list):
                 if len(target.radiation_stacks) > 0:

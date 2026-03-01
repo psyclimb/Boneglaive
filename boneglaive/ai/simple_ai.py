@@ -1828,9 +1828,9 @@ class SimpleAI:
             unit.move_target = best_position
             logger.info(f"FOWL_CONTRIVANCE moving to artillery position {best_position}")
         else:
-            # Fallback to basic attack if in range
+            # Fallback to basic attack if in range and has LOS
             distance = self.game.chess_distance(unit.y, unit.x, target.y, target.x)
-            if distance <= unit.attack_range:
+            if distance <= unit.attack_range and self.game.has_line_of_sight(unit.y, unit.x, target.y, target.x):
                 unit.attack_target = (target.y, target.x)
                 logger.info(f"FOWL_CONTRIVANCE attacking with basic attack")
 
@@ -3764,6 +3764,9 @@ class SimpleAI:
         Find the best target unit based on tactical evaluation - used for HARD difficulty.
         Considers the target's health, attack range, and distance.
 
+        Note: AI has omniscient knowledge of all enemy positions (like a real player
+        with top-down view). Line of sight is only checked for attack/skill validation.
+
         Args:
             unit: The unit to find a target for
 
@@ -3776,7 +3779,7 @@ class SimpleAI:
         if not enemy_units:
             return None
 
-        # Calculate scores for each enemy
+        # Calculate scores for each enemy (AI has omniscient view of all enemies)
         scored_enemies = []
 
         # Get attacker's effective stats
@@ -3999,81 +4002,123 @@ class SimpleAI:
             
     def _find_best_move_position(self, unit: 'Unit', target: 'Unit', move_range: int) -> Optional[Tuple[int, int]]:
         """
-        Find the best position to move towards an enemy.
-        
+        Find the best position to move towards an enemy using intelligent pathfinding.
+        Uses A* pathfinding to navigate around terrain obstacles.
+
         Args:
             unit: The unit to move
             target: The enemy to move towards
             move_range: The unit's movement range
-            
+
         Returns:
             The best position to move to, or None if no valid move found
         """
-        # Get all valid positions the unit can move to
-        reachable_positions = []
-        
         # Import necessary path checking utilities
         from boneglaive.utils.coordinates import Position, get_line
-        
+        from boneglaive.ai.pathfinding import PathfindingEngine
+        from boneglaive.ai.battlefield_analyzer import BattlefieldAnalyzer
+
+        # Create battlefield analysis for pathfinding context
+        analyzer = BattlefieldAnalyzer(self.game, self.player_number)
+        analysis = analyzer.analyze()
+
+        # Create pathfinding engine
+        pathfinder = PathfindingEngine(self.game, self.player_number)
+
+        # Try to find a path to the target
+        target_pos = (target.y, target.x)
+        path = pathfinder.find_path(unit, target_pos, analysis, avoid_threats=False)
+
+        # If a path exists, follow it
+        if path and len(path) > 1:
+            # Path includes current position as first element
+            # Follow the path for up to move_range steps (not chess_distance!)
+            # The path steps are actual moves, so step count = distance traveled
+            best_pos = None
+
+            # Determine how far along the path we can move
+            # path[0] is current position, path[1] is first move, etc.
+            # We can move up to move_range steps from our current position
+            max_path_index = min(len(path) - 1, move_range)
+
+            # Walk backwards from the farthest position to find the best valid position
+            for i in range(max_path_index, 0, -1):
+                pos = path[i]
+
+                # Check if position is still valid (not occupied by another unit)
+                if self.game.get_unit_at(pos[0], pos[1]) is None:
+                    best_pos = pos
+                    logger.info(f"AI pathfinding: {unit.get_display_name()} moving to {best_pos} (step {i}/{len(path)-1} on path to {target.get_display_name()})")
+                    break
+
+            if best_pos:
+                return best_pos
+            else:
+                logger.warning(f"AI pathfinding: Path exists but all positions occupied")
+
+        # Fallback: If pathfinding fails, use direct movement approach
+        logger.info(f"AI pathfinding failed, using direct movement approach")
+        reachable_positions = []
+
         for y in range(max(0, unit.y - move_range), min(self.game.map.height, unit.y + move_range + 1)):
             for x in range(max(0, unit.x - move_range), min(self.game.map.width, unit.x + move_range + 1)):
                 # Check if position is valid and within move range
                 if not self.game.is_valid_position(y, x):
                     continue
-                    
+
                 if not self.game.map.is_passable(y, x):
                     continue
-                    
+
                 # Check if position is occupied
                 if self.game.get_unit_at(y, x) is not None:
                     continue
-                    
+
                 # Check if within move range (chess distance)
                 distance = self.game.chess_distance(unit.y, unit.x, y, x)
                 if distance > move_range:
                     continue
-                
+
                 # For non-adjacent moves, validate path to ensure no units or impassable terrain blocks the way
                 if distance > 1:
                     # Get path positions
                     start_pos = Position(unit.y, unit.x)
                     end_pos = Position(y, x)
-                    path = get_line(start_pos, end_pos)
-                    
+                    path_check = get_line(start_pos, end_pos)
+
                     # Check if path is clear (excluding start and end positions)
                     path_is_clear = True
-                    for pos in path[1:-1]:  # Skip start and end positions
+                    for pos in path_check[1:-1]:  # Skip start and end positions
                         # Check for blocking units
                         blocking_unit = self.game.get_unit_at(pos.y, pos.x)
                         if blocking_unit:
                             path_is_clear = False
                             break
-                            
+
                         # Check for impassable terrain
                         if not self.game.map.is_passable(pos.y, pos.x):
                             path_is_clear = False
                             break
-                    
+
                     # Skip this position if path is not clear
                     if not path_is_clear:
                         continue
-                    
+
                 # Position is valid, add to reachable positions
                 reachable_positions.append((y, x))
-                
+
         if not reachable_positions:
             return None
-            
+
         # Get the position closest to the target
         best_pos = None
         shortest_distance = float('inf')
-        
+
         for y, x in reachable_positions:
             distance = self.game.chess_distance(y, x, target.y, target.x)
             if distance < shortest_distance:
                 shortest_distance = distance
                 best_pos = (y, x)
-                
+
         return best_pos
 
     def _find_best_gaussian_dusk_target(self, unit: 'Unit') -> Optional['Unit']:
@@ -4781,11 +4826,11 @@ class SimpleAI:
         
         if is_trapped:
             logger.info(f"GAS_MACHINIST {unit.get_display_name()} is trapped - can only attack")
-            # Try to attack if possible
+            # Try to attack if possible (check range and LOS)
             nearest_enemy = self._find_nearest_enemy(unit)
             if nearest_enemy:
                 distance = self.game.chess_distance(unit.y, unit.x, nearest_enemy.y, nearest_enemy.x)
-                if distance <= unit.attack_range:
+                if distance <= unit.attack_range and self.game.has_line_of_sight(unit.y, unit.x, nearest_enemy.y, nearest_enemy.x):
                     unit.attack_target = (nearest_enemy.y, nearest_enemy.x)
                     logger.info(f"Trapped GAS_MACHINIST attacking {nearest_enemy.get_display_name()}")
             return
@@ -4839,11 +4884,11 @@ class SimpleAI:
         if self._try_place_tactical_vapor(unit, allies, enemies, available_skills):
             return
             
-        # Priority 5: Attack if in good position and have target
+        # Priority 5: Attack if in good position and have target (with LOS)
         nearest_enemy = self._find_nearest_enemy(unit)
         if nearest_enemy and current_position_score >= 15:  # Attack from reasonable positions
             distance = self.game.chess_distance(unit.y, unit.x, nearest_enemy.y, nearest_enemy.x)
-            if distance <= unit.attack_range:
+            if distance <= unit.attack_range and self.game.has_line_of_sight(unit.y, unit.x, nearest_enemy.y, nearest_enemy.x):
                 unit.attack_target = (nearest_enemy.y, nearest_enemy.x)
                 logger.info(f"GAS_MACHINIST attacking {nearest_enemy.get_display_name()} from good position")
                 return
@@ -4854,10 +4899,10 @@ class SimpleAI:
             logger.info(f"GAS_MACHINIST making fallback move to {best_position}")
             return
         
-        # Priority 7: Basic fallback - attack nearest enemy or move towards allies
+        # Priority 7: Basic fallback - attack nearest enemy (with LOS) or move towards allies
         if nearest_enemy:
             distance = self.game.chess_distance(unit.y, unit.x, nearest_enemy.y, nearest_enemy.x)
-            if distance <= unit.attack_range:
+            if distance <= unit.attack_range and self.game.has_line_of_sight(unit.y, unit.x, nearest_enemy.y, nearest_enemy.x):
                 unit.attack_target = (nearest_enemy.y, nearest_enemy.x)
                 logger.info(f"GAS_MACHINIST fallback attack on {nearest_enemy.get_display_name()}")
                 return

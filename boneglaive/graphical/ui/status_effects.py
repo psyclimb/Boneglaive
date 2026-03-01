@@ -131,6 +131,14 @@ STATUS_EFFECTS = {
         "duration_key": "auction_curse_dot_duration",
         "check": lambda u: hasattr(u, 'auction_curse_dot') and u.auction_curse_dot
     },
+    "status_imbued": {
+        "name": "Imbued",
+        "type": "debuff",
+        "icon": "¤",
+        "description": "Imbued with Market Futures energy, acts as teleportation anchor",
+        "duration_key": "status_imbued_duration",
+        "check": lambda u: hasattr(u, 'status_imbued') and u.status_imbued
+    },
 
     # Buffs
     "can_use_anchor": {

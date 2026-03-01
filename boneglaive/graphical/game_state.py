@@ -1268,10 +1268,21 @@ class GameStateAdapter:
                         continue
 
                     # Check if skill can be used on this position
-                    if skill.can_use(game_unit, (y, x), self.game):
+                    can_use_result = skill.can_use(game_unit, (y, x), self.game)
+
+                    # Debug logging for Diverge skill
+                    if skill.name == "Diverge":
+                        target_unit = self.game.get_unit_at(y, x)
+                        if target_unit:
+                            print(f"[DEBUG Diverge] Position ({y},{x}): can_use={can_use_result}, unit_type={target_unit.type.name}, player={target_unit.player}, caster_player={game_unit.player}")
+                        else:
+                            print(f"[DEBUG Diverge] Position ({y},{x}): can_use={can_use_result}, unit=None")
+
+                    if can_use_result:
                         # Convert to renderer coords
                         skill_range_positions.append((x, y))
 
+        print(f"[DEBUG Diverge] Total valid positions: {len(skill_range_positions)}")
         return skill_range_positions
 
     def handle_player_action(self, action_type: str, **kwargs) -> bool:

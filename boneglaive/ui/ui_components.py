@@ -1249,7 +1249,7 @@ class UnitHelpComponent(UIComponent):
                             'Target: Furniture piece',
                             'Area: 7x7',
                             'Damage: (Average of other furniture) - 1 (pierces defense, max 13)',
-                            'Cooldown: 6 turns',
+                            'Cooldown: 5 turns',
                             'Special: Sets target value to 1; pull = (original value - 1) - move (min 1); rerolls other furniture'
                         ]
                     }

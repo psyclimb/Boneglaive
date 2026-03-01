@@ -2466,6 +2466,32 @@ class Game:
                             player=unit.player
                         )
 
+        # Process Imbued status effect (Market Futures on enemy units)
+        # This must process ALL units, not just current player's units, since enemies get imbued
+        for unit in self.units:
+            if not unit.is_alive():
+                continue
+
+            if hasattr(unit, 'status_imbued') and unit.status_imbued:
+                # Only decrement if the imbuing player is the current player
+                if unit.status_imbued_player == self.current_player:
+                    unit.status_imbued_duration -= 1
+                    logger.debug(f"{unit.get_display_name()}'s Imbued duration: {unit.status_imbued_duration}")
+
+                    if unit.status_imbued_duration <= 0:
+                        unit.status_imbued = False
+                        unit.status_imbued_player = None
+                        unit.status_imbued_cosmic_value = None
+
+                        message_log.add_message(
+                            f"{unit.get_display_name()}'s Market Futures imbuement fades",
+                            MessageType.ABILITY,
+                            player=unit.status_imbued_player if unit.status_imbued_player else unit.player
+                        )
+
+                        # Update anchor status effects after imbued status expires
+                        self.update_anchor_status_effects()
+
         # Now process turn-based effects for current player's units only
         for unit in self.units:
             if not unit.is_alive() or unit.player != self.current_player:
@@ -2506,27 +2532,6 @@ class Game:
                         MessageType.ABILITY,
                         player=unit.player
                     )
-
-            # Process Imbued status effect (Market Futures on enemy units)
-            if hasattr(unit, 'status_imbued') and unit.status_imbued:
-                # Only decrement if the imbuing player is the current player
-                if unit.status_imbued_player == self.current_player:
-                    unit.status_imbued_duration -= 1
-                    logger.debug(f"{unit.get_display_name()}'s Imbued duration: {unit.status_imbued_duration}")
-
-                    if unit.status_imbued_duration <= 0:
-                        unit.status_imbued = False
-                        unit.status_imbued_player = None
-                        unit.status_imbued_cosmic_value = None
-
-                        message_log.add_message(
-                            f"{unit.get_display_name()}'s Market Futures imbuement fades",
-                            MessageType.ABILITY,
-                            player=unit.status_imbued_player if unit.status_imbued_player else unit.player
-                        )
-
-                        # Update anchor status effects after imbued status expires
-                        self.update_anchor_status_effects()
 
             # Process Pry movement penalty effect
             if hasattr(unit, 'pry_duration') and unit.pry_duration > 0:
@@ -4269,6 +4274,40 @@ class Game:
 
                     # NOTE: Ossify duration is now handled in process_buff_durations() at line 2597-2639
                     # The old duplicate code that was here has been removed to prevent double-removal bugs
+
+                    # Clean up expired Investment effects that weren't cleaned up during attack
+                    # This handles cases where unit didn't attack on final turn
+                    if (hasattr(unit, 'market_futures_bonus_applied') and
+                        unit.market_futures_bonus_applied and
+                        hasattr(unit, 'market_futures_duration') and
+                        unit.market_futures_duration == 0):
+
+                        # Remove the attack bonus based on current maturity level
+                        if hasattr(unit, 'market_futures_maturity'):
+                            unit.attack_bonus -= unit.market_futures_maturity
+
+                        # Remove range bonus
+                        unit.attack_range_bonus -= 1
+
+                        # Reset all flags
+                        unit.market_futures_bonus_applied = False
+                        if hasattr(unit, 'has_investment_effect'):
+                            unit.has_investment_effect = False
+                        if hasattr(unit, 'market_futures_range_bonus_active'):
+                            unit.market_futures_range_bonus_active = False
+                        if hasattr(unit, 'market_futures_needs_maturation'):
+                            delattr(unit, 'market_futures_needs_maturation')
+                        if hasattr(unit, 'market_futures_final_maturation'):
+                            delattr(unit, 'market_futures_final_maturation')
+                        if hasattr(unit, 'market_futures_will_expire_after_attack'):
+                            delattr(unit, 'market_futures_will_expire_after_attack')
+
+                        # Log the expiration if not already logged
+                        message_log.add_message(
+                            f"{unit.get_display_name()}'s investment effect expires after 3 turns.",
+                            MessageType.ABILITY,
+                            player=unit.player
+                        )
 
         # Call graphical callback before clearing status effects
         # This allows the graphical system to detect status effects before they're removed

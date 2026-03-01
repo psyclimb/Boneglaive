@@ -1373,6 +1373,16 @@ class Unit:
                         unit.gaussian_dusk_recharge = 0
                         effects_cleansed.append("Recharging")
 
+                    if hasattr(unit, 'status_imbued') and unit.status_imbued:
+                        unit.status_imbued = False
+                        if hasattr(unit, 'status_imbued_duration'):
+                            unit.status_imbued_duration = 0
+                        if hasattr(unit, 'status_imbued_player'):
+                            unit.status_imbued_player = None
+                        if hasattr(unit, 'status_imbued_cosmic_value'):
+                            unit.status_imbued_cosmic_value = None
+                        effects_cleansed.append("Imbued")
+
                     # Log cleansed effects
                     if effects_cleansed:
                         message_log.add_message(

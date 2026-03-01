@@ -1397,15 +1397,33 @@ class GraphicalRenderer:
                     # Unit selected but not in attack mode - just show enemy info
                     game_unit = self._get_game_unit(unit)
                     if game_unit:
+                        # Check if Valuation Oracle is upgraded to get enemy astral value
+                        enemy_astral_value = None
+                        appraiser = self._get_delphic_appraiser(current_player)
+                        if appraiser and hasattr(appraiser, 'passive_skill') and appraiser.passive_skill:
+                            from boneglaive.game.upgrades import UpgradeManager
+                            if UpgradeManager.is_skill_upgraded(appraiser, "Valuation Oracle"):
+                                enemy_astral_value = appraiser.passive_skill._get_enemy_astral_value(
+                                    self.game_adapter.game, current_player, game_unit
+                                )
                         self.status_effects_panel.update(game_unit)
-                        self.unit_info_panel.update(unit, game_unit)
+                        self.unit_info_panel.update(unit, game_unit, enemy_astral_value)
                 else:
                     # Clicked enemy with no unit selected - just show info
                     game_unit = self._get_game_unit(unit)
                     if game_unit:
+                        # Check if Valuation Oracle is upgraded to get enemy astral value
+                        enemy_astral_value = None
+                        appraiser = self._get_delphic_appraiser(current_player)
+                        if appraiser and hasattr(appraiser, 'passive_skill') and appraiser.passive_skill:
+                            from boneglaive.game.upgrades import UpgradeManager
+                            if UpgradeManager.is_skill_upgraded(appraiser, "Valuation Oracle"):
+                                enemy_astral_value = appraiser.passive_skill._get_enemy_astral_value(
+                                    self.game_adapter.game, current_player, game_unit
+                                )
                         # Update status effects panel and unit info to show enemy info
                         self.status_effects_panel.update(game_unit)
-                        self.unit_info_panel.update(unit, game_unit)
+                        self.unit_info_panel.update(unit, game_unit, enemy_astral_value)
                     else:
                         self.status_effects_panel.update(None)
                         self.unit_info_panel.update(None, None)
@@ -1653,6 +1671,17 @@ class GraphicalRenderer:
             if unit.player == player and unit.type == UnitType.DELPHIC_APPRAISER and unit.hp > 0:
                 return True
         return False
+
+    def _get_delphic_appraiser(self, player: int):
+        """Get the DELPHIC APPRAISER unit for the specified player."""
+        if not self.game_adapter.game:
+            return None
+
+        from boneglaive.utils.constants import UnitType
+        for unit in self.game_adapter.game.units:
+            if unit.player == player and unit.type == UnitType.DELPHIC_APPRAISER and unit.hp > 0:
+                return unit
+        return None
 
     def trigger_screen_shake(self, intensity: float, duration: float):
         """Trigger screen shake effect."""
@@ -3353,10 +3382,6 @@ class GraphicalRenderer:
         if self.selected_unit:
             self.draw_selection_highlight(main_surface, self.selected_unit)
 
-        # Draw astral values if DELPHIC APPRAISER is selected
-        if self.show_astral_values:
-            self.draw_astral_values(main_surface)
-
         # Draw imbued furniture effects (Market Futures)
         self.draw_imbued_furniture(main_surface)
 
@@ -3386,6 +3411,73 @@ class GraphicalRenderer:
 
         # Draw target indicator pips on all tiles
         self.draw_target_pips(main_surface)
+
+        # Draw astral values if DELPHIC APPRAISER is selected (after units so they appear on top)
+        if self.show_astral_values:
+            self.draw_astral_values(main_surface)
+
+        # Draw currency symbols on imbued enemies (after units so they appear on top)
+        if self.game_adapter.game:
+            # Calculate wave effect for currency symbol (same as furniture)
+            alpha = int(140 + math.sin(self.astral_value_pulse_time * 2.5) * 60)  # 80 to 200
+            wave_offset = math.sin(self.astral_value_pulse_time * 3) * 8  # Vertical wave amplitude
+
+            for unit in self.units:
+                game_unit = self._get_game_unit(unit)
+                if game_unit and game_unit.is_alive():
+                    # Check if unit has imbued status (from Market Futures on enemies)
+                    if hasattr(game_unit, 'status_imbued') and game_unit.status_imbued:
+                        # Calculate screen position (center of unit's tile)
+                        tile_x = GRID_OFFSET_X + unit.grid_x * TILE_SIZE + TILE_SIZE // 2
+                        tile_y = GRID_OFFSET_Y + unit.grid_y * TILE_SIZE + TILE_SIZE // 2
+
+                        # Draw waving currency symbol (¤) - same as furniture
+                        font_size = 120
+                        currency_font = pygame.font.Font(None, font_size)
+                        currency_text = currency_font.render("¤", True, (255, 215, 0))  # Gold
+                        currency_text.set_alpha(alpha)
+
+                        # Apply wave offset to y position for undulating effect
+                        wave_y = tile_y + wave_offset
+
+                        # Center the symbol with wave offset
+                        text_rect = currency_text.get_rect(center=(tile_x, int(wave_y)))
+
+                        # Draw dark outline for visibility
+                        outline_font = pygame.font.Font(None, font_size + 2)
+                        outline_text = outline_font.render("¤", True, (0, 0, 0))
+                        outline_text.set_alpha(alpha // 2)
+                        outline_rect = outline_text.get_rect(center=(tile_x, int(wave_y)))
+                        main_surface.blit(outline_text, outline_rect)
+
+                        # Draw main currency symbol
+                        main_surface.blit(currency_text, text_rect)
+
+                        # Spawn sparkles around imbued enemies (same as furniture)
+                        if random.random() < 0.3:  # 30% chance per frame
+                            # Random position within tile bounds
+                            spawn_x = tile_x + random.uniform(-TILE_SIZE // 3, TILE_SIZE // 3)
+                            spawn_y = tile_y + random.uniform(-TILE_SIZE // 3, TILE_SIZE // 3)
+
+                            # Random velocity (upward with slight horizontal drift)
+                            vx = random.uniform(-10, 10)
+                            vy = random.uniform(-40, -60)
+
+                            # Random properties
+                            max_life = random.uniform(1.0, 1.5)
+                            sparkle_size = random.randint(2, 4)
+                            color = random.choice([(255, 235, 100), (255, 215, 0)])
+
+                            self.imbued_sparkles.append({
+                                'x': spawn_x,
+                                'y': spawn_y,
+                                'vx': vx,
+                                'vy': vy,
+                                'life': 0,
+                                'max_life': max_life,
+                                'size': sparkle_size,
+                                'color': color
+                            })
 
         # Draw background animations FIRST (zones, environmental effects - render below other animations)
         for animation in self.background_animations:
@@ -4582,6 +4674,54 @@ class GraphicalRenderer:
 
                         # Draw the main golden number
                         surface.blit(value_text, text_rect)
+
+        # Check if Valuation Oracle is upgraded - if so, draw astral values on enemies
+        # Get appraiser first and check passive skill exists BEFORE checking upgrade
+        appraiser = self._get_delphic_appraiser(current_player)
+        if appraiser and hasattr(appraiser, 'passive_skill') and appraiser.passive_skill:
+            from boneglaive.game.upgrades import UpgradeManager
+            # Now check if Valuation Oracle is upgraded
+            if UpgradeManager.is_skill_upgraded(appraiser, "Valuation Oracle"):
+                # Draw astral values on enemy units
+                for unit in self.units:
+                    game_unit = self._get_game_unit(unit)
+                    if game_unit and game_unit.is_alive() and game_unit.player != current_player:
+                        # Get enemy astral value
+                        enemy_value = appraiser.passive_skill._get_enemy_astral_value(
+                            self.game_adapter.game, current_player, game_unit
+                        )
+
+                        if enemy_value is not None:
+                            # Calculate screen position (center of unit's tile)
+                            tile_x = GRID_OFFSET_X + unit.grid_x * TILE_SIZE + TILE_SIZE // 2
+                            tile_y = GRID_OFFSET_Y + unit.grid_y * TILE_SIZE + TILE_SIZE // 2
+
+                            # Render number with gold color and transparency (same as furniture)
+                            font_size = int(48 * scale)  # Large number, scales with pulse
+
+                            # Use cached fonts
+                            if font_size not in self._astral_value_font_cache:
+                                self._astral_value_font_cache[font_size] = pygame.font.Font(None, font_size)
+                            value_font = self._astral_value_font_cache[font_size]
+
+                            outline_size = font_size + 2
+                            if outline_size not in self._astral_value_font_cache:
+                                self._astral_value_font_cache[outline_size] = pygame.font.Font(None, outline_size)
+                            outline_font = self._astral_value_font_cache[outline_size]
+
+                            # Render the number
+                            value_text = value_font.render(str(enemy_value), True, (255, 215, 0))  # Gold
+                            value_text.set_alpha(alpha)
+                            text_rect = value_text.get_rect(center=(tile_x, tile_y))
+
+                            # Add dark outline for readability
+                            outline_text = outline_font.render(str(enemy_value), True, (0, 0, 0))
+                            outline_text.set_alpha(alpha // 2)
+                            outline_rect = outline_text.get_rect(center=(tile_x, tile_y))
+                            surface.blit(outline_text, outline_rect)
+
+                            # Draw the main golden number
+                            surface.blit(value_text, text_rect)
 
     def draw_skill_shadows(self, surface: pygame.Surface):
         """Draw semi-transparent ghost indicators of units at skill target indicator positions."""

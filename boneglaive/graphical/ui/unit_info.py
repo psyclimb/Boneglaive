@@ -36,18 +36,21 @@ class UnitInfoPanel:
         self.selected_unit = None  # AnimatedUnit
         self.game_unit = None  # Game unit from engine
         self.furniture_info = None  # Dict with furniture data
+        self.enemy_astral_value = None  # Enemy astral value if showing enemy with upgraded Valuation Oracle
 
-    def update(self, selected_unit, game_unit):
+    def update(self, selected_unit, game_unit, enemy_astral_value=None):
         """
         Update panel with unit information.
 
         Args:
             selected_unit: AnimatedUnit (visual representation)
             game_unit: Unit from game engine (has stats)
+            enemy_astral_value: Optional astral value if this is an enemy with Valuation Oracle upgraded
         """
         self.selected_unit = selected_unit
         self.game_unit = game_unit
         self.furniture_info = None  # Clear furniture when showing unit
+        self.enemy_astral_value = enemy_astral_value
 
     def update_furniture(self, furniture_info):
         """
@@ -140,6 +143,11 @@ class UnitInfoPanel:
 
         # Draw stats
         current_y = self._draw_stats(surface, x + PANEL_PADDING, current_y)
+
+        # Draw enemy astral value if present
+        if self.enemy_astral_value is not None:
+            current_y += 5
+            current_y = self._draw_enemy_astral_value(surface, x + PANEL_PADDING, current_y)
 
         # Draw status effects
         current_y = self._draw_status_effects(surface, x + PANEL_PADDING, current_y)
@@ -312,6 +320,48 @@ class UnitInfoPanel:
                 surface.blit(xp_text, (x + 100, y))
 
             y += LINE_HEIGHT
+
+        return y
+
+    def _draw_enemy_astral_value(self, surface: pygame.Surface, x: int, y: int) -> int:
+        """
+        Draw enemy astral value (when Valuation Oracle is upgraded).
+
+        Returns:
+            y position after drawing
+        """
+        if self.enemy_astral_value is None:
+            return y
+
+        # Draw separator line
+        pygame.draw.line(surface, (80, 80, 80), (x, y), (x + PANEL_WIDTH - PANEL_PADDING * 2, y), 1)
+        y += 8
+
+        # Draw label
+        label_text = render_fitted_text(
+            "Enemy Astral Value:",
+            max_width=160,
+            max_height=LINE_HEIGHT,
+            color=COLOR_STAT_LABEL,
+            base_font_size=18,
+            min_font_size=14,
+            max_font_size=20
+        )
+        surface.blit(label_text, (x, y))
+
+        # Draw value in gold color (like furniture astral values)
+        value_text = render_fitted_text(
+            str(self.enemy_astral_value),
+            max_width=65,
+            max_height=LINE_HEIGHT,
+            color=(255, 215, 0),  # Gold color
+            base_font_size=20,
+            min_font_size=16,
+            max_font_size=24
+        )
+        surface.blit(value_text, (x + 165, y))
+
+        y += LINE_HEIGHT + 8
 
         return y
 

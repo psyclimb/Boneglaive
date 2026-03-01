@@ -294,13 +294,19 @@ class MarketFuturesSkill(ActiveSkill):
             user.action_timestamp = game.action_counter
             game.action_counter += 1
 
-        # Get the furniture name for the message
-        target_terrain = game.map.get_terrain_at(target_pos[0], target_pos[1])
-        furniture_name = self._get_furniture_name(target_terrain)
-        
+        # Get the target name for the message (enemy unit or furniture)
+        target_unit = game.get_unit_at(target_pos[0], target_pos[1])
+        if target_unit and target_unit.is_alive() and target_unit.player != user.player:
+            # Targeting an enemy unit
+            target_name = target_unit.get_display_name()
+        else:
+            # Targeting furniture
+            target_terrain = game.map.get_terrain_at(target_pos[0], target_pos[1])
+            target_name = self._get_furniture_name(target_terrain)
+
         # Log that the skill has been queued
         message_log.add_message(
-            f"{user.get_display_name()} prepares to infuse the {furniture_name} with Market Futures",
+            f"{user.get_display_name()} prepares to infuse the {target_name} with Market Futures",
             MessageType.ABILITY,
             player=user.player
         )
@@ -343,11 +349,11 @@ class MarketFuturesSkill(ActiveSkill):
                 target_unit.status_imbued_player = user.player
                 target_unit.status_imbued_cosmic_value = cosmic_value
 
-                # Log the skill activation
+                # Log the skill activation (WARNING type for yellow debuff color)
                 message_log.add_message(
                     f"{user.get_display_name()} imbues {target_unit.get_display_name()} with Market Futures",
-                    MessageType.ABILITY,
-                    player=user.player
+                    MessageType.WARNING,
+                    player=target_unit.player
                 )
         else:
             # Target is furniture - create normal anchor
@@ -859,7 +865,7 @@ class DivineDrepreciationSkill(ActiveSkill):
             key="D",
             description="Dramatically reappraises a furniture piece as cosmically worthless, creating a 7×7 reality distortion. Sets target furniture to value 1, deals damage that bypasses defense and pulls enemies toward the center based on move values. All other furniture has astral values rerolled.",
             target_type=TargetType.AREA,
-            cooldown=6,  # Cooldown of 6 turns
+            cooldown=5,  # Cooldown of 5 turns
             range_=3,
             area=3  # 7×7 area (radius 3)
         )
