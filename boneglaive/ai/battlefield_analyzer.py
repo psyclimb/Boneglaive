@@ -121,6 +121,9 @@ class BattlefieldAnalyzer:
             if unit.player == self.ai_player:
                 analysis.ai_units.append(unit)
             else:
+                # Skip untargetable enemies (e.g., INTERFERER under Karrier Rave)
+                if hasattr(unit, 'is_untargetable') and unit.is_untargetable():
+                    continue
                 analysis.enemy_units.append(unit)
 
     def _calculate_health_metrics(self, analysis: BattlefieldAnalysis) -> None:

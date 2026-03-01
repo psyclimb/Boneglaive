@@ -115,6 +115,10 @@ class TacticalEvaluator:
             if enemy.type == UnitType.HEINOUS_VAPOR:
                 continue
 
+            # Skip untargetable enemies (safety check - should already be filtered in analyzer)
+            if hasattr(enemy, 'can_be_targeted_by') and not enemy.can_be_targeted_by(unit):
+                continue
+
             distance = self.game.chess_distance(unit.y, unit.x, enemy.y, enemy.x)
 
             # Check range and line of sight
@@ -519,6 +523,10 @@ class TacticalEvaluator:
                 for enemy in analysis.enemy_units:
                     # Skip HEINOUS VAPOR units (invulnerable - waste of actions)
                     if enemy.type == UnitType.HEINOUS_VAPOR:
+                        continue
+
+                    # Skip untargetable enemies (safety check - should already be filtered in analyzer)
+                    if hasattr(enemy, 'can_be_targeted_by') and not enemy.can_be_targeted_by(unit):
                         continue
 
                     try:
