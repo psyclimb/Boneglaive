@@ -361,28 +361,19 @@ class UpgradeManager:
         # Special handling for Rail Genesis upgrade - mark junctions
         from boneglaive.utils.constants import UnitType
         if unit.type == UnitType.FOWL_CONTRIVANCE and skill_name == "Rail Genesis":
-            # Calculate junction coordinates
-            center_y = game.map.height // 2
-            center_x = game.map.width // 2
+            # Fixed junction coordinates (4x4 grid)
+            junction_coords = [
+                (2, 4), (2, 8), (2, 12), (2, 16),
+                (4, 4), (4, 8), (4, 12), (4, 16),
+                (6, 4), (6, 8), (6, 12), (6, 16),
+                (8, 4), (8, 8), (8, 12), (8, 16)
+            ]
 
-            # Horizontal lines
-            top_horizontal = 1
-            middle_horizontal = center_y - 2
-            bottom_horizontal = game.map.height - 2
-
-            # Vertical lines
-            vertical_line_1 = center_x - 2
-            vertical_line_2 = center_x + 2
-
-            # Mark all 6 junction positions
+            # Mark all 16 junction positions
             if not hasattr(game.map, 'junction_positions'):
                 game.map.junction_positions = set()
-            game.map.junction_positions.add((top_horizontal, vertical_line_1))
-            game.map.junction_positions.add((top_horizontal, vertical_line_2))
-            game.map.junction_positions.add((middle_horizontal, vertical_line_1))
-            game.map.junction_positions.add((middle_horizontal, vertical_line_2))
-            game.map.junction_positions.add((bottom_horizontal, vertical_line_1))
-            game.map.junction_positions.add((bottom_horizontal, vertical_line_2))
+            for junction in junction_coords:
+                game.map.junction_positions.add(junction)
 
         # Special handling for Effluvium Lathe upgrade - unlock Aerosolize Arms skill
         if unit.type == UnitType.GAS_MACHINIST and skill_name == "Effluvium Lathe":

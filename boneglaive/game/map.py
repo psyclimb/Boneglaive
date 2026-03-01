@@ -272,52 +272,38 @@ class GameMap:
         """
         center_y = self.height // 2
         center_x = self.width // 2
-        
-        # Create horizontal line offset from center to avoid crossing
-        horizontal_line = center_y - 2
-        for x in range(self.width):
-            if self._can_place_rail(horizontal_line, x):
-                # Store original terrain before placing rail
-                original_terrain = self.get_terrain_at(horizontal_line, x)
-                self.rail_original_terrain[(horizontal_line, x)] = original_terrain
-                self.set_terrain_at(horizontal_line, x, TerrainType.RAIL)
-        
-        # Create vertical lines offset from center to avoid crossing
-        vertical_line_1 = center_x - 2  # Column 8
-        vertical_line_2 = center_x + 2  # Column 12
-        for y in range(self.height):
-            if self._can_place_rail(y, vertical_line_1):
-                # Store original terrain before placing rail
-                original_terrain = self.get_terrain_at(y, vertical_line_1)
-                self.rail_original_terrain[(y, vertical_line_1)] = original_terrain
-                self.set_terrain_at(y, vertical_line_1, TerrainType.RAIL)
-            if self._can_place_rail(y, vertical_line_2):
-                # Store original terrain before placing rail
-                original_terrain = self.get_terrain_at(y, vertical_line_2)
-                self.rail_original_terrain[(y, vertical_line_2)] = original_terrain
-                self.set_terrain_at(y, vertical_line_2, TerrainType.RAIL)
-        
+
+        # Create 4 evenly-spaced horizontal rails across the map
+        # Fixed positions based on actual junction layout
+        horizontal_rails = [2, 4, 6, 8]
+
+        for rail_y in horizontal_rails:
+            for x in range(self.width):
+                if self._can_place_rail(rail_y, x):
+                    # Store original terrain before placing rail
+                    original_terrain = self.get_terrain_at(rail_y, x)
+                    self.rail_original_terrain[(rail_y, x)] = original_terrain
+                    self.set_terrain_at(rail_y, x, TerrainType.RAIL)
+
+        # Create 4 evenly-spaced vertical rails across the map
+        # Fixed positions based on actual junction layout
+        vertical_rails = [4, 8, 12, 16]
+
+        for rail_x in vertical_rails:
+            for y in range(self.height):
+                if self._can_place_rail(y, rail_x):
+                    # Store original terrain before placing rail
+                    original_terrain = self.get_terrain_at(y, rail_x)
+                    self.rail_original_terrain[(y, rail_x)] = original_terrain
+                    self.set_terrain_at(y, rail_x, TerrainType.RAIL)
+
         # Add strategic corner positions for tactical positioning
         strategic_positions = [
-            # Top corners
-            (1, 3), (1, self.width - 4),
-            # Bottom corners  
-            (self.height - 2, 3), (self.height - 2, self.width - 4),
             # Mid-side positions for flanking
             (center_y, 2), (center_y, self.width - 3),
             # Center alternatives offset from the middle
             (center_y + 2, center_x - 3), (center_y + 2, center_x + 3)
         ]
-        
-        # Connect corner flanking positions with horizontal connections
-        flanking_connections = [
-            # Connect top corners along row 1
-            *[(1, x) for x in range(4, self.width - 3)],
-            # Connect bottom corners along row height-2
-            *[(self.height - 2, x) for x in range(4, self.width - 3)]
-        ]
-        
-        strategic_positions.extend(flanking_connections)
         
         # Add strategic positioning rails
         for y, x in strategic_positions:

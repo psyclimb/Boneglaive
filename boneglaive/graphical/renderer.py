@@ -3927,24 +3927,12 @@ class GraphicalRenderer:
         if not has_rail_genesis:
             return
 
-        # Calculate junction positions (same logic as engine.py:2403-2421)
-        center_y = self.game_adapter.game.map.height // 2
-        center_x = self.game_adapter.game.map.width // 2
-
-        top_horizontal = 1
-        middle_horizontal = center_y - 2
-        bottom_horizontal = self.game_adapter.game.map.height - 2
-
-        vertical_line_1 = center_x - 2
-        vertical_line_2 = center_x + 2
-
+        # Fixed junction coordinates (4x4 grid)
         junction_coords = [
-            (top_horizontal, vertical_line_1),
-            (top_horizontal, vertical_line_2),
-            (middle_horizontal, vertical_line_1),
-            (middle_horizontal, vertical_line_2),
-            (bottom_horizontal, vertical_line_1),
-            (bottom_horizontal, vertical_line_2)
+            (2, 4), (2, 8), (2, 12), (2, 16),
+            (4, 4), (4, 8), (4, 12), (4, 16),
+            (6, 4), (6, 8), (6, 12), (6, 16),
+            (8, 4), (8, 8), (8, 12), (8, 16)
         ]
 
         # Pulsing effect (subtle, 2-second cycle)

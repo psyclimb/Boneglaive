@@ -532,27 +532,15 @@ class BigArcSkill(ActiveSkill):
         if not rail_genesis_upgraded:
             return
 
-        # Check if on junction
-        current_y, current_x = user.y, user.x
-        center_y = game.map.height // 2
-        center_x = game.map.width // 2
-
-        top_horizontal = 1
-        middle_horizontal = center_y - 2
-        bottom_horizontal = game.map.height - 2
-
-        vertical_line_1 = center_x - 2
-        vertical_line_2 = center_x + 2
-
+        # Fixed junction coordinates (4x4 grid)
         junction_coords = [
-            (top_horizontal, vertical_line_1),
-            (top_horizontal, vertical_line_2),
-            (middle_horizontal, vertical_line_1),
-            (middle_horizontal, vertical_line_2),
-            (bottom_horizontal, vertical_line_1),
-            (bottom_horizontal, vertical_line_2)
+            (2, 4), (2, 8), (2, 12), (2, 16),
+            (4, 4), (4, 8), (4, 12), (4, 16),
+            (6, 4), (6, 8), (6, 12), (6, 16),
+            (8, 4), (8, 8), (8, 12), (8, 16)
         ]
 
+        current_y, current_x = user.y, user.x
         if (current_y, current_x) in junction_coords:
             self.range = base_range + 1
 
