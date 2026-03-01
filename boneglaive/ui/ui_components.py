@@ -846,12 +846,12 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'ESTRANGE (Active) [Key: E]',
-                        'description': 'The GRAYMAN fires a reality-warping beam that phases the target partially out of spacetime, dealing 3 defense-piercing damage. The beam applies Estrangement, a permanent debuff that reduces the target\'s HP by 1, attack by 1, and defense by 1. This existential weakening never wears off and gradually compounds as multiple Estrangements are applied to the same target.',
+                        'description': 'The GRAYMAN fires a reality-warping beam that phases the target partially out of spacetime, dealing 3 defense-piercing damage. The beam applies Estrangement, a permanent debuff that reduces all of the target\'s stats by 2 (attack, defense, movement, attack range). This existential weakening never wears off and gradually compounds as multiple Estrangements are applied to the same target.',
                         'details': [
                             'Type: Active',
                             'Range: 5',
                             'Damage: 3 (pierces defense)',
-                            'Effect: Estranged (~) (Permanent -1 to all stats)',
+                            'Effect: Estranged (~) (Permanent -2 to all stats)',
                             'Cooldown: 3 turns',
                             'Special: Requires line of sight; effect is permanent and stackable'
                         ]

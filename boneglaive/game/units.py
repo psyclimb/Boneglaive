@@ -273,8 +273,8 @@ class Unit:
             }
             
         # For all other units, apply bonuses and penalties normally
-        # Apply Estrange effect (-1 to all stats) if unit is estranged
-        estrange_penalty = -1 if self.estranged else 0
+        # Apply Estrange effect (-2 to all stats) if unit is estranged
+        estrange_penalty = -2 if self.estranged else 0
         
         # Calculate terrain-based bonuses
         terrain_defense_bonus = 0

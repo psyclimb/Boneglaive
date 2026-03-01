@@ -537,7 +537,7 @@ class EstrangeSkill(ActiveSkill):
         super().__init__(
             name="Estrange",
             key="E",
-            description="Fires a beam that phases target out of normal spacetime. Target receives -1 to all actions.",
+            description="Fires a beam that phases target out of normal spacetime. Target receives -2 to all actions.",
             target_type=TargetType.ENEMY,
             cooldown=3,
             range_=5
