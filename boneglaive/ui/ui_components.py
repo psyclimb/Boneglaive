@@ -1459,7 +1459,7 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'DEMILUNE (Active) [Key: D]',
-                        'description': 'The POTPOURRIST swings their granite pedestal in a wide crescent arc, striking enemies in a forward half-moon pattern (3 tiles ahead plus 2 diagonal sides). The impact releases disorienting potpourri vapors that induce Lunacy, a maddening effect that halves all damage the afflicted enemy deals to the POTPOURRIST for 2 turns (rounded down). When enhanced with potpourri, the strike also erodes the target\'s mental defenses, halving their defense value against the POTPOURRIST\'s attacks. This consumes the potpourri.',
+                        'description': 'The POTPOURRIST swings their granite pedestal in a wide crescent arc, striking enemies in a forward half-moon pattern (3 tiles ahead plus 2 diagonal sides). The impact releases disorienting potpourri vapors that induce Lunacy, a maddening effect that halves all damage the afflicted enemy deals to the POTPOURRIST for 2 turns (rounded down). When enhanced with potpourri, the concentrated blend extends Lunacy to 3 turns, prolonging the maddening effect. This consumes the potpourri.',
                         'details': [
                             'Type: Active',
                             'Target: Adjacent tile',

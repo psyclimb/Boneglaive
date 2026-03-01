@@ -119,6 +119,11 @@ class LOTOChecker:
                 if skill_name in ["Delta Config", "Estrange"]:
                     return True
 
+        # Special case: Infuse is blocked when POTPOURRIST already has Infused buff
+        if skill_name == "Infuse":
+            if hasattr(unit, 'potpourri_held') and unit.potpourri_held:
+                return True
+
         return False
 
 

@@ -272,7 +272,8 @@ STATUS_EFFECTS = {
         "name": "Infused",
         "type": "buff",
         "icon": "PO",
-        "description": "POTPOURRIST holding potpourri",
+        "description": "POTPOURRIST holding potpourri, enhances next skill",
+        "duration_key": "potpourri_duration",
         "check": lambda u: u.potpourri_held
     },
 }

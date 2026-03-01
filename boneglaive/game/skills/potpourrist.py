@@ -219,7 +219,7 @@ class DemiluneSkill(ActiveSkill):
         super().__init__(
             name="Demilune",
             key="2",
-            description="Swings granite pedestal in forward arc. Enemies deal half damage to POTPOURRIST for 2 turns. Enhanced: +1 damage and halves enemy defense.",
+            description="Swings granite pedestal in forward arc. Enemies deal half damage to POTPOURRIST for 2 turns. Enhanced: +1 damage and extends Lunacy to 3 turns.",
             target_type=TargetType.AREA,
             cooldown=3,
             range_=1
@@ -385,17 +385,6 @@ class DemiluneSkill(ActiveSkill):
         # Base damage is always 3, +1 if enhanced
         damage = 4 if enhanced else 3
 
-        # Check for Infuse upgrade
-        from boneglaive.game.upgrades import UpgradeManager
-        infuse_upgraded = UpgradeManager.is_skill_upgraded(user, "Infuse")
-
-        # Calculate defense-piercing damage (half if enhanced + upgraded)
-        piercing_damage = 0
-        defense_damage = damage
-        if enhanced and infuse_upgraded:
-            piercing_damage = damage // 2  # Half pierces defense
-            defense_damage = damage - piercing_damage  # Rest affected by defense
-
         # Consume potpourri if held
         if user.potpourri_held:
             user.potpourri_held = False
@@ -492,28 +481,11 @@ class DemiluneSkill(ActiveSkill):
         for tile_y, tile_x in arc_tiles:
             target = game.get_unit_at(tile_y, tile_x)
             if target and target.player != user.player and target.is_alive():
-                # Deal damage (split into defense-affected and piercing if upgraded)
+                # Deal damage
                 game.current_attacker = user
                 old_hp = target.hp
-
-                if piercing_damage > 0:
-                    # Apply defense-affected damage first (goes through defense and PRT)
-                    target.hp = max(0, target.hp - defense_damage)
-                    after_defense = old_hp - target.hp
-
-                    # Apply piercing damage directly (still goes through PRT but not defense)
-                    target_defense = target.get_effective_stats()['defense']
-                    # Calculate what piercing would be after defense reduction
-                    piercing_after_def = max(1, piercing_damage - target_defense)
-                    # Apply the difference directly to bypass defense
-                    target._hp = max(0, target._hp - (piercing_damage - piercing_after_def))
-
-                    actual_damage = old_hp - target.hp
-                else:
-                    # Normal damage application
-                    target.hp = max(0, target.hp - damage)
-                    actual_damage = old_hp - target.hp
-
+                target.hp = max(0, target.hp - damage)
+                actual_damage = old_hp - target.hp
                 game.current_attacker = None
 
                 message_log.add_combat_message(
@@ -550,7 +522,8 @@ class DemiluneSkill(ActiveSkill):
                 if not target.is_immune_to_effects():
                     target.demilune_debuffed = True
                     target.demilune_debuffed_by = user
-                    target.demilune_debuff_duration = 2
+                    # Enhanced (infused) extends Lunacy to 3 turns instead of 2
+                    target.demilune_debuff_duration = 3 if enhanced else 2
 
                     # Show moon phase animation if UI is available
                     if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):

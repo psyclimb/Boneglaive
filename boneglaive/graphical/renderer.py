@@ -2313,6 +2313,19 @@ class GraphicalRenderer:
 
         # Update units
         for unit in self.units:
+            # Sync potpourri aura with game state
+            if unit.game_unit:
+                has_infuse = hasattr(unit.game_unit, 'potpourri_held') and unit.game_unit.potpourri_held
+
+                # Turn ON aura if Infuse is active but aura isn't
+                if has_infuse and not unit.potpourri_aura_active:
+                    unit.potpourri_aura_active = True
+                    unit.potpourri_aura_timer = 0
+                # Turn OFF aura if Infuse expired
+                elif not has_infuse and unit.potpourri_aura_active:
+                    unit.potpourri_aura_active = False
+                    unit.potpourri_aura_particles.clear()
+
             unit.update(delta_time)
 
         # Update particles
