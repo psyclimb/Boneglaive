@@ -47,7 +47,7 @@ SKILL_UPGRADES = {
         },
         "Expedite": {
             "name": "Expedite",
-            "description": "Increase damage by 2. Decrease cooldown by 1.",
+            "description": "Decrease cooldown by 2.",
             "type": "buff",
             "cost": 1
         },

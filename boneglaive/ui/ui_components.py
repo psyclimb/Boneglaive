@@ -756,7 +756,7 @@ class UnitHelpComponent(UIComponent):
                             'Type: Active',
                             'Range: 4 (minimum 2 tiles)',
                             'Damage: 5',
-                            'Cooldown: 4 turns',
+                            'Cooldown: 5 turns',
                             'Special: Must move in straight lines (cardinal or diagonal); stops at first enemy; applies Viseroy trap; cannot target adjacent units'
                         ]
                     },
