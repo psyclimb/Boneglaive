@@ -1133,7 +1133,7 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'BROACHING GAS (Active) [Key: B]',
-                        'description': 'The GAS MACHINIST expels a HEINOUS VAPOR (symbol: 1) to an empty tile, creating a caustic gas cloud in a 3x3 area centered on the vapor. Each turn, the vapor automatically corrodes enemies within the cloud for 1 damage while simultaneously dissolving negative status effects from allies. The vapor persists for a duration equal to consumed Effluvium charges and is completely invulnerable to all damage.',
+                        'description': 'The GAS MACHINIST expels a HEINOUS VAPOR (symbol: 1) to an empty tile, creating a caustic gas cloud in a 3x3 area centered on the vapor. Each turn, the vapor automatically corrodes enemies within the cloud for 1 damage while randomly dissolving one random negative status effect from each ally in the cloud. The vapor persists for a duration equal to consumed Effluvium charges and is completely invulnerable to all damage.',
                         'details': [
                             'Type: Active',
                             'Range: 4',
@@ -1141,7 +1141,7 @@ class UnitHelpComponent(UIComponent):
                             'Area: 3x3 (centered on vapor)',
                             'Damage: 1 per turn to enemies',
                             'Cooldown: 3 turns',
-                            'Special: Cleanses ally status effects; invulnerable; duration = charges'
+                            'Special: Cleanses one random negative ally status effect per turn; invulnerable; duration = charges'
                         ]
                     },
                     {
@@ -1499,7 +1499,8 @@ class UnitHelpComponent(UIComponent):
                 'overview': [
                     'BROACHING GAS is a HEINOUS VAPOR entity summoned by the GAS MACHINIST using the Broaching',
                     'Gas skill. This vapor specializes in dual-purpose area control, dealing 2 damage to enemies',
-                    'while cleansing allies of negative status effects within its 3x3 area of influence.',
+                    'while randomly cleansing one negative status effect from each ally within its 3x3 area of',
+                    'influence each turn.',
                     '',
                     'Role: Utility / Area Controller'
                 ],
@@ -1544,7 +1545,7 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'ALLY CLEANSING (Status Cleansing)',
-                        'description': 'Removes negative status effects from allied units within the area.',
+                        'description': 'Randomly removes one negative status effect from each allied unit within the area each turn.',
                         'details': [
                             'Type: Status Cleansing',
                             'Range: 3x3 centered on vapor',

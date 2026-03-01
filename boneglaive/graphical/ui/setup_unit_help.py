@@ -222,7 +222,7 @@ class SetupUnitHelp:
                 'skills': [
                     {
                         'name': 'BROACHING GAS',
-                        'desc': 'Expels a vapor that creates a caustic gas cloud. The vapor corrodes enemies within the cloud while dissolving negative status effects from allies.'
+                        'desc': 'Expels a vapor that creates a caustic gas cloud. The vapor corrodes enemies within the cloud while randomly dissolving one negative status effect from allies each turn.'
                     },
                     {
                         'name': 'SAFT-E-GAS',
