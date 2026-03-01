@@ -2612,34 +2612,10 @@ class GraphicalRenderer:
                 caster_animated = self._find_animated_unit_by_game_unit(event.source_unit)
 
                 if caster_animated:
-                    # Create building formation animation via AnimationFactory
+                    # Create building tiles persistent effect (no formation animation - just pop into existence)
                     from boneglaive.graphical.animations import AnimationFactory
 
-                    # 1. Building formation animation (one-time, blocking)
-                    formation_animation = AnimationFactory.create_animation(
-                        skill_name="DERELICT_BUILDING_FORMATION",
-                        caster_unit=caster_animated,
-                        target_unit=None,
-                        target_pos=None,
-                        is_crit=False,
-                        is_infused=False,
-                        particle_emitter=self.particle_emitter,
-                        screen_shake_callback=self.trigger_screen_shake,
-                        screen_flash_callback=self.trigger_screen_flash,
-                        units_list=self.units,
-                        camera=self.camera,
-                        game=self.game_adapter.game,
-                        building_tiles=building_tiles
-                    )
-
-                    if formation_animation:
-                        # Add to active_animations - this is a one-time formation effect
-                        self.active_animations.append(formation_animation)
-                        print(f"  [Animation] Successfully created building formation animation")
-                    else:
-                        print(f"  [Animation] WARNING: Failed to create building formation animation")
-
-                    # 2. Building tiles persistent effect (background, non-blocking)
+                    # Building tiles persistent effect (background, non-blocking)
                     tiles_animation = AnimationFactory.create_animation(
                         skill_name="DERELICT_BUILDING_TILES",
                         caster_unit=caster_animated,
