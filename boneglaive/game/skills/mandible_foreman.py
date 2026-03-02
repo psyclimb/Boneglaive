@@ -342,7 +342,7 @@ class DischargeSkill(ActiveSkill):
 
                     message_log.add_message(
                         f"{enemy_hit.get_display_name()} is trapped in {user.get_display_name()}'s mechanical jaws",
-                        MessageType.ABILITY,
+                        MessageType.WARNING,
                         player=user.player,
                         target=enemy_hit.player,
                         target_name=enemy_hit.get_display_name()
@@ -1437,7 +1437,7 @@ class JawlineSkill(ActiveSkill):
                             
                             message_log.add_message(
                                 f"{target.get_display_name()} is immobilized by the Jawline tether",
-                                MessageType.ABILITY,
+                                MessageType.WARNING,
                                 player=user.player,
                                 target=target.player,
                                 target_name=target.get_display_name()
@@ -1522,7 +1522,7 @@ class JawlineSkill(ActiveSkill):
                             
                             message_log.add_message(
                                 f"{target.get_display_name()} is immobilized by the Jawline tether",
-                                MessageType.ABILITY,
+                                MessageType.WARNING,
                                 player=user.player,
                                 target=target.player,
                                 target_name=target.get_display_name()

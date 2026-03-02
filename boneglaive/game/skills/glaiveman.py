@@ -830,7 +830,7 @@ class PrySkill(ActiveSkill):
                 target.pry_upgraded_duration = 2
                 target.pry_upgraded_penalty_amount = -2
                 message_log.add_message(
-                    f"{target.get_display_name()}'s movement is SEVERELY reduced (upgraded Pry: -2)",
+                    f"{target.get_display_name()}'s movement is SEVERELY reduced",
                     MessageType.WARNING,
                     player=user.player
                 )
@@ -839,7 +839,7 @@ class PrySkill(ActiveSkill):
                 target.pry_duration = 2
                 target.pry_penalty_amount = -1
                 message_log.add_message(
-                    f"{target.get_display_name()}'s movement is reduced (base Pry: -1)",
+                    f"{target.get_display_name()}'s movement is reduced",
                     MessageType.WARNING,
                     player=user.player
                 )

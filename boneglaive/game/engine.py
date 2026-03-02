@@ -3567,19 +3567,15 @@ class Game:
                             # Check if Ossify is manually upgraded
                             from boneglaive.game.upgrades import UpgradeManager
                             if UpgradeManager.is_skill_upgraded(target, "Ossify"):
-                                # Reflect 1 damage back to attacker (and reduce damage taken by 1)
-                                target.hp = min(target.max_hp, target.hp + 1)  # Heal 1 HP back (capped at max)
+                                # Reflect all damage back to attacker
+                                reflect_damage = actual_damage
 
-                                # Update actual_damage to reflect the reduced damage (for combat log)
-                                actual_damage = max(0, actual_damage - 1)
-
-                                # Deal 1 reflect damage to attacker
                                 attacker_previous_hp = unit.hp
-                                unit.hp = max(0, unit.hp - 1)
+                                unit.hp = max(0, unit.hp - reflect_damage)
 
                                 # Log the reflect
                                 message_log.add_message(
-                                    f"{target.get_display_name()}'s hardened bones splinter back at {unit.get_display_name()} for 1 damage",
+                                    f"{target.get_display_name()}'s hardened bones splinter back at {unit.get_display_name()} for {reflect_damage} damage",
                                     MessageType.ABILITY,
                                     player=target.player,
                                     target_name=unit.get_display_name()

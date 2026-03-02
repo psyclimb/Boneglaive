@@ -326,22 +326,22 @@ class GaussianDuskSkill(ActiveSkill):
                         unit.shredded_duration = 2
 
                         message_log.add_message(
-                            f"{unit.get_display_name()}'s defenses are completely shredded for 2 turns",
-                            MessageType.ABILITY,
+                            f"{unit.get_display_name()}'s defenses are completely shredded",
+                            MessageType.WARNING,
                             player=user.player
                         )
                 
                 # Store previous HP for critical health check
                 previous_hp = unit.hp
-                
+
                 # Apply damage
                 unit.hp = max(0, unit.hp - damage)
                 units_hit += 1
                 total_damage += damage
-                
+
                 # Store unit and damage for later display
                 damaged_units.append((unit, damage))
-                
+
                 # Log the damage
                 message_log.add_combat_message(
                     attacker_name=user.get_display_name(),
@@ -1162,16 +1162,16 @@ class FragcrestSkill(ActiveSkill):
                 
                 # Store previous HP for critical health check
                 previous_hp = unit.hp
-                
+
                 # Apply damage
                 unit.hp = max(0, unit.hp - damage)
                 units_hit += 1
                 total_damage += damage
                 affected_units.append(unit)
-                
+
                 # Store unit and damage for later display
                 damaged_units.append((unit, damage))
-                
+
                 # Log the damage
                 damage_type = "primary" if is_primary else "cone"
                 message_log.add_combat_message(

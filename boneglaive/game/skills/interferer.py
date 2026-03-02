@@ -156,7 +156,7 @@ class NeutronIlluminant(PassiveSkill):
         if affected_units:
             message_log.add_message(
                 f"Neutron radiation spreads from the impact",
-                MessageType.ABILITY,
+                MessageType.WARNING,
                 player=user.player
             )
 

@@ -574,7 +574,7 @@ class MarrowDikeSkill(ActiveSkill):
                         # Shorter message for each enemy unit trapped inside
                         message_log.add_message(
                             f"{unit_at_pos.get_display_name()} slogs through the Marrow Dike.",
-                            MessageType.ABILITY,
+                            MessageType.WARNING,
                             player=user.player,
                             attacker_name=user.get_display_name(),
                             target_name=unit_at_pos.get_display_name()

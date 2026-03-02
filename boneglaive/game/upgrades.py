@@ -255,7 +255,7 @@ SKILL_UPGRADES = {
         },
         "Ossify": {
             "name": "Ossify",
-            "description": "Reflects 1 damage back to attackers.",
+            "description": "Reflects basic attack damage back to attackers.",
             "type": "buff",
             "cost": 1
         },
