@@ -135,61 +135,6 @@ class RailGenesis(PassiveSkill):
                     # Check for critical health using centralized logic
                     game.check_critical_health(unit, user, previous_hp, ui)
 
-        # Apply Shrapnel to enemies adjacent to rails (blast radius effect)
-        shrapnel_applied_units = set()  # Track which units already took direct damage
-        shrapnel_units_hit = 0
-
-        # Build set of units that took direct damage (on rails)
-        for rail_y, rail_x in rail_positions:
-            unit = game.get_unit_at(rail_y, rail_x)
-            if unit and unit.is_alive() and unit.player != user.player:
-                shrapnel_applied_units.add(unit)
-
-        # Check adjacent tiles around each rail for enemy units
-        for rail_y, rail_x in rail_positions:
-            # Check all 8 adjacent tiles (N, S, E, W, NE, NW, SE, SW)
-            for dy in [-1, 0, 1]:
-                for dx in [-1, 0, 1]:
-                    if dy == 0 and dx == 0:
-                        continue  # Skip the rail tile itself
-
-                    adj_y = rail_y + dy
-                    adj_x = rail_x + dx
-
-                    # Check if position is valid
-                    if not game.is_valid_position(adj_y, adj_x):
-                        continue
-
-                    unit = game.get_unit_at(adj_y, adj_x)
-
-                    # Only affect enemy units not already hit by direct damage
-                    if unit and unit.is_alive() and unit.player != user.player and unit not in shrapnel_applied_units:
-                        # Apply shrapnel effect (ongoing damage) if not immune
-                        if unit.is_immune_to_effects():
-                            # Log immunity message
-                            message_log.add_message(
-                                f"{unit.get_display_name()} is immune to shrapnel due to Stasiality",
-                                MessageType.ABILITY,
-                                player=unit.player
-                            )
-                        else:
-                            if not hasattr(unit, 'shrapnel_duration'):
-                                unit.shrapnel_duration = 0
-                            previous_shrapnel = unit.shrapnel_duration
-                            unit.shrapnel_duration = max(unit.shrapnel_duration, 3)
-
-                            # Log shrapnel embedding if it's a new effect or extended
-                            if unit.shrapnel_duration > previous_shrapnel:
-                                message_log.add_message(
-                                    f"Rail explosion shrapnel embeds in {unit.get_display_name()}",
-                                    MessageType.COMBAT,
-                                    player=user.player
-                                )
-                                shrapnel_units_hit += 1
-
-                        # Add to set to prevent duplicate application from multiple adjacent rails
-                        shrapnel_applied_units.add(unit)
-
         # Check if this was the last FOWL CONTRIVANCE - if so, remove rails
         from boneglaive.utils.constants import UnitType
         remaining_fowl = sum(1 for u in game.units
@@ -371,16 +316,14 @@ class GaussianDuskSkill(ActiveSkill):
                         # Instant kill
                         damage = unit.hp
                         message_log.add_message(
-                            f"{unit.get_display_name()} is executed by the rail beam's lethal precision",
+                            f"{unit.get_display_name()} is erased by the rail cannon's lethal precision!",
                             MessageType.ABILITY,
                             player=user.player
                         )
                     elif hp_percent >= 0.875:  # Defense shred threshold
-                        # Apply shredded status (2 turns)
+                        # Apply shredded status (2 turns) - defense will be forced to 0 via get_effective_stats()
                         unit.shredded = True
                         unit.shredded_duration = 2
-                        unit.shredded_original_defense = unit.defense
-                        unit.defense_bonus -= unit.defense  # Reduce defense to 0 via bonus
 
                         message_log.add_message(
                             f"{unit.get_display_name()}'s defenses are completely shredded for 2 turns",

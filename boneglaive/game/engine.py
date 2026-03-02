@@ -2812,10 +2812,7 @@ class Game:
 
                 # Check if the status effect has expired
                 if unit.shredded_duration <= 0:
-                    # Restore defense
-                    unit.defense_bonus += unit.shredded_original_defense
-
-                    # Remove the status effect
+                    # Remove the status effect (defense will automatically recalculate via get_effective_stats)
                     unit.shredded = False
 
                     # Log the expiration

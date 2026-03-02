@@ -285,11 +285,14 @@ class Unit:
         if hasattr(self, 'pumped_up_active') and self.pumped_up_active:
             pumped_up_bonus = 1
 
+        # Shredded status overrides all defense bonuses to 0
+        shredded_override = (hasattr(self, 'shredded') and self.shredded)
+
         # Calculate base stats with bonuses
         stats = {
             'hp': self.max_hp + self.hp_bonus + pumped_up_bonus,
             'attack': max(1, self.attack + self.attack_bonus + estrange_penalty + pumped_up_bonus),
-            'defense': max(0, self.defense + self.defense_bonus + terrain_defense_bonus + estrange_penalty + pumped_up_bonus),
+            'defense': 0 if shredded_override else max(0, self.defense + self.defense_bonus + terrain_defense_bonus + estrange_penalty + pumped_up_bonus),
             'attack_range': max(1, self.attack_range + self.attack_range_bonus + estrange_penalty + pumped_up_bonus)
         }
         

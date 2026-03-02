@@ -75,6 +75,14 @@ STATUS_EFFECTS = {
         "duration_key": "mired_duration",
         "check": lambda u: u.mired
     },
+    "shredded": {
+        "name": "Shredded",
+        "type": "debuff",
+        "icon": "SD",
+        "description": "Defense set to 0 by rail cannon",
+        "duration_key": "shredded_duration",
+        "check": lambda u: hasattr(u, 'shredded') and u.shredded
+    },
     "neural_shunt_affected": {
         "name": "Neural Shunt",
         "type": "debuff",

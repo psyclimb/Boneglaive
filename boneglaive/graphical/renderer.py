@@ -3706,13 +3706,13 @@ class GraphicalRenderer:
         # Draw base tile
         pygame.draw.rect(surface, base_color, rect)
 
-        # Check if this is furniture - if so, render base terrain first
+        # Check if this is furniture OR empty tile - if so, render base terrain first
         is_furniture = self._is_furniture(terrain_type)
-        if is_furniture and game_map:
+        if (is_furniture or terrain_type == TerrainType.EMPTY) and game_map:
             # Get the base terrain for this map
             base_terrain = self._get_base_terrain_for_map(game_map)
             if base_terrain != TerrainType.EMPTY:
-                # Render base terrain texture underneath furniture
+                # Render base terrain texture underneath furniture/empty tiles
                 base_surface = self._load_terrain_tile(base_terrain)
                 if base_surface:
                     surface.blit(base_surface, (tile_x, tile_y))

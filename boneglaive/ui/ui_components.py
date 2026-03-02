@@ -1045,12 +1045,12 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'RAIL GENESIS (Passive)',
-                        'description': 'The first FOWL CONTRIVANCE to deploy establishes a permanent rail network across passable terrain. This infrastructure persists throughout the match and is shared by all FOWL CONTRIVANCES. Whenever any FOWL CONTRIVANCE dies, the rail network detonates, dealing 6 damage to all enemy units standing on rail tiles and applying Shrapnel (1 damage per turn for 3 turns) to enemies adjacent to rails. When the last FOWL CONTRIVANCE dies, the rail network is destroyed and removed from the battlefield.',
+                        'description': 'The first FOWL CONTRIVANCE to deploy establishes a permanent rail network across passable terrain. This infrastructure persists throughout the match and is shared by all FOWL CONTRIVANCES. Whenever any FOWL CONTRIVANCE dies, the rail network detonates, dealing 6 damage to all enemy units standing on rail tiles. When the last FOWL CONTRIVANCE dies, the rail network is destroyed and removed from the battlefield.',
                         'details': [
                             'Type: Passive',
-                            'Effect: Rail network across map; 6 damage to enemies on rails; Shrapnel (1 dmg/turn for 3 turns) to enemies adjacent to rails; network removed when last FOWL dies',
+                            'Effect: Rail network across map; 6 damage to enemies on rails; network removed when last FOWL dies',
                             'Special: Rail network is permanent until last FOWL dies; shared across all FOWL CONTRIVANCES; explodes on every FOWL death',
-                            'Synergy: Shrapnel effect matches Fragcrest ability for thematic consistency'
+                            'Damage: Fixed 6 damage (ignores defense)'
                         ]
                     },
                     {
