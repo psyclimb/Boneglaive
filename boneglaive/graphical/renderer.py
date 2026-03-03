@@ -336,7 +336,7 @@ class GraphicalRenderer:
             TerrainType.BLOOD_PLASMA: "graphics/terrain/blood_plasma.svg",
 
             # Furniture types
-            TerrainType.RADIO_CONSOLE: "graphics/furniture/radio_console.svg",
+            TerrainType.LECTERN: "graphics/furniture/lectern.svg",
             TerrainType.COAT_RACK: "graphics/furniture/coat_rack.svg",
             TerrainType.OTTOMAN: "graphics/furniture/ottoman.svg",
             TerrainType.CONSOLE: "graphics/furniture/console_table.svg",
@@ -1689,7 +1689,7 @@ class GraphicalRenderer:
         """Convert TerrainType to readable furniture name."""
         # Map terrain types to readable names
         furniture_names = {
-            TerrainType.RADIO_CONSOLE: "Radio Console",
+            TerrainType.LECTERN: "Lectern",
             TerrainType.COAT_RACK: "Coat Rack",
             TerrainType.OTTOMAN: "Ottoman",
             TerrainType.CONSOLE: "Console Table",
@@ -3699,7 +3699,7 @@ class GraphicalRenderer:
     def _is_furniture(self, terrain_type: TerrainType) -> bool:
         """Check if a terrain type is furniture (should render on top of base terrain)."""
         furniture_types = [
-            TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK, TerrainType.OTTOMAN,
+            TerrainType.LECTERN, TerrainType.COAT_RACK, TerrainType.OTTOMAN,
             TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF, TerrainType.TIFFANY_LAMP,
             TerrainType.EASEL, TerrainType.SCULPTURE, TerrainType.BENCH,
             TerrainType.PODIUM, TerrainType.VASE, TerrainType.WORKBENCH,

@@ -266,7 +266,7 @@ class GaussianDuskSkill(ActiveSkill):
             terrain = game.map.get_terrain_at(mid_y, mid_x)
             destructible_terrain = [
                 TerrainType.LIMESTONE, TerrainType.PILLAR, TerrainType.MARROW_WALL,
-                TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK, TerrainType.OTTOMAN,
+                TerrainType.LECTERN, TerrainType.COAT_RACK, TerrainType.OTTOMAN,
                 TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF, TerrainType.TIFFANY_LAMP,
                 TerrainType.STAINED_STONE, TerrainType.EASEL, TerrainType.SCULPTURE,
                 TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
@@ -710,7 +710,7 @@ class BigArcSkill(ActiveSkill):
 
                 destructible_terrain = [
                     TerrainType.LIMESTONE, TerrainType.PILLAR, TerrainType.MARROW_WALL,
-                    TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK, TerrainType.OTTOMAN,
+                    TerrainType.LECTERN, TerrainType.COAT_RACK, TerrainType.OTTOMAN,
                     TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF, TerrainType.TIFFANY_LAMP,
                     TerrainType.STAINED_STONE, TerrainType.EASEL, TerrainType.SCULPTURE,
                     TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,

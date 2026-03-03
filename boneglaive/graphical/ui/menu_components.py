@@ -22,6 +22,7 @@ COLOR_TEXT_INPUT_CURSOR = (100, 200, 255)
 class Button:
     """
     A clickable button with hover and pressed states.
+    Supports optional image/icon display.
     """
 
     def __init__(
@@ -33,13 +34,15 @@ class Button:
         text: str,
         font: pygame.font.Font,
         action: Optional[Callable] = None,
-        enabled: bool = True
+        enabled: bool = True,
+        image: Optional[pygame.Surface] = None
     ):
         self.rect = pygame.Rect(x, y, width, height)
         self.text = text
         self.font = font
         self.action = action
         self.enabled = enabled
+        self.image = image
 
         # State
         self.hovered = False
@@ -107,10 +110,29 @@ class Button:
         # Draw border
         pygame.draw.rect(surface, border_color, self.rect, 2)
 
-        # Draw text (centered)
-        text_surface = self.font.render(self.text, True, text_color)
-        text_rect = text_surface.get_rect(center=self.rect.center)
-        surface.blit(text_surface, text_rect)
+        # Draw image if provided (left side)
+        if self.image:
+            # Scale image to fit button height with some padding
+            img_height = int(self.rect.height * 0.8)
+            img_width = int(self.image.get_width() * (img_height / self.image.get_height()))
+            scaled_image = pygame.transform.smoothscale(self.image, (img_width, img_height))
+
+            # Position image on left side with padding
+            img_x = self.rect.x + 10
+            img_y = self.rect.centery - img_height // 2
+            surface.blit(scaled_image, (img_x, img_y))
+
+            # Draw text to the right of image
+            text_surface = self.font.render(self.text, True, text_color)
+            text_x = img_x + img_width + 15
+            text_y = self.rect.centery
+            text_rect = text_surface.get_rect(midleft=(text_x, text_y))
+            surface.blit(text_surface, text_rect)
+        else:
+            # Draw text (centered) - original behavior
+            text_surface = self.font.render(self.text, True, text_color)
+            text_rect = text_surface.get_rect(center=self.rect.center)
+            surface.blit(text_surface, text_rect)
 
 
 class Slider:

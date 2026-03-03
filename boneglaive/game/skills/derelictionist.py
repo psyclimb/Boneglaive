@@ -803,7 +803,7 @@ class DerelictSkill(ActiveSkill):
 
                         # Only displace furniture, not permanent terrain like walls/pillars
                         displaceable_terrain = [
-                            TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
+                            TerrainType.LECTERN, TerrainType.COAT_RACK,
                             TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF,
                             TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE,
                             TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,

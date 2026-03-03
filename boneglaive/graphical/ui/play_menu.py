@@ -4,6 +4,7 @@ Play Menu Screens
 Screens for game mode selection and map selection.
 """
 import pygame
+import os
 from typing import Optional, List
 from .menu_components import MenuScreen, Button, COLOR_TEXT
 from boneglaive.utils.config import ConfigManager, NetworkMode
@@ -98,10 +99,13 @@ class MapSelectionMenu(MenuScreen):
             seasonal_info = seasonal_manager.get_seasonal_info(self.active_season)
             self.title = f"Select Map - {seasonal_info['name']} Active"
 
-        # Button dimensions
-        button_width = 350
-        button_height = 50
-        button_spacing = 15
+        # Button dimensions (larger to accommodate icons)
+        self.button_width = 500
+        self.button_height = 90
+        self.button_spacing = 15
+        button_width = self.button_width
+        button_height = self.button_height
+        button_spacing = self.button_spacing
 
         # Calculate layout
         start_x = (screen_width - button_width) // 2
@@ -117,6 +121,9 @@ class MapSelectionMenu(MenuScreen):
             if self.active_season and seasonal_manager.get_seasonal_map_path(map_name, self.active_season):
                 display_name += " *"
 
+            # Load map icon
+            map_icon = self._load_map_icon(map_name)
+
             y_pos = start_y + i * (button_height + button_spacing)
 
             self.buttons.append(
@@ -125,7 +132,8 @@ class MapSelectionMenu(MenuScreen):
                     button_width, button_height,
                     display_name,
                     font,
-                    lambda mn=map_name: self._select_map(mn)
+                    lambda mn=map_name: self._select_map(mn),
+                    image=map_icon
                 )
             )
 
@@ -155,14 +163,49 @@ class MapSelectionMenu(MenuScreen):
         """Set the action result."""
         self._action_result = action
 
+    def _load_map_icon(self, map_name: str) -> Optional[pygame.Surface]:
+        """Load SVG icon for a map."""
+        # Map names to icon filenames
+        icon_map = {
+            'lime_foyer': 'lime_foyer_icon.svg',
+            'hard_pressed': 'hard_pressed_icon.svg',
+            'stained_stones': 'stained_stones_icon.svg'
+        }
+
+        icon_filename = icon_map.get(map_name)
+        if not icon_filename:
+            return None
+
+        icon_path = f"graphics/map_icons/{icon_filename}"
+        if not os.path.exists(icon_path):
+            return None
+
+        try:
+            # Try to load SVG using cairosvg
+            try:
+                import cairosvg
+                from io import BytesIO
+                # Convert SVG to PNG in memory (128x128 as that's the icon size)
+                png_data = cairosvg.svg2png(url=icon_path, output_width=128, output_height=128)
+                surface = pygame.image.load(BytesIO(png_data))
+                surface = surface.convert_alpha()
+                return surface
+            except ImportError:
+                return None
+        except Exception as e:
+            print(f"Warning: Could not load map icon {icon_path}: {e}")
+            return None
+
     def handle_event(self, event: pygame.event.Event) -> Optional[str]:
         """Handle events and return action if triggered."""
         # Handle scrolling if needed
         if event.type == pygame.MOUSEWHEEL:
             if len(self.buttons) > self.max_visible_buttons:
                 self.scroll_offset -= event.y * 30
+                # Use actual button height + spacing for scroll calculation
+                button_step = self.button_height + self.button_spacing
                 self.scroll_offset = max(0, min(self.scroll_offset,
-                    (len(self.buttons) - self.max_visible_buttons) * 65))
+                    (len(self.buttons) - self.max_visible_buttons) * button_step))
 
         super().handle_event(event)
 

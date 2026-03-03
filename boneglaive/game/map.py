@@ -18,7 +18,7 @@ class TerrainType(Enum):
     LIMESTONE = 1  # Limestone formation, blocks movement and unit placement
     DUST = 2       # Light limestone dusting, visual only (passable)
     PILLAR = 3     # Large limestone pillar, blocks movement and unit placement
-    RADIO_CONSOLE = 4  # Vintage radio communication console, blocks movement but not line of sight
+    LECTERN = 4  # Victorian reading stand with open book, blocks movement but not line of sight
     COAT_RACK = 5  # Coat rack, blocks movement but not line of sight
     OTTOMAN = 6    # Ottoman seating, blocks movement but not line of sight
     CONSOLE = 7    # Console table, blocks movement but not line of sight
@@ -127,7 +127,7 @@ class GameMap:
         """
         # Check if the position has furniture
         terrain = self.get_terrain_at(y, x)
-        if terrain not in [TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
+        if terrain not in [TerrainType.LECTERN, TerrainType.COAT_RACK,
                           TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF,
                           TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE,
                           TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
@@ -172,7 +172,7 @@ class GameMap:
         """
         # Check if the position has furniture
         terrain = self.get_terrain_at(y, x)
-        if terrain not in [TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
+        if terrain not in [TerrainType.LECTERN, TerrainType.COAT_RACK,
                           TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF,
                           TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE,
                           TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
@@ -192,7 +192,7 @@ class GameMap:
     def is_furniture(self, y: int, x: int) -> bool:
         """Check if a position has furniture."""
         terrain = self.get_terrain_at(y, x)
-        return terrain in [TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
+        return terrain in [TerrainType.LECTERN, TerrainType.COAT_RACK,
                           TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF,
                           TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE,
                           TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
@@ -535,8 +535,8 @@ class LimeFoyerMap(GameMap):
         # Add strategically placed furniture
         
         # Entry vestibule furniture
-        self.set_terrain_at(1, 1, TerrainType.RADIO_CONSOLE)   # Corner plant (entrance decor)
-        self.set_terrain_at(1, 18, TerrainType.RADIO_CONSOLE)  # Corner plant (entrance decor)
+        self.set_terrain_at(1, 1, TerrainType.LECTERN)   # Corner lectern (entrance decor)
+        self.set_terrain_at(1, 18, TerrainType.LECTERN)  # Corner lectern (entrance decor)
         
         # Top round pillar (3x3)
         pillar_top = [
@@ -564,7 +564,7 @@ class LimeFoyerMap(GameMap):
         
         # Reception/check-in area
         self.set_terrain_at(2, 4, TerrainType.CONSOLE)    # Reception desk
-        self.set_terrain_at(2, 5, TerrainType.RADIO_CONSOLE)  # Reception chair
+        self.set_terrain_at(2, 5, TerrainType.LECTERN)  # Reception lectern
         
         # Main waiting area (centered in open space)
         self.set_terrain_at(4, 15, TerrainType.OTTOMAN)   # Right ottoman
@@ -581,8 +581,8 @@ class LimeFoyerMap(GameMap):
         self.set_terrain_at(8, 15, TerrainType.OTTOMAN)   # Lower lobby ottoman opposite
         
         # Decorative elements
-        self.set_terrain_at(6, 5, TerrainType.RADIO_CONSOLE)  # Plant between seating areas
-        self.set_terrain_at(6, 14, TerrainType.RADIO_CONSOLE) # Plant between seating areas
+        self.set_terrain_at(6, 5, TerrainType.LECTERN)  # Lectern between seating areas
+        self.set_terrain_at(6, 14, TerrainType.LECTERN) # Lectern between seating areas
         
         # Light limestone dustings (windswept patterns)
         # This is a partial list - approximately 50% of tiles will have dust
@@ -695,10 +695,10 @@ class NewLimeFoyerMap(GameMap):
         self.set_terrain_at(9, 10, TerrainType.CONSOLE)
         
         # Pattern 3: Inner ring furniture just outside the pit (for Auction Curse positioning)
-        self.set_terrain_at(3, 4, TerrainType.RADIO_CONSOLE)
-        self.set_terrain_at(3, 15, TerrainType.RADIO_CONSOLE)
-        self.set_terrain_at(6, 4, TerrainType.RADIO_CONSOLE)
-        self.set_terrain_at(6, 15, TerrainType.RADIO_CONSOLE)
+        self.set_terrain_at(3, 4, TerrainType.LECTERN)
+        self.set_terrain_at(3, 15, TerrainType.LECTERN)
+        self.set_terrain_at(6, 4, TerrainType.LECTERN)
+        self.set_terrain_at(6, 15, TerrainType.LECTERN)
         
         # Pattern 4: Central pit furniture pieces (few but valuable tactical positions)
         self.set_terrain_at(4, 8, TerrainType.OTTOMAN)

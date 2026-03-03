@@ -2056,7 +2056,7 @@ class TacticalEvaluator:
                     continue
                 
                 terrain = self.game.map.get_terrain_at(check_y, check_x)
-                if terrain in [TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
+                if terrain in [TerrainType.LECTERN, TerrainType.COAT_RACK,
                              TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF,
                              TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE,
                              TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
@@ -2084,7 +2084,7 @@ class TacticalEvaluator:
         for y in range(self.game.map.height):
             for x in range(self.game.map.width):
                 terrain = self.game.map.get_terrain_at(y, x)
-                if terrain not in [TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
+                if terrain not in [TerrainType.LECTERN, TerrainType.COAT_RACK,
                                  TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF,
                                  TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE,
                                  TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
@@ -2177,7 +2177,7 @@ class TacticalEvaluator:
         for y in range(self.game.map.height):
             for x in range(self.game.map.width):
                 terrain = self.game.map.get_terrain_at(y, x)
-                if terrain not in [TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
+                if terrain not in [TerrainType.LECTERN, TerrainType.COAT_RACK,
                                  TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF,
                                  TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE,
                                  TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,

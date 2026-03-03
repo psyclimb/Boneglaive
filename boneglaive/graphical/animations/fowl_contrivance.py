@@ -1178,7 +1178,7 @@ class ParabolAnimationUpgraded(ParabolAnimation):
 
         destructible_terrain = [
             TerrainType.LIMESTONE, TerrainType.PILLAR, TerrainType.MARROW_WALL,
-            TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK, TerrainType.OTTOMAN,
+            TerrainType.LECTERN, TerrainType.COAT_RACK, TerrainType.OTTOMAN,
             TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF, TerrainType.TIFFANY_LAMP,
             TerrainType.STAINED_STONE, TerrainType.EASEL, TerrainType.SCULPTURE,
             TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,

@@ -407,8 +407,8 @@ class UIRenderer:
                     tile = self.game_ui.asset_manager.get_terrain_tile("pillar")
                     color_id = 13  # White for pillars
                 # Different furniture types
-                elif terrain == TerrainType.RADIO_CONSOLE:
-                    tile = self.game_ui.asset_manager.get_terrain_tile("radio_console")
+                elif terrain == TerrainType.LECTERN:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("lectern")
                     color_id = 14  # White for furniture
                     tile_attr = curses.A_DIM  # Dim white/gray via dim attribute
 
