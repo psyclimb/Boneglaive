@@ -36,7 +36,7 @@ from .ui.motor_animation import MotorAnimation
 from .ui.help_page import HelpPage
 from .ui.respawn_window import RespawnWindow
 from .ui.upgrade_window import UpgradeWindow
-from .ui.setup_window import SetupWindow
+from .ui.setup_window import SetupWindow, SetupPlacementBar
 from .ui.setup_unit_help import SetupUnitHelp
 from .ui.game_over_window import GameOverWindow
 from .ui.concede_dialog import ConcedeDialog
@@ -214,6 +214,7 @@ class GraphicalRenderer:
         self.respawn_window = RespawnWindow(self.font, self.small_font)
         self.upgrade_window = UpgradeWindow(self.font, self.small_font)
         self.setup_window = SetupWindow(self.font, self.small_font)
+        self.setup_placement_bar = SetupPlacementBar(self.font, self.small_font)
         self.setup_unit_help = SetupUnitHelp(self.font, self.small_font)
         self.game_over_window = GameOverWindow(self.font, self.small_font, self.large_font)
         self.concede_dialog = ConcedeDialog(self.font, self.small_font)
@@ -810,8 +811,17 @@ class GraphicalRenderer:
                         self.return_to_main_menu()
                     elif action == "exit":
                         self.running = False
-                    # Ignore all other keys when game over window is open
-                    continue
+                    elif action == "minimize":
+                        self.game_over_window.toggle_minimize()
+
+                    # If minimized and no game over action was triggered, allow some keys to pass through
+                    if self.game_over_window.minimized and action is None:
+                        # Allow TAB (unit cycling) and other inspection keys when minimized
+                        # Don't continue - fall through to other key handlers
+                        pass
+                    else:
+                        # Full window mode or game over action was triggered - block all other keys
+                        continue
 
                 # Check if message log window is open
                 if self.message_log_window.visible:
@@ -947,11 +957,14 @@ class GraphicalRenderer:
                             print("Select a unit first to use skills")
 
             elif event.type == pygame.MOUSEMOTION:
+                # Track if we should skip other modal handlers (when game over is minimized)
+                skip_modal_handlers = self.game_over_window.visible and self.game_over_window.minimized
+
                 # Handle concede dialog mouse motion
                 if self.concede_dialog.visible:
                     self.concede_dialog.handle_mouse_motion(event.pos)
-                # Handle game over window mouse motion
-                elif self.game_over_window.visible:
+                # Handle game over window mouse motion (only block when not minimized)
+                elif self.game_over_window.visible and not self.game_over_window.minimized:
                     self.game_over_window.handle_mouse_motion(event.pos)
                 # Handle help page scrollbar dragging
                 elif self.help_page.visible:
@@ -980,9 +993,15 @@ class GraphicalRenderer:
                     grid_pos = self.screen_to_grid(event.pos[0], event.pos[1])
                     if grid_pos:
                         self.setup_ghost_pos = grid_pos
+                    # Update setup placement bar button hover
+                    self.setup_placement_bar.handle_mouse_motion(event.pos)
 
                 # Update hovered grid position
                 self.hovered_grid_pos = self.screen_to_grid(event.pos[0], event.pos[1])
+
+                # Handle minimized game over window button hovers (doesn't block other UI)
+                if skip_modal_handlers:
+                    self.game_over_window.handle_mouse_motion(event.pos)
 
                 # Update UI component hovers
                 if self.show_skills:
@@ -1038,7 +1057,17 @@ class GraphicalRenderer:
                             self.return_to_main_menu()
                         elif action == "exit":
                             self.running = False
-                        continue
+                        elif action == "minimize":
+                            self.game_over_window.toggle_minimize()
+
+                        # If minimized and no button was clicked, allow clicks to pass through
+                        # to message log, unit selection, etc.
+                        if self.game_over_window.minimized and action is None:
+                            # Don't continue - fall through to other click handlers
+                            pass
+                        else:
+                            # Full window mode or button was clicked - block all other interactions
+                            continue
 
                     # Handle help page scrollbar clicks
                     if self.help_page.visible:
@@ -1128,7 +1157,12 @@ class GraphicalRenderer:
                             self.setup_unit_help.update(display_unit)
                         continue
                     elif self.setup_placing_unit:
-                        # Click to place unit at cursor position
+                        # Check if clicking on setup placement bar button first
+                        action = self.setup_placement_bar.handle_mouse_click(event.pos)
+                        if action == "change_unit":
+                            self.return_to_unit_selection()
+                            continue
+                        # Otherwise, click to place unit at cursor position
                         self.confirm_unit_placement()
                         continue
 
@@ -3397,11 +3431,14 @@ class GraphicalRenderer:
             # Update UI
             has_actions = any(u.move_target or u.attack_target or u.skill_target
                             for u in self.game_adapter.game.units if u.is_alive())
+            # Disable action menu when game over window is minimized
+            force_disable_actions = self.game_over_window.visible and self.game_over_window.minimized
             self.action_menu.update(
                 self.game_adapter.game,
                 next_game_unit,
                 self.current_action_mode,
-                has_actions
+                has_actions,
+                force_disable=force_disable_actions
             )
             self.skill_bar.update(next_animated_unit, next_game_unit)
 
@@ -3582,7 +3619,19 @@ class GraphicalRenderer:
         # Draw help page overlay (must be drawn last, on top of everything)
         self.help_page.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
 
-        # Draw message log window (on top of help page)
+        # Draw game over window (before message log so minimized bar appears behind it)
+        if self.game_over_window.visible:
+            self.game_over_window.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
+
+        # Draw setup placement bar (before message log so it appears behind it)
+        if self.setup_placing_unit and self.selected_unit_type:
+            # Get display name for selected unit type
+            unit_display_name = self.setup_window.unit_names.get(self.selected_unit_type, str(self.selected_unit_type))
+            # Get current setup player for border color
+            current_player = self.game_adapter.game.setup_player if self.game_adapter.game else 1
+            self.setup_placement_bar.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT, unit_display_name, current_player)
+
+        # Draw message log window (on top of help page and minimized bars)
         self.message_log_window.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
 
         # Draw upgrade window (on top of everything except help/message log)
@@ -3604,11 +3653,7 @@ class GraphicalRenderer:
             help_panel_height = SCREEN_HEIGHT - 100
             self.setup_help_panel_rect = self.setup_unit_help.draw(self.screen, help_panel_x, help_panel_y, help_panel_width, help_panel_height)
 
-        # Draw game over window (on top of everything - highest z-order)
-        if self.game_over_window.visible:
-            self.game_over_window.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
-
-        # Draw concede dialog (on top of game over window if both visible)
+        # Draw concede dialog (on top of everything except help page and message log)
         if self.concede_dialog.visible:
             self.concede_dialog.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
 
@@ -4263,7 +4308,9 @@ class GraphicalRenderer:
 
             # Update action menu
             has_actions = any(u.move_target or u.attack_target or u.skill_target for u in game.units if u.is_alive())
-            self.action_menu.update(game, selected_game_unit, self.current_action_mode, has_actions)
+            # Disable action menu when game over window is minimized
+            force_disable_actions = self.game_over_window.visible and self.game_over_window.minimized
+            self.action_menu.update(game, selected_game_unit, self.current_action_mode, has_actions, force_disable=force_disable_actions)
 
         # Draw top bar (full width)
         self.top_bar.draw(surface, SCREEN_WIDTH)

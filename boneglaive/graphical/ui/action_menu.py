@@ -539,7 +539,7 @@ class ActionMenu:
         # LOTO system
         self.loto_renderer = LOTORenderer()
 
-    def update(self, game, selected_unit, current_mode: str, has_actions: bool):
+    def update(self, game, selected_unit, current_mode: str, has_actions: bool, force_disable: bool = False):
         """
         Update action menu state.
 
@@ -548,6 +548,7 @@ class ActionMenu:
             selected_unit: Currently selected unit (game unit, not animated unit)
             current_mode: Current action mode string
             has_actions: Whether any units have queued actions
+            force_disable: If True, disable all buttons (e.g., during game over)
         """
         self.current_mode = current_mode.lower() if current_mode else None
         self.has_actions_queued = has_actions
@@ -648,6 +649,12 @@ class ActionMenu:
                 button.enabled = True
                 button.active = False
                 button.blocked_actions = set()
+
+        # Force disable all buttons if requested (e.g., during game over)
+        if force_disable:
+            for button in self.buttons:
+                button.enabled = False
+                button.active = False
 
     def draw(self, surface: pygame.Surface, x: int, y: int):
         """

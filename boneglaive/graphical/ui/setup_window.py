@@ -669,3 +669,100 @@ class SetupWindow:
         text = self.small_font.render(button_text, True, text_color)
         text_rect = text.get_rect(center=self.confirm_button_rect.center)
         screen.blit(text, text_rect)
+
+
+class SetupPlacementBar:
+    """
+    Minimized bar shown during unit placement phase of setup.
+    Allows player to change unit selection without using ESC key.
+    """
+
+    def __init__(self, font, small_font):
+        self.font = font
+        self.small_font = small_font
+
+        # Button state
+        self.hovered_button = False
+        self.button_rect = None
+
+        # Bar dimensions (matches game over minimized bar)
+        self.bar_height = 70
+        self.button_width = 200
+        self.button_height = 40
+
+    def draw(self, screen: pygame.Surface, screen_width: int, screen_height: int, unit_name: str, current_player: int = 1):
+        """
+        Draw the setup placement bar.
+
+        Args:
+            screen: Surface to draw on
+            screen_width: Screen width
+            screen_height: Screen height
+            unit_name: Name of unit being placed
+            current_player: Current player (1 or 2) for border color
+        """
+        # Calculate bar dimensions (fits in center game board area)
+        # Screen layout: LEFT_PANEL (280px) | GAME_BOARD (920px) | RIGHT_PANEL (280px)
+        LEFT_PANEL_WIDTH = 280
+        GAME_BOARD_WIDTH = 920
+        TOP_BAR_HEIGHT = 50
+
+        bar_width = GAME_BOARD_WIDTH - 20  # 900px (leave 10px margins)
+        bar_x = LEFT_PANEL_WIDTH + 10  # 290px (start after left panel with margin)
+        bar_y = TOP_BAR_HEIGHT + 20  # 70px (below top bar with spacing)
+        bar_rect = pygame.Rect(bar_x, bar_y, bar_width, self.bar_height)
+
+        # Draw bar background
+        pygame.draw.rect(screen, COLOR_WINDOW_BG, bar_rect)
+        # Border color matches current player (green for P1, blue for P2)
+        COLOR_PLAYER1 = (100, 255, 100)  # Green
+        COLOR_PLAYER2 = (100, 150, 255)  # Blue
+        player_color = COLOR_PLAYER1 if current_player == 1 else COLOR_PLAYER2
+        pygame.draw.rect(screen, player_color, bar_rect, 3)
+
+        # Draw text on left side of bar
+        text_x = bar_x + 20
+        text_y = bar_y + (self.bar_height - self.font.get_height()) // 2
+
+        # Title text (use player color)
+        placing_text = f"PLACING: {unit_name}"
+        placing_surface = self.font.render(placing_text, True, player_color)
+        screen.blit(placing_surface, (text_x, text_y))
+
+        # Draw button on right side of bar
+        button_x = bar_x + bar_width - self.button_width - 20
+        button_y = bar_y + (self.bar_height - self.button_height) // 2
+        self.button_rect = pygame.Rect(button_x, button_y, self.button_width, self.button_height)
+
+        # Button background
+        button_bg_color = COLOR_BUTTON_HOVER if self.hovered_button else COLOR_BUTTON
+        pygame.draw.rect(screen, button_bg_color, self.button_rect)
+        pygame.draw.rect(screen, COLOR_WINDOW_BORDER, self.button_rect, 2)
+
+        # Button text
+        button_text = "Change Unit (ESC)"
+        button_surface = self.small_font.render(button_text, True, COLOR_TEXT)
+        button_text_x = button_x + (self.button_width - button_surface.get_width()) // 2
+        button_text_y = button_y + (self.button_height - button_surface.get_height()) // 2
+        screen.blit(button_surface, (button_text_x, button_text_y))
+
+    def handle_mouse_motion(self, mouse_pos: Tuple[int, int]):
+        """Handle mouse motion events to update hover state."""
+        if self.button_rect:
+            self.hovered_button = self.button_rect.collidepoint(mouse_pos)
+        else:
+            self.hovered_button = False
+
+    def handle_mouse_click(self, mouse_pos: Tuple[int, int]) -> Optional[str]:
+        """
+        Handle mouse click events.
+
+        Args:
+            mouse_pos: Mouse position tuple
+
+        Returns:
+            "change_unit" if button was clicked, None otherwise
+        """
+        if self.button_rect and self.button_rect.collidepoint(mouse_pos):
+            return "change_unit"
+        return None
