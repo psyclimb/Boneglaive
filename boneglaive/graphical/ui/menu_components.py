@@ -90,6 +90,58 @@ def draw_glaive_icon(surface: pygame.Surface, x: int, y: int, color: Tuple[int, 
         ])
 
 
+def draw_glaive_star_icon(surface: pygame.Surface, x: int, y: int, size: float = 1.0):
+    """Draw a six-pointed glaive star icon. x, y is center position."""
+    import math
+
+    # Scale factor
+    s = size
+    cx = int(x)
+    cy = int(y)
+
+    # Glaive dimensions (scaled)
+    outer_radius = 15 * s
+    inner_radius = 6 * s
+    hub_radius = 4.5 * s
+
+    # Metal colors
+    blade_fill = (168, 168, 176)  # #A8A8B0
+    blade_edge = (192, 192, 200)  # #C0C0C8
+    hub_fill = (139, 111, 71)     # #8B6F47 (wood)
+    hub_stroke = (107, 83, 53)    # #6B5335 (dark wood)
+
+    # Draw 6 blades at 60-degree intervals
+    for i in range(6):
+        angle = math.radians(i * 60)
+
+        # Outer point
+        outer_x = cx + outer_radius * math.cos(angle)
+        outer_y = cy + outer_radius * math.sin(angle)
+
+        # Inner left point (perpendicular)
+        left_angle = angle - math.radians(90)
+        left_x = cx + inner_radius * math.cos(left_angle)
+        left_y = cy + inner_radius * math.sin(left_angle)
+
+        # Inner right point (perpendicular)
+        right_angle = angle + math.radians(90)
+        right_x = cx + inner_radius * math.cos(right_angle)
+        right_y = cy + inner_radius * math.sin(right_angle)
+
+        # Draw blade triangle
+        blade_points = [
+            (outer_x, outer_y),
+            (left_x, left_y),
+            (right_x, right_y)
+        ]
+        pygame.draw.polygon(surface, blade_fill, blade_points)
+        pygame.draw.polygon(surface, blade_edge, blade_points, max(1, int(1 * s)))
+
+    # Draw wooden center hub
+    pygame.draw.circle(surface, hub_fill, (cx, cy), int(hub_radius))
+    pygame.draw.circle(surface, hub_stroke, (cx, cy), int(hub_radius), max(1, int(1 * s)))
+
+
 class MenuPanel:
     """A decorated panel with bone corners and gradient background."""
 
@@ -435,10 +487,9 @@ class Slider:
             )
             pygame.draw.rect(surface, (100, 150, 200), filled_rect)
 
-        # Draw handle
-        handle_color = COLOR_BORDER_HOVER if (self.hovered or self.dragging) else COLOR_BORDER
-        pygame.draw.circle(surface, COLOR_BG, (handle_x, self.rect.centery), self.handle_radius)
-        pygame.draw.circle(surface, handle_color, (handle_x, self.rect.centery), self.handle_radius, 2)
+        # Draw handle (glaive star matching the attack button)
+        glaive_size = 0.8  # Scaled to fit nicely on slider
+        draw_glaive_star_icon(surface, handle_x, self.rect.centery, glaive_size)
 
         # Draw value percentage
         if self.font:
