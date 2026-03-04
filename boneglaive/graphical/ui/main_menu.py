@@ -18,6 +18,7 @@ class MainMenuScreen(MenuScreen):
         super().__init__("Boneglaive", font, large_font)
         self.screen_width = screen_width
         self.screen_height = screen_height
+        self.use_panel = False  # Main menu uses full kaleidoscope background
 
         # Animated background - switch between styles
         # Use KaleidoscopeBackground for geometric patterns

@@ -13,10 +13,14 @@ from boneglaive.utils.config import ConfigManager
 class ProfileSubmenu(MenuScreen):
     """Submenu for profile management."""
 
-    def __init__(self, font: pygame.font.Font, large_font: pygame.font.Font, screen_width: int, screen_height: int):
+    def __init__(self, font: pygame.font.Font, large_font: pygame.font.Font, screen_width: int, screen_height: int, shared_background):
         super().__init__("Profile", font, large_font)
         self.screen_width = screen_width
         self.screen_height = screen_height
+
+        # Use shared kaleidoscope background
+        self.background = shared_background
+        self.background_alpha = 0.15  # Very dim
 
         # Button dimensions
         button_width = 300
@@ -25,7 +29,7 @@ class ProfileSubmenu(MenuScreen):
 
         # Calculate center position
         start_x = (screen_width - button_width) // 2
-        start_y = 200
+        start_y = 250
 
         # Create buttons
         self.buttons = [
@@ -55,7 +59,8 @@ class ProfileSubmenu(MenuScreen):
                 button_width, button_height,
                 "Back",
                 font,
-                lambda: self._set_action("back")
+                lambda: self._set_action("back"),
+                glaive_direction="left"
             )
         ]
 
@@ -64,6 +69,24 @@ class ProfileSubmenu(MenuScreen):
     def _set_action(self, action: str):
         """Set the action result."""
         self._action_result = action
+
+    def update(self, delta_time: float, mouse_pos, mouse_pressed):
+        """Update screen state."""
+        super().update(delta_time, mouse_pos, mouse_pressed)
+        self.background.update(delta_time)
+
+    def draw(self, surface: pygame.Surface):
+        """Draw the menu with dimmed background."""
+        # Draw dimmed kaleidoscope
+        self.background.draw(surface)
+
+        # Draw dark overlay to dim it
+        overlay = pygame.Surface((self.screen_width, self.screen_height), pygame.SRCALPHA)
+        overlay.fill((10, 10, 15, int(255 * (1.0 - self.background_alpha))))
+        surface.blit(overlay, (0, 0))
+
+        # Draw menu elements
+        super().draw(surface)
 
     def handle_event(self, event: pygame.event.Event) -> Optional[str]:
         """Handle events and return action if triggered."""
@@ -97,7 +120,7 @@ class ProfileListScreen(MenuScreen):
 
         # Calculate center position
         start_x = (screen_width - button_width) // 2
-        start_y = 180
+        start_y = 250
 
         # Create buttons for each profile
         self.buttons = []
@@ -127,7 +150,8 @@ class ProfileListScreen(MenuScreen):
                 button_width, button_height,
                 "Back",
                 font,
-                lambda: self._set_action("back")
+                lambda: self._set_action("back"),
+                glaive_direction="left"
             )
         )
 

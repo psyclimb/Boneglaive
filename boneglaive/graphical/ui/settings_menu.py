@@ -13,10 +13,14 @@ from boneglaive.graphical.sound_manager import get_sound_manager
 class SettingsSubmenu(MenuScreen):
     """Submenu for settings."""
 
-    def __init__(self, font: pygame.font.Font, large_font: pygame.font.Font, screen_width: int, screen_height: int):
+    def __init__(self, font: pygame.font.Font, large_font: pygame.font.Font, screen_width: int, screen_height: int, shared_background):
         super().__init__("Settings", font, large_font)
         self.screen_width = screen_width
         self.screen_height = screen_height
+
+        # Use shared kaleidoscope background
+        self.background = shared_background
+        self.background_alpha = 0.15  # Very dim
 
         # Button dimensions
         button_width = 300
@@ -25,7 +29,7 @@ class SettingsSubmenu(MenuScreen):
 
         # Calculate center position
         start_x = (screen_width - button_width) // 2
-        start_y = 200
+        start_y = 250
 
         # Create buttons
         self.buttons = [
@@ -55,7 +59,8 @@ class SettingsSubmenu(MenuScreen):
                 button_width, button_height,
                 "Back",
                 font,
-                lambda: self._set_action("back")
+                lambda: self._set_action("back"),
+                glaive_direction="left"
             )
         ]
 
@@ -64,6 +69,24 @@ class SettingsSubmenu(MenuScreen):
     def _set_action(self, action: str):
         """Set the action result."""
         self._action_result = action
+
+    def update(self, delta_time: float, mouse_pos, mouse_pressed):
+        """Update screen state."""
+        super().update(delta_time, mouse_pos, mouse_pressed)
+        self.background.update(delta_time)
+
+    def draw(self, surface: pygame.Surface):
+        """Draw the menu with dimmed background."""
+        # Draw dimmed kaleidoscope
+        self.background.draw(surface)
+
+        # Draw dark overlay to dim it
+        overlay = pygame.Surface((self.screen_width, self.screen_height), pygame.SRCALPHA)
+        overlay.fill((10, 10, 15, int(255 * (1.0 - self.background_alpha))))
+        surface.blit(overlay, (0, 0))
+
+        # Draw menu elements
+        super().draw(surface)
 
     def handle_event(self, event: pygame.event.Event) -> Optional[str]:
         """Handle events and return action if triggered."""
@@ -98,7 +121,7 @@ class DisplaySettingsScreen(MenuScreen):
 
         # Calculate center position
         start_x = (screen_width - button_width) // 2
-        start_y = 200
+        start_y = 300
 
         # Create buttons
         self.anim_speed_button = Button(
@@ -114,7 +137,8 @@ class DisplaySettingsScreen(MenuScreen):
             button_width, button_height,
             "Back",
             font,
-            lambda: self._set_action("back")
+            lambda: self._set_action("back"),
+            glaive_direction="left"
         )
 
         self.buttons = [self.anim_speed_button, self.back_button]
@@ -191,7 +215,7 @@ class InterfaceSettingsScreen(MenuScreen):
 
         # Calculate center position
         start_x = (screen_width - button_width) // 2
-        start_y = 200
+        start_y = 300
 
         # Create buttons
         self.layout_button = Button(
@@ -207,7 +231,8 @@ class InterfaceSettingsScreen(MenuScreen):
             button_width, button_height,
             "Back",
             font,
-            lambda: self._set_action("back")
+            lambda: self._set_action("back"),
+            glaive_direction="left"
         )
 
         self.buttons = [self.layout_button, self.back_button]
@@ -253,12 +278,19 @@ class InterfaceSettingsScreen(MenuScreen):
 class SoundSettingsScreen(MenuScreen):
     """Screen for sound-related settings."""
 
-    def __init__(self, font: pygame.font.Font, large_font: pygame.font.Font, screen_width: int, screen_height: int):
+    def __init__(self, font: pygame.font.Font, large_font: pygame.font.Font, screen_width: int, screen_height: int, shared_background):
         super().__init__("Sound Settings", font, large_font)
         self.screen_width = screen_width
         self.screen_height = screen_height
         self.config = ConfigManager()
         self.sound_manager = get_sound_manager()
+
+        # Use shared kaleidoscope background
+        self.background = shared_background
+        self.background_alpha = 0.15  # Very dim
+
+        # Disable auto-panel, we'll draw manually
+        self.use_panel = False
 
         # Get current sound settings
         current_volume = self.config.get('sfx_volume', 1.0)
@@ -268,16 +300,17 @@ class SoundSettingsScreen(MenuScreen):
         slider_width = 300
         slider_height = 30
         checkbox_size = 30
-        spacing = 60
+        spacing = 70
 
-        # Calculate positions
+        # Calculate positions (more compact layout)
         center_x = screen_width // 2
-        start_y = 250
+        panel_start_y = 200
+        content_start_y = panel_start_y + 140  # Space for title
 
         # Create volume slider
         self.volume_slider = Slider(
             center_x - slider_width // 2,
-            start_y,
+            content_start_y,
             slider_width,
             slider_height,
             min_value=0.0,
@@ -291,7 +324,7 @@ class SoundSettingsScreen(MenuScreen):
         # Create mute checkbox
         self.mute_checkbox = Checkbox(
             center_x - 100,
-            start_y + spacing,
+            content_start_y + spacing,
             checkbox_size,
             "Mute All Sounds",
             font,
@@ -304,17 +337,22 @@ class SoundSettingsScreen(MenuScreen):
         button_height = 60
         self.back_button = Button(
             (screen_width - button_width) // 2,
-            start_y + spacing * 3,
+            content_start_y + spacing * 2 + 20,
             button_width,
             button_height,
             "Back",
             font,
-            lambda: self._set_action("back")
+            lambda: self._set_action("back"),
+            glaive_direction="left"
         )
 
         # Build button list for base class (exclude slider and checkbox as they have custom handling)
         self.buttons = [self.back_button]
         self._action_result = None
+
+        # Store panel dimensions for manual drawing
+        self.panel_y = panel_start_y
+        self.panel_height = (content_start_y + spacing * 2 + 20 + button_height) - panel_start_y + 40
 
     def _on_volume_change(self, value: float):
         """Handle volume slider change."""
@@ -364,6 +402,9 @@ class SoundSettingsScreen(MenuScreen):
 
     def update(self, delta_time: float, mouse_pos: tuple, mouse_pressed: bool):
         """Update screen state."""
+        # Update background animation
+        self.background.update(delta_time)
+
         # Update slider
         self.volume_slider.update(mouse_pos, mouse_pressed)
 
@@ -374,9 +415,26 @@ class SoundSettingsScreen(MenuScreen):
         super().update(delta_time, mouse_pos, mouse_pressed)
 
     def draw(self, surface: pygame.Surface):
-        """Draw the screen."""
-        # Call parent to draw background and title
-        super().draw(surface)
+        """Draw the screen with manual panel."""
+        import pygame
+        from .menu_components import MenuPanel, COLOR_BG
+
+        # Draw dimmed kaleidoscope
+        self.background.draw(surface)
+
+        # Draw dark overlay to dim it
+        overlay = pygame.Surface((self.screen_width, self.screen_height), pygame.SRCALPHA)
+        overlay.fill((10, 10, 15, int(255 * (1.0 - self.background_alpha))))
+        surface.blit(overlay, (0, 0))
+
+        # Draw decorative background elements
+        self._draw_background_decorations(surface)
+
+        # Draw manual panel
+        panel_width = 500
+        panel_x = (self.screen_width - panel_width) // 2
+        panel = MenuPanel(panel_x, self.panel_y, panel_width, self.panel_height, self.title)
+        panel.draw(surface, self.large_font)
 
         # Draw slider
         self.volume_slider.draw(surface)
@@ -384,4 +442,8 @@ class SoundSettingsScreen(MenuScreen):
         # Draw checkbox
         self.mute_checkbox.draw(surface)
 
-        # Buttons are drawn by parent class
+        # Draw button
+        self.back_button.draw(surface)
+
+        # Draw bottom decorations
+        self._draw_bottom_decorations(surface)

@@ -35,6 +35,10 @@ class MenuManager:
         self.font = pygame.font.Font(None, 32)
         self.large_font = pygame.font.Font(None, 64)
 
+        # Shared kaleidoscope background for all menus (create once)
+        from .kaleidoscope_background import KaleidoscopeBackground
+        self.shared_background = KaleidoscopeBackground(screen_width, screen_height)
+
         # Screen stack for navigation
         self.screen_stack: List = []
 
@@ -118,12 +122,12 @@ class MenuManager:
             self._pop_screen()
 
         elif action == "play":
-            play_submenu = PlaySubmenu(self.font, self.large_font, self.screen_width, self.screen_height)
+            play_submenu = PlaySubmenu(self.font, self.large_font, self.screen_width, self.screen_height, self.shared_background)
             self._push_screen(play_submenu)
 
         elif action == "vs_ai" or action == "local_mp":
             # Game mode was set in the screen, now show map selection
-            map_menu = MapSelectionMenu(self.font, self.large_font, self.screen_width, self.screen_height)
+            map_menu = MapSelectionMenu(self.font, self.large_font, self.screen_width, self.screen_height, self.shared_background)
             self._push_screen(map_menu)
 
         elif action == "start_game":
@@ -132,7 +136,7 @@ class MenuManager:
             self.result = ("start_game", None)
 
         elif action == "profile":
-            profile_submenu = ProfileSubmenu(self.font, self.large_font, self.screen_width, self.screen_height)
+            profile_submenu = ProfileSubmenu(self.font, self.large_font, self.screen_width, self.screen_height, self.shared_background)
             self._push_screen(profile_submenu)
 
         elif action == "select_profile":
@@ -160,7 +164,7 @@ class MenuManager:
                 self._push_screen(stats_screen)
 
         elif action == "settings":
-            settings_submenu = SettingsSubmenu(self.font, self.large_font, self.screen_width, self.screen_height)
+            settings_submenu = SettingsSubmenu(self.font, self.large_font, self.screen_width, self.screen_height, self.shared_background)
             self._push_screen(settings_submenu)
 
         elif action == "display_settings":
@@ -168,7 +172,7 @@ class MenuManager:
             self._push_screen(display_settings)
 
         elif action == "sound_settings":
-            sound_settings = SoundSettingsScreen(self.font, self.large_font, self.screen_width, self.screen_height)
+            sound_settings = SoundSettingsScreen(self.font, self.large_font, self.screen_width, self.screen_height, self.shared_background)
             self._push_screen(sound_settings)
 
         elif action == "interface_settings":
