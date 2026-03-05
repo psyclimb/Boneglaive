@@ -50,12 +50,19 @@ class ProfileSubmenu(MenuScreen):
             Button(
                 start_x, start_y + (button_height + button_spacing) * 2,
                 button_width, button_height,
+                "Delete Profile",
+                font,
+                lambda: self._set_action("delete_profile")
+            ),
+            Button(
+                start_x, start_y + (button_height + button_spacing) * 3,
+                button_width, button_height,
                 "View Stats",
                 font,
                 lambda: self._set_action("view_stats")
             ),
             Button(
-                start_x, start_y + (button_height + button_spacing) * 3,
+                start_x, start_y + (button_height + button_spacing) * 4,
                 button_width, button_height,
                 "Back",
                 font,
@@ -313,3 +320,160 @@ class ProfileStatsScreen(MenuScreen):
         hint_surface = self.font.render(hint, True, (150, 150, 150))
         hint_rect = hint_surface.get_rect(centerx=self.screen_width // 2, bottom=self.screen_height - 40)
         surface.blit(hint_surface, hint_rect)
+
+
+class ProfileDeleteScreen(MenuScreen):
+    """Screen for deleting profiles."""
+
+    def __init__(self, font: pygame.font.Font, large_font: pygame.font.Font, screen_width: int, screen_height: int):
+        super().__init__("Delete Profile", font, large_font)
+        self.screen_width = screen_width
+        self.screen_height = screen_height
+        self.config = ConfigManager()
+
+        # Get available profiles
+        self.profiles = profile_manager.list_profiles()
+
+        # Button dimensions
+        button_width = 300
+        button_height = 50
+        button_spacing = 15
+
+        # Calculate center position
+        start_x = (screen_width - button_width) // 2
+        start_y = 250
+
+        # Create buttons for each profile
+        self.buttons = []
+
+        if not self.profiles:
+            # Show message if no profiles
+            self.no_profiles_message = True
+        else:
+            self.no_profiles_message = False
+            for i, profile_name in enumerate(self.profiles):
+                y_pos = start_y + i * (button_height + button_spacing)
+                self.buttons.append(
+                    Button(
+                        start_x, y_pos,
+                        button_width, button_height,
+                        f"Delete: {profile_name}",
+                        font,
+                        lambda pn=profile_name: self._delete_profile(pn)
+                    )
+                )
+
+        # Add Back button
+        back_y = start_y + len(self.profiles) * (button_height + button_spacing) + 30 if self.profiles else start_y
+        self.buttons.append(
+            Button(
+                start_x, back_y,
+                button_width, button_height,
+                "Back",
+                font,
+                lambda: self._set_action("back"),
+                glaive_direction="left"
+            )
+        )
+
+        self._action_result = None
+        self._message = None
+
+    def _delete_profile(self, profile_name: str):
+        """Delete a profile."""
+        # Check if deleting current profile
+        current_profile = profile_manager.get_current_profile()
+        is_active = current_profile and current_profile.name == profile_name
+
+        # Delete the profile
+        if profile_manager.delete_profile(profile_name):
+            # If we deleted the active profile, clear it
+            if is_active:
+                profile_manager.set_current_profile(None)
+                self.config.set('current_profile', '')
+                self.config.save_config()
+                self._message = f"Active profile '{profile_name}' deleted!"
+            else:
+                self._message = f"Profile '{profile_name}' deleted!"
+
+            # Refresh profile list
+            self.profiles = profile_manager.list_profiles()
+            self._rebuild_buttons()
+        else:
+            self._message = f"Error deleting profile '{profile_name}'"
+
+    def _rebuild_buttons(self):
+        """Rebuild button list after deletion."""
+        button_width = 300
+        button_height = 50
+        button_spacing = 15
+        start_x = (self.screen_width - button_width) // 2
+        start_y = 250
+
+        self.buttons = []
+
+        if not self.profiles:
+            self.no_profiles_message = True
+        else:
+            self.no_profiles_message = False
+            for i, profile_name in enumerate(self.profiles):
+                y_pos = start_y + i * (button_height + button_spacing)
+                self.buttons.append(
+                    Button(
+                        start_x, y_pos,
+                        button_width, button_height,
+                        f"Delete: {profile_name}",
+                        self.font,
+                        lambda pn=profile_name: self._delete_profile(pn)
+                    )
+                )
+
+        # Add Back button
+        back_y = start_y + len(self.profiles) * (button_height + button_spacing) + 30 if self.profiles else start_y
+        self.buttons.append(
+            Button(
+                start_x, back_y,
+                button_width, button_height,
+                "Back",
+                self.font,
+                lambda: self._set_action("back"),
+                glaive_direction="left"
+            )
+        )
+
+    def _set_action(self, action: str):
+        """Set the action result."""
+        self._action_result = action
+
+    def handle_event(self, event: pygame.event.Event) -> Optional[str]:
+        """Handle events and return action if triggered."""
+        super().handle_event(event)
+
+        # Check if action was set by button
+        if self._action_result:
+            action = self._action_result
+            self._action_result = None
+            return action
+
+        return None
+
+    def draw(self, surface: pygame.Surface):
+        """Draw the profile delete screen."""
+        super().draw(surface)
+
+        # Draw no profiles message if needed
+        if self.no_profiles_message:
+            message = "No profiles to delete."
+            message_surface = self.font.render(message, True, COLOR_TEXT)
+            message_rect = message_surface.get_rect(centerx=self.screen_width // 2, top=200)
+            surface.blit(message_surface, message_rect)
+
+        # Draw message if any
+        if self._message:
+            if "Cannot delete" in self._message or "Error" in self._message:
+                color = (255, 100, 100)
+            else:
+                color = (100, 255, 100)
+            msg_surface = self.font.render(self._message, True, color)
+            msg_rect = msg_surface.get_rect(centerx=self.screen_width // 2, bottom=self.screen_height - 60)
+            surface.blit(msg_surface, msg_rect)

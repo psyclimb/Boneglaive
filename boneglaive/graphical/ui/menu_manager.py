@@ -8,9 +8,10 @@ from typing import Optional, List
 from .menu_components import TextInputDialog
 from .main_menu import MainMenuScreen
 from .play_menu import PlaySubmenu, MapSelectionMenu
-from .profile_menu import ProfileSubmenu, ProfileListScreen, ProfileStatsScreen
+from .profile_menu import ProfileSubmenu, ProfileListScreen, ProfileStatsScreen, ProfileDeleteScreen
 from .settings_menu import SettingsSubmenu, DisplaySettingsScreen, SoundSettingsScreen, InterfaceSettingsScreen
 from .about_screen import AboutScreen
+from .how_to_play_screen import HowToPlayScreen
 from boneglaive.game.player_profile import profile_manager
 from boneglaive.utils.config import ConfigManager
 
@@ -153,6 +154,11 @@ class MenuManager:
                 on_cancel=lambda: None
             )
 
+        elif action == "delete_profile":
+            # Show delete profile screen
+            delete_screen = ProfileDeleteScreen(self.font, self.large_font, self.screen_width, self.screen_height)
+            self._push_screen(delete_screen)
+
         elif action == "view_stats":
             # Check if profile is selected
             profile = profile_manager.get_current_profile()
@@ -178,6 +184,10 @@ class MenuManager:
         elif action == "interface_settings":
             interface_settings = InterfaceSettingsScreen(self.font, self.large_font, self.screen_width, self.screen_height)
             self._push_screen(interface_settings)
+
+        elif action == "how_to_play":
+            how_to_play_screen = HowToPlayScreen(self.font, self.large_font, self.screen_width, self.screen_height)
+            self._push_screen(how_to_play_screen)
 
         elif action == "about":
             about_screen = AboutScreen(self.font, self.large_font, self.screen_width, self.screen_height)
