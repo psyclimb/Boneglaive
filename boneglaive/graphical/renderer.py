@@ -51,31 +51,34 @@ from boneglaive.utils.constants import UnitType
 # Import global message log for combat log sync
 from boneglaive.utils.message_log import message_log
 
-# Import config manager for UI layout settings
+# Import config manager for UI layout settings and resolution
 from boneglaive.utils.config import ConfigManager
 
+# Load resolution from config
+config = ConfigManager()
 
-# Screen constants (must match menu system)
-SCREEN_WIDTH = 1480
-SCREEN_HEIGHT = 800
+# Screen constants (now dynamic from config)
+SCREEN_WIDTH = config.get('window_width', 1480)
+SCREEN_HEIGHT = config.get('window_height', 800)
 SCREEN_TITLE = "Boneglaive"
 
-# Layout constants - Dedicated panel design (no overlays)
-TOP_BAR_HEIGHT = 50
-BOTTOM_BAR_HEIGHT = 80
-LEFT_PANEL_WIDTH = 280  # Dedicated left panel
-RIGHT_PANEL_WIDTH = 280  # Dedicated right panel
-GAME_BOARD_WIDTH = SCREEN_WIDTH - LEFT_PANEL_WIDTH - RIGHT_PANEL_WIDTH  # 920px
+# Layout constants - Proportional to resolution (maintaining original design ratios)
+# Original was 1480x800, so we scale proportionally
+TOP_BAR_HEIGHT = int(SCREEN_HEIGHT * 0.0625)  # 50/800 = 6.25%
+BOTTOM_BAR_HEIGHT = int(SCREEN_HEIGHT * 0.1)  # 80/800 = 10%
+LEFT_PANEL_WIDTH = int(SCREEN_WIDTH * 0.189189)  # 280/1480 = ~18.92%
+RIGHT_PANEL_WIDTH = int(SCREEN_WIDTH * 0.189189)  # 280/1480 = ~18.92%
+GAME_BOARD_WIDTH = SCREEN_WIDTH - LEFT_PANEL_WIDTH - RIGHT_PANEL_WIDTH  # Remaining space for game board
 
 # Grid constants - Match game map size (20 cols x 10 rows)
 GRID_WIDTH = 20
 GRID_HEIGHT = 10
 # Tiles scaled to fit in dedicated game board area
-TILE_SIZE = GAME_BOARD_WIDTH // GRID_WIDTH  # 920 / 20 = 46px per tile
-GAME_BOARD_HEIGHT = GRID_HEIGHT * TILE_SIZE  # 10 * 46 = 460px
+TILE_SIZE = GAME_BOARD_WIDTH // GRID_WIDTH  # Dynamically sized per resolution
+GAME_BOARD_HEIGHT = GRID_HEIGHT * TILE_SIZE
 
 # Grid positioned in center area (after left panel)
-GRID_OFFSET_X = LEFT_PANEL_WIDTH  # 280px - right after left panel
+GRID_OFFSET_X = LEFT_PANEL_WIDTH  # After left panel
 GRID_OFFSET_Y = TOP_BAR_HEIGHT + ((SCREEN_HEIGHT - TOP_BAR_HEIGHT - BOTTOM_BAR_HEIGHT - GAME_BOARD_HEIGHT) // 2)  # Centered vertically
 
 # Colors
@@ -131,16 +134,30 @@ class GraphicalRenderer:
         pygame.display.set_caption(SCREEN_TITLE)
         self.clock = pygame.time.Clock()
 
-        # Fonts - use Arial (most widely available across all platforms)
+        # Fonts - scale with resolution (base sizes for 800p height)
+        # Scale fonts based on screen height to maintain readability
+        font_scale = SCREEN_HEIGHT / 800.0
+
+        # Calculate font sizes with minimum thresholds for readability
+        font_size = max(12, int(22 * font_scale))
+        small_font_size = max(10, int(16 * font_scale))
+        large_font_size = max(16, int(32 * font_scale))
+
+        # Use Arial (most widely available across all platforms)
         try:
-            self.font = pygame.font.SysFont('arial', 22)
-            self.small_font = pygame.font.SysFont('arial', 16)
-            self.large_font = pygame.font.SysFont('arial', 32)
+            self.font = pygame.font.SysFont('arial', font_size)
+            self.small_font = pygame.font.SysFont('arial', small_font_size)
+            self.large_font = pygame.font.SysFont('arial', large_font_size)
         except:
             # Fallback to default if Arial not available
-            self.font = pygame.font.Font(None, 22)
-            self.small_font = pygame.font.Font(None, 16)
-            self.large_font = pygame.font.Font(None, 32)
+            self.font = pygame.font.Font(None, font_size)
+            self.small_font = pygame.font.Font(None, small_font_size)
+            self.large_font = pygame.font.Font(None, large_font_size)
+
+        # Store font sizes for UI components
+        self.font_size = font_size
+        self.small_font_size = small_font_size
+        self.large_font_size = large_font_size
 
         # Camera system (centralizes coordinate conversion)
         self.camera = Camera(

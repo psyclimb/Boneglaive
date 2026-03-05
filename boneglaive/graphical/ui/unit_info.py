@@ -21,11 +21,15 @@ COLOR_HP_BAR_LOW = (255, 100, 100)
 COLOR_STAT_LABEL = (180, 160, 165)  # Muted bone
 COLOR_BORDER = (90, 84, 79)  # Metal border
 
-PANEL_WIDTH = 264  # Fits in 280px panel width
-PANEL_HEIGHT = 440  # Expanded to fill available space below unit status bar
-PANEL_PADDING = 10
-LINE_HEIGHT = 18
-HP_BAR_HEIGHT = 20
+# Import scaling utilities
+from .scale_utils import scale_manager
+
+# Scale panel dimensions based on resolution
+PANEL_WIDTH = scale_manager.unit_info_width
+PANEL_HEIGHT = scale_manager.scale(440, 'y')
+PANEL_PADDING = scale_manager.scale(10)
+LINE_HEIGHT = scale_manager.scale(18, 'y')
+HP_BAR_HEIGHT = scale_manager.scale(20, 'y')
 
 
 class UnitInfoPanel:

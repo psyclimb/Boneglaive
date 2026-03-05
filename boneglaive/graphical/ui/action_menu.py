@@ -26,10 +26,14 @@ COLOR_HOTKEY = (255, 200, 100)
 COLOR_EXECUTE = (100, 255, 100)
 COLOR_DANGER = (255, 100, 100)
 
-BUTTON_WIDTH = 264  # Fits in 280px panel
-BUTTON_HEIGHT = 40  # Slightly smaller
-BUTTON_SPACING = 6  # Tighter spacing
-MENU_PADDING = 8
+# Import scaling utilities
+from .scale_utils import scale_manager
+
+# Scale button dimensions based on resolution
+BUTTON_WIDTH = scale_manager.button_width
+BUTTON_HEIGHT = scale_manager.button_height
+BUTTON_SPACING = scale_manager.button_spacing
+MENU_PADDING = scale_manager.scale(8)
 
 
 class ActionButton:

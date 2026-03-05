@@ -18,9 +18,13 @@ COLOR_TEXT_DIM = (180, 160, 165)  # Muted bone
 COLOR_ACCENT = (255, 200, 100)
 COLOR_BORDER = (90, 84, 79)  # Metal border
 
-TOP_BAR_HEIGHT = 60
-SECTION_PADDING = 20
-TEXT_PADDING = 15
+# Import scaling utilities
+from .scale_utils import scale_manager
+
+# Scale bar dimensions based on resolution
+TOP_BAR_HEIGHT = scale_manager.scale(60, 'y')
+SECTION_PADDING = scale_manager.scale(20)
+TEXT_PADDING = scale_manager.scale(15)
 
 
 class TopBar:

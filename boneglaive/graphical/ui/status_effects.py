@@ -21,11 +21,15 @@ COLOR_HOVER_TOP = (90, 74, 79)  # Hover gradient top
 COLOR_HOVER_BOTTOM = (64, 48, 53)  # Hover gradient bottom
 COLOR_BORDER = (90, 84, 79)  # Metal border
 
-PANEL_WIDTH = 350
-PANEL_PADDING = 10
-EFFECT_HEIGHT = 50
-ICON_SIZE = 36
-SPACING = 8
+# Import scaling utilities
+from .scale_utils import scale_manager
+
+# Scale panel dimensions based on resolution
+PANEL_WIDTH = scale_manager.scale(350, 'x')
+PANEL_PADDING = scale_manager.scale(10)
+EFFECT_HEIGHT = scale_manager.scale(50, 'y')
+ICON_SIZE = scale_manager.status_icon_size
+SPACING = scale_manager.scale(8)
 
 
 # Status effect definitions: maps unit properties to display information

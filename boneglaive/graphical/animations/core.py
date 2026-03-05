@@ -16,7 +16,18 @@ import os
 
 
 # Constants (shared across all modules)
-TILE_SIZE = 46  # Scaled down to fit dedicated UI panels (920px / 20 tiles)
+# TILE_SIZE is now dynamically calculated based on resolution
+# Import it from the renderer to stay in sync
+def _get_tile_size():
+    """Get dynamic tile size from config-based calculations."""
+    from boneglaive.utils.config import ConfigManager
+    config = ConfigManager()
+    screen_width = config.get('window_width', 1480)
+    left_panel_ratio = 0.189189  # 280/1480
+    game_board_width = screen_width * (1 - 2 * left_panel_ratio)
+    return int(game_board_width // 20)  # 20 tiles wide
+
+TILE_SIZE = _get_tile_size()
 
 # Attack animation colors
 COLOR_MELEE_SLASH = (255, 200, 100)  # Orange-yellow for melee slash

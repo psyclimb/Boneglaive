@@ -19,13 +19,16 @@ COLOR_HEADING = (255, 200, 100)
 COLOR_SKILL_NAME = (100, 200, 255)
 COLOR_SEPARATOR = (60, 64, 72)
 
-# Layout constants
-MARGIN = 30
-CONTENT_WIDTH = 700
-ICON_SIZE = 40
-LINE_SPACING = 24
-PARAGRAPH_SPACING = 12
-SECTION_SPACING = 20
+# Import scaling utilities
+from .scale_utils import scale_manager
+
+# Scale layout constants based on resolution
+MARGIN = scale_manager.scale(30)
+CONTENT_WIDTH = scale_manager.scale(700, 'x')
+ICON_SIZE = scale_manager.scale(40, 'uniform')
+LINE_SPACING = scale_manager.scale(24, 'y')
+PARAGRAPH_SPACING = scale_manager.scale(12, 'y')
+SECTION_SPACING = scale_manager.scale(20, 'y')
 
 
 class HelpPage:

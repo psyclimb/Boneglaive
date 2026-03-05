@@ -31,10 +31,14 @@ COLOR_GREEN = (100, 255, 150)
 COLOR_GOLD = (255, 215, 0)
 COLOR_BLUE = (100, 150, 255)
 
-WINDOW_WIDTH = 800
-WINDOW_HEIGHT = 650
-ITEM_HEIGHT = 110
-ITEM_PADDING = 15
+# Import scaling utilities
+from .scale_utils import scale_manager
+
+# Scale window dimensions based on resolution
+WINDOW_WIDTH = scale_manager.scale(800, 'x')
+WINDOW_HEIGHT = scale_manager.scale(650, 'y')
+ITEM_HEIGHT = scale_manager.scale(110, 'y')
+ITEM_PADDING = scale_manager.scale(15)
 
 
 class UpgradeWindow:

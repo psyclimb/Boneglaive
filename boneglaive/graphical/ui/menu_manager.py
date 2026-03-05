@@ -21,10 +21,16 @@ class MenuManager:
     Manages the menu system with stack-based navigation.
     """
 
-    def __init__(self, screen_width: int = 1480, screen_height: int = 800):
+    def __init__(self, screen_width: int = None, screen_height: int = None):
+        self.config = ConfigManager()
+
+        # Load resolution from config if not provided
+        if screen_width is None or screen_height is None:
+            screen_width = self.config.get('window_width', 1480)
+            screen_height = self.config.get('window_height', 800)
+
         self.screen_width = screen_width
         self.screen_height = screen_height
-        self.config = ConfigManager()
 
         # Initialize pygame and create display surface
         pygame.init()
@@ -32,9 +38,13 @@ class MenuManager:
         pygame.display.set_caption("Boneglaive")
         self.clock = pygame.time.Clock()
 
-        # Fonts
-        self.font = pygame.font.Font(None, 32)
-        self.large_font = pygame.font.Font(None, 64)
+        # Fonts - scale with resolution
+        font_scale = screen_height / 800.0
+        font_size = max(16, int(32 * font_scale))
+        large_font_size = max(32, int(64 * font_scale))
+
+        self.font = pygame.font.Font(None, font_size)
+        self.large_font = pygame.font.Font(None, large_font_size)
 
         # Shared kaleidoscope background for all menus (create once)
         from .kaleidoscope_background import KaleidoscopeBackground

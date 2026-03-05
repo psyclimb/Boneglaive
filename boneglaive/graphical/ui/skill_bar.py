@@ -23,11 +23,15 @@ COLOR_TEXT_DISABLED = (120, 120, 120)
 COLOR_HOTKEY = (255, 200, 100)
 COLOR_COOLDOWN = (255, 100, 100)
 
-SKILL_SLOT_WIDTH = 220
-SKILL_SLOT_HEIGHT = 70
-SKILL_SLOT_PADDING = 10
-SKILL_BAR_PADDING = 20
-SKILL_ICON_SIZE = 50  # Size of skill icons
+# Import scaling utilities
+from .scale_utils import scale_manager
+
+# Scale skill bar dimensions based on resolution
+SKILL_SLOT_WIDTH = scale_manager.skill_slot_width
+SKILL_SLOT_HEIGHT = scale_manager.skill_slot_height
+SKILL_SLOT_PADDING = scale_manager.skill_slot_padding
+SKILL_BAR_PADDING = scale_manager.scale(20)
+SKILL_ICON_SIZE = scale_manager.skill_icon_size
 
 
 class SkillSlot:

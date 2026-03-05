@@ -36,11 +36,15 @@ COLOR_BUTTON_DISABLED = (50, 50, 50)
 COLOR_BONE = (224, 213, 197)  # Bone decorations
 COLOR_BONE_DARK = (139, 115, 85)  # Bone shadow
 
-WINDOW_WIDTH = 500
-WINDOW_HEIGHT = 700
-ITEM_HEIGHT = 55
-ITEM_PADDING = 8
-SCROLL_SPEED = 3
+# Import scaling utilities
+from .scale_utils import scale_manager
+
+# Scale window dimensions based on resolution
+WINDOW_WIDTH = scale_manager.scale(500, 'x')
+WINDOW_HEIGHT = scale_manager.scale(700, 'y')
+ITEM_HEIGHT = scale_manager.scale(55, 'y')
+ITEM_PADDING = scale_manager.scale(8)
+SCROLL_SPEED = scale_manager.scale(3, 'y')
 
 
 def draw_bone_corner(surface: pygame.Surface, x: int, y: int, radius: int):

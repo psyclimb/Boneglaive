@@ -24,10 +24,14 @@ COLOR_TEXT_HEAL = (255, 255, 255)  # White - healing numbers
 COLOR_TEXT_PLAYER1 = (100, 255, 100)  # Green - Player 1 messages
 COLOR_TEXT_PLAYER2 = (100, 150, 255)  # Blue - Player 2 messages
 
-LOG_WIDTH = 900  # Horizontal bar spanning game board width
-LOG_HEIGHT = 90  # Maximum height fitting below map
-LOG_PADDING = 8
-LINE_HEIGHT = 16  # Tighter line spacing
+# Import scaling utilities
+from .scale_utils import scale_manager
+
+# Scale log dimensions based on resolution
+LOG_WIDTH = scale_manager.scale(900, 'x')
+LOG_HEIGHT = scale_manager.scale(90, 'y')
+LOG_PADDING = scale_manager.scale(8)
+LINE_HEIGHT = scale_manager.scale(16, 'y')
 
 # Pre-compile regex patterns for performance (don't recompile every frame!)
 import re

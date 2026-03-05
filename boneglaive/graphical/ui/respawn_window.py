@@ -19,11 +19,15 @@ COLOR_HOVER = (50, 54, 62)
 COLOR_GOLD = (255, 215, 0)
 COLOR_INFO = (180, 200, 220)
 
-WINDOW_WIDTH = 500
-WINDOW_HEIGHT = 400
-ITEM_HEIGHT = 60
-ITEM_PADDING = 10
-SCROLL_SPEED = 3
+# Import scaling utilities
+from .scale_utils import scale_manager
+
+# Scale window dimensions based on resolution
+WINDOW_WIDTH = scale_manager.scale(500, 'x')
+WINDOW_HEIGHT = scale_manager.scale(400, 'y')
+ITEM_HEIGHT = scale_manager.scale(60, 'y')
+ITEM_PADDING = scale_manager.scale(10)
+SCROLL_SPEED = scale_manager.scale(3, 'y')
 
 
 class RespawnWindow:

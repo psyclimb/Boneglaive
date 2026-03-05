@@ -26,14 +26,18 @@ COLOR_HP_BAR_FULL = (100, 255, 100)
 COLOR_HP_BAR_MID = (255, 200, 100)
 COLOR_HP_BAR_LOW = (255, 100, 100)
 
-PANEL_WIDTH = 280  # Narrower panel
-UNIT_CARD_WIDTH = 84  # Slightly smaller cards
-UNIT_CARD_HEIGHT = 70  # Increased height to fit sprite + text
-CARD_PADDING = 6  # Tighter spacing
+# Import scaling utilities
+from .scale_utils import scale_manager
+
+# Scale panel dimensions based on resolution
+PANEL_WIDTH = scale_manager.left_panel_width
+UNIT_CARD_WIDTH = scale_manager.scale(84, 'x')
+UNIT_CARD_HEIGHT = scale_manager.scale(70, 'y')
+CARD_PADDING = scale_manager.scale(6)
 CARDS_PER_ROW = 3
-TITLE_HEIGHT = 35  # More space between title and cards
-HP_BAR_HEIGHT = 4
-SPRITE_SIZE = 32  # Size of unit sprite in card
+TITLE_HEIGHT = scale_manager.scale(35, 'y')
+HP_BAR_HEIGHT = scale_manager.scale(4, 'y')
+SPRITE_SIZE = scale_manager.scale(32, 'uniform')
 
 
 class UnitCard:
