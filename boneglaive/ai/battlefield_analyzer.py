@@ -217,10 +217,12 @@ class BattlefieldAnalyzer:
             score += stats['attack'] * 0.5  # Attack damage contributes to priority
 
             # Factor 3: Proximity to AI units (reachable targets)
-            min_distance = min(self.game.chess_distance(enemy.y, enemy.x, ally.y, ally.x)
-                             for ally in analysis.ai_units)
-            proximity_score = max(15 - min_distance, 0)
-            score += proximity_score
+            # Only calculate if AI has units alive (prevents min() on empty sequence)
+            if analysis.ai_units:
+                min_distance = min(self.game.chess_distance(enemy.y, enemy.x, ally.y, ally.x)
+                                 for ally in analysis.ai_units)
+                proximity_score = max(15 - min_distance, 0)
+                score += proximity_score
 
             # Factor 4: Isolated units (easier to kill without support)
             if len(analysis.enemy_units) > 1:
