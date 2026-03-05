@@ -6,8 +6,10 @@ Displays scrolling log of game actions and events.
 import pygame
 from typing import List, Dict, Optional
 
-# Colors - matching ASCII version color scheme
-COLOR_BG = (30, 34, 42)
+# Colors - matching bone/industrial theme
+COLOR_BG_TOP = (42, 42, 47)  # Panel top
+COLOR_BG_BOTTOM = (26, 26, 31)  # Panel bottom (gradient)
+COLOR_BORDER = (90, 84, 79)  # Metal border
 COLOR_TEXT_SYSTEM = (200, 200, 200)  # Gray - default/system messages
 COLOR_TEXT_COMBAT = (255, 200, 100)  # Orange - combat messages (deprecated, use player colors)
 COLOR_TEXT_ABILITY = (200, 150, 255)  # Light purple - ability messages (deprecated, use player colors)
@@ -203,16 +205,18 @@ class CombatLog:
         # Draw background panel using cached surface
         panel_rect = pygame.Rect(x, y, log_width, log_height)
 
-        # Create or reuse cached panel surface
+        # Create or reuse cached panel surface with gradient
+        from .menu_components import draw_gradient_rect
         if self._cached_panel is None or self._cached_panel_size != (log_width, log_height):
             self._cached_panel = pygame.Surface((log_width, log_height), pygame.SRCALPHA)
-            self._cached_panel.fill((*COLOR_BG, 220))
+            temp_rect = pygame.Rect(0, 0, log_width, log_height)
+            draw_gradient_rect(self._cached_panel, temp_rect, COLOR_BG_TOP, COLOR_BG_BOTTOM, alpha=220)
             self._cached_panel_size = (log_width, log_height)
 
         surface.blit(self._cached_panel, (panel_rect.x, panel_rect.y))
 
         # Draw border
-        pygame.draw.rect(surface, (100, 100, 100), panel_rect, 2)
+        pygame.draw.rect(surface, COLOR_BORDER, panel_rect, 2, border_radius=5)
 
         # Horizontal layout: show recent messages (fit as many as possible)
         max_lines = (log_height - LOG_PADDING * 2) // LINE_HEIGHT  # Calculate based on height

@@ -7,17 +7,19 @@ import pygame
 from typing import Optional
 from .font_utils import render_fitted_text
 
-# Colors
-COLOR_BG = (30, 34, 42)
+# Colors - matching bone/industrial theme
+COLOR_BG_TOP = (42, 42, 47)  # Panel top
+COLOR_BG_BOTTOM = (26, 26, 31)  # Panel bottom (gradient)
 COLOR_PLAYER1 = (100, 255, 100)  # Green
 COLOR_PLAYER2 = (100, 150, 255)  # Blue
-COLOR_TEXT = (255, 255, 255)
-COLOR_TEXT_DIM = (180, 180, 180)
+COLOR_TEXT = (240, 232, 216)  # Bone white text
+COLOR_TEXT_DIM = (180, 160, 165)  # Muted bone
 COLOR_HP_BAR_BG = (60, 60, 60)
 COLOR_HP_BAR_FULL = (100, 255, 100)
 COLOR_HP_BAR_MID = (255, 200, 100)
 COLOR_HP_BAR_LOW = (255, 100, 100)
-COLOR_STAT_LABEL = (150, 150, 150)
+COLOR_STAT_LABEL = (180, 160, 165)  # Muted bone
+COLOR_BORDER = (90, 84, 79)  # Metal border
 
 PANEL_WIDTH = 264  # Fits in 280px panel width
 PANEL_HEIGHT = 440  # Expanded to fill available space below unit status bar
@@ -79,15 +81,14 @@ class UnitInfoPanel:
         if not self.selected_unit or not self.game_unit:
             return
 
-        # Draw background panel
+        # Draw background panel with gradient
+        from .menu_components import draw_gradient_rect
         panel_rect = pygame.Rect(x, y, PANEL_WIDTH, PANEL_HEIGHT)
-        panel_surface = pygame.Surface((PANEL_WIDTH, PANEL_HEIGHT), pygame.SRCALPHA)
-        panel_surface.fill((*COLOR_BG, 220))
-        surface.blit(panel_surface, (panel_rect.x, panel_rect.y))
+        draw_gradient_rect(surface, panel_rect, COLOR_BG_TOP, COLOR_BG_BOTTOM, alpha=220)
 
         # Draw border with player color
         player_color = COLOR_PLAYER1 if self.game_unit.player == 1 else COLOR_PLAYER2
-        pygame.draw.rect(surface, player_color, panel_rect, 3)
+        pygame.draw.rect(surface, player_color, panel_rect, 3, border_radius=5)
 
         current_y = y + PANEL_PADDING
 
@@ -518,15 +519,14 @@ class UnitInfoPanel:
             return
 
         # Smaller panel for furniture (no stats to show)
+        from .menu_components import draw_gradient_rect
         panel_height = 150 if self.furniture_info.get('astral_value') else 120
         panel_rect = pygame.Rect(x, y, PANEL_WIDTH, panel_height)
-        panel_surface = pygame.Surface((PANEL_WIDTH, panel_height), pygame.SRCALPHA)
-        panel_surface.fill((*COLOR_BG, 220))
-        surface.blit(panel_surface, (panel_rect.x, panel_rect.y))
+        draw_gradient_rect(surface, panel_rect, COLOR_BG_TOP, COLOR_BG_BOTTOM, alpha=220)
 
         # Draw border (neutral color for furniture)
         furniture_color = (180, 150, 100)  # Brown/tan color
-        pygame.draw.rect(surface, furniture_color, panel_rect, 3)
+        pygame.draw.rect(surface, furniture_color, panel_rect, 3, border_radius=5)
 
         current_y = y + PANEL_PADDING
 

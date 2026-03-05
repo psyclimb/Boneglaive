@@ -9,15 +9,17 @@ from typing import List, Optional, Tuple, Dict
 from boneglaive.utils.constants import UNIT_SYMBOLS
 from .font_utils import render_fitted_text
 
-# Colors
-COLOR_BG = (30, 34, 42)
+# Colors - matching bone/industrial theme
+COLOR_BG_TOP = (42, 42, 47)  # Panel top
+COLOR_BG_BOTTOM = (26, 26, 31)  # Panel bottom (gradient)
 COLOR_PLAYER1 = (100, 255, 100)  # Green
 COLOR_PLAYER2 = (100, 150, 255)  # Blue
-COLOR_TEXT = (255, 255, 255)
-COLOR_TEXT_DIM = (180, 180, 180)
-COLOR_BORDER_ACTIVE = (150, 150, 150)
-COLOR_BORDER_ACTED = (80, 80, 80)
-COLOR_BORDER_SELECTED = (255, 200, 100)
+COLOR_TEXT = (240, 232, 216)  # Bone white text
+COLOR_TEXT_DIM = (180, 160, 165)  # Muted bone
+COLOR_BORDER = (90, 84, 79)  # Metal border
+COLOR_BORDER_ACTIVE = (184, 168, 149)  # Bone border for active
+COLOR_BORDER_ACTED = (70, 70, 70)  # Darker for acted units
+COLOR_BORDER_SELECTED = (255, 200, 100)  # Gold for selected
 COLOR_BORDER_DEAD = (60, 60, 60)
 COLOR_HP_BAR_BG = (40, 40, 40)
 COLOR_HP_BAR_FULL = (100, 255, 100)
@@ -160,14 +162,26 @@ class UnitCard:
             border_color = COLOR_BORDER_ACTED
             bg_alpha = 180
 
-        # Draw background
-        bg_surface = pygame.Surface((UNIT_CARD_WIDTH, UNIT_CARD_HEIGHT), pygame.SRCALPHA)
-        bg_surface.fill((*COLOR_BG, bg_alpha))
-        surface.blit(bg_surface, (x, y))
+        # Draw shadow (2px offset)
+        shadow_rect = self.rect.copy()
+        shadow_rect.x += 2
+        shadow_rect.y += 2
+        shadow_surf = pygame.Surface((shadow_rect.width, shadow_rect.height), pygame.SRCALPHA)
+        pygame.draw.rect(shadow_surf, (0, 0, 0, 60), shadow_surf.get_rect(), border_radius=3)
+        surface.blit(shadow_surf, shadow_rect.topleft)
+
+        # Draw gradient background
+        from .menu_components import draw_gradient_rect, draw_glow_rect
+        draw_gradient_rect(surface, self.rect, COLOR_BG_TOP, COLOR_BG_BOTTOM, alpha=bg_alpha)
+
+        # Draw glow effect if hovered or selected
+        if self.hovered or is_selected:
+            glow_color = (255, 170, 119) if self.hovered else border_color
+            draw_glow_rect(surface, self.rect, glow_color, intensity=0.4, width=1)
 
         # Draw border (thicker if hovered or selected)
         border_width = 3 if (self.hovered or is_selected) else 2
-        pygame.draw.rect(surface, border_color, self.rect, border_width)
+        pygame.draw.rect(surface, border_color, self.rect, border_width, border_radius=3)
 
         # Draw unit sprite at top (if available)
         sprite_y_offset = 5

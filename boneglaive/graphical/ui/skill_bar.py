@@ -9,14 +9,16 @@ from typing import Optional, List, Tuple, Dict, Set
 from .font_utils import render_fitted_text
 from .loto_system import LOTORenderer
 
-# Colors
-COLOR_BG = (30, 34, 42)
-COLOR_BG_HOVER = (50, 54, 62)
-COLOR_BG_SELECTED = (60, 100, 140)
+# Colors - matching bone/industrial theme from main menu
+COLOR_BG_TOP = (74, 74, 79)  # Metal gradient top
+COLOR_BG_BOTTOM = (50, 50, 55)  # Metal gradient bottom
+COLOR_BG_HOVER_TOP = (90, 74, 79)  # Warmer hover gradient top
+COLOR_BG_HOVER_BOTTOM = (64, 48, 53)  # Warmer hover gradient bottom
 COLOR_BG_DISABLED = (40, 40, 40)
-COLOR_BORDER = (100, 100, 100)
-COLOR_BORDER_HOVER = (150, 150, 150)
-COLOR_TEXT = (255, 255, 255)
+COLOR_BORDER = (90, 84, 79)  # Metal border
+COLOR_BORDER_HOVER = (184, 168, 149)  # Bone border on hover
+COLOR_BORDER_GLOW = (255, 170, 119)  # Orange glow
+COLOR_TEXT = (240, 232, 216)  # Bone white text
 COLOR_TEXT_DISABLED = (120, 120, 120)
 COLOR_HOTKEY = (255, 200, 100)
 COLOR_COOLDOWN = (255, 100, 100)
@@ -90,6 +92,8 @@ class SkillSlot:
 
     def draw(self, surface: pygame.Surface, x: int, y: int, font, small_font, loto_renderer: Optional[LOTORenderer] = None):
         """Draw the skill slot."""
+        from .menu_components import draw_gradient_rect, draw_glow_rect
+
         # Create rect
         self.rect = pygame.Rect(x, y, SKILL_SLOT_WIDTH, SKILL_SLOT_HEIGHT)
 
@@ -98,25 +102,43 @@ class SkillSlot:
         if self.game_unit and hasattr(self.game_unit, 'upgraded_skills'):
             is_upgraded = self.skill.name in self.game_unit.upgraded_skills
 
-        # Determine background color
+        # Determine gradient colors
         if not self.is_available():
-            bg_color = COLOR_BG_DISABLED
+            bg_top = COLOR_BG_DISABLED
+            bg_bottom = COLOR_BG_DISABLED
+            show_glow = False
         elif self.hovered:
-            bg_color = COLOR_BG_HOVER
+            bg_top = COLOR_BG_HOVER_TOP
+            bg_bottom = COLOR_BG_HOVER_BOTTOM
+            show_glow = True
         else:
-            bg_color = COLOR_BG
+            bg_top = COLOR_BG_TOP
+            bg_bottom = COLOR_BG_BOTTOM
+            show_glow = False
 
-        # Draw background
-        pygame.draw.rect(surface, bg_color, self.rect)
+        # Draw shadow (2px offset)
+        shadow_rect = self.rect.copy()
+        shadow_rect.x += 2
+        shadow_rect.y += 2
+        shadow_surf = pygame.Surface((shadow_rect.width, shadow_rect.height), pygame.SRCALPHA)
+        pygame.draw.rect(shadow_surf, (0, 0, 0, 76), shadow_surf.get_rect(), border_radius=5)
+        surface.blit(shadow_surf, shadow_rect.topleft)
 
-        # Draw border (gold if upgraded)
+        # Draw gradient background
+        draw_gradient_rect(surface, self.rect, bg_top, bg_bottom)
+
+        # Draw glow effect on hover
+        if show_glow:
+            draw_glow_rect(surface, self.rect, COLOR_BORDER_GLOW, intensity=0.5, width=1)
+
+        # Draw border (gold if upgraded, bone if hovered, metal otherwise)
         if is_upgraded:
-            border_color = (255, 215, 0)  # Gold
+            border_color = (255, 215, 0)  # Gold for upgraded skills
         elif self.hovered:
             border_color = COLOR_BORDER_HOVER
         else:
             border_color = COLOR_BORDER
-        pygame.draw.rect(surface, border_color, self.rect, 2)
+        pygame.draw.rect(surface, border_color, self.rect, 2, border_radius=5)
 
         # Draw hotkey in top-left
         text_color = COLOR_TEXT_DISABLED if not self.is_available() else COLOR_HOTKEY
@@ -278,17 +300,6 @@ class SkillBar:
         # Center horizontally in middle section (between left and right panels)
         start_x = (screen_width - total_width) // 2 + SKILL_BAR_PADDING
         y = top_bar_height + 15  # Below top bar with more spacing
-
-        # Draw background panel
-        panel_rect = pygame.Rect(
-            start_x - SKILL_BAR_PADDING,
-            y - 10,
-            total_width,
-            SKILL_SLOT_HEIGHT + 20
-        )
-        panel_surface = pygame.Surface((panel_rect.width, panel_rect.height), pygame.SRCALPHA)
-        panel_surface.fill((*COLOR_BG, 200))
-        surface.blit(panel_surface, (panel_rect.x, panel_rect.y))
 
         # Draw each skill slot
         x = start_x

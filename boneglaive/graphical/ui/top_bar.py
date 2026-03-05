@@ -8,13 +8,15 @@ import time
 from typing import Optional
 from .font_utils import render_fitted_text
 
-# Colors
-COLOR_BG = (30, 34, 42)
+# Colors - matching bone/industrial theme
+COLOR_BG_TOP = (42, 42, 47)  # Panel top
+COLOR_BG_BOTTOM = (26, 26, 31)  # Panel bottom (gradient)
 COLOR_PLAYER1 = (100, 255, 100)  # Green
 COLOR_PLAYER2 = (100, 150, 255)  # Blue
-COLOR_TEXT = (255, 255, 255)
-COLOR_TEXT_DIM = (180, 180, 180)
+COLOR_TEXT = (240, 232, 216)  # Bone white text
+COLOR_TEXT_DIM = (180, 160, 165)  # Muted bone
 COLOR_ACCENT = (255, 200, 100)
+COLOR_BORDER = (90, 84, 79)  # Metal border
 
 TOP_BAR_HEIGHT = 60
 SECTION_PADDING = 20
@@ -89,16 +91,19 @@ class TopBar:
             surface: Surface to draw on
             screen_width: Width of screen
         """
-        # Draw background
+        # Draw background with gradient
+        from .menu_components import draw_gradient_rect
         bg_rect = pygame.Rect(0, 0, screen_width, TOP_BAR_HEIGHT)
-        bg_surface = pygame.Surface((screen_width, TOP_BAR_HEIGHT), pygame.SRCALPHA)
-        bg_surface.fill((*COLOR_BG, 240))
-        surface.blit(bg_surface, (0, 0))
+        draw_gradient_rect(surface, bg_rect, COLOR_BG_TOP, COLOR_BG_BOTTOM, alpha=240)
 
-        # Draw gradient border at bottom
-        player_color = COLOR_PLAYER1 if self.current_player == 1 else COLOR_PLAYER2
-        pygame.draw.line(surface, player_color, (0, TOP_BAR_HEIGHT - 1),
+        # Draw border at bottom
+        pygame.draw.line(surface, COLOR_BORDER, (0, TOP_BAR_HEIGHT - 1),
                         (screen_width, TOP_BAR_HEIGHT - 1), 2)
+
+        # Draw player indicator line at bottom
+        player_color = COLOR_PLAYER1 if self.current_player == 1 else COLOR_PLAYER2
+        pygame.draw.line(surface, player_color, (0, TOP_BAR_HEIGHT - 3),
+                        (screen_width, TOP_BAR_HEIGHT - 3), 1)
 
         # Calculate section positions
         left_section_start = SECTION_PADDING

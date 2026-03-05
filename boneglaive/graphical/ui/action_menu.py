@@ -8,15 +8,19 @@ from typing import Optional, Tuple, Callable, Set
 from .font_utils import render_fitted_text
 from .loto_system import LOTORenderer, LOTOChecker
 
-# Colors
-COLOR_BG = (30, 34, 42)
-COLOR_BG_HOVER = (50, 54, 62)
-COLOR_BG_ACTIVE = (60, 100, 140)
+# Colors - matching bone/industrial theme from main menu
+COLOR_BG_TOP = (74, 74, 79)  # Metal gradient top
+COLOR_BG_BOTTOM = (50, 50, 55)  # Metal gradient bottom
+COLOR_BG_HOVER_TOP = (90, 74, 79)  # Warmer hover gradient top
+COLOR_BG_HOVER_BOTTOM = (64, 48, 53)  # Warmer hover gradient bottom
+COLOR_BG_ACTIVE_TOP = (106, 90, 95)  # Active gradient top
+COLOR_BG_ACTIVE_BOTTOM = (74, 58, 63)  # Active gradient bottom
 COLOR_BG_DISABLED = (40, 40, 40)
-COLOR_BORDER = (100, 100, 100)
-COLOR_BORDER_HOVER = (150, 150, 150)
-COLOR_BORDER_ACTIVE = (100, 150, 255)
-COLOR_TEXT = (255, 255, 255)
+COLOR_BORDER = (90, 84, 79)  # Metal border
+COLOR_BORDER_HOVER = (184, 168, 149)  # Bone border on hover
+COLOR_BORDER_ACTIVE = (184, 168, 149)  # Bone border when active
+COLOR_BORDER_GLOW = (255, 170, 119)  # Orange glow
+COLOR_TEXT = (240, 232, 216)  # Bone white text
 COLOR_TEXT_DISABLED = (120, 120, 120)
 COLOR_HOTKEY = (255, 200, 100)
 COLOR_EXECUTE = (100, 255, 100)
@@ -55,34 +59,67 @@ class ActionButton:
 
     def draw(self, surface: pygame.Surface, x: int, y: int, font, small_font, loto_renderer: Optional[LOTORenderer] = None) -> Optional[dict]:
         """Draw the action button. Returns particle data if upgrade button has points available."""
+        from .menu_components import draw_gradient_rect, draw_glow_rect
+
         self.rect = pygame.Rect(x, y, BUTTON_WIDTH, BUTTON_HEIGHT)
 
-        # Determine background color
+        # Determine gradient colors
         if not self.enabled:
-            bg_color = COLOR_BG_DISABLED
+            bg_top = COLOR_BG_DISABLED
+            bg_bottom = COLOR_BG_DISABLED
+            show_glow = False
         elif self.active:
-            bg_color = COLOR_BG_ACTIVE
+            bg_top = COLOR_BG_ACTIVE_TOP
+            bg_bottom = COLOR_BG_ACTIVE_BOTTOM
+            show_glow = True
         elif self.hovered:
-            bg_color = COLOR_BG_HOVER
+            bg_top = COLOR_BG_HOVER_TOP
+            bg_bottom = COLOR_BG_HOVER_BOTTOM
+            show_glow = True
         else:
-            bg_color = COLOR_BG
+            bg_top = COLOR_BG_TOP
+            bg_bottom = COLOR_BG_BOTTOM
+            show_glow = False
 
         # Special coloring for execute and concede buttons
+        execute_or_concede_special = False
         if self.action == "execute" and self.enabled and not self.active and self.has_actions_queued:
-            bg_color = (*COLOR_EXECUTE, 80) if self.hovered else (*COLOR_EXECUTE, 40)
+            # Keep gradient but with green tint
+            execute_or_concede_special = True
         elif self.action == "concede":
-            bg_color = (*COLOR_DANGER, 60) if self.hovered else (*COLOR_DANGER, 30)
+            # Keep gradient but with red tint
+            execute_or_concede_special = True
 
-        # Draw background
-        pygame.draw.rect(surface, bg_color, self.rect)
+        # Draw shadow (2px offset)
+        shadow_rect = self.rect.copy()
+        shadow_rect.x += 2
+        shadow_rect.y += 2
+        shadow_surf = pygame.Surface((shadow_rect.width, shadow_rect.height), pygame.SRCALPHA)
+        pygame.draw.rect(shadow_surf, (0, 0, 0, 76), shadow_surf.get_rect(), border_radius=5)
+        surface.blit(shadow_surf, shadow_rect.topleft)
+
+        # Draw gradient background
+        draw_gradient_rect(surface, self.rect, bg_top, bg_bottom)
+
+        # Add colored overlay for execute/concede buttons
+        if execute_or_concede_special:
+            overlay_surf = pygame.Surface((self.rect.width, self.rect.height), pygame.SRCALPHA)
+            if self.action == "execute":
+                alpha = 80 if self.hovered else 40
+                overlay_surf.fill((*COLOR_EXECUTE, alpha))
+            elif self.action == "concede":
+                alpha = 60 if self.hovered else 30
+                overlay_surf.fill((*COLOR_DANGER, alpha))
+            surface.blit(overlay_surf, self.rect.topleft)
+
+        # Draw glow effect on hover/active
+        if show_glow:
+            draw_glow_rect(surface, self.rect, COLOR_BORDER_GLOW, intensity=0.5, width=1)
 
         # Draw border
-        border_color = COLOR_BORDER_HOVER if self.hovered else COLOR_BORDER
-        if self.active:
-            border_color = COLOR_BORDER_ACTIVE
-
-        border_width = 3 if (self.hovered or self.active) else 2
-        pygame.draw.rect(surface, border_color, self.rect, border_width)
+        border_color = COLOR_BORDER_HOVER if (self.hovered or self.active) else COLOR_BORDER
+        border_width = 2
+        pygame.draw.rect(surface, border_color, self.rect, border_width, border_radius=5)
 
         # Draw tank treads icon on move button - ALWAYS visible
         if self.action == "move":
