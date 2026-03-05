@@ -40,6 +40,7 @@ class Button:
         self.font = font
         self.action = action
         self.enabled = enabled
+        self.visible = True  # Add visibility toggle
 
         # State
         self.hovered = False
@@ -47,7 +48,7 @@ class Button:
 
     def update(self, mouse_pos: Tuple[int, int], mouse_pressed: bool):
         """Update button state based on mouse."""
-        if not self.enabled:
+        if not self.visible or not self.enabled:
             self.hovered = False
             self.pressed = False
             return
@@ -71,7 +72,7 @@ class Button:
         """
         Handle a mouse click. Returns True if button was clicked.
         """
-        if self.enabled and self.rect.collidepoint(mouse_pos):
+        if self.visible and self.enabled and self.rect.collidepoint(mouse_pos):
             if self.action:
                 self.action()
             return True
@@ -79,6 +80,10 @@ class Button:
 
     def draw(self, surface: pygame.Surface):
         """Draw the button."""
+        # Don't draw if not visible
+        if not self.visible:
+            return
+
         # Determine colors based on state
         if not self.enabled:
             bg_color = COLOR_BG_DISABLED

@@ -171,6 +171,14 @@ class MenuManager:
             sound_settings = SoundSettingsScreen(self.font, self.large_font, self.screen_width, self.screen_height)
             self._push_screen(sound_settings)
 
+        elif action == "change_resolution":
+            # Apply new resolution from config
+            self._apply_resolution_change()
+
+        elif action == "toggle_fullscreen":
+            # Toggle fullscreen mode
+            self._toggle_fullscreen()
+
         elif action == "about":
             about_screen = AboutScreen(self.font, self.large_font, self.screen_width, self.screen_height)
             self._push_screen(about_screen)
@@ -178,6 +186,64 @@ class MenuManager:
         elif action == "quit":
             self.running = False
             self.result = ("quit", None)
+
+    def _apply_resolution_change(self):
+        """Apply a resolution change from config."""
+        # Get new resolution from config
+        new_width = self.config.get('window_width', self.screen_width)
+        new_height = self.config.get('window_height', self.screen_height)
+
+        # Only change if different
+        if new_width != self.screen_width or new_height != self.screen_height:
+            self.screen_width = new_width
+            self.screen_height = new_height
+
+            # Recreate the display surface
+            flags = pygame.FULLSCREEN if self.config.get('fullscreen', False) else 0
+            self.screen = pygame.display.set_mode((new_width, new_height), flags)
+
+            # Recreate all screens in the stack with new dimensions
+            new_stack = []
+            for screen in self.screen_stack:
+                # Recreate the screen with new dimensions
+                new_screen = self._recreate_screen(screen, new_width, new_height)
+                if new_screen:
+                    new_stack.append(new_screen)
+
+            self.screen_stack = new_stack
+
+    def _toggle_fullscreen(self):
+        """Toggle fullscreen mode."""
+        fullscreen = self.config.get('fullscreen', False)
+        flags = pygame.FULLSCREEN if fullscreen else 0
+        self.screen = pygame.display.set_mode((self.screen_width, self.screen_height), flags)
+
+    def _recreate_screen(self, old_screen, width: int, height: int):
+        """Recreate a screen with new dimensions."""
+        # Determine screen type and recreate it
+        if isinstance(old_screen, MainMenuScreen):
+            return MainMenuScreen(self.font, self.large_font, width, height)
+        elif isinstance(old_screen, PlaySubmenu):
+            return PlaySubmenu(self.font, self.large_font, width, height)
+        elif isinstance(old_screen, MapSelectionMenu):
+            return MapSelectionMenu(self.font, self.large_font, width, height)
+        elif isinstance(old_screen, ProfileSubmenu):
+            return ProfileSubmenu(self.font, self.large_font, width, height)
+        elif isinstance(old_screen, ProfileListScreen):
+            return ProfileListScreen(self.font, self.large_font, width, height)
+        elif isinstance(old_screen, ProfileStatsScreen):
+            return ProfileStatsScreen(self.font, self.large_font, width, height)
+        elif isinstance(old_screen, SettingsSubmenu):
+            return SettingsSubmenu(self.font, self.large_font, width, height)
+        elif isinstance(old_screen, DisplaySettingsScreen):
+            return DisplaySettingsScreen(self.font, self.large_font, width, height)
+        elif isinstance(old_screen, SoundSettingsScreen):
+            return SoundSettingsScreen(self.font, self.large_font, width, height)
+        elif isinstance(old_screen, AboutScreen):
+            return AboutScreen(self.font, self.large_font, width, height)
+        else:
+            # Unknown screen type, return None
+            return None
 
     def _on_profile_created(self, name: str):
         """Handle profile creation."""

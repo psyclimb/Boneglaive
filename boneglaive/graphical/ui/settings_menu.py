@@ -4,10 +4,11 @@ Settings Menu Screens
 Screens for game settings configuration.
 """
 import pygame
-from typing import Optional
+from typing import Optional, Tuple
 from .menu_components import MenuScreen, Button, Slider, Checkbox, COLOR_TEXT
 from boneglaive.utils.config import ConfigManager
 from boneglaive.graphical.sound_manager import get_sound_manager
+from boneglaive.utils.resolution import ResolutionPresets, Resolution
 
 
 class SettingsSubmenu(MenuScreen):
@@ -80,37 +81,85 @@ class DisplaySettingsScreen(MenuScreen):
         self.screen_height = screen_height
         self.config = ConfigManager()
 
+        # Get supported resolutions based on available screen modes
+        self.supported_resolutions = self._get_supported_resolutions()
+
+        # Get current resolution
+        current_width = self.config.get('window_width', screen_width)
+        current_height = self.config.get('window_height', screen_height)
+        self.current_resolution = ResolutionPresets.find_preset(current_width, current_height)
+
+        # Find current index in supported resolutions
+        self.resolution_index = 0
+        for i, res in enumerate(self.supported_resolutions):
+            if res.width == current_width and res.height == current_height:
+                self.resolution_index = i
+                break
+
+        # Track pending resolution changes
+        self.pending_resolution = None
+
         # Get current animation speed
         current_speed = self.config.get('animation_speed', 1.0)
         speed_label = self._get_animation_speed_label(current_speed)
 
         # Button dimensions
-        button_width = 400
+        button_width = 450
         button_height = 60
         button_spacing = 20
 
         # Calculate center position
         start_x = (screen_width - button_width) // 2
-        start_y = 200
+        start_y = 180
 
-        # Create buttons
-        self.anim_speed_button = Button(
+        # Create resolution button
+        self.resolution_button = Button(
             start_x, start_y,
+            button_width, button_height,
+            f"Resolution: {self.supported_resolutions[self.resolution_index]}",
+            font,
+            lambda: self._cycle_resolution()
+        )
+
+        # Create fullscreen toggle button
+        self.fullscreen_button = Button(
+            start_x, start_y + (button_height + button_spacing),
+            button_width, button_height,
+            f"Fullscreen: {'ON' if self.config.get('fullscreen', False) else 'OFF'}",
+            font,
+            lambda: self._toggle_fullscreen()
+        )
+
+        # Create animation speed button
+        self.anim_speed_button = Button(
+            start_x, start_y + (button_height + button_spacing) * 2,
             button_width, button_height,
             f"Animation Speed: {speed_label}",
             font,
             lambda: self._cycle_animation_speed()
         )
 
+        # Create apply button (only visible when there are pending changes)
+        self.apply_button = Button(
+            start_x, start_y + (button_height + button_spacing) * 3,
+            button_width, button_height,
+            "Apply Resolution Changes",
+            font,
+            lambda: self._apply_resolution_changes()
+        )
+        self.apply_button.visible = False  # Hidden by default
+
+        # Create back button
         self.back_button = Button(
-            start_x, start_y + (button_height + button_spacing),
+            start_x, start_y + (button_height + button_spacing) * 4,
             button_width, button_height,
             "Back",
             font,
             lambda: self._set_action("back")
         )
 
-        self.buttons = [self.anim_speed_button, self.back_button]
+        self.buttons = [self.resolution_button, self.fullscreen_button,
+                       self.anim_speed_button, self.apply_button, self.back_button]
         self._action_result = None
 
     def _get_animation_speed_label(self, speed: float) -> str:
@@ -125,6 +174,91 @@ class DisplaySettingsScreen(MenuScreen):
             return "Fast"
         else:
             return "Very Fast"
+
+    def _get_supported_resolutions(self) -> list[Resolution]:
+        """Get list of supported resolutions, filtering out those too large for display."""
+        # Get all preset resolutions
+        all_presets = ResolutionPresets.get_all_presets()
+
+        # Filter to common gaming resolutions (exclude 4K for stability)
+        gaming_resolutions = [
+            ResolutionPresets.RES_1280x720,    # 720p HD
+            ResolutionPresets.RES_1280x800,    # 16:10
+            ResolutionPresets.RES_1440x900,    # 16:10
+            ResolutionPresets.RES_1480x800,    # Default
+            ResolutionPresets.RES_1600x900,    # HD+
+            ResolutionPresets.RES_1680x1050,   # 16:10
+            ResolutionPresets.RES_1920x1080,   # Full HD
+            ResolutionPresets.RES_2560x1440,   # 2K
+        ]
+
+        # Get available display modes from pygame
+        try:
+            display_modes = pygame.display.list_modes()
+            if display_modes:
+                max_width = max(mode[0] for mode in display_modes)
+                max_height = max(mode[1] for mode in display_modes)
+
+                # Filter resolutions to those that fit on the display
+                supported = []
+                for res in gaming_resolutions:
+                    if res.width <= max_width and res.height <= max_height:
+                        supported.append(res)
+
+                return supported if supported else gaming_resolutions[:3]  # Fallback to first 3
+        except:
+            pass
+
+        # Default to a safe subset if we can't detect display modes
+        return gaming_resolutions[:5]
+
+    def _cycle_resolution(self):
+        """Cycle through available resolutions."""
+        # Move to next resolution
+        self.resolution_index = (self.resolution_index + 1) % len(self.supported_resolutions)
+        new_resolution = self.supported_resolutions[self.resolution_index]
+
+        # Update button text
+        self.resolution_button.text = f"Resolution: {new_resolution}"
+
+        # Mark as pending change (don't apply immediately)
+        self.pending_resolution = new_resolution
+
+        # Show apply button
+        self.apply_button.visible = True
+        self.apply_button.text = f"Apply {new_resolution.width}x{new_resolution.height}"
+
+    def _toggle_fullscreen(self):
+        """Toggle fullscreen mode."""
+        current_fullscreen = self.config.get('fullscreen', False)
+        new_fullscreen = not current_fullscreen
+
+        # Update button text
+        self.fullscreen_button.text = f"Fullscreen: {'ON' if new_fullscreen else 'OFF'}"
+
+        # Save to config (fullscreen applies immediately)
+        self.config.set('fullscreen', new_fullscreen)
+        self.config.save_config()
+
+        # Set action to trigger fullscreen toggle
+        self._action_result = "toggle_fullscreen"
+
+    def _apply_resolution_changes(self):
+        """Apply pending resolution changes."""
+        if self.pending_resolution:
+            # Save new resolution to config
+            self.config.set('window_width', self.pending_resolution.width)
+            self.config.set('window_height', self.pending_resolution.height)
+            self.config.save_config()
+
+            # Clear pending resolution
+            self.pending_resolution = None
+
+            # Hide apply button
+            self.apply_button.visible = False
+
+            # Trigger resolution change
+            self._action_result = "change_resolution"
 
     def _cycle_animation_speed(self):
         """Cycle through animation speed options."""

@@ -345,6 +345,103 @@ class GraphicalRenderer:
             self.small_font = pygame.font.Font(None, small_size)
             self.large_font = pygame.font.Font(None, large_size)
 
+    def change_resolution(self, width: int, height: int, fullscreen: bool = None):
+        """
+        Change the display resolution dynamically.
+
+        Args:
+            width: New screen width
+            height: New screen height
+            fullscreen: Whether to enable fullscreen (None = keep current)
+        """
+        # Update screen dimensions
+        self.screen_width = width
+        self.screen_height = height
+        if fullscreen is not None:
+            self.fullscreen = fullscreen
+
+        # Recreate layout configuration for new resolution
+        self.layout = create_layout(width, height)
+
+        # Recreate display surface
+        display_flags = pygame.FULLSCREEN if self.fullscreen else 0
+        self.screen = pygame.display.set_mode((width, height), display_flags)
+
+        # Reinitialize fonts with new scaling
+        self._init_fonts()
+
+        # Update camera with new layout
+        self.camera = Camera(
+            grid_offset_x=self.layout.grid_offset_x,
+            grid_offset_y=self.layout.grid_offset_y,
+            tile_size=self.layout.tile_size
+        )
+
+        # Update global TILE_SIZE for animations
+        from .animations.core import set_tile_size
+        set_tile_size(self.layout.tile_size)
+
+        # Recreate all UI components with new layout
+        self._reinit_ui_components()
+
+        # Force re-render of all cached surfaces
+        self._clear_render_cache()
+
+    def _reinit_ui_components(self):
+        """Reinitialize all UI components with new layout."""
+        # UI Components - pass layout for dynamic sizing (matching __init__ pattern)
+        self.top_bar = TopBar(self.font, self.small_font, self.large_font, self.layout)
+        self.unit_status_bar = UnitStatusBar(self.font, self.small_font, self.layout)
+        self.skill_bar = SkillBar(self.font, self.small_font, self.layout)
+        self.combat_log = CombatLog(self.small_font, self.layout)
+        self.message_log_window = MessageLogWindow(self.font, self.small_font, self.layout)
+        self.status_effects_panel = StatusEffectsPanel(self.font, self.small_font, self.layout)
+        self.unit_info_panel = UnitInfoPanel(self.font, self.small_font, self.large_font, self.layout)
+        self.action_menu = ActionMenu(self.font, self.small_font, self.layout)
+        self.motor_animation = MotorAnimation(self.layout)
+        self.help_page = HelpPage(self.font, self.small_font, self.layout)
+        self.respawn_window = RespawnWindow(self.font, self.small_font, self.layout)
+        self.upgrade_window = UpgradeWindow(self.font, self.small_font, self.layout)
+        self.setup_window = SetupWindow(self.font, self.small_font, self.layout)
+        self.setup_unit_help = SetupUnitHelp(self.font, self.small_font, self.layout)
+        self.game_over_window = GameOverWindow(self.font, self.small_font, self.large_font, self.layout)
+
+        # Update precomputed surfaces with new dimensions
+        self._main_surface = pygame.Surface((self.screen_width, self.screen_height))
+        self._indicator_surf = pygame.Surface((self.layout.tile_size, self.layout.tile_size), pygame.SRCALPHA)
+
+        panel_height = self.screen_height - self.layout.top_bar_height - self.layout.bottom_bar_height
+        self._left_panel_surface = pygame.Surface((self.layout.left_panel_width, panel_height))
+        self._right_panel_surface = pygame.Surface((self.layout.right_panel_width, panel_height))
+        self._flash_surface = pygame.Surface((self.screen_width, self.screen_height))
+
+        # Cached grid surface
+        self._grid_surface = pygame.Surface((self.layout.game_board_width, self.layout.game_board_height))
+
+    def _clear_render_cache(self):
+        """Clear any cached render surfaces that depend on resolution."""
+        # Clear terrain tiles cache if it exists
+        if hasattr(self, 'terrain_tiles'):
+            self.terrain_tiles.clear()
+
+        # Clear sparkle surface cache if it exists
+        if hasattr(self, '_sparkle_surf_cache'):
+            self._sparkle_surf_cache.clear()
+
+        # Clear static grid surface to force redraw
+        if hasattr(self, '_static_grid_surface'):
+            self._static_grid_surface = None
+
+        # Mark grid as fully dirty to force full redraw
+        if hasattr(self, '_grid_fully_dirty'):
+            self._grid_fully_dirty = True
+
+        # Mark all tiles as dirty to force re-render
+        if hasattr(self, '_dirty_tiles'):
+            self._dirty_tiles.update(
+                (x, y) for x in range(GRID_WIDTH) for y in range(GRID_HEIGHT)
+            )
+
     def _init_terrain_furniture_mapping(self):
         """Initialize the mapping from TerrainType to SVG file paths."""
         # Mapping from TerrainType to SVG filename
