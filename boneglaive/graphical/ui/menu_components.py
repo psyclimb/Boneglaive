@@ -186,12 +186,13 @@ class MenuPanel:
                            border_top_right_radius=self.corner_radius)
             surface.blit(title_surf, title_rect.topleft)
 
-            # Title text with glow
-            title_surface = font.render(self.title, True, COLOR_TEXT)
+            # Title text with glow (using muted bone color to match main menu)
+            title_color = (180, 160, 165)  # Muted pinkish bone color
+            title_surface = font.render(self.title, True, title_color)
             title_text_rect = title_surface.get_rect(center=(title_rect.centerx, title_rect.centery))
 
             # Glow effect
-            glow_surface = font.render(self.title, True, (240, 232, 216, 100))
+            glow_surface = font.render(self.title, True, (180, 160, 165, 100))
             for offset in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
                 glow_rect = title_text_rect.copy()
                 glow_rect.x += offset[0]
@@ -676,11 +677,13 @@ class MenuScreen:
 
     def _draw_title(self, surface: pygame.Surface):
         """Draw screen title (used when not using panel)."""
-        title_surface = self.large_font.render(self.title, True, COLOR_TEXT)
+        # Using muted bone color to match main menu aesthetic
+        title_color = (180, 160, 165)  # Muted pinkish bone color
+        title_surface = self.large_font.render(self.title, True, title_color)
         title_rect = title_surface.get_rect(centerx=surface.get_width() // 2, top=40)
 
         # Title glow
-        glow_surface = self.large_font.render(self.title, True, COLOR_BONE)
+        glow_surface = self.large_font.render(self.title, True, (180, 160, 165, 150))
         for offset in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
             glow_rect = title_rect.copy()
             glow_rect.x += offset[0]
