@@ -446,8 +446,8 @@ class SetupWindow:
         total_width = player_text.get_width() + select_text.get_width()
         start_x = window_x + (WINDOW_WIDTH - total_width) // 2
 
-        screen.blit(player_text, (start_x, window_y + 25))
-        screen.blit(select_text, (start_x + player_text.get_width(), window_y + 25))
+        screen.blit(player_text, (start_x, window_y + 12))
+        screen.blit(select_text, (start_x + player_text.get_width(), window_y + 12))
 
         # Draw units remaining
         remaining_text = render_fitted_text(
@@ -610,9 +610,6 @@ class SetupWindow:
             scrollbar_y = list_y
             self.scrollbar.draw(screen, scrollbar_x, scrollbar_y, list_height,
                                self.scroll_offset, self.max_scroll, list_height, total_height)
-
-        # Draw selected unit stats in detail
-        self._draw_selected_stats(screen, window_x, window_y)
 
         # Draw confirm button
         self._draw_confirm_button(screen, window_x, window_y)
