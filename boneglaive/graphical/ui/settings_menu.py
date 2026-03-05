@@ -133,6 +133,10 @@ class DisplaySettingsScreen(MenuScreen):
         self.restart_needed = False
         self.original_resolution = (current_width, current_height)
 
+        # Get current fullscreen setting
+        self.fullscreen = self.config.get('fullscreen', False)
+        self.original_fullscreen = self.fullscreen
+
         # Button dimensions
         button_width = 400
         button_height = 60
@@ -140,7 +144,7 @@ class DisplaySettingsScreen(MenuScreen):
 
         # Calculate center position
         start_x = (screen_width - button_width) // 2
-        start_y = 250
+        start_y = 200  # Moved up to make room for fullscreen button
 
         # Create resolution button
         current_res = self.resolutions[self.current_resolution_index]
@@ -152,18 +156,27 @@ class DisplaySettingsScreen(MenuScreen):
             lambda: self._cycle_resolution()
         )
 
+        # Create fullscreen button
+        self.fullscreen_button = Button(
+            start_x, start_y + (button_height + button_spacing),
+            button_width, button_height,
+            f"Fullscreen: {'On' if self.fullscreen else 'Off'}",
+            font,
+            lambda: self._toggle_fullscreen()
+        )
+
         # Create apply button
         self.apply_button = Button(
-            start_x, start_y + (button_height + button_spacing),
+            start_x, start_y + (button_height + button_spacing) * 2,
             button_width, button_height,
             "Apply Changes",
             font,
-            lambda: self._apply_resolution()
+            lambda: self._apply_settings()
         )
 
         # Create back button
         self.back_button = Button(
-            start_x, start_y + (button_height + button_spacing) * 2,
+            start_x, start_y + (button_height + button_spacing) * 3,
             button_width, button_height,
             "Back",
             font,
@@ -171,11 +184,11 @@ class DisplaySettingsScreen(MenuScreen):
             glaive_direction="left"
         )
 
-        self.buttons = [self.resolution_button, self.apply_button, self.back_button]
+        self.buttons = [self.resolution_button, self.fullscreen_button, self.apply_button, self.back_button]
         self._action_result = None
 
         # Warning text position
-        self.warning_text_y = start_y + (button_height + button_spacing) * 3 + 20
+        self.warning_text_y = start_y + (button_height + button_spacing) * 4 + 20
 
     def _cycle_resolution(self):
         """Cycle to next resolution."""
@@ -189,17 +202,29 @@ class DisplaySettingsScreen(MenuScreen):
         if current_res[0] != saved_width or current_res[1] != saved_height:
             self.restart_needed = True
 
-    def _apply_resolution(self):
-        """Apply the selected resolution."""
+    def _toggle_fullscreen(self):
+        """Toggle fullscreen mode."""
+        self.fullscreen = not self.fullscreen
+        self.fullscreen_button.text = f"Fullscreen: {'On' if self.fullscreen else 'Off'}"
+
+        # Check if this differs from saved setting
+        saved_fullscreen = self.config.get('fullscreen', False)
+        if self.fullscreen != saved_fullscreen:
+            self.restart_needed = True
+
+    def _apply_settings(self):
+        """Apply the selected display settings."""
         current_res = self.resolutions[self.current_resolution_index]
 
         # Update config
         self.config.set('window_width', current_res[0])
         self.config.set('window_height', current_res[1])
+        self.config.set('fullscreen', self.fullscreen)
         self.config.save_config()
 
         # Update flags
         self.original_resolution = current_res
+        self.original_fullscreen = self.fullscreen
         self.apply_button.text = "Changes Saved - Restart Required"
 
     def _set_action(self, action: str):

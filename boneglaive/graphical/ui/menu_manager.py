@@ -34,7 +34,13 @@ class MenuManager:
 
         # Initialize pygame and create display surface
         pygame.init()
-        self.screen = pygame.display.set_mode((screen_width, screen_height))
+
+        # Check if fullscreen mode is enabled
+        fullscreen_enabled = self.config.get('fullscreen', False)
+        if fullscreen_enabled:
+            self.screen = pygame.display.set_mode((screen_width, screen_height), pygame.FULLSCREEN)
+        else:
+            self.screen = pygame.display.set_mode((screen_width, screen_height))
         pygame.display.set_caption("Boneglaive")
         self.clock = pygame.time.Clock()
 

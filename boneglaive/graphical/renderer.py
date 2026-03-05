@@ -130,7 +130,13 @@ class GraphicalRenderer:
             # Fallback to default pygame icon
             pass
 
-        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+        # Check if fullscreen mode is enabled
+        fullscreen_enabled = config.get('fullscreen', False)
+        if fullscreen_enabled:
+            # Use FULLSCREEN flag for fullscreen mode
+            self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN)
+        else:
+            self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         pygame.display.set_caption(SCREEN_TITLE)
         self.clock = pygame.time.Clock()
 
@@ -916,6 +922,9 @@ class GraphicalRenderer:
 
                 if event.key == pygame.K_ESCAPE:
                     self.running = False
+                elif event.key == pygame.K_F11:
+                    # Toggle fullscreen mode
+                    self._toggle_fullscreen()
                 elif event.key == pygame.K_SPACE:
                     self.paused = not self.paused
                 elif event.key == pygame.K_TAB:
@@ -5417,6 +5426,24 @@ class GraphicalRenderer:
         self.setup_valid_tiles = []
         self.setup_ghost_pos = None
         self.current_action_mode = "SELECT"
+
+    def _toggle_fullscreen(self):
+        """Toggle between fullscreen and windowed mode."""
+        # Get current fullscreen state from config
+        current_fullscreen = config.get('fullscreen', False)
+        new_fullscreen = not current_fullscreen
+
+        # Update config
+        config.set('fullscreen', new_fullscreen)
+        config.save_config()
+
+        # Apply the change
+        if new_fullscreen:
+            self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN)
+            self.combat_log.add_message("Fullscreen mode enabled (F11 to toggle)", "system")
+        else:
+            self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+            self.combat_log.add_message("Windowed mode enabled (F11 to toggle)", "system")
 
         # Hide setup window
         self.setup_window.hide()

@@ -1,8 +1,8 @@
 {
   "display_mode": "text",
-  "window_width": 1480,
-  "window_height": 800,
-  "fullscreen": false,
+  "window_width": 1920,
+  "window_height": 1080,
+  "fullscreen": true,
   "animation_speed": 1.4,
   "show_grid": true,
   "selected_map": "hard_pressed",
