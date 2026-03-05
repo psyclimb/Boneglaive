@@ -135,61 +135,6 @@ class RailGenesis(PassiveSkill):
                     # Check for critical health using centralized logic
                     game.check_critical_health(unit, user, previous_hp, ui)
 
-        # Apply Shrapnel to enemies adjacent to rails (blast radius effect)
-        shrapnel_applied_units = set()  # Track which units already took direct damage
-        shrapnel_units_hit = 0
-
-        # Build set of units that took direct damage (on rails)
-        for rail_y, rail_x in rail_positions:
-            unit = game.get_unit_at(rail_y, rail_x)
-            if unit and unit.is_alive() and unit.player != user.player:
-                shrapnel_applied_units.add(unit)
-
-        # Check adjacent tiles around each rail for enemy units
-        for rail_y, rail_x in rail_positions:
-            # Check all 8 adjacent tiles (N, S, E, W, NE, NW, SE, SW)
-            for dy in [-1, 0, 1]:
-                for dx in [-1, 0, 1]:
-                    if dy == 0 and dx == 0:
-                        continue  # Skip the rail tile itself
-
-                    adj_y = rail_y + dy
-                    adj_x = rail_x + dx
-
-                    # Check if position is valid
-                    if not game.is_valid_position(adj_y, adj_x):
-                        continue
-
-                    unit = game.get_unit_at(adj_y, adj_x)
-
-                    # Only affect enemy units not already hit by direct damage
-                    if unit and unit.is_alive() and unit.player != user.player and unit not in shrapnel_applied_units:
-                        # Apply shrapnel effect (ongoing damage) if not immune
-                        if unit.is_immune_to_effects():
-                            # Log immunity message
-                            message_log.add_message(
-                                f"{unit.get_display_name()} is immune to shrapnel due to Stasiality",
-                                MessageType.ABILITY,
-                                player=unit.player
-                            )
-                        else:
-                            if not hasattr(unit, 'shrapnel_duration'):
-                                unit.shrapnel_duration = 0
-                            previous_shrapnel = unit.shrapnel_duration
-                            unit.shrapnel_duration = max(unit.shrapnel_duration, 3)
-
-                            # Log shrapnel embedding if it's a new effect or extended
-                            if unit.shrapnel_duration > previous_shrapnel:
-                                message_log.add_message(
-                                    f"Rail explosion shrapnel embeds in {unit.get_display_name()}",
-                                    MessageType.COMBAT,
-                                    player=user.player
-                                )
-                                shrapnel_units_hit += 1
-
-                        # Add to set to prevent duplicate application from multiple adjacent rails
-                        shrapnel_applied_units.add(unit)
-
         # Check if this was the last FOWL CONTRIVANCE - if so, remove rails
         from boneglaive.utils.constants import UnitType
         remaining_fowl = sum(1 for u in game.units
@@ -321,7 +266,7 @@ class GaussianDuskSkill(ActiveSkill):
             terrain = game.map.get_terrain_at(mid_y, mid_x)
             destructible_terrain = [
                 TerrainType.LIMESTONE, TerrainType.PILLAR, TerrainType.MARROW_WALL,
-                TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK, TerrainType.OTTOMAN,
+                TerrainType.LECTERN, TerrainType.COAT_RACK, TerrainType.OTTOMAN,
                 TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF, TerrainType.TIFFANY_LAMP,
                 TerrainType.STAINED_STONE, TerrainType.EASEL, TerrainType.SCULPTURE,
                 TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
@@ -371,34 +316,32 @@ class GaussianDuskSkill(ActiveSkill):
                         # Instant kill
                         damage = unit.hp
                         message_log.add_message(
-                            f"{unit.get_display_name()} is executed by the rail beam's lethal precision",
+                            f"{unit.get_display_name()} is erased by the rail cannon's lethal precision!",
                             MessageType.ABILITY,
                             player=user.player
                         )
                     elif hp_percent >= 0.875:  # Defense shred threshold
-                        # Apply shredded status (2 turns)
+                        # Apply shredded status (2 turns) - defense will be forced to 0 via get_effective_stats()
                         unit.shredded = True
                         unit.shredded_duration = 2
-                        unit.shredded_original_defense = unit.defense
-                        unit.defense_bonus -= unit.defense  # Reduce defense to 0 via bonus
 
                         message_log.add_message(
-                            f"{unit.get_display_name()}'s defenses are completely shredded for 2 turns",
-                            MessageType.ABILITY,
+                            f"{unit.get_display_name()}'s defenses are completely shredded",
+                            MessageType.WARNING,
                             player=user.player
                         )
                 
                 # Store previous HP for critical health check
                 previous_hp = unit.hp
-                
+
                 # Apply damage
                 unit.hp = max(0, unit.hp - damage)
                 units_hit += 1
                 total_damage += damage
-                
+
                 # Store unit and damage for later display
                 damaged_units.append((unit, damage))
-                
+
                 # Log the damage
                 message_log.add_combat_message(
                     attacker_name=user.get_display_name(),
@@ -532,27 +475,15 @@ class BigArcSkill(ActiveSkill):
         if not rail_genesis_upgraded:
             return
 
-        # Check if on junction
-        current_y, current_x = user.y, user.x
-        center_y = game.map.height // 2
-        center_x = game.map.width // 2
-
-        top_horizontal = 1
-        middle_horizontal = center_y - 2
-        bottom_horizontal = game.map.height - 2
-
-        vertical_line_1 = center_x - 2
-        vertical_line_2 = center_x + 2
-
+        # Fixed junction coordinates (4x4 grid)
         junction_coords = [
-            (top_horizontal, vertical_line_1),
-            (top_horizontal, vertical_line_2),
-            (middle_horizontal, vertical_line_1),
-            (middle_horizontal, vertical_line_2),
-            (bottom_horizontal, vertical_line_1),
-            (bottom_horizontal, vertical_line_2)
+            (2, 4), (2, 8), (2, 12), (2, 16),
+            (4, 4), (4, 8), (4, 12), (4, 16),
+            (6, 4), (6, 8), (6, 12), (6, 16),
+            (8, 4), (8, 8), (8, 12), (8, 16)
         ]
 
+        current_y, current_x = user.y, user.x
         if (current_y, current_x) in junction_coords:
             self.range = base_range + 1
 
@@ -779,7 +710,7 @@ class BigArcSkill(ActiveSkill):
 
                 destructible_terrain = [
                     TerrainType.LIMESTONE, TerrainType.PILLAR, TerrainType.MARROW_WALL,
-                    TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK, TerrainType.OTTOMAN,
+                    TerrainType.LECTERN, TerrainType.COAT_RACK, TerrainType.OTTOMAN,
                     TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF, TerrainType.TIFFANY_LAMP,
                     TerrainType.STAINED_STONE, TerrainType.EASEL, TerrainType.SCULPTURE,
                     TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
@@ -1231,16 +1162,16 @@ class FragcrestSkill(ActiveSkill):
                 
                 # Store previous HP for critical health check
                 previous_hp = unit.hp
-                
+
                 # Apply damage
                 unit.hp = max(0, unit.hp - damage)
                 units_hit += 1
                 total_damage += damage
                 affected_units.append(unit)
-                
+
                 # Store unit and damage for later display
                 damaged_units.append((unit, damage))
-                
+
                 # Log the damage
                 damage_type = "primary" if is_primary else "cone"
                 message_log.add_combat_message(

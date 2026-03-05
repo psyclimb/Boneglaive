@@ -8,15 +8,18 @@ import os
 from typing import List, Dict, Optional, Tuple
 from .font_utils import render_fitted_text
 
-# Colors
-COLOR_BG = (30, 34, 42)
+# Colors - matching bone/industrial theme
+COLOR_BG_TOP = (42, 42, 47)  # Panel top
+COLOR_BG_BOTTOM = (26, 26, 31)  # Panel bottom (gradient)
 COLOR_BUFF = (100, 200, 100)
 COLOR_DEBUFF = (255, 100, 100)
 COLOR_NEUTRAL = (150, 150, 200)
 COLOR_SPECIAL = (255, 200, 100)
-COLOR_TEXT = (255, 255, 255)
-COLOR_TEXT_DIM = (180, 180, 180)
-COLOR_HOVER = (60, 64, 72)
+COLOR_TEXT = (240, 232, 216)  # Bone white text
+COLOR_TEXT_DIM = (180, 160, 165)  # Muted bone
+COLOR_HOVER_TOP = (90, 74, 79)  # Hover gradient top
+COLOR_HOVER_BOTTOM = (64, 48, 53)  # Hover gradient bottom
+COLOR_BORDER = (90, 84, 79)  # Metal border
 
 PANEL_WIDTH = 350
 PANEL_PADDING = 10
@@ -32,8 +35,17 @@ STATUS_EFFECTS = {
         "name": "Pried",
         "type": "debuff",
         "icon": "P",
-        "description": "Defense reduced by Pry skill",
-        "check": lambda u: u.was_pried
+        "description": "Movement reduced by Pry skill",
+        "duration_key": "pry_duration",
+        "check": lambda u: hasattr(u, 'was_pried') and u.was_pried
+    },
+    "was_pried_upgraded": {
+        "name": "Pried",
+        "type": "debuff",
+        "icon": "P",
+        "description": "Movement reduced by upgraded Pry skill",
+        "duration_key": "pry_upgraded_duration",
+        "check": lambda u: hasattr(u, 'was_pried_upgraded') and u.was_pried_upgraded
     },
     "trapped_by": {
         "name": "Trapped",
@@ -65,6 +77,14 @@ STATUS_EFFECTS = {
         "description": "Stuck in upgraded Marrow Dike",
         "duration_key": "mired_duration",
         "check": lambda u: u.mired
+    },
+    "shredded": {
+        "name": "Shredded",
+        "type": "debuff",
+        "icon": "SD",
+        "description": "Defense set to 0 by rail cannon",
+        "duration_key": "shredded_duration",
+        "check": lambda u: hasattr(u, 'shredded') and u.shredded
     },
     "neural_shunt_affected": {
         "name": "Neural Shunt",
@@ -122,6 +142,14 @@ STATUS_EFFECTS = {
         "duration_key": "auction_curse_dot_duration",
         "check": lambda u: hasattr(u, 'auction_curse_dot') and u.auction_curse_dot
     },
+    "status_imbued": {
+        "name": "Imbued",
+        "type": "debuff",
+        "icon": "¤",
+        "description": "Imbued with Market Futures energy, acts as teleportation anchor",
+        "duration_key": "status_imbued_duration",
+        "check": lambda u: hasattr(u, 'status_imbued') and u.status_imbued
+    },
 
     # Buffs
     "can_use_anchor": {
@@ -154,6 +182,14 @@ STATUS_EFFECTS = {
         "description": "+1 movement range",
         "duration_key": "severance_duration",
         "check": lambda u: u.severance_active
+    },
+    "first_turn_move_bonus": {
+        "name": "First Turn Bonus",
+        "type": "buff",
+        "icon": "1st",
+        "description": "+1 movement range (Player 2's first turn compensation for going second)",
+        "duration_key": "first_turn_move_bonus_duration",
+        "check": lambda u: hasattr(u, 'first_turn_move_bonus') and u.first_turn_move_bonus
     },
     "pumped_up_active": {
         "name": "Pumped Up",
@@ -247,7 +283,8 @@ STATUS_EFFECTS = {
         "name": "Infused",
         "type": "buff",
         "icon": "PO",
-        "description": "POTPOURRIST holding potpourri",
+        "description": "POTPOURRIST holding potpourri, enhances next skill",
+        "duration_key": "potpourri_duration",
         "check": lambda u: u.potpourri_held
     },
 }
@@ -343,13 +380,12 @@ class StatusEffectsPanel:
         panel_height = PANEL_PADDING * 2 + len(self.effects) * (EFFECT_HEIGHT + SPACING) - SPACING
         self.panel_rect = pygame.Rect(x, y, PANEL_WIDTH, panel_height)
 
-        # Draw background
-        panel_surface = pygame.Surface((self.panel_rect.width, self.panel_rect.height), pygame.SRCALPHA)
-        panel_surface.fill((*COLOR_BG, 200))
-        surface.blit(panel_surface, (self.panel_rect.x, self.panel_rect.y))
+        # Draw background with gradient
+        from .menu_components import draw_gradient_rect
+        draw_gradient_rect(surface, self.panel_rect, COLOR_BG_TOP, COLOR_BG_BOTTOM, alpha=200)
 
         # Draw border
-        pygame.draw.rect(surface, (100, 100, 100), self.panel_rect, 2)
+        pygame.draw.rect(surface, COLOR_BORDER, self.panel_rect, 2, border_radius=5)
 
         # Draw effects
         current_y = y + PANEL_PADDING
@@ -372,10 +408,9 @@ class StatusEffectsPanel:
 
         if is_hovered:
             self.hovered_effect = effect
-            # Draw hover highlight
-            hover_surf = pygame.Surface((effect_rect.width, effect_rect.height), pygame.SRCALPHA)
-            hover_surf.fill((*COLOR_HOVER, 100))
-            surface.blit(hover_surf, (effect_rect.x, effect_rect.y))
+            # Draw hover highlight with gradient
+            from .menu_components import draw_gradient_rect
+            draw_gradient_rect(surface, effect_rect, COLOR_HOVER_TOP, COLOR_HOVER_BOTTOM, alpha=100)
 
         # Draw icon background
         icon_rect = pygame.Rect(x, y, ICON_SIZE, ICON_SIZE)
@@ -438,14 +473,13 @@ class StatusEffectsPanel:
         tooltip_width = PANEL_WIDTH
         tooltip_height = 20 + len(desc_lines) * 18
 
-        # Draw tooltip background
+        # Draw tooltip background with gradient
+        from .menu_components import draw_gradient_rect
         tooltip_rect = pygame.Rect(x, y, tooltip_width, tooltip_height)
-        tooltip_surf = pygame.Surface((tooltip_width, tooltip_height), pygame.SRCALPHA)
-        tooltip_surf.fill((*COLOR_BG, 240))
-        surface.blit(tooltip_surf, (tooltip_rect.x, tooltip_rect.y))
+        draw_gradient_rect(surface, tooltip_rect, COLOR_BG_TOP, COLOR_BG_BOTTOM, alpha=240)
 
         # Draw border
-        pygame.draw.rect(surface, self.hovered_effect.get_color(), tooltip_rect, 2)
+        pygame.draw.rect(surface, self.hovered_effect.get_color(), tooltip_rect, 2, border_radius=3)
 
         # Draw description
         text_y = y + 10

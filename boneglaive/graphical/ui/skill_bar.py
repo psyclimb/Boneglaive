@@ -9,14 +9,18 @@ from typing import Optional, List, Tuple, Dict, Set
 from .font_utils import render_fitted_text
 from .loto_system import LOTORenderer
 
-# Colors
-COLOR_BG = (30, 34, 42)
-COLOR_BG_HOVER = (50, 54, 62)
-COLOR_BG_SELECTED = (60, 100, 140)
+# Colors - matching bone/industrial theme from main menu
+COLOR_BG_TOP = (74, 74, 79)  # Metal gradient top
+COLOR_BG_BOTTOM = (50, 50, 55)  # Metal gradient bottom
+COLOR_BG_HOVER_TOP = (90, 74, 79)  # Warmer hover gradient top
+COLOR_BG_HOVER_BOTTOM = (64, 48, 53)  # Warmer hover gradient bottom
+COLOR_BG_SELECTED_TOP = (106, 90, 95)  # Selected gradient top
+COLOR_BG_SELECTED_BOTTOM = (74, 58, 63)  # Selected gradient bottom
 COLOR_BG_DISABLED = (40, 40, 40)
-COLOR_BORDER = (100, 100, 100)
-COLOR_BORDER_HOVER = (150, 150, 150)
-COLOR_TEXT = (255, 255, 255)
+COLOR_BORDER = (90, 84, 79)  # Metal border
+COLOR_BORDER_HOVER = (184, 168, 149)  # Bone border on hover
+COLOR_BORDER_GLOW = (255, 170, 119)  # Orange glow
+COLOR_TEXT = (240, 232, 216)  # Bone white text
 COLOR_TEXT_DISABLED = (120, 120, 120)
 COLOR_HOTKEY = (255, 200, 100)
 COLOR_COOLDOWN = (255, 100, 100)

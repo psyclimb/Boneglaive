@@ -50,6 +50,8 @@ class VisualUnit:
         self.last_demilune_zone_duration = getattr(game_unit, 'demilune_zone_duration', 0)
         # Track derelicted duration to detect when upgraded Derelict creates buildings
         self.last_derelicted_duration = getattr(game_unit, 'derelicted_duration', 0)
+        # Track autoclave_failure_shown to detect failed Autoclave activation
+        self.last_autoclave_failure_shown = getattr(game_unit, 'autoclave_failure_shown', False)
 
     def _get_passive_activation_state(self, game_unit):
         """Get current activation state of passive skill."""
@@ -299,21 +301,37 @@ class GameStateAdapter:
 
     def snapshot_unit_positions(self):
         """
+<<<<<<< HEAD
         Capture a snapshot of all unit positions before turn execution.
         Used to detect if movement skills (Vault, Delta Config, etc.) actually succeeded.
+=======
+        Capture a snapshot of all current unit positions.
+        This should be called BEFORE execute_turn() so we can detect
+        movement skills that succeeded or failed based on position changes.
+>>>>>>> main
         """
         if not self.game:
             return
 
+<<<<<<< HEAD
         self.pre_execution_positions.clear()
 
+=======
+>>>>>>> main
         for unit in self.game.units:
             if not unit.is_alive():
                 continue
 
             unit_id = self._get_unit_id(unit)
+<<<<<<< HEAD
             self.pre_execution_positions[unit_id] = (unit.y, unit.x)
 
+=======
+
+            # Store position in visual unit for comparison after turn execution
+            if unit_id in self.visual_units:
+                self.visual_units[unit_id].last_position = (unit.x, unit.y)
+>>>>>>> main
 
     def _detect_status_effects_callback(self):
         """
@@ -833,6 +851,7 @@ class GameStateAdapter:
                             if UpgradeManager.is_skill_upgraded(game_unit, "Jawline"):
                                 skill_name = "Jawline_Upgraded"  # Use upgraded animation variant
 
+<<<<<<< HEAD
                         # SKILL SUCCESS VALIDATION: Check if movement skills actually succeeded
                         # For teleport/movement skills in POST-execution sync, verify position changed
                         skill_succeeded = True
@@ -864,6 +883,44 @@ class GameStateAdapter:
                         else:
                             # Skill failed - mark it as processed to prevent re-detection
                             visual_unit.last_skill = game_unit.selected_skill
+=======
+                        # MOVE+SKILL POSITION FIX: Use move_target position if unit is moving
+                        # When move+skill are queued, game_unit.x/y is still at OLD position during pre-sync
+                        # but move_target contains the NEW position where skill will execute from
+                        position_dependent_skills = ["Gaussian Dusk", "Parabol", "Big Arc", "Fragcrest", "Pry"]
+                        if skill_name in position_dependent_skills and hasattr(game_unit, 'move_target') and game_unit.move_target:
+                            # Unit is moving this turn - use move_target as the firing position
+                            target_y, target_x = game_unit.move_target
+
+                            # Update AnimatedUnit to fire from the move_target position
+                            animated_unit.grid_x = target_x
+                            animated_unit.grid_y = target_y
+
+                            # Also update screen position to prevent visual glitches
+                            from boneglaive.graphical.animations.core import TILE_SIZE
+                            from boneglaive.graphical.renderer import GRID_OFFSET_X, GRID_OFFSET_Y
+
+                            new_x = target_x * TILE_SIZE + TILE_SIZE // 2 + GRID_OFFSET_X
+                            new_y = target_y * TILE_SIZE + TILE_SIZE // 2 + GRID_OFFSET_Y
+
+                            # Snap to new position (movement animation will play before skill animation)
+                            animated_unit.x = new_x
+                            animated_unit.y = new_y
+                            animated_unit.target_x = new_x
+                            animated_unit.target_y = new_y
+                            animated_unit.is_moving = False
+
+                        events.append(AnimationEvent(
+                            "skill",
+                            source_unit=game_unit,
+                            target_unit=target_game_unit,  # Pass actual unit, not None
+                            skill_name=skill_name,
+                            skill_target=skill_target,
+                            is_infused=is_infused,
+                            bounce_count=bounce_count,
+                            expedite_planned_start=expedite_planned_start
+                        ))
+>>>>>>> main
 
                         # Special handling for Site Inspection: mark revealed scalar nodes
                         if skill_name == "Site Inspection" and skill_target and hasattr(self.game, 'scalar_nodes'):
@@ -921,6 +978,22 @@ class GameStateAdapter:
                     ))
 
                     visual_unit.last_passive_activated = True
+
+            # Detect Autoclave failure (no targets)
+            current_autoclave_failure = getattr(game_unit, 'autoclave_failure_shown', False)
+            if current_autoclave_failure and not visual_unit.last_autoclave_failure_shown:
+                # Autoclave just failed to activate due to no targets!
+                events.append(AnimationEvent(
+                    "autoclave_failure",
+                    source_unit=game_unit,
+                    target_unit=game_unit
+                ))
+                visual_unit.last_autoclave_failure_shown = True
+
+            # Update autoclave failure tracking
+            if not current_autoclave_failure and visual_unit.last_autoclave_failure_shown:
+                # Reset flag when unit clears it
+                visual_unit.last_autoclave_failure_shown = False
 
             # Detect trap releases (Viseroy trap)
             current_trapped_by = getattr(game_unit, 'trapped_by', None)
@@ -992,6 +1065,18 @@ class GameStateAdapter:
 
             # Update derelicted duration tracking
             visual_unit.last_derelicted_duration = current_derelicted_duration
+
+        # Check for Derelict push trails
+        if hasattr(self.game, 'derelict_push_trails') and self.game.derelict_push_trails:
+            for push_trail in self.game.derelict_push_trails:
+                events.append(AnimationEvent(
+                    "push_trail",
+                    source_unit=None,  # Visual effect only, no specific source
+                    start_pos=push_trail['start_pos'],
+                    end_pos=push_trail['end_pos']
+                ))
+            # Clear processed trails
+            self.game.derelict_push_trails = []
 
         # Status effects are shown after damage numbers via _show_active_status_effects()
         # in the renderer, using _effects_to_show_after_damage populated by the callback
@@ -1099,18 +1184,9 @@ class GameStateAdapter:
                     trap_cone_positions=affected_positions  # Pre-calculated cone positions
                 ))
 
-                # Queue status effect animations for units that received shrapnel
-                for unit_with_shrapnel in units_with_shrapnel:
-                    unit_id = self._get_unit_id(unit_with_shrapnel)
-                    if unit_id in self.visual_units:
-                        # Create status effect event to show shrapnel icon
-                        events.append(AnimationEvent(
-                            "status_effect",
-                            source_unit=owner,  # Trap owner as source
-                            target_unit=unit_with_shrapnel,
-                            effect_name="shrapnel"
-                        ))
-                        print(f"  [GameState] Queued shrapnel status effect for {unit_with_shrapnel.get_display_name()}")
+                # NOTE: Shrapnel status effect icons are now handled via detection system
+                # (_detect_status_effects_callback) to prevent duplicate flashes.
+                # The shrapnel effect will be detected and shown ONCE after damage completes.
 
             # Clear triggered traps list
             self.game.triggered_fragcrest_traps = []
@@ -1253,6 +1329,12 @@ class GameStateAdapter:
                     # Convert to renderer coords and add
                     skill_range_positions.append((x, y))
         else:
+            # Special handling for Vault - check for upgrade before calculating range
+            if skill.name == "Vault":
+                from boneglaive.game.upgrades import UpgradeManager
+                is_upgraded = UpgradeManager.is_skill_upgraded(game_unit, "Vault")
+                skill.range = 3 if is_upgraded else 2
+
             # Get skill range (check for dynamic range method first)
             if hasattr(skill, 'get_skill_range') and callable(skill.get_skill_range):
                 skill_range = skill.get_skill_range(game_unit, self.game)
@@ -1270,10 +1352,21 @@ class GameStateAdapter:
                         continue
 
                     # Check if skill can be used on this position
-                    if skill.can_use(game_unit, (y, x), self.game):
+                    can_use_result = skill.can_use(game_unit, (y, x), self.game)
+
+                    # Debug logging for Diverge skill
+                    if skill.name == "Diverge":
+                        target_unit = self.game.get_unit_at(y, x)
+                        if target_unit:
+                            print(f"[DEBUG Diverge] Position ({y},{x}): can_use={can_use_result}, unit_type={target_unit.type.name}, player={target_unit.player}, caster_player={game_unit.player}")
+                        else:
+                            print(f"[DEBUG Diverge] Position ({y},{x}): can_use={can_use_result}, unit=None")
+
+                    if can_use_result:
                         # Convert to renderer coords
                         skill_range_positions.append((x, y))
 
+        print(f"[DEBUG Diverge] Total valid positions: {len(skill_range_positions)}")
         return skill_range_positions
 
     def handle_player_action(self, action_type: str, **kwargs) -> bool:

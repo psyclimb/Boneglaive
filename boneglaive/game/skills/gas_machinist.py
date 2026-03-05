@@ -102,9 +102,9 @@ class EnbroachmentGasSkill(ActiveSkill):
         super().__init__(
             name="Broaching Gas",
             key="B",
-            description="Summons a HEINOUS VAPOR that deals 2 damage to enemies and cleanses allies of negative status effects.",
+            description="Summons a HEINOUS VAPOR that deals 1 damage to enemies and cleanses allies of negative status effects.",
             target_type=TargetType.AREA,
-            cooldown=2,
+            cooldown=3,
             range_=4
         )
         self.vapor_type = "BROACHING"
@@ -675,8 +675,9 @@ class DivergeSkill(ActiveSkill):
 
         # If targeting a vapor, remove it
         elif target_unit:
-            # Remove the target vapor
+            # Remove the target vapor from both units list and spatial grid
             game.units.remove(target_unit)
+            game._remove_from_unit_grid(target_unit)
 
         # Create the gases
         from boneglaive.game.units import Unit

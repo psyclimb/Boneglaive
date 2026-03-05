@@ -14,7 +14,7 @@ from boneglaive.graphical.animations.core import AnimatedUnit, TILE_SIZE
 from boneglaive.graphical.animations.glaiveman import (
     LightningBolt, CrossBeam, AutoclaveAnimation, AutoclaveAnimationV2, SpinningGlaiveProjectile,
     PryImpactAnimation, VaultAnimationController, VaultAnimationControllerUpgraded,
-    PryAnimation, JudgementAnimation, GlaiveSweepAnimation
+    PryAnimation, JudgementAnimation, GlaiveSweepAnimation, AutoclaveFailureAnimation
 )
 from boneglaive.graphical.animations.mandible_foreman import (
     JawClamp, ViseroyTrap, ViseroyRelease, JawTighten, SiteInspectionBuff,
@@ -58,6 +58,7 @@ from boneglaive.graphical.animations.derelictionist import (
     PartitionHitAnimation,
     VagalRunAnimation,
     VagalRunAbreactionAnimation,
+    DerelictPushTrail,
     DerelictBuildingFormation,
     DerelictBuildingTiles,
 )
@@ -82,6 +83,9 @@ from boneglaive.graphical.animations.pelotari import (
     PoachAnimation,
     BackhandAnimation,
     BackhandReflectionAnimation,
+)
+from boneglaive.graphical.animations.core_animations import (
+    RespawnAnimation,
 )
 
 # Import sound system
@@ -108,6 +112,7 @@ class AnimationFactory:
         "VAULT": (VaultAnimationController, {}),  # Acrobatic leap with flip
         "VAULT_UPGRADED": (VaultAnimationControllerUpgraded, {}),  # Extended vault with double flip, higher arc, enhanced effects
         "AUTOCLAVE": (AutoclaveAnimationV2, {}),  # Enhanced: fire burst, steam cross, spinning glaives on every tile, healing
+        "AUTOCLAVE_FAILURE": (AutoclaveFailureAnimation, {}),  # Failed Autoclave (no targets): shake, glow, steam, !?!?! symbols, fizzle
         "GLAIVE_SWEEP": (GlaiveSweepAnimation, {}),  # Circular sweep attack hitting all 8 adjacent tiles (upgraded Autoclave 2nd activation)
 
         # MANDIBLE FOREMAN skills
@@ -188,7 +193,8 @@ class AnimationFactory:
         "VAGAL_RUN": (VagalRunAnimation, {}),
         "VAGAL_RUN_ABREACTION": (VagalRunAbreactionAnimation, {}),  # Delayed effect (no connection arc)
         "PARTITION": (PartitionAnimation, {}),
-        "DERELICT_BUILDING_FORMATION": (DerelictBuildingFormation, {}),  # Building rising animation
+        "DERELICT_PUSH_TRAIL": (DerelictPushTrail, {}),  # Push trail for base Derelict skill
+        "DERELICT_BUILDING_FORMATION": (DerelictBuildingFormation, {}),  # Dust cloud animation
         "DERELICT_BUILDING_TILES": (DerelictBuildingTiles, {}),  # Persistent building tiles
 
         # PELOTARI skills (DLC)
@@ -196,6 +202,9 @@ class AnimationFactory:
         "POACH": (PoachAnimation, {}),
         "BACKHAND": (BackhandAnimation, {}),
         "BACKHAND_REFLECTION": (BackhandReflectionAnimation, {}),
+
+        # Core game events
+        "RESPAWN": (RespawnAnimation, {}),
     }
 
     @classmethod
@@ -291,9 +300,12 @@ class AnimationFactory:
                 print(f"[AnimationFactory] Failed to play sound for {skill_name}: {e}")
 
         # Prepare animation kwargs
-        kwargs = base_kwargs.copy()
-        kwargs['game'] = game  # Add game instance to kwargs
-        kwargs['bounce_count'] = bounce_count  # Add bounce count for Matador animation
+        # Merge base_kwargs with passed-in kwargs (preserving custom parameters like start_pos, end_pos)
+        merged_kwargs = base_kwargs.copy()
+        merged_kwargs.update(kwargs)  # Add any custom kwargs passed in
+        merged_kwargs['game'] = game  # Add game instance to kwargs
+        merged_kwargs['bounce_count'] = bounce_count  # Add bounce count for Matador animation
+        kwargs = merged_kwargs
 
         # Use camera for coordinate conversion (if provided)
         # Falls back to default offsets for backwards compatibility
@@ -447,9 +459,18 @@ class AnimationFactory:
                 if not target_pos:
                     print("[AnimationFactory] VAULT requires a target position")
                     return None
+
+                # Check if vault was displaced (collision with ally move)
+                actual_target_pos = target_pos
+                if caster_unit and hasattr(caster_unit, 'game_unit') and hasattr(caster_unit.game_unit, 'vault_displaced_to'):
+                    actual_target_pos = caster_unit.game_unit.vault_displaced_to
+                    print(f"[AnimationFactory] VAULT displaced from {target_pos} to {actual_target_pos}")
+                    # Clear the flag
+                    del caster_unit.game_unit.vault_displaced_to
+
                 animation = anim_class(
                     caster_unit=caster_unit,
-                    target_pos=target_pos,
+                    target_pos=actual_target_pos,
                     particle_emitter=particle_emitter,
                     screen_shake_callback=screen_shake_callback,
                     camera=camera
@@ -459,9 +480,18 @@ class AnimationFactory:
                 if not target_pos:
                     print("[AnimationFactory] VAULT_UPGRADED requires a target position")
                     return None
+
+                # Check if vault was displaced (collision with ally move)
+                actual_target_pos = target_pos
+                if caster_unit and hasattr(caster_unit, 'game_unit') and hasattr(caster_unit.game_unit, 'vault_displaced_to'):
+                    actual_target_pos = caster_unit.game_unit.vault_displaced_to
+                    print(f"[AnimationFactory] VAULT_UPGRADED displaced from {target_pos} to {actual_target_pos}")
+                    # Clear the flag
+                    del caster_unit.game_unit.vault_displaced_to
+
                 animation = anim_class(
                     caster_unit=caster_unit,
-                    target_pos=target_pos,
+                    target_pos=actual_target_pos,
                     particle_emitter=particle_emitter,
                     screen_shake_callback=screen_shake_callback,
                     camera=camera
@@ -955,6 +985,49 @@ class AnimationFactory:
                     camera=camera,
                     game=kwargs.get('game')
                 )
+            elif anim_class.__name__ == "DerelictPushTrail":
+                # Derelict push trail - Blue particle trail showing ally push displacement
+                # Requires: start_pos, end_pos (grid coordinates), camera
+                start_pos = kwargs.get('start_pos')
+                end_pos = kwargs.get('end_pos')
+
+                if not start_pos or not end_pos:
+                    print("[AnimationFactory] DERELICT_PUSH_TRAIL requires start_pos and end_pos")
+                    return None
+
+                animation = anim_class(
+                    start_pos=start_pos,
+                    end_pos=end_pos,
+                    camera=camera
+                )
+            elif anim_class.__name__ == "DerelictBuildingFormation":
+                # Derelict building formation - Dust cloud when buildings form
+                # Requires: building_tiles (list of grid positions), camera, game
+                building_tiles = kwargs.get('building_tiles')
+
+                if not building_tiles:
+                    print("[AnimationFactory] DERELICT_BUILDING_FORMATION requires building_tiles")
+                    return None
+
+                animation = anim_class(
+                    building_tiles=building_tiles,
+                    camera=camera,
+                    game=game
+                )
+            elif anim_class.__name__ == "DerelictBuildingTiles":
+                # Derelict building tiles - Persistent weathered wall effect
+                # Requires: building_tiles (list of grid positions), camera, game
+                building_tiles = kwargs.get('building_tiles')
+
+                if not building_tiles:
+                    print("[AnimationFactory] DERELICT_BUILDING_TILES requires building_tiles")
+                    return None
+
+                animation = anim_class(
+                    building_tiles=building_tiles,
+                    camera=camera,
+                    game=game
+                )
             elif anim_class.__name__ == "ParabolAnimation":
                 # Parabol - 3x3 mortar barrage with indirect fire
                 # Check if skill is upgraded (uses underground parabola with second explosion)
@@ -1263,6 +1336,46 @@ class AnimationFactory:
 
                 animation = anim_class(
                     building_tiles=building_tiles,
+                    camera=camera,
+                    game=game
+                )
+            elif anim_class.__name__ == "RespawnAnimation":
+                # Respawn - Unit rises from ground with bone particles
+                # Requires: caster_unit (respawning unit), target_pos, camera, particle_emitter, callbacks
+                if not target_pos:
+                    print("[AnimationFactory] RESPAWN requires a target position")
+                    return None
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_unit=caster_unit,  # Same as caster for respawn
+                    target_pos=target_pos,
+                    is_crit=is_crit,
+                    is_infused=is_infused,
+                    particle_emitter=particle_emitter,
+                    debris_list=[],
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,
+                    units_list=units_list if units_list else [],
+                    camera=camera,
+                    game=kwargs.get('game')
+                )
+            elif anim_class.__name__ == "AutoclaveFailureAnimation":
+                # Autoclave Failure - GLAIVEMAN charges energy but fizzles (no targets)
+                # Requires: caster_unit (GLAIVEMAN), target_pos, camera, particle_emitter, callbacks
+                if not target_pos:
+                    print("[AnimationFactory] AUTOCLAVE_FAILURE requires a target position")
+                    return None
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_unit=caster_unit,  # Same as caster for failure animation
+                    target_pos=target_pos,
+                    is_crit=is_crit,
+                    is_infused=is_infused,
+                    particle_emitter=particle_emitter,
+                    debris_list=[],
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,
+                    units_list=units_list if units_list else [],
                     camera=camera,
                     game=game
                 )

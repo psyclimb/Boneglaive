@@ -13,6 +13,10 @@ from .core import (
     StatusIconFlash
 )
 
+from .core_animations import (
+    RespawnAnimation,
+)
+
 from .glaiveman import (
     SpinningGlaiveProjectile,
     LightningBolt,
@@ -24,7 +28,8 @@ from .glaiveman import (
     PryAnimation,
     JudgementAnimation,
     AutoclaveAnimationV2,
-    GlaiveSweepAnimation
+    GlaiveSweepAnimation,
+    AutoclaveFailureAnimation
 )
 
 from .mandible_foreman import (
@@ -94,6 +99,7 @@ from .derelictionist import (
     DerelictionistDefectTeleportAnimation,
     VagalRunAnimation,
     VagalRunAbreactionAnimation,
+    DerelictPushTrail,
     DerelictBuildingFormation,
     DerelictBuildingTiles,
 )
@@ -141,6 +147,8 @@ __all__ = [
     'DebrisParticle',
     'BasicMeleeAttackAnimation',
     'StatusIconFlash',
+    # Core Animations
+    'RespawnAnimation',
     # Glaiveman
     'SpinningGlaiveProjectile',
     'LightningBolt',
@@ -153,6 +161,7 @@ __all__ = [
     'JudgementAnimation',
     'AutoclaveAnimationV2',
     'GlaiveSweepAnimation',
+    'AutoclaveFailureAnimation',
     # Mandible Foreman
     'JawClamp',
     'JawRelease',
@@ -208,6 +217,7 @@ __all__ = [
     'DerelictionistDefectTeleportAnimation',
     'VagalRunAnimation',
     'VagalRunAbreactionAnimation',
+    'DerelictPushTrail',
     'DerelictBuildingFormation',
     'DerelictBuildingTiles',
     # Fowl Contrivance

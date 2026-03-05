@@ -5,7 +5,7 @@ Information about the game, copyright, and license.
 """
 import pygame
 from typing import Optional
-from .menu_components import COLOR_BG, COLOR_TEXT
+from .menu_components import COLOR_BG, COLOR_TEXT, COLOR_BONE, draw_glaive_icon, COLOR_METAL
 
 
 class AboutScreen:
@@ -46,6 +46,12 @@ class AboutScreen:
     def draw(self, surface: pygame.Surface):
         """Draw the about screen."""
         surface.fill(COLOR_BG)
+
+        # Draw decorative corner glaives
+        width = surface.get_width()
+        height = surface.get_height()
+        draw_glaive_icon(surface, 40, 40, COLOR_METAL, length=60, pointing_right=True)
+        draw_glaive_icon(surface, width - 100, 40, COLOR_METAL, length=60, pointing_right=False)
 
         # About screen content
         lines = [

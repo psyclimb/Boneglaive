@@ -36,9 +36,10 @@ from .ui.motor_animation import MotorAnimation
 from .ui.help_page import HelpPage
 from .ui.respawn_window import RespawnWindow
 from .ui.upgrade_window import UpgradeWindow
-from .ui.setup_window import SetupWindow
+from .ui.setup_window import SetupWindow, SetupPlacementBar
 from .ui.setup_unit_help import SetupUnitHelp
 from .ui.game_over_window import GameOverWindow
+from .ui.concede_dialog import ConcedeDialog
 from .ui_adapter import GraphicalUIAdapter
 
 # Import TerrainType for terrain/furniture rendering
@@ -50,9 +51,15 @@ from boneglaive.utils.constants import UnitType
 # Import global message log for combat log sync
 from boneglaive.utils.message_log import message_log
 
+<<<<<<< HEAD
 # Import resolution and layout management
 from boneglaive.utils.resolution import LayoutConfig, create_layout
 from boneglaive.utils.config import ConfigManager
+=======
+# Import config manager for UI layout settings
+from boneglaive.utils.config import ConfigManager
+
+>>>>>>> main
 
 
 # DEFAULT resolution constants (for backwards compatibility and fallback)
@@ -90,8 +97,7 @@ PRE_EXECUTION_BLOCKING_SKILLS = [
     "Matador", "MATADOR",
     "Poach", "POACH",
     "Vault_Upgraded", "VAULT_UPGRADED",  # Upgraded Vault with AOE landing impact
-    "Jawline", "JAWLINE",
-    "Jawline_Upgraded", "JAWLINE_UPGRADED"
+    # NOTE: Jawline removed - it doesn't displace units, so it should play AFTER moves execute
 ]
 
 
@@ -102,6 +108,7 @@ class GraphicalRenderer:
     Supports dynamic resolution scaling.
     """
 
+<<<<<<< HEAD
     def __init__(self, game_adapter: GameStateAdapter = None,
                  screen_width: int = None, screen_height: int = None,
                  fullscreen: bool = None):
@@ -137,6 +144,27 @@ class GraphicalRenderer:
         pygame.init()
         display_flags = pygame.FULLSCREEN if fullscreen else 0
         self.screen = pygame.display.set_mode((screen_width, screen_height), display_flags)
+=======
+    def __init__(self, game_adapter: GameStateAdapter = None):
+        # Set SDL2 hints BEFORE pygame.init() for better icon support
+        import os
+        icon_path = Path(__file__).parent.parent.parent / 'graphics' / 'boneglaive_icon.png'
+        os.environ['SDL_VIDEO_WINDOW_ICON'] = str(icon_path)
+
+        # Initialize pygame
+        pygame.init()
+
+        # Set custom window icon BEFORE creating the window (MANDIBLE FOREMAN head)
+        try:
+            # Use path relative to project root
+            icon = pygame.image.load(str(icon_path))
+            pygame.display.set_icon(icon)
+        except Exception as e:
+            # Fallback to default pygame icon
+            pass
+
+        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+>>>>>>> main
         pygame.display.set_caption(SCREEN_TITLE)
         self.clock = pygame.time.Clock()
 
@@ -189,6 +217,7 @@ class GraphicalRenderer:
         self.show_movement_range = False
         self.show_target_range = False
         self.show_skill_range = False
+        self.show_skills = False  # Whether skill bar should be visible
         self.valid_positions: List[Tuple[int, int]] = []
         self.attack_positions: List[Tuple[int, int]] = []
         self.skill_positions: List[Tuple[int, int]] = []
@@ -204,6 +233,7 @@ class GraphicalRenderer:
         # Imbued furniture sparkles (for Market Futures)
         self.imbued_sparkles = []
 
+<<<<<<< HEAD
         # UI Components - pass layout for dynamic sizing
         self.top_bar = TopBar(self.font, self.small_font, self.large_font, self.layout)
         self.unit_status_bar = UnitStatusBar(self.font, self.small_font, self.layout)
@@ -220,6 +250,26 @@ class GraphicalRenderer:
         self.setup_window = SetupWindow(self.font, self.small_font, self.layout)
         self.setup_unit_help = SetupUnitHelp(self.font, self.small_font, self.layout)
         self.game_over_window = GameOverWindow(self.font, self.small_font, self.large_font, self.layout)
+=======
+        # UI Components
+        self.top_bar = TopBar(self.font, self.small_font, self.large_font)
+        self.unit_status_bar = UnitStatusBar(self.font, self.small_font)
+        self.skill_bar = SkillBar(self.font, self.small_font)
+        self.combat_log = CombatLog(self.small_font)
+        self.message_log_window = MessageLogWindow(self.font, self.small_font)
+        self.status_effects_panel = StatusEffectsPanel(self.font, self.small_font)
+        self.unit_info_panel = UnitInfoPanel(self.font, self.small_font, self.large_font)
+        self.action_menu = ActionMenu(self.font, self.small_font)
+        self.motor_animation = MotorAnimation()
+        self.help_page = HelpPage(self.font, self.small_font)
+        self.respawn_window = RespawnWindow(self.font, self.small_font)
+        self.upgrade_window = UpgradeWindow(self.font, self.small_font)
+        self.setup_window = SetupWindow(self.font, self.small_font)
+        self.setup_placement_bar = SetupPlacementBar(self.font, self.small_font)
+        self.setup_unit_help = SetupUnitHelp(self.font, self.small_font)
+        self.game_over_window = GameOverWindow(self.font, self.small_font, self.large_font)
+        self.concede_dialog = ConcedeDialog(self.font, self.small_font)
+>>>>>>> main
 
         # Track current action mode for top bar display
         self.current_action_mode = "SELECT"
@@ -461,7 +511,7 @@ class GraphicalRenderer:
             TerrainType.BLOOD_PLASMA: "graphics/terrain/blood_plasma.svg",
 
             # Furniture types
-            TerrainType.RADIO_CONSOLE: "graphics/furniture/radio_console.svg",
+            TerrainType.LECTERN: "graphics/furniture/lectern.svg",
             TerrainType.COAT_RACK: "graphics/furniture/coat_rack.svg",
             TerrainType.OTTOMAN: "graphics/furniture/ottoman.svg",
             TerrainType.CONSOLE: "graphics/furniture/console_table.svg",
@@ -509,6 +559,9 @@ class GraphicalRenderer:
                 # Convert SVG to PNG in memory
                 png_data = cairosvg.svg2png(url=svg_path, output_width=self.layout.tile_size, output_height=self.layout.tile_size)
                 surface = pygame.image.load(BytesIO(png_data))
+
+                # Convert to alpha format to preserve transparency
+                surface = surface.convert_alpha()
 
                 # Cache the surface
                 self.terrain_tiles[terrain_type] = surface
@@ -676,8 +729,44 @@ class GraphicalRenderer:
                 # Register in adapter
                 self.game_adapter.create_visual_unit(game_unit, animated_unit)
 
-                # If this is a HEINOUS VAPOR, trigger spawn animation
+                # Check if this is a respawning unit (not a brand new unit or vapor)
                 from boneglaive.utils.constants import UnitType
+                is_vapor = hasattr(game_unit, 'type') and game_unit.type == UnitType.HEINOUS_VAPOR
+                is_echo = hasattr(game_unit, 'is_echo') and game_unit.is_echo
+                is_respawn = hasattr(game_unit, '_just_respawned') and game_unit._just_respawned
+
+                # Trigger respawn animation ONLY for actual respawns (not vapors, echoes, or initial spawns)
+                # Vapors and echoes have their own spawn animations
+                if is_respawn and not is_vapor and not is_echo:
+                    print(f"[Renderer] Respawned unit detected: {game_unit.type}, triggering respawn animation at ({game_unit.y}, {game_unit.x})")
+
+                    # Create respawn animation IMMEDIATELY (not queued)
+                    from boneglaive.graphical.animations import AnimationFactory
+                    respawn_animation = AnimationFactory.create_animation(
+                        "RESPAWN",
+                        caster_unit=animated_unit,
+                        target_unit=animated_unit,
+                        target_pos=(game_unit.y, game_unit.x),
+                        is_crit=False,
+                        is_infused=False,
+                        particle_emitter=self.particle_emitter,
+                        debris_list=self.debris_particles,
+                        screen_shake_callback=self.trigger_screen_shake,
+                        screen_flash_callback=self.trigger_screen_flash,
+                        units_list=self.units,
+                        camera=self.camera,
+                        game=self.game_adapter.game
+                    )
+                    if respawn_animation:
+                        self.active_animations.append(respawn_animation)
+                        print(f"  [Animation] Successfully triggered respawn animation for {game_unit.get_display_name()}")
+                    else:
+                        print(f"  [Animation] WARNING: Failed to create respawn animation")
+
+                    # Clear the respawn flag after triggering animation
+                    game_unit._just_respawned = False
+
+                # If this is a HEINOUS VAPOR, trigger spawn animation
                 if hasattr(game_unit, 'type') and game_unit.type == UnitType.HEINOUS_VAPOR:
                     vapor_type = getattr(game_unit, 'vapor_type', 'BROACHING')
 
@@ -874,17 +963,36 @@ class GraphicalRenderer:
                     self.respawn_window.handle_mouse_up()
 
             elif event.type == pygame.KEYDOWN:
-                # Check if game over window is open first
+                # Check if concede dialog is open first (highest priority)
+                if self.concede_dialog.visible:
+                    action = self.concede_dialog.handle_key(event.key)
+                    if action == "cancel":
+                        self.concede_dialog.hide()
+                    elif action == "concede":
+                        self.confirm_concede()
+                    # Ignore all other keys when concede dialog is open
+                    continue
+
+                # Check if game over window is open
                 if self.game_over_window.visible:
                     action = self.game_over_window.handle_key(event.key)
                     if action == "menu":
                         self.return_to_main_menu()
                     elif action == "exit":
                         self.running = False
-                    # Ignore all other keys when game over window is open
-                    continue
+                    elif action == "minimize":
+                        self.game_over_window.toggle_minimize()
 
-                # Check if message log window is open first
+                    # If minimized and no game over action was triggered, allow some keys to pass through
+                    if self.game_over_window.minimized and action is None:
+                        # Allow TAB (unit cycling) and other inspection keys when minimized
+                        # Don't continue - fall through to other key handlers
+                        pass
+                    else:
+                        # Full window mode or game over action was triggered - block all other keys
+                        continue
+
+                # Check if message log window is open
                 if self.message_log_window.visible:
                     if event.key == pygame.K_ESCAPE:
                         self.message_log_window.hide()
@@ -962,9 +1070,6 @@ class GraphicalRenderer:
                     self.running = False
                 elif event.key == pygame.K_SPACE:
                     self.paused = not self.paused
-                elif event.key == pygame.K_t:
-                    # End turn (T key for backwards compatibility)
-                    self.execute_turn()
                 elif event.key == pygame.K_TAB:
                     # Cycle through player's units (SHIFT+TAB for backwards)
                     shift_pressed = pygame.key.get_mods() & pygame.KMOD_SHIFT
@@ -982,46 +1087,53 @@ class GraphicalRenderer:
                             print(f"[DEV] Player 2 upgrade points: {game.player2_upgrade_points}")
 
                 # Check action menu hotkeys first
-                elif event.key in [pygame.K_m, pygame.K_a, pygame.K_r, pygame.K_e, pygame.K_c, pygame.K_h]:
+                elif event.key in [pygame.K_m, pygame.K_a, pygame.K_s, pygame.K_u, pygame.K_r, pygame.K_t, pygame.K_c, pygame.K_h]:
                     action = self.action_menu.handle_hotkey(event.key)
                     if action:
                         self._handle_action_menu_click(action)
 
-                # Then check skill hotkeys
+                # Then check skill hotkeys (only if skills are visible)
                 elif event.key in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4,
                                   pygame.K_q, pygame.K_w]:
-                    # Handle skill hotkeys (removed E and R to avoid conflicts)
-                    skill = self.skill_bar.handle_hotkey(event.key)
-                    if skill and self.selected_unit:
-                        print(f"Skill selected: {skill.name}")
-                        self.selected_skill = skill
-                        self.current_action_mode = "SKILL"
+                    # Handle skill hotkeys only if skill bar is visible
+                    if self.show_skills:
+                        skill = self.skill_bar.handle_hotkey(event.key)
+                        if skill and self.selected_unit:
+                            print(f"Skill selected: {skill.name}")
+                            self.selected_skill = skill
+                            self.current_action_mode = "SKILL"
 
-                        # Query skill range
-                        game_unit = self._get_game_unit(self.selected_unit)
-                        if game_unit:
-                            # If unit has pending move, calculate skill range from ghost position
-                            if game_unit.move_target:
-                                original_y, original_x = game_unit.y, game_unit.x
-                                game_unit.y, game_unit.x = game_unit.move_target
-                                self.skill_positions = self.game_adapter.get_skill_range(game_unit, skill)
-                                game_unit.y, game_unit.x = original_y, original_x
+                            # Query skill range
+                            game_unit = self._get_game_unit(self.selected_unit)
+                            if game_unit:
+                                # If unit has pending move, calculate skill range from ghost position
+                                if game_unit.move_target:
+                                    original_y, original_x = game_unit.y, game_unit.x
+                                    game_unit.y, game_unit.x = game_unit.move_target
+                                    self.skill_positions = self.game_adapter.get_skill_range(game_unit, skill)
+                                    game_unit.y, game_unit.x = original_y, original_x
+                                else:
+                                    self.skill_positions = self.game_adapter.get_skill_range(game_unit, skill)
+                                print(f"Skill has {len(self.skill_positions)} valid targets")
+
+                                # Hide movement/attack range, show skill range
+                                self.show_movement_range = False
+                                self.show_target_range = False
+                                self.show_skill_range = True
                             else:
-                                self.skill_positions = self.game_adapter.get_skill_range(game_unit, skill)
-                            print(f"Skill has {len(self.skill_positions)} valid targets")
-
-                            # Hide movement/attack range, show skill range
-                            self.show_movement_range = False
-                            self.show_target_range = False
-                            self.show_skill_range = True
-                        else:
-                            self.skill_positions = []
-                    elif skill and not self.selected_unit:
-                        print("Select a unit first to use skills")
+                                self.skill_positions = []
+                        elif skill and not self.selected_unit:
+                            print("Select a unit first to use skills")
 
             elif event.type == pygame.MOUSEMOTION:
-                # Handle game over window mouse motion
-                if self.game_over_window.visible:
+                # Track if we should skip other modal handlers (when game over is minimized)
+                skip_modal_handlers = self.game_over_window.visible and self.game_over_window.minimized
+
+                # Handle concede dialog mouse motion
+                if self.concede_dialog.visible:
+                    self.concede_dialog.handle_mouse_motion(event.pos)
+                # Handle game over window mouse motion (only block when not minimized)
+                elif self.game_over_window.visible and not self.game_over_window.minimized:
                     self.game_over_window.handle_mouse_motion(event.pos)
                 # Handle help page scrollbar dragging
                 elif self.help_page.visible:
@@ -1050,12 +1162,19 @@ class GraphicalRenderer:
                     grid_pos = self.screen_to_grid(event.pos[0], event.pos[1])
                     if grid_pos:
                         self.setup_ghost_pos = grid_pos
+                    # Update setup placement bar button hover
+                    self.setup_placement_bar.handle_mouse_motion(event.pos)
 
                 # Update hovered grid position
                 self.hovered_grid_pos = self.screen_to_grid(event.pos[0], event.pos[1])
 
+                # Handle minimized game over window button hovers (doesn't block other UI)
+                if skip_modal_handlers:
+                    self.game_over_window.handle_mouse_motion(event.pos)
+
                 # Update UI component hovers
-                self.skill_bar.handle_mouse_motion(event.pos)
+                if self.show_skills:
+                    self.skill_bar.handle_mouse_motion(event.pos)
                 self.status_effects_panel.handle_mouse_motion(event.pos)
                 self.unit_status_bar.handle_mouse_motion(event.pos)
                 self.action_menu.handle_mouse_motion(event.pos)
@@ -1093,14 +1212,31 @@ class GraphicalRenderer:
                         # Add scroll support for respawn window too
                         pass
                 elif event.button == 1:  # Left click
+                    # Handle concede dialog clicks
+                    if self.concede_dialog.visible:
+                        action = self.concede_dialog.handle_mouse_click(event.pos)
+                        if action == "cancel":
+                            self.concede_dialog.hide()
+                        elif action == "concede":
+                            self.confirm_concede()
                     # Handle game over window clicks
-                    if self.game_over_window.visible:
+                    elif self.game_over_window.visible:
                         action = self.game_over_window.handle_mouse_click(event.pos)
                         if action == "menu":
                             self.return_to_main_menu()
                         elif action == "exit":
                             self.running = False
-                        continue
+                        elif action == "minimize":
+                            self.game_over_window.toggle_minimize()
+
+                        # If minimized and no button was clicked, allow clicks to pass through
+                        # to message log, unit selection, etc.
+                        if self.game_over_window.minimized and action is None:
+                            # Don't continue - fall through to other click handlers
+                            pass
+                        else:
+                            # Full window mode or button was clicked - block all other interactions
+                            continue
 
                     # Handle help page scrollbar clicks
                     if self.help_page.visible:
@@ -1190,33 +1326,39 @@ class GraphicalRenderer:
                             self.setup_unit_help.update(display_unit)
                         continue
                     elif self.setup_placing_unit:
-                        # Click to place unit at cursor position
+                        # Check if clicking on setup placement bar button first
+                        action = self.setup_placement_bar.handle_mouse_click(event.pos)
+                        if action == "change_unit":
+                            self.return_to_unit_selection()
+                            continue
+                        # Otherwise, click to place unit at cursor position
                         self.confirm_unit_placement()
                         continue
 
                     # Check if clicking on UI components first
                     clicked_handled = False
 
-                    # Check skill bar click
-                    skill = self.skill_bar.handle_click(event.pos)
-                    if skill and self.selected_unit:
-                        print(f"Skill selected via click: {skill.name}")
-                        self.selected_skill = skill
-                        game_unit = self._get_game_unit(self.selected_unit)
-                        if game_unit:
-                            # Calculate skill range from ghost position if unit has pending move
-                            if game_unit.move_target:
-                                original_y, original_x = game_unit.y, game_unit.x
-                                game_unit.y, game_unit.x = game_unit.move_target
-                                self.skill_positions = self.game_adapter.get_skill_range(game_unit, skill)
-                                game_unit.y, game_unit.x = original_y, original_x
-                            else:
-                                self.skill_positions = self.game_adapter.get_skill_range(game_unit, skill)
-                            self.show_movement_range = False
-                            self.show_target_range = False
-                            self.show_skill_range = True
-                            self.current_action_mode = "SKILL"
-                        clicked_handled = True
+                    # Check skill bar click (only if skills are visible)
+                    if self.show_skills:
+                        skill = self.skill_bar.handle_click(event.pos)
+                        if skill and self.selected_unit:
+                            print(f"Skill selected via click: {skill.name}")
+                            self.selected_skill = skill
+                            game_unit = self._get_game_unit(self.selected_unit)
+                            if game_unit:
+                                # Calculate skill range from ghost position if unit has pending move
+                                if game_unit.move_target:
+                                    original_y, original_x = game_unit.y, game_unit.x
+                                    game_unit.y, game_unit.x = game_unit.move_target
+                                    self.skill_positions = self.game_adapter.get_skill_range(game_unit, skill)
+                                    game_unit.y, game_unit.x = original_y, original_x
+                                else:
+                                    self.skill_positions = self.game_adapter.get_skill_range(game_unit, skill)
+                                self.show_movement_range = False
+                                self.show_target_range = False
+                                self.show_skill_range = True
+                                self.current_action_mode = "SKILL"
+                            clicked_handled = True
 
                     # Check unit status bar click
                     if not clicked_handled:
@@ -1259,6 +1401,7 @@ class GraphicalRenderer:
                     self.show_movement_range = False
                     self.show_target_range = False
                     self.show_skill_range = False
+                    self.show_skills = False  # Hide skill bar
                     self.show_astral_values = False  # Hide astral values
                     self.valid_positions = []
                     self.attack_positions = []
@@ -1381,25 +1524,16 @@ class GraphicalRenderer:
                     else:
                         print(f"Failed to use skill: {self.selected_skill.name}")
 
-                    # Clear skill targeting mode
+                    # Clear skill targeting mode and hide all ranges
                     self.selected_skill = None
                     self.show_skill_range = False
                     self.skill_positions = []
-
-                    # Restore normal range display
-                    if game_unit:
-                        # Check if unit has pending move - if so, calculate from ghost position
-                        if game_unit.move_target:
-                            self.valid_positions = []
-                            self.attack_positions = self.game_adapter.get_attack_range(game_unit, from_pos=game_unit.move_target)
-                            self.show_movement_range = False
-                        else:
-                            self.valid_positions = self.game_adapter.get_movement_range(game_unit)
-                            self.attack_positions = self.game_adapter.get_attack_range(game_unit)
-                            self.show_movement_range = True
-                        self.show_target_range = True
-                    else:
-                        print(f"Failed to use skill")
+                    self.show_movement_range = False
+                    self.show_target_range = False
+                    self.valid_positions = []
+                    self.attack_positions = []
+                    self.show_skills = False  # Hide skill bar after using a skill
+                    self.current_action_mode = "SELECT"
             else:
                 print(f"Target out of skill range")
             return  # Don't process normal click logic when in skill mode
@@ -1408,23 +1542,22 @@ class GraphicalRenderer:
         if unit:
             # Check if this is a friendly unit (current player's unit)
             if unit.player == current_player:
-                # Select friendly unit and immediately show movement range
+                # Select friendly unit WITHOUT showing movement range (player must click Move button)
                 self.selected_unit = unit
-                self.show_movement_range = True
+                self.show_movement_range = False
                 self.show_target_range = False
-                self.current_action_mode = "MOVE"
+                self.current_action_mode = None
 
-                # Query movement range and attack range from game logic
+                # Query movement range and attack range from game logic (but don't display yet)
                 game_unit = self._get_game_unit(unit)
                 if game_unit:
-                    # If unit has a pending move, don't show movement range (only attack range from ghost position)
+                    # If unit has a pending move, clear valid positions
                     if game_unit.move_target:
                         self.valid_positions = []  # No movement range - already moved
                         # Calculate attack range from ghost position by passing from_pos
                         self.attack_positions = self.game_adapter.get_attack_range(game_unit, from_pos=game_unit.move_target)
-                        self.show_movement_range = False  # Don't show movement highlights
                     else:
-                        # Normal range calculation from current position
+                        # Calculate ranges but don't show them yet
                         self.valid_positions = self.game_adapter.get_movement_range(game_unit)
                         self.attack_positions = self.game_adapter.get_attack_range(game_unit)
 
@@ -1468,6 +1601,7 @@ class GraphicalRenderer:
                             self.selected_unit = None
                             self.show_movement_range = False
                             self.show_target_range = False
+                            self.show_skills = False  # Hide skill bar
                             self.show_astral_values = False  # Hide astral values
                             self.valid_positions = []
                             self.attack_positions = []
@@ -1481,15 +1615,33 @@ class GraphicalRenderer:
                     # Unit selected but not in attack mode - just show enemy info
                     game_unit = self._get_game_unit(unit)
                     if game_unit:
+                        # Check if Valuation Oracle is upgraded to get enemy astral value
+                        enemy_astral_value = None
+                        appraiser = self._get_delphic_appraiser(current_player)
+                        if appraiser and hasattr(appraiser, 'passive_skill') and appraiser.passive_skill:
+                            from boneglaive.game.upgrades import UpgradeManager
+                            if UpgradeManager.is_skill_upgraded(appraiser, "Valuation Oracle"):
+                                enemy_astral_value = appraiser.passive_skill._get_enemy_astral_value(
+                                    self.game_adapter.game, current_player, game_unit
+                                )
                         self.status_effects_panel.update(game_unit)
-                        self.unit_info_panel.update(unit, game_unit)
+                        self.unit_info_panel.update(unit, game_unit, enemy_astral_value)
                 else:
                     # Clicked enemy with no unit selected - just show info
                     game_unit = self._get_game_unit(unit)
                     if game_unit:
+                        # Check if Valuation Oracle is upgraded to get enemy astral value
+                        enemy_astral_value = None
+                        appraiser = self._get_delphic_appraiser(current_player)
+                        if appraiser and hasattr(appraiser, 'passive_skill') and appraiser.passive_skill:
+                            from boneglaive.game.upgrades import UpgradeManager
+                            if UpgradeManager.is_skill_upgraded(appraiser, "Valuation Oracle"):
+                                enemy_astral_value = appraiser.passive_skill._get_enemy_astral_value(
+                                    self.game_adapter.game, current_player, game_unit
+                                )
                         # Update status effects panel and unit info to show enemy info
                         self.status_effects_panel.update(game_unit)
-                        self.unit_info_panel.update(unit, game_unit)
+                        self.unit_info_panel.update(unit, game_unit, enemy_astral_value)
                     else:
                         self.status_effects_panel.update(None)
                         self.unit_info_panel.update(None, None)
@@ -1534,7 +1686,45 @@ class GraphicalRenderer:
 
                     return  # Don't process as movement
 
-            # Not furniture - handle as movement (only in MOVE mode)
+                # Check if it's a Marrow Dike wall tile (attackable obstacle)
+                if (self.selected_unit and self.current_action_mode == "ATTACK" and
+                    hasattr(self.game_adapter.game, 'marrow_dike_tiles') and
+                    (grid_y, grid_x) in self.game_adapter.game.marrow_dike_tiles):
+
+                    # Check if wall is in attack range
+                    if (grid_x, grid_y) in self.attack_positions:
+                        game_unit = self._get_game_unit(self.selected_unit)
+
+                        if game_unit:
+                            # Set attack target on wall (game coords: y, x)
+                            game_unit.attack_target = (grid_y, grid_x)
+                            game_unit.took_no_actions = False
+
+                            # Track action order
+                            game_unit.action_timestamp = self.game_adapter.game.action_counter
+                            self.game_adapter.game.action_counter += 1
+
+                            wall_info = self.game_adapter.game.marrow_dike_tiles[(grid_y, grid_x)]
+                            print(f"Attack planned: {self.selected_unit.name} -> Marrow Dike wall at ({grid_x}, {grid_y})")
+
+                            # Clear selection
+                            self.selected_unit = None
+                            self.show_movement_range = False
+                            self.show_target_range = False
+                            self.show_skills = False
+                            self.show_astral_values = False
+                            self.valid_positions = []
+                            self.attack_positions = []
+                            self.skill_bar.update(None, None)
+                            self.status_effects_panel.update(None)
+                            self.unit_info_panel.update(None, None)
+                            self.current_action_mode = "SELECT"
+                    else:
+                        print(f"Marrow Dike wall at ({grid_x}, {grid_y}) out of attack range")
+
+                    return  # Don't process as movement
+
+            # Not furniture or wall - handle as movement (only in MOVE mode)
             if self.selected_unit and self.current_action_mode == "MOVE":
                 # Check if clicked position is in movement range
                 if (grid_x, grid_y) in self.valid_positions:
@@ -1588,12 +1778,31 @@ class GraphicalRenderer:
         Handle action menu button clicks.
 
         Args:
-            action: Action string (attack, respawn, execute, concede, help)
+            action: Action string (move, attack, respawn, execute, concede, help)
         """
-        if action == "attack":
+        if action == "move":
+            if self.selected_unit:
+                print("Move mode activated")
+                self.current_action_mode = "MOVE"
+                self.show_skills = False  # Hide skills when switching to move mode
+                # Show movement range
+                game_unit = self._get_game_unit(self.selected_unit)
+                if game_unit:
+                    # Only show movement if unit hasn't moved yet
+                    if not game_unit.move_target:
+                        self.valid_positions = self.game_adapter.get_movement_range(game_unit)
+                        self.show_movement_range = True
+                    else:
+                        self.valid_positions = []
+                        self.show_movement_range = False
+                    self.show_target_range = False
+                    self.show_skill_range = False
+
+        elif action == "attack":
             if self.selected_unit:
                 print("Attack mode activated")
                 self.current_action_mode = "ATTACK"
+                self.show_skills = False  # Hide skills when switching to attack mode
                 # Show attack range
                 game_unit = self._get_game_unit(self.selected_unit)
                 if game_unit:
@@ -1605,6 +1814,13 @@ class GraphicalRenderer:
                     self.show_target_range = True
                     self.show_movement_range = False
                     self.show_skill_range = False
+
+        elif action == "skills":
+            if self.selected_unit:
+                print("Skills button clicked - toggling skill bar visibility")
+                # Toggle skill bar visibility
+                self.show_skills = not self.show_skills
+                self.current_action_mode = "SKILLS" if self.show_skills else "SELECT"
 
         elif action == "respawn":
             print("Respawn mode activated")
@@ -1635,16 +1851,14 @@ class GraphicalRenderer:
             self.execute_turn()
 
         elif action == "concede":
-            print("Concede requested")
-            # TODO: Add confirmation dialog
-            # For now, just log it
-            self.combat_log.add_message("Concede not yet implemented", "system")
+            print("Concede requested - showing confirmation dialog")
+            self.concede_dialog.show()
 
     def _get_furniture_name(self, terrain_type) -> str:
         """Convert TerrainType to readable furniture name."""
         # Map terrain types to readable names
         furniture_names = {
-            TerrainType.RADIO_CONSOLE: "Radio Console",
+            TerrainType.LECTERN: "Lectern",
             TerrainType.COAT_RACK: "Coat Rack",
             TerrainType.OTTOMAN: "Ottoman",
             TerrainType.CONSOLE: "Console Table",
@@ -1675,6 +1889,17 @@ class GraphicalRenderer:
             if unit.player == player and unit.type == UnitType.DELPHIC_APPRAISER and unit.hp > 0:
                 return True
         return False
+
+    def _get_delphic_appraiser(self, player: int):
+        """Get the DELPHIC APPRAISER unit for the specified player."""
+        if not self.game_adapter.game:
+            return None
+
+        from boneglaive.utils.constants import UnitType
+        for unit in self.game_adapter.game.units:
+            if unit.player == player and unit.type == UnitType.DELPHIC_APPRAISER and unit.hp > 0:
+                return unit
+        return None
 
     def trigger_screen_shake(self, intensity: float, duration: float):
         """Trigger screen shake effect."""
@@ -1995,6 +2220,42 @@ class GraphicalRenderer:
             else:
                 print(f"[Retch] ERROR: Could not find visual unit for retching unit")
 
+        elif event.event_type == "autoclave_failure":
+            # Autoclave failure - GLAIVEMAN charges but fizzles (no targets available)
+            target = event.target_unit  # GLAIVEMAN who failed to trigger Autoclave
+            visual_unit = self._get_visual_unit(target)
+
+            if visual_unit:
+                animated_unit = visual_unit.animated_unit
+
+                print(f"[AutoclaveFailure] {target.get_display_name()}'s Autoclave fails - no targets in range")
+
+                # Create AutoclaveFailureAnimation
+                from boneglaive.graphical.animations import AnimationFactory
+
+                failure_animation = AnimationFactory.create_animation(
+                    skill_name="AUTOCLAVE_FAILURE",
+                    caster_unit=animated_unit,
+                    target_unit=animated_unit,
+                    target_pos=(target.y, target.x),
+                    is_crit=False,
+                    is_infused=False,
+                    particle_emitter=self.particle_emitter,
+                    screen_shake_callback=self.trigger_screen_shake,
+                    screen_flash_callback=self.trigger_screen_flash,
+                    units_list=self.units,
+                    camera=self.camera,
+                    game=self.game_adapter.game
+                )
+
+                if failure_animation:
+                    self.active_animations.append(failure_animation)
+                    print(f"[AutoclaveFailure] Animation created successfully!")
+                else:
+                    print(f"[AutoclaveFailure] ERROR: Failed to create animation")
+            else:
+                print(f"[AutoclaveFailure] ERROR: Could not find visual unit for GLAIVEMAN")
+
         elif event.event_type == "partition_dissociation":
             # Play partition dissociation animation (emergency trigger)
             print(f"[RENDERER DEBUG] *** RECEIVED partition_dissociation EVENT ***")
@@ -2255,6 +2516,19 @@ class GraphicalRenderer:
 
         # Update units
         for unit in self.units:
+            # Sync potpourri aura with game state
+            if unit.game_unit:
+                has_infuse = hasattr(unit.game_unit, 'potpourri_held') and unit.game_unit.potpourri_held
+
+                # Turn ON aura if Infuse is active but aura isn't
+                if has_infuse and not unit.potpourri_aura_active:
+                    unit.potpourri_aura_active = True
+                    unit.potpourri_aura_timer = 0
+                # Turn OFF aura if Infuse expired
+                elif not has_infuse and unit.potpourri_aura_active:
+                    unit.potpourri_aura_active = False
+                    unit.potpourri_aura_particles.clear()
+
             unit.update(delta_time)
 
         # Update particles
@@ -2423,8 +2697,7 @@ class GraphicalRenderer:
             # No pending damage events, but we have status icons to show
             print(f"[Renderer] No pending events, but showing {len(self.game_adapter._effects_to_show_after_damage)} status effect icons")
             self._show_active_status_effects()
-            # Clear the list after showing to prevent repeated displays
-            self.game_adapter._effects_to_show_after_damage.clear()
+            # Note: List is cleared inside _show_active_status_effects() to prevent duplicates
 
         # Stop motor if it's running and turn execution is complete (no more animations)
         if self.motor_animation.is_running and not self.has_active_animations() and not self.game_adapter.executing_turn:
@@ -2442,7 +2715,7 @@ class GraphicalRenderer:
         Args:
             event: Animation event from game state
         """
-        if event.event_type == "damage" or event.event_type == "heal" or event.event_type == "geas_heal" or event.event_type == "melange_heal" or event.event_type == "scalar_trap" or event.event_type == "trap_release" or event.event_type == "viseroy_tick" or event.event_type == "retch":
+        if event.event_type == "damage" or event.event_type == "heal" or event.event_type == "geas_heal" or event.event_type == "melange_heal" or event.event_type == "scalar_trap" or event.event_type == "trap_release" or event.event_type == "viseroy_tick" or event.event_type == "retch" or event.event_type == "autoclave_failure":
             # If animations are active, queue the event for later
             if self.has_active_animations():
                 self.pending_animation_events.append(event)
@@ -2482,19 +2755,11 @@ class GraphicalRenderer:
             print(f"  [Renderer] Queued Glaive Sweep counter-attack animation")
 
         elif event.event_type == "status_effect":
-            # Status effect icon animation (used for special cases like trap-applied effects)
-            target_unit = event.target_unit
-            effect_name = event.kwargs.get('effect_name')
-
-            if target_unit and effect_name:
-                visual_unit = self._get_visual_unit(target_unit)
-                if visual_unit:
-                    print(f"  [Renderer] Creating status effect animation for {effect_name} on {target_unit.get_display_name()}")
-                    self._create_status_icon_flash(visual_unit.animated_unit, effect_name)
-                else:
-                    print(f"  [Renderer] WARNING: Could not find visual unit for status effect {effect_name}")
-            else:
-                print(f"  [Renderer] WARNING: Invalid status_effect event (missing target or effect_name)")
+            # NOTE: Status effect events are NO LONGER handled here to prevent duplicate flashes.
+            # All status effects (including trap-applied ones like shrapnel) are now detected
+            # via _detect_status_effects_callback() and shown via _show_active_status_effects().
+            # This ensures each effect flashes exactly ONCE after damage numbers complete.
+            print(f"  [Renderer] Ignoring status_effect event (will be detected via callback system)")
 
         elif event.event_type == "partition_dissociation":
             # Partition dissociation is a dramatic emergency animation - show immediately
@@ -2563,10 +2828,10 @@ class GraphicalRenderer:
                 caster_animated = self._find_animated_unit_by_game_unit(event.source_unit)
 
                 if caster_animated:
-                    # Create building formation animation via AnimationFactory
+                    # Create building formation animation (dust cloud) and persistent tiles
                     from boneglaive.graphical.animations import AnimationFactory
 
-                    # 1. Building formation animation (one-time, blocking)
+                    # 1. Dust cloud formation animation (one-time effect)
                     formation_animation = AnimationFactory.create_animation(
                         skill_name="DERELICT_BUILDING_FORMATION",
                         caster_unit=caster_animated,
@@ -2584,11 +2849,10 @@ class GraphicalRenderer:
                     )
 
                     if formation_animation:
-                        # Add to active_animations - this is a one-time formation effect
                         self.active_animations.append(formation_animation)
-                        print(f"  [Animation] Successfully created building formation animation")
+                        print(f"  [Animation] Successfully created dust cloud formation animation")
                     else:
-                        print(f"  [Animation] WARNING: Failed to create building formation animation")
+                        print(f"  [Animation] WARNING: Failed to create dust cloud formation animation")
 
                     # 2. Building tiles persistent effect (background, non-blocking)
                     tiles_animation = AnimationFactory.create_animation(
@@ -2617,6 +2881,36 @@ class GraphicalRenderer:
                     print(f"  [Renderer] WARNING: Could not find animated unit for building caster")
 
             # Building formation is blocking, but tiles are background effect
+
+        elif event.event_type == "push_trail":
+            # Derelict push trail animation - blue particle trail during ally push
+            start_pos = event.kwargs.get('start_pos')
+            end_pos = event.kwargs.get('end_pos')
+
+            if start_pos and end_pos:
+                print(f"  [Renderer] Creating Derelict push trail from {start_pos} to {end_pos}")
+
+                from boneglaive.graphical.animations import AnimationFactory
+
+                push_trail = AnimationFactory.create_animation(
+                    skill_name="DERELICT_PUSH_TRAIL",
+                    caster_unit=None,
+                    target_unit=None,
+                    target_pos=None,
+                    is_crit=False,
+                    is_infused=False,
+                    start_pos=start_pos,
+                    end_pos=end_pos,
+                    camera=self.camera
+                )
+
+                if push_trail:
+                    self.active_animations.append(push_trail)
+                    print(f"  [Animation] Successfully created push trail animation")
+                else:
+                    print(f"  [Animation] WARNING: Failed to create push trail animation")
+
+            # Push trail is non-blocking visual effect
 
         elif event.event_type == "movement":
             # Animate unit movement - already handled in sync_state()
@@ -2665,6 +2959,7 @@ class GraphicalRenderer:
         """
         Show status effect icons for effects that were detected during turn execution.
         Called after damage numbers are flushed.
+        IMPORTANT: Clears the effects list after showing to prevent duplicate flashes.
         """
         if not self.game_adapter.game:
             return
@@ -2690,6 +2985,10 @@ class GraphicalRenderer:
                 self._create_status_icon_flash(animated_unit, effect_name)
             else:
                 print(f"[Renderer] WARNING: Unit {unit_id} not found in visual_units")
+
+        # Clear the list immediately after showing to prevent duplicate flashes
+        self.game_adapter._effects_to_show_after_damage.clear()
+        print(f"[Renderer] Cleared effects list to prevent duplicates")
 
     def _create_attack_animation(self, event):
         """
@@ -3076,6 +3375,9 @@ class GraphicalRenderer:
                 target_unit = self._find_animated_unit_by_game_unit(target_game_unit)
                 if target_unit:
                     print(f"  [Renderer] Found target visual unit via captured game unit: {target_unit.name}")
+                    # CRITICAL: Use target's CURRENT position after movement, not queued position
+                    # This fixes animations appearing at old positions when unit moves before skill executes
+                    target_pos = (target_game_unit.y, target_game_unit.x)
                 else:
                     print(f"  [Renderer] WARNING: Could not find AnimatedUnit for captured game unit")
             else:
@@ -3298,11 +3600,14 @@ class GraphicalRenderer:
             # Update UI
             has_actions = any(u.move_target or u.attack_target or u.skill_target
                             for u in self.game_adapter.game.units if u.is_alive())
+            # Disable action menu when game over window is minimized
+            force_disable_actions = self.game_over_window.visible and self.game_over_window.minimized
             self.action_menu.update(
                 self.game_adapter.game,
                 next_game_unit,
                 self.current_action_mode,
-                has_actions
+                has_actions,
+                force_disable=force_disable_actions
             )
             self.skill_bar.update(next_animated_unit, next_game_unit)
 
@@ -3343,10 +3648,6 @@ class GraphicalRenderer:
         if self.selected_unit:
             self.draw_selection_highlight(main_surface, self.selected_unit)
 
-        # Draw astral values if DELPHIC APPRAISER is selected
-        if self.show_astral_values:
-            self.draw_astral_values(main_surface)
-
         # Draw imbued furniture effects (Market Futures)
         self.draw_imbued_furniture(main_surface)
 
@@ -3374,6 +3675,76 @@ class GraphicalRenderer:
 
             unit.draw(main_surface, self.small_font)
 
+        # Draw target indicator pips on all tiles
+        self.draw_target_pips(main_surface)
+
+        # Draw astral values if DELPHIC APPRAISER is selected (after units so they appear on top)
+        if self.show_astral_values:
+            self.draw_astral_values(main_surface)
+
+        # Draw currency symbols on imbued enemies (after units so they appear on top)
+        if self.game_adapter.game:
+            # Calculate wave effect for currency symbol (same as furniture)
+            alpha = int(140 + math.sin(self.astral_value_pulse_time * 2.5) * 60)  # 80 to 200
+            wave_offset = math.sin(self.astral_value_pulse_time * 3) * 8  # Vertical wave amplitude
+
+            for unit in self.units:
+                game_unit = self._get_game_unit(unit)
+                if game_unit and game_unit.is_alive():
+                    # Check if unit has imbued status (from Market Futures on enemies)
+                    if hasattr(game_unit, 'status_imbued') and game_unit.status_imbued:
+                        # Calculate screen position (center of unit's tile)
+                        tile_x = GRID_OFFSET_X + unit.grid_x * TILE_SIZE + TILE_SIZE // 2
+                        tile_y = GRID_OFFSET_Y + unit.grid_y * TILE_SIZE + TILE_SIZE // 2
+
+                        # Draw waving currency symbol (¤) - same as furniture
+                        font_size = 120
+                        currency_font = pygame.font.Font(None, font_size)
+                        currency_text = currency_font.render("¤", True, (255, 215, 0))  # Gold
+                        currency_text.set_alpha(alpha)
+
+                        # Apply wave offset to y position for undulating effect
+                        wave_y = tile_y + wave_offset
+
+                        # Center the symbol with wave offset
+                        text_rect = currency_text.get_rect(center=(tile_x, int(wave_y)))
+
+                        # Draw dark outline for visibility
+                        outline_font = pygame.font.Font(None, font_size + 2)
+                        outline_text = outline_font.render("¤", True, (0, 0, 0))
+                        outline_text.set_alpha(alpha // 2)
+                        outline_rect = outline_text.get_rect(center=(tile_x, int(wave_y)))
+                        main_surface.blit(outline_text, outline_rect)
+
+                        # Draw main currency symbol
+                        main_surface.blit(currency_text, text_rect)
+
+                        # Spawn sparkles around imbued enemies (same as furniture)
+                        if random.random() < 0.3:  # 30% chance per frame
+                            # Random position within tile bounds
+                            spawn_x = tile_x + random.uniform(-TILE_SIZE // 3, TILE_SIZE // 3)
+                            spawn_y = tile_y + random.uniform(-TILE_SIZE // 3, TILE_SIZE // 3)
+
+                            # Random velocity (upward with slight horizontal drift)
+                            vx = random.uniform(-10, 10)
+                            vy = random.uniform(-40, -60)
+
+                            # Random properties
+                            max_life = random.uniform(1.0, 1.5)
+                            sparkle_size = random.randint(2, 4)
+                            color = random.choice([(255, 235, 100), (255, 215, 0)])
+
+                            self.imbued_sparkles.append({
+                                'x': spawn_x,
+                                'y': spawn_y,
+                                'vx': vx,
+                                'vy': vy,
+                                'life': 0,
+                                'max_life': max_life,
+                                'size': sparkle_size,
+                                'color': color
+                            })
+
         # Draw background animations FIRST (zones, environmental effects - render below other animations)
         for animation in self.background_animations:
             animation.draw(main_surface)
@@ -3392,8 +3763,14 @@ class GraphicalRenderer:
         for debris in self.debris_particles:
             debris.draw(main_surface)
 
+<<<<<<< HEAD
         # Draw skill bar (above map, below top bar)
         self.skill_bar.draw(main_surface, self.screen_width, self.screen_height, self.layout.top_bar_height)
+=======
+        # Draw skill bar (above map, below top bar) - only if show_skills is True
+        if self.show_skills:
+            self.skill_bar.draw(main_surface, SCREEN_WIDTH, SCREEN_HEIGHT, TOP_BAR_HEIGHT)
+>>>>>>> main
 
         # Draw combat log (below map, horizontal bar - maximized to fit space)
         combat_log_x = self.layout.left_panel_width + 10
@@ -3416,8 +3793,25 @@ class GraphicalRenderer:
         # Draw help page overlay (must be drawn last, on top of everything)
         self.help_page.draw(self.screen, self.screen_width, self.screen_height)
 
+<<<<<<< HEAD
         # Draw message log window (on top of help page)
         self.message_log_window.draw(self.screen, self.screen_width, self.screen_height)
+=======
+        # Draw game over window (before message log so minimized bar appears behind it)
+        if self.game_over_window.visible:
+            self.game_over_window.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
+
+        # Draw setup placement bar (before message log so it appears behind it)
+        if self.setup_placing_unit and self.selected_unit_type:
+            # Get display name for selected unit type
+            unit_display_name = self.setup_window.unit_names.get(self.selected_unit_type, str(self.selected_unit_type))
+            # Get current setup player for border color
+            current_player = self.game_adapter.game.setup_player if self.game_adapter.game else 1
+            self.setup_placement_bar.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT, unit_display_name, current_player)
+
+        # Draw message log window (on top of help page and minimized bars)
+        self.message_log_window.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
+>>>>>>> main
 
         # Draw upgrade window (on top of everything except help/message log)
         if self.upgrade_window.visible:
@@ -3438,9 +3832,15 @@ class GraphicalRenderer:
             help_panel_height = self.screen_height - 100
             self.setup_help_panel_rect = self.setup_unit_help.draw(self.screen, help_panel_x, help_panel_y, help_panel_width, help_panel_height)
 
+<<<<<<< HEAD
         # Draw game over window (on top of everything - highest z-order)
         if self.game_over_window.visible:
             self.game_over_window.draw(self.screen, self.screen_width, self.screen_height)
+=======
+        # Draw concede dialog (on top of everything except help page and message log)
+        if self.concede_dialog.visible:
+            self.concede_dialog.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
+>>>>>>> main
 
         # Draw FPS counter (for troubleshooting)
         if self.show_fps:
@@ -3481,6 +3881,36 @@ class GraphicalRenderer:
             self.mark_all_tiles_dirty()
         # If setting to False, we ignore it since the new system auto-clears dirty flags
 
+    def _is_furniture(self, terrain_type: TerrainType) -> bool:
+        """Check if a terrain type is furniture (should render on top of base terrain)."""
+        furniture_types = [
+            TerrainType.LECTERN, TerrainType.COAT_RACK, TerrainType.OTTOMAN,
+            TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF, TerrainType.TIFFANY_LAMP,
+            TerrainType.EASEL, TerrainType.SCULPTURE, TerrainType.BENCH,
+            TerrainType.PODIUM, TerrainType.VASE, TerrainType.WORKBENCH,
+            TerrainType.COUCH, TerrainType.TOOLBOX, TerrainType.COT,
+            TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN, TerrainType.POTPOURRI_BOWL
+        ]
+        return terrain_type in furniture_types
+
+    def _get_base_terrain_for_map(self, game_map) -> TerrainType:
+        """Get the base terrain type for the current map (to render under furniture)."""
+        if not game_map or not hasattr(game_map, 'name'):
+            return TerrainType.EMPTY
+
+        map_name = game_map.name.lower()
+
+        # Map name to base terrain mapping
+        if 'hard' in map_name or 'pressed' in map_name:
+            return TerrainType.CONCRETE_FLOOR
+        elif 'stained' in map_name or 'stone' in map_name:
+            return TerrainType.CANYON_FLOOR
+        elif 'lime' in map_name or 'foyer' in map_name:
+            return TerrainType.DUST
+        else:
+            # Default to empty for unknown maps
+            return TerrainType.EMPTY
+
     def _render_single_tile(self, surface: pygame.Surface, x: int, y: int, game_map):
         """Render a single tile (used for dirty rectangle updates)."""
         # Calculate tile position (relative to grid surface, not screen)
@@ -3493,7 +3923,6 @@ class GraphicalRenderer:
         if game_map:
             terrain_type = game_map.get_terrain_at(y, x)
 
-        # For rail tiles, render the underlying terrain instead
         if terrain_type == TerrainType.RAIL and game_map:
             terrain_type = game_map.get_rail_original_terrain(y, x)
 
@@ -3506,6 +3935,17 @@ class GraphicalRenderer:
 
         # Draw base tile
         pygame.draw.rect(surface, base_color, rect)
+
+        # Check if this is furniture OR empty tile - if so, render base terrain first
+        is_furniture = self._is_furniture(terrain_type)
+        if (is_furniture or terrain_type == TerrainType.EMPTY) and game_map:
+            # Get the base terrain for this map
+            base_terrain = self._get_base_terrain_for_map(game_map)
+            if base_terrain != TerrainType.EMPTY:
+                # Render base terrain texture underneath furniture/empty tiles
+                base_surface = self._load_terrain_tile(base_terrain)
+                if base_surface:
+                    surface.blit(base_surface, (tile_x, tile_y))
 
         # Try to load and draw terrain/furniture SVG
         if terrain_type != TerrainType.EMPTY:
@@ -3716,39 +4156,63 @@ class GraphicalRenderer:
         if not has_rail_genesis:
             return
 
-        # Calculate junction positions (same logic as engine.py:2403-2421)
-        center_y = self.game_adapter.game.map.height // 2
-        center_x = self.game_adapter.game.map.width // 2
-
-        top_horizontal = 1
-        middle_horizontal = center_y - 2
-        bottom_horizontal = self.game_adapter.game.map.height - 2
-
-        vertical_line_1 = center_x - 2
-        vertical_line_2 = center_x + 2
-
+        # Fixed junction coordinates (4x4 grid)
         junction_coords = [
-            (top_horizontal, vertical_line_1),
-            (top_horizontal, vertical_line_2),
-            (middle_horizontal, vertical_line_1),
-            (middle_horizontal, vertical_line_2),
-            (bottom_horizontal, vertical_line_1),
-            (bottom_horizontal, vertical_line_2)
+            (2, 4), (2, 8), (2, 12), (2, 16),
+            (4, 4), (4, 8), (4, 12), (4, 16),
+            (6, 4), (6, 8), (6, 12), (6, 16),
+            (8, 4), (8, 8), (8, 12), (8, 16)
         ]
 
-        # Pulsing effect (subtle, 2-second cycle)
+        # Rotating electrical firework effect
         import math
-        pulse = (math.sin(self.junction_pulse_time * math.pi) + 1) * 0.5
-        alpha = int(100 + pulse * 80)  # Range: 100-180
 
-        overlay = self.rail_junction_overlay.copy()
-        overlay.set_alpha(alpha)
+        # Rotation angle (1.5 second per full rotation)
+        rotation_angle = self.junction_pulse_time * 4.19  # ~1.5 seconds per rotation
 
-        # Draw overlay at each junction
+        # Colors: orange and cyan for FOWL CONTRIVANCE theme
+        orange = (255, 140, 0)
+        cyan = (0, 255, 255)
+
+        # Draw electrical pinwheel at each junction
         for y, x in junction_coords:
+<<<<<<< HEAD
             tile_x = self.layout.grid_offset_x + x * self.layout.tile_size
             tile_y = self.layout.grid_offset_y + y * self.layout.tile_size
             surface.blit(overlay, (tile_x, tile_y))
+=======
+            # Only draw animation if there's actually a rail at this position
+            if self.game_adapter.game.map.get_terrain_at(y, x) != TerrainType.RAIL:
+                continue
+
+            tile_x = GRID_OFFSET_X + x * TILE_SIZE
+            tile_y = GRID_OFFSET_Y + y * TILE_SIZE
+            center_x = tile_x + TILE_SIZE // 2
+            center_y = tile_y + TILE_SIZE // 2
+
+            # 8 sparks in a pinwheel pattern
+            num_sparks = 8
+            radius = TILE_SIZE // 3  # Distance from center
+
+            for i in range(num_sparks):
+                # Calculate spark position
+                angle = rotation_angle + (i * 2 * math.pi / num_sparks)
+                spark_x = int(center_x + math.cos(angle) * radius)
+                spark_y = int(center_y + math.sin(angle) * radius)
+
+                # Alternate colors (orange for even, cyan for odd)
+                color = orange if i % 2 == 0 else cyan
+
+                # Draw glowing spark
+                # Outer glow (larger, semi-transparent)
+                glow_surf = pygame.Surface((12, 12), pygame.SRCALPHA)
+                pygame.draw.circle(glow_surf, (*color, 80), (6, 6), 6)
+                surface.blit(glow_surf, (spark_x - 6, spark_y - 6))
+
+                # Inner bright core
+                pygame.draw.circle(surface, color, (spark_x, spark_y), 3)
+                pygame.draw.circle(surface, (255, 255, 255), (spark_x, spark_y), 1)  # Bright center
+>>>>>>> main
 
     def draw_range_indicators(self, surface: pygame.Surface):
         """Draw movement range, attack range, and skill range indicators."""
@@ -3778,13 +4242,13 @@ class GraphicalRenderer:
                     (self.layout.grid_offset_x + grid_x * self.layout.tile_size, self.layout.grid_offset_y + grid_y * self.layout.tile_size)
                 )
 
-        # Draw skill range (purple/yellow)
+        # Draw skill range (purple)
         if self.show_skill_range and self.skill_positions:
-            skill_color = (200, 150, 255)  # Purple for skills
+            skill_color = (140, 80, 200)  # Darker purple for skills (matches pip color)
             for grid_x, grid_y in self.skill_positions:
                 indicator_surf.fill((0, 0, 0, 0))
-                pygame.draw.rect(indicator_surf, (*skill_color, 80), indicator_rect)
-                pygame.draw.rect(indicator_surf, (*skill_color, 150), indicator_rect, 2)
+                pygame.draw.rect(indicator_surf, (*skill_color, 120), indicator_rect)  # Less transparent
+                pygame.draw.rect(indicator_surf, (*skill_color, 200), indicator_rect, 2)  # Less transparent border
                 surface.blit(
                     indicator_surf,
                     (self.layout.grid_offset_x + grid_x * self.layout.tile_size, self.layout.grid_offset_y + grid_y * self.layout.tile_size)
@@ -3805,6 +4269,7 @@ class GraphicalRenderer:
         # Draw respawn ghost preview
         if self.respawn_selecting_location and self.respawn_ghost_pos and self.selected_dead_unit:
             ghost_x, ghost_y = self.respawn_ghost_pos
+<<<<<<< HEAD
             # Draw semi-transparent unit preview
             ghost_surf = pygame.Surface((self.layout.tile_size, self.layout.tile_size), pygame.SRCALPHA)
             ghost_surf.fill((100, 255, 150, 60))  # Green tint
@@ -3822,6 +4287,133 @@ class GraphicalRenderer:
                 ghost_surf,
                 (self.layout.grid_offset_x + ghost_x * self.layout.tile_size, self.layout.grid_offset_y + ghost_y * self.layout.tile_size)
             )
+=======
+
+            # Check if position is valid (game logic uses (y, x) format)
+            pos_valid = (ghost_y, ghost_x) in self.respawn_valid_tiles if hasattr(self, 'respawn_valid_tiles') else True
+
+            # Get sprite path for the selected unit type
+            sprite_path = self._get_sprite_path(self.selected_dead_unit.unit_type)
+
+            # Try to load and display the sprite
+            if sprite_path and os.path.exists(sprite_path):
+                try:
+                    # Load sprite
+                    if sprite_path.endswith('.svg'):
+                        import cairosvg
+                        from io import BytesIO
+                        png_data = cairosvg.svg2png(url=sprite_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
+                        sprite = pygame.image.load(BytesIO(png_data))
+                    else:
+                        sprite = pygame.image.load(sprite_path)
+                        sprite = pygame.transform.smoothscale(sprite, (TILE_SIZE, TILE_SIZE))
+
+                    # Create ghost surface with semi-transparent sprite
+                    ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+
+                    # Draw sprite with transparency
+                    sprite_copy = sprite.copy()
+                    sprite_copy.set_alpha(120)  # Semi-transparent
+                    ghost_surf.blit(sprite_copy, (0, 0))
+
+                    # Add colored tint overlay (green for respawn)
+                    tint_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                    if pos_valid:
+                        tint_surf.fill((100, 255, 150, 60))  # Green tint for valid respawn
+                    else:
+                        tint_surf.fill((255, 100, 100, 60))  # Red tint for invalid
+                    ghost_surf.blit(tint_surf, (0, 0))
+
+                    # Draw the ghost preview
+                    surface.blit(
+                        ghost_surf,
+                        (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE)
+                    )
+                except Exception as e:
+                    # Fallback to text if sprite loading fails
+                    print(f"Could not load sprite for respawn ghost preview: {e}")
+                    ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                    ghost_surf.fill((100, 255, 150, 60))  # Green tint
+                    if hasattr(self.selected_dead_unit, 'unit_type'):
+                        unit_type_name = self.selected_dead_unit.unit_type.name if hasattr(self.selected_dead_unit.unit_type, 'name') else str(self.selected_dead_unit.unit_type)
+                        text = self.small_font.render(unit_type_name[:3], True, (255, 255, 255))
+                        text_rect = text.get_rect(center=(TILE_SIZE // 2, TILE_SIZE // 2))
+                        ghost_surf.blit(text, text_rect)
+                    surface.blit(ghost_surf, (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE))
+            else:
+                # Fallback to text if no sprite path found
+                ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                ghost_surf.fill((100, 255, 150, 60))  # Green tint
+                if hasattr(self.selected_dead_unit, 'unit_type'):
+                    unit_type_name = self.selected_dead_unit.unit_type.name if hasattr(self.selected_dead_unit.unit_type, 'name') else str(self.selected_dead_unit.unit_type)
+                    text = self.small_font.render(unit_type_name[:3], True, (255, 255, 255))
+                    text_rect = text.get_rect(center=(TILE_SIZE // 2, TILE_SIZE // 2))
+                    ghost_surf.blit(text, text_rect)
+                surface.blit(ghost_surf, (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE))
+
+        # Draw queued respawn ghosts (after confirmation, before execution)
+        if self.game_adapter.game:
+            for dead_unit in self.game_adapter.game.dead_units:
+                if hasattr(dead_unit, 'respawn_preview') and dead_unit.respawn_preview:
+                    # respawn_preview is in (y, x) format, convert to (grid_x, grid_y) for drawing
+                    ghost_y, ghost_x = dead_unit.respawn_preview
+
+                    # Get sprite path for the unit type
+                    sprite_path = self._get_sprite_path(dead_unit.unit_type)
+
+                    # Try to load and display the sprite
+                    if sprite_path and os.path.exists(sprite_path):
+                        try:
+                            # Load sprite
+                            if sprite_path.endswith('.svg'):
+                                import cairosvg
+                                from io import BytesIO
+                                png_data = cairosvg.svg2png(url=sprite_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
+                                sprite = pygame.image.load(BytesIO(png_data))
+                            else:
+                                sprite = pygame.image.load(sprite_path)
+                                sprite = pygame.transform.smoothscale(sprite, (TILE_SIZE, TILE_SIZE))
+
+                            # Create ghost surface with semi-transparent sprite
+                            ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+
+                            # Draw sprite with transparency
+                            sprite_copy = sprite.copy()
+                            sprite_copy.set_alpha(120)  # Semi-transparent
+                            ghost_surf.blit(sprite_copy, (0, 0))
+
+                            # Add colored tint overlay (green for queued respawn)
+                            tint_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                            tint_surf.fill((100, 255, 150, 60))  # Green tint
+                            ghost_surf.blit(tint_surf, (0, 0))
+
+                            # Draw the ghost preview
+                            surface.blit(
+                                ghost_surf,
+                                (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE)
+                            )
+                        except Exception as e:
+                            # Fallback to text if sprite loading fails
+                            print(f"Could not load sprite for queued respawn ghost: {e}")
+                            ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                            ghost_surf.fill((100, 255, 150, 60))  # Green tint
+                            if hasattr(dead_unit, 'unit_type'):
+                                unit_type_name = dead_unit.unit_type.name if hasattr(dead_unit.unit_type, 'name') else str(dead_unit.unit_type)
+                                text = self.small_font.render(unit_type_name[:3], True, (255, 255, 255))
+                                text_rect = text.get_rect(center=(TILE_SIZE // 2, TILE_SIZE // 2))
+                                ghost_surf.blit(text, text_rect)
+                            surface.blit(ghost_surf, (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE))
+                    else:
+                        # Fallback to text if no sprite path found
+                        ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                        ghost_surf.fill((100, 255, 150, 60))  # Green tint
+                        if hasattr(dead_unit, 'unit_type'):
+                            unit_type_name = dead_unit.unit_type.name if hasattr(dead_unit.unit_type, 'name') else str(dead_unit.unit_type)
+                            text = self.small_font.render(unit_type_name[:3], True, (255, 255, 255))
+                            text_rect = text.get_rect(center=(TILE_SIZE // 2, TILE_SIZE // 2))
+                            ghost_surf.blit(text, text_rect)
+                        surface.blit(ghost_surf, (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE))
+>>>>>>> main
 
         # Draw setup valid tiles (blue/cyan)
         if self.setup_placing_unit and self.setup_valid_tiles:
@@ -3838,16 +4430,16 @@ class GraphicalRenderer:
         # Draw setup ghost preview
         if self.setup_placing_unit and self.setup_ghost_pos and self.selected_unit_type:
             ghost_x, ghost_y = self.setup_ghost_pos  # screen_to_grid returns (grid_x, grid_y)
+<<<<<<< HEAD
             # Draw semi-transparent unit preview
             ghost_surf = pygame.Surface((self.layout.tile_size, self.layout.tile_size), pygame.SRCALPHA)
+=======
+>>>>>>> main
 
             # Check if position is valid (game logic uses (y, x) format)
             pos_valid = (ghost_y, ghost_x) in self.setup_valid_tiles
-            if pos_valid:
-                ghost_surf.fill((100, 200, 255, 80))  # Blue tint for valid
-            else:
-                ghost_surf.fill((255, 100, 100, 80))  # Red tint for invalid
 
+<<<<<<< HEAD
             # Draw unit type name
             # Get display name (handles both enums and integers)
             unit_display_name = self.setup_window.unit_names.get(self.selected_unit_type, str(self.selected_unit_type))
@@ -3861,6 +4453,70 @@ class GraphicalRenderer:
                 ghost_surf,
                 (self.layout.grid_offset_x + ghost_x * self.layout.tile_size, self.layout.grid_offset_y + ghost_y * self.layout.tile_size)
             )
+=======
+            # Get sprite path for the selected unit type
+            sprite_path = self._get_sprite_path(self.selected_unit_type)
+
+            # Try to load and display the sprite
+            if sprite_path and os.path.exists(sprite_path):
+                try:
+                    # Load sprite
+                    if sprite_path.endswith('.svg'):
+                        import cairosvg
+                        from io import BytesIO
+                        png_data = cairosvg.svg2png(url=sprite_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
+                        sprite = pygame.image.load(BytesIO(png_data))
+                    else:
+                        sprite = pygame.image.load(sprite_path)
+                        sprite = pygame.transform.smoothscale(sprite, (TILE_SIZE, TILE_SIZE))
+
+                    # Create ghost surface with semi-transparent sprite
+                    ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+
+                    # Draw sprite with transparency
+                    sprite_copy = sprite.copy()
+                    sprite_copy.set_alpha(120)  # Semi-transparent
+                    ghost_surf.blit(sprite_copy, (0, 0))
+
+                    # Add colored tint overlay
+                    tint_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                    if pos_valid:
+                        tint_surf.fill((100, 200, 255, 60))  # Blue tint for valid
+                    else:
+                        tint_surf.fill((255, 100, 100, 60))  # Red tint for invalid
+                    ghost_surf.blit(tint_surf, (0, 0))
+
+                    # Draw the ghost preview
+                    surface.blit(
+                        ghost_surf,
+                        (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE)
+                    )
+                except Exception as e:
+                    # Fallback to text if sprite loading fails
+                    print(f"Could not load sprite for ghost preview: {e}")
+                    ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                    if pos_valid:
+                        ghost_surf.fill((100, 200, 255, 80))
+                    else:
+                        ghost_surf.fill((255, 100, 100, 80))
+                    unit_display_name = self.setup_window.unit_names.get(self.selected_unit_type, str(self.selected_unit_type))
+                    text = self.small_font.render(unit_display_name[:3], True, (255, 255, 255))
+                    text_rect = text.get_rect(center=(TILE_SIZE // 2, TILE_SIZE // 2))
+                    ghost_surf.blit(text, text_rect)
+                    surface.blit(ghost_surf, (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE))
+            else:
+                # Fallback to text if sprite path not found
+                ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                if pos_valid:
+                    ghost_surf.fill((100, 200, 255, 80))
+                else:
+                    ghost_surf.fill((255, 100, 100, 80))
+                unit_display_name = self.setup_window.unit_names.get(self.selected_unit_type, str(self.selected_unit_type))
+                text = self.small_font.render(unit_display_name[:3], True, (255, 255, 255))
+                text_rect = text.get_rect(center=(TILE_SIZE // 2, TILE_SIZE // 2))
+                ghost_surf.blit(text, text_rect)
+                surface.blit(ghost_surf, (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE))
+>>>>>>> main
 
     def draw_ui(self, surface: pygame.Surface):
         """Draw UI elements using new three-zone layout."""
@@ -3884,13 +4540,19 @@ class GraphicalRenderer:
 
             # Update action menu
             has_actions = any(u.move_target or u.attack_target or u.skill_target for u in game.units if u.is_alive())
-            self.action_menu.update(game, selected_game_unit, self.current_action_mode, has_actions)
+            # Disable action menu when game over window is minimized
+            force_disable_actions = self.game_over_window.visible and self.game_over_window.minimized
+            self.action_menu.update(game, selected_game_unit, self.current_action_mode, has_actions, force_disable=force_disable_actions)
 
         # Draw top bar (full width)
         self.top_bar.draw(surface, self.screen_width)
 
         # Calculate available height for side panels
         panel_height = self.screen_height - self.layout.top_bar_height - self.layout.bottom_bar_height
+
+        # Check UI layout setting from config
+        config = ConfigManager()
+        ui_layout = config.get('ui_layout', 'default')
 
         # === LEFT PANEL (Dedicated Space) ===
         left_panel_x = 0  # Starts at left edge
@@ -3905,17 +4567,23 @@ class GraphicalRenderer:
                         (self.layout.left_panel_width - 1, self.layout.top_bar_height),
                         (self.layout.left_panel_width - 1, self.screen_height - self.layout.bottom_bar_height), 2)
 
-        # Draw turn counter (top of left panel, above motor)
-        turn_y = left_panel_y + 10
-        self._draw_turn_counter(surface, left_panel_x, turn_y)
-
-        # Draw motor animation (below turn counter on left panel)
-        motor_y = turn_y + 40  # 30px for turn text + 10px spacing
-        self.motor_animation.draw(surface, left_panel_x + 15, motor_y)
-
-        # Draw action menu (below motor on left panel)
-        action_menu_y = motor_y + 190  # Below motor (180px + 10px spacing)
-        self.action_menu.draw(surface, left_panel_x + 5, action_menu_y)
+        if ui_layout == "reversed":
+            # Draw turn counter, motor, and action menu on left panel
+            turn_y = left_panel_y + 10
+            self._draw_turn_counter(surface, left_panel_x, turn_y)
+            motor_y = turn_y + 40
+            self.motor_animation.draw(surface, left_panel_x + 15, motor_y)
+            action_menu_y = motor_y + 190
+            self.action_menu.draw(surface, left_panel_x + 5, action_menu_y)
+        else:
+            # Draw player indicator, unit status bar, and unit info on left panel
+            player_y = left_panel_y + 5
+            self._draw_player_indicator(surface, left_panel_x, player_y)
+            unit_bar_y = player_y + 35
+            unit_bar_height = self.unit_status_bar.get_height()
+            self.unit_status_bar.draw(surface, left_panel_x + 5, unit_bar_y)
+            unit_info_y = unit_bar_y + unit_bar_height + 15
+            self.unit_info_panel.draw(surface, left_panel_x + 10, unit_info_y)
 
         # === RIGHT PANEL (Dedicated Space) ===
         right_panel_x = self.screen_width - self.layout.right_panel_width  # Starts at right edge - panel width
@@ -3930,64 +4598,131 @@ class GraphicalRenderer:
                         (right_panel_x, self.layout.top_bar_height),
                         (right_panel_x, self.screen_height - self.layout.bottom_bar_height), 2)
 
-        # Draw player indicator (top of right panel, above unit status bar)
-        player_y = right_panel_y + 5
-        self._draw_player_indicator(surface, right_panel_x, player_y)
-
-        # Draw unit status bar (below player indicator on right panel)
-        unit_bar_y = player_y + 35  # 25px for player text + 10px spacing
-        unit_bar_height = self.unit_status_bar.get_height()
-        self.unit_status_bar.draw(surface, right_panel_x + 5, unit_bar_y)
-
-        # Draw unit info panel (below unit status bar on right panel with more spacing)
-        unit_info_y = unit_bar_y + unit_bar_height + 15  # 15px spacing to prevent overlap
-        self.unit_info_panel.draw(surface, right_panel_x + 10, unit_info_y)
+        if ui_layout == "reversed":
+            # Draw player indicator, unit status bar, and unit info on right panel
+            player_y = right_panel_y + 5
+            self._draw_player_indicator(surface, right_panel_x, player_y)
+            unit_bar_y = player_y + 35
+            unit_bar_height = self.unit_status_bar.get_height()
+            self.unit_status_bar.draw(surface, right_panel_x + 5, unit_bar_y)
+            unit_info_y = unit_bar_y + unit_bar_height + 15
+            self.unit_info_panel.draw(surface, right_panel_x + 10, unit_info_y)
+        else:
+            # Draw turn counter, motor, and action menu on right panel
+            turn_y = right_panel_y + 10
+            self._draw_turn_counter(surface, right_panel_x, turn_y)
+            motor_y = turn_y + 40
+            self.motor_animation.draw(surface, right_panel_x + 15, motor_y)
+            action_menu_y = motor_y + 190
+            self.action_menu.draw(surface, right_panel_x + 5, action_menu_y)
 
     def _draw_turn_counter(self, surface: pygame.Surface, x: int, y: int):
-        """Draw turn counter on left panel."""
+        """Draw turn counter (works on either panel)."""
         from .ui.font_utils import render_fitted_text
 
         game = self.game_adapter.game
         if not game:
             return
 
-        # Draw "TURN X" centered in left panel
+        # Panel width is same for both sides
+        panel_width = LEFT_PANEL_WIDTH  # Same as RIGHT_PANEL_WIDTH
+
+        # Draw "TURN X" centered in panel
         turn_text = render_fitted_text(
             f"TURN {game.turn}",
+<<<<<<< HEAD
             max_width=self.layout.left_panel_width - 20,
+=======
+            max_width=panel_width - 20,
+>>>>>>> main
             max_height=25,
             color=(255, 255, 255),
             base_font_size=20,
             min_font_size=16,
             max_font_size=24
         )
+<<<<<<< HEAD
         text_rect = turn_text.get_rect(center=(x + self.layout.left_panel_width // 2, y + 15))
+=======
+        text_rect = turn_text.get_rect(center=(x + panel_width // 2, y + 15))
+>>>>>>> main
         surface.blit(turn_text, text_rect)
 
     def _draw_player_indicator(self, surface: pygame.Surface, x: int, y: int):
-        """Draw player indicator on right panel."""
+        """Draw player indicator (works on either panel)."""
         from .ui.font_utils import render_fitted_text
 
         game = self.game_adapter.game
         if not game:
             return
 
+        # Panel width is same for both sides
+        panel_width = LEFT_PANEL_WIDTH  # Same as RIGHT_PANEL_WIDTH
+
         # Get player color
         player_color = (100, 255, 100) if game.current_player == 1 else (100, 150, 255)
         player_name = game.get_player_name(game.current_player)
 
-        # Draw player name centered in right panel
+        # Draw player name centered in panel
         player_text = render_fitted_text(
             player_name.upper(),
+<<<<<<< HEAD
             max_width=self.layout.right_panel_width - 20,
+=======
+            max_width=panel_width - 20,
+>>>>>>> main
             max_height=25,
             color=player_color,
             base_font_size=20,
             min_font_size=16,
             max_font_size=24
         )
+<<<<<<< HEAD
         text_rect = player_text.get_rect(center=(x + self.layout.right_panel_width // 2, y + 12))
+=======
+        text_rect = player_text.get_rect(center=(x + panel_width // 2, y + 12))
+>>>>>>> main
         surface.blit(player_text, text_rect)
+
+    def _apply_player2_first_turn_buff(self):
+        """Apply +1 move range buff to all player 2 units on their first turn."""
+        from boneglaive.utils.message_log import message_log, MessageType
+
+        # Find all player 2 units and apply the buff
+        player2_units = [unit for unit in self.game_adapter.game.units if unit.player == 2 and unit.is_alive()]
+
+        if player2_units:
+            # Apply the buff to each unit
+            for unit in player2_units:
+                # Check if unit is immune to status effects (GRAYMAN with Stasiality)
+                if unit.is_immune_to_effects():
+                    print(f"[FirstTurnBuff] {unit.get_display_name()} is immune to first turn bonus due to Stasiality")
+                    continue
+
+                # Add the move bonus (+1)
+                unit.move_range_bonus += 1
+                # Add a flag to show the status effect icon
+                unit.first_turn_move_bonus = True
+                # Set duration to 1 turn (consistent with other status effects)
+                unit.first_turn_move_bonus_duration = 1
+
+            # Show status effect icon flash for each buffed unit
+            for unit in player2_units:
+                if hasattr(unit, 'first_turn_move_bonus') and unit.first_turn_move_bonus:
+                    # Find the animated unit for the visual flash using proper unit ID
+                    unit_id = self.game_adapter._get_unit_id(unit)
+                    if unit_id in self.game_adapter.visual_units:
+                        visual_unit = self.game_adapter.visual_units[unit_id]
+                        animated_unit = visual_unit.animated_unit
+                        self._create_status_icon_flash(animated_unit, "first_turn_move_bonus")
+                        print(f"[FirstTurnBuff] Created status icon flash for {unit.get_display_name()}")
+                    else:
+                        print(f"[FirstTurnBuff] WARNING: Could not find visual unit for {unit.get_display_name()}, unit_id={unit_id}")
+
+            # Log the buff application
+            message_log.add_system_message("Player 2 units receive +1 move range for going second!")
+            self.combat_log.add_message("Player 2 units receive +1 move range for going second!", "system")
+            print(f"[FirstTurnBuff] Applied +1 move range to {len(player2_units)} player 2 units")
 
     def execute_turn(self):
         """Execute the current turn (process all planned actions)."""
@@ -4010,6 +4745,7 @@ class GraphicalRenderer:
         self.show_movement_range = False
         self.show_target_range = False
         self.show_skill_range = False
+        self.show_skills = False  # Hide skill bar
         self.show_astral_values = False  # Hide astral values on turn execution
         self.valid_positions = []
         self.attack_positions = []
@@ -4103,12 +4839,23 @@ class GraphicalRenderer:
             # Initialize the new player's turn
             self.game_adapter.game.initialize_next_player_turn()
 
+            # Apply player 2 first turn buff (if applicable)
+            if self.game_adapter.game.current_player == 2:
+                if hasattr(self.game_adapter.game, 'is_player2_first_turn') and self.game_adapter.game.is_player2_first_turn:
+                    self._apply_player2_first_turn_buff()
+                    self.game_adapter.game.is_player2_first_turn = False
+
             # Log player switch
             self.combat_log.add_message(f"Player {self.game_adapter.game.current_player}'s turn", "system")
 
         # Process AI turn if it's player 2's turn and AI is enabled
         # BUT skip if game is already over
         if self.game_adapter.ai_interface and self.game_adapter.game.current_player == 2 and not self.game_adapter.game.winner:
+            # Apply player 2 first turn buff (if applicable)
+            if hasattr(self.game_adapter.game, 'is_player2_first_turn') and self.game_adapter.game.is_player2_first_turn:
+                self._apply_player2_first_turn_buff()
+                self.game_adapter.game.is_player2_first_turn = False
+
             print(f"[AI] Waiting 3 seconds before AI turn...")
             self.combat_log.add_message("AI is thinking...", "system")
 
@@ -4134,6 +4881,73 @@ class GraphicalRenderer:
             if self.game_adapter.game.winner:
                 print(f"[AI] Game over detected - AI won!")
                 return
+
+    def draw_target_pips(self, surface: pygame.Surface):
+        """Draw target indicator pips on all tiles that are being targeted."""
+        if not self.game_adapter.game:
+            return
+
+        game = self.game_adapter.game
+
+        # Count targets for each position
+        target_counts = {}  # {(y, x): {'attacks': count, 'skills': count}}
+
+        # Check all units for their targets
+        for unit in game.units:
+            if unit.hp <= 0:
+                continue
+
+            # Check attack targets
+            if hasattr(unit, 'attack_target') and unit.attack_target:
+                pos = unit.attack_target
+                if pos not in target_counts:
+                    target_counts[pos] = {'attacks': 0, 'skills': 0}
+                target_counts[pos]['attacks'] += 1
+
+            # Check skill targets
+            if hasattr(unit, 'skill_target') and unit.skill_target:
+                pos = unit.skill_target
+                if pos not in target_counts:
+                    target_counts[pos] = {'attacks': 0, 'skills': 0}
+                target_counts[pos]['skills'] += 1
+
+        # Draw pips for each targeted position
+        for (grid_y, grid_x), counts in target_counts.items():
+            attack_count = counts['attacks']
+            skill_count = counts['skills']
+
+            if attack_count == 0 and skill_count == 0:
+                continue
+
+            # Calculate tile position
+            tile_x = GRID_OFFSET_X + grid_x * TILE_SIZE
+            tile_y = GRID_OFFSET_Y + grid_y * TILE_SIZE
+
+            # Pip settings
+            pip_radius = 4
+            pip_spacing = 3
+            pip_start_x = tile_x + TILE_SIZE - 8
+            pip_start_y = tile_y + 8
+
+            # Draw red attack pips
+            for i in range(attack_count):
+                pip_x = pip_start_x - i * (pip_radius * 2 + pip_spacing)
+                pip_y = pip_start_y
+
+                # Main pip - fully opaque
+                pygame.draw.circle(surface, (255, 80, 80), (pip_x, pip_y), pip_radius)
+                # Highlight - fully opaque
+                pygame.draw.circle(surface, (255, 150, 150), (pip_x - 1, pip_y - 1), pip_radius - 2)
+
+            # Draw purple skill pips (below attack pips if any attacks exist)
+            for i in range(skill_count):
+                pip_x = pip_start_x - i * (pip_radius * 2 + pip_spacing)
+                pip_y = pip_start_y + (pip_radius * 2 + pip_spacing) if attack_count > 0 else pip_start_y
+
+                # Main pip - darker purple, fully opaque
+                pygame.draw.circle(surface, (140, 80, 200), (pip_x, pip_y), pip_radius)
+                # Highlight - fully opaque
+                pygame.draw.circle(surface, (180, 120, 230), (pip_x - 1, pip_y - 1), pip_radius - 2)
 
     def draw_selection_highlight(self, surface: pygame.Surface, unit: AnimatedUnit):
         """Draw highlight around selected unit."""
@@ -4232,6 +5046,54 @@ class GraphicalRenderer:
 
                         # Draw the main golden number
                         surface.blit(value_text, text_rect)
+
+        # Check if Valuation Oracle is upgraded - if so, draw astral values on enemies
+        # Get appraiser first and check passive skill exists BEFORE checking upgrade
+        appraiser = self._get_delphic_appraiser(current_player)
+        if appraiser and hasattr(appraiser, 'passive_skill') and appraiser.passive_skill:
+            from boneglaive.game.upgrades import UpgradeManager
+            # Now check if Valuation Oracle is upgraded
+            if UpgradeManager.is_skill_upgraded(appraiser, "Valuation Oracle"):
+                # Draw astral values on enemy units
+                for unit in self.units:
+                    game_unit = self._get_game_unit(unit)
+                    if game_unit and game_unit.is_alive() and game_unit.player != current_player:
+                        # Get enemy astral value
+                        enemy_value = appraiser.passive_skill._get_enemy_astral_value(
+                            self.game_adapter.game, current_player, game_unit
+                        )
+
+                        if enemy_value is not None:
+                            # Calculate screen position (center of unit's tile)
+                            tile_x = GRID_OFFSET_X + unit.grid_x * TILE_SIZE + TILE_SIZE // 2
+                            tile_y = GRID_OFFSET_Y + unit.grid_y * TILE_SIZE + TILE_SIZE // 2
+
+                            # Render number with gold color and transparency (same as furniture)
+                            font_size = int(48 * scale)  # Large number, scales with pulse
+
+                            # Use cached fonts
+                            if font_size not in self._astral_value_font_cache:
+                                self._astral_value_font_cache[font_size] = pygame.font.Font(None, font_size)
+                            value_font = self._astral_value_font_cache[font_size]
+
+                            outline_size = font_size + 2
+                            if outline_size not in self._astral_value_font_cache:
+                                self._astral_value_font_cache[outline_size] = pygame.font.Font(None, outline_size)
+                            outline_font = self._astral_value_font_cache[outline_size]
+
+                            # Render the number
+                            value_text = value_font.render(str(enemy_value), True, (255, 215, 0))  # Gold
+                            value_text.set_alpha(alpha)
+                            text_rect = value_text.get_rect(center=(tile_x, tile_y))
+
+                            # Add dark outline for readability
+                            outline_text = outline_font.render(str(enemy_value), True, (0, 0, 0))
+                            outline_text.set_alpha(alpha // 2)
+                            outline_rect = outline_text.get_rect(center=(tile_x, tile_y))
+                            surface.blit(outline_text, outline_rect)
+
+                            # Draw the main golden number
+                            surface.blit(value_text, text_rect)
 
     def draw_skill_shadows(self, surface: pygame.Surface):
         """Draw semi-transparent ghost indicators of units at skill target indicator positions."""
@@ -4578,6 +5440,28 @@ class GraphicalRenderer:
 
         # Stop the renderer loop
         self.running = False
+
+    def confirm_concede(self):
+        """Handle confirmed concession - opponent wins."""
+        if not self.game_adapter.game:
+            return
+
+        print("[Concede] Player conceding...")
+
+        # Hide the concede dialog
+        self.concede_dialog.hide()
+
+        # Get current player
+        current_player = self.game_adapter.game.current_player
+
+        # Concede the game (opponent wins)
+        self.game_adapter.game.concede(current_player)
+
+        # Add combat log message
+        self.combat_log.add_message(f"Player {current_player} has conceded.", "system")
+
+        # Show game over window
+        self.show_game_over_window()
 
     def start_setup_mode(self):
         """Start setup mode - show unit selection window."""

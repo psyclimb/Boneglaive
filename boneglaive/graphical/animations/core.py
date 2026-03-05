@@ -390,6 +390,8 @@ class AnimatedUnit:
         self.shake_intensity = 0
         self.hop_offset = 0
         self.hop_phase = 0
+        self.glaive_rotation = 0  # For spinning attack glaive effect
+        self.tool_orbit_angle = 0  # For orbiting skill tools effect
 
         # Potpourri aura (for POTPOURRIST)
         self.potpourri_aura_active = False
@@ -459,6 +461,91 @@ class AnimatedUnit:
         except Exception as e:
             print(f"[VaporCloud] Error detecting vapor type: {e}")
 
+    def _create_red_glaive_sprite(self):
+        """Create a red six-pointed glaive sprite for attack indication."""
+        size = 50  # Increased from 40 for longer blades
+        surface = pygame.Surface((size, size), pygame.SRCALPHA)
+        center = size // 2
+
+        # Red color scheme
+        blade_color = (255, 80, 80)  # Crimson red
+        blade_highlight = (255, 120, 120)  # Bright red
+        hub_color = (180, 40, 40)  # Dark red/maroon
+
+        # Draw six pointed blades radiating from center
+        blade_length = size // 2 - 2  # Longer blades due to larger size
+        for i in range(6):
+            angle = (i * 60) * math.pi / 180
+
+            # Blade tip
+            tip_x = center + math.cos(angle) * blade_length
+            tip_y = center + math.sin(angle) * blade_length
+
+            # Blade sides (slightly offset for width)
+            angle_offset = 15 * math.pi / 180
+            side1_x = center + math.cos(angle - angle_offset) * (blade_length * 0.7)
+            side1_y = center + math.sin(angle - angle_offset) * (blade_length * 0.7)
+            side2_x = center + math.cos(angle + angle_offset) * (blade_length * 0.7)
+            side2_y = center + math.sin(angle + angle_offset) * (blade_length * 0.7)
+
+            # Draw blade triangle
+            pygame.draw.polygon(surface, blade_color,
+                              [(center, center), (tip_x, tip_y), (side1_x, side1_y)])
+            pygame.draw.polygon(surface, blade_color,
+                              [(center, center), (tip_x, tip_y), (side2_x, side2_y)])
+
+            # Highlight edge
+            pygame.draw.line(surface, blade_highlight,
+                           (center, center), (tip_x, tip_y), 2)
+
+        # Center hub
+        pygame.draw.circle(surface, blade_highlight, (center, center), 6)
+        pygame.draw.circle(surface, blade_color, (center, center), 6, 2)
+        pygame.draw.circle(surface, hub_color, (center, center), 3)
+
+        return surface
+
+    def _create_purple_tool_sprites(self):
+        """Create purple tool sprites (wrench, hammer, screwdriver) for skill indication."""
+        tools = []
+        size = 24
+
+        # Darker purple color scheme (matching pip colors)
+        tool_color = (140, 80, 200)  # Darker purple
+        tool_dark = (100, 50, 150)  # Very dark purple
+        tool_highlight = (180, 120, 230)  # Medium purple
+
+        # Tool 1: Wrench
+        wrench = pygame.Surface((size, size), pygame.SRCALPHA)
+        center = size // 2
+        # Wrench handle (diagonal)
+        pygame.draw.line(wrench, tool_color, (6, 18), (14, 10), 4)
+        # Wrench head (open end)
+        pygame.draw.circle(wrench, tool_dark, (17, 7), 5, 2)
+        pygame.draw.rect(wrench, tool_dark, (17, 4, 3, 6))
+        tools.append(wrench)
+
+        # Tool 2: Hammer
+        hammer = pygame.Surface((size, size), pygame.SRCALPHA)
+        # Hammer handle
+        pygame.draw.line(hammer, tool_color, (12, 18), (12, 8), 3)
+        # Hammer head
+        pygame.draw.rect(hammer, tool_dark, (7, 6, 10, 5))
+        pygame.draw.rect(hammer, tool_highlight, (7, 6, 10, 2))
+        tools.append(hammer)
+
+        # Tool 3: Screwdriver
+        screwdriver = pygame.Surface((size, size), pygame.SRCALPHA)
+        # Screwdriver handle (fat)
+        pygame.draw.line(screwdriver, tool_color, (12, 16), (12, 10), 5)
+        # Screwdriver shaft
+        pygame.draw.line(screwdriver, tool_dark, (12, 10), (12, 5), 2)
+        # Screwdriver tip
+        pygame.draw.line(screwdriver, tool_highlight, (10, 5), (14, 5), 2)
+        tools.append(screwdriver)
+
+        return tools
+
     def move_to_grid(self, grid_x, grid_y):
         """Start smooth movement to grid position."""
         self.grid_x = grid_x
@@ -514,6 +601,16 @@ class AnimatedUnit:
                 self.shake_intensity = 0
                 self.shake_x = 0
                 self.shake_y = 0
+
+        # Glaive rotation for attack effect
+        self.glaive_rotation += 360 * delta_time  # 1 full rotation per second
+        if self.glaive_rotation >= 360:
+            self.glaive_rotation -= 360
+
+        # Tool orbit for skill effect
+        self.tool_orbit_angle += 180 * delta_time  # Slower orbit - half rotation per second
+        if self.tool_orbit_angle >= 360:
+            self.tool_orbit_angle -= 360
 
         # Potpourri aura effect
         if self.potpourri_aura_active:
@@ -571,6 +668,10 @@ class AnimatedUnit:
         final_x = int(self.x + self.shake_x)
         final_y = int(self.y + self.shake_y - self.hop_offset)
 
+        # Apply respawn animation offset (if active)
+        if hasattr(self, 'respawn_y_offset') and self.respawn_y_offset > 0:
+            final_y += int(self.respawn_y_offset)
+
         # Draw potpourri aura particles (behind unit)
         if self.potpourri_aura_active:
             for particle in self.potpourri_aura_particles:
@@ -601,6 +702,81 @@ class AnimatedUnit:
 
                         surface.blit(particle_surf, (int(particle['x'] - center), int(particle['y'] - center)))
 
+        # Check if unit has queued attack or skill
+        has_attack = False
+        has_skill = False
+        if self.game_unit:
+            has_attack = hasattr(self.game_unit, 'attack_target') and self.game_unit.attack_target
+            has_skill = hasattr(self.game_unit, 'skill_target') and self.game_unit.skill_target
+
+        # Draw different glow effects for attack vs skill
+        import time
+        import math
+
+        # Attack glow: Spinning red glaive rotating around unit's center
+        if has_attack:
+            # Create/cache red glaive sprite
+            if not hasattr(self, '_red_glaive_sprite'):
+                self._red_glaive_sprite = self._create_red_glaive_sprite()
+
+            # Use the accumulated rotation from update() method
+            # This ensures smooth continuous rotation
+            rotated_glaive = pygame.transform.rotate(self._red_glaive_sprite, -self.glaive_rotation)
+            rotated_glaive.set_alpha(200)  # Visible opacity
+
+            # Draw glaive centered on unit
+            glaive_rect = rotated_glaive.get_rect(center=(final_x, final_y))
+            surface.blit(rotated_glaive, glaive_rect)
+
+            # Add subtle red glow aura around the spinning glaive
+            glow_size = 70
+            glow_surf = pygame.Surface((glow_size, glow_size), pygame.SRCALPHA)
+            pygame.draw.circle(glow_surf, (255, 100, 100, 40),
+                             (glow_size // 2, glow_size // 2), glow_size // 2)
+            glow_rect = glow_surf.get_rect(center=(final_x, final_y))
+            surface.blit(glow_surf, glow_rect)
+
+        # Skill glow: Purple tools orbiting around unit
+        elif has_skill:
+            # Create/cache purple tool sprites
+            if not hasattr(self, '_purple_tool_sprites'):
+                self._purple_tool_sprites = self._create_purple_tool_sprites()
+
+            # Draw 3 tools orbiting around the unit at different positions
+            orbit_radius = self.radius + 15  # Smaller orbit
+            num_tools = 3
+
+            for i, tool_sprite in enumerate(self._purple_tool_sprites):
+                # Each tool is offset by 120 degrees (360/3)
+                angle_offset = (360 / num_tools) * i
+                tool_angle = self.tool_orbit_angle + angle_offset
+
+                # Calculate position on orbit
+                angle_rad = math.radians(tool_angle)
+                tool_x = final_x + math.cos(angle_rad) * orbit_radius
+                tool_y = final_y + math.sin(angle_rad) * orbit_radius
+
+                # Each tool also spins on its own axis
+                tool_rotation = self.tool_orbit_angle * 2  # Spin faster than orbit
+                rotated_tool = pygame.transform.rotate(tool_sprite, -tool_rotation)
+                rotated_tool.set_alpha(200)
+
+                # Draw tool
+                tool_rect = rotated_tool.get_rect(center=(int(tool_x), int(tool_y)))
+                surface.blit(rotated_tool, tool_rect)
+
+            # Add subtle darker purple glow in center
+            glow_size = 60
+            glow_surf = pygame.Surface((glow_size, glow_size), pygame.SRCALPHA)
+            pygame.draw.circle(glow_surf, (140, 80, 200, 30),
+                             (glow_size // 2, glow_size // 2), glow_size // 2)
+            glow_rect = glow_surf.get_rect(center=(final_x, final_y))
+            surface.blit(glow_surf, glow_rect)
+
+        # Check if unit is under Karrier Rave effect (phased out of reality)
+        is_karrier_rave = (hasattr(self.game_unit, 'carrier_rave_active') and
+                          self.game_unit.carrier_rave_active)
+
         # Draw vapor cloud (for HEINOUS VAPOR) - takes priority over sprite/circle
         if self.vapor_cloud:
             self.vapor_cloud.draw(surface, final_x, final_y)
@@ -611,8 +787,15 @@ class AnimatedUnit:
                        self.game_unit.is_echo)
 
             # Determine which sprite to use and its position
+            # Combine wind_up_rotation and respawn_rotation if both are active
+            total_rotation = 0
             if hasattr(self, 'wind_up_rotation') and self.wind_up_rotation != 0:
-                sprite_to_use = pygame.transform.rotate(self.sprite, -self.wind_up_rotation)
+                total_rotation += self.wind_up_rotation
+            if hasattr(self, 'respawn_rotation') and self.respawn_rotation != 0:
+                total_rotation += self.respawn_rotation
+
+            if total_rotation != 0:
+                sprite_to_use = pygame.transform.rotate(self.sprite, -total_rotation)
                 sprite_rect = sprite_to_use.get_rect(center=(final_x, final_y))
             else:
                 sprite_to_use = self.sprite
@@ -620,8 +803,45 @@ class AnimatedUnit:
                 self.sprite_rect.center = (final_x, final_y)
                 sprite_rect = self.sprite_rect
 
+            # Apply Karrier Rave effect (phased out of reality)
+            if is_karrier_rave:
+                # Create semi-transparent cyan-tinted sprite with scan lines
+                karrier_sprite = sprite_to_use.copy()
+
+                # Apply cyan tint overlay (brighter)
+                cyan_overlay = pygame.Surface(karrier_sprite.get_size(), pygame.SRCALPHA)
+                cyan_color = (120, 220, 255)  # Brighter electric cyan
+                cyan_overlay.fill((*cyan_color, 140))  # ~55% cyan tint
+                karrier_sprite.blit(cyan_overlay, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+
+                # Set to 70% opacity for better visibility (was 50%)
+                karrier_sprite.set_alpha(180)
+
+                # Draw the translucent sprite
+                surface.blit(karrier_sprite, sprite_rect)
+
+                # Draw horizontal scan lines (carrier wave effect) - brighter
+                scan_line_surface = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                current_time = time.time()
+                scan_offset = int((current_time * 30) % 4)  # Moving scan lines
+
+                for i in range(0, TILE_SIZE, 4):
+                    line_y = (i + scan_offset) % TILE_SIZE
+                    # Alternating opacity for scan lines (brighter)
+                    alpha = 140 if (i // 4) % 2 == 0 else 80
+                    pygame.draw.line(scan_line_surface, (180, 240, 255, alpha),
+                                   (0, line_y), (TILE_SIZE, line_y), 2)  # Thicker lines
+
+                scan_rect = scan_line_surface.get_rect(center=(final_x, final_y))
+                surface.blit(scan_line_surface, scan_rect)
+
+                # Occasional static glitch effect (10% chance per frame)
+                if random.random() < 0.1:
+                    glitch_alpha = random.randint(140, 200)  # Brighter glitch range
+                    karrier_sprite.set_alpha(glitch_alpha)
+
             # Apply echo effect if needed
-            if is_echo:
+            elif is_echo:
                 # Performance: Cache echo sprite instead of recreating every frame
                 if not hasattr(self, '_echo_sprite_cache'):
                     # Create ethereal purple semi-transparent version
@@ -651,8 +871,18 @@ class AnimatedUnit:
                 surface.blit(sprite_to_use, sprite_rect)
         else:
             # Draw unit circle (fallback)
-            pygame.draw.circle(surface, self.color, (final_x, final_y), self.radius)
-            pygame.draw.circle(surface, (255, 255, 255), (final_x, final_y), self.radius, 2)
+            if is_karrier_rave:
+                # Draw semi-transparent cyan circle for Karrier Rave (brighter)
+                circle_surface = pygame.Surface((self.radius * 4, self.radius * 4), pygame.SRCALPHA)
+                center = self.radius * 2
+                pygame.draw.circle(circle_surface, (*self.color, 180), (center, center), self.radius)
+                pygame.draw.circle(circle_surface, (120, 220, 255, 200), (center, center), self.radius, 3)
+                circle_rect = circle_surface.get_rect(center=(final_x, final_y))
+                surface.blit(circle_surface, circle_rect)
+            else:
+                # Draw normal unit circle
+                pygame.draw.circle(surface, self.color, (final_x, final_y), self.radius)
+                pygame.draw.circle(surface, (255, 255, 255), (final_x, final_y), self.radius, 2)
 
         # Draw player-colored tile-sized box around unit
         # Green for Player 1, Blue for Player 2

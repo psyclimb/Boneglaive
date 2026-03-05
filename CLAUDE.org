@@ -186,11 +186,44 @@ PRE_EXECUTION_BLOCKING_SKILLS = [
 4. Export class in =animations/__init__.py=
 5. Test with =python run_graphical.py=
 
+*** CRITICAL: AnimationFactory kwargs Handling (2026-03-01)
+*Problem*: Custom parameters passed to =AnimationFactory.create_animation()= via =**kwargs= were being lost.
+
+*Root Cause*: Line 303 in =animation_factory.py= did:
+#+begin_src python
+kwargs = base_kwargs.copy()  # WRONG - overwrites passed-in kwargs!
+#+end_src
+
+This destroyed custom parameters like =start_pos=, =end_pos=, =building_tiles=, etc.
+
+*Correct Pattern*:
+#+begin_src python
+# Merge base_kwargs with passed-in kwargs (preserving custom parameters)
+merged_kwargs = base_kwargs.copy()
+merged_kwargs.update(kwargs)  # Preserve custom kwargs
+merged_kwargs['game'] = game
+merged_kwargs['bounce_count'] = bounce_count
+kwargs = merged_kwargs
+#+end_src
+
+*When This Matters*:
+- Event-driven animations (push trails, building formation, zone effects)
+- Animations with custom parameters not in standard signature
+- Any animation using =kwargs.get('custom_param')= in its handler
+
+*Symptoms*:
+- Factory logs "requires X parameter" error
+- Animation handler checks fail (=if not start_pos=)
+- Animation object never created despite event being processed
+
+*Example*: DerelictPushTrail animation received =start_pos= and =end_pos= via kwargs, but factory overwrote them before handler could access them.
+
 *** Anti-patterns (DON'T DO THIS!)
 ❌ Animation logic scattered in =renderer.py= update loop
 ❌ Separate file per animation (use one file per unit instead)
 ❌ Animations applying damage/healing
 ❌ Special-case animation handling outside factory pattern
+❌ Overwriting =kwargs= parameter in factory (destroys custom parameters!)
 
 ** Key Patterns
 - *Skills*: Base classes in =skills/core.py=, unit-specific modules, registry in =skills/registry.py=

@@ -6,9 +6,10 @@ Full-screen scrollable message history viewer.
 import pygame
 from typing import List, Dict, Optional
 
-# Colors - matching ASCII version color scheme
-COLOR_BG = (20, 24, 32)
-COLOR_BORDER = (100, 100, 100)
+# Colors - matching bone/industrial theme
+COLOR_BG_TOP = (42, 42, 47)  # Panel top
+COLOR_BG_BOTTOM = (26, 26, 31)  # Panel bottom (gradient)
+COLOR_BORDER = (90, 84, 79)  # Metal border
 COLOR_TEXT_SYSTEM = (200, 200, 200)  # Gray - default/system messages
 COLOR_TEXT_COMBAT = (255, 200, 100)  # Orange - combat messages (deprecated, use player colors)
 COLOR_TEXT_ABILITY = (200, 150, 255)  # Light purple - ability messages (deprecated, use player colors)
@@ -144,10 +145,11 @@ class MessageLogWindow:
 
         surface.blit(self._cached_overlay, (0, 0))
 
-        # Draw window background
+        # Draw window background with gradient
+        from .menu_components import draw_gradient_rect
         window_rect = pygame.Rect(window_x, window_y, window_width, window_height)
-        pygame.draw.rect(surface, COLOR_BG, window_rect)
-        pygame.draw.rect(surface, COLOR_BORDER, window_rect, 3)
+        draw_gradient_rect(surface, window_rect, COLOR_BG_TOP, COLOR_BG_BOTTOM)
+        pygame.draw.rect(surface, COLOR_BORDER, window_rect, 3, border_radius=8)
 
         # Draw title
         title_text = self.font.render("Message Log (ESC to close, Arrow Keys to scroll)", True, (255, 255, 255))

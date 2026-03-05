@@ -233,6 +233,8 @@ class MultiplayerManager:
                 unit.move_range_bonus += 1
                 # Add a flag to show the status effect icon
                 unit.first_turn_move_bonus = True
+                # Set duration to 1 turn (consistent with other status effects)
+                unit.first_turn_move_bonus_duration = 1
 
             # Show a message about the buff
             message_log.add_message(

@@ -38,11 +38,23 @@ class LOTOChecker:
             blocked.add('move')
             blocked.add('skill')  # Viseroy trap blocks both movement and skills
 
-        if unit.is_echo:
+        if hasattr(unit, 'is_echo') and unit.is_echo:
             blocked.add('move')
+            blocked.add('upgrade')  # Echoes cannot be upgraded
 
-        # Check skill and attack blocking effects
+            # Check if Græ Exchange is upgraded
+            grae_exchange_upgraded = hasattr(unit, 'upgraded_skills') and 'Græ Exchange' in unit.upgraded_skills
+
+            if not grae_exchange_upgraded:
+                # If Græ Exchange NOT upgraded, block all skills
+                blocked.add('skill')
+            # If Græ Exchange IS upgraded, skills button is NOT blocked
+            # but specific skills (Delta Config, Estrange) are blocked
+            # (handled separately in is_skill_blocked)
+
+        # Check skill and attack blocking effects (Neural Shunt blocks ALL manual actions)
         if hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected:
+            blocked.add('move')
             blocked.add('skill')
             blocked.add('attack')
 
@@ -71,13 +83,48 @@ class LOTOChecker:
 
         Args:
             unit: The unit to check
-            action_type: 'move', 'attack', or 'skill'
+            action_type: 'move', 'attack', 'skill', or 'upgrade'
 
         Returns:
             True if the action is blocked
         """
         blocked = LOTOChecker.get_blocked_actions(unit)
         return action_type in blocked or 'all' in blocked
+
+    @staticmethod
+    def is_skill_blocked(unit, skill_name: str) -> bool:
+        """
+        Check if a specific skill is blocked for a unit.
+
+        Args:
+            unit: The unit to check
+            skill_name: Name of the skill (e.g., "Delta Config", "Estrange")
+
+        Returns:
+            True if the skill is blocked
+        """
+        if not unit:
+            return False
+
+        # If all skills are blocked, return True
+        if LOTOChecker.is_action_blocked(unit, 'skill'):
+            return True
+
+        # Special case: Echoes with upgraded Græ Exchange
+        if hasattr(unit, 'is_echo') and unit.is_echo:
+            grae_exchange_upgraded = hasattr(unit, 'upgraded_skills') and 'Græ Exchange' in unit.upgraded_skills
+
+            if grae_exchange_upgraded:
+                # Delta Config and Estrange are blocked for echoes even with upgraded Græ Exchange
+                if skill_name in ["Delta Config", "Estrange"]:
+                    return True
+
+        # Special case: Infuse is blocked when POTPOURRIST already has Infused buff
+        if skill_name == "Infuse":
+            if hasattr(unit, 'potpourri_held') and unit.potpourri_held:
+                return True
+
+        return False
 
 
 class LOTORenderer:

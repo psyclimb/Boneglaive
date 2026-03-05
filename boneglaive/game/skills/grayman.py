@@ -61,7 +61,7 @@ class DeltaConfigSkill(ActiveSkill):
             key="D",
             description="Teleport to any unoccupied tile on the map.",
             target_type=TargetType.AREA,
-            cooldown=12,
+            cooldown=8,
             range_=99
         )
     
@@ -449,9 +449,6 @@ class DeltaConfigSkill(ActiveSkill):
 
             # Move each abducted enemy to their new position around the destination
             for enemy, rel_dy, rel_dx in abducted_enemies:
-                # Mark enemy as being abducted (graphical system will use this to prevent walk cycle)
-                enemy.abducted_by_delta_config = True
-
                 # Try to maintain relative position
                 dest_y = target_pos[0] + rel_dy
                 dest_x = target_pos[1] + rel_dx
@@ -460,8 +457,26 @@ class DeltaConfigSkill(ActiveSkill):
                 if (game.is_valid_position(dest_y, dest_x) and
                     game.map.is_passable(dest_y, dest_x) and
                     game.get_unit_at(dest_y, dest_x) is None):
-                    enemy.y = dest_y
-                    enemy.x = dest_x
+                    # Atomically move enemy: remove from old grid position, update coords, add to new grid position
+                    old_enemy_y, old_enemy_x = enemy.y, enemy.x
+                    if (old_enemy_y, old_enemy_x) in game.unit_grid:
+                        del game.unit_grid[(old_enemy_y, old_enemy_x)]
+
+                    # Set private attributes directly (bypass property setters to avoid double grid updates)
+                    enemy._y = dest_y
+                    enemy._x = dest_x
+
+                    # Add to new position in grid
+                    game.unit_grid[(dest_y, dest_x)] = enemy
+
+                    # Mark enemy as abducted for graphical teleport animation
+                    enemy.abducted_by_delta_config = True
+
+                    # Trigger trap checks if enemy was trapped or is a foreman
+                    if hasattr(enemy, 'trapped_by') and enemy.trapped_by is not None:
+                        game._check_position_change_trap_release(enemy, old_enemy_y, old_enemy_x)
+                    if enemy.type == UnitType.MANDIBLE_FOREMAN:
+                        game._check_position_change_trap_release(enemy, old_enemy_y, old_enemy_x)
                 else:
                     # Fallback: find any valid adjacent position around destination
                     placed = False
@@ -471,16 +486,32 @@ class DeltaConfigSkill(ActiveSkill):
                         if (game.is_valid_position(alt_y, alt_x) and
                             game.map.is_passable(alt_y, alt_x) and
                             game.get_unit_at(alt_y, alt_x) is None):
-                            enemy.y = alt_y
-                            enemy.x = alt_x
+                            # Atomically move enemy to fallback position
+                            old_enemy_y, old_enemy_x = enemy.y, enemy.x
+                            if (old_enemy_y, old_enemy_x) in game.unit_grid:
+                                del game.unit_grid[(old_enemy_y, old_enemy_x)]
+
+                            # Set private attributes directly (bypass property setters)
+                            enemy._y = alt_y
+                            enemy._x = alt_x
+
+                            # Add to new position in grid
+                            game.unit_grid[(alt_y, alt_x)] = enemy
+
+                            # Mark enemy as abducted for graphical teleport animation
+                            enemy.abducted_by_delta_config = True
+
+                            # Trigger trap checks if enemy was trapped or is a foreman
+                            if hasattr(enemy, 'trapped_by') and enemy.trapped_by is not None:
+                                game._check_position_change_trap_release(enemy, old_enemy_y, old_enemy_x)
+                            if enemy.type == UnitType.MANDIBLE_FOREMAN:
+                                game._check_position_change_trap_release(enemy, old_enemy_y, old_enemy_x)
+
                             placed = True
                             break
 
                     # If no position found, enemy stays at original position (well failed to capture fully)
-                    if not placed:
-                        # Reset to original position (where they were before abduction attempt)
-                        enemy.y = original_pos[0] + rel_dy
-                        enemy.x = original_pos[1] + rel_dx
+                    # No need to do anything - enemy is already at their original position in the grid
 
         # Log the completion of teleportation
         if is_upgraded and abducted_enemies:
@@ -506,7 +537,7 @@ class EstrangeSkill(ActiveSkill):
         super().__init__(
             name="Estrange",
             key="E",
-            description="Fires a beam that phases target out of normal spacetime. Target receives -1 to all actions.",
+            description="Fires a beam that phases target out of normal spacetime. Target receives -2 to all actions.",
             target_type=TargetType.ENEMY,
             cooldown=3,
             range_=5
@@ -665,6 +696,7 @@ class EstrangeSkill(ActiveSkill):
             # Store the banished unit so we can return them later
             if target in game.units:
                 game.units.remove(target)
+                game._remove_from_unit_grid(target)
 
             # Spawn GRAYMAN echo at the banished target's location
             from boneglaive.game.units import Unit
@@ -898,7 +930,7 @@ class GraeExchangeSkill(ActiveSkill):
             key="G",
             description="Create an echo at current position and teleport away. Echo can attack but not move.",
             target_type=TargetType.AREA,
-            cooldown=5,
+            cooldown=3,
             range_=3
         )
 
@@ -1073,6 +1105,11 @@ class GraeExchangeSkill(ActiveSkill):
         else:
             # Normal GRAYMAN creating echo
             echo_unit.original_unit = user
+
+        # Copy upgraded_skills from the original unit to the echo
+        # This is needed so the echo knows which skills were upgraded (for LOTO system)
+        if hasattr(user, 'upgraded_skills'):
+            echo_unit.upgraded_skills = set(user.upgraded_skills)
 
         echo_unit.hp = 5  # Echo has 5 HP and cannot be healed
         echo_unit.max_hp = 5  # Echo max HP is also 5

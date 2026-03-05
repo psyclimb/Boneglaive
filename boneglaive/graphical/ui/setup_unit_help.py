@@ -223,7 +223,7 @@ class SetupUnitHelp:
                 'skills': [
                     {
                         'name': 'BROACHING GAS',
-                        'desc': 'Expels a vapor that creates a caustic gas cloud. The vapor corrodes enemies within the cloud while dissolving negative status effects from allies.'
+                        'desc': 'Expels a vapor that creates a caustic gas cloud. The vapor corrodes enemies within the cloud while randomly dissolving one negative status effect from allies each turn.'
                     },
                     {
                         'name': 'SAFT-E-GAS',
@@ -241,7 +241,7 @@ class SetupUnitHelp:
                 'overview': 'A mechanical peacock rail artillery platform that transforms the battlefield through devastating long-range bombardment and explosive infrastructure. This heavy artillery excels at indirect fire support and area control.',
                 'passive': {
                     'name': 'RAIL GENESIS',
-                    'desc': 'The first unit deployed establishes a permanent rail network. When any FOWL CONTRIVANCE dies, the rails detonate, damaging enemies on rails and embedding shrapnel in adjacent units.'
+                    'desc': 'The first unit deployed establishes a permanent rail network. When any FOWL CONTRIVANCE dies, the rails detonate, dealing 6 damage to enemies standing on rails.'
                 },
                 'skills': [
                     {

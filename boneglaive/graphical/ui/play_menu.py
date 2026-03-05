@@ -4,8 +4,9 @@ Play Menu Screens
 Screens for game mode selection and map selection.
 """
 import pygame
+import os
 from typing import Optional, List
-from .menu_components import MenuScreen, Button, COLOR_TEXT
+from .menu_components import MenuScreen, Button, COLOR_TEXT, COLOR_BG
 from boneglaive.utils.config import ConfigManager, NetworkMode
 from boneglaive.game.map import MapFactory
 from boneglaive.utils.seasonal_events import get_active_season, seasonal_manager
@@ -14,11 +15,15 @@ from boneglaive.utils.seasonal_events import get_active_season, seasonal_manager
 class PlaySubmenu(MenuScreen):
     """Submenu for selecting game mode."""
 
-    def __init__(self, font: pygame.font.Font, large_font: pygame.font.Font, screen_width: int, screen_height: int):
+    def __init__(self, font: pygame.font.Font, large_font: pygame.font.Font, screen_width: int, screen_height: int, shared_background):
         super().__init__("Play Game", font, large_font)
         self.screen_width = screen_width
         self.screen_height = screen_height
         self.config = ConfigManager()
+
+        # Use shared kaleidoscope background
+        self.background = shared_background
+        self.background_alpha = 0.15  # Very dim
 
         # Button dimensions
         button_width = 300
@@ -27,7 +32,7 @@ class PlaySubmenu(MenuScreen):
 
         # Calculate center position
         start_x = (screen_width - button_width) // 2
-        start_y = 200
+        start_y = 280
 
         # Create buttons
         self.buttons = [
@@ -50,7 +55,8 @@ class PlaySubmenu(MenuScreen):
                 button_width, button_height,
                 "Back",
                 font,
-                lambda: self._set_action("back")
+                lambda: self._set_action("back"),
+                glaive_direction="left"
             )
         ]
 
@@ -66,6 +72,24 @@ class PlaySubmenu(MenuScreen):
             self.config.save_config()
 
         self._action_result = action
+
+    def update(self, delta_time: float, mouse_pos, mouse_pressed):
+        """Update screen state."""
+        super().update(delta_time, mouse_pos, mouse_pressed)
+        self.background.update(delta_time)
+
+    def draw(self, surface: pygame.Surface):
+        """Draw the menu with dimmed background."""
+        # Draw dimmed kaleidoscope
+        self.background.draw(surface)
+
+        # Draw dark overlay to dim it
+        overlay = pygame.Surface((self.screen_width, self.screen_height), pygame.SRCALPHA)
+        overlay.fill((10, 10, 15, int(255 * (1.0 - self.background_alpha))))
+        surface.blit(overlay, (0, 0))
+
+        # Draw menu elements
+        super().draw(surface)
 
     def handle_event(self, event: pygame.event.Event) -> Optional[str]:
         """Handle events and return action if triggered."""
@@ -83,11 +107,15 @@ class PlaySubmenu(MenuScreen):
 class MapSelectionMenu(MenuScreen):
     """Menu for selecting a map to play on."""
 
-    def __init__(self, font: pygame.font.Font, large_font: pygame.font.Font, screen_width: int, screen_height: int):
+    def __init__(self, font: pygame.font.Font, large_font: pygame.font.Font, screen_width: int, screen_height: int, shared_background):
         super().__init__("Select Map", font, large_font)
         self.screen_width = screen_width
         self.screen_height = screen_height
         self.config = ConfigManager()
+
+        # Use shared kaleidoscope background
+        self.background = shared_background
+        self.background_alpha = 0.15  # Very dim
 
         # Get available maps
         self.available_maps = MapFactory.list_available_maps()
@@ -98,14 +126,17 @@ class MapSelectionMenu(MenuScreen):
             seasonal_info = seasonal_manager.get_seasonal_info(self.active_season)
             self.title = f"Select Map - {seasonal_info['name']} Active"
 
-        # Button dimensions
-        button_width = 350
-        button_height = 50
-        button_spacing = 15
+        # Button dimensions (larger to accommodate icons)
+        self.button_width = 500
+        self.button_height = 90
+        self.button_spacing = 15
+        button_width = self.button_width
+        button_height = self.button_height
+        button_spacing = self.button_spacing
 
         # Calculate layout
         start_x = (screen_width - button_width) // 2
-        start_y = 150
+        start_y = 200
 
         # Create buttons for each map
         self.buttons = []
@@ -117,6 +148,9 @@ class MapSelectionMenu(MenuScreen):
             if self.active_season and seasonal_manager.get_seasonal_map_path(map_name, self.active_season):
                 display_name += " *"
 
+            # Load map icon
+            map_icon = self._load_map_icon(map_name)
+
             y_pos = start_y + i * (button_height + button_spacing)
 
             self.buttons.append(
@@ -125,7 +159,8 @@ class MapSelectionMenu(MenuScreen):
                     button_width, button_height,
                     display_name,
                     font,
-                    lambda mn=map_name: self._select_map(mn)
+                    lambda mn=map_name: self._select_map(mn),
+                    image=map_icon
                 )
             )
 
@@ -137,7 +172,8 @@ class MapSelectionMenu(MenuScreen):
                 button_width, button_height,
                 "Back",
                 font,
-                lambda: self._set_action("back")
+                lambda: self._set_action("back"),
+                glaive_direction="left"
             )
         )
 
@@ -155,14 +191,54 @@ class MapSelectionMenu(MenuScreen):
         """Set the action result."""
         self._action_result = action
 
+    def _load_map_icon(self, map_name: str) -> Optional[pygame.Surface]:
+        """Load SVG icon for a map."""
+        # Map names to icon filenames
+        icon_map = {
+            'lime_foyer': 'lime_foyer_icon.svg',
+            'hard_pressed': 'hard_pressed_icon.svg',
+            'stained_stones': 'stained_stones_icon.svg'
+        }
+
+        icon_filename = icon_map.get(map_name)
+        if not icon_filename:
+            return None
+
+        icon_path = f"graphics/map_icons/{icon_filename}"
+        if not os.path.exists(icon_path):
+            return None
+
+        try:
+            # Try to load SVG using cairosvg
+            try:
+                import cairosvg
+                from io import BytesIO
+                # Convert SVG to PNG in memory (128x128 as that's the icon size)
+                png_data = cairosvg.svg2png(url=icon_path, output_width=128, output_height=128)
+                surface = pygame.image.load(BytesIO(png_data))
+                surface = surface.convert_alpha()
+                return surface
+            except ImportError:
+                return None
+        except Exception as e:
+            print(f"Warning: Could not load map icon {icon_path}: {e}")
+            return None
+
+    def update(self, delta_time: float, mouse_pos, mouse_pressed):
+        """Update screen state."""
+        super().update(delta_time, mouse_pos, mouse_pressed)
+        self.background.update(delta_time)
+
     def handle_event(self, event: pygame.event.Event) -> Optional[str]:
         """Handle events and return action if triggered."""
         # Handle scrolling if needed
         if event.type == pygame.MOUSEWHEEL:
             if len(self.buttons) > self.max_visible_buttons:
                 self.scroll_offset -= event.y * 30
+                # Use actual button height + spacing for scroll calculation
+                button_step = self.button_height + self.button_spacing
                 self.scroll_offset = max(0, min(self.scroll_offset,
-                    (len(self.buttons) - self.max_visible_buttons) * 65))
+                    (len(self.buttons) - self.max_visible_buttons) * button_step))
 
         super().handle_event(event)
 
@@ -176,6 +252,15 @@ class MapSelectionMenu(MenuScreen):
 
     def draw(self, surface: pygame.Surface):
         """Draw the map selection menu with scroll support."""
+        # Draw dimmed kaleidoscope
+        self.background.draw(surface)
+
+        # Draw dark overlay to dim it
+        overlay = pygame.Surface((self.screen_width, self.screen_height), pygame.SRCALPHA)
+        overlay.fill((10, 10, 15, int(255 * (1.0 - self.background_alpha))))
+        surface.blit(overlay, (0, 0))
+
+        # Draw menu elements
         super().draw(surface)
 
         # Draw seasonal indicator info if active

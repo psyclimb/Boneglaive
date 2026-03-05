@@ -92,7 +92,7 @@ class OssifySkill(ActiveSkill):
         )
         self.upgraded = False
         self.defense_bonus = 2  # Defense bonus of 2
-        self.duration = 2  # Duration in turns
+        self.duration = 3  # Duration in turns
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         # Check if unit is trapped - trapped units can only attack, not use skills
@@ -146,8 +146,8 @@ class OssifySkill(ActiveSkill):
         # Calculate defense bonus based on Dominion upgrade status
         defense_bonus = 3 if dominion_upgraded else 2
 
-        # Calculate duration based on manual upgrade (2 base, 3 if manually upgraded)
-        duration = 3 if manual_upgraded else 2
+        # Duration is always 3 turns (manual upgrade now provides reflect damage instead of duration extension)
+        duration = 3
 
         # Apply defense bonus
         user.defense_bonus += defense_bonus
@@ -157,6 +157,8 @@ class OssifySkill(ActiveSkill):
         # Set the ossify status effect flag and duration for UI display
         user.ossify_active = True
         user.ossify_duration = duration  # Track duration
+        user.ossify_defense_bonus = defense_bonus  # Track actual bonus applied for removal later
+        user.ossify_move_penalty = -1  # Track movement penalty for proper removal
         
         # Use shorter message
         message_log.add_message(
@@ -572,7 +574,7 @@ class MarrowDikeSkill(ActiveSkill):
                         # Shorter message for each enemy unit trapped inside
                         message_log.add_message(
                             f"{unit_at_pos.get_display_name()} slogs through the Marrow Dike.",
-                            MessageType.ABILITY,
+                            MessageType.WARNING,
                             player=user.player,
                             attacker_name=user.get_display_name(),
                             target_name=unit_at_pos.get_display_name()

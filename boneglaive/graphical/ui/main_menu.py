@@ -18,6 +18,7 @@ class MainMenuScreen(MenuScreen):
         super().__init__("Boneglaive", font, large_font)
         self.screen_width = screen_width
         self.screen_height = screen_height
+        self.use_panel = False  # Main menu uses full kaleidoscope background
 
         # Animated background - switch between styles
         # Use KaleidoscopeBackground for geometric patterns
@@ -32,7 +33,7 @@ class MainMenuScreen(MenuScreen):
 
         # Calculate center position
         start_x = (screen_width - button_width) // 2
-        start_y = 300
+        start_y = 250
 
         # Create buttons
         self.buttons = [
@@ -46,26 +47,33 @@ class MainMenuScreen(MenuScreen):
             Button(
                 start_x, start_y + (button_height + button_spacing) * 1,
                 button_width, button_height,
+                "How to Play",
+                font,
+                lambda: self._set_action("how_to_play")
+            ),
+            Button(
+                start_x, start_y + (button_height + button_spacing) * 2,
+                button_width, button_height,
                 "Profile",
                 font,
                 lambda: self._set_action("profile")
             ),
             Button(
-                start_x, start_y + (button_height + button_spacing) * 2,
+                start_x, start_y + (button_height + button_spacing) * 3,
                 button_width, button_height,
                 "Settings",
                 font,
                 lambda: self._set_action("settings")
             ),
             Button(
-                start_x, start_y + (button_height + button_spacing) * 3,
+                start_x, start_y + (button_height + button_spacing) * 4,
                 button_width, button_height,
                 "About",
                 font,
                 lambda: self._set_action("about")
             ),
             Button(
-                start_x, start_y + (button_height + button_spacing) * 4,
+                start_x, start_y + (button_height + button_spacing) * 5,
                 button_width, button_height,
                 "Quit",
                 font,
@@ -107,7 +115,7 @@ class MainMenuScreen(MenuScreen):
         # Draw version subtitle
         version_text = "v0.9.0b BETA"
         version_surface = self.font.render(version_text, True, COLOR_TEXT)
-        version_rect = version_surface.get_rect(centerx=self.screen_width // 2, top=240)
+        version_rect = version_surface.get_rect(centerx=self.screen_width // 2, top=200)
         surface.blit(version_surface, version_rect)
 
         # Draw profile indicator (top-right corner)
@@ -121,12 +129,6 @@ class MainMenuScreen(MenuScreen):
         # Draw buttons
         for button in self.buttons:
             button.draw(surface)
-
-        # Draw controls hint
-        hint_text = "Use mouse or keyboard to navigate"
-        hint_surface = self.font.render(hint_text, True, (150, 150, 150))
-        hint_rect = hint_surface.get_rect(centerx=self.screen_width // 2, bottom=self.screen_height - 20)
-        surface.blit(hint_surface, hint_rect)
 
     def _draw_title_art(self, surface: pygame.Surface):
         """Draw the Boneglaive title in large text."""

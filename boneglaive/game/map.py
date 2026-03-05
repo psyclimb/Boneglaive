@@ -18,7 +18,7 @@ class TerrainType(Enum):
     LIMESTONE = 1  # Limestone formation, blocks movement and unit placement
     DUST = 2       # Light limestone dusting, visual only (passable)
     PILLAR = 3     # Large limestone pillar, blocks movement and unit placement
-    RADIO_CONSOLE = 4  # Vintage radio communication console, blocks movement but not line of sight
+    LECTERN = 4  # Victorian reading stand with open book, blocks movement but not line of sight
     COAT_RACK = 5  # Coat rack, blocks movement but not line of sight
     OTTOMAN = 6    # Ottoman seating, blocks movement but not line of sight
     CONSOLE = 7    # Console table, blocks movement but not line of sight
@@ -127,7 +127,7 @@ class GameMap:
         """
         # Check if the position has furniture
         terrain = self.get_terrain_at(y, x)
-        if terrain not in [TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
+        if terrain not in [TerrainType.LECTERN, TerrainType.COAT_RACK,
                           TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF,
                           TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE,
                           TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
@@ -172,7 +172,7 @@ class GameMap:
         """
         # Check if the position has furniture
         terrain = self.get_terrain_at(y, x)
-        if terrain not in [TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
+        if terrain not in [TerrainType.LECTERN, TerrainType.COAT_RACK,
                           TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF,
                           TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE,
                           TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
@@ -192,7 +192,7 @@ class GameMap:
     def is_furniture(self, y: int, x: int) -> bool:
         """Check if a position has furniture."""
         terrain = self.get_terrain_at(y, x)
-        return terrain in [TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
+        return terrain in [TerrainType.LECTERN, TerrainType.COAT_RACK,
                           TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF,
                           TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE,
                           TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
@@ -272,59 +272,51 @@ class GameMap:
         """
         center_y = self.height // 2
         center_x = self.width // 2
-        
-        # Create horizontal line offset from center to avoid crossing
-        horizontal_line = center_y - 2
-        for x in range(self.width):
-            if self._can_place_rail(horizontal_line, x):
-                # Store original terrain before placing rail
-                original_terrain = self.get_terrain_at(horizontal_line, x)
-                self.rail_original_terrain[(horizontal_line, x)] = original_terrain
-                self.set_terrain_at(horizontal_line, x, TerrainType.RAIL)
-        
-        # Create vertical lines offset from center to avoid crossing
-        vertical_line_1 = center_x - 2  # Column 8
-        vertical_line_2 = center_x + 2  # Column 12
-        for y in range(self.height):
-            if self._can_place_rail(y, vertical_line_1):
-                # Store original terrain before placing rail
-                original_terrain = self.get_terrain_at(y, vertical_line_1)
-                self.rail_original_terrain[(y, vertical_line_1)] = original_terrain
-                self.set_terrain_at(y, vertical_line_1, TerrainType.RAIL)
-            if self._can_place_rail(y, vertical_line_2):
-                # Store original terrain before placing rail
-                original_terrain = self.get_terrain_at(y, vertical_line_2)
-                self.rail_original_terrain[(y, vertical_line_2)] = original_terrain
-                self.set_terrain_at(y, vertical_line_2, TerrainType.RAIL)
-        
+
+        # Create 4 evenly-spaced horizontal rails across the map
+        # Fixed positions based on actual junction layout
+        horizontal_rails = [2, 4, 6, 8]
+
+        for rail_y in horizontal_rails:
+            for x in range(self.width):
+                if self._can_place_rail(rail_y, x):
+                    # Store original terrain before placing rail (only if not already stored)
+                    # This prevents overwriting at junctions where rails cross
+                    if (rail_y, x) not in self.rail_original_terrain:
+                        original_terrain = self.get_terrain_at(rail_y, x)
+                        self.rail_original_terrain[(rail_y, x)] = original_terrain
+                    self.set_terrain_at(rail_y, x, TerrainType.RAIL)
+
+        # Create 4 evenly-spaced vertical rails across the map
+        # Fixed positions based on actual junction layout
+        vertical_rails = [4, 8, 12, 16]
+
+        for rail_x in vertical_rails:
+            for y in range(self.height):
+                if self._can_place_rail(y, rail_x):
+                    # Store original terrain before placing rail (only if not already stored)
+                    # This prevents overwriting at junctions where rails cross
+                    if (y, rail_x) not in self.rail_original_terrain:
+                        original_terrain = self.get_terrain_at(y, rail_x)
+                        self.rail_original_terrain[(y, rail_x)] = original_terrain
+                    self.set_terrain_at(y, rail_x, TerrainType.RAIL)
+
         # Add strategic corner positions for tactical positioning
         strategic_positions = [
-            # Top corners
-            (1, 3), (1, self.width - 4),
-            # Bottom corners  
-            (self.height - 2, 3), (self.height - 2, self.width - 4),
             # Mid-side positions for flanking
             (center_y, 2), (center_y, self.width - 3),
             # Center alternatives offset from the middle
             (center_y + 2, center_x - 3), (center_y + 2, center_x + 3)
         ]
         
-        # Connect corner flanking positions with horizontal connections
-        flanking_connections = [
-            # Connect top corners along row 1
-            *[(1, x) for x in range(4, self.width - 3)],
-            # Connect bottom corners along row height-2
-            *[(self.height - 2, x) for x in range(4, self.width - 3)]
-        ]
-        
-        strategic_positions.extend(flanking_connections)
-        
         # Add strategic positioning rails
         for y, x in strategic_positions:
             if self._can_place_rail(y, x):
-                # Store original terrain before placing rail
-                original_terrain = self.get_terrain_at(y, x)
-                self.rail_original_terrain[(y, x)] = original_terrain
+                # Store original terrain before placing rail (only if not already stored)
+                # This prevents overwriting at junctions where rails cross
+                if (y, x) not in self.rail_original_terrain:
+                    original_terrain = self.get_terrain_at(y, x)
+                    self.rail_original_terrain[(y, x)] = original_terrain
                 self.set_terrain_at(y, x, TerrainType.RAIL)
 
     def _can_place_rail(self, y: int, x: int) -> bool:
@@ -543,8 +535,8 @@ class LimeFoyerMap(GameMap):
         # Add strategically placed furniture
         
         # Entry vestibule furniture
-        self.set_terrain_at(1, 1, TerrainType.RADIO_CONSOLE)   # Corner plant (entrance decor)
-        self.set_terrain_at(1, 18, TerrainType.RADIO_CONSOLE)  # Corner plant (entrance decor)
+        self.set_terrain_at(1, 1, TerrainType.LECTERN)   # Corner lectern (entrance decor)
+        self.set_terrain_at(1, 18, TerrainType.LECTERN)  # Corner lectern (entrance decor)
         
         # Top round pillar (3x3)
         pillar_top = [
@@ -572,7 +564,7 @@ class LimeFoyerMap(GameMap):
         
         # Reception/check-in area
         self.set_terrain_at(2, 4, TerrainType.CONSOLE)    # Reception desk
-        self.set_terrain_at(2, 5, TerrainType.RADIO_CONSOLE)  # Reception chair
+        self.set_terrain_at(2, 5, TerrainType.LECTERN)  # Reception lectern
         
         # Main waiting area (centered in open space)
         self.set_terrain_at(4, 15, TerrainType.OTTOMAN)   # Right ottoman
@@ -589,8 +581,8 @@ class LimeFoyerMap(GameMap):
         self.set_terrain_at(8, 15, TerrainType.OTTOMAN)   # Lower lobby ottoman opposite
         
         # Decorative elements
-        self.set_terrain_at(6, 5, TerrainType.RADIO_CONSOLE)  # Plant between seating areas
-        self.set_terrain_at(6, 14, TerrainType.RADIO_CONSOLE) # Plant between seating areas
+        self.set_terrain_at(6, 5, TerrainType.LECTERN)  # Lectern between seating areas
+        self.set_terrain_at(6, 14, TerrainType.LECTERN) # Lectern between seating areas
         
         # Light limestone dustings (windswept patterns)
         # This is a partial list - approximately 50% of tiles will have dust
@@ -703,10 +695,10 @@ class NewLimeFoyerMap(GameMap):
         self.set_terrain_at(9, 10, TerrainType.CONSOLE)
         
         # Pattern 3: Inner ring furniture just outside the pit (for Auction Curse positioning)
-        self.set_terrain_at(3, 4, TerrainType.RADIO_CONSOLE)
-        self.set_terrain_at(3, 15, TerrainType.RADIO_CONSOLE)
-        self.set_terrain_at(6, 4, TerrainType.RADIO_CONSOLE)
-        self.set_terrain_at(6, 15, TerrainType.RADIO_CONSOLE)
+        self.set_terrain_at(3, 4, TerrainType.LECTERN)
+        self.set_terrain_at(3, 15, TerrainType.LECTERN)
+        self.set_terrain_at(6, 4, TerrainType.LECTERN)
+        self.set_terrain_at(6, 15, TerrainType.LECTERN)
         
         # Pattern 4: Central pit furniture pieces (few but valuable tactical positions)
         self.set_terrain_at(4, 8, TerrainType.OTTOMAN)

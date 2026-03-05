@@ -8,9 +8,10 @@ from typing import Optional, List
 from .menu_components import TextInputDialog
 from .main_menu import MainMenuScreen
 from .play_menu import PlaySubmenu, MapSelectionMenu
-from .profile_menu import ProfileSubmenu, ProfileListScreen, ProfileStatsScreen
-from .settings_menu import SettingsSubmenu, DisplaySettingsScreen, SoundSettingsScreen
+from .profile_menu import ProfileSubmenu, ProfileListScreen, ProfileStatsScreen, ProfileDeleteScreen
+from .settings_menu import SettingsSubmenu, DisplaySettingsScreen, SoundSettingsScreen, InterfaceSettingsScreen
 from .about_screen import AboutScreen
+from .how_to_play_screen import HowToPlayScreen
 from boneglaive.game.player_profile import profile_manager
 from boneglaive.utils.config import ConfigManager
 
@@ -46,6 +47,10 @@ class MenuManager:
         # Fonts
         self.font = pygame.font.Font(None, 32)
         self.large_font = pygame.font.Font(None, 64)
+
+        # Shared kaleidoscope background for all menus (create once)
+        from .kaleidoscope_background import KaleidoscopeBackground
+        self.shared_background = KaleidoscopeBackground(screen_width, screen_height)
 
         # Screen stack for navigation
         self.screen_stack: List = []
@@ -130,12 +135,12 @@ class MenuManager:
             self._pop_screen()
 
         elif action == "play":
-            play_submenu = PlaySubmenu(self.font, self.large_font, self.screen_width, self.screen_height)
+            play_submenu = PlaySubmenu(self.font, self.large_font, self.screen_width, self.screen_height, self.shared_background)
             self._push_screen(play_submenu)
 
         elif action == "vs_ai" or action == "local_mp":
             # Game mode was set in the screen, now show map selection
-            map_menu = MapSelectionMenu(self.font, self.large_font, self.screen_width, self.screen_height)
+            map_menu = MapSelectionMenu(self.font, self.large_font, self.screen_width, self.screen_height, self.shared_background)
             self._push_screen(map_menu)
 
         elif action == "start_game":
@@ -144,7 +149,7 @@ class MenuManager:
             self.result = ("start_game", None)
 
         elif action == "profile":
-            profile_submenu = ProfileSubmenu(self.font, self.large_font, self.screen_width, self.screen_height)
+            profile_submenu = ProfileSubmenu(self.font, self.large_font, self.screen_width, self.screen_height, self.shared_background)
             self._push_screen(profile_submenu)
 
         elif action == "select_profile":
@@ -161,6 +166,11 @@ class MenuManager:
                 on_cancel=lambda: None
             )
 
+        elif action == "delete_profile":
+            # Show delete profile screen
+            delete_screen = ProfileDeleteScreen(self.font, self.large_font, self.screen_width, self.screen_height)
+            self._push_screen(delete_screen)
+
         elif action == "view_stats":
             # Check if profile is selected
             profile = profile_manager.get_current_profile()
@@ -172,7 +182,7 @@ class MenuManager:
                 self._push_screen(stats_screen)
 
         elif action == "settings":
-            settings_submenu = SettingsSubmenu(self.font, self.large_font, self.screen_width, self.screen_height)
+            settings_submenu = SettingsSubmenu(self.font, self.large_font, self.screen_width, self.screen_height, self.shared_background)
             self._push_screen(settings_submenu)
 
         elif action == "display_settings":
@@ -180,8 +190,12 @@ class MenuManager:
             self._push_screen(display_settings)
 
         elif action == "sound_settings":
-            sound_settings = SoundSettingsScreen(self.font, self.large_font, self.screen_width, self.screen_height)
+            sound_settings = SoundSettingsScreen(self.font, self.large_font, self.screen_width, self.screen_height, self.shared_background)
             self._push_screen(sound_settings)
+
+        elif action == "interface_settings":
+            interface_settings = InterfaceSettingsScreen(self.font, self.large_font, self.screen_width, self.screen_height)
+            self._push_screen(interface_settings)
 
         elif action == "change_resolution":
             # Apply new resolution from config
@@ -190,6 +204,10 @@ class MenuManager:
         elif action == "toggle_fullscreen":
             # Toggle fullscreen mode
             self._toggle_fullscreen()
+
+        elif action == "how_to_play":
+            how_to_play_screen = HowToPlayScreen(self.font, self.large_font, self.screen_width, self.screen_height)
+            self._push_screen(how_to_play_screen)
 
         elif action == "about":
             about_screen = AboutScreen(self.font, self.large_font, self.screen_width, self.screen_height)

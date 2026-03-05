@@ -16,7 +16,7 @@ if 'logger' not in locals():
 
 class DeadUnit:
     """Represents a dead unit awaiting respawn."""
-    def __init__(self, unit_type, player, death_turn, greek_id, upgraded_skills=None):
+    def __init__(self, unit_type, player, death_turn, greek_id, upgraded_skills=None, dominion_permanent_attack=0):
         self.unit_type = unit_type
         self.player = player
         self.death_turn = death_turn
@@ -25,6 +25,7 @@ class DeadUnit:
         self.ready_for_respawn = False
         self.respawn_preview = None  # Tuple (y, x) showing where unit will respawn
         self.upgraded_skills = upgraded_skills or set()  # Preserve skill upgrades for respawn
+        self.dominion_permanent_attack = dominion_permanent_attack  # Preserve Dominion manual upgrade attack bonuses
 
 class Game:
     def __init__(self, skip_setup=False, map_name="lime_foyer_arena", player_names=None):
@@ -1398,6 +1399,29 @@ class Game:
             return
 
         for dead_unit, position in respawns:
+            # FOWL_CONTRIVANCE special handling: Generate rails BEFORE finding position
+            # This ensures rails exist when snapping to nearest rail
+            if dead_unit.unit_type == UnitType.FOWL_CONTRIVANCE:
+                if not self.map.has_rails():
+                    self.map.generate_rail_network()
+
+            # FOWL_CONTRIVANCE special handling: Snap to nearest rail position
+            if dead_unit.unit_type == UnitType.FOWL_CONTRIVANCE:
+                rail_positions = self.map.get_rail_positions()
+                if rail_positions:
+                    # Find nearest rail position to desired spawn point
+                    min_distance = float('inf')
+                    nearest_rail = position
+                    for rail_y, rail_x in rail_positions:
+                        # Check if rail position is unoccupied
+                        if self.get_unit_at(rail_y, rail_x) is None:
+                            distance = abs(rail_y - position[0]) + abs(rail_x - position[1])
+                            if distance < min_distance:
+                                min_distance = distance
+                                nearest_rail = (rail_y, rail_x)
+                    position = nearest_rail
+                    logger.info(f"RESPAWN: Snapped {dead_unit.greek_id} to nearest rail at {position}")
+
             # COLLISION CHECK: Verify respawn position is not occupied
             collision_unit = self.get_unit_at(position[0], position[1])
             if collision_unit is not None:
@@ -1427,6 +1451,12 @@ class Game:
             else:
                 unit.upgraded_skills = set()
 
+            # Restore Dominion manual upgrade attack bonuses for MARROW_CONDENSER
+            if hasattr(dead_unit, 'dominion_permanent_attack') and dead_unit.dominion_permanent_attack > 0:
+                unit.dominion_permanent_attack = dead_unit.dominion_permanent_attack
+                unit.attack_bonus += dead_unit.dominion_permanent_attack
+                logger.info(f"RESPAWN: Restored {dead_unit.dominion_permanent_attack} Dominion attack bonuses for {unit.get_display_name()}")
+
             # Reset passive skill activation flags (once-per-life)
             if hasattr(unit, 'passive_skill') and unit.passive_skill:
                 unit.passive_skill.activated = False
@@ -1438,11 +1468,22 @@ class Game:
             # Restore HP to max
             unit.hp = unit.max_hp
 
+            # Mark this unit as just respawned (for animation purposes)
+            unit._just_respawned = True
+
             # Add to game
             self.units.append(unit)
 
             # CRITICAL: Update spatial grid so unit is visible/targetable
             self._update_unit_grid(unit)
+
+            # FOWL_CONTRIVANCE special handling: Add message about rail re-establishment
+            if unit.type == UnitType.FOWL_CONTRIVANCE and self.map.has_rails():
+                message_log.add_message(
+                    f"{unit.get_display_name()} re-establishes the rail network",
+                    MessageType.ABILITY,
+                    player=unit.player
+                )
 
             # Remove from dead units
             if dead_unit in self.dead_units:
@@ -1582,8 +1623,11 @@ class Game:
             # Check if there's a unit at this position that might block line of sight
             blocking_unit = self.get_unit_at(pos.y, pos.x)
             if blocking_unit:
-                logger.debug(f"Line of sight blocked by unit {blocking_unit.get_display_name()} at position ({pos.y}, {pos.x})")
-                return False
+                # HEINOUS_VAPOR units don't block LOS (they're gas clouds - semi-transparent)
+                from boneglaive.utils.constants import UnitType
+                if blocking_unit.type != UnitType.HEINOUS_VAPOR:
+                    logger.debug(f"Line of sight blocked by unit {blocking_unit.get_display_name()} at position ({pos.y}, {pos.x})")
+                    return False
         
         return True
     
@@ -2216,6 +2260,10 @@ class Game:
                     if UpgradeManager.is_skill_upgraded(dike_owner, "Dominion"):
                         # Manual upgrade: +1 attack per kill in Marrow Dike
                         dike_owner.attack_bonus += 1
+                        # Track permanent attack bonuses from Dominion manual upgrade (survives death)
+                        if not hasattr(dike_owner, 'dominion_permanent_attack'):
+                            dike_owner.dominion_permanent_attack = 0
+                        dike_owner.dominion_permanent_attack += 1
 
                 # Apply the stat bonus based on upgrade tier
                 # Instead of granting all bonuses at once, apply them progressively based on upgrade level
@@ -2400,24 +2448,12 @@ class Game:
                 from boneglaive.game.upgrades import UpgradeManager
                 is_upgraded = UpgradeManager.is_skill_upgraded(unit, "Rail Genesis")
 
-                # Junction coordinates
-                center_y = self.map.height // 2
-                center_x = self.map.width // 2
-
-                top_horizontal = 1
-                middle_horizontal = center_y - 2
-                bottom_horizontal = self.map.height - 2
-
-                vertical_line_1 = center_x - 2
-                vertical_line_2 = center_x + 2
-
+                # Fixed junction coordinates (4x4 grid)
                 junction_coords = [
-                    (top_horizontal, vertical_line_1),
-                    (top_horizontal, vertical_line_2),
-                    (middle_horizontal, vertical_line_1),
-                    (middle_horizontal, vertical_line_2),
-                    (bottom_horizontal, vertical_line_1),
-                    (bottom_horizontal, vertical_line_2)
+                    (2, 4), (2, 8), (2, 12), (2, 16),
+                    (4, 4), (4, 8), (4, 12), (4, 16),
+                    (6, 4), (6, 8), (6, 12), (6, 16),
+                    (8, 4), (8, 8), (8, 12), (8, 16)
                 ]
 
                 on_junction = (unit.y, unit.x) in junction_coords
@@ -2448,6 +2484,32 @@ class Game:
                             MessageType.ABILITY,
                             player=unit.player
                         )
+
+        # Process Imbued status effect (Market Futures on enemy units)
+        # This must process ALL units, not just current player's units, since enemies get imbued
+        for unit in self.units:
+            if not unit.is_alive():
+                continue
+
+            if hasattr(unit, 'status_imbued') and unit.status_imbued:
+                # Only decrement if the imbuing player is the current player
+                if unit.status_imbued_player == self.current_player:
+                    unit.status_imbued_duration -= 1
+                    logger.debug(f"{unit.get_display_name()}'s Imbued duration: {unit.status_imbued_duration}")
+
+                    if unit.status_imbued_duration <= 0:
+                        unit.status_imbued = False
+                        unit.status_imbued_player = None
+                        unit.status_imbued_cosmic_value = None
+
+                        message_log.add_message(
+                            f"{unit.get_display_name()}'s Market Futures imbuement fades",
+                            MessageType.ABILITY,
+                            player=unit.status_imbued_player if unit.status_imbued_player else unit.player
+                        )
+
+                        # Update anchor status effects after imbued status expires
+                        self.update_anchor_status_effects()
 
         # Now process turn-based effects for current player's units only
         for unit in self.units:
@@ -2489,27 +2551,6 @@ class Game:
                         MessageType.ABILITY,
                         player=unit.player
                     )
-
-            # Process Imbued status effect (Market Futures on enemy units)
-            if hasattr(unit, 'status_imbued') and unit.status_imbued:
-                # Only decrement if the imbuing player is the current player
-                if unit.status_imbued_player == self.current_player:
-                    unit.status_imbued_duration -= 1
-                    logger.debug(f"{unit.get_display_name()}'s Imbued duration: {unit.status_imbued_duration}")
-
-                    if unit.status_imbued_duration <= 0:
-                        unit.status_imbued = False
-                        unit.status_imbued_player = None
-                        unit.status_imbued_cosmic_value = None
-
-                        message_log.add_message(
-                            f"{unit.get_display_name()}'s Market Futures imbuement fades",
-                            MessageType.ABILITY,
-                            player=unit.status_imbued_player if unit.status_imbued_player else unit.player
-                        )
-
-                        # Update anchor status effects after imbued status expires
-                        self.update_anchor_status_effects()
 
             # Process Pry movement penalty effect
             if hasattr(unit, 'pry_duration') and unit.pry_duration > 0:
@@ -2605,14 +2646,28 @@ class Game:
                         unit.ossify_active = False
                         # Remove the defense bonus and movement penalty
                         if unit.type == UnitType.MARROW_CONDENSER:
-                            # Get the defense bonus value from the skill
-                            for skill in unit.active_skills:
-                                if skill.name == "Ossify":
-                                    unit.defense_bonus -= skill.defense_bonus
-                                    break
-                            
-                            # Reset movement penalty
-                            unit.move_range_bonus = 0
+                            # Remove the actual defense bonus that was applied (tracked at application time)
+                            if hasattr(unit, 'ossify_defense_bonus'):
+                                unit.defense_bonus -= unit.ossify_defense_bonus
+                                delattr(unit, 'ossify_defense_bonus')
+                            else:
+                                # Fallback for units that were ossified before tracking was added
+                                # Check if Ossify was Dominion-upgraded when it was cast
+                                defense_to_remove = 2  # Default base bonus
+                                if hasattr(unit, 'passive_skill') and hasattr(unit.passive_skill, 'ossify_upgraded'):
+                                    if unit.passive_skill.ossify_upgraded:
+                                        defense_to_remove = 3  # Dominion-upgraded bonus
+                                unit.defense_bonus -= defense_to_remove
+                                logger.warning(f"Ossify expired without tracking data - removed {defense_to_remove} defense (fallback)")
+
+                            # Remove movement penalty (use tracked value if available, otherwise assume -1)
+                            if hasattr(unit, 'ossify_move_penalty'):
+                                unit.move_range_bonus -= unit.ossify_move_penalty  # Subtracting -1 = adding 1
+                                delattr(unit, 'ossify_move_penalty')
+                            else:
+                                # Fallback: assume -1 penalty was applied
+                                unit.move_range_bonus += 1
+                                logger.warning(f"Ossify expired without move tracking data - added 1 movement (fallback)")
                         
                         # Log the expiration
                         message_log.add_message(
@@ -2757,10 +2812,7 @@ class Game:
 
                 # Check if the status effect has expired
                 if unit.shredded_duration <= 0:
-                    # Restore defense
-                    unit.defense_bonus += unit.shredded_original_defense
-
-                    # Remove the status effect
+                    # Remove the status effect (defense will automatically recalculate via get_effective_stats)
                     unit.shredded = False
 
                     # Log the expiration
@@ -3508,6 +3560,31 @@ class Game:
                         if ui:
                             ui.show_attack_animation(unit, target, actual_damage)
 
+                        # Check for upgraded Ossify reflect damage (MARROW_CONDENSER)
+                        if (target.type == UnitType.MARROW_CONDENSER and
+                            hasattr(target, 'ossify_active') and target.ossify_active and
+                            target.hp > 0 and actual_damage > 0):
+                            # Check if Ossify is manually upgraded
+                            from boneglaive.game.upgrades import UpgradeManager
+                            if UpgradeManager.is_skill_upgraded(target, "Ossify"):
+                                # Reflect all damage back to attacker
+                                reflect_damage = actual_damage
+
+                                attacker_previous_hp = unit.hp
+                                unit.hp = max(0, unit.hp - reflect_damage)
+
+                                # Log the reflect
+                                message_log.add_message(
+                                    f"{target.get_display_name()}'s hardened bones splinter back at {unit.get_display_name()} for {reflect_damage} damage",
+                                    MessageType.ABILITY,
+                                    player=target.player,
+                                    target_name=unit.get_display_name()
+                                )
+
+                                # Check if attacker died from reflect damage
+                                if unit.hp <= 0 and attacker_previous_hp > 0:
+                                    self.handle_unit_death(unit, target, cause="ossify_reflect", ui=ui)
+
                         # Check for PELOTARI Riposte trigger (after taking damage)
                         if (hasattr(target, 'passive_skill') and target.passive_skill and
                             target.passive_skill.name == "Riposte" and target.hp > 0):
@@ -4134,11 +4211,15 @@ class Game:
                         # If no other vapors from this user, the user reforms
                         if not other_vapors:
                             gas_machinist = vapor_unit.diverged_user
-                            
+
+                            # CRITICAL: Remove vapor from grid BEFORE moving GAS_MACHINIST to that position
+                            # This prevents collision detection from blocking the placement
+                            self._remove_from_unit_grid(vapor_unit)
+
                             # Return the Gas Machinist to the vapor's position
                             gas_machinist.y = vapor_unit.y
                             gas_machinist.x = vapor_unit.x
-                            
+
                             # Reset the diverge flags
                             gas_machinist.diverge_return_position = False
                             
@@ -4202,38 +4283,43 @@ class Game:
                             MessageType.ABILITY,
                             target_name=unit.get_display_name()
                         )
-                    
-                    # Handle Ossify duration (non-upgraded version only)
-                    if hasattr(unit, 'ossify_duration') and unit.ossify_duration > 0:
-                        # Check if this is a permanently upgraded MARROW_CONDENSER
-                        is_permanent_ossify = False
-                        if unit.type == UnitType.MARROW_CONDENSER and hasattr(unit, 'passive_skill'):
-                            # Check if Ossify is permanently upgraded through Dominion
-                            if hasattr(unit.passive_skill, 'ossify_upgraded') and unit.passive_skill.ossify_upgraded:
-                                is_permanent_ossify = True
-                        
-                        # If not permanent, decrement duration (applies to all unit types)
-                        if not is_permanent_ossify:
-                            unit.ossify_duration -= 1
-                            
-                            # If duration expires, restore movement and remove defense bonus
-                            if unit.ossify_duration <= 0:
-                                # Only restore movement if not affected by other penalties
-                                if not hasattr(unit, 'was_pried') or not unit.was_pried:
-                                    if not hasattr(unit, 'jawline_affected') or not unit.jawline_affected:
-                                        if not hasattr(unit, 'trapped_by') or unit.trapped_by is None:
-                                            unit.move_range_bonus += 1  # Restore the movement penalty
-                                
-                                # Remove defense bonus as well
-                                unit.defense_bonus -= self.get_ossify_defense_bonus(unit)
-                                
-                                # Log the effect expiration
-                                message_log.add_message(
-                                    f"{unit.get_display_name()}'s ossified bone structure returns to normal",
-                                    MessageType.ABILITY,
-                                    player=unit.player,
-                                    target_name=unit.get_display_name()
-                                )
+
+                    # NOTE: Ossify duration is now handled in process_buff_durations() at line 2597-2639
+                    # The old duplicate code that was here has been removed to prevent double-removal bugs
+
+                    # Clean up expired Investment effects that weren't cleaned up during attack
+                    # This handles cases where unit didn't attack on final turn
+                    if (hasattr(unit, 'market_futures_bonus_applied') and
+                        unit.market_futures_bonus_applied and
+                        hasattr(unit, 'market_futures_duration') and
+                        unit.market_futures_duration == 0):
+
+                        # Remove the attack bonus based on current maturity level
+                        if hasattr(unit, 'market_futures_maturity'):
+                            unit.attack_bonus -= unit.market_futures_maturity
+
+                        # Remove range bonus
+                        unit.attack_range_bonus -= 1
+
+                        # Reset all flags
+                        unit.market_futures_bonus_applied = False
+                        if hasattr(unit, 'has_investment_effect'):
+                            unit.has_investment_effect = False
+                        if hasattr(unit, 'market_futures_range_bonus_active'):
+                            unit.market_futures_range_bonus_active = False
+                        if hasattr(unit, 'market_futures_needs_maturation'):
+                            delattr(unit, 'market_futures_needs_maturation')
+                        if hasattr(unit, 'market_futures_final_maturation'):
+                            delattr(unit, 'market_futures_final_maturation')
+                        if hasattr(unit, 'market_futures_will_expire_after_attack'):
+                            delattr(unit, 'market_futures_will_expire_after_attack')
+
+                        # Log the expiration if not already logged
+                        message_log.add_message(
+                            f"{unit.get_display_name()}'s investment effect expires after 3 turns.",
+                            MessageType.ABILITY,
+                            player=unit.player
+                        )
 
         # Call graphical callback before clearing status effects
         # This allows the graphical system to detect status effects before they're removed
@@ -4241,21 +4327,13 @@ class Game:
             self.pre_status_clear_callback()
 
         # Continue with status clearing for current player's units
+        # NOTE: Pry status clearing is now handled by duration-based system in units.py
+        # (was_pried flag is cleared when pry_duration reaches 0)
         for unit in self.units:
             if unit.is_alive():
-                # Handle units that were affected by Pry during the turn that just ended
-                # They need to keep their was_pried status until after THEIR next turn
-                if unit.was_pried and unit.player == self.current_player:
-                    # This unit was just pried this turn - next turn it will feel the effects
-                    # Keep was_pried flag until after their turn is done
-                    pass
-                elif unit.was_pried and unit.player != self.current_player:
-                    # This unit was pried on their previous turn and just finished a turn with the penalty
-                    # Time to clear the was_pried flag
-                    unit.was_pried = False  # Keep the move_range_bonus until end of turn
-                
                 # Passive skills are now applied at the start of each player's turn
                 # instead of at the end of the previous player's turn
+                pass
         
         # Process MarrowDike wall durations
         if hasattr(self, 'marrow_dike_tiles'):
@@ -4457,9 +4535,8 @@ class Game:
             # Reset penalties for current player's units BEFORE switching players
             for unit in self.units:
                 if unit.is_alive() and unit.player == self.current_player:
-                    # If this unit was pried during THIS turn, don't reset (penalty should last next turn)
-                    if not unit.was_pried:
-                        unit.reset_movement_penalty()
+                    # Always call reset_movement_penalty() - it handles Pry duration internally
+                    unit.reset_movement_penalty()
                         
             # Process Partition Shield emergency cleanup for ALL units (regardless of player)
             for unit in self.units:
@@ -5156,6 +5233,24 @@ class Game:
             message_log.add_system_message(
                 f"{winner_name} wins with {self.player2_gp} GP!"
             )
+
+    def concede(self, conceding_player: int):
+        """
+        Concede the game - opponent wins by forfeit.
+
+        Args:
+            conceding_player: Player number (1 or 2) who is conceding
+        """
+        # Opponent wins
+        opponent = 2 if conceding_player == 1 else 1
+        self.winner = opponent
+
+        # Log concession
+        conceder_name = self.get_player_name(conceding_player)
+        winner_name = self.get_player_name(opponent)
+        message_log.add_system_message(
+            f"{conceder_name} has conceded. {winner_name} wins!"
+        )
     
     def _apply_trap_damage(self):
         """Apply damage to units trapped by MANDIBLE_FOREMENs."""

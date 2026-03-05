@@ -53,7 +53,10 @@ class GameConfig:
     audio_enabled: bool = True
     music_volume: float = 0.7
     sfx_volume: float = 1.0
-    
+
+    # Interface settings
+    ui_layout: str = "default"  # "default" or "reversed"
+
     # Controls
     custom_keybindings: Dict = None
     

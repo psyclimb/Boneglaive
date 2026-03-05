@@ -451,7 +451,7 @@ class DivineDrepreciationAnimation:
                         tile_terrain = self.game.map.terrain.get((tile_grid_y, tile_grid_x), TerrainType.EMPTY)
                         # Only actual furniture types (not terrain/walls)
                         furniture_types = {
-                            TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK, TerrainType.OTTOMAN,
+                            TerrainType.LECTERN, TerrainType.COAT_RACK, TerrainType.OTTOMAN,
                             TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF, TerrainType.TIFFANY_LAMP,
                             TerrainType.EASEL, TerrainType.SCULPTURE, TerrainType.BENCH,
                             TerrainType.PODIUM, TerrainType.VASE, TerrainType.WORKBENCH,
@@ -1068,7 +1068,7 @@ class AuctionCurseAnimation:
 
         from boneglaive.game.map import TerrainType
         furniture_types = {
-            TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK, TerrainType.OTTOMAN,
+            TerrainType.LECTERN, TerrainType.COAT_RACK, TerrainType.OTTOMAN,
             TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF, TerrainType.TIFFANY_LAMP,
             TerrainType.EASEL, TerrainType.SCULPTURE, TerrainType.BENCH,
             TerrainType.PODIUM, TerrainType.VASE, TerrainType.WORKBENCH,
@@ -2378,7 +2378,7 @@ class AuctionCurseTickAnimation:
 
         from boneglaive.game.map import TerrainType
         furniture_types = {
-            TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK, TerrainType.OTTOMAN,
+            TerrainType.LECTERN, TerrainType.COAT_RACK, TerrainType.OTTOMAN,
             TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF, TerrainType.TIFFANY_LAMP,
             TerrainType.EASEL, TerrainType.SCULPTURE, TerrainType.BENCH,
             TerrainType.PODIUM, TerrainType.VASE, TerrainType.WORKBENCH,
@@ -2928,7 +2928,7 @@ class DeftRerollAnimation:
                 for pos in distortion['area']:
                     if pos != distortion.get('center'):  # Skip center
                         terrain = game.map.get_terrain_at(pos[0], pos[1])
-                        if terrain in [TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
+                        if terrain in [TerrainType.LECTERN, TerrainType.COAT_RACK,
                                      TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF,
                                      TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE,
                                      TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,

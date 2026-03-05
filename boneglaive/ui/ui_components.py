@@ -756,7 +756,7 @@ class UnitHelpComponent(UIComponent):
                             'Type: Active',
                             'Range: 4 (minimum 2 tiles)',
                             'Damage: 5',
-                            'Cooldown: 4 turns',
+                            'Cooldown: 5 turns',
                             'Special: Must move in straight lines (cardinal or diagonal); stops at first enemy; applies Viseroy trap; cannot target adjacent units'
                         ]
                     },
@@ -846,12 +846,12 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'ESTRANGE (Active) [Key: E]',
-                        'description': 'The GRAYMAN fires a reality-warping beam that phases the target partially out of spacetime, dealing 3 defense-piercing damage. The beam applies Estrangement, a permanent debuff that reduces the target\'s HP by 1, attack by 1, and defense by 1. This existential weakening never wears off and gradually compounds as multiple Estrangements are applied to the same target.',
+                        'description': 'The GRAYMAN fires a reality-warping beam that phases the target partially out of spacetime, dealing 3 defense-piercing damage. The beam applies Estrangement, a permanent debuff that reduces all of the target\'s stats by 2 (attack, defense, movement, attack range). This existential weakening never wears off and gradually compounds as multiple Estrangements are applied to the same target.',
                         'details': [
                             'Type: Active',
                             'Range: 5',
                             'Damage: 3 (pierces defense)',
-                            'Effect: Estranged (~) (Permanent -1 to all stats)',
+                            'Effect: Estranged (~) (Permanent -2 to all stats)',
                             'Cooldown: 3 turns',
                             'Special: Requires line of sight; effect is permanent and stackable'
                         ]
@@ -1045,12 +1045,12 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'RAIL GENESIS (Passive)',
-                        'description': 'The first FOWL CONTRIVANCE to deploy establishes a permanent rail network across passable terrain. This infrastructure persists throughout the match and is shared by all FOWL CONTRIVANCES. Whenever any FOWL CONTRIVANCE dies, the rail network detonates, dealing 6 damage to all enemy units standing on rail tiles and applying Shrapnel (1 damage per turn for 3 turns) to enemies adjacent to rails. When the last FOWL CONTRIVANCE dies, the rail network is destroyed and removed from the battlefield.',
+                        'description': 'The first FOWL CONTRIVANCE to deploy establishes a permanent rail network across passable terrain. This infrastructure persists throughout the match and is shared by all FOWL CONTRIVANCES. Whenever any FOWL CONTRIVANCE dies, the rail network detonates, dealing 6 damage to all enemy units standing on rail tiles. When the last FOWL CONTRIVANCE dies, the rail network is destroyed and removed from the battlefield.',
                         'details': [
                             'Type: Passive',
-                            'Effect: Rail network across map; 6 damage to enemies on rails; Shrapnel (1 dmg/turn for 3 turns) to enemies adjacent to rails; network removed when last FOWL dies',
+                            'Effect: Rail network across map; 6 damage to enemies on rails; network removed when last FOWL dies',
                             'Special: Rail network is permanent until last FOWL dies; shared across all FOWL CONTRIVANCES; explodes on every FOWL death',
-                            'Synergy: Shrapnel effect matches Fragcrest ability for thematic consistency'
+                            'Damage: Fixed 6 damage (ignores defense)'
                         ]
                     },
                     {
@@ -1133,15 +1133,15 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'BROACHING GAS (Active) [Key: B]',
-                        'description': 'The GAS MACHINIST expels a HEINOUS VAPOR (symbol: 1) to an empty tile, creating a caustic gas cloud in a 3x3 area centered on the vapor. Each turn, the vapor automatically corrodes enemies within the cloud for 2 damage while simultaneously dissolving negative status effects from allies. The vapor persists for a duration equal to consumed Effluvium charges and is completely invulnerable to all damage.',
+                        'description': 'The GAS MACHINIST expels a HEINOUS VAPOR (symbol: 1) to an empty tile, creating a caustic gas cloud in a 3x3 area centered on the vapor. Each turn, the vapor automatically corrodes enemies within the cloud for 1 damage while randomly dissolving one random negative status effect from each ally in the cloud. The vapor persists for a duration equal to consumed Effluvium charges and is completely invulnerable to all damage.',
                         'details': [
                             'Type: Active',
                             'Range: 4',
                             'Target: Empty tile',
                             'Area: 3x3 (centered on vapor)',
-                            'Damage: 2 per turn to enemies',
-                            'Cooldown: 2 turns',
-                            'Special: Cleanses ally status effects; invulnerable; duration = charges'
+                            'Damage: 1 per turn to enemies',
+                            'Cooldown: 3 turns',
+                            'Special: Cleanses one random negative ally status effect per turn; invulnerable; duration = charges'
                         ]
                     },
                     {
@@ -1249,7 +1249,7 @@ class UnitHelpComponent(UIComponent):
                             'Target: Furniture piece',
                             'Area: 7x7',
                             'Damage: (Average of other furniture) - 1 (pierces defense, max 13)',
-                            'Cooldown: 6 turns',
+                            'Cooldown: 5 turns',
                             'Special: Sets target value to 1; pull = (original value - 1) - move (min 1); rerolls other furniture'
                         ]
                     }
@@ -1459,7 +1459,7 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'DEMILUNE (Active) [Key: D]',
-                        'description': 'The POTPOURRIST swings their granite pedestal in a wide crescent arc, striking enemies in a forward half-moon pattern (3 tiles ahead plus 2 diagonal sides). The impact releases disorienting potpourri vapors that induce Lunacy, a maddening effect that halves all damage the afflicted enemy deals to the POTPOURRIST for 2 turns (rounded down). When enhanced with potpourri, the strike also erodes the target\'s mental defenses, halving their defense value against the POTPOURRIST\'s attacks. This consumes the potpourri.',
+                        'description': 'The POTPOURRIST swings their granite pedestal in a wide crescent arc, striking enemies in a forward half-moon pattern (3 tiles ahead plus 2 diagonal sides). The impact releases disorienting potpourri vapors that induce Lunacy, a maddening effect that halves all damage the afflicted enemy deals to the POTPOURRIST for 2 turns (rounded down). When enhanced with potpourri, the concentrated blend extends Lunacy to 3 turns, prolonging the maddening effect. This consumes the potpourri.',
                         'details': [
                             'Type: Active',
                             'Target: Adjacent tile',
@@ -1476,7 +1476,7 @@ class UnitHelpComponent(UIComponent):
                             'Type: Active',
                             'Range: 1',
                             'Target: Single enemy',
-                            'Damage: 4',
+                            'Damage: 5',
                             'Effect: Geas (:) (1-2 turns); heals 4 HP per turn if ignored',
                             'Cooldown: 3 turns'
                         ]
@@ -1499,7 +1499,8 @@ class UnitHelpComponent(UIComponent):
                 'overview': [
                     'BROACHING GAS is a HEINOUS VAPOR entity summoned by the GAS MACHINIST using the Broaching',
                     'Gas skill. This vapor specializes in dual-purpose area control, dealing 2 damage to enemies',
-                    'while cleansing allies of negative status effects within its 3x3 area of influence.',
+                    'while randomly cleansing one negative status effect from each ally within its 3x3 area of',
+                    'influence each turn.',
                     '',
                     'Role: Utility / Area Controller'
                 ],
@@ -1544,7 +1545,7 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'ALLY CLEANSING (Status Cleansing)',
-                        'description': 'Removes negative status effects from allied units within the area.',
+                        'description': 'Randomly removes one negative status effect from each allied unit within the area each turn.',
                         'details': [
                             'Type: Status Cleansing',
                             'Range: 3x3 centered on vapor',

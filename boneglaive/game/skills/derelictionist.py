@@ -301,12 +301,31 @@ class VagalRunSkill(ActiveSkill):
             target.mired = False
             if hasattr(target, 'mired_duration'):
                 target.mired_duration = 0
+            # Restore the movement penalty that was applied by mired (-1 move)
+            target.move_range_bonus += 1
             cleared_effects.append("Mired")
             
         if hasattr(target, 'was_pried') and target.was_pried:
             target.was_pried = False
-            target.move_range_bonus = max(0, target.move_range_bonus)
+            # Restore movement by removing the stored penalty
+            if hasattr(target, 'pry_penalty_amount'):
+                # pry_penalty_amount is negative (e.g., -1), so subtracting it adds to movement
+                target.move_range_bonus -= target.pry_penalty_amount
+                delattr(target, 'pry_penalty_amount')
+            if hasattr(target, 'pry_duration'):
+                target.pry_duration = 0
             cleared_effects.append("Pried")
+
+        if hasattr(target, 'was_pried_upgraded') and target.was_pried_upgraded:
+            target.was_pried_upgraded = False
+            # Restore movement by removing the stored upgraded penalty
+            if hasattr(target, 'pry_upgraded_penalty_amount'):
+                # pry_upgraded_penalty_amount is negative (e.g., -2), so subtracting it adds to movement
+                target.move_range_bonus -= target.pry_upgraded_penalty_amount
+                delattr(target, 'pry_upgraded_penalty_amount')
+            if hasattr(target, 'pry_upgraded_duration'):
+                target.pry_upgraded_duration = 0
+            cleared_effects.append("Pried (Upgraded)")
             
         if hasattr(target, 'jawline_affected') and target.jawline_affected:
             target.jawline_affected = False
@@ -323,7 +342,17 @@ class VagalRunSkill(ActiveSkill):
         if hasattr(target, 'auction_curse_dot') and target.auction_curse_dot:
             target.auction_curse_dot = False
             cleared_effects.append("Auction Curse")
-            
+
+        if hasattr(target, 'status_imbued') and target.status_imbued:
+            target.status_imbued = False
+            if hasattr(target, 'status_imbued_duration'):
+                target.status_imbued_duration = 0
+            if hasattr(target, 'status_imbued_player'):
+                target.status_imbued_player = None
+            if hasattr(target, 'status_imbued_cosmic_value'):
+                target.status_imbued_cosmic_value = None
+            cleared_effects.append("Imbued")
+
         if hasattr(target, 'radiation_stacks') and target.radiation_stacks:
             if isinstance(target.radiation_stacks, list):
                 if len(target.radiation_stacks) > 0:
@@ -333,7 +362,25 @@ class VagalRunSkill(ActiveSkill):
                 if target.radiation_stacks > 0:
                     target.radiation_stacks = 0
                     cleared_effects.append("Radiation Burn")
-        
+
+        if hasattr(target, 'estranged') and target.estranged:
+            target.estranged = False
+            cleared_effects.append("Estrangement")
+
+        if hasattr(target, 'gaussian_dusk_recharge') and target.gaussian_dusk_recharge > 0:
+            target.gaussian_dusk_recharge = 0
+            cleared_effects.append("Recharging")
+
+        if hasattr(target, 'shrapnel_duration') and target.shrapnel_duration > 0:
+            target.shrapnel_duration = 0
+            cleared_effects.append("Shrapnel")
+
+        if hasattr(target, 'status_disarmed') and target.status_disarmed:
+            target.status_disarmed = False
+            if hasattr(target, 'status_disarmed_duration'):
+                target.status_disarmed_duration = 0
+            cleared_effects.append("Disarmed")
+
         # Clear positive status effects (but not permanent abilities or vagal run)
         if hasattr(target, 'carrier_rave_active') and target.carrier_rave_active:
             target.carrier_rave_active = False
@@ -345,6 +392,15 @@ class VagalRunSkill(ActiveSkill):
             target.ossify_active = False
             if hasattr(target, 'ossify_duration'):
                 target.ossify_duration = 0
+            # Reverse the stat modifications that Ossify applied
+            # Remove defense bonus that was applied (tracked at application time)
+            if hasattr(target, 'ossify_defense_bonus'):
+                target.defense_bonus = max(0, target.defense_bonus - target.ossify_defense_bonus)
+                delattr(target, 'ossify_defense_bonus')
+            # Remove movement penalty that was applied
+            if hasattr(target, 'ossify_move_penalty'):
+                target.move_range_bonus -= target.ossify_move_penalty  # ossify_move_penalty is -1, so this adds 1
+                delattr(target, 'ossify_move_penalty')
             cleared_effects.append("Ossify")
             
         if hasattr(target, 'status_site_inspection') and target.status_site_inspection:
@@ -363,8 +419,9 @@ class VagalRunSkill(ActiveSkill):
             target.valuation_oracle_buff = False
             if hasattr(target, 'valuation_oracle_duration'):
                 target.valuation_oracle_duration = 0
-            target.defense_bonus = 0
-            target.attack_range_bonus = 0
+            # Subtract the bonuses that were added (don't just set to 0)
+            target.defense_bonus = max(0, target.defense_bonus - 1)
+            target.attack_range_bonus = max(0, target.attack_range_bonus - 1)
             cleared_effects.append("Valuation Oracle")
             
         if hasattr(target, 'slough_def_duration') and target.slough_def_duration > 0:
@@ -384,7 +441,10 @@ class VagalRunSkill(ActiveSkill):
             target.partition_shield_active = False
             if hasattr(target, 'partition_shield_duration'):
                 target.partition_shield_duration = 0
+            # Subtract damage reduction if it was stored (don't just set to 0)
             if hasattr(target, 'partition_shield_damage_reduction'):
+                if target.partition_shield_damage_reduction > 0:
+                    target.defense_bonus = max(0, target.defense_bonus - target.partition_shield_damage_reduction)
                 target.partition_shield_damage_reduction = 0
             if hasattr(target, 'partition_shield_emergency_active'):
                 target.partition_shield_emergency_active = False
@@ -401,16 +461,19 @@ class VagalRunSkill(ActiveSkill):
         if hasattr(target, 'first_turn_move_bonus') and target.first_turn_move_bonus:
             target.first_turn_move_bonus = False
             cleared_effects.append("First Turn Bonus")
-            
+
+        # Clear POTPOURRIST infused status (potpourri_held)
+        if hasattr(target, 'potpourri_held') and target.potpourri_held:
+            target.potpourri_held = False
+            if hasattr(target, 'potpourri_duration'):
+                target.potpourri_duration = 0
+            cleared_effects.append("Infused")
+
         # Don't clear severance_active as it's related to DERELICTIONIST's own passive
-        
-        # Reset stat bonuses carefully (don't interfere with vagal run's own tracking)
-        if not (hasattr(target, 'vagal_run_active') and target.vagal_run_active):
-            target.attack_bonus = 0
-            target.defense_bonus = 0
-            target.move_range_bonus = 0
-            target.attack_range_bonus = 0
-        
+
+        # Note: We don't do a blanket reset of stat bonuses to 0 anymore
+        # Each effect removal above properly subtracts its contribution
+
         logger.info(f"Cleared {len(cleared_effects)} status effects from {target.get_display_name()}: {cleared_effects}")
         return cleared_effects
     
@@ -543,17 +606,6 @@ class DerelictSkill(ActiveSkill):
             
             logger.warning(f"No stored push direction, using fallback: ({dy},{dx})")
         
-        # Show conveyance animation if UI available
-        if ui and hasattr(ui, 'renderer'):
-            # Conveyance animation - abstract transportation/displacement
-            conveyance_animation = ['o', 'o', 'O', '~', '~', '~', '*', '+', '=', '0']  # Being conveyed away
-            ui.renderer.animate_attack_sequence(
-                target_pos[0], target_pos[1],
-                conveyance_animation,
-                3,  # Red color for therapeutic displacement
-                0.4  # Same timing as other animations
-            )
-        
         # Try to push 4 tiles in that direction
         push_distance = 0
         original_y, original_x = target.y, target.x  # Store original position
@@ -596,11 +648,20 @@ class DerelictSkill(ActiveSkill):
                     player=target.player
                 )
         
+        # Store push trail info for graphical renderer (event-based pattern)
+        if push_distance > 0:
+            if not hasattr(game, 'derelict_push_trails'):
+                game.derelict_push_trails = []
+            game.derelict_push_trails.append({
+                'start_pos': (original_y, original_x),
+                'end_pos': (final_y, final_x)
+            })
+
         # Calculate healing based on final distance from DERELICTIONIST's effective position
         # (Use move_target if the DERELICTIONIST moved first due to Severance)
         source_y, source_x = (user.move_target[0], user.move_target[1]) if user.move_target else (user.y, user.x)
         distance_to_derelictionist = game.chess_distance(final_y, final_x, source_y, source_x)
-            
+
         heal_amount = distance_to_derelictionist
         
         # Apply healing if needed
@@ -742,7 +803,7 @@ class DerelictSkill(ActiveSkill):
 
                         # Only displace furniture, not permanent terrain like walls/pillars
                         displaceable_terrain = [
-                            TerrainType.RADIO_CONSOLE, TerrainType.COAT_RACK,
+                            TerrainType.LECTERN, TerrainType.COAT_RACK,
                             TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF,
                             TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE,
                             TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,

@@ -8,35 +8,46 @@ from typing import Optional, List, Tuple
 from pathlib import Path
 from .font_utils import render_fitted_text
 from .scrollbar import Scrollbar
+from .menu_components import draw_gradient_rect, draw_glow_rect
 
 # Import unit types
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from boneglaive.utils.constants import UnitType, UNIT_STATS
 
-# Colors - Match respawn window style
+# Colors - Match main menu bone/industrial theme
 COLOR_OVERLAY = (0, 0, 0, 180)  # Semi-transparent black overlay
-COLOR_WINDOW_BG = (30, 34, 42)
-COLOR_WINDOW_BORDER = (100, 100, 100)
+COLOR_WINDOW_BG = (42, 42, 47)  # Match menu panel
+COLOR_WINDOW_BG_DARK = (26, 26, 31)  # Darker gradient
+COLOR_WINDOW_BORDER = (90, 90, 90)  # Match menu border
 COLOR_TITLE_BG = (40, 44, 52)
-COLOR_TEXT = (255, 255, 255)
-COLOR_TEXT_DIM = (180, 180, 180)
-COLOR_TEXT_DISABLED = (100, 100, 100)
-COLOR_SELECTED = (60, 100, 140)
-COLOR_HOVER = (50, 54, 62)
+COLOR_TEXT = (240, 232, 216)  # Bone white text
+COLOR_TEXT_DIM = (180, 160, 165)  # Muted bone
+COLOR_TEXT_DISABLED = (120, 120, 120)
+COLOR_SELECTED = (106, 90, 95)  # Warmer selection (menu hover color)
+COLOR_HOVER = (74, 58, 63)  # Warmer hover (menu pressed color)
 COLOR_GOLD = (255, 215, 0)
-COLOR_INFO = (180, 200, 220)
+COLOR_INFO = (180, 160, 165)  # Muted bone color
 COLOR_MAXED = (80, 40, 40)  # Red tint for maxed units
 COLOR_GREEN = (100, 200, 100)
-COLOR_BUTTON = (70, 110, 150)
-COLOR_BUTTON_HOVER = (90, 130, 170)
+COLOR_BUTTON = (106, 90, 95)  # Match menu hover
+COLOR_BUTTON_HOVER = (184, 168, 149)  # Bone color for hover
 COLOR_BUTTON_DISABLED = (50, 50, 50)
+COLOR_BONE = (224, 213, 197)  # Bone decorations
+COLOR_BONE_DARK = (139, 115, 85)  # Bone shadow
 
 WINDOW_WIDTH = 500
 WINDOW_HEIGHT = 700
 ITEM_HEIGHT = 55
 ITEM_PADDING = 8
 SCROLL_SPEED = 3
+
+
+def draw_bone_corner(surface: pygame.Surface, x: int, y: int, radius: int):
+    """Draw a small bone decoration in a corner."""
+    # Draw small circle
+    pygame.draw.circle(surface, COLOR_BONE_DARK, (x, y), radius)
+    pygame.draw.circle(surface, COLOR_BONE, (x, y), radius - 1)
 
 
 class SetupWindow:
@@ -389,9 +400,17 @@ class SetupWindow:
         window_y = (screen_height - WINDOW_HEIGHT) // 2
         self.window_rect = pygame.Rect(window_x, window_y, WINDOW_WIDTH, WINDOW_HEIGHT)
 
-        # Draw window background
+        # Draw window background with gradient effect
         pygame.draw.rect(screen, COLOR_WINDOW_BG, self.window_rect)
         pygame.draw.rect(screen, COLOR_WINDOW_BORDER, self.window_rect, 2)
+
+        # Add bone corner decorations
+        padding = 8
+        corner_radius = 6
+        draw_bone_corner(screen, window_x + padding, window_y + padding, corner_radius)
+        draw_bone_corner(screen, window_x + WINDOW_WIDTH - padding, window_y + padding, corner_radius)
+        draw_bone_corner(screen, window_x + padding, window_y + WINDOW_HEIGHT - padding, corner_radius)
+        draw_bone_corner(screen, window_x + WINDOW_WIDTH - padding, window_y + WINDOW_HEIGHT - padding, corner_radius)
 
         # Draw title bar
         title_rect = pygame.Rect(window_x, window_y, WINDOW_WIDTH, 60)
@@ -400,10 +419,13 @@ class SetupWindow:
                         (window_x, window_y + 60),
                         (window_x + WINDOW_WIDTH, window_y + 60), 2)
 
-        # Draw title
+        # Draw title with muted bone color for "Select Units", player color for player number
+        title_color = (180, 160, 165)  # Muted bone
         player_color = COLOR_GOLD if self.setup_player == 1 else (100, 200, 255)
-        title_text = render_fitted_text(
-            f"Player {self.setup_player} - Select Units",
+
+        # Render player number in player color, rest in bone color
+        player_text = render_fitted_text(
+            f"Player {self.setup_player}",
             max_width=WINDOW_WIDTH - 40,
             max_height=30,
             color=player_color,
@@ -411,8 +433,22 @@ class SetupWindow:
             min_font_size=16,
             max_font_size=24
         )
-        title_rect_center = title_text.get_rect(center=(window_x + WINDOW_WIDTH // 2, window_y + 25))
-        screen.blit(title_text, title_rect_center)
+        select_text = render_fitted_text(
+            " - Select Units",
+            max_width=WINDOW_WIDTH - 40,
+            max_height=30,
+            color=title_color,
+            base_font_size=20,
+            min_font_size=16,
+            max_font_size=24
+        )
+
+        # Calculate combined width and center
+        total_width = player_text.get_width() + select_text.get_width()
+        start_x = window_x + (WINDOW_WIDTH - total_width) // 2
+
+        screen.blit(player_text, (start_x, window_y + 12))
+        screen.blit(select_text, (start_x + player_text.get_width(), window_y + 12))
 
         # Draw units remaining
         remaining_text = render_fitted_text(
@@ -454,21 +490,53 @@ class SetupWindow:
             is_maxed = self.is_unit_type_maxed(unit_type) if not is_placeholder else True
             unit_count = self.unit_counts.get(unit_type, 0) if not is_placeholder else 0
 
-            # Determine background color
+            # Determine background colors and style (matching main menu buttons)
             if is_placeholder:
-                bg_color = (60, 40, 80)  # Purple-ish tint for placeholder
+                bg_top = (60, 40, 80)  # Purple-ish tint for placeholder
+                bg_bottom = (50, 30, 70)
+                border_color = COLOR_WINDOW_BORDER
+                show_glow = False
             elif is_maxed:
-                bg_color = COLOR_MAXED
+                bg_top = COLOR_MAXED
+                bg_bottom = (60, 30, 30)
+                border_color = COLOR_WINDOW_BORDER
+                show_glow = False
             elif i == self.selected_index:
-                bg_color = COLOR_SELECTED
+                # Selected: use warm hover colors like menu buttons
+                bg_top = (106, 90, 95)  # COLOR_BG_HOVER
+                bg_bottom = (74, 58, 63)
+                border_color = (184, 168, 149)  # COLOR_BORDER_HOVER
+                show_glow = True
             elif i == self.hovered_index:
-                bg_color = COLOR_HOVER
+                # Hovered: lighter version
+                bg_top = (90, 74, 79)
+                bg_bottom = (64, 48, 53)
+                border_color = (150, 140, 130)
+                show_glow = True
             else:
-                bg_color = (40, 44, 52)
+                # Normal: metal gradient like menu buttons
+                bg_top = (74, 74, 79)  # COLOR_METAL
+                bg_bottom = (50, 50, 55)  # Darker bottom
+                border_color = COLOR_WINDOW_BORDER
+                show_glow = False
 
-            # Draw item background
-            pygame.draw.rect(screen, bg_color, item_rect, border_radius=5)
-            pygame.draw.rect(screen, COLOR_WINDOW_BORDER, item_rect, 1, border_radius=5)
+            # Draw shadow
+            shadow_rect = item_rect.copy()
+            shadow_rect.x += 2
+            shadow_rect.y += 2
+            shadow_surf = pygame.Surface((shadow_rect.width, shadow_rect.height), pygame.SRCALPHA)
+            pygame.draw.rect(shadow_surf, (0, 0, 0, 76), shadow_surf.get_rect(), border_radius=5)
+            screen.blit(shadow_surf, shadow_rect.topleft)
+
+            # Draw gradient background
+            draw_gradient_rect(screen, item_rect, bg_top, bg_bottom)
+
+            # Draw glow effect on selected/hover
+            if show_glow:
+                draw_glow_rect(screen, item_rect, (255, 170, 119), intensity=0.5, width=1)
+
+            # Draw border
+            pygame.draw.rect(screen, border_color, item_rect, 2, border_radius=5)
 
             if is_placeholder:
                 # Draw glaives for placeholder unit
@@ -543,9 +611,6 @@ class SetupWindow:
             scrollbar_y = list_y
             self.scrollbar.draw(screen, scrollbar_x, scrollbar_y, list_height,
                                self.scroll_offset, self.max_scroll, list_height, total_height)
-
-        # Draw selected unit stats in detail
-        self._draw_selected_stats(screen, window_x, window_y)
 
         # Draw confirm button
         self._draw_confirm_button(screen, window_x, window_y)
@@ -650,23 +715,178 @@ class SetupWindow:
             35
         )
 
-        # Determine button color
+        # Determine button colors and style (matching main menu)
         if not self.can_confirm:
-            bg_color = COLOR_BUTTON_DISABLED
+            bg_top = COLOR_BUTTON_DISABLED
+            bg_bottom = COLOR_BUTTON_DISABLED
+            border_color = COLOR_WINDOW_BORDER
             text_color = COLOR_TEXT_DISABLED
+            show_glow = False
         elif self.hovered_button:
-            bg_color = COLOR_BUTTON_HOVER
+            bg_top = (106, 90, 95)  # COLOR_BG_HOVER
+            bg_bottom = (74, 58, 63)
+            border_color = (184, 168, 149)  # COLOR_BORDER_HOVER
             text_color = COLOR_TEXT
+            show_glow = True
         else:
-            bg_color = COLOR_BUTTON
-            text_color = COLOR_TEXT
+            bg_top = (74, 74, 79)  # COLOR_METAL
+            bg_bottom = (138, 138, 138)  # COLOR_METAL_LIGHT
+            border_color = COLOR_WINDOW_BORDER
+            text_color = (192, 181, 165)
+            show_glow = False
 
-        # Draw button
-        pygame.draw.rect(screen, bg_color, self.confirm_button_rect, border_radius=5)
-        pygame.draw.rect(screen, COLOR_WINDOW_BORDER, self.confirm_button_rect, 2, border_radius=5)
+        # Draw shadow
+        shadow_rect = self.confirm_button_rect.copy()
+        shadow_rect.x += 3
+        shadow_rect.y += 3
+        shadow_surf = pygame.Surface((shadow_rect.width, shadow_rect.height), pygame.SRCALPHA)
+        pygame.draw.rect(shadow_surf, (0, 0, 0, 76), shadow_surf.get_rect(), border_radius=5)
+        screen.blit(shadow_surf, shadow_rect.topleft)
+
+        # Draw gradient background
+        draw_gradient_rect(screen, self.confirm_button_rect, bg_top, bg_bottom)
+
+        # Draw glow effect on hover
+        if show_glow:
+            draw_glow_rect(screen, self.confirm_button_rect, (255, 170, 119), intensity=0.6, width=1)
+
+        # Draw border
+        pygame.draw.rect(screen, border_color, self.confirm_button_rect, 2, border_radius=5)
 
         # Draw button text
         button_text = "Confirm Setup" if self.can_confirm else "Place All Units First"
         text = self.small_font.render(button_text, True, text_color)
         text_rect = text.get_rect(center=self.confirm_button_rect.center)
         screen.blit(text, text_rect)
+
+
+class SetupPlacementBar:
+    """
+    Minimized bar shown during unit placement phase of setup.
+    Allows player to change unit selection without using ESC key.
+    """
+
+    def __init__(self, font, small_font):
+        self.font = font
+        self.small_font = small_font
+
+        # Button state
+        self.hovered_button = False
+        self.button_rect = None
+
+        # Bar dimensions (matches game over minimized bar)
+        self.bar_height = 70
+        self.button_width = 200
+        self.button_height = 40
+
+    def draw(self, screen: pygame.Surface, screen_width: int, screen_height: int, unit_name: str, current_player: int = 1):
+        """
+        Draw the setup placement bar.
+
+        Args:
+            screen: Surface to draw on
+            screen_width: Screen width
+            screen_height: Screen height
+            unit_name: Name of unit being placed
+            current_player: Current player (1 or 2) for border color
+        """
+        # Calculate bar dimensions (fits in center game board area)
+        # Screen layout: LEFT_PANEL (280px) | GAME_BOARD (920px) | RIGHT_PANEL (280px)
+        LEFT_PANEL_WIDTH = 280
+        GAME_BOARD_WIDTH = 920
+        TOP_BAR_HEIGHT = 50
+
+        bar_width = GAME_BOARD_WIDTH - 20  # 900px (leave 10px margins)
+        bar_x = LEFT_PANEL_WIDTH + 10  # 290px (start after left panel with margin)
+        bar_y = TOP_BAR_HEIGHT + 20  # 70px (below top bar with spacing)
+        bar_rect = pygame.Rect(bar_x, bar_y, bar_width, self.bar_height)
+
+        # Draw bar background with bone theme
+        pygame.draw.rect(screen, COLOR_WINDOW_BG, bar_rect)
+        # Border color matches current player (gold for P1, blue for P2)
+        COLOR_PLAYER1 = COLOR_GOLD  # Gold
+        COLOR_PLAYER2 = (100, 150, 255)  # Blue
+        player_color = COLOR_PLAYER1 if current_player == 1 else COLOR_PLAYER2
+        pygame.draw.rect(screen, player_color, bar_rect, 3)
+
+        # Add bone corners to bar
+        corner_padding = 8
+        corner_radius = 5
+        draw_bone_corner(screen, bar_x + corner_padding, bar_y + corner_padding, corner_radius)
+        draw_bone_corner(screen, bar_x + bar_width - corner_padding, bar_y + corner_padding, corner_radius)
+        draw_bone_corner(screen, bar_x + corner_padding, bar_y + self.bar_height - corner_padding, corner_radius)
+        draw_bone_corner(screen, bar_x + bar_width - corner_padding, bar_y + self.bar_height - corner_padding, corner_radius)
+
+        # Draw text on left side of bar
+        text_x = bar_x + 20
+        text_y = bar_y + (self.bar_height - self.font.get_height()) // 2
+
+        # Title text (use player color)
+        placing_text = f"PLACING: {unit_name}"
+        placing_surface = self.font.render(placing_text, True, player_color)
+        screen.blit(placing_surface, (text_x, text_y))
+
+        # Draw button on right side of bar
+        button_x = bar_x + bar_width - self.button_width - 20
+        button_y = bar_y + (self.bar_height - self.button_height) // 2
+        self.button_rect = pygame.Rect(button_x, button_y, self.button_width, self.button_height)
+
+        # Button styling (matching main menu)
+        if self.hovered_button:
+            bg_top = (106, 90, 95)  # COLOR_BG_HOVER
+            bg_bottom = (74, 58, 63)
+            border_color = (184, 168, 149)  # COLOR_BORDER_HOVER
+            button_text_color = COLOR_TEXT
+            show_glow = True
+        else:
+            bg_top = (74, 74, 79)  # COLOR_METAL
+            bg_bottom = (138, 138, 138)  # COLOR_METAL_LIGHT
+            border_color = COLOR_WINDOW_BORDER
+            button_text_color = (192, 181, 165)
+            show_glow = False
+
+        # Draw shadow
+        shadow_rect = self.button_rect.copy()
+        shadow_rect.x += 3
+        shadow_rect.y += 3
+        shadow_surf = pygame.Surface((shadow_rect.width, shadow_rect.height), pygame.SRCALPHA)
+        pygame.draw.rect(shadow_surf, (0, 0, 0, 76), shadow_surf.get_rect(), border_radius=5)
+        screen.blit(shadow_surf, shadow_rect.topleft)
+
+        # Draw gradient background
+        draw_gradient_rect(screen, self.button_rect, bg_top, bg_bottom)
+
+        # Draw glow effect on hover
+        if show_glow:
+            draw_glow_rect(screen, self.button_rect, (255, 170, 119), intensity=0.6, width=1)
+
+        # Draw border
+        pygame.draw.rect(screen, border_color, self.button_rect, 2)
+
+        # Button text
+        button_text = "Change Unit (ESC)"
+        button_surface = self.small_font.render(button_text, True, button_text_color)
+        button_text_x = button_x + (self.button_width - button_surface.get_width()) // 2
+        button_text_y = button_y + (self.button_height - button_surface.get_height()) // 2
+        screen.blit(button_surface, (button_text_x, button_text_y))
+
+    def handle_mouse_motion(self, mouse_pos: Tuple[int, int]):
+        """Handle mouse motion events to update hover state."""
+        if self.button_rect:
+            self.hovered_button = self.button_rect.collidepoint(mouse_pos)
+        else:
+            self.hovered_button = False
+
+    def handle_mouse_click(self, mouse_pos: Tuple[int, int]) -> Optional[str]:
+        """
+        Handle mouse click events.
+
+        Args:
+            mouse_pos: Mouse position tuple
+
+        Returns:
+            "change_unit" if button was clicked, None otherwise
+        """
+        if self.button_rect and self.button_rect.collidepoint(mouse_pos):
+            return "change_unit"
+        return None

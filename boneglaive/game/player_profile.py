@@ -216,10 +216,13 @@ class ProfileManager:
             logger.error(f"Error deleting profile {name}: {e}")
             return False
 
-    def set_current_profile(self, profile: PlayerProfile):
+    def set_current_profile(self, profile: Optional[PlayerProfile]):
         """Set the currently active profile."""
         self.current_profile = profile
-        logger.info(f"Active profile: {profile.name}")
+        if profile:
+            logger.info(f"Active profile: {profile.name}")
+        else:
+            logger.info("Cleared active profile")
 
     def get_current_profile(self) -> Optional[PlayerProfile]:
         """Get the currently active profile."""

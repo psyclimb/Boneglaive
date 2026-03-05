@@ -6,17 +6,27 @@ Modal window for selecting unit skill upgrades during gameplay.
 import pygame
 from typing import Optional, List, Dict
 
-# Colors
+# Colors - matching bone/industrial theme
 COLOR_OVERLAY = (0, 0, 0, 180)  # Semi-transparent black overlay
-COLOR_WINDOW_BG = (30, 34, 42)
-COLOR_WINDOW_BORDER = (100, 100, 100)
-COLOR_TITLE_BG = (40, 44, 52)
-COLOR_TEXT = (255, 255, 255)
-COLOR_TEXT_DIM = (180, 180, 180)
-COLOR_SELECTED = (60, 100, 140)
-COLOR_HOVER = (50, 54, 62)
-COLOR_BUTTON = (60, 70, 80)
-COLOR_BUTTON_HOVER = (80, 90, 100)
+COLOR_WINDOW_BG_TOP = (42, 42, 47)  # Panel top
+COLOR_WINDOW_BG_BOTTOM = (26, 26, 31)  # Panel bottom (gradient)
+COLOR_WINDOW_BORDER = (90, 84, 79)  # Metal border
+COLOR_TITLE_BG_TOP = (50, 50, 55)  # Title bar gradient top
+COLOR_TITLE_BG_BOTTOM = (38, 38, 43)  # Title bar gradient bottom
+COLOR_TEXT = (240, 232, 216)  # Bone white text
+COLOR_TEXT_DIM = (180, 160, 165)  # Muted bone
+COLOR_ITEM_BG_TOP = (74, 74, 79)  # Item gradient top
+COLOR_ITEM_BG_BOTTOM = (50, 50, 55)  # Item gradient bottom
+COLOR_ITEM_HOVER_TOP = (90, 74, 79)  # Item hover gradient top
+COLOR_ITEM_HOVER_BOTTOM = (64, 48, 53)  # Item hover gradient bottom
+COLOR_ITEM_SELECTED_TOP = (106, 90, 95)  # Item selected gradient top
+COLOR_ITEM_SELECTED_BOTTOM = (74, 58, 63)  # Item selected gradient bottom
+COLOR_BUTTON_TOP = (74, 74, 79)  # Button gradient top
+COLOR_BUTTON_BOTTOM = (50, 50, 55)  # Button gradient bottom
+COLOR_BUTTON_HOVER_TOP = (90, 74, 79)  # Button hover gradient top
+COLOR_BUTTON_HOVER_BOTTOM = (64, 48, 53)  # Button hover gradient bottom
+COLOR_BORDER_HOVER = (184, 168, 149)  # Bone border on hover
+COLOR_BORDER_GLOW = (255, 170, 119)  # Orange glow
 COLOR_GREEN = (100, 255, 150)
 COLOR_GOLD = (255, 215, 0)
 COLOR_BLUE = (100, 150, 255)
@@ -111,7 +121,7 @@ class UpgradeWindow:
             return self.icon_cache[skill_name]
 
         # Convert skill name to filename (e.g., "Marrow Dike" -> "marrow_dike")
-        filename = skill_name.lower().replace(' ', '_').replace('-', '_')
+        filename = skill_name.lower().replace(' ', '_')
         icon_path = f"graphics/skill_icons/{filename}.svg"
 
         try:
@@ -161,14 +171,26 @@ class UpgradeWindow:
             self._overlay_cache.fill(COLOR_OVERLAY)
         surface.blit(self._overlay_cache, (0, 0))
 
-        # Draw window background
-        self.window_rect = pygame.Rect(window_x, window_y, WINDOW_WIDTH, WINDOW_HEIGHT)
-        pygame.draw.rect(surface, COLOR_WINDOW_BG, self.window_rect)
-        pygame.draw.rect(surface, COLOR_WINDOW_BORDER, self.window_rect, 2)
+        # Draw window background with gradient
+        from .menu_components import draw_gradient_rect, draw_glow_rect
 
-        # Draw title bar
+        self.window_rect = pygame.Rect(window_x, window_y, WINDOW_WIDTH, WINDOW_HEIGHT)
+
+        # Draw shadow for window
+        shadow_rect = self.window_rect.copy()
+        shadow_rect.x += 4
+        shadow_rect.y += 4
+        shadow_surf = pygame.Surface((shadow_rect.width, shadow_rect.height), pygame.SRCALPHA)
+        pygame.draw.rect(shadow_surf, (0, 0, 0, 120), shadow_surf.get_rect(), border_radius=8)
+        surface.blit(shadow_surf, shadow_rect.topleft)
+
+        # Draw gradient background
+        draw_gradient_rect(surface, self.window_rect, COLOR_WINDOW_BG_TOP, COLOR_WINDOW_BG_BOTTOM)
+        pygame.draw.rect(surface, COLOR_WINDOW_BORDER, self.window_rect, 3, border_radius=8)
+
+        # Draw title bar with gradient
         title_rect = pygame.Rect(window_x, window_y, WINDOW_WIDTH, 40)
-        pygame.draw.rect(surface, COLOR_TITLE_BG, title_rect)
+        draw_gradient_rect(surface, title_rect, COLOR_TITLE_BG_TOP, COLOR_TITLE_BG_BOTTOM)
 
         title_text = f"Upgrade {self.unit.get_display_name()}"
         title_surface = self.font.render(title_text, True, COLOR_TEXT)
@@ -195,23 +217,43 @@ class UpgradeWindow:
             )
             self.item_rects.append(upgrade_rect)
 
-            # Determine background color
+            # Determine gradient colors and effects
             if i == self.selected_index:
-                bg_color = COLOR_SELECTED
-                border_color = COLOR_GREEN
-                border_width = 3
+                bg_top = COLOR_ITEM_SELECTED_TOP
+                bg_bottom = COLOR_ITEM_SELECTED_BOTTOM
+                border_color = COLOR_BORDER_HOVER
+                show_glow = True
+                glow_color = COLOR_GREEN
             elif i == self.hovered_index:
-                bg_color = COLOR_HOVER
-                border_color = COLOR_WINDOW_BORDER
-                border_width = 2
+                bg_top = COLOR_ITEM_HOVER_TOP
+                bg_bottom = COLOR_ITEM_HOVER_BOTTOM
+                border_color = COLOR_BORDER_HOVER
+                show_glow = True
+                glow_color = COLOR_BORDER_GLOW
             else:
-                bg_color = COLOR_BUTTON
+                bg_top = COLOR_ITEM_BG_TOP
+                bg_bottom = COLOR_ITEM_BG_BOTTOM
                 border_color = COLOR_WINDOW_BORDER
-                border_width = 1
+                show_glow = False
+                glow_color = None
 
-            # Draw upgrade box
-            pygame.draw.rect(surface, bg_color, upgrade_rect)
-            pygame.draw.rect(surface, border_color, upgrade_rect, border_width)
+            # Draw shadow for upgrade box
+            shadow_rect = upgrade_rect.copy()
+            shadow_rect.x += 2
+            shadow_rect.y += 2
+            shadow_surf = pygame.Surface((shadow_rect.width, shadow_rect.height), pygame.SRCALPHA)
+            pygame.draw.rect(shadow_surf, (0, 0, 0, 76), shadow_surf.get_rect(), border_radius=5)
+            surface.blit(shadow_surf, shadow_rect.topleft)
+
+            # Draw gradient background
+            draw_gradient_rect(surface, upgrade_rect, bg_top, bg_bottom)
+
+            # Draw glow effect if selected or hovered
+            if show_glow and glow_color:
+                draw_glow_rect(surface, upgrade_rect, glow_color, intensity=0.5, width=1)
+
+            # Draw border
+            pygame.draw.rect(surface, border_color, upgrade_rect, 2, border_radius=5)
 
             # Load and draw skill icon
             icon = self._load_skill_icon(upgrade['skill_name'])
@@ -242,18 +284,70 @@ class UpgradeWindow:
 
         # Confirm button
         self.confirm_button_rect = pygame.Rect(window_x + 20, button_y, 200, 40)
-        confirm_color = COLOR_BUTTON_HOVER if self.hover_confirm else COLOR_GREEN
-        pygame.draw.rect(surface, confirm_color, self.confirm_button_rect)
-        pygame.draw.rect(surface, COLOR_WINDOW_BORDER, self.confirm_button_rect, 2)
+
+        # Shadow for confirm button
+        shadow_rect = self.confirm_button_rect.copy()
+        shadow_rect.x += 2
+        shadow_rect.y += 2
+        shadow_surf = pygame.Surface((shadow_rect.width, shadow_rect.height), pygame.SRCALPHA)
+        pygame.draw.rect(shadow_surf, (0, 0, 0, 76), shadow_surf.get_rect(), border_radius=5)
+        surface.blit(shadow_surf, shadow_rect.topleft)
+
+        # Gradient for confirm button
+        if self.hover_confirm:
+            confirm_top = COLOR_BUTTON_HOVER_TOP
+            confirm_bottom = COLOR_BUTTON_HOVER_BOTTOM
+            confirm_border = COLOR_BORDER_HOVER
+        else:
+            confirm_top = COLOR_BUTTON_TOP
+            confirm_bottom = COLOR_BUTTON_BOTTOM
+            confirm_border = COLOR_WINDOW_BORDER
+
+        draw_gradient_rect(surface, self.confirm_button_rect, confirm_top, confirm_bottom)
+
+        # Add green overlay for confirm button
+        overlay_surf = pygame.Surface((self.confirm_button_rect.width, self.confirm_button_rect.height), pygame.SRCALPHA)
+        overlay_alpha = 100 if self.hover_confirm else 60
+        overlay_surf.fill((*COLOR_GREEN, overlay_alpha))
+        surface.blit(overlay_surf, self.confirm_button_rect.topleft)
+
+        # Glow for confirm button on hover
+        if self.hover_confirm:
+            draw_glow_rect(surface, self.confirm_button_rect, COLOR_BORDER_GLOW, intensity=0.5, width=1)
+
+        pygame.draw.rect(surface, confirm_border, self.confirm_button_rect, 2, border_radius=5)
         confirm_text = self.font.render("CONFIRM", True, COLOR_TEXT)
         text_rect = confirm_text.get_rect(center=self.confirm_button_rect.center)
         surface.blit(confirm_text, text_rect)
 
         # Cancel button
         self.cancel_button_rect = pygame.Rect(window_x + WINDOW_WIDTH - 220, button_y, 200, 40)
-        cancel_color = COLOR_BUTTON_HOVER if self.hover_cancel else COLOR_BUTTON
-        pygame.draw.rect(surface, cancel_color, self.cancel_button_rect)
-        pygame.draw.rect(surface, COLOR_WINDOW_BORDER, self.cancel_button_rect, 2)
+
+        # Shadow for cancel button
+        shadow_rect = self.cancel_button_rect.copy()
+        shadow_rect.x += 2
+        shadow_rect.y += 2
+        shadow_surf = pygame.Surface((shadow_rect.width, shadow_rect.height), pygame.SRCALPHA)
+        pygame.draw.rect(shadow_surf, (0, 0, 0, 76), shadow_surf.get_rect(), border_radius=5)
+        surface.blit(shadow_surf, shadow_rect.topleft)
+
+        # Gradient for cancel button
+        if self.hover_cancel:
+            cancel_top = COLOR_BUTTON_HOVER_TOP
+            cancel_bottom = COLOR_BUTTON_HOVER_BOTTOM
+            cancel_border = COLOR_BORDER_HOVER
+        else:
+            cancel_top = COLOR_BUTTON_TOP
+            cancel_bottom = COLOR_BUTTON_BOTTOM
+            cancel_border = COLOR_WINDOW_BORDER
+
+        draw_gradient_rect(surface, self.cancel_button_rect, cancel_top, cancel_bottom)
+
+        # Glow for cancel button on hover
+        if self.hover_cancel:
+            draw_glow_rect(surface, self.cancel_button_rect, COLOR_BORDER_GLOW, intensity=0.5, width=1)
+
+        pygame.draw.rect(surface, cancel_border, self.cancel_button_rect, 2, border_radius=5)
         cancel_text = self.font.render("CANCEL", True, COLOR_TEXT)
         text_rect = cancel_text.get_rect(center=self.cancel_button_rect.center)
         surface.blit(cancel_text, text_rect)

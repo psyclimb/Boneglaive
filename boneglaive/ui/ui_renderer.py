@@ -407,8 +407,8 @@ class UIRenderer:
                     tile = self.game_ui.asset_manager.get_terrain_tile("pillar")
                     color_id = 13  # White for pillars
                 # Different furniture types
-                elif terrain == TerrainType.RADIO_CONSOLE:
-                    tile = self.game_ui.asset_manager.get_terrain_tile("radio_console")
+                elif terrain == TerrainType.LECTERN:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("lectern")
                     color_id = 14  # White for furniture
                     tile_attr = curses.A_DIM  # Dim white/gray via dim attribute
 
@@ -754,8 +754,12 @@ class UIRenderer:
                                 color_id = 17 if current_player == 1 else 18  # Player-specific skill highlights
                         
                         # Check if this is a HEINOUS_VAPOR and use its specific symbol if available
-                        if unit.type == UnitType.HEINOUS_VAPOR and hasattr(unit, 'vapor_symbol') and unit.vapor_symbol:
-                            tile = unit.vapor_symbol
+                        if unit.type == UnitType.HEINOUS_VAPOR:
+                            if hasattr(unit, 'vapor_symbol') and unit.vapor_symbol:
+                                tile = unit.vapor_symbol
+                            else:
+                                # Fallback to default 'V' symbol if vapor_symbol not set
+                                tile = 'V'
                         
                         # No special symbol for GRAYMAN skills
                         # (Previously showed | for Græ Exchange, but this was removed)

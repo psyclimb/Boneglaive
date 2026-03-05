@@ -42,11 +42,11 @@ class DischargeSkill(ActiveSkill):
             key="E",
             description="Rush toward an enemy in a straight line. Traps and damages the target.",
             target_type=TargetType.ENEMY,
-            cooldown=4,
+            cooldown=5,
             range_=4  # Base range, upgraded to 5
         )
         self.trap_damage = 5
-        self.base_cooldown = 4  # Store base cooldown for upgrade
+        self.base_cooldown = 5  # Store base cooldown for upgrade
 
     def get_range(self, user: 'Unit') -> int:
         """Get the effective range for this skill."""
@@ -185,11 +185,11 @@ class DischargeSkill(ActiveSkill):
             player=user.player
         )
 
-        # Set cooldown (check for upgrade: -1 cooldown)
+        # Set cooldown (check for upgrade: -2 cooldown)
         from boneglaive.game.upgrades import UpgradeManager
         cooldown_value = self.base_cooldown
         if UpgradeManager.is_skill_upgraded(user, "Expedite"):
-            cooldown_value -= 1
+            cooldown_value -= 2
         self.current_cooldown = cooldown_value
         return True
         
@@ -310,14 +310,8 @@ class DischargeSkill(ActiveSkill):
             user.expedite_enemy_hit = enemy_hit
             user.expedite_enemy_pos = enemy_pos
 
-            # Check for upgrade: +2 damage
-            from boneglaive.game.upgrades import UpgradeManager
-            damage_value = self.trap_damage
-            if UpgradeManager.is_skill_upgraded(user, "Expedite"):
-                damage_value += 2
-
             # Apply damage to the enemy
-            damage = damage_value - enemy_hit.defense
+            damage = self.trap_damage - enemy_hit.defense
             damage = max(1, damage)  # Minimum damage of 1
             previous_hp = enemy_hit.hp
             enemy_hit.hp = max(0, enemy_hit.hp - damage)
@@ -348,7 +342,7 @@ class DischargeSkill(ActiveSkill):
 
                     message_log.add_message(
                         f"{enemy_hit.get_display_name()} is trapped in {user.get_display_name()}'s mechanical jaws",
-                        MessageType.ABILITY,
+                        MessageType.WARNING,
                         player=user.player,
                         target=enemy_hit.player,
                         target_name=enemy_hit.get_display_name()
@@ -1443,7 +1437,7 @@ class JawlineSkill(ActiveSkill):
                             
                             message_log.add_message(
                                 f"{target.get_display_name()} is immobilized by the Jawline tether",
-                                MessageType.ABILITY,
+                                MessageType.WARNING,
                                 player=user.player,
                                 target=target.player,
                                 target_name=target.get_display_name()
@@ -1528,7 +1522,7 @@ class JawlineSkill(ActiveSkill):
                             
                             message_log.add_message(
                                 f"{target.get_display_name()} is immobilized by the Jawline tether",
-                                MessageType.ABILITY,
+                                MessageType.WARNING,
                                 player=user.player,
                                 target=target.player,
                                 target_name=target.get_display_name()

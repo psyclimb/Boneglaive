@@ -26,7 +26,17 @@ COLOR_BUTTON_HOVER_BOTTOM = (64, 48, 53)  # Button hover gradient bottom
 COLOR_BORDER_HOVER = (184, 168, 149)  # Bone border on hover
 COLOR_BORDER_GLOW = (255, 170, 119)  # Orange glow
 
+<<<<<<< HEAD
 # Minimized bar dimensions
+=======
+WINDOW_WIDTH = 600
+WINDOW_HEIGHT = 400
+BUTTON_WIDTH = 175  # Smaller to fit 3 buttons in window
+BUTTON_HEIGHT = 60
+BUTTON_SPACING = 10  # Tighter spacing for 3 buttons
+
+# Minimized bar dimensions (fits in center game board area: 920px wide)
+>>>>>>> main
 MINIMIZED_BAR_HEIGHT = 70
 MINIMIZED_BUTTON_WIDTH = 145
 MINIMIZED_BUTTON_HEIGHT = 40
@@ -42,7 +52,11 @@ class GameOverWindow:
         self.small_font = small_font
         self.large_font = large_font
         self.visible = False
+<<<<<<< HEAD
         self.minimized = False  # Toggle between full window and compact bar
+=======
+        self.minimized = False  # NEW: Toggle between full window and compact bar
+>>>>>>> main
 
         # Game over state
         self.is_victory = False
@@ -161,10 +175,146 @@ class GameOverWindow:
         else:
             self._draw_full_window(screen, screen_width, screen_height)
 
+<<<<<<< HEAD
     def _draw_full_window(self, screen: pygame.Surface, screen_width: int, screen_height: int):
         """Draw the full game over window."""
         from .menu_components import draw_gradient_rect, draw_glow_rect
 
+=======
+    def _draw_minimized(self, screen: pygame.Surface, screen_width: int, screen_height: int):
+        """Draw compact minimized bar at top of screen."""
+        # No dark overlay in minimized mode - player can see battlefield
+
+        # Calculate bar dimensions (fits in center game board area)
+        # Screen layout: LEFT_PANEL (280px) | GAME_BOARD (920px) | RIGHT_PANEL (280px)
+        # Top bar is 50px tall, so position bar below it
+        LEFT_PANEL_WIDTH = 280
+        GAME_BOARD_WIDTH = 920
+        TOP_BAR_HEIGHT = 50
+
+        bar_width = GAME_BOARD_WIDTH - 20  # 900px (leave 10px margins)
+        bar_x = LEFT_PANEL_WIDTH + 10  # 290px (start after left panel with margin)
+        bar_y = TOP_BAR_HEIGHT + 20  # 70px (below top bar with spacing)
+        bar_rect = pygame.Rect(bar_x, bar_y, bar_width, MINIMIZED_BAR_HEIGHT)
+
+        # Draw bar background with gradient
+        from .menu_components import draw_gradient_rect, draw_glow_rect
+        draw_gradient_rect(screen, bar_rect, COLOR_WINDOW_BG_TOP, COLOR_WINDOW_BG_BOTTOM, alpha=240)
+        title_color = COLOR_VICTORY if self.is_victory else COLOR_DEFEAT
+        pygame.draw.rect(screen, title_color, bar_rect, 3, border_radius=5)
+
+        # Draw result text on left side of bar
+        text_x = bar_x + 20
+        text_y = bar_y + 15
+
+        # Title (VICTORY/DEFEAT)
+        title_text = "VICTORY!" if self.is_victory else "DEFEAT"
+        title_surface = self.font.render(title_text, True, title_color)
+        screen.blit(title_surface, (text_x, text_y))
+
+        # Winner info
+        winner_color = COLOR_PLAYER1 if self.winner_player == 1 else COLOR_PLAYER2
+        winner_text = f"{self.winner_name}: {self.winner_gp} GP"
+        winner_surface = self.small_font.render(winner_text, True, winner_color)
+        screen.blit(winner_surface, (text_x + 120, text_y + 5))
+
+        # Loser info
+        loser_text = f"| {self.loser_name}: {self.loser_gp} GP"
+        loser_surface = self.small_font.render(loser_text, True, COLOR_TEXT_DIM)
+        screen.blit(loser_surface, (text_x + 120 + winner_surface.get_width() + 10, text_y + 5))
+
+        # Draw buttons on right side of bar
+        button_x_start = bar_x + bar_width - (MINIMIZED_BUTTON_WIDTH * 3 + MINIMIZED_BUTTON_SPACING * 2 + 20)
+        button_y = bar_y + (MINIMIZED_BAR_HEIGHT - MINIMIZED_BUTTON_HEIGHT) // 2
+
+        self.buttons = {}  # Reset buttons dict
+
+        # Show Details button
+        details_button_rect = pygame.Rect(button_x_start, button_y, MINIMIZED_BUTTON_WIDTH, MINIMIZED_BUTTON_HEIGHT)
+        self.buttons["minimize"] = details_button_rect
+
+        # Shadow
+        shadow_rect = details_button_rect.copy()
+        shadow_rect.x += 2
+        shadow_rect.y += 2
+        shadow_surf = pygame.Surface((shadow_rect.width, shadow_rect.height), pygame.SRCALPHA)
+        pygame.draw.rect(shadow_surf, (0, 0, 0, 76), shadow_surf.get_rect(), border_radius=5)
+        screen.blit(shadow_surf, shadow_rect.topleft)
+
+        # Gradient
+        if self.hovered_button == "minimize":
+            draw_gradient_rect(screen, details_button_rect, COLOR_BUTTON_HOVER_TOP, COLOR_BUTTON_HOVER_BOTTOM)
+            draw_glow_rect(screen, details_button_rect, COLOR_BORDER_GLOW, intensity=0.5, width=1)
+            border_color = COLOR_BORDER_HOVER
+        else:
+            draw_gradient_rect(screen, details_button_rect, COLOR_BUTTON_TOP, COLOR_BUTTON_BOTTOM)
+            border_color = COLOR_WINDOW_BORDER
+        pygame.draw.rect(screen, border_color, details_button_rect, 2, border_radius=5)
+        details_text = "Show Details (R)"
+        details_surface = self.small_font.render(details_text, True, COLOR_TEXT)
+        details_text_x = button_x_start + (MINIMIZED_BUTTON_WIDTH - details_surface.get_width()) // 2
+        details_text_y = button_y + (MINIMIZED_BUTTON_HEIGHT - details_surface.get_height()) // 2
+        screen.blit(details_surface, (details_text_x, details_text_y))
+
+        # Menu button
+        menu_button_x = button_x_start + MINIMIZED_BUTTON_WIDTH + MINIMIZED_BUTTON_SPACING
+        menu_button_rect = pygame.Rect(menu_button_x, button_y, MINIMIZED_BUTTON_WIDTH, MINIMIZED_BUTTON_HEIGHT)
+        self.buttons["menu"] = menu_button_rect
+
+        # Shadow
+        shadow_rect = menu_button_rect.copy()
+        shadow_rect.x += 2
+        shadow_rect.y += 2
+        shadow_surf = pygame.Surface((shadow_rect.width, shadow_rect.height), pygame.SRCALPHA)
+        pygame.draw.rect(shadow_surf, (0, 0, 0, 76), shadow_surf.get_rect(), border_radius=5)
+        screen.blit(shadow_surf, shadow_rect.topleft)
+
+        # Gradient
+        if self.hovered_button == "menu":
+            draw_gradient_rect(screen, menu_button_rect, COLOR_BUTTON_HOVER_TOP, COLOR_BUTTON_HOVER_BOTTOM)
+            draw_glow_rect(screen, menu_button_rect, COLOR_BORDER_GLOW, intensity=0.5, width=1)
+            border_color = COLOR_BORDER_HOVER
+        else:
+            draw_gradient_rect(screen, menu_button_rect, COLOR_BUTTON_TOP, COLOR_BUTTON_BOTTOM)
+            border_color = COLOR_WINDOW_BORDER
+        pygame.draw.rect(screen, border_color, menu_button_rect, 2, border_radius=5)
+        menu_text = "Menu (M)"
+        menu_surface = self.small_font.render(menu_text, True, COLOR_TEXT)
+        menu_text_x = menu_button_x + (MINIMIZED_BUTTON_WIDTH - menu_surface.get_width()) // 2
+        menu_text_y = button_y + (MINIMIZED_BUTTON_HEIGHT - menu_surface.get_height()) // 2
+        screen.blit(menu_surface, (menu_text_x, menu_text_y))
+
+        # Exit button
+        exit_button_x = menu_button_x + MINIMIZED_BUTTON_WIDTH + MINIMIZED_BUTTON_SPACING
+        exit_button_rect = pygame.Rect(exit_button_x, button_y, MINIMIZED_BUTTON_WIDTH, MINIMIZED_BUTTON_HEIGHT)
+        self.buttons["exit"] = exit_button_rect
+
+        # Shadow
+        shadow_rect = exit_button_rect.copy()
+        shadow_rect.x += 2
+        shadow_rect.y += 2
+        shadow_surf = pygame.Surface((shadow_rect.width, shadow_rect.height), pygame.SRCALPHA)
+        pygame.draw.rect(shadow_surf, (0, 0, 0, 76), shadow_surf.get_rect(), border_radius=5)
+        screen.blit(shadow_surf, shadow_rect.topleft)
+
+        # Gradient
+        if self.hovered_button == "exit":
+            draw_gradient_rect(screen, exit_button_rect, COLOR_BUTTON_HOVER_TOP, COLOR_BUTTON_HOVER_BOTTOM)
+            draw_glow_rect(screen, exit_button_rect, COLOR_BORDER_GLOW, intensity=0.5, width=1)
+            border_color = COLOR_BORDER_HOVER
+        else:
+            draw_gradient_rect(screen, exit_button_rect, COLOR_BUTTON_TOP, COLOR_BUTTON_BOTTOM)
+            border_color = COLOR_WINDOW_BORDER
+        pygame.draw.rect(screen, border_color, exit_button_rect, 2, border_radius=5)
+        exit_text = "Exit (Q)"
+        exit_surface = self.small_font.render(exit_text, True, COLOR_TEXT)
+        exit_text_x = exit_button_x + (MINIMIZED_BUTTON_WIDTH - exit_surface.get_width()) // 2
+        exit_text_y = button_y + (MINIMIZED_BUTTON_HEIGHT - exit_surface.get_height()) // 2
+        screen.blit(exit_surface, (exit_text_x, exit_text_y))
+
+    def _draw_full_window(self, screen: pygame.Surface, screen_width: int, screen_height: int):
+        """Draw full game over window with overlay."""
+>>>>>>> main
         # Draw semi-transparent overlay
         if self._overlay_cache is None or self._overlay_cache.get_size() != (screen_width, screen_height):
             self._overlay_cache = pygame.Surface((screen_width, screen_height))
@@ -172,6 +322,7 @@ class GameOverWindow:
             self._overlay_cache.fill((0, 0, 0))
         screen.blit(self._overlay_cache, (0, 0))
 
+<<<<<<< HEAD
         # Calculate scaled dimensions
         scale = self.layout.get_font_scale() if self.layout else 1.0
         window_width = int(600 * scale)
@@ -193,6 +344,31 @@ class GameOverWindow:
         title_color = COLOR_VICTORY if self.is_victory else COLOR_DEFEAT
         draw_gradient_rect(screen, title_rect, COLOR_TITLE_BG_TOP, COLOR_TITLE_BG_BOTTOM)
         pygame.draw.rect(screen, title_color, title_rect, 3, border_radius=5)
+=======
+        # Calculate window position (centered)
+        from .menu_components import draw_gradient_rect, draw_glow_rect
+        window_x = (screen_width - WINDOW_WIDTH) // 2
+        window_y = (screen_height - WINDOW_HEIGHT) // 2
+        window_rect = pygame.Rect(window_x, window_y, WINDOW_WIDTH, WINDOW_HEIGHT)
+
+        # Draw shadow for window
+        shadow_rect = window_rect.copy()
+        shadow_rect.x += 4
+        shadow_rect.y += 4
+        shadow_surf = pygame.Surface((shadow_rect.width, shadow_rect.height), pygame.SRCALPHA)
+        pygame.draw.rect(shadow_surf, (0, 0, 0, 120), shadow_surf.get_rect(), border_radius=8)
+        screen.blit(shadow_surf, shadow_rect.topleft)
+
+        # Draw window background with gradient
+        draw_gradient_rect(screen, window_rect, COLOR_WINDOW_BG_TOP, COLOR_WINDOW_BG_BOTTOM)
+        pygame.draw.rect(screen, COLOR_WINDOW_BORDER, window_rect, 3, border_radius=8)
+
+        # Draw title bar with gradient
+        title_rect = pygame.Rect(window_x, window_y, WINDOW_WIDTH, 60)
+        title_color = COLOR_VICTORY if self.is_victory else COLOR_DEFEAT
+        draw_gradient_rect(screen, title_rect, COLOR_TITLE_BG_TOP, COLOR_TITLE_BG_BOTTOM)
+        pygame.draw.rect(screen, title_color, title_rect, 3)
+>>>>>>> main
 
         # Draw title text
         title_text = "VICTORY!" if self.is_victory else "DEFEAT"
@@ -228,6 +404,7 @@ class GameOverWindow:
         flavor_x = window_x + (window_width - flavor_surface.get_width()) // 2
         screen.blit(flavor_surface, (flavor_x, content_y))
 
+<<<<<<< HEAD
         # Draw buttons (3 buttons: menu, minimize, exit)
         button_y = window_y + window_height - 100
         total_button_width = button_width * 3 + button_spacing * 2
@@ -285,6 +462,103 @@ class GameOverWindow:
         exit_surface = self.font.render(exit_text, True, COLOR_TEXT)
         exit_text_x = exit_button_x + (button_width - exit_surface.get_width()) // 2
         exit_text_y = button_y + (button_height - exit_surface.get_height()) // 2
+=======
+        # Draw buttons (3 equal-width buttons)
+        button_y = window_y + WINDOW_HEIGHT - 100
+
+        # Calculate button layout for 3 equal buttons
+        # 3 * BUTTON_WIDTH + 2 * BUTTON_SPACING = 3*175 + 2*10 = 545px
+        total_button_width = BUTTON_WIDTH * 3 + BUTTON_SPACING * 2
+        button_x_start = window_x + (WINDOW_WIDTH - total_button_width) // 2
+
+        self.buttons = {}  # Reset buttons dict
+
+        # Minimize button
+        minimize_button_x = button_x_start
+        minimize_button_rect = pygame.Rect(minimize_button_x, button_y, BUTTON_WIDTH, BUTTON_HEIGHT)
+        self.buttons["minimize"] = minimize_button_rect
+
+        # Shadow
+        shadow_rect = minimize_button_rect.copy()
+        shadow_rect.x += 2
+        shadow_rect.y += 2
+        shadow_surf = pygame.Surface((shadow_rect.width, shadow_rect.height), pygame.SRCALPHA)
+        pygame.draw.rect(shadow_surf, (0, 0, 0, 76), shadow_surf.get_rect(), border_radius=5)
+        screen.blit(shadow_surf, shadow_rect.topleft)
+
+        # Gradient
+        if self.hovered_button == "minimize":
+            draw_gradient_rect(screen, minimize_button_rect, COLOR_BUTTON_HOVER_TOP, COLOR_BUTTON_HOVER_BOTTOM)
+            draw_glow_rect(screen, minimize_button_rect, COLOR_BORDER_GLOW, intensity=0.5, width=1)
+            border_color = COLOR_BORDER_HOVER
+        else:
+            draw_gradient_rect(screen, minimize_button_rect, COLOR_BUTTON_TOP, COLOR_BUTTON_BOTTOM)
+            border_color = COLOR_WINDOW_BORDER
+        pygame.draw.rect(screen, border_color, minimize_button_rect, 2, border_radius=5)
+
+        minimize_text = "Minimize (R)"
+        minimize_surface = self.small_font.render(minimize_text, True, COLOR_TEXT)
+        minimize_text_x = minimize_button_x + (BUTTON_WIDTH - minimize_surface.get_width()) // 2
+        minimize_text_y = button_y + (BUTTON_HEIGHT - minimize_surface.get_height()) // 2
+        screen.blit(minimize_surface, (minimize_text_x, minimize_text_y))
+
+        # Menu button
+        menu_button_x = minimize_button_x + BUTTON_WIDTH + BUTTON_SPACING
+        menu_button_rect = pygame.Rect(menu_button_x, button_y, BUTTON_WIDTH, BUTTON_HEIGHT)
+        self.buttons["menu"] = menu_button_rect
+
+        # Shadow
+        shadow_rect = menu_button_rect.copy()
+        shadow_rect.x += 2
+        shadow_rect.y += 2
+        shadow_surf = pygame.Surface((shadow_rect.width, shadow_rect.height), pygame.SRCALPHA)
+        pygame.draw.rect(shadow_surf, (0, 0, 0, 76), shadow_surf.get_rect(), border_radius=5)
+        screen.blit(shadow_surf, shadow_rect.topleft)
+
+        # Gradient
+        if self.hovered_button == "menu":
+            draw_gradient_rect(screen, menu_button_rect, COLOR_BUTTON_HOVER_TOP, COLOR_BUTTON_HOVER_BOTTOM)
+            draw_glow_rect(screen, menu_button_rect, COLOR_BORDER_GLOW, intensity=0.5, width=1)
+            border_color = COLOR_BORDER_HOVER
+        else:
+            draw_gradient_rect(screen, menu_button_rect, COLOR_BUTTON_TOP, COLOR_BUTTON_BOTTOM)
+            border_color = COLOR_WINDOW_BORDER
+        pygame.draw.rect(screen, border_color, menu_button_rect, 2, border_radius=5)
+
+        menu_text = "Menu (M)"
+        menu_surface = self.small_font.render(menu_text, True, COLOR_TEXT)
+        menu_text_x = menu_button_x + (BUTTON_WIDTH - menu_surface.get_width()) // 2
+        menu_text_y = button_y + (BUTTON_HEIGHT - menu_surface.get_height()) // 2
+        screen.blit(menu_surface, (menu_text_x, menu_text_y))
+
+        # Exit button
+        exit_button_x = menu_button_x + BUTTON_WIDTH + BUTTON_SPACING
+        exit_button_rect = pygame.Rect(exit_button_x, button_y, BUTTON_WIDTH, BUTTON_HEIGHT)
+        self.buttons["exit"] = exit_button_rect
+
+        # Shadow
+        shadow_rect = exit_button_rect.copy()
+        shadow_rect.x += 2
+        shadow_rect.y += 2
+        shadow_surf = pygame.Surface((shadow_rect.width, shadow_rect.height), pygame.SRCALPHA)
+        pygame.draw.rect(shadow_surf, (0, 0, 0, 76), shadow_surf.get_rect(), border_radius=5)
+        screen.blit(shadow_surf, shadow_rect.topleft)
+
+        # Gradient
+        if self.hovered_button == "exit":
+            draw_gradient_rect(screen, exit_button_rect, COLOR_BUTTON_HOVER_TOP, COLOR_BUTTON_HOVER_BOTTOM)
+            draw_glow_rect(screen, exit_button_rect, COLOR_BORDER_GLOW, intensity=0.5, width=1)
+            border_color = COLOR_BORDER_HOVER
+        else:
+            draw_gradient_rect(screen, exit_button_rect, COLOR_BUTTON_TOP, COLOR_BUTTON_BOTTOM)
+            border_color = COLOR_WINDOW_BORDER
+        pygame.draw.rect(screen, border_color, exit_button_rect, 2, border_radius=5)
+
+        exit_text = "Exit (Q)"
+        exit_surface = self.small_font.render(exit_text, True, COLOR_TEXT)
+        exit_text_x = exit_button_x + (BUTTON_WIDTH - exit_surface.get_width()) // 2
+        exit_text_y = button_y + (BUTTON_HEIGHT - exit_surface.get_height()) // 2
+>>>>>>> main
         screen.blit(exit_surface, (exit_text_x, exit_text_y))
 
     def _draw_minimized(self, screen: pygame.Surface, screen_width: int, screen_height: int):

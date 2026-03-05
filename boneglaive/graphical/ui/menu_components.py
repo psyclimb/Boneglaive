@@ -237,7 +237,10 @@ class Button:
         self.font = font
         self.action = action
         self.enabled = enabled
+<<<<<<< HEAD
         self.visible = True  # Add visibility toggle for resolution scaling
+=======
+>>>>>>> main
         self.image = image
         self.show_glaive = show_glaive
         self.glaive_direction = glaive_direction
@@ -275,7 +278,11 @@ class Button:
         """
         Handle a mouse click. Returns True if button was clicked.
         """
+<<<<<<< HEAD
         if self.visible and self.enabled and self.rect.collidepoint(mouse_pos):
+=======
+        if self.enabled and self.rect.collidepoint(mouse_pos):
+>>>>>>> main
             self.clicked_this_frame = True  # Mark as clicked to prevent double-trigger in update()
             if self.action:
                 self.action()
@@ -284,10 +291,13 @@ class Button:
 
     def draw(self, surface: pygame.Surface):
         """Draw the button with enhanced styling."""
+<<<<<<< HEAD
         # Don't draw if not visible
         if not self.visible:
             return
 
+=======
+>>>>>>> main
         # Determine colors and styles based on state
         if not self.enabled:
             bg_top = COLOR_BG_DISABLED
