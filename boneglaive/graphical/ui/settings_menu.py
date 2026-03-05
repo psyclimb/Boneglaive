@@ -47,6 +47,13 @@ class SettingsSubmenu(MenuScreen):
             Button(
                 start_x, start_y + (button_height + button_spacing) * 2,
                 button_width, button_height,
+                "Interface Settings",
+                font,
+                lambda: self._set_action("interface_settings")
+            ),
+            Button(
+                start_x, start_y + (button_height + button_spacing) * 3,
+                button_width, button_height,
                 "Back",
                 font,
                 lambda: self._set_action("back")
@@ -297,6 +304,86 @@ class DisplaySettingsScreen(MenuScreen):
             return action
 
         return None
+
+
+class InterfaceSettingsScreen(MenuScreen):
+    """Screen for interface-related settings."""
+
+    def __init__(self, font: pygame.font.Font, large_font: pygame.font.Font, screen_width: int, screen_height: int):
+        super().__init__("Interface Settings", font, large_font)
+        self.screen_width = screen_width
+        self.screen_height = screen_height
+        self.config = ConfigManager()
+
+        # Get current UI layout
+        current_layout = self.config.get('ui_layout', 'default')
+        layout_label = self._get_layout_label(current_layout)
+
+        # Button dimensions
+        button_width = 400
+        button_height = 60
+        button_spacing = 20
+
+        # Calculate center position
+        start_x = (screen_width - button_width) // 2
+        start_y = 300
+
+        # Create buttons
+        self.layout_button = Button(
+            start_x, start_y,
+            button_width, button_height,
+            f"UI Layout: {layout_label}",
+            font,
+            lambda: self._toggle_layout()
+        )
+
+        self.back_button = Button(
+            start_x, start_y + (button_height + button_spacing),
+            button_width, button_height,
+            "Back",
+            font,
+            lambda: self._set_action("back")
+        )
+
+        self.buttons = [self.layout_button, self.back_button]
+        self._action_result = None
+
+    def _get_layout_label(self, layout: str) -> str:
+        """Get display label for UI layout."""
+        if layout == "reversed":
+            return "Reversed"
+        else:
+            return "Default"
+
+    def _toggle_layout(self):
+        """Toggle between default and reversed UI layout."""
+        current_layout = self.config.get('ui_layout', 'default')
+        new_layout = "reversed" if current_layout == "default" else "default"
+
+        # Save to config
+        self.config.set('ui_layout', new_layout)
+        self.config.save_config()
+
+        # Update button text
+        layout_label = self._get_layout_label(new_layout)
+        self.layout_button.text = f"UI Layout: {layout_label}"
+
+    def _set_action(self, action: str):
+        """Set the action result."""
+        self._action_result = action
+
+    def handle_event(self, event: pygame.event.Event) -> Optional[str]:
+        """Handle events and return action if triggered."""
+        super().handle_event(event)
+
+        # Check if action was set by button
+        if self._action_result:
+            action = self._action_result
+            self._action_result = None
+            return action
+
+        return None
+
 
 class SoundSettingsScreen(MenuScreen):
     """Screen for sound-related settings."""
