@@ -49,10 +49,7 @@ class ActionButton:
         self.has_upgrade_points = False  # Special flag for upgrade button glow
         self.has_respawns_available = False  # Special flag for respawn button icon + glow
         self.has_actions_queued = False  # Special flag for execute button to show green when actions queued
-<<<<<<< HEAD
-=======
         self.tank_treads_icon = None  # Cached tank treads icon
->>>>>>> main
         self.skeletal_hand_icon = None  # Cached skeletal hand icon
         self.lightning_bolt_icon = None  # Cached lightning bolt icon
         self.gears_icon = None  # Cached gears icon
@@ -64,17 +61,14 @@ class ActionButton:
     def draw(self, surface: pygame.Surface, x: int, y: int, font, small_font, loto_renderer: Optional[LOTORenderer] = None, button_width=None, button_height=None) -> Optional[dict]:
         """Draw the action button. Returns particle data if upgrade button has points available."""
         from .menu_components import draw_gradient_rect, draw_glow_rect
-<<<<<<< HEAD
 
         button_width = button_width or BUTTON_WIDTH_BASE
         button_height = button_height or BUTTON_HEIGHT_BASE
         self.rect = pygame.Rect(x, y, button_width, button_height)
 
-=======
 
         self.rect = pygame.Rect(x, y, BUTTON_WIDTH, BUTTON_HEIGHT)
 
->>>>>>> main
         # Determine gradient colors
         if not self.enabled:
             bg_top = COLOR_BG_DISABLED
@@ -93,7 +87,6 @@ class ActionButton:
             bg_bottom = COLOR_BG_BOTTOM
             show_glow = False
 
-<<<<<<< HEAD
         # Special coloring for execute and concede buttons - apply tint to gradients
         if self.action == "execute" and self.enabled and not self.active and hasattr(self, 'has_actions_queued') and self.has_actions_queued:
             # Apply green tint to gradient
@@ -103,7 +96,6 @@ class ActionButton:
             # Apply red tint to gradient
             bg_top = tuple(min(255, c + 40) if i == 0 else c for i, c in enumerate(bg_top))
             bg_bottom = tuple(min(255, c + 40) if i == 0 else c for i, c in enumerate(bg_bottom))
-=======
         # Special coloring for execute and concede buttons
         execute_or_concede_special = False
         if self.action == "execute" and self.enabled and not self.active and self.has_actions_queued:
@@ -112,7 +104,6 @@ class ActionButton:
         elif self.action == "concede":
             # Keep gradient but with red tint
             execute_or_concede_special = True
->>>>>>> main
 
         # Draw shadow (2px offset)
         shadow_rect = self.rect.copy()
@@ -121,7 +112,6 @@ class ActionButton:
         shadow_surf = pygame.Surface((shadow_rect.width, shadow_rect.height), pygame.SRCALPHA)
         pygame.draw.rect(shadow_surf, (0, 0, 0, 76), shadow_surf.get_rect(), border_radius=5)
         surface.blit(shadow_surf, shadow_rect.topleft)
-<<<<<<< HEAD
 
         # Draw gradient background
         draw_gradient_rect(surface, self.rect, bg_top, bg_bottom)
@@ -136,7 +126,6 @@ class ActionButton:
 
         border_width = 3 if (self.hovered or self.active) else 2
         pygame.draw.rect(surface, border_color, self.rect, border_width, border_radius=5)
-=======
 
         # Draw gradient background
         draw_gradient_rect(surface, self.rect, bg_top, bg_bottom)
@@ -192,7 +181,6 @@ class ActionButton:
                     colored_icon.fill(grey_tint, special_flags=pygame.BLEND_RGBA_MULT)
 
                 surface.blit(colored_icon, (icon_x, icon_y))
->>>>>>> main
 
         # Draw skeletal hand icon on respawn button - ALWAYS visible, glows when respawns available
         respawn_glow_data = None
@@ -720,12 +708,9 @@ class ActionMenu:
                 button.active = False
                 button.blocked_actions = set()
             elif button.action == "execute":
-<<<<<<< HEAD
                 button.enabled = self.has_actions_queued
                 button.has_actions_queued = self.has_actions_queued  # For green tint when actions queued
-=======
                 button.enabled = True
->>>>>>> main
                 button.active = False
                 button.blocked_actions = set()
                 button.has_actions_queued = self.has_actions_queued
@@ -734,7 +719,6 @@ class ActionMenu:
                 button.active = False
                 button.blocked_actions = set()
 
-<<<<<<< HEAD
     def _get_scaled_dimensions(self):
         """Get scaled dimensions based on layout."""
         if self.layout:
@@ -758,13 +742,11 @@ class ActionMenu:
             'button_spacing': button_spacing,
             'padding': padding,
         }
-=======
         # Force disable all buttons if requested (e.g., during game over)
         if force_disable:
             for button in self.buttons:
                 button.enabled = False
                 button.active = False
->>>>>>> main
 
     def draw(self, surface: pygame.Surface, x: int, y: int):
         """

@@ -301,37 +301,28 @@ class GameStateAdapter:
 
     def snapshot_unit_positions(self):
         """
-<<<<<<< HEAD
         Capture a snapshot of all unit positions before turn execution.
         Used to detect if movement skills (Vault, Delta Config, etc.) actually succeeded.
-=======
         Capture a snapshot of all current unit positions.
         This should be called BEFORE execute_turn() so we can detect
         movement skills that succeeded or failed based on position changes.
->>>>>>> main
         """
         if not self.game:
             return
 
-<<<<<<< HEAD
         self.pre_execution_positions.clear()
 
-=======
->>>>>>> main
         for unit in self.game.units:
             if not unit.is_alive():
                 continue
 
             unit_id = self._get_unit_id(unit)
-<<<<<<< HEAD
             self.pre_execution_positions[unit_id] = (unit.y, unit.x)
 
-=======
 
             # Store position in visual unit for comparison after turn execution
             if unit_id in self.visual_units:
                 self.visual_units[unit_id].last_position = (unit.x, unit.y)
->>>>>>> main
 
     def _detect_status_effects_callback(self):
         """
@@ -851,7 +842,6 @@ class GameStateAdapter:
                             if UpgradeManager.is_skill_upgraded(game_unit, "Jawline"):
                                 skill_name = "Jawline_Upgraded"  # Use upgraded animation variant
 
-<<<<<<< HEAD
                         # SKILL SUCCESS VALIDATION: Check if movement skills actually succeeded
                         # For teleport/movement skills in POST-execution sync, verify position changed
                         skill_succeeded = True
@@ -883,7 +873,6 @@ class GameStateAdapter:
                         else:
                             # Skill failed - mark it as processed to prevent re-detection
                             visual_unit.last_skill = game_unit.selected_skill
-=======
                         # MOVE+SKILL POSITION FIX: Use move_target position if unit is moving
                         # When move+skill are queued, game_unit.x/y is still at OLD position during pre-sync
                         # but move_target contains the NEW position where skill will execute from
@@ -920,7 +909,6 @@ class GameStateAdapter:
                             bounce_count=bounce_count,
                             expedite_planned_start=expedite_planned_start
                         ))
->>>>>>> main
 
                         # Special handling for Site Inspection: mark revealed scalar nodes
                         if skill_name == "Site Inspection" and skill_target and hasattr(self.game, 'scalar_nodes'):

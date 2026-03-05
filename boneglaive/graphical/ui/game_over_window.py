@@ -26,9 +26,7 @@ COLOR_BUTTON_HOVER_BOTTOM = (64, 48, 53)  # Button hover gradient bottom
 COLOR_BORDER_HOVER = (184, 168, 149)  # Bone border on hover
 COLOR_BORDER_GLOW = (255, 170, 119)  # Orange glow
 
-<<<<<<< HEAD
 # Minimized bar dimensions
-=======
 WINDOW_WIDTH = 600
 WINDOW_HEIGHT = 400
 BUTTON_WIDTH = 175  # Smaller to fit 3 buttons in window
@@ -36,7 +34,6 @@ BUTTON_HEIGHT = 60
 BUTTON_SPACING = 10  # Tighter spacing for 3 buttons
 
 # Minimized bar dimensions (fits in center game board area: 920px wide)
->>>>>>> main
 MINIMIZED_BAR_HEIGHT = 70
 MINIMIZED_BUTTON_WIDTH = 145
 MINIMIZED_BUTTON_HEIGHT = 40
@@ -52,11 +49,8 @@ class GameOverWindow:
         self.small_font = small_font
         self.large_font = large_font
         self.visible = False
-<<<<<<< HEAD
         self.minimized = False  # Toggle between full window and compact bar
-=======
         self.minimized = False  # NEW: Toggle between full window and compact bar
->>>>>>> main
 
         # Game over state
         self.is_victory = False
@@ -175,12 +169,10 @@ class GameOverWindow:
         else:
             self._draw_full_window(screen, screen_width, screen_height)
 
-<<<<<<< HEAD
     def _draw_full_window(self, screen: pygame.Surface, screen_width: int, screen_height: int):
         """Draw the full game over window."""
         from .menu_components import draw_gradient_rect, draw_glow_rect
 
-=======
     def _draw_minimized(self, screen: pygame.Surface, screen_width: int, screen_height: int):
         """Draw compact minimized bar at top of screen."""
         # No dark overlay in minimized mode - player can see battlefield
@@ -314,7 +306,6 @@ class GameOverWindow:
 
     def _draw_full_window(self, screen: pygame.Surface, screen_width: int, screen_height: int):
         """Draw full game over window with overlay."""
->>>>>>> main
         # Draw semi-transparent overlay
         if self._overlay_cache is None or self._overlay_cache.get_size() != (screen_width, screen_height):
             self._overlay_cache = pygame.Surface((screen_width, screen_height))
@@ -322,7 +313,6 @@ class GameOverWindow:
             self._overlay_cache.fill((0, 0, 0))
         screen.blit(self._overlay_cache, (0, 0))
 
-<<<<<<< HEAD
         # Calculate scaled dimensions
         scale = self.layout.get_font_scale() if self.layout else 1.0
         window_width = int(600 * scale)
@@ -344,7 +334,6 @@ class GameOverWindow:
         title_color = COLOR_VICTORY if self.is_victory else COLOR_DEFEAT
         draw_gradient_rect(screen, title_rect, COLOR_TITLE_BG_TOP, COLOR_TITLE_BG_BOTTOM)
         pygame.draw.rect(screen, title_color, title_rect, 3, border_radius=5)
-=======
         # Calculate window position (centered)
         from .menu_components import draw_gradient_rect, draw_glow_rect
         window_x = (screen_width - WINDOW_WIDTH) // 2
@@ -368,7 +357,6 @@ class GameOverWindow:
         title_color = COLOR_VICTORY if self.is_victory else COLOR_DEFEAT
         draw_gradient_rect(screen, title_rect, COLOR_TITLE_BG_TOP, COLOR_TITLE_BG_BOTTOM)
         pygame.draw.rect(screen, title_color, title_rect, 3)
->>>>>>> main
 
         # Draw title text
         title_text = "VICTORY!" if self.is_victory else "DEFEAT"
@@ -404,7 +392,6 @@ class GameOverWindow:
         flavor_x = window_x + (window_width - flavor_surface.get_width()) // 2
         screen.blit(flavor_surface, (flavor_x, content_y))
 
-<<<<<<< HEAD
         # Draw buttons (3 buttons: menu, minimize, exit)
         button_y = window_y + window_height - 100
         total_button_width = button_width * 3 + button_spacing * 2
@@ -462,7 +449,6 @@ class GameOverWindow:
         exit_surface = self.font.render(exit_text, True, COLOR_TEXT)
         exit_text_x = exit_button_x + (button_width - exit_surface.get_width()) // 2
         exit_text_y = button_y + (button_height - exit_surface.get_height()) // 2
-=======
         # Draw buttons (3 equal-width buttons)
         button_y = window_y + WINDOW_HEIGHT - 100
 
@@ -558,7 +544,6 @@ class GameOverWindow:
         exit_surface = self.small_font.render(exit_text, True, COLOR_TEXT)
         exit_text_x = exit_button_x + (BUTTON_WIDTH - exit_surface.get_width()) // 2
         exit_text_y = button_y + (BUTTON_HEIGHT - exit_surface.get_height()) // 2
->>>>>>> main
         screen.blit(exit_surface, (exit_text_x, exit_text_y))
 
     def _draw_minimized(self, screen: pygame.Surface, screen_width: int, screen_height: int):

@@ -111,7 +111,6 @@ class DisplaySettingsScreen(MenuScreen):
         self.screen_height = screen_height
         self.config = ConfigManager()
 
-<<<<<<< HEAD
         # Get supported resolutions based on available screen modes
         self.supported_resolutions = self._get_supported_resolutions()
 
@@ -134,8 +133,6 @@ class DisplaySettingsScreen(MenuScreen):
         current_speed = self.config.get('animation_speed', 1.0)
         speed_label = self._get_animation_speed_label(current_speed)
 
-=======
->>>>>>> main
         # Button dimensions
         button_width = 450
         button_height = 60
@@ -143,7 +140,6 @@ class DisplaySettingsScreen(MenuScreen):
 
         # Calculate center position
         start_x = (screen_width - button_width) // 2
-<<<<<<< HEAD
         start_y = 180
 
         # Create resolution button
@@ -186,13 +182,6 @@ class DisplaySettingsScreen(MenuScreen):
         # Create back button
         self.back_button = Button(
             start_x, start_y + (button_height + button_spacing) * 4,
-=======
-        start_y = 300
-
-        # Create buttons (placeholder for future display options)
-        self.back_button = Button(
-            start_x, start_y,
->>>>>>> main
             button_width, button_height,
             "Back",
             font,
@@ -200,7 +189,6 @@ class DisplaySettingsScreen(MenuScreen):
             glaive_direction="left"
         )
 
-<<<<<<< HEAD
         self.buttons = [self.resolution_button, self.fullscreen_button,
                        self.anim_speed_button, self.apply_button, self.back_button]
         self._action_result = None
@@ -325,11 +313,6 @@ class DisplaySettingsScreen(MenuScreen):
         speed_label = self._get_animation_speed_label(new_speed)
         self.anim_speed_button.text = f"Animation Speed: {speed_label}"
 
-=======
-        self.buttons = [self.back_button]
-        self._action_result = None
-
->>>>>>> main
     def _set_action(self, action: str):
         """Set the action result."""
         self._action_result = action
@@ -346,10 +329,7 @@ class DisplaySettingsScreen(MenuScreen):
 
         return None
 
-<<<<<<< HEAD
 
-=======
->>>>>>> main
 class InterfaceSettingsScreen(MenuScreen):
     """Screen for interface-related settings."""
 
@@ -386,12 +366,8 @@ class InterfaceSettingsScreen(MenuScreen):
             button_width, button_height,
             "Back",
             font,
-<<<<<<< HEAD
-            lambda: self._set_action("back")
-=======
             lambda: self._set_action("back"),
             glaive_direction="left"
->>>>>>> main
         )
 
         self.buttons = [self.layout_button, self.back_button]
@@ -409,13 +385,8 @@ class InterfaceSettingsScreen(MenuScreen):
         current_layout = self.config.get('ui_layout', 'default')
         new_layout = "reversed" if current_layout == "default" else "default"
 
-<<<<<<< HEAD
         # Save to config
         self.config.set('ui_layout', new_layout)
-=======
-        # Set the new value directly on the config object
-        setattr(self.config.config, 'ui_layout', new_layout)
->>>>>>> main
         self.config.save_config()
 
         # Update button text
@@ -606,12 +577,8 @@ class SoundSettingsScreen(MenuScreen):
         # Draw checkbox
         self.mute_checkbox.draw(surface)
 
-<<<<<<< HEAD
-        # Buttons are drawn by parent class
-=======
         # Draw button
         self.back_button.draw(surface)
 
         # Draw bottom decorations
         self._draw_bottom_decorations(surface)
->>>>>>> main

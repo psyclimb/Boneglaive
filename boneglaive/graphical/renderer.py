@@ -51,15 +51,12 @@ from boneglaive.utils.constants import UnitType
 # Import global message log for combat log sync
 from boneglaive.utils.message_log import message_log
 
-<<<<<<< HEAD
 # Import resolution and layout management
 from boneglaive.utils.resolution import LayoutConfig, create_layout
 from boneglaive.utils.config import ConfigManager
-=======
 # Import config manager for UI layout settings
 from boneglaive.utils.config import ConfigManager
 
->>>>>>> main
 
 
 # DEFAULT resolution constants (for backwards compatibility and fallback)
@@ -108,7 +105,6 @@ class GraphicalRenderer:
     Supports dynamic resolution scaling.
     """
 
-<<<<<<< HEAD
     def __init__(self, game_adapter: GameStateAdapter = None,
                  screen_width: int = None, screen_height: int = None,
                  fullscreen: bool = None):
@@ -140,12 +136,6 @@ class GraphicalRenderer:
         # Create layout configuration for this resolution
         self.layout = create_layout(screen_width, screen_height)
 
-        # Initialize pygame
-        pygame.init()
-        display_flags = pygame.FULLSCREEN if fullscreen else 0
-        self.screen = pygame.display.set_mode((screen_width, screen_height), display_flags)
-=======
-    def __init__(self, game_adapter: GameStateAdapter = None):
         # Set SDL2 hints BEFORE pygame.init() for better icon support
         import os
         icon_path = Path(__file__).parent.parent.parent / 'graphics' / 'boneglaive_icon.png'
@@ -163,9 +153,9 @@ class GraphicalRenderer:
             # Fallback to default pygame icon
             pass
 
-        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
->>>>>>> main
-        pygame.display.set_caption(SCREEN_TITLE)
+        display_flags = pygame.FULLSCREEN if fullscreen else 0
+        self.screen = pygame.display.set_mode((screen_width, screen_height), display_flags)
+        pygame.display.set_caption("Boneglaive")
         self.clock = pygame.time.Clock()
 
         # Fonts - scale based on resolution
@@ -233,7 +223,6 @@ class GraphicalRenderer:
         # Imbued furniture sparkles (for Market Futures)
         self.imbued_sparkles = []
 
-<<<<<<< HEAD
         # UI Components - pass layout for dynamic sizing
         self.top_bar = TopBar(self.font, self.small_font, self.large_font, self.layout)
         self.unit_status_bar = UnitStatusBar(self.font, self.small_font, self.layout)
@@ -250,7 +239,6 @@ class GraphicalRenderer:
         self.setup_window = SetupWindow(self.font, self.small_font, self.layout)
         self.setup_unit_help = SetupUnitHelp(self.font, self.small_font, self.layout)
         self.game_over_window = GameOverWindow(self.font, self.small_font, self.large_font, self.layout)
-=======
         # UI Components
         self.top_bar = TopBar(self.font, self.small_font, self.large_font)
         self.unit_status_bar = UnitStatusBar(self.font, self.small_font)
@@ -269,7 +257,6 @@ class GraphicalRenderer:
         self.setup_unit_help = SetupUnitHelp(self.font, self.small_font)
         self.game_over_window = GameOverWindow(self.font, self.small_font, self.large_font)
         self.concede_dialog = ConcedeDialog(self.font, self.small_font)
->>>>>>> main
 
         # Track current action mode for top bar display
         self.current_action_mode = "SELECT"
@@ -3763,14 +3750,11 @@ class GraphicalRenderer:
         for debris in self.debris_particles:
             debris.draw(main_surface)
 
-<<<<<<< HEAD
         # Draw skill bar (above map, below top bar)
         self.skill_bar.draw(main_surface, self.screen_width, self.screen_height, self.layout.top_bar_height)
-=======
         # Draw skill bar (above map, below top bar) - only if show_skills is True
         if self.show_skills:
             self.skill_bar.draw(main_surface, SCREEN_WIDTH, SCREEN_HEIGHT, TOP_BAR_HEIGHT)
->>>>>>> main
 
         # Draw combat log (below map, horizontal bar - maximized to fit space)
         combat_log_x = self.layout.left_panel_width + 10
@@ -3793,10 +3777,8 @@ class GraphicalRenderer:
         # Draw help page overlay (must be drawn last, on top of everything)
         self.help_page.draw(self.screen, self.screen_width, self.screen_height)
 
-<<<<<<< HEAD
         # Draw message log window (on top of help page)
         self.message_log_window.draw(self.screen, self.screen_width, self.screen_height)
-=======
         # Draw game over window (before message log so minimized bar appears behind it)
         if self.game_over_window.visible:
             self.game_over_window.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
@@ -3811,7 +3793,6 @@ class GraphicalRenderer:
 
         # Draw message log window (on top of help page and minimized bars)
         self.message_log_window.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
->>>>>>> main
 
         # Draw upgrade window (on top of everything except help/message log)
         if self.upgrade_window.visible:
@@ -3832,15 +3813,12 @@ class GraphicalRenderer:
             help_panel_height = self.screen_height - 100
             self.setup_help_panel_rect = self.setup_unit_help.draw(self.screen, help_panel_x, help_panel_y, help_panel_width, help_panel_height)
 
-<<<<<<< HEAD
         # Draw game over window (on top of everything - highest z-order)
         if self.game_over_window.visible:
             self.game_over_window.draw(self.screen, self.screen_width, self.screen_height)
-=======
         # Draw concede dialog (on top of everything except help page and message log)
         if self.concede_dialog.visible:
             self.concede_dialog.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
->>>>>>> main
 
         # Draw FPS counter (for troubleshooting)
         if self.show_fps:
@@ -4176,11 +4154,9 @@ class GraphicalRenderer:
 
         # Draw electrical pinwheel at each junction
         for y, x in junction_coords:
-<<<<<<< HEAD
             tile_x = self.layout.grid_offset_x + x * self.layout.tile_size
             tile_y = self.layout.grid_offset_y + y * self.layout.tile_size
             surface.blit(overlay, (tile_x, tile_y))
-=======
             # Only draw animation if there's actually a rail at this position
             if self.game_adapter.game.map.get_terrain_at(y, x) != TerrainType.RAIL:
                 continue
@@ -4212,7 +4188,6 @@ class GraphicalRenderer:
                 # Inner bright core
                 pygame.draw.circle(surface, color, (spark_x, spark_y), 3)
                 pygame.draw.circle(surface, (255, 255, 255), (spark_x, spark_y), 1)  # Bright center
->>>>>>> main
 
     def draw_range_indicators(self, surface: pygame.Surface):
         """Draw movement range, attack range, and skill range indicators."""
@@ -4269,7 +4244,6 @@ class GraphicalRenderer:
         # Draw respawn ghost preview
         if self.respawn_selecting_location and self.respawn_ghost_pos and self.selected_dead_unit:
             ghost_x, ghost_y = self.respawn_ghost_pos
-<<<<<<< HEAD
             # Draw semi-transparent unit preview
             ghost_surf = pygame.Surface((self.layout.tile_size, self.layout.tile_size), pygame.SRCALPHA)
             ghost_surf.fill((100, 255, 150, 60))  # Green tint
@@ -4287,7 +4261,6 @@ class GraphicalRenderer:
                 ghost_surf,
                 (self.layout.grid_offset_x + ghost_x * self.layout.tile_size, self.layout.grid_offset_y + ghost_y * self.layout.tile_size)
             )
-=======
 
             # Check if position is valid (game logic uses (y, x) format)
             pos_valid = (ghost_y, ghost_x) in self.respawn_valid_tiles if hasattr(self, 'respawn_valid_tiles') else True
@@ -4413,7 +4386,6 @@ class GraphicalRenderer:
                             text_rect = text.get_rect(center=(TILE_SIZE // 2, TILE_SIZE // 2))
                             ghost_surf.blit(text, text_rect)
                         surface.blit(ghost_surf, (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE))
->>>>>>> main
 
         # Draw setup valid tiles (blue/cyan)
         if self.setup_placing_unit and self.setup_valid_tiles:
@@ -4430,16 +4402,12 @@ class GraphicalRenderer:
         # Draw setup ghost preview
         if self.setup_placing_unit and self.setup_ghost_pos and self.selected_unit_type:
             ghost_x, ghost_y = self.setup_ghost_pos  # screen_to_grid returns (grid_x, grid_y)
-<<<<<<< HEAD
             # Draw semi-transparent unit preview
             ghost_surf = pygame.Surface((self.layout.tile_size, self.layout.tile_size), pygame.SRCALPHA)
-=======
->>>>>>> main
 
             # Check if position is valid (game logic uses (y, x) format)
             pos_valid = (ghost_y, ghost_x) in self.setup_valid_tiles
 
-<<<<<<< HEAD
             # Draw unit type name
             # Get display name (handles both enums and integers)
             unit_display_name = self.setup_window.unit_names.get(self.selected_unit_type, str(self.selected_unit_type))
@@ -4453,7 +4421,6 @@ class GraphicalRenderer:
                 ghost_surf,
                 (self.layout.grid_offset_x + ghost_x * self.layout.tile_size, self.layout.grid_offset_y + ghost_y * self.layout.tile_size)
             )
-=======
             # Get sprite path for the selected unit type
             sprite_path = self._get_sprite_path(self.selected_unit_type)
 
@@ -4516,7 +4483,6 @@ class GraphicalRenderer:
                 text_rect = text.get_rect(center=(TILE_SIZE // 2, TILE_SIZE // 2))
                 ghost_surf.blit(text, text_rect)
                 surface.blit(ghost_surf, (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE))
->>>>>>> main
 
     def draw_ui(self, surface: pygame.Surface):
         """Draw UI elements using new three-zone layout."""
@@ -4630,22 +4596,15 @@ class GraphicalRenderer:
         # Draw "TURN X" centered in panel
         turn_text = render_fitted_text(
             f"TURN {game.turn}",
-<<<<<<< HEAD
             max_width=self.layout.left_panel_width - 20,
-=======
-            max_width=panel_width - 20,
->>>>>>> main
             max_height=25,
             color=(255, 255, 255),
             base_font_size=20,
             min_font_size=16,
             max_font_size=24
         )
-<<<<<<< HEAD
         text_rect = turn_text.get_rect(center=(x + self.layout.left_panel_width // 2, y + 15))
-=======
         text_rect = turn_text.get_rect(center=(x + panel_width // 2, y + 15))
->>>>>>> main
         surface.blit(turn_text, text_rect)
 
     def _draw_player_indicator(self, surface: pygame.Surface, x: int, y: int):
@@ -4666,22 +4625,15 @@ class GraphicalRenderer:
         # Draw player name centered in panel
         player_text = render_fitted_text(
             player_name.upper(),
-<<<<<<< HEAD
             max_width=self.layout.right_panel_width - 20,
-=======
-            max_width=panel_width - 20,
->>>>>>> main
             max_height=25,
             color=player_color,
             base_font_size=20,
             min_font_size=16,
             max_font_size=24
         )
-<<<<<<< HEAD
         text_rect = player_text.get_rect(center=(x + self.layout.right_panel_width // 2, y + 12))
-=======
         text_rect = player_text.get_rect(center=(x + panel_width // 2, y + 12))
->>>>>>> main
         surface.blit(player_text, text_rect)
 
     def _apply_player2_first_turn_buff(self):
