@@ -34,9 +34,17 @@ def run_game():
     # Create game state adapter
     adapter = GameStateAdapter()
 
+    # Get resolution and fullscreen settings from config
+    window_width = config.get('window_width', None)
+    window_height = config.get('window_height', None)
+    fullscreen = config.get('fullscreen', None)
+
     # Create renderer first (needed for AI animations)
     print("Initializing Boneglaive Graphical Renderer...")
-    renderer = GraphicalRenderer(adapter)
+    renderer = GraphicalRenderer(adapter,
+                                 screen_width=window_width,
+                                 screen_height=window_height,
+                                 fullscreen=fullscreen)
 
     # Create UI adapter for animations
     from boneglaive.graphical.ui_adapter import GraphicalUIAdapter

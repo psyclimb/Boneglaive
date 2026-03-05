@@ -20,14 +20,26 @@ class MenuManager:
     Manages the menu system with stack-based navigation.
     """
 
-    def __init__(self, screen_width: int = 1480, screen_height: int = 800):
+    def __init__(self, screen_width: int = None, screen_height: int = None):
+        self.config = ConfigManager()
+
+        # Read resolution and fullscreen from config if not provided
+        if screen_width is None:
+            screen_width = self.config.get('window_width', 1480)
+        if screen_height is None:
+            screen_height = self.config.get('window_height', 800)
+
         self.screen_width = screen_width
         self.screen_height = screen_height
-        self.config = ConfigManager()
 
         # Initialize pygame and create display surface
         pygame.init()
-        self.screen = pygame.display.set_mode((screen_width, screen_height))
+
+        # Check fullscreen setting from config
+        fullscreen = self.config.get('fullscreen', False)
+        display_flags = pygame.FULLSCREEN if fullscreen else 0
+
+        self.screen = pygame.display.set_mode((screen_width, screen_height), display_flags)
         pygame.display.set_caption("Boneglaive")
         self.clock = pygame.time.Clock()
 

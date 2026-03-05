@@ -104,7 +104,7 @@ class GraphicalRenderer:
 
     def __init__(self, game_adapter: GameStateAdapter = None,
                  screen_width: int = None, screen_height: int = None,
-                 fullscreen: bool = False):
+                 fullscreen: bool = None):
         """
         Initialize the graphical renderer.
 
@@ -112,7 +112,7 @@ class GraphicalRenderer:
             game_adapter: Game state adapter (optional)
             screen_width: Screen width in pixels (None = use config/default)
             screen_height: Screen height in pixels (None = use config/default)
-            fullscreen: Whether to start in fullscreen mode
+            fullscreen: Whether to start in fullscreen mode (None = use config)
         """
         # Load configuration
         config = ConfigManager()
