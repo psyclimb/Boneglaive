@@ -5454,24 +5454,6 @@ class GraphicalRenderer:
         self.setup_ghost_pos = None
         self.current_action_mode = "SELECT"
 
-    def _toggle_fullscreen(self):
-        """Toggle between fullscreen and windowed mode."""
-        # Get current fullscreen state from config
-        current_fullscreen = config.get('fullscreen', False)
-        new_fullscreen = not current_fullscreen
-
-        # Update config
-        config.set('fullscreen', new_fullscreen)
-        config.save_config()
-
-        # Apply the change
-        if new_fullscreen:
-            self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN)
-            self.combat_log.add_message("Fullscreen mode enabled (F11 to toggle)", "system")
-        else:
-            self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-            self.combat_log.add_message("Windowed mode enabled (F11 to toggle)", "system")
-
         # Hide setup window
         self.setup_window.hide()
 
@@ -5501,6 +5483,24 @@ class GraphicalRenderer:
                     animated_unit.is_moving = False
 
         print("[Setup] Exited setup mode")
+
+    def _toggle_fullscreen(self):
+        """Toggle between fullscreen and windowed mode."""
+        # Get current fullscreen state from config
+        current_fullscreen = config.get('fullscreen', False)
+        new_fullscreen = not current_fullscreen
+
+        # Update config
+        config.set('fullscreen', new_fullscreen)
+        config.save_config()
+
+        # Apply the change
+        if new_fullscreen:
+            self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN)
+            self.combat_log.add_message("Fullscreen mode enabled (F11 to toggle)", "system")
+        else:
+            self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+            self.combat_log.add_message("Windowed mode enabled (F11 to toggle)", "system")
 
     def _handle_cursor_movement(self, key):
         """Handle cursor movement during setup placement."""
