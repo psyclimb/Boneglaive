@@ -3021,9 +3021,8 @@ class Game:
                         # Remove the status effect
                         unit.mired = False
 
-                        # Restore movement and attack bonuses that were removed by the mired effect
-                        unit.move_range_bonus += 1
-                        unit.attack_bonus += 1
+                        # Restore attack bonus that was removed by the mired effect
+                        unit.attack_bonus += 2
             
             # Process Pumped Up status effect from mini pumpkins
             if hasattr(unit, 'pumped_up_active') and unit.pumped_up_active:

@@ -309,11 +309,9 @@ class MarrowDikeSkill(ActiveSkill):
                 if hasattr(unit_at_pos, 'mired') and unit_at_pos.mired:
                     unit_at_pos.mired = False
                     unit_at_pos.mired_duration = 0
-                    # Restore movement and attack penalties that were applied by mired effect
-                    if hasattr(unit_at_pos, 'move_range_bonus'):
-                        unit_at_pos.move_range_bonus += 1  # Remove the -1 penalty
+                    # Restore attack penalty that was applied by mired effect
                     if hasattr(unit_at_pos, 'attack_bonus'):
-                        unit_at_pos.attack_bonus += 1  # Remove the -1 penalty
+                        unit_at_pos.attack_bonus += 2  # Remove the -2 penalty
         
         # Process wall tile removals and restore terrain
         for tile_y, tile_x in tiles_to_remove:
@@ -371,7 +369,7 @@ class MarrowDikeSkill(ActiveSkill):
 
         # Update description for upgraded version
         if dominion_upgraded:
-            self.description = "Creates a reinforced Marrow Dike that weakens enemies (-1 move, -1 attack) with stronger walls."
+            self.description = "Creates a reinforced Marrow Dike that weakens enemies (-2 attack) with stronger walls."
         
         # Generate the dike area (perimeter of a 5x5 area centered on user)
         dike_tiles = []
@@ -571,8 +569,7 @@ class MarrowDikeSkill(ActiveSkill):
                     elif not hasattr(unit_at_pos, 'mired') or not unit_at_pos.mired:
                         unit_at_pos.mired = True
                         unit_at_pos.mired_duration = self.duration
-                        unit_at_pos.move_range_bonus -= 1
-                        unit_at_pos.attack_bonus -= 1
+                        unit_at_pos.attack_bonus -= 2
 
                         # Shorter message for each enemy unit trapped inside
                         message_log.add_message(
