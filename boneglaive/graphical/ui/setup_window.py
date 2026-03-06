@@ -40,7 +40,7 @@ COLOR_BONE_DARK = (139, 115, 85)  # Bone shadow
 from .scale_utils import scale_manager
 
 # Scale window dimensions based on resolution
-WINDOW_WIDTH = scale_manager.scale(500, 'x')
+WINDOW_WIDTH = scale_manager.scale(550, 'x')  # Increased from 500 to prevent text cutoff
 WINDOW_HEIGHT = scale_manager.scale(700, 'y')
 ITEM_HEIGHT = scale_manager.scale(55, 'y')
 ITEM_PADDING = scale_manager.scale(8)
@@ -380,7 +380,7 @@ class SetupWindow:
             return self.unit_types[self.selected_index]
         return None
 
-    def draw(self, screen: pygame.Surface, screen_width: int, screen_height: int):
+    def draw(self, screen: pygame.Surface, screen_width: int, screen_height: int, window_x: int = None):
         """
         Draw the setup window.
 
@@ -388,6 +388,7 @@ class SetupWindow:
             screen: Pygame screen surface
             screen_width: Screen width
             screen_height: Screen height
+            window_x: Optional x position (if None, will be centered with help panel)
         """
         if not self.visible:
             return
@@ -398,8 +399,14 @@ class SetupWindow:
             self._overlay_cache.fill(COLOR_OVERLAY)
         screen.blit(self._overlay_cache, (0, 0))
 
-        # Calculate window position (left side, vertically centered)
-        window_x = 100  # Position on left side
+        # Calculate window position (centered with help panel, vertically centered)
+        if window_x is None:
+            # Calculate centered position
+            help_panel_width = scale_manager.scale(550, 'x')
+            spacing = scale_manager.scale(30)
+            total_width = WINDOW_WIDTH + spacing + help_panel_width
+            window_x = (screen_width - total_width) // 2
+
         window_y = (screen_height - WINDOW_HEIGHT) // 2
         self.window_rect = pygame.Rect(window_x, window_y, WINDOW_WIDTH, WINDOW_HEIGHT)
 
@@ -470,7 +477,7 @@ class SetupWindow:
         list_y = window_y + 80
         list_height = WINDOW_HEIGHT - 220  # Leave room for stats and button
 
-        # Create clip rect for scrolling
+        # Create clip rect for scrolling (scrollbar now outside, so use full width)
         clip_rect = pygame.Rect(window_x + 10, list_y, WINDOW_WIDTH - 20, list_height)
         screen.set_clip(clip_rect)
 
@@ -606,11 +613,11 @@ class SetupWindow:
         # Remove clipping
         screen.set_clip(None)
 
-        # Draw scrollbar if needed
+        # Draw scrollbar if needed (positioned outside panel, to the right)
         total_height = len(self.unit_types) * (ITEM_HEIGHT + ITEM_PADDING)
         self.max_scroll = max(0, total_height - list_height)
         if self.max_scroll > 0:
-            scrollbar_x = window_x + WINDOW_WIDTH
+            scrollbar_x = window_x + WINDOW_WIDTH + scale_manager.scale(5)  # Position outside panel
             scrollbar_y = list_y
             self.scrollbar.draw(screen, scrollbar_x, scrollbar_y, list_height,
                                self.scroll_offset, self.max_scroll, list_height, total_height)
@@ -710,12 +717,22 @@ class SetupWindow:
 
     def _draw_confirm_button(self, screen: pygame.Surface, window_x: int, window_y: int):
         """Draw the confirm setup button."""
-        button_y = window_y + WINDOW_HEIGHT - 70
+        button_width = scale_manager.scale(250)  # Wider button
+        button_height = scale_manager.scale(50)  # Taller button
+
+        # Calculate position: centered between bottom of unit list and instructions text
+        # List ends at: window_y + 80 + (WINDOW_HEIGHT - 220) = window_y + WINDOW_HEIGHT - 140
+        list_bottom = window_y + WINDOW_HEIGHT - 140
+        instructions_y = window_y + WINDOW_HEIGHT - 30
+
+        # Center button vertically in the gap
+        button_y = list_bottom + ((instructions_y - list_bottom - button_height) // 2)
+
         self.confirm_button_rect = pygame.Rect(
-            window_x + WINDOW_WIDTH // 2 - 100,
+            window_x + WINDOW_WIDTH // 2 - button_width // 2,
             button_y,
-            200,
-            35
+            button_width,
+            button_height
         )
 
         # Determine button colors and style (matching main menu)

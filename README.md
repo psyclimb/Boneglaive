@@ -88,4 +88,9 @@ python -m boneglaive.main --mode lan_client --server 192.168.1.100 --port 7777
 - Terminal with UTF-8 support and Greek character rendering
 
 ## License
-See LICENSE file for details.
+
+This project is licensed under the GNU General Public License v3.0 (GPL-3.0).
+
+See the [LICENSE](LICENSE) file for full details.
+
+**In brief**: You are free to use, modify, and distribute this software, but any distributed modifications must also be released under GPL-3.0 and include source code.

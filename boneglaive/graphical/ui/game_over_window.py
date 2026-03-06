@@ -170,17 +170,23 @@ class GameOverWindow:
         """Draw compact minimized bar at top of screen."""
         # No dark overlay in minimized mode - player can see battlefield
 
-        # Calculate bar dimensions (fits in center game board area)
-        # Screen layout: LEFT_PANEL (280px) | GAME_BOARD (920px) | RIGHT_PANEL (280px)
-        # Top bar is 50px tall, so position bar below it
-        LEFT_PANEL_WIDTH = 280
-        GAME_BOARD_WIDTH = 920
-        TOP_BAR_HEIGHT = 50
+        # Calculate bar dimensions (scales with resolution)
+        # Screen layout: LEFT_PANEL | GAME_BOARD | RIGHT_PANEL
+        # Use proportional scaling based on screen width
+        LEFT_PANEL_WIDTH = int(screen_width * 0.189)  # ~280px at 1480px
+        GAME_BOARD_WIDTH = int(screen_width * 0.622)  # ~920px at 1480px
+        TOP_BAR_HEIGHT = int(screen_height * 0.0625)  # ~50px at 800px
 
-        bar_width = GAME_BOARD_WIDTH - 20  # 900px (leave 10px margins)
-        bar_x = LEFT_PANEL_WIDTH + 10  # 290px (start after left panel with margin)
-        bar_y = TOP_BAR_HEIGHT + 20  # 70px (below top bar with spacing)
-        bar_rect = pygame.Rect(bar_x, bar_y, bar_width, MINIMIZED_BAR_HEIGHT)
+        # Scale minimized bar dimensions
+        scaled_bar_height = int(screen_height * 0.0875)  # ~70px at 800px
+        scaled_button_width = int(screen_width * 0.098)  # ~145px at 1480px
+        scaled_button_height = int(screen_height * 0.05)  # ~40px at 800px
+        scaled_button_spacing = int(screen_width * 0.0068)  # ~10px at 1480px
+
+        bar_width = GAME_BOARD_WIDTH - int(screen_width * 0.014)  # proportional margin
+        bar_x = LEFT_PANEL_WIDTH + int(screen_width * 0.007)  # proportional margin
+        bar_y = TOP_BAR_HEIGHT + int(screen_height * 0.025)  # proportional spacing
+        bar_rect = pygame.Rect(bar_x, bar_y, bar_width, scaled_bar_height)
 
         # Draw bar background with gradient
         from .menu_components import draw_gradient_rect, draw_glow_rect
@@ -208,14 +214,14 @@ class GameOverWindow:
         loser_surface = self.small_font.render(loser_text, True, COLOR_TEXT_DIM)
         screen.blit(loser_surface, (text_x + 120 + winner_surface.get_width() + 10, text_y + 5))
 
-        # Draw buttons on right side of bar
-        button_x_start = bar_x + bar_width - (MINIMIZED_BUTTON_WIDTH * 3 + MINIMIZED_BUTTON_SPACING * 2 + 20)
-        button_y = bar_y + (MINIMIZED_BAR_HEIGHT - MINIMIZED_BUTTON_HEIGHT) // 2
+        # Draw buttons on right side of bar (use scaled dimensions)
+        button_x_start = bar_x + bar_width - (scaled_button_width * 3 + scaled_button_spacing * 2 + int(screen_width * 0.014))
+        button_y = bar_y + (scaled_bar_height - scaled_button_height) // 2
 
         self.buttons = {}  # Reset buttons dict
 
-        # Show Details button
-        details_button_rect = pygame.Rect(button_x_start, button_y, MINIMIZED_BUTTON_WIDTH, MINIMIZED_BUTTON_HEIGHT)
+        # Show Details button (use scaled dimensions)
+        details_button_rect = pygame.Rect(button_x_start, button_y, scaled_button_width, scaled_button_height)
         self.buttons["minimize"] = details_button_rect
 
         # Shadow
@@ -237,13 +243,13 @@ class GameOverWindow:
         pygame.draw.rect(screen, border_color, details_button_rect, 2, border_radius=5)
         details_text = "Show Details (R)"
         details_surface = self.small_font.render(details_text, True, COLOR_TEXT)
-        details_text_x = button_x_start + (MINIMIZED_BUTTON_WIDTH - details_surface.get_width()) // 2
-        details_text_y = button_y + (MINIMIZED_BUTTON_HEIGHT - details_surface.get_height()) // 2
+        details_text_x = button_x_start + (scaled_button_width - details_surface.get_width()) // 2
+        details_text_y = button_y + (scaled_button_height - details_surface.get_height()) // 2
         screen.blit(details_surface, (details_text_x, details_text_y))
 
-        # Menu button
-        menu_button_x = button_x_start + MINIMIZED_BUTTON_WIDTH + MINIMIZED_BUTTON_SPACING
-        menu_button_rect = pygame.Rect(menu_button_x, button_y, MINIMIZED_BUTTON_WIDTH, MINIMIZED_BUTTON_HEIGHT)
+        # Menu button (use scaled dimensions)
+        menu_button_x = button_x_start + scaled_button_width + scaled_button_spacing
+        menu_button_rect = pygame.Rect(menu_button_x, button_y, scaled_button_width, scaled_button_height)
         self.buttons["menu"] = menu_button_rect
 
         # Shadow
@@ -265,13 +271,13 @@ class GameOverWindow:
         pygame.draw.rect(screen, border_color, menu_button_rect, 2, border_radius=5)
         menu_text = "Menu (M)"
         menu_surface = self.small_font.render(menu_text, True, COLOR_TEXT)
-        menu_text_x = menu_button_x + (MINIMIZED_BUTTON_WIDTH - menu_surface.get_width()) // 2
-        menu_text_y = button_y + (MINIMIZED_BUTTON_HEIGHT - menu_surface.get_height()) // 2
+        menu_text_x = menu_button_x + (scaled_button_width - menu_surface.get_width()) // 2
+        menu_text_y = button_y + (scaled_button_height - menu_surface.get_height()) // 2
         screen.blit(menu_surface, (menu_text_x, menu_text_y))
 
-        # Exit button
-        exit_button_x = menu_button_x + MINIMIZED_BUTTON_WIDTH + MINIMIZED_BUTTON_SPACING
-        exit_button_rect = pygame.Rect(exit_button_x, button_y, MINIMIZED_BUTTON_WIDTH, MINIMIZED_BUTTON_HEIGHT)
+        # Exit button (use scaled dimensions)
+        exit_button_x = menu_button_x + scaled_button_width + scaled_button_spacing
+        exit_button_rect = pygame.Rect(exit_button_x, button_y, scaled_button_width, scaled_button_height)
         self.buttons["exit"] = exit_button_rect
 
         # Shadow
@@ -293,8 +299,8 @@ class GameOverWindow:
         pygame.draw.rect(screen, border_color, exit_button_rect, 2, border_radius=5)
         exit_text = "Exit (Q)"
         exit_surface = self.small_font.render(exit_text, True, COLOR_TEXT)
-        exit_text_x = exit_button_x + (MINIMIZED_BUTTON_WIDTH - exit_surface.get_width()) // 2
-        exit_text_y = button_y + (MINIMIZED_BUTTON_HEIGHT - exit_surface.get_height()) // 2
+        exit_text_x = exit_button_x + (scaled_button_width - exit_surface.get_width()) // 2
+        exit_text_y = button_y + (scaled_button_height - exit_surface.get_height()) // 2
         screen.blit(exit_surface, (exit_text_x, exit_text_y))
 
     def _draw_full_window(self, screen: pygame.Surface, screen_width: int, screen_height: int):

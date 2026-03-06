@@ -3678,25 +3678,23 @@ class GraphicalRenderer:
 
         # Draw setup window (on top of everything except help page)
         if self.setup_mode and self.setup_selecting_unit:
-            self.setup_window.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
-            # Draw unit help panel - positioned to the right of setup window
-            # Setup window position scales with resolution
+            # Calculate panel positioning - centered on screen with spacing
             from boneglaive.graphical.ui.scale_utils import scale_manager
-            setup_window_x = scale_manager.scale(100)
-            setup_window_width = scale_manager.scale(500, 'x')
-            spacing = scale_manager.scale(20)
+            setup_window_width = scale_manager.scale(550, 'x')  # Match updated width in setup_window.py
+            help_panel_width = scale_manager.scale(550, 'x')  # Match setup window width
+            spacing = scale_manager.scale(30)  # Spacing between panels
 
-            # Position help panel after setup window with spacing
+            # Calculate total width needed for both panels + spacing
+            total_width = setup_window_width + spacing + help_panel_width
+
+            # Center both panels horizontally on screen
+            setup_window_x = (SCREEN_WIDTH - total_width) // 2
             help_panel_x = setup_window_x + setup_window_width + spacing
             help_panel_y = scale_manager.scale(50, 'y')
-
-            # Make help panel narrower to ensure it doesn't cover left side
-            # Limit width to maximum of 600px scaled, or remaining space, whichever is smaller
-            max_help_width = scale_manager.scale(600, 'x')
-            remaining_width = SCREEN_WIDTH - help_panel_x - spacing
-            help_panel_width = min(max_help_width, remaining_width)
-
             help_panel_height = SCREEN_HEIGHT - scale_manager.scale(100, 'y')
+
+            # Draw both panels with calculated positions
+            self.setup_window.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT, setup_window_x)
             self.setup_help_panel_rect = self.setup_unit_help.draw(self.screen, help_panel_x, help_panel_y, help_panel_width, help_panel_height)
 
         # Draw concede dialog (on top of everything except help page and message log)

@@ -53,38 +53,35 @@ class AboutScreen:
         draw_glaive_icon(surface, 40, 40, COLOR_METAL, length=60, pointing_right=True)
         draw_glaive_icon(surface, width - 100, 40, COLOR_METAL, length=60, pointing_right=False)
 
-        # About screen content
+        # About screen content with improved spacing
+        # Format: (text, font, color, line_height_multiplier)
         lines = [
-            ("Boneglaive v0.9.0b BETA", self.large_font, COLOR_TEXT, True),
-            ("Tactical Turn-Based Combat Game", self.font, COLOR_TEXT, False),
-            ("Beta Release", self.font, COLOR_TEXT, False),
-            ("", self.font, COLOR_TEXT, False),
-            ("Copyright (C) 2025 Psyclimb", self.font, (100, 200, 255), False),
-            ("", self.font, COLOR_TEXT, False),
-            ("This program is free software licensed under GPL-3.0", self.font, (100, 200, 255), False),
-            ("This program comes with ABSOLUTELY NO WARRANTY.", self.font, COLOR_TEXT, False),
-            ("", self.font, COLOR_TEXT, False),
-            ("You are welcome to redistribute it under certain conditions.", self.font, COLOR_TEXT, False),
-            ("See the LICENSE file for full terms.", self.font, COLOR_TEXT, False),
-            ("", self.font, COLOR_TEXT, False),
-            ("Source code: https://github.com/psyclimb/Boneglaive", self.font, (100, 255, 100), False),
-            ("", self.font, COLOR_TEXT, False),
-            ("Built with Python and Pygame", self.font, (180, 180, 180), False),
-            ("", self.font, COLOR_TEXT, False),
-            ("Press any key to return to menu...", self.font, (150, 150, 150), False)
+            ("Boneglaive v0.9.0b BETA", self.large_font, COLOR_TEXT, 2.5),
+            ("Tactical Turn-Based Combat Game", self.font, COLOR_TEXT, 1.2),
+            ("Beta Release", self.font, COLOR_TEXT, 1.8),
+            ("Copyright (C) 2026 Psyclimb", self.font, (100, 200, 255), 2.0),
+            ("This program is free software licensed under GPL-3.0", self.font, (100, 200, 255), 1.2),
+            ("This program comes with ABSOLUTELY NO WARRANTY.", self.font, COLOR_TEXT, 2.0),
+            ("You are welcome to redistribute it under certain conditions.", self.font, COLOR_TEXT, 1.0),
+            ("See the LICENSE file for full terms.", self.font, COLOR_TEXT, 2.0),
+            ("Source code: https://github.com/psyclimb/Boneglaive", self.font, (100, 255, 100), 2.0),
+            ("Built with Python and Pygame", self.font, (180, 180, 180), 2.5),
+            ("Press any key to return to menu...", self.font, (150, 150, 150), 1.0)
         ]
 
-        # Calculate starting position to center content
-        total_height = sum(32 if bold else 24 for _, _, _, bold in lines)
-        start_y = max(40, (self.screen_height - total_height) // 2)
+        # Calculate base line height
+        base_line_height = self.font.get_height()
+
+        # Calculate starting position - significantly higher than center
+        total_height = sum(base_line_height * multiplier for _, _, _, multiplier in lines)
+        start_y = max(100, (self.screen_height - total_height) // 2 - 80)
 
         # Draw each line
         y_pos = start_y
-        for text, font, color, bold in lines:
-            if text:  # Non-empty line
-                text_surface = font.render(text, True, color)
-                text_rect = text_surface.get_rect(centerx=self.screen_width // 2, top=y_pos)
-                surface.blit(text_surface, text_rect)
+        for text, font, color, line_height_multiplier in lines:
+            text_surface = font.render(text, True, color)
+            text_rect = text_surface.get_rect(centerx=self.screen_width // 2, top=y_pos)
+            surface.blit(text_surface, text_rect)
 
-            # Move to next line
-            y_pos += 32 if bold else 24
+            # Move to next line with spacing
+            y_pos += int(base_line_height * line_height_multiplier)

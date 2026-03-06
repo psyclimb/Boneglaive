@@ -657,7 +657,7 @@ class SetupUnitHelp:
         # Estimate content height
         estimated_height = 1200
         content_surface = pygame.Surface((width, estimated_height), pygame.SRCALPHA)
-        content_width = width - 30
+        content_width = width - 40  # Increased padding to prevent text cutoff
         current_y = 0
         sprite_center_x = width // 2
 
@@ -824,7 +824,7 @@ class SetupUnitHelp:
         # Estimate content height
         estimated_height = 2500
         content_surface = pygame.Surface((width, estimated_height), pygame.SRCALPHA)
-        content_width = width - 30
+        content_width = width - 40  # Increased padding to prevent text cutoff
         current_y = 0
 
         # Draw unit sprite (centered at top)
@@ -980,6 +980,7 @@ class SetupUnitHelp:
 
         # Render content if needed (choose simplified or full based on show_advanced flag)
         # For AETHERIC_CURLER, always re-render to animate the flashing glaives
+        # Use full width since scrollbar will be positioned outside panel
         if not self.content_surface or (needs_animation and not self.show_advanced):
             if self.show_advanced:
                 # Check if full help data exists
@@ -1035,7 +1036,7 @@ class SetupUnitHelp:
         content_height = self.content_surface.get_height()
         self.max_scroll = max(0, content_height - visible_height)
 
-        # Set up clipping region
+        # Set up clipping region (use full width, scrollbar outside)
         content_rect = pygame.Rect(x + 10, content_start_y, width - 20, visible_height)
         screen.set_clip(content_rect)
 
@@ -1045,8 +1046,8 @@ class SetupUnitHelp:
         # Clear clipping
         screen.set_clip(None)
 
-        # Draw scrollbar if needed
-        scrollbar_x = x + width
+        # Draw scrollbar if needed (position outside panel, to the right)
+        scrollbar_x = x + width + 5  # Position outside panel with small gap
         self.scrollbar.draw(screen, scrollbar_x, content_start_y, visible_height,
                            self.scroll_offset, self.max_scroll, visible_height, content_height)
 
