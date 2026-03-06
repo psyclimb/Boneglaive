@@ -777,10 +777,11 @@ class SetupPlacementBar:
         self.hovered_button = False
         self.button_rect = None
 
-        # Bar dimensions (matches game over minimized bar)
-        self.bar_height = 70
-        self.button_width = 200
-        self.button_height = 40
+        # Bar dimensions (scale with resolution)
+        from .scale_utils import scale_manager
+        self.bar_height = scale_manager.scale(70, 'y')
+        self.button_width = scale_manager.scale(200, 'x')
+        self.button_height = scale_manager.scale(40, 'y')
 
     def draw(self, screen: pygame.Surface, screen_width: int, screen_height: int, unit_name: str, current_player: int = 1):
         """
@@ -794,14 +795,17 @@ class SetupPlacementBar:
             current_player: Current player (1 or 2) for border color
         """
         # Calculate bar dimensions (fits in center game board area)
-        # Screen layout: LEFT_PANEL (280px) | GAME_BOARD (920px) | RIGHT_PANEL (280px)
-        LEFT_PANEL_WIDTH = 280
-        GAME_BOARD_WIDTH = 920
-        TOP_BAR_HEIGHT = 50
+        # Use dynamic values from renderer that scale with resolution
+        from .scale_utils import scale_manager
+        from boneglaive.graphical.renderer import LEFT_PANEL_WIDTH, GAME_BOARD_WIDTH, TOP_BAR_HEIGHT
 
-        bar_width = GAME_BOARD_WIDTH - 20  # 900px (leave 10px margins)
-        bar_x = LEFT_PANEL_WIDTH + 10  # 290px (start after left panel with margin)
-        bar_y = TOP_BAR_HEIGHT + 20  # 70px (below top bar with spacing)
+        # Scale spacing values
+        margin = scale_manager.scale(10)
+        top_spacing = scale_manager.scale(20, 'y')
+
+        bar_width = GAME_BOARD_WIDTH - margin * 2  # Leave margins on both sides
+        bar_x = LEFT_PANEL_WIDTH + margin  # Start after left panel with margin
+        bar_y = TOP_BAR_HEIGHT + top_spacing  # Below top bar with spacing
         bar_rect = pygame.Rect(bar_x, bar_y, bar_width, self.bar_height)
 
         # Draw bar background with bone theme
@@ -812,16 +816,17 @@ class SetupPlacementBar:
         player_color = COLOR_PLAYER1 if current_player == 1 else COLOR_PLAYER2
         pygame.draw.rect(screen, player_color, bar_rect, 3)
 
-        # Add bone corners to bar
-        corner_padding = 8
-        corner_radius = 5
+        # Add bone corners to bar (scale decoration sizes)
+        corner_padding = scale_manager.scale(8)
+        corner_radius = scale_manager.scale(5)
         draw_bone_corner(screen, bar_x + corner_padding, bar_y + corner_padding, corner_radius)
         draw_bone_corner(screen, bar_x + bar_width - corner_padding, bar_y + corner_padding, corner_radius)
         draw_bone_corner(screen, bar_x + corner_padding, bar_y + self.bar_height - corner_padding, corner_radius)
         draw_bone_corner(screen, bar_x + bar_width - corner_padding, bar_y + self.bar_height - corner_padding, corner_radius)
 
         # Draw text on left side of bar
-        text_x = bar_x + 20
+        text_padding = scale_manager.scale(20)
+        text_x = bar_x + text_padding
         text_y = bar_y + (self.bar_height - self.font.get_height()) // 2
 
         # Title text (use player color)
@@ -830,7 +835,8 @@ class SetupPlacementBar:
         screen.blit(placing_surface, (text_x, text_y))
 
         # Draw button on right side of bar
-        button_x = bar_x + bar_width - self.button_width - 20
+        button_padding = scale_manager.scale(20)
+        button_x = bar_x + bar_width - self.button_width - button_padding
         button_y = bar_y + (self.bar_height - self.button_height) // 2
         self.button_rect = pygame.Rect(button_x, button_y, self.button_width, self.button_height)
 

@@ -109,12 +109,15 @@ class TopBar:
         pygame.draw.line(surface, player_color, (0, TOP_BAR_HEIGHT - 3),
                         (screen_width, TOP_BAR_HEIGHT - 3), 1)
 
-        # Calculate section positions
+        # Calculate section positions (use dynamic panel widths)
+        from boneglaive.graphical.renderer import LEFT_PANEL_WIDTH, GAME_BOARD_WIDTH
+
         left_section_start = SECTION_PADDING
-        # Center GP with the game board (280px left panel + 920px game board / 2)
-        # Game board center = 280 + (920 / 2) = 280 + 460 = 740
-        game_board_center = 280 + (920 // 2)
-        right_section_start = screen_width - 300
+        # Center GP with the game board (left panel + half of game board width)
+        game_board_center = LEFT_PANEL_WIDTH + (GAME_BOARD_WIDTH // 2)
+        # Right section scales with resolution
+        right_section_width = scale_manager.scale(300, 'x')
+        right_section_start = screen_width - right_section_width
 
         # Draw left section (empty - turn moved to left panel above motor, player moved to right panel)
         # No longer drawing anything in the top bar left section
@@ -182,7 +185,9 @@ class TopBar:
 
     def _draw_gp_score(self, surface: pygame.Surface, center_x: int):
         """Draw GP score display centered at given x position."""
-        y = TEXT_PADDING + 5
+        # Scale spacing values
+        y_offset = scale_manager.scale(5, 'y')
+        y = TEXT_PADDING + y_offset
 
         # Check for pulse animation
         pulse_alpha = 0
@@ -191,11 +196,16 @@ class TopBar:
             if elapsed < 0.5:
                 pulse_alpha = int(255 * (1 - elapsed / 0.5))
 
+        # Scale text dimensions
+        max_text_width = scale_manager.scale(40, 'x')
+        max_text_height = scale_manager.scale(25, 'y')
+        max_sep_width = scale_manager.scale(20, 'x')
+
         # Pre-render all components to calculate total width for centering
         label = render_fitted_text(
             "GP:",
-            max_width=40,
-            max_height=25,
+            max_width=max_text_width,
+            max_height=max_text_height,
             color=COLOR_TEXT_DIM,
             base_font_size=20,
             min_font_size=16,
@@ -204,8 +214,8 @@ class TopBar:
 
         p1_text = render_fitted_text(
             str(self.player1_gp),
-            max_width=40,
-            max_height=25,
+            max_width=max_text_width,
+            max_height=max_text_height,
             color=COLOR_PLAYER1,
             base_font_size=20,
             min_font_size=16,
@@ -214,8 +224,8 @@ class TopBar:
 
         sep = render_fitted_text(
             "|",
-            max_width=20,
-            max_height=25,
+            max_width=max_sep_width,
+            max_height=max_text_height,
             color=COLOR_TEXT_DIM,
             base_font_size=20,
             min_font_size=16,
@@ -224,50 +234,55 @@ class TopBar:
 
         p2_text = render_fitted_text(
             str(self.player2_gp),
-            max_width=40,
-            max_height=25,
+            max_width=max_text_width,
+            max_height=max_text_height,
             color=COLOR_PLAYER2,
             base_font_size=20,
             min_font_size=16,
             max_font_size=24
         )
 
-        # Calculate total width
-        total_width = (label.get_width() + 5 + p1_text.get_width() + 5 +
-                      sep.get_width() + 5 + p2_text.get_width())
+        # Calculate total width with scaled spacing
+        element_spacing = scale_manager.scale(5, 'x')
+        total_width = (label.get_width() + element_spacing + p1_text.get_width() + element_spacing +
+                      sep.get_width() + element_spacing + p2_text.get_width())
 
         # Start x position to center the entire GP display
         x = center_x - (total_width // 2)
 
         # Draw "GP:" label
         surface.blit(label, (x, y))
-        x += label.get_width() + 5
+        x += label.get_width() + element_spacing
 
         # Draw Player 1 score (with pulse if active)
+        glow_padding = scale_manager.scale(8)
+        glow_offset = scale_manager.scale(4)
+        glow_radius = scale_manager.scale(3)
+
         if pulse_alpha > 0 and self.current_player == 1:
             glow_surface = pygame.Surface(
-                (p1_text.get_width() + 8, p1_text.get_height() + 8),
+                (p1_text.get_width() + glow_padding, p1_text.get_height() + glow_padding),
                 pygame.SRCALPHA
             )
             pygame.draw.rect(glow_surface, (*COLOR_PLAYER1, pulse_alpha),
-                           glow_surface.get_rect(), border_radius=3)
-            surface.blit(glow_surface, (x - 4, y - 4))
+                           glow_surface.get_rect(), border_radius=glow_radius)
+            surface.blit(glow_surface, (x - glow_offset, y - glow_offset))
         surface.blit(p1_text, (x, y))
-        x += p1_text.get_width() + 5
+        x += p1_text.get_width() + element_spacing
 
         # Draw separator
         surface.blit(sep, (x, y))
-        x += sep.get_width() + 5
+        x += sep.get_width() + element_spacing
 
         # Draw Player 2 score (with pulse if active)
         if pulse_alpha > 0 and self.current_player == 2:
             glow_surface = pygame.Surface(
-                (p2_text.get_width() + 8, p2_text.get_height() + 8),
+                (p2_text.get_width() + glow_padding, p2_text.get_height() + glow_padding),
                 pygame.SRCALPHA
             )
             pygame.draw.rect(glow_surface, (*COLOR_PLAYER2, pulse_alpha),
-                           glow_surface.get_rect(), border_radius=3)
-            surface.blit(glow_surface, (x - 4, y - 4))
+                           glow_surface.get_rect(), border_radius=glow_radius)
+            surface.blit(glow_surface, (x - glow_offset, y - glow_offset))
         surface.blit(p2_text, (x, y))
 
     def _draw_mode_indicator(self, surface: pygame.Surface, x: int):

@@ -17,8 +17,12 @@ COLOR_BELT_DARK = (30, 30, 30)
 COLOR_BELT_LIGHT = (50, 50, 50)
 COLOR_RIVET = (60, 60, 65)
 
-MOTOR_WIDTH = 250
-MOTOR_HEIGHT = 180
+# Import scaling utilities
+from .scale_utils import scale_manager
+
+# Scale motor dimensions based on resolution
+MOTOR_WIDTH = scale_manager.scale(250, 'x')
+MOTOR_HEIGHT = scale_manager.scale(180, 'y')
 
 
 class MotorAnimation:
@@ -30,14 +34,19 @@ class MotorAnimation:
         self.rotation_speed = 2.0  # Degrees per frame when running
         self.belt_offset = 0.0     # Belt animation offset
 
-        # Gear positions and sizes
-        self.main_gear_pos = (80, 90)     # Left gear (larger)
-        self.main_gear_radius = 45
-        self.driven_gear_pos = (180, 90)  # Right gear (smaller)
-        self.driven_gear_radius = 30
+        # Scale gear positions and sizes based on resolution
+        self.main_gear_pos = (scale_manager.scale(80, 'x'), scale_manager.scale(90, 'y'))     # Left gear (larger)
+        self.main_gear_radius = scale_manager.scale(45, 'uniform')
+        self.driven_gear_pos = (scale_manager.scale(180, 'x'), scale_manager.scale(90, 'y'))  # Right gear (smaller)
+        self.driven_gear_radius = scale_manager.scale(30, 'uniform')
 
-        # Motor housing dimensions
-        self.housing_rect = pygame.Rect(20, 20, 210, 140)
+        # Motor housing dimensions (scaled)
+        self.housing_rect = pygame.Rect(
+            scale_manager.scale(20),
+            scale_manager.scale(20),
+            scale_manager.scale(210, 'x'),
+            scale_manager.scale(140, 'y')
+        )
 
     def start(self):
         """Start the motor animation."""
@@ -85,14 +94,22 @@ class MotorAnimation:
         pygame.draw.rect(motor_surface, COLOR_METAL_DARK, self.housing_rect)
         pygame.draw.rect(motor_surface, COLOR_BRASS, self.housing_rect, 3)
 
-        # Draw decorative rivets on housing
+        # Draw decorative rivets on housing (scaled positions and sizes)
         rivet_positions = [
-            (30, 30), (200, 30), (30, 150), (200, 150),
-            (115, 25), (30, 90), (200, 90)
+            (scale_manager.scale(30, 'x'), scale_manager.scale(30, 'y')),
+            (scale_manager.scale(200, 'x'), scale_manager.scale(30, 'y')),
+            (scale_manager.scale(30, 'x'), scale_manager.scale(150, 'y')),
+            (scale_manager.scale(200, 'x'), scale_manager.scale(150, 'y')),
+            (scale_manager.scale(115, 'x'), scale_manager.scale(25, 'y')),
+            (scale_manager.scale(30, 'x'), scale_manager.scale(90, 'y')),
+            (scale_manager.scale(200, 'x'), scale_manager.scale(90, 'y'))
         ]
+        rivet_outer_size = scale_manager.scale(4, 'uniform')
+        rivet_inner_size = scale_manager.scale(2, 'uniform')
+
         for rivet_pos in rivet_positions:
-            pygame.draw.circle(motor_surface, COLOR_RIVET, rivet_pos, 4)
-            pygame.draw.circle(motor_surface, COLOR_METAL_LIGHT, rivet_pos, 2)
+            pygame.draw.circle(motor_surface, COLOR_RIVET, rivet_pos, rivet_outer_size)
+            pygame.draw.circle(motor_surface, COLOR_METAL_LIGHT, rivet_pos, rivet_inner_size)
 
         # Draw belt connecting the gears
         self._draw_belt(motor_surface)
@@ -103,11 +120,16 @@ class MotorAnimation:
         self._draw_gear(motor_surface, self.driven_gear_pos, self.driven_gear_radius,
                        -self.rotation_angle * 1.5, teeth_count=8)  # Reverse rotation, faster
 
-        # Draw center shafts
-        pygame.draw.circle(motor_surface, COLOR_METAL_LIGHT, self.main_gear_pos, 10)
-        pygame.draw.circle(motor_surface, COLOR_METAL_DARK, self.main_gear_pos, 6)
-        pygame.draw.circle(motor_surface, COLOR_METAL_LIGHT, self.driven_gear_pos, 8)
-        pygame.draw.circle(motor_surface, COLOR_METAL_DARK, self.driven_gear_pos, 5)
+        # Draw center shafts (scaled radii)
+        shaft_outer_main = scale_manager.scale(10, 'uniform')
+        shaft_inner_main = scale_manager.scale(6, 'uniform')
+        shaft_outer_driven = scale_manager.scale(8, 'uniform')
+        shaft_inner_driven = scale_manager.scale(5, 'uniform')
+
+        pygame.draw.circle(motor_surface, COLOR_METAL_LIGHT, self.main_gear_pos, shaft_outer_main)
+        pygame.draw.circle(motor_surface, COLOR_METAL_DARK, self.main_gear_pos, shaft_inner_main)
+        pygame.draw.circle(motor_surface, COLOR_METAL_LIGHT, self.driven_gear_pos, shaft_outer_driven)
+        pygame.draw.circle(motor_surface, COLOR_METAL_DARK, self.driven_gear_pos, shaft_inner_driven)
 
         # Blit to main surface
         surface.blit(motor_surface, (x, y))
@@ -118,33 +140,36 @@ class MotorAnimation:
         gear1_x, gear1_y = self.main_gear_pos
         gear2_x, gear2_y = self.driven_gear_pos
 
-        # Top and bottom belt segments
-        belt_width = 8
+        # Top and bottom belt segments (scaled dimensions)
+        belt_width = scale_manager.scale(8, 'uniform')
+        belt_offset_from_gear = scale_manager.scale(5, 'uniform')
 
         # Top belt line
-        top_y = gear1_y - self.main_gear_radius + 5
+        top_y = gear1_y - self.main_gear_radius + belt_offset_from_gear
         pygame.draw.line(surface, COLOR_BELT_DARK,
                         (gear1_x, top_y), (gear2_x, top_y), belt_width)
 
         # Bottom belt line
-        bottom_y = gear1_y + self.main_gear_radius - 5
+        bottom_y = gear1_y + self.main_gear_radius - belt_offset_from_gear
         pygame.draw.line(surface, COLOR_BELT_DARK,
                         (gear1_x, bottom_y), (gear2_x, bottom_y), belt_width)
 
-        # Draw belt segments/stitching pattern when running
+        # Draw belt segments/stitching pattern when running (scaled dimensions)
         if self.is_running:
-            segment_spacing = 10
+            segment_spacing = scale_manager.scale(10, 'x')
             offset = int(self.belt_offset)
+            stitch_height = scale_manager.scale(2, 'uniform')
+            stitch_width = scale_manager.scale(2, 'uniform')
 
             # Top belt stitching
             for i in range(gear1_x + offset, gear2_x, segment_spacing):
                 pygame.draw.line(surface, COLOR_BELT_LIGHT,
-                               (i, top_y - 2), (i, top_y + 2), 2)
+                               (i, top_y - stitch_height), (i, top_y + stitch_height), stitch_width)
 
             # Bottom belt stitching (reverse direction)
             for i in range(gear2_x - offset, gear1_x, -segment_spacing):
                 pygame.draw.line(surface, COLOR_BELT_LIGHT,
-                               (i, bottom_y - 2), (i, bottom_y + 2), 2)
+                               (i, bottom_y - stitch_height), (i, bottom_y + stitch_height), stitch_width)
 
         # Draw belt around left gear (arc)
         arc_rect_left = pygame.Rect(
@@ -180,13 +205,14 @@ class MotorAnimation:
         """
         center_x, center_y = pos
 
-        # Draw gear body (circle)
+        # Draw gear body (circle) - scale border width
+        gear_border_width = scale_manager.scale(3, 'uniform')
         pygame.draw.circle(surface, COLOR_BRASS, pos, radius)
-        pygame.draw.circle(surface, COLOR_METAL_DARK, pos, radius - 3)
+        pygame.draw.circle(surface, COLOR_METAL_DARK, pos, radius - gear_border_width)
 
-        # Draw gear teeth
-        tooth_height = 8
-        tooth_width = 15
+        # Draw gear teeth (scaled dimensions)
+        tooth_height = scale_manager.scale(8, 'uniform')
+        tooth_width = scale_manager.scale(15, 'uniform')
         angle_step = 360 / teeth_count
 
         for i in range(teeth_count):
@@ -200,27 +226,30 @@ class MotorAnimation:
             tooth_rect = pygame.Rect(0, 0, tooth_width, tooth_height)
             tooth_rect.center = (int(tooth_x), int(tooth_y))
 
-            # Rotate tooth to face outward
+            # Rotate tooth to face outward (scale border width)
+            tooth_border = scale_manager.scale(1, 'uniform')
             tooth_surface = pygame.Surface((tooth_width, tooth_height), pygame.SRCALPHA)
             pygame.draw.rect(tooth_surface, COLOR_BRASS, (0, 0, tooth_width, tooth_height))
-            pygame.draw.rect(tooth_surface, COLOR_METAL_LIGHT, (0, 0, tooth_width, tooth_height), 1)
+            pygame.draw.rect(tooth_surface, COLOR_METAL_LIGHT, (0, 0, tooth_width, tooth_height), tooth_border)
 
             rotated_tooth = pygame.transform.rotate(tooth_surface, -angle - i * angle_step)
             rotated_rect = rotated_tooth.get_rect(center=(int(tooth_x), int(tooth_y)))
 
             surface.blit(rotated_tooth, rotated_rect)
 
-        # Draw inner gear details (spokes)
+        # Draw inner gear details (spokes) - scaled dimensions
         spoke_count = 6
         spoke_angle_step = 360 / spoke_count
         inner_radius = radius // 3
+        spoke_inset = scale_manager.scale(10, 'uniform')
+        spoke_width = scale_manager.scale(3, 'uniform')
 
         for i in range(spoke_count):
             spoke_angle = math.radians(angle + i * spoke_angle_step)
-            end_x = center_x + (radius - 10) * math.cos(spoke_angle)
-            end_y = center_y + (radius - 10) * math.sin(spoke_angle)
+            end_x = center_x + (radius - spoke_inset) * math.cos(spoke_angle)
+            end_y = center_y + (radius - spoke_inset) * math.sin(spoke_angle)
             start_x = center_x + inner_radius * math.cos(spoke_angle)
             start_y = center_y + inner_radius * math.sin(spoke_angle)
 
             pygame.draw.line(surface, COLOR_METAL_LIGHT,
-                           (start_x, start_y), (end_x, end_y), 3)
+                           (start_x, start_y), (end_x, end_y), spoke_width)

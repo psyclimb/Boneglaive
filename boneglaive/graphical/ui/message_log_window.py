@@ -26,9 +26,13 @@ COLOR_TEXT_PLAYER2 = (100, 150, 255)  # Blue - Player 2 messages
 COLOR_SCROLLBAR = (80, 80, 80)
 COLOR_SCROLLBAR_HANDLE = (120, 120, 120)
 
-LINE_HEIGHT = 20
-PADDING = 20
-SCROLLBAR_WIDTH = 12
+# Import scaling utilities
+from .scale_utils import scale_manager
+
+# Scale dimensions based on resolution
+LINE_HEIGHT = scale_manager.scale(20, 'y')
+PADDING = scale_manager.scale(20)
+SCROLLBAR_WIDTH = scale_manager.scale(12, 'x')
 
 # Pre-compile regex patterns for performance
 import re
@@ -155,10 +159,13 @@ class MessageLogWindow:
         title_x = window_x + (window_width - title_text.get_width()) // 2
         surface.blit(title_text, (title_x, window_y + PADDING))
 
-        # Calculate content area
-        content_y = window_y + PADDING + 40
-        content_height = window_height - PADDING * 2 - 40
-        content_width = window_width - PADDING * 2 - SCROLLBAR_WIDTH - 10
+        # Calculate content area (scale the spacing values)
+        title_spacing = scale_manager.scale(40, 'y')
+        scrollbar_margin = scale_manager.scale(10, 'x')
+
+        content_y = window_y + PADDING + title_spacing
+        content_height = window_height - PADDING * 2 - title_spacing
+        content_width = window_width - PADDING * 2 - SCROLLBAR_WIDTH - scrollbar_margin
         self.max_visible_lines = content_height // LINE_HEIGHT
 
         # Flatten all messages into lines with their colors
@@ -251,7 +258,8 @@ class MessageLogWindow:
                            (scrollbar_x, scrollbar_y, SCROLLBAR_WIDTH, scrollbar_height))
 
             # Scrollbar handle
-            handle_height = max(20, int(scrollbar_height * (self.max_visible_lines / total_lines)))
+            min_handle_height = scale_manager.scale(20, 'y')
+            handle_height = max(min_handle_height, int(scrollbar_height * (self.max_visible_lines / total_lines)))
             scroll_ratio = self.scroll_offset / (total_lines - self.max_visible_lines)
             handle_y = scrollbar_y + int((scrollbar_height - handle_height) * (1 - scroll_ratio))
 

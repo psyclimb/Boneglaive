@@ -3624,10 +3624,18 @@ class GraphicalRenderer:
         if self.show_skills:
             self.skill_bar.draw(main_surface, SCREEN_WIDTH, SCREEN_HEIGHT, TOP_BAR_HEIGHT)
 
-        # Draw combat log (below map, horizontal bar - maximized to fit space)
-        combat_log_x = LEFT_PANEL_WIDTH + 10  # 290
-        combat_log_y = GRID_OFFSET_Y + GAME_BOARD_HEIGHT + 10  # Below map with spacing
-        self.combat_log.draw(main_surface, combat_log_x, combat_log_y, height=90, width=900)
+        # Draw combat log (below map, horizontal bar - dynamically scaled)
+        # Position it in the game board area with proper spacing
+        from boneglaive.graphical.ui.scale_utils import scale_manager
+        log_spacing = scale_manager.scale(10)
+        log_height = scale_manager.scale(90, 'y')
+
+        combat_log_x = LEFT_PANEL_WIDTH + log_spacing
+        combat_log_y = GRID_OFFSET_Y + GAME_BOARD_HEIGHT + log_spacing
+        # Width should fill the game board area (between the two side panels)
+        combat_log_width = GAME_BOARD_WIDTH - log_spacing * 2
+
+        self.combat_log.draw(main_surface, combat_log_x, combat_log_y, height=log_height, width=combat_log_width)
 
         # Draw UI (includes all panels and components)
         self.draw_ui(main_surface)
@@ -3671,12 +3679,24 @@ class GraphicalRenderer:
         # Draw setup window (on top of everything except help page)
         if self.setup_mode and self.setup_selecting_unit:
             self.setup_window.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
-            # Draw unit help panel - large horizontal panel to the right of setup window
-            # Setup window: x=100, width=500, so ends at x=600
-            help_panel_x = 620  # Start 20px after setup window
-            help_panel_y = 50
-            help_panel_width = SCREEN_WIDTH - help_panel_x - 20  # Fill remaining width
-            help_panel_height = SCREEN_HEIGHT - 100
+            # Draw unit help panel - positioned to the right of setup window
+            # Setup window position scales with resolution
+            from boneglaive.graphical.ui.scale_utils import scale_manager
+            setup_window_x = scale_manager.scale(100)
+            setup_window_width = scale_manager.scale(500, 'x')
+            spacing = scale_manager.scale(20)
+
+            # Position help panel after setup window with spacing
+            help_panel_x = setup_window_x + setup_window_width + spacing
+            help_panel_y = scale_manager.scale(50, 'y')
+
+            # Make help panel narrower to ensure it doesn't cover left side
+            # Limit width to maximum of 600px scaled, or remaining space, whichever is smaller
+            max_help_width = scale_manager.scale(600, 'x')
+            remaining_width = SCREEN_WIDTH - help_panel_x - spacing
+            help_panel_width = min(max_help_width, remaining_width)
+
+            help_panel_height = SCREEN_HEIGHT - scale_manager.scale(100, 'y')
             self.setup_help_panel_rect = self.setup_unit_help.draw(self.screen, help_panel_x, help_panel_y, help_panel_width, help_panel_height)
 
         # Draw concede dialog (on top of everything except help page and message log)
@@ -4361,23 +4381,32 @@ class GraphicalRenderer:
                         (LEFT_PANEL_WIDTH - 1, TOP_BAR_HEIGHT),
                         (LEFT_PANEL_WIDTH - 1, SCREEN_HEIGHT - BOTTOM_BAR_HEIGHT), 2)
 
+        # Scale panel spacing values
+        from boneglaive.graphical.ui.scale_utils import scale_manager
+        panel_padding_sm = scale_manager.scale(5)
+        panel_padding_md = scale_manager.scale(10)
+        panel_padding_lg = scale_manager.scale(15)
+        turn_spacing = scale_manager.scale(40, 'y')
+        motor_height_spacing = scale_manager.scale(190, 'y')
+        player_spacing = scale_manager.scale(35, 'y')
+
         if ui_layout == "reversed":
             # Draw turn counter, motor, and action menu on left panel
-            turn_y = left_panel_y + 10
+            turn_y = left_panel_y + panel_padding_md
             self._draw_turn_counter(surface, left_panel_x, turn_y)
-            motor_y = turn_y + 40
-            self.motor_animation.draw(surface, left_panel_x + 15, motor_y)
-            action_menu_y = motor_y + 190
-            self.action_menu.draw(surface, left_panel_x + 5, action_menu_y)
+            motor_y = turn_y + turn_spacing
+            self.motor_animation.draw(surface, left_panel_x + panel_padding_lg, motor_y)
+            action_menu_y = motor_y + motor_height_spacing
+            self.action_menu.draw(surface, left_panel_x + panel_padding_sm, action_menu_y)
         else:
             # Draw player indicator, unit status bar, and unit info on left panel
-            player_y = left_panel_y + 5
+            player_y = left_panel_y + panel_padding_sm
             self._draw_player_indicator(surface, left_panel_x, player_y)
-            unit_bar_y = player_y + 35
+            unit_bar_y = player_y + player_spacing
             unit_bar_height = self.unit_status_bar.get_height()
-            self.unit_status_bar.draw(surface, left_panel_x + 5, unit_bar_y)
-            unit_info_y = unit_bar_y + unit_bar_height + 15
-            self.unit_info_panel.draw(surface, left_panel_x + 10, unit_info_y)
+            self.unit_status_bar.draw(surface, left_panel_x + panel_padding_sm, unit_bar_y)
+            unit_info_y = unit_bar_y + unit_bar_height + panel_padding_lg
+            self.unit_info_panel.draw(surface, left_panel_x + panel_padding_md, unit_info_y)
 
         # === RIGHT PANEL (Dedicated Space) ===
         right_panel_x = SCREEN_WIDTH - RIGHT_PANEL_WIDTH  # Starts at right edge - panel width
@@ -4394,21 +4423,21 @@ class GraphicalRenderer:
 
         if ui_layout == "reversed":
             # Draw player indicator, unit status bar, and unit info on right panel
-            player_y = right_panel_y + 5
+            player_y = right_panel_y + panel_padding_sm
             self._draw_player_indicator(surface, right_panel_x, player_y)
-            unit_bar_y = player_y + 35
+            unit_bar_y = player_y + player_spacing
             unit_bar_height = self.unit_status_bar.get_height()
-            self.unit_status_bar.draw(surface, right_panel_x + 5, unit_bar_y)
-            unit_info_y = unit_bar_y + unit_bar_height + 15
-            self.unit_info_panel.draw(surface, right_panel_x + 10, unit_info_y)
+            self.unit_status_bar.draw(surface, right_panel_x + panel_padding_sm, unit_bar_y)
+            unit_info_y = unit_bar_y + unit_bar_height + panel_padding_lg
+            self.unit_info_panel.draw(surface, right_panel_x + panel_padding_md, unit_info_y)
         else:
             # Draw turn counter, motor, and action menu on right panel
-            turn_y = right_panel_y + 10
+            turn_y = right_panel_y + panel_padding_md
             self._draw_turn_counter(surface, right_panel_x, turn_y)
-            motor_y = turn_y + 40
-            self.motor_animation.draw(surface, right_panel_x + 15, motor_y)
-            action_menu_y = motor_y + 190
-            self.action_menu.draw(surface, right_panel_x + 5, action_menu_y)
+            motor_y = turn_y + turn_spacing
+            self.motor_animation.draw(surface, right_panel_x + panel_padding_lg, motor_y)
+            action_menu_y = motor_y + motor_height_spacing
+            self.action_menu.draw(surface, right_panel_x + panel_padding_sm, action_menu_y)
 
     def _draw_turn_counter(self, surface: pygame.Surface, x: int, y: int):
         """Draw turn counter (works on either panel)."""
