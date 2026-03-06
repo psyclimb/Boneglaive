@@ -3271,7 +3271,7 @@ class GraphicalRenderer:
         # Create animation via factory
         print(f"  [Renderer] Creating animation for {skill_name}...")
 
-        # Extract additional kwargs to pass to factory (e.g., is_trap, trap_cone_positions)
+        # Extract additional kwargs to pass to factory (e.g., is_trap, trap_cone_positions, death_pos, etc.)
         extra_kwargs = {}
         if 'is_trap' in event.kwargs:
             extra_kwargs['is_trap'] = event.kwargs['is_trap']
@@ -3279,6 +3279,16 @@ class GraphicalRenderer:
         if 'trap_cone_positions' in event.kwargs:
             extra_kwargs['trap_cone_positions'] = event.kwargs['trap_cone_positions']
             print(f"  [Renderer] Using pre-calculated trap cone positions")
+        # Pass through death-related animation parameters
+        if 'death_pos' in event.kwargs:
+            extra_kwargs['death_pos'] = event.kwargs['death_pos']
+            print(f"  [Renderer] Death animation: death_pos={extra_kwargs['death_pos']}")
+        if 'affected_allies' in event.kwargs:
+            extra_kwargs['affected_allies'] = event.kwargs['affected_allies']
+            print(f"  [Renderer] Death animation: {len(event.kwargs['affected_allies'])} allies affected")
+        if 'heal_amount' in event.kwargs:
+            extra_kwargs['heal_amount'] = event.kwargs['heal_amount']
+            print(f"  [Renderer] Death animation: heal_amount={extra_kwargs['heal_amount']}")
 
         animation = AnimationFactory.create_animation(
             skill_name,

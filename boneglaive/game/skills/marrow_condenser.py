@@ -754,21 +754,20 @@ class BoneTitheSkill(ActiveSkill):
     Active skill for MARROW CONDENSER.
     Extracts a tithe of bone marrow from nearby enemies, damaging them while
     strengthening the MARROW CONDENSER with their essence.
-    
-    When upgraded:
-    - Increases HP gain per enemy hit from +1 to +2
+
+    When upgraded (Dominion):
     - Damage scales with all kills (1 + kill count), including kills from before the upgrade
     """
-    
+
     def __init__(self):
         super().__init__(
             name="Bone Tithe",
             key="B",
-            description="Extracts marrow from adjacent enemies for 1 damage and gains +1 HP for each enemy hit.",
+            description="Extracts marrow from enemies in range 2 beam pattern for 1 damage and gains +1 HP for each enemy hit.",
             target_type=TargetType.SELF,  # Self-targeted area effect
             cooldown=1,
             range_=0,
-            area=1  # 3x3 area (center + 1 in each direction)
+            area=2  # 5x5 area (center + 2 in each direction)
         )
         self.upgraded = False
         self.base_damage = 1  # Base damage (increases with kills)
@@ -850,9 +849,7 @@ class BoneTitheSkill(ActiveSkill):
         if hasattr(user, 'passive_skill') and hasattr(user.passive_skill, 'bone_tithe_upgraded'):
             dominion_upgraded = user.passive_skill.bone_tithe_upgraded
 
-        # Check for manual upgrade (from upgrade points)
-        from boneglaive.game.upgrades import UpgradeManager
-        manual_upgraded = UpgradeManager.is_skill_upgraded(user, "Bone Tithe")
+        # Note: Manual upgrade (from UP) now provides death healing effect, not area expansion
 
         # Calculate damage based on Dominion upgrade status
         if dominion_upgraded:
@@ -867,43 +864,30 @@ class BoneTitheSkill(ActiveSkill):
             # Base version: Flat damage with no kill count bonus
             damage = self.base_damage
 
-        # Generate area of effect
+        # Generate area of effect - always 5x5 beam pattern
         effect_area = []
         center_y, center_x = user.y, user.x
 
-        if manual_upgraded:
-            # Upgraded: Beam pattern in 8 directions, extending 2 tiles out
-            directions = [
-                (-1, 0),   # North
-                (-1, 1),   # Northeast
-                (0, 1),    # East
-                (1, 1),    # Southeast
-                (1, 0),    # South
-                (1, -1),   # Southwest
-                (0, -1),   # West
-                (-1, -1)   # Northwest
-            ]
+        # Beam pattern in 8 directions, extending 2 tiles out
+        directions = [
+            (-1, 0),   # North
+            (-1, 1),   # Northeast
+            (0, 1),    # East
+            (1, 1),    # Southeast
+            (1, 0),    # South
+            (1, -1),   # Southwest
+            (0, -1),   # West
+            (-1, -1)   # Northwest
+        ]
 
-            # For each direction, add tiles at range 1 and range 2
-            for dy, dx in directions:
-                for distance in [1, 2]:
-                    tile_y = center_y + (dy * distance)
-                    tile_x = center_x + (dx * distance)
+        # For each direction, add tiles at range 1 and range 2
+        for dy, dx in directions:
+            for distance in [1, 2]:
+                tile_y = center_y + (dy * distance)
+                tile_x = center_x + (dx * distance)
 
-                    if game.is_valid_position(tile_y, tile_x):
-                        effect_area.append((tile_y, tile_x))
-        else:
-            # Base: 3x3 area (all adjacent tiles)
-            for dy in range(-1, 2):
-                for dx in range(-1, 2):
-                    # Skip the center position (user's position)
-                    if dy == 0 and dx == 0:
-                        continue
-
-                    tile_y, tile_x = center_y + dy, center_x + dx
-
-                    if game.is_valid_position(tile_y, tile_x):
-                        effect_area.append((tile_y, tile_x))
+                if game.is_valid_position(tile_y, tile_x):
+                    effect_area.append((tile_y, tile_x))
         
         # Track affected units for effects and animation
         enemies_hit = []
@@ -974,6 +958,9 @@ class BoneTitheSkill(ActiveSkill):
                 user.max_hp += hp_gained
                 actual_heal = user.heal(hp_gained, "bone marrow gain")
                 hp_gained = actual_heal  # Update for display purposes
+
+                # Track total HP gained through Bone Tithe for the UP upgrade effect
+                user.bone_tithe_hp_gained = getattr(user, 'bone_tithe_hp_gained', 0) + hp_gained
                 
                 # Show healing number if UI is available (ASCII mode only)
                 if ui and hasattr(ui, 'renderer') and hasattr(ui.renderer, 'draw_damage_text') and hp_gained > 0:
@@ -1035,8 +1022,8 @@ class BoneTitheSkill(ActiveSkill):
                 # Start from user position
                 y, x = user.y, user.x
 
-                # Calculate steps outward (2 for base, 3 for upgraded 5x5)
-                max_steps = 3 if manual_upgraded else 2
+                # Calculate steps outward (always 3 for 5x5)
+                max_steps = 3
                 for step in range(1, max_steps + 1):
                     next_y = y + dy
                     next_x = x + dx

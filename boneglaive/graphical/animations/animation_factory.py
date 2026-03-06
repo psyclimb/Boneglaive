@@ -50,6 +50,7 @@ from boneglaive.graphical.animations.delphic_appraiser import (
 from boneglaive.graphical.animations.marrow_condenser import (
     OssifyAnimation,
     BoneTitheAnimation,
+    BoneTitheDeathHealAnimation,
     MarrowDikeAnimation,
     MarrowDikeWallDespawnAnimation,
 )
@@ -146,6 +147,7 @@ class AnimationFactory:
         "OSSIFY": (OssifyAnimation, {}),
         "MARROW_DIKE": (MarrowDikeAnimation, {}),
         "BONE_TITHE": (BoneTitheAnimation, {}),
+        "BONE_TITHE_DEATH_HEAL": (BoneTitheDeathHealAnimation, {}),
         "MARROW_DIKE_WALL_DESPAWN": (MarrowDikeWallDespawnAnimation, {}),
 
         # FOWL CONTRIVANCE skills
@@ -853,28 +855,11 @@ class AnimationFactory:
                     game=kwargs.get('game')
                 )
             elif anim_class.__name__ == "BoneTitheAnimation":
-                # Bone Tithe - AOE life drain from enemies
-                # Upgraded: Range increases from 1 (3x3) to 2 (5x5)
-                # Requires: caster unit, units_list (to detect enemies), standard callbacks
-
-                # Check if Bone Tithe is upgraded
-                is_upgraded = False
-                if caster_unit and hasattr(caster_unit, 'game_unit'):
-                    game_unit = caster_unit.game_unit
-                    if hasattr(game_unit, 'upgraded_skills') and 'Bone Tithe' in game_unit.upgraded_skills:
-                        is_upgraded = True
-                elif caster_unit and hasattr(caster_unit, 'upgraded_skills'):
-                    if 'Bone Tithe' in caster_unit.upgraded_skills:
-                        is_upgraded = True
-
-                # Use upgraded animation if skill is upgraded
-                from boneglaive.graphical.animations import BoneTitheAnimationUpgraded
-                anim_class_to_use = BoneTitheAnimationUpgraded if is_upgraded else anim_class
-
-                animation = anim_class_to_use(
+                # Bone Tithe - AOE life drain from enemies in 5x5 beam pattern
+                animation = anim_class(
                     caster_unit=caster_unit,
-                    target_unit=None,  # AOE around caster
-                    target_pos=(caster_unit.grid_y, caster_unit.grid_x),  # Caster position
+                    target_unit=None,
+                    target_pos=(caster_unit.grid_y, caster_unit.grid_x),
                     is_crit=is_crit,
                     is_infused=is_infused,
                     particle_emitter=particle_emitter,
@@ -884,6 +869,25 @@ class AnimationFactory:
                     units_list=units_list if units_list else [],
                     camera=camera,
                     game=kwargs.get('game')
+                )
+            elif anim_class.__name__ == "BoneTitheDeathHealAnimation":
+                # Requires: death_pos, affected_allies from event kwargs
+                death_pos = kwargs.get('death_pos')
+                affected_allies = kwargs.get('affected_allies', [])
+                heal_amount = kwargs.get('heal_amount', 0)
+
+                if not death_pos or not affected_allies:
+                    print("[AnimationFactory] BONE_TITHE_DEATH_HEAL requires death_pos and affected_allies")
+                    return None
+
+                animation = anim_class(
+                    death_pos=death_pos,
+                    affected_allies=affected_allies,
+                    heal_amount=heal_amount,
+                    particle_emitter=particle_emitter,
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,
+                    camera=camera
                 )
             elif anim_class.__name__ == "MarrowDikeAnimation":
                 # Marrow Dike - 5x5 perimeter wall eruption animation

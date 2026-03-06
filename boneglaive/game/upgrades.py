@@ -267,7 +267,7 @@ SKILL_UPGRADES = {
         },
         "Bone Tithe": {
             "name": "Bone Tithe",
-            "description": "Area increased to range 2 (5x5 instead of 3x3).",
+            "description": "When MARROW CONDENSER dies, total max HP gained through Bone Tithe is distributed as healing to allies in 5x5 area.",
             "type": "buff",
             "cost": 1
         }

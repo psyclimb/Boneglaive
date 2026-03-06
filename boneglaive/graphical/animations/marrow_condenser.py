@@ -745,7 +745,7 @@ class AbsorptionBurst:
 class BoneTitheAnimation:
     """
     Bone Tithe skill animation for MARROW CONDENSER.
-    Extracts bone marrow from all adjacent enemies in 3x3 area, dealing damage
+    Extracts bone marrow from enemies in 5x5 beam pattern, dealing damage
     and permanently increasing the caster's HP.
 
     Phases:
@@ -782,10 +782,10 @@ class BoneTitheAnimation:
         self.timer = 0
         self.active = True
 
-        # Detect all adjacent enemies in 3x3 area
+        # Detect all enemies in 5x5 beam pattern
         self.adjacent_enemies = []
-        for dy in range(-1, 2):
-            for dx in range(-1, 2):
+        for dy in range(-2, 3):  # 5x5 area
+            for dx in range(-2, 3):  # 5x5 area
                 if dy == 0 and dx == 0:
                     continue  # Skip caster position
 
@@ -827,15 +827,15 @@ class BoneTitheAnimation:
         # Create extraction tendrils
         self.tendrils = ExtractionTendrils(self.center_x, self.center_y)
 
-        # Dark red pulse particles
+        # Dark red pulse particles (enhanced for 5x5 area)
         if self.particle_emitter:
-            for _ in range(20):
+            for _ in range(30):  # More particles for larger area
                 angle = random.uniform(0, 2 * math.pi)
-                distance = random.uniform(5, 15)
+                distance = random.uniform(5, 25)  # Larger spread
                 px = self.center_x + math.cos(angle) * distance
                 py = self.center_y + math.sin(angle) * distance
                 # Use particle emitter for dark red pulse
-                self.particle_emitter.emit_burst(px, py, (139, 0, 0), count=3)
+                self.particle_emitter.emit_burst(px, py, (139, 0, 0), count=4)  # More per burst
 
         # Light screen shake for extraction force
         self.screen_shake_callback(3, 0.3)
@@ -850,8 +850,8 @@ class BoneTitheAnimation:
             enemy_x = enemy_data['screen_x']
             enemy_y = enemy_data['screen_y']
 
-            # 15-20 particles per enemy (mix of blood and bone)
-            num_particles = random.randint(15, 20)
+            # 20-30 particles per enemy (mix of blood and bone) for enhanced 5x5 effect
+            num_particles = random.randint(20, 30)
             for i in range(num_particles):
                 is_bone = (i % 4 == 0)  # 25% bone fragments, 75% blood
                 particle = MarrowParticle(enemy_x, enemy_y, self.center_x, self.center_y, is_bone_fragment=is_bone)
@@ -949,235 +949,660 @@ class BoneTitheAnimation:
             self.absorption_burst.draw(surface)
 
 
-class BoneTitheAnimationUpgraded:
+class BoneTitheDeathHealAnimation:
     """
-    Upgraded Bone Tithe skill animation for MARROW CONDENSER.
-    Extracts bone marrow from enemies in 5x5 area (range 2 instead of range 1).
-
-    Enhanced visuals compared to base version:
-    - Larger extraction radius (range 2 = 5x5 grid)
-    - More intense particle effects
-    - Stronger screen shake and flash effects
-    - Enhanced absorption burst showing greater power
+    Death effect animation for upgraded Bone Tithe.
+    When MARROW CONDENSER dies, bone chunks fly to allies to heal them.
 
     Phases:
-    1. Extraction (0.5s) - Bone tendrils shoot outward in all directions
-    2. Draining (1.0s) - Marrow particles stream from enemies to caster
-    3. Absorption (1.0s) - Marrow absorbed with powerful empowerment burst
+    1. Explosion (0.3s) - Body bursts, bone fragments scatter
+    2. Distribution (0.8s) - Bone chunks fly to each ally
+    3. Absorption (0.5s) - Allies glow with nourishment
     """
 
-    def __init__(self, caster_unit, target_unit, target_pos, is_crit, is_infused,
-                 particle_emitter, debris_list, screen_shake_callback,
-                 screen_flash_callback, units_list, camera, game=None):
+    def __init__(self, death_pos, affected_allies, heal_amount,
+                 particle_emitter, screen_shake_callback, screen_flash_callback,
+                 camera, **kwargs):
         """
-        Initialize upgraded Bone Tithe animation.
-
         Args:
-            caster_unit: The MARROW CONDENSER casting Bone Tithe
-            units_list: All units (to detect enemies in 5x5 area)
-            camera: Camera for coordinate conversion
-            Other args: Standard from AnimationFactory
+            death_pos: (grid_y, grid_x) where MC died
+            affected_allies: List of dicts with 'unit' and 'heal' amount
+            heal_amount: Total HP that was distributed
         """
-        # Store references
-        self.caster = caster_unit
+        self.death_pos = death_pos
+        self.affected_allies = affected_allies
+        self.heal_amount = heal_amount
         self.camera = camera
         self.particle_emitter = particle_emitter
         self.screen_shake_callback = screen_shake_callback
         self.screen_flash_callback = screen_flash_callback
-        self.units_list = units_list if units_list else []
 
-        # Convert caster position to screen coords
-        self.center_x, self.center_y = camera.grid_to_screen(caster_unit.grid_x, caster_unit.grid_y, centered=True)
+        # Convert death position to screen coords
+        self.death_x, self.death_y = camera.grid_to_screen(death_pos[1], death_pos[0], centered=True)
 
         # Animation state
-        self.phase = "extraction"  # extraction -> draining -> absorption
+        self.phase = "explosion"
         self.timer = 0
         self.active = True
 
-        # Detect all enemies in 5x5 area (range 2)
-        self.adjacent_enemies = []
-        for dy in range(-2, 3):  # -2 to 2 = 5 tiles
-            for dx in range(-2, 3):  # -2 to 2 = 5 tiles
-                if dy == 0 and dx == 0:
-                    continue  # Skip caster position
-
-                grid_y = caster_unit.grid_y + dy
-                grid_x = caster_unit.grid_x + dx
-
-                # Find enemy at this position
-                for unit in self.units_list:
-                    if (unit.grid_y == grid_y and unit.grid_x == grid_x and
-                        hasattr(unit, 'player') and unit.player != caster_unit.player):
-                        screen_x, screen_y = camera.grid_to_screen(grid_x, grid_y, centered=True)
-                        distance = abs(dx) + abs(dy)  # Manhattan distance for effect intensity
-                        self.adjacent_enemies.append({
-                            'unit': unit,
-                            'screen_x': screen_x,
-                            'screen_y': screen_y,
-                            'angle': math.atan2(dy, dx),
-                            'distance': distance,
-                            'flashed': False
-                        })
-                        break
-
-        # Calculate HP gained (shown in display)
-        self.hp_gained = len(self.adjacent_enemies)
-
         # Sub-effects
-        self.tendrils = None
-        self.marrow_particles = []
-        self.absorption_burst = None
-        self.extraction_beams = []  # Thin lines connecting enemies to caster during drain
-        self.outer_ring_glow = 0  # Glow effect showing extended range
+        self.bone_chunks = []
+        self.ally_glows = {}
 
-        # Start Phase 1
-        self._start_extraction()
+        self._start_explosion()
 
-    def _start_extraction(self):
-        """Phase 1: Extraction - Bone tendrils shoot outward (enhanced)."""
-        self.phase = "extraction"
+    def _start_explosion(self):
+        """Phase 1: Explosion - GORE ERUPTION - body violently bursts."""
+        self.phase = "explosion"
         self.timer = 0
 
-        # Create extraction tendrils (reuse base class helper)
-        self.tendrils = ExtractionTendrils(self.center_x, self.center_y)
+        # SVG-accurate MARROW CONDENSER colors
+        MUSCLE_RED = (200, 80, 80)      # #c85050
+        DARK_BLOOD = (139, 0, 0)        # #8b0000
+        BLOOD_RED = (160, 48, 48)       # #a03030
+        BONE_WHITE = (240, 232, 216)    # #f0e8d8
+        BONE_ACCENT = (224, 213, 197)   # #e0d5c5
+        EYE_GLOW = (255, 0, 0)          # #ff0000
 
-        # Enhanced dark red pulse particles (more particles for upgraded version)
+        # Crimson screen flash
+        self.screen_flash_callback((139, 0, 0), 0.2)
+
         if self.particle_emitter:
-            for _ in range(30):  # More particles than base (30 vs 20)
+            # 1. VISCERAL BLOOD EXPLOSION - massive central burst
+            self.particle_emitter.emit_blood_explosion(self.death_x, self.death_y, count=120)
+
+            # 2. CHUNKY MARROW FRAGMENTS - large red muscle chunks with heavy gravity
+            for _ in range(60):
                 angle = random.uniform(0, 2 * math.pi)
-                distance = random.uniform(5, 25)  # Larger spread (25 vs 15)
-                px = self.center_x + math.cos(angle) * distance
-                py = self.center_y + math.sin(angle) * distance
-                self.particle_emitter.emit_burst(px, py, (139, 0, 0), count=4)  # More per burst
+                distance = random.uniform(5, 25)
+                px = self.death_x + math.cos(angle) * distance
+                py = self.death_y + math.sin(angle) * distance
+                # Alternate muscle colors for depth
+                color = MUSCLE_RED if random.random() > 0.5 else BLOOD_RED
+                self.particle_emitter.emit_burst(px, py, color, count=4)
 
-        # Stronger screen shake for extraction force
-        self.screen_shake_callback(5, 0.4)  # Stronger than base (5 vs 3)
+            # 3. BONE SHARDS - sharp white fragments spinning wildly
+            for _ in range(40):
+                angle = random.uniform(0, 2 * math.pi)
+                distance = random.uniform(10, 35)
+                px = self.death_x + math.cos(angle) * distance
+                py = self.death_y + math.sin(angle) * distance
+                # Mix bone colors
+                color = BONE_WHITE if random.random() > 0.3 else BONE_ACCENT
+                self.particle_emitter.emit_burst(px, py, color, count=3)
 
-    def _start_draining(self):
-        """Phase 2: Draining - Marrow particles stream from enemies (enhanced)."""
-        self.phase = "draining"
+            # 4. DARK BLOOD MIST - ring of darker blood spray
+            for i in range(20):
+                angle = (i / 20) * 2 * math.pi
+                distance = 30
+                px = self.death_x + math.cos(angle) * distance
+                py = self.death_y + math.sin(angle) * distance
+                self.particle_emitter.emit_burst(px, py, DARK_BLOOD, count=5)
+
+        # INTENSE screen shake
+        self.screen_shake_callback(10, 0.5)
+
+    def _start_distribution(self):
+        """Phase 2: Distribution - TUMBLING VISCERA - chunks fly to allies."""
+        self.phase = "distribution"
         self.timer = 0
 
-        # Create marrow particles for each enemy
-        for enemy_data in self.adjacent_enemies:
-            enemy_x = enemy_data['screen_x']
-            enemy_y = enemy_data['screen_y']
-            distance = enemy_data['distance']
+        # Create diverse projectiles for each ally
+        for ally_data in self.affected_allies:
+            ally_unit = ally_data['unit']
+            # Handle both game units (x, y) and animated units (grid_x, grid_y)
+            if hasattr(ally_unit, 'grid_x'):
+                target_x, target_y = self.camera.grid_to_screen(ally_unit.grid_x, ally_unit.grid_y, centered=True)
+            else:
+                # Game unit uses x, y (note: these are in (x, y) format already)
+                target_x, target_y = self.camera.grid_to_screen(ally_unit.x, ally_unit.y, centered=True)
 
-            # More particles for distant enemies (20-30 particles vs base 15-20)
-            num_particles = random.randint(20, 30)
-            for i in range(num_particles):
-                is_bone = (i % 4 == 0)  # 25% bone fragments, 75% blood
-                particle = MarrowParticle(enemy_x, enemy_y, self.center_x, self.center_y, is_bone_fragment=is_bone)
-                # Stagger particle creation based on distance
-                particle.timer = -random.uniform(0, 0.4) - (distance * 0.05)
-                self.marrow_particles.append(particle)
+            # 6-10 chunks per ally with varied types
+            num_chunks = random.randint(6, 10)
+            for i in range(num_chunks):
+                delay = i * 0.08  # Slightly faster release
 
-            # Create extraction beam data
-            self.extraction_beams.append({
-                'start_x': enemy_x,
-                'start_y': enemy_y,
-                'distance': distance,
-                'intensity': 0
-            })
+                # Mix of projectile types for variety
+                rand = random.random()
+                if rand < 0.3:  # 30% marrow globs
+                    chunk = MarrowGlobProjectile(
+                        self.death_x, self.death_y,
+                        target_x, target_y,
+                        self.particle_emitter,
+                        delay=delay
+                    )
+                elif rand < 0.5:  # 20% bone splinters
+                    chunk = BoneSplinterProjectile(
+                        self.death_x, self.death_y,
+                        target_x, target_y,
+                        self.particle_emitter,
+                        delay=delay
+                    )
+                else:  # 50% enhanced bone chunks
+                    chunk_type = random.choice(['rib', 'cartilage', 'vertebra', 'muscle'])
+                    chunk = BoneChunkProjectile(
+                        self.death_x, self.death_y,
+                        target_x, target_y,
+                        chunk_type,
+                        self.particle_emitter,  # Pass for blood trails
+                        delay=delay
+                    )
+                self.bone_chunks.append(chunk)
 
     def _start_absorption(self):
-        """Phase 3: Absorption - Marrow absorbed with enhanced empowerment."""
+        """Phase 3: Absorption - NOURISHING IMPACT - allies absorb marrow energy."""
         self.phase = "absorption"
         self.timer = 0
 
-        # Create absorption burst (reuse base class helper)
-        self.absorption_burst = AbsorptionBurst(self.center_x, self.center_y, self.hp_gained)
+        # Initialize glow and impact effects for each ally
+        for ally_data in self.affected_allies:
+            ally_unit = ally_data['unit']
 
-        # Stronger screen shake for absorption
-        self.screen_shake_callback(8, 0.5)  # Stronger than base (8 vs 6)
+            # Handle both game units (x, y) and animated units (grid_x, grid_y)
+            if hasattr(ally_unit, 'grid_x'):
+                ally_x, ally_y = self.camera.grid_to_screen(ally_unit.grid_x, ally_unit.grid_y, centered=True)
+            else:
+                ally_x, ally_y = self.camera.grid_to_screen(ally_unit.x, ally_unit.y, centered=True)
 
-        # Brighter red flash during absorption
-        self.screen_flash_callback((255, 0, 0), 0.2)  # Longer flash than base (0.2 vs 0.15)
+            self.ally_glows[id(ally_unit)] = {
+                'intensity': 0,
+                'heal': ally_data['heal']
+            }
+
+            # Impact burst - crimson energy explosion when chunks hit
+            self.particle_emitter.emit_burst(
+                ally_x, ally_y,
+                color=(200, 80, 80),  # MUSCLE_RED
+                count=25
+            )
+
+            # Secondary dark blood ring
+            self.particle_emitter.emit_burst(
+                ally_x, ally_y,
+                color=(139, 0, 0),  # DARK_BLOOD
+                count=15
+            )
 
     def update(self, delta_time):
-        """Update animation state. Returns True if active, False when done."""
+        """Update animation state."""
         if not self.active:
             return False
 
         self.timer += delta_time
 
-        # Phase transitions (slightly longer durations for upgraded version)
-        if self.phase == "extraction" and self.timer >= 0.5:  # 0.5s vs base 0.4s
-            self._start_draining()
-        elif self.phase == "draining" and self.timer >= 1.0:  # 1.0s vs base 0.9s
+        # Phase transitions (extended for gore effects)
+        if self.phase == "explosion" and self.timer >= 0.6:
+            self._start_distribution()
+        elif self.phase == "distribution" and self.timer >= 1.2:
             self._start_absorption()
-        elif self.phase == "absorption" and self.timer >= 1.0:  # 1.0s vs base 0.9s
-            self.active = False  # Animation complete
+        elif self.phase == "absorption" and self.timer >= 0.8:
+            self.active = False
 
         # Update sub-effects
-        if self.tendrils:
-            self.tendrils.update(delta_time)
+        self.bone_chunks = [c for c in self.bone_chunks if c.update(delta_time)]
 
-        self.marrow_particles = [p for p in self.marrow_particles if p.update(delta_time)]
-
-        if self.absorption_burst:
-            self.absorption_burst.update(delta_time)
-
-        # Update outer ring glow (shows extended range during extraction)
-        if self.phase == "extraction":
-            self.outer_ring_glow = min(1.0, self.timer / 0.3)
-        elif self.phase == "draining":
-            self.outer_ring_glow = max(0, 1.0 - self.timer / 0.5)
-        else:
-            self.outer_ring_glow = 0
-
-        # Flash enemies during draining phase
-        if self.phase == "draining":
-            for enemy_data in self.adjacent_enemies:
-                if not enemy_data['flashed'] and self.timer > 0.2:
-                    enemy_data['flashed'] = True
-
-            # Update extraction beam intensity (pulse effect, varies by distance)
-            for beam in self.extraction_beams:
-                base_intensity = 0.7 - (beam['distance'] * 0.1)  # Dimmer for distant enemies
-                beam['intensity'] = base_intensity + 0.3 * math.sin(self.timer * 8)
+        # Update ally glow intensities
+        if self.phase == "absorption":
+            progress = self.timer / 0.5
+            for glow_data in self.ally_glows.values():
+                glow_data['intensity'] = math.sin(progress * math.pi)
 
         return self.active
 
     def draw(self, surface):
-        """Draw animation to pygame surface."""
+        """Draw animation effects."""
         if not self.active:
             return
 
-        # Draw outer ring glow (shows extended 5x5 range)
-        if self.outer_ring_glow > 0:
-            ring_alpha = int(80 * self.outer_ring_glow)
-            if ring_alpha > 0:
-                # Draw expanding ring to show range increase
-                radius = int(TILE_SIZE * 2.5)  # Range 2 visual
-                ring_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
-                pygame.draw.circle(ring_surf, (139, 0, 0, ring_alpha),
-                                 (radius, radius), radius, 3)
-                surface.blit(ring_surf, (int(self.center_x - radius),
-                                        int(self.center_y - radius)))
+        # Draw explosion burst (phase 1) - GORE VISUAL
+        if self.phase == "explosion":
+            progress = self.timer / 0.6  # Updated timing
 
-        # Draw extraction tendrils (Phase 1)
-        if self.tendrils:
-            self.tendrils.draw(surface)
+            # Blood/muscle burst wave (expanding red circle)
+            burst_radius = int(50 * progress)
+            alpha = int(180 * (1.0 - progress))
+            if alpha > 0:
+                burst_surf = pygame.Surface((burst_radius * 2, burst_radius * 2), pygame.SRCALPHA)
+                # Dark blood red burst
+                pygame.draw.circle(burst_surf, (139, 0, 0, alpha),
+                                 (burst_radius, burst_radius), burst_radius)
+                # Lighter red core
+                inner_radius = int(burst_radius * 0.6)
+                pygame.draw.circle(burst_surf, (200, 80, 80, int(alpha * 0.7)),
+                                 (burst_radius, burst_radius), inner_radius)
+                surface.blit(burst_surf, (int(self.death_x - burst_radius),
+                                         int(self.death_y - burst_radius)))
 
-        # Draw extraction beams (Phase 2)
-        if self.phase == "draining" and self.extraction_beams:
-            for beam in self.extraction_beams:
-                alpha = int(140 * beam['intensity'])  # Brighter than base (140 vs 120)
-                if alpha > 0:
-                    # Thicker red beam from enemy to caster
-                    start = (int(beam['start_x']), int(beam['start_y']))
-                    end = (int(self.center_x), int(self.center_y))
-                    pygame.draw.line(surface, (255, 0, 0, alpha), start, end, 3)  # Thicker (3 vs 2)
+            # Rib cage silhouette (early in explosion, then fragments)
+            if progress < 0.5:
+                rib_alpha = int(255 * (1.0 - progress * 2))
+                if rib_alpha > 20:
+                    rib_surf = pygame.Surface((60, 60), pygame.SRCALPHA)
+                    center = 30
+                    # Draw simplified rib cage
+                    for i in range(7):
+                        y_offset = 10 + i * 6
+                        curve = (3 - abs(i - 3)) * 3
+                        pygame.draw.arc(rib_surf, (240, 232, 216, rib_alpha),
+                                      (center - 15 - curve, y_offset, 30 + curve * 2, 10),
+                                      0, 3.14, 2)
+                    # Sternum
+                    pygame.draw.line(rib_surf, (240, 232, 216, rib_alpha),
+                                   (center, 10), (center, 50), 3)
+                    surface.blit(rib_surf, (int(self.death_x - 30), int(self.death_y - 30)))
 
-        # Draw marrow particles (Phase 2)
-        for particle in self.marrow_particles:
-            particle.draw(surface)
+        # Draw bone chunks (phase 2)
+        for chunk in self.bone_chunks:
+            chunk.draw(surface)
 
-        # Draw absorption burst (Phase 3)
-        if self.absorption_burst:
-            self.absorption_burst.draw(surface)
+        # Draw ally glows (phase 3) - CRIMSON ENERGY ABSORPTION
+        if self.phase == "absorption":
+            for ally_data in self.affected_allies:
+                ally_unit = ally_data['unit']
+                glow_id = id(ally_unit)
+                if glow_id in self.ally_glows:
+                    intensity = self.ally_glows[glow_id]['intensity']
+                    heal_amount = self.ally_glows[glow_id]['heal']
+
+                    # Handle both game units (x, y) and animated units (grid_x, grid_y)
+                    if hasattr(ally_unit, 'grid_x'):
+                        ally_x, ally_y = self.camera.grid_to_screen(
+                            ally_unit.grid_x, ally_unit.grid_y, centered=True
+                        )
+                    else:
+                        ally_x, ally_y = self.camera.grid_to_screen(
+                            ally_unit.x, ally_unit.y, centered=True
+                        )
+
+                    # Red marrow energy glow (not green healing - this is absorbed bone matter)
+                    alpha = int(180 * intensity)
+                    if alpha > 0:
+                        # Outer dark blood aura
+                        outer_radius = int(35 + math.sin(self.timer * 8) * 5)
+                        outer_surf = pygame.Surface((outer_radius * 2, outer_radius * 2), pygame.SRCALPHA)
+                        pygame.draw.circle(outer_surf, (139, 0, 0, int(alpha * 0.6)),
+                                         (outer_radius, outer_radius), outer_radius)
+                        surface.blit(outer_surf, (int(ally_x - outer_radius),
+                                                int(ally_y - outer_radius)))
+
+                        # Middle muscle red glow
+                        mid_radius = int(25 + math.sin(self.timer * 10) * 4)
+                        mid_surf = pygame.Surface((mid_radius * 2, mid_radius * 2), pygame.SRCALPHA)
+                        pygame.draw.circle(mid_surf, (200, 80, 80, int(alpha * 0.8)),
+                                         (mid_radius, mid_radius), mid_radius)
+                        surface.blit(mid_surf, (int(ally_x - mid_radius),
+                                              int(ally_y - mid_radius)))
+
+                        # Bright red core pulse
+                        core_radius = int(15 + math.sin(self.timer * 12) * 3)
+                        core_surf = pygame.Surface((core_radius * 2, core_radius * 2), pygame.SRCALPHA)
+                        pygame.draw.circle(core_surf, (255, 100, 100, alpha),
+                                         (core_radius, core_radius), core_radius)
+                        surface.blit(core_surf, (int(ally_x - core_radius),
+                                               int(ally_y - core_radius)))
+
+                    # Healing number with red energy color
+                    if intensity > 0.3:
+                        font = pygame.font.Font(None, 32)
+                        text = f"+{heal_amount}"
+                        # Red healing text (bone marrow nourishment, not green heal)
+                        text_surf = font.render(text, True, (255, 120, 120))
+                        text_surf.set_alpha(int(255 * intensity))
+                        # Float upward slightly
+                        y_offset = int(-30 - (1.0 - intensity) * 15)
+                        text_rect = text_surf.get_rect(center=(int(ally_x), int(ally_y + y_offset)))
+                        surface.blit(text_surf, text_rect)
+
+
+class BoneChunkProjectile:
+    """Individual bone chunk flying to an ally - enhanced with blood trails."""
+    def __init__(self, start_x, start_y, end_x, end_y, chunk_type, particle_emitter=None, delay=0):
+        self.start_x = start_x
+        self.start_y = start_y
+        self.end_x = end_x
+        self.end_y = end_y
+        self.chunk_type = chunk_type
+        self.particle_emitter = particle_emitter
+        self.timer = -delay
+        self.duration = 0.6
+        self.active = True
+
+        # Curved path control
+        mid_x = (start_x + end_x) / 2 + random.uniform(-20, 20)
+        mid_y = (start_y + end_y) / 2 - random.uniform(20, 40)  # Arc upward
+        self.control_x = mid_x
+        self.control_y = mid_y
+
+        # Visual - larger, chunkier
+        self.rotation = random.uniform(0, 360)
+        self.rotation_speed = random.uniform(-600, 600)  # Faster tumbling
+        self.size = random.randint(8, 18)  # Larger chunks
+        self.wobble = random.uniform(0, math.pi * 2)
+
+        # Colors - SVG-accurate
+        self.bone_color = (240, 232, 216)  # #f0e8d8
+        self.blood_color = (139, 0, 0)     # #8b0000
+        self.muscle_color = (200, 80, 80)  # #c85050
+
+    def update(self, delta_time):
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+        self.rotation += self.rotation_speed * delta_time
+        self.wobble += delta_time * 4  # Wobble phase
+
+        # Emit blood trail
+        if self.particle_emitter and self.timer > 0:
+            x, y, _ = self.get_position()
+            # More blood for muscle/cartilage chunks
+            trail_count = 2 if self.chunk_type in ['cartilage', 'muscle'] else 1
+            if random.random() > 0.3:  # 70% chance
+                self.particle_emitter.emit_trail(x, y, self.blood_color, count=trail_count)
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def get_position(self):
+        """Calculate position along bezier curve."""
+        if self.timer < 0:
+            return self.start_x, self.start_y, 0
+
+        raw_progress = min(1.0, self.timer / self.duration)
+        progress = raw_progress * raw_progress  # Acceleration
+
+        t = progress
+        x = (1-t)**2 * self.start_x + 2*(1-t)*t * self.control_x + t**2 * self.end_x
+        y = (1-t)**2 * self.start_y + 2*(1-t)*t * self.control_y + t**2 * self.end_y
+
+        return x, y, raw_progress
+
+    def draw(self, surface):
+        if not self.active or self.timer < 0:
+            return
+
+        x, y, progress = self.get_position()
+
+        # Fade in/out
+        if progress < 0.2:
+            alpha = int(255 * (progress / 0.2))
+        elif progress > 0.8:
+            alpha = int(255 * (1.0 - (progress - 0.8) / 0.2))
+        else:
+            alpha = 255
+
+        if alpha > 0:
+            # Wobble effect
+            wobble_offset = int(math.sin(self.wobble) * 3)
+            size_mod = 1.0 + math.sin(self.wobble * 2) * 0.1
+
+            # Draw chunk based on type with blood coating
+            chunk_surf = pygame.Surface((self.size * 3, self.size * 3), pygame.SRCALPHA)
+            center = self.size * 1.5
+
+            if self.chunk_type == 'rib':
+                # Elongated bone with blood
+                pygame.draw.ellipse(chunk_surf, (*self.blood_color, int(alpha * 0.6)),
+                                   (0, center - self.size // 3, self.size * 3, self.size))
+                pygame.draw.ellipse(chunk_surf, (*self.bone_color, alpha),
+                                   (4, center - self.size // 4, self.size * 2.5, int(self.size * 0.7)))
+            elif self.chunk_type == 'cartilage':
+                # Squishy tissue blob with blood core
+                pygame.draw.circle(chunk_surf, (*self.blood_color, alpha),
+                                 (int(center), int(center)), int(self.size * size_mod))
+                pygame.draw.circle(chunk_surf, (*self.muscle_color, int(alpha * 0.8)),
+                                 (int(center), int(center)), int(self.size * 0.8 * size_mod))
+                # Glistening wet highlight
+                pygame.draw.circle(chunk_surf, (255, 150, 150, int(alpha * 0.4)),
+                                 (int(center - self.size * 0.3), int(center - self.size * 0.3)),
+                                 int(self.size * 0.3))
+            elif self.chunk_type == 'muscle':
+                # Stringy muscle tissue
+                for i in range(3):
+                    offset = (i - 1) * self.size // 2
+                    pygame.draw.ellipse(chunk_surf, (*self.muscle_color, alpha),
+                                       (self.size // 2 + offset, self.size // 3,
+                                        self.size, self.size * 2))
+                # Dark blood between fibers
+                pygame.draw.line(chunk_surf, (*self.blood_color, int(alpha * 0.7)),
+                               (center, self.size // 2), (center, self.size * 2.5), 2)
+            else:  # vertebra
+                # Bone disc with marrow center
+                pygame.draw.circle(chunk_surf, (*self.blood_color, int(alpha * 0.7)),
+                                 (int(center), int(center)), int(self.size * 1.2))
+                pygame.draw.circle(chunk_surf, (*self.bone_color, alpha),
+                                 (int(center), int(center)), self.size)
+                # Dark marrow core
+                pygame.draw.circle(chunk_surf, (*self.muscle_color, int(alpha * 0.8)),
+                                 (int(center), int(center)), self.size // 2)
+
+            # Rotate with wobble
+            wobble_angle = self.rotation + wobble_offset * 10
+            rotated = pygame.transform.rotate(chunk_surf, wobble_angle)
+            rect = rotated.get_rect(center=(int(x + wobble_offset), int(y)))
+            surface.blit(rotated, rect)
+
+
+class MarrowGlobProjectile:
+    """
+    Heavy, dripping marrow chunk with gravity physics.
+    Visceral red spheres that tumble through the air trailing blood.
+    """
+    def __init__(self, start_x, start_y, end_x, end_y, particle_emitter, delay=0):
+        self.start_x = start_x
+        self.start_y = start_y
+        self.end_x = end_x
+        self.end_y = end_y
+        self.particle_emitter = particle_emitter
+        self.timer = -delay
+        self.duration = 0.7
+        self.active = True
+
+        # Physics properties
+        self.gravity = 250  # units/s²
+        self.velocity_x = (end_x - start_x) / self.duration
+        self.velocity_y = (end_y - start_y) / self.duration - 100  # Initial upward boost
+        self.current_x = start_x
+        self.current_y = start_y
+
+        # Visual properties
+        self.rotation = random.uniform(0, 360)
+        self.rotation_speed = random.uniform(-400, 400)
+        self.size = random.randint(8, 14)
+        self.wobble_phase = random.uniform(0, math.pi * 2)
+        self.wobble_speed = random.uniform(3, 6)
+
+        # Color - dark red marrow
+        self.core_color = (139, 0, 0)       # Dark blood
+        self.surface_color = (200, 80, 80)  # Muscle red
+
+    def update(self, delta_time):
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+
+        if self.timer < 0:
+            return True
+
+        # Apply gravity physics
+        self.velocity_y += self.gravity * delta_time
+        self.current_x += self.velocity_x * delta_time
+        self.current_y += self.velocity_y * delta_time
+
+        # Update rotation and wobble
+        self.rotation += self.rotation_speed * delta_time
+        self.wobble_phase += self.wobble_speed * delta_time
+
+        # Emit blood drip trail
+        if self.particle_emitter and self.timer > 0.1:
+            self.particle_emitter.emit_trail(
+                self.current_x, self.current_y,
+                (139, 0, 0), count=2
+            )
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def get_position(self):
+        """Get current position and progress."""
+        if self.timer < 0:
+            return self.start_x, self.start_y, 0
+
+        progress = min(1.0, self.timer / self.duration)
+        return self.current_x, self.current_y, progress
+
+    def draw(self, surface):
+        if not self.active or self.timer < 0:
+            return
+
+        x, y, progress = self.get_position()
+
+        # Fade in/out
+        if progress < 0.2:
+            alpha = int(255 * (progress / 0.2))
+        elif progress > 0.8:
+            alpha = int(255 * (1.0 - (progress - 0.8) / 0.2))
+        else:
+            alpha = 255
+
+        if alpha > 0:
+            # Size pulsing (breathing effect)
+            pulse = math.sin(self.wobble_phase) * 0.15 + 1.0
+            actual_size = int(self.size * pulse)
+
+            # Create layered marrow glob
+            glob_surf = pygame.Surface((actual_size * 3, actual_size * 3), pygame.SRCALPHA)
+            center = actual_size * 1.5
+
+            # Dark core (blood center)
+            pygame.draw.circle(glob_surf, (*self.core_color, alpha),
+                             (int(center), int(center)), actual_size)
+
+            # Lighter outer layer (muscle tissue)
+            pygame.draw.circle(glob_surf, (*self.surface_color, int(alpha * 0.7)),
+                             (int(center), int(center)), int(actual_size * 1.3))
+
+            # Highlights for wetness
+            highlight_offset = int(actual_size * 0.3)
+            pygame.draw.circle(glob_surf, (255, 100, 100, int(alpha * 0.4)),
+                             (int(center - highlight_offset), int(center - highlight_offset)),
+                             int(actual_size * 0.4))
+
+            # Rotate with wobble
+            wobble_angle = self.rotation + math.sin(self.wobble_phase) * 20
+            rotated = pygame.transform.rotate(glob_surf, wobble_angle)
+            rect = rotated.get_rect(center=(int(x), int(y)))
+            surface.blit(rotated, rect)
+
+
+class BoneSplinterProjectile:
+    """
+    Sharp, dangerous bone fragment with blood coating.
+    Spins rapidly and streaks blood during flight.
+    """
+    def __init__(self, start_x, start_y, end_x, end_y, particle_emitter, delay=0):
+        self.start_x = start_x
+        self.start_y = start_y
+        self.end_x = end_x
+        self.end_y = end_y
+        self.particle_emitter = particle_emitter
+        self.timer = -delay
+        self.duration = 0.6
+        self.active = True
+
+        # Curved path
+        mid_x = (start_x + end_x) / 2 + random.uniform(-25, 25)
+        mid_y = (start_y + end_y) / 2 - random.uniform(15, 35)
+        self.control_x = mid_x
+        self.control_y = mid_y
+
+        # Visual
+        self.rotation = random.uniform(0, 360)
+        self.rotation_speed = random.uniform(800, 1200)  # High rotation
+        self.length = random.randint(10, 16)
+        self.width = random.randint(3, 5)
+
+        # Colors
+        self.bone_color = (240, 232, 216)
+        self.blood_color = (139, 0, 0)
+
+    def update(self, delta_time):
+        if not self.active:
+            return False
+
+        self.timer += delta_time
+        self.rotation += self.rotation_speed * delta_time
+
+        # Emit blood streak trail
+        if self.particle_emitter and self.timer > 0:
+            x, y, _ = self.get_position()
+            if random.random() > 0.5:  # 50% chance each frame
+                self.particle_emitter.emit_trail(x, y, self.blood_color, count=1)
+
+        if self.timer >= self.duration:
+            self.active = False
+
+        return self.active
+
+    def get_position(self):
+        """Calculate position along bezier curve."""
+        if self.timer < 0:
+            return self.start_x, self.start_y, 0
+
+        raw_progress = min(1.0, self.timer / self.duration)
+        progress = raw_progress * raw_progress  # Acceleration
+
+        t = progress
+        x = (1-t)**2 * self.start_x + 2*(1-t)*t * self.control_x + t**2 * self.end_x
+        y = (1-t)**2 * self.start_y + 2*(1-t)*t * self.control_y + t**2 * self.end_y
+
+        return x, y, raw_progress
+
+    def draw(self, surface):
+        if not self.active or self.timer < 0:
+            return
+
+        x, y, progress = self.get_position()
+
+        # Fade in/out
+        if progress < 0.15:
+            alpha = int(255 * (progress / 0.15))
+        elif progress > 0.85:
+            alpha = int(255 * (1.0 - (progress - 0.85) / 0.15))
+        else:
+            alpha = 255
+
+        if alpha > 0:
+            # Create sharp splinter shape
+            splinter_surf = pygame.Surface((self.length * 2, self.width * 2), pygame.SRCALPHA)
+
+            # Blood coating (darker, slightly larger)
+            blood_rect = pygame.Rect(2, 0, self.length - 4, self.width * 2)
+            pygame.draw.ellipse(splinter_surf, (*self.blood_color, alpha), blood_rect)
+
+            # Bone core (sharp, angular)
+            bone_points = [
+                (self.length - 2, self.width),  # Sharp tip
+                (4, 0),                          # Top back
+                (2, self.width),                 # Blunt end
+                (4, self.width * 2),            # Bottom back
+            ]
+            pygame.draw.polygon(splinter_surf, (*self.bone_color, alpha), bone_points)
+
+            # Glinting edge highlight
+            pygame.draw.line(splinter_surf, (255, 255, 255, int(alpha * 0.6)),
+                           (self.length - 2, self.width),
+                           (self.length // 2, self.width // 2), 1)
+
+            # Rotate at high speed
+            rotated = pygame.transform.rotate(splinter_surf, self.rotation)
+            rect = rotated.get_rect(center=(int(x), int(y)))
+            surface.blit(rotated, rect)
 
 
 # ============================================================================

@@ -617,6 +617,65 @@ class GameStateAdapter:
                             skill_target=None
                         ))
 
+                    # Check for Bone Tithe death healing (MARROW CONDENSER upgraded passive)
+                    if (hasattr(game_unit, 'type') and
+                        str(game_unit.type) == "UnitType.MARROW_CONDENSER"):
+                        # Check if Bone Tithe is upgraded and has accumulated HP
+                        from boneglaive.game.upgrades import UpgradeManager
+                        if UpgradeManager.is_skill_upgraded(game_unit, "Bone Tithe"):
+                            bone_tithe_hp = getattr(game_unit, 'bone_tithe_hp_gained', 0)
+                            if bone_tithe_hp > 0:
+                                # Find allies in 5x5 area around death position
+                                affected_allies = []
+                                death_pos = (game_unit.y, game_unit.x)
+
+                                for dy in range(-2, 3):
+                                    for dx in range(-2, 3):
+                                        if dy == 0 and dx == 0:
+                                            continue  # Skip center
+                                        tile_y, tile_x = death_pos[0] + dy, death_pos[1] + dx
+
+                                        # Find unit at this position
+                                        for unit_id, other_unit in self.visual_units.items():
+                                            other_game = other_unit.game_unit
+                                            if (other_game and other_game.is_alive() and
+                                                other_game.y == tile_y and other_game.x == tile_x and
+                                                other_game.player == game_unit.player):
+                                                # Skip summons (echoes and vapors)
+                                                from boneglaive.utils.constants import UnitType
+                                                if other_game.type == UnitType.HEINOUS_VAPOR:
+                                                    break
+                                                if hasattr(other_game, 'is_echo') and other_game.is_echo:
+                                                    break
+                                                # Check if this ally can be healed (not cursed)
+                                                if not (hasattr(other_game, 'auction_curse_no_heal') and other_game.auction_curse_no_heal):
+                                                    affected_allies.append(other_game)
+                                                break
+
+                                if affected_allies:
+                                    # Calculate heal per ally (distributed evenly)
+                                    heal_per_ally = bone_tithe_hp // len(affected_allies)
+
+                                    # Build affected_allies list with individual heal amounts
+                                    affected_allies_data = []
+                                    for ally in affected_allies:
+                                        affected_allies_data.append({
+                                            'unit': ally,
+                                            'heal': heal_per_ally
+                                        })
+
+                                    # Queue death heal animation
+                                    events.append(AnimationEvent(
+                                        "skill",
+                                        source_unit=game_unit,
+                                        target_unit=None,
+                                        skill_name="BONE_TITHE_DEATH_HEAL",
+                                        skill_target=death_pos,
+                                        death_pos=death_pos,
+                                        affected_allies=affected_allies_data,
+                                        heal_amount=heal_per_ally
+                                    ))
+
             # Detect position changes
             # NOTE: Game uses (y, x) = (row, col), we need (x, y) = (col, row)
             current_pos = (game_unit.x, game_unit.y)

@@ -86,7 +86,8 @@ from .delphic_appraiser import (
 from .marrow_condenser import (
     OssifyAnimation,
     BoneTitheAnimation,
-    BoneTitheAnimationUpgraded,
+    BoneTitheDeathHealAnimation,
+    BoneChunkProjectile,
     MarrowDikeAnimation,
     MarrowDikeWallDespawnAnimation,
 )

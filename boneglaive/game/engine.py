@@ -1201,6 +1201,10 @@ class Game:
         unit.initialize_skills()  # Initialize skills for the unit
         unit.set_game_reference(self)  # Set game reference for trap checks
 
+        # Initialize bone_tithe_hp_gained for MARROW_CONDENSER
+        if unit_type == UnitType.MARROW_CONDENSER:
+            unit.bone_tithe_hp_gained = 0
+
         # Apply passive skills immediately when unit is added
         unit.apply_passive_skills(self, None)
 
@@ -1456,6 +1460,10 @@ class Game:
                 unit.dominion_permanent_attack = dead_unit.dominion_permanent_attack
                 unit.attack_bonus += dead_unit.dominion_permanent_attack
                 logger.info(f"RESPAWN: Restored {dead_unit.dominion_permanent_attack} Dominion attack bonuses for {unit.get_display_name()}")
+
+            # Reset bone_tithe_hp_gained on respawn (not preserved across death) for MARROW_CONDENSER
+            if unit.type == UnitType.MARROW_CONDENSER:
+                unit.bone_tithe_hp_gained = 0
 
             # Reset passive skill activation flags (once-per-life)
             if hasattr(unit, 'passive_skill') and unit.passive_skill:
@@ -2205,6 +2213,46 @@ class Game:
                         MessageType.ABILITY,
                         player=caster.player
                     )
+
+        # MARROW CONDENSER Bone Tithe death effect (UP upgraded only)
+        if dying_unit.type == UnitType.MARROW_CONDENSER:
+            from boneglaive.game.upgrades import UpgradeManager
+            if UpgradeManager.is_skill_upgraded(dying_unit, "Bone Tithe"):
+                bone_tithe_hp = getattr(dying_unit, 'bone_tithe_hp_gained', 0)
+                if bone_tithe_hp > 0:
+                    # Find allies in 5x5 area around death position
+                    affected_allies = []
+                    for dy in range(-2, 3):
+                        for dx in range(-2, 3):
+                            if dy == 0 and dx == 0:
+                                continue  # Skip center (where MARROW_CONDENSER died)
+                            tile_y, tile_x = dying_unit.y + dy, dying_unit.x + dx
+                            if not self.is_valid_position(tile_y, tile_x):
+                                continue
+
+                            target = self.get_unit_at(tile_y, tile_x)
+                            if target and target.is_alive() and target.player == dying_unit.player:
+                                # Skip summons (echoes and vapors)
+                                if target.type == UnitType.HEINOUS_VAPOR:
+                                    continue
+                                if hasattr(target, 'is_echo') and target.is_echo:
+                                    continue
+                                # Check for heal prevention (Auction Curse)
+                                if not (hasattr(target, 'auction_curse_no_heal') and target.auction_curse_no_heal):
+                                    affected_allies.append(target)
+
+                    # Distribute healing evenly among all affected allies
+                    if affected_allies:
+                        heal_per_ally = bone_tithe_hp // len(affected_allies)
+                        for target in affected_allies:
+                            actual_heal = target.heal(heal_per_ally, "bone nourishment")
+                            message_log.add_message(
+                                f"{target.get_display_name()} is nourished by {dying_unit.get_display_name()}'s remains, healing #HEAL_{actual_heal}# HP.",
+                                MessageType.ABILITY,
+                                player=dying_unit.player
+                            )
+
+                    # Animation is triggered through game_state sync system for graphical mode
 
         # Log the death with appropriate message
         message_log.add_message(
