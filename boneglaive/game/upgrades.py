@@ -261,7 +261,7 @@ SKILL_UPGRADES = {
         },
         "Marrow Dike": {
             "name": "Marrow Dike",
-            "description": "Pull damage increased from 3 to 4. Mired enemies take 1 damage per turn.",
+            "description": "Pull damage increased from 3 to 4. Trapped enemies suffer Mired (-2 attack) and take 1 damage per turn.",
             "type": "buff",
             "cost": 1
         },

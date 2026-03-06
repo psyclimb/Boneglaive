@@ -78,7 +78,7 @@ STATUS_EFFECTS = {
         "name": "Mired",
         "type": "debuff",
         "icon": "M",
-        "description": "Stuck in upgraded Marrow Dike",
+        "description": "Attack reduced by 2 from Marrow Dike",
         "duration_key": "mired_duration",
         "check": lambda u: u.mired
     },

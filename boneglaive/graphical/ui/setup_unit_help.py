@@ -203,7 +203,7 @@ class SetupUnitHelp:
                     },
                     {
                         'name': 'MARROW DIKE',
-                        'desc': 'Erupts bone marrow walls in a perimeter, creating an enclosed killzone. Enemy units on the perimeter are pulled inward, and the walls block movement and line of sight.'
+                        'desc': 'Erupts bone marrow walls in a perimeter, creating an enclosed killzone. Enemy units on the perimeter are pulled inward, and the walls block movement and line of sight. When upgraded, trapped enemies suffer Mired (-2 attack).'
                     },
                     {
                         'name': 'BONE TITHE',
