@@ -1431,8 +1431,9 @@ class Unit:
                             unit.mired = False
                             if hasattr(unit, 'mired_duration'):
                                 unit.mired_duration = 0
-                            # Restore the movement penalty that was applied by mired (-1 move)
+                            # Restore the movement and attack penalties that were applied by mired (-1 move, -1 attack)
                             unit.move_range_bonus += 1
+                            unit.attack_bonus += 1
                         available_effects.append(("Mired", clear_mired))
 
                     # Neural Shunt

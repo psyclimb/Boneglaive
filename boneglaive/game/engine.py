@@ -3015,14 +3015,15 @@ class Game:
                     # Decrement duration
                     unit.mired_duration -= 1
                     logger.debug(f"{unit.get_display_name()}'s Mired duration: {unit.mired_duration}")
-                    
+
                     # Check if the status effect has expired
                     if unit.mired_duration <= 0:
                         # Remove the status effect
                         unit.mired = False
-                        
-                        # Restore movement bonus that was removed by the mired effect
+
+                        # Restore movement and attack bonuses that were removed by the mired effect
                         unit.move_range_bonus += 1
+                        unit.attack_bonus += 1
             
             # Process Pumped Up status effect from mini pumpkins
             if hasattr(unit, 'pumped_up_active') and unit.pumped_up_active:
